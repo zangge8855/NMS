@@ -1,66 +1,49 @@
 # NMS - Node Management System
 
-NMS is a centralized multi-node management panel for 3x-ui. It provides user management, subscription distribution, traffic analytics, and audit logging.
+NMS is a centralized multi-node management panel for 3x-ui. It supports user management, subscription distribution, traffic analytics, and audit logging.
 
-## Features
+## English
 
-- Node management for multiple 3x-ui panels in one place
-- User onboarding flow: registration, admin approval, subscription provisioning
-- Subscription link generation for v2rayN, Clash, and sing-box
+### Features
+
+- Centralized management for multiple 3x-ui panels
+- User lifecycle: registration, admin approval, subscription provisioning
+- Subscription formats: v2rayN / Clash / sing-box
 - Traffic analytics by client, inbound, and server
-- Audit logging for operations and subscription access
-- Security controls: JWT auth, credential encryption, password policy, rate limiting
+- Audit capabilities: operation logs, subscription access logs, optional IP geolocation
+- Security features: JWT auth, credential encryption, password policy, rate limiting
 
-## Requirements
+### Requirements
 
 - Linux (Ubuntu 20.04+ / Debian 11+ recommended)
 - Node.js 18+ (Node.js 20 LTS recommended)
 - PM2
 - Nginx (recommended, optional)
-- PostgreSQL 14+ (optional, only for database mode)
+- PostgreSQL 14+ (optional, DB mode only)
 
----
+### Quick Start (File Storage Mode)
 
-## Quick Install (File Storage Mode)
-
-Default mode uses JSON files and does not require a database.
-
-### 1) Install dependencies
+1. Install dependencies
 
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
     sudo npm install -g pm2
 
-### 2) Deploy project
+2. Deploy and build
 
     sudo mkdir -p /opt/nms
     sudo cp -r . /opt/nms/
-    cd /opt/nms
+    cd /opt/nms/server && npm install --production
+    cd /opt/nms/client && npm install && npm run build
 
-    cd /opt/nms/server
-    npm install --production
-
-    cd /opt/nms/client
-    npm install
-    npm run build
-
-### 3) Configure environment
+3. Configure environment
 
     cd /opt/nms
     cp .env.example .env
 
-Edit .env and change these values:
+Must change these values in .env: JWT_SECRET, CREDENTIALS_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD.
 
-- JWT_SECRET (at least 32 random characters)
-- CREDENTIALS_SECRET (must differ from JWT_SECRET)
-- ADMIN_USERNAME (do not use common names)
-- ADMIN_PASSWORD (strong password)
-
-Example generation:
-
-    openssl rand -hex 32
-
-### 4) Start services
+4. Start service
 
     cd /opt/nms
     mkdir -p logs
@@ -68,146 +51,91 @@ Example generation:
     pm2 save
     pm2 startup systemd -u root --hp /root
 
-### 5) Access panel
-
-Open:
+5. Access panel
 
 - http://SERVER_IP:3001
 
----
+### Docker and GHCR
 
-## PostgreSQL Mode
+This repository includes:
 
-Use this mode for larger deployments.
+- Dockerfile
+- .dockerignore
+- .github/workflows/docker.yml
 
-### 1) Install PostgreSQL
+On push to main, GitHub Actions builds and publishes images to GHCR:
 
-    sudo apt-get install -y postgresql postgresql-contrib
+- ghcr.io/zangge8855/nms:latest
+- ghcr.io/zangge8855/nms:<commit_sha>
 
-### 2) Create DB and user
-
-    sudo -u postgres psql
-    CREATE USER nms WITH PASSWORD your-db-password;
-    CREATE DATABASE nms OWNER nms;
-    \c nms
-    CREATE SCHEMA IF NOT EXISTS nms AUTHORIZATION nms;
-    \q
-
-### 3) Add DB config in .env
-
-- DB_ENABLED=true
-- DB_URL=postgres://nms:your-db-password@127.0.0.1:5432/nms
-- DB_SCHEMA=nms
-- DB_POOL_MAX=10
-- DB_SSL_MODE=disable (local) / require (remote)
-- DB_MIGRATION_AUTO=true
-- STORE_READ_MODE=db
-- STORE_WRITE_MODE=db
-
-### 4) Migration recommendation
-
-1. Start with STORE_WRITE_MODE=dual
-2. Backfill data:
-
-       cd /opt/nms/server && npm run db:backfill
-
-3. Switch to STORE_READ_MODE=db and STORE_WRITE_MODE=db
+More configuration details: .env.example
 
 ---
 
-## One Command Deployment
+## 中文
 
-    chmod +x deploy.sh
-    sudo ./deploy.sh
+### 功能
 
-The script installs dependencies, deploys to /opt/nms, generates secrets, and starts services.
+- 多个 3x-ui 面板的集中管理
+- 用户全流程：注册、审核、开通订阅
+- 订阅格式：v2rayN / Clash / sing-box
+- 流量统计：客户端、入站、服务器维度
+- 审计能力：操作日志、订阅访问日志、可选 IP 归属地
+- 安全能力：JWT、凭据加密、密码策略、限汁
 
----
+### 环境要求
 
-## Nginx Reverse Proxy (Recommended)
+- Linux（推荐 Ubuntu 20.04+ / Debian 11+）
+- Node.js 18+（推荐 Node.js 20 LTS）
+- PM2
+- Nginx（推荐，可选）
+- PostgreSQL 14+（可选，仅数据库模式）
 
-### Install Nginx
+### 快速开始（文件存储模式）
 
-    sudo apt-get install -y nginx
+1. 安装依赖
 
-### Configure site
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    sudo npm install -g pm2
 
-    sudo cp /opt/nms/nginx.conf /etc/nginx/sites-available/nms
-    sudo ln -sf /etc/nginx/sites-available/nms /etc/nginx/sites-enabled/
-    sudo nano /etc/nginx/sites-available/nms
-    sudo nginx -t && sudo systemctl reload nginx
+2. 部署并构建
 
-### HTTPS with Lets Encrypt
+    sudo mkdir -p /opt/nms
+    sudo cp -r . /opt/nms/
+    cd /opt/nms/server && npm install --production
+    cd /opt/nms/client && npm install && npm run build
 
-    sudo apt install certbot python3-certbot-nginx
-    sudo certbot --nginx -d your-domain.com
+3. 配置环境变量
 
-Set public URL in .env after HTTPS:
+    cd /opt/nms
+    cp .env.example .env
 
-- SUB_PUBLIC_BASE_URL=https://your-domain.com
+必须修改 .env 中以下项：JWT_SECRET、CREDENTIALS_SECRET、ADMIN_USERNAME、ADMIN_PASSWORD。
 
----
+4. 启动服务
 
-## Optional Email
+    cd /opt/nms
+    mkdir -p logs
+    pm2 start ecosystem.config.cjs
+    pm2 save
+    pm2 startup systemd -u root --hp /root
 
-Set SMTP values in .env:
+5. 访问面板
 
-- SMTP_HOST
-- SMTP_PORT
-- SMTP_USER
-- SMTP_PASS
+- http://SERVER_IP:3001
 
----
+### Docker 与 GHCR
 
-## Optional Subscription Converter
+仓库已包含：
 
-Set values in .env:
+- Dockerfile
+- .dockerignore
+- .github/workflows/docker.yml
 
-- SUB_CONVERTER_BASE_URL
-- SUB_CONVERTER_CLASH_CONFIG_URL
-- SUB_CONVERTER_SINGBOX_CONFIG_URL
+推送到 main 后会自动构建并发布镜像到 GHCR：
 
-Optional IP geolocation for audit logs:
+- ghcr.io/zangge8855/nms:latest
+- ghcr.io/zangge8855/nms:<commit_sha>
 
-- AUDIT_IP_GEO_ENABLED=true
-
----
-
-## Common Commands
-
-    pm2 status
-    pm2 logs nms
-    pm2 restart nms
-    pm2 stop nms
-    cd /opt/nms/client && npm run build
-    cd /opt/nms/server && npm run db:backfill
-
-## Data Directory (Default)
-
-- data/users.json
-- data/servers.json
-- data/subscription_tokens.json
-- data/user_policies.json
-- data/audit_events.json
-- data/subscription_access_logs.json
-- data/traffic_counters.json
-- data/traffic_samples.json
-- data/jobs.json
-- data/system_settings.json
-- data/security_audit.log
-
----
-
-## User Workflow
-
-1. User registration with pending approval status
-2. Admin approval
-3. Subscription provisioning
-4. Link distribution
-5. Ongoing lifecycle management
-
----
-
-## Full Environment Variables
-
-See .env.example for complete configuration details.
+更多配置请参考：.env.example
