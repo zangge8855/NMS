@@ -1,2 +1,2 @@
 # NMS
-Node Managment System for 3X-ui
+Node Managment System for 3x-ui
