@@ -1,0 +1,51 @@
+# ---- Secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Runtime data (contains sensitive/user data) ----
+data/*.json
+data/*.log
+data/**/*.json
+data/**/*.log
+!data/.gitkeep
+
+# ---- Logs / runtime ----
+logs/
+*.log
+pids/
+*.pid
+*.pid.lock
+
+# ---- Dependencies ----
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# ---- Build artifacts ----
+client/dist/
+server/dist/
+coverage/
+.nyc_output/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Temporary / cache ----
+*.tmp
+*.temp
+.cache/
+
+# ---- Certificates / keys ----
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# ---- PM2 / process managers ----
+.pm2/
