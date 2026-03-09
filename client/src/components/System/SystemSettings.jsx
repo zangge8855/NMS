@@ -349,7 +349,7 @@ export default function SystemSettings() {
             const blob = new Blob([res.data], { type: 'application/gzip' });
             const url = window.URL.createObjectURL(blob);
             const contentDisposition = String(res.headers?.['content-disposition'] || '');
-            const match = contentDisposition.match(/filename=\"?([^"]+)\"?/i);
+            const match = contentDisposition.match(/filename="?([^"]+)"?/i);
             const filename = match?.[1] || 'nms_backup.json.gz';
             const anchor = document.createElement('a');
             anchor.href = url;

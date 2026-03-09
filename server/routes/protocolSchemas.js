@@ -1,167 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { LEGACY_PROTOCOL_ALIASES, PROTOCOL_SCHEMAS } from '../lib/protocolCatalog.js';
 
 const router = Router();
-
-const PROTOCOL_SCHEMAS = [
-    {
-        key: 'vmess',
-        label: 'VMess',
-        defaultSettings: {
-            clients: [{
-                id: '',
-                security: 'auto',
-                email: '',
-                limitIp: 0,
-                totalGB: 0,
-                expiryTime: 0,
-                enable: true,
-                tgId: '',
-                subId: '',
-                comment: '',
-                reset: 0,
-            }],
-        },
-        supports: {
-            transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'],
-            securities: ['none', 'tls'],
-            tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'],
-        },
-    },
-    {
-        key: 'vless',
-        label: 'VLESS',
-        defaultSettings: {
-            clients: [{
-                id: '',
-                flow: '',
-                email: '',
-                limitIp: 0,
-                totalGB: 0,
-                expiryTime: 0,
-                enable: true,
-                tgId: '',
-                subId: '',
-                comment: '',
-                reset: 0,
-            }],
-            decryption: 'none',
-            encryption: 'none',
-            selectedAuth: undefined,
-            testseed: [900, 500, 900, 256],
-            fallbacks: [],
-        },
-        supports: {
-            transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'],
-            securities: ['none', 'tls', 'reality'],
-            tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'],
-            realityTransports: ['tcp', 'http', 'grpc', 'xhttp'],
-        },
-    },
-    {
-        key: 'trojan',
-        label: 'Trojan',
-        defaultSettings: {
-            clients: [{
-                password: '',
-                email: '',
-                limitIp: 0,
-                totalGB: 0,
-                expiryTime: 0,
-                enable: true,
-                tgId: '',
-                subId: '',
-                comment: '',
-                reset: 0,
-            }],
-            fallbacks: [],
-        },
-        supports: {
-            transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'],
-            securities: ['none', 'tls', 'reality'],
-            tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'],
-            realityTransports: ['tcp', 'http', 'grpc', 'xhttp'],
-        },
-    },
-    {
-        key: 'shadowsocks',
-        label: 'Shadowsocks',
-        defaultSettings: {
-            method: '2022-blake3-aes-256-gcm',
-            password: '',
-            network: 'tcp,udp',
-            clients: [{
-                method: '',
-                password: '',
-                email: '',
-                limitIp: 0,
-                totalGB: 0,
-                expiryTime: 0,
-                enable: true,
-                tgId: '',
-                subId: '',
-                comment: '',
-                reset: 0,
-            }],
-            ivCheck: false,
-        },
-        supports: {
-            transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'],
-            securities: ['none', 'tls'],
-            tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'],
-        },
-    },
-    {
-        key: 'http',
-        label: 'HTTP',
-        defaultSettings: { accounts: [{ user: '', pass: '' }], allowTransparent: false },
-        supports: {
-            transports: ['tcp'],
-            securities: ['none'],
-        },
-    },
-    {
-        key: 'tunnel',
-        label: 'Tunnel',
-        defaultSettings: { address: '', port: '', portMap: [], network: 'tcp,udp', followRedirect: false },
-        supports: {
-            transports: [],
-            securities: [],
-        },
-    },
-    {
-        key: 'mixed',
-        label: 'Mixed',
-        defaultSettings: { auth: 'password', accounts: [{ user: '', pass: '' }], udp: false, ip: '127.0.0.1' },
-        supports: {
-            transports: [],
-            securities: [],
-        },
-    },
-    {
-        key: 'wireguard',
-        label: 'WireGuard',
-        defaultSettings: {
-            mtu: 1420,
-            secretKey: '',
-            peers: [{ privateKey: '', publicKey: '', allowedIPs: ['10.0.0.2/32'], keepAlive: 0 }],
-            noKernelTun: false,
-        },
-        supports: {
-            transports: [],
-            securities: [],
-        },
-    },
-    {
-        key: 'tun',
-        label: 'TUN',
-        defaultSettings: { name: 'xray0', mtu: 1500, userLevel: 0 },
-        supports: {
-            transports: [],
-            securities: [],
-        },
-    },
-];
 
 const CLIENT_FLOW_OPTIONS = ['', 'xtls-rprx-vision', 'xtls-rprx-vision-udp443'];
 const CLIENT_FLOW_PROTOCOLS = ['vless'];
@@ -199,6 +40,9 @@ router.get('/', (req, res) => {
         success: true,
         obj: {
             generatedAt: new Date().toISOString(),
+            canonicalization: {
+                aliases: LEGACY_PROTOCOL_ALIASES,
+            },
             protocols: PROTOCOL_SCHEMAS,
             clientFlowOptions: CLIENT_FLOW_OPTIONS,
             clientFlowProtocols: CLIENT_FLOW_PROTOCOLS,

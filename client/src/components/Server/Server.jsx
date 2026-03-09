@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
+import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -12,6 +13,7 @@ import {
     HiOutlineCloudArrowDown,
     HiOutlineCloudArrowUp,
     HiOutlineWrenchScrewdriver,
+    HiOutlineClipboard,
 } from 'react-icons/hi2';
 
 export default function ServerManagement() {
@@ -23,6 +25,10 @@ export default function ServerManagement() {
     const [configJson, setConfigJson] = useState('');
     const [showConfig, setShowConfig] = useState(false);
     const [loading, setLoading] = useState({});
+    const [lastRun, setLastRun] = useState(null);
+    const [capabilities, setCapabilities] = useState(null);
+    const [toolResults, setToolResults] = useState({});
+    const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
 
     const getTargets = () => {
         if (isGlobalView) return servers;
@@ -39,6 +45,8 @@ export default function ServerManagement() {
         }
         return panelApi(method, path, data, config);
     };
+
+    const setActionLoading = (key, val) => setLoading((prev) => ({ ...prev, [key]: val }));
 
     const runForTargets = async ({ loadingKey, successText, actionBuilder }) => {
         const targets = getTargets();
@@ -63,19 +71,21 @@ export default function ServerManagement() {
 
         setActionLoading(loadingKey, false);
 
-        const success = targets.length - failed.length;
-        if (failed.length === 0) {
-            toast.success(`${successText}: ${success}/${targets.length} 成功`);
-        } else {
-            toast.error(`${successText}: ${success}/${targets.length} 成功`);
-        }
-        return { total: targets.length, success, failed };
-    };
+        const result = {
+            title: successText,
+            total: targets.length,
+            success: targets.length - failed.length,
+            failed,
+        };
+        setLastRun(result);
 
-    useEffect(() => {
-        if (!activeServerId) return;
-        fetchVersions();
-    }, [activeServerId, servers.length]);
+        if (failed.length === 0) {
+            toast.success(`${successText}: ${result.success}/${targets.length} 成功`);
+        } else {
+            toast.error(`${successText}: ${result.success}/${targets.length} 成功`);
+        }
+        return result;
+    };
 
     const fetchVersions = async () => {
         const targets = getTargets();
@@ -87,14 +97,49 @@ export default function ServerManagement() {
         try {
             const probeServerId = targets[0].id;
             const res = await panelRequest(probeServerId, 'get', '/panel/api/server/getXrayVersion');
-            if (res.data?.obj) {
-                setXrayVersions(res.data.obj);
-                if (res.data.obj.length > 0) setSelectedVersion(res.data.obj[0]);
-            }
-        } catch { }
+            const versions = Array.isArray(res.data?.obj) ? res.data.obj : [];
+            setXrayVersions(versions);
+            if (versions.length > 0) setSelectedVersion(versions[0]);
+        } catch {
+            setXrayVersions([]);
+            setSelectedVersion('');
+        }
     };
 
-    const setActionLoading = (key, val) => setLoading(prev => ({ ...prev, [key]: val }));
+    const fetchCapabilities = async () => {
+        if (isGlobalView || !activeServerId) {
+            setCapabilities(null);
+            return;
+        }
+        setCapabilitiesLoading(true);
+        try {
+            const res = await api.get(`/capabilities/${activeServerId}`);
+            setCapabilities(res.data?.obj || null);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '加载节点能力失败');
+        }
+        setCapabilitiesLoading(false);
+    };
+
+    useEffect(() => {
+        if (!activeServerId) return;
+        fetchVersions();
+        fetchCapabilities();
+        setToolResults({});
+    }, [activeServerId, servers.length]);
+
+    const toolEntries = useMemo(() => {
+        if (!capabilities?.tools || typeof capabilities.tools !== 'object') return [];
+        return Object.values(capabilities.tools)
+            .filter((item) => item.uiAction === 'node_console')
+            .filter((item) => item.supportedByNms === true);
+    }, [capabilities]);
+
+    const guidedModules = useMemo(
+        () => (Array.isArray(capabilities?.systemModules) ? capabilities.systemModules : [])
+            .filter((item) => item.supportedByNms === false),
+        [capabilities]
+    );
 
     const handleStopXray = async () => {
         const targets = getTargets();
@@ -161,6 +206,7 @@ export default function ServerManagement() {
                 await panelRequest(serverMeta.id, 'post', `/panel/api/server/installXray/${selectedVersion}`);
             },
         });
+        fetchVersions();
     };
 
     const handleUpdateGeo = async (fileName) => {
@@ -191,7 +237,9 @@ export default function ServerManagement() {
             a.click();
             window.URL.revokeObjectURL(url);
             toast.success('数据库已下载');
-        } catch { toast.error('导出失败'); }
+        } catch {
+            toast.error('导出失败');
+        }
         setActionLoading('exportDb', false);
     };
 
@@ -218,7 +266,9 @@ export default function ServerManagement() {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             toast.success('数据库已导入，Xray 重启中');
-        } catch { toast.error('导入失败'); }
+        } catch {
+            toast.error('导入失败');
+        }
         setActionLoading('importDb', false);
     };
 
@@ -241,13 +291,31 @@ export default function ServerManagement() {
             const res = await panelApi('get', '/panel/api/server/getConfigJson');
             setConfigJson(typeof res.data?.obj === 'string' ? res.data.obj : JSON.stringify(res.data?.obj, null, 2));
             setShowConfig(true);
-        } catch { toast.error('获取配置失败'); }
+        } catch {
+            toast.error('获取配置失败');
+        }
+    };
+
+    const handleRunTool = async (tool) => {
+        if (isGlobalView) return;
+        setActionLoading(`tool-${tool.key}`, true);
+        try {
+            const res = await panelApi(tool.method || 'get', tool.path);
+            const value = typeof res.data?.obj === 'object'
+                ? JSON.stringify(res.data.obj, null, 2)
+                : String(res.data?.obj || '');
+            setToolResults((prev) => ({ ...prev, [tool.key]: value }));
+            toast.success(`${tool.label || tool.key} 已生成`);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '执行失败');
+        }
+        setActionLoading(`tool-${tool.key}`, false);
     };
 
     if (!activeServerId) {
         return (
             <>
-                <Header title="节点设置" />
+                <Header title="节点控制台" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineWrenchScrewdriver /></div>
@@ -260,22 +328,43 @@ export default function ServerManagement() {
 
     return (
         <>
-            <Header title={isGlobalView ? '节点设置（集群）' : '节点设置'} />
+            <Header title={isGlobalView ? '节点控制台（集群）' : '节点控制台'} />
             <div className="page-content page-enter">
-                {isGlobalView && (
+                <div className="card mb-6">
+                    <div className="text-sm text-muted">
+                        {isGlobalView
+                            ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
+                            : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
+                    </div>
+                </div>
+
+                {lastRun && (
                     <div className="card mb-6">
-                        <div className="text-sm text-muted">
-                            当前为集群总览模式，将对 <strong>{servers.length}</strong> 个节点执行升级与维护动作。
+                        <div className="card-header">
+                            <span className="card-title">最近一次执行结果</span>
+                            <span className={`badge ${lastRun.failed.length === 0 ? 'badge-success' : 'badge-warning'}`}>
+                                {lastRun.success}/{lastRun.total} 成功
+                            </span>
                         </div>
+                        <div className="text-sm text-muted mb-2">{lastRun.title}</div>
+                        {lastRun.failed.length > 0 && (
+                            <div className="text-sm">
+                                {lastRun.failed.map((item) => (
+                                    <div key={`${item.serverName}-${item.msg}`} className="mb-1">
+                                        {item.serverName}: {item.msg}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                    {/* Xray Service Control */}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
                     <div className="card">
                         <div className="card-header">
-                            <span className="card-title">Xray 服务控制</span>
+                            <span className="card-title">Xray 控制</span>
                         </div>
-                        <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                        <div className="flex gap-8 mb-3" style={{ flexWrap: 'wrap' }}>
                             <button className="btn btn-danger btn-sm" onClick={handleStopXray} disabled={loading.stop}>
                                 <HiOutlineStop /> {isGlobalView ? '全部停止' : '停止'}
                             </button>
@@ -288,16 +377,22 @@ export default function ServerManagement() {
                                 </button>
                             )}
                         </div>
+                        <div className="text-xs text-muted">
+                            停止和升级会影响当前节点代理转发，请在低峰期操作。
+                        </div>
                     </div>
 
-                    {/* Xray Version */}
                     <div className="card">
                         <div className="card-header">
-                            <span className="card-title">Xray 版本升级</span>
+                            <span className="card-title">Xray 版本</span>
+                            <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
+                                <HiOutlineArrowPath /> 刷新
+                            </button>
                         </div>
-                        <div className="flex items-center gap-8">
-                            <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} style={{ flex: 1 }}>
-                                {xrayVersions.map(v => <option key={v} value={v}>{v}</option>)}
+                        <div className="flex items-center gap-8" style={{ flexWrap: 'wrap' }}>
+                            <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} style={{ flex: 1, minWidth: '220px' }}>
+                                {xrayVersions.length === 0 && <option value="">暂无可用版本</option>}
+                                {xrayVersions.map((v) => <option key={v} value={v}>{v}</option>)}
                             </select>
                             <button className="btn btn-primary btn-sm" onClick={handleInstallXray} disabled={loading.install || !selectedVersion}>
                                 <HiOutlineArrowDown /> {isGlobalView ? '全节点安装' : '安装'}
@@ -305,10 +400,9 @@ export default function ServerManagement() {
                         </div>
                     </div>
 
-                    {/* GeoIP Update */}
                     <div className="card">
                         <div className="card-header">
-                            <span className="card-title">GeoIP / GeoSite 更新</span>
+                            <span className="card-title">Geo 文件</span>
                         </div>
                         <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
                             <button className="btn btn-primary btn-sm" onClick={() => handleUpdateGeo()} disabled={loading['geo-all']}>
@@ -323,37 +417,118 @@ export default function ServerManagement() {
                         </div>
                     </div>
 
-                    {/* Backup & Database */}
                     <div className="card">
                         <div className="card-header">
-                            <span className="card-title">备份与数据库</span>
+                            <span className="card-title">数据与备份</span>
                         </div>
                         <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
-                            {!isGlobalView && (
-                                <button className="btn btn-secondary btn-sm" onClick={handleExportDb} disabled={loading.exportDb}>
-                                    <HiOutlineCloudArrowDown /> 导出数据库
-                                </button>
-                            )}
-                            {!isGlobalView && (
-                                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                                    <HiOutlineCloudArrowUp /> 导入数据库
-                                    <input type="file" accept=".db" onChange={handleImportDb} hidden />
-                                </label>
-                            )}
                             <button className="btn btn-primary btn-sm" onClick={handleBackupTelegram} disabled={loading.tgBackup}>
                                 {isGlobalView ? '全节点 Telegram 备份' : 'Telegram 备份'}
                             </button>
-                            {isGlobalView && (
-                                <div className="text-xs text-muted" style={{ width: '100%' }}>
-                                    数据库导入/导出仅支持单节点，请切换节点后使用。
+                            <button className="btn btn-secondary btn-sm" onClick={handleExportDb} disabled={loading.exportDb || isGlobalView}>
+                                <HiOutlineCloudArrowDown /> 导出数据库
+                            </button>
+                            <label
+                                className={`btn btn-secondary btn-sm ${isGlobalView ? 'disabled' : ''}`}
+                                style={{ cursor: isGlobalView ? 'not-allowed' : 'pointer', opacity: isGlobalView ? 0.6 : 1 }}
+                            >
+                                <HiOutlineCloudArrowUp /> 导入数据库
+                                <input type="file" accept=".db" onChange={handleImportDb} hidden disabled={isGlobalView} />
+                            </label>
+                        </div>
+                        <div className="text-xs text-muted mt-3">
+                            数据库导入/导出仅支持单节点，集群态不会执行该类动作。
+                        </div>
+                    </div>
+
+                    {!isGlobalView && (
+                        <div className="card" style={{ gridColumn: '1 / -1' }}>
+                            <div className="card-header">
+                                <span className="card-title">节点工具</span>
+                                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
+                                    <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
+                                </button>
+                            </div>
+                            {toolEntries.length === 0 ? (
+                                <div className="text-sm text-muted">当前节点未暴露可执行工具接口。</div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                                    {toolEntries.map((tool) => (
+                                        <div
+                                            key={tool.key}
+                                            style={{
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: 'var(--radius-md)',
+                                                padding: '12px',
+                                                background: 'var(--surface-soft)',
+                                            }}
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <strong>{tool.label || tool.key}</strong>
+                                                <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
+                                                    {tool.available === false ? '不可用' : '可执行'}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-muted mb-3">{tool.description || '-'}</div>
+                                            {toolResults[tool.key] && (
+                                                <pre className="log-viewer" style={{ maxHeight: '180px', fontSize: '11px', marginBottom: '12px' }}>
+                                                    {toolResults[tool.key]}
+                                                </pre>
+                                            )}
+                                            <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                                                <button
+                                                    className="btn btn-primary btn-sm"
+                                                    onClick={() => handleRunTool(tool)}
+                                                    disabled={loading[`tool-${tool.key}`] || tool.available === false}
+                                                >
+                                                    {loading[`tool-${tool.key}`] ? <span className="spinner" /> : <HiOutlineArrowPath />}
+                                                    生成
+                                                </button>
+                                                {toolResults[tool.key] && (
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(toolResults[tool.key]).then(() => toast.success('已复制'))}>
+                                                        <HiOutlineClipboard /> 复制
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
-                    </div>
+                    )}
+
+                    {!isGlobalView && guidedModules.length > 0 && (
+                        <div className="card" style={{ gridColumn: '1 / -1' }}>
+                            <div className="card-header">
+                                <span className="card-title">官方能力引导</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                                {guidedModules.map((module) => (
+                                    <div
+                                        key={module.key}
+                                        style={{
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: 'var(--radius-md)',
+                                            padding: '12px',
+                                            background: 'var(--surface-soft)',
+                                        }}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <strong>{module.label}</strong>
+                                            <span className="badge badge-neutral">{module.uiActionLabel || '官方文档'}</span>
+                                        </div>
+                                        <div className="text-sm text-muted mb-3">{module.note || '-'}</div>
+                                        <a href={module.docs} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
+                                            官方文档
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Config JSON Modal */}
             {showConfig && (
                 <div className="modal-overlay" onClick={() => setShowConfig(false)}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>

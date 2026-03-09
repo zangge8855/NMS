@@ -10,6 +10,7 @@ import Subscriptions from './Subscriptions.jsx';
 vi.mock('../../api/client.js', () => ({
     default: {
         get: vi.fn(),
+        post: vi.fn(),
     },
 }));
 
@@ -35,6 +36,7 @@ vi.mock('react-hot-toast', () => ({
 describe('Subscriptions', () => {
     beforeEach(() => {
         api.get.mockReset();
+        api.post.mockReset();
         useAuth.mockReset();
         useServer.mockReset();
         useServer.mockReturnValue({
@@ -141,6 +143,74 @@ describe('Subscriptions', () => {
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
             expect(api.get).toHaveBeenCalledWith('/subscriptions/admin%40example.com');
+        });
+    });
+
+    it('allows admins to issue a subscription token from the subscription center', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                subscriptionEmail: '',
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            users: ['admin@example.com'],
+                            warnings: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/subscriptions/admin%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'admin@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                            token: {
+                                activeCount: 1,
+                                activeLimit: 5,
+                                scope: 'all',
+                                currentTokenId: 'scope-token',
+                                tokenRequired: false,
+                                tokens: [],
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockResolvedValue({
+            data: {
+                obj: {
+                    token: 'token-value',
+                    subscriptionUrl: 'https://sub.example.com/issued',
+                },
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+
+        await user.type(screen.getByPlaceholderText('例如：Clash 客户端 / 用户自助'), 'Verge');
+        await user.click(screen.getByRole('button', { name: '签发 token' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/subscriptions/admin%40example.com/issue', {
+                name: 'Verge',
+                ttlDays: 30,
+            });
         });
     });
 });

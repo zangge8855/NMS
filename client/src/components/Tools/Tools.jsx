@@ -1,44 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import Header from '../Layout/Header.jsx';
 import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
+import api from '../../api/client.js';
 import {
-    HiOutlineKey,
     HiOutlineClipboard,
     HiOutlineArrowPath,
     HiOutlineWrench,
 } from 'react-icons/hi2';
 
-const TOOLS = [
-    { key: 'uuid', label: 'UUID', path: '/panel/api/server/getNewUUID', description: '生成新的 UUID (用于 VMess/VLESS)' },
-    { key: 'x25519', label: 'X25519', path: '/panel/api/server/getNewX25519Cert', description: '生成 X25519 密钥对 (用于 Reality)' },
-    { key: 'mldsa65', label: 'ML-DSA-65', path: '/panel/api/server/getNewmldsa65', description: '生成 ML-DSA-65 密钥 (后量子签名)' },
-    { key: 'mlkem768', label: 'ML-KEM-768', path: '/panel/api/server/getNewmlkem768', description: '生成 ML-KEM-768 密钥 (后量子密钥交换)' },
-    { key: 'vlessEnc', label: 'VLESS Enc', path: '/panel/api/server/getNewVlessEnc', description: '生成 VLESS 加密密钥' },
-    { key: 'echCert', label: 'ECH Cert', path: '/panel/api/server/getNewEchCert', description: '生成 ECH 证书', method: 'post' },
-];
+function formatToolValue(value) {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    return String(value);
+}
 
 export default function Tools() {
     const { activeServerId, panelApi } = useServer();
     const [results, setResults] = useState({});
     const [loading, setLoading] = useState({});
+    const [catalogLoading, setCatalogLoading] = useState(false);
+    const [tools, setTools] = useState([]);
+
+    const fetchCatalog = async () => {
+        if (!activeServerId) return;
+        setCatalogLoading(true);
+        try {
+            const res = await api.get(`/capabilities/${activeServerId}`);
+            const entries = Object.values(res.data?.obj?.tools || {})
+                .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
+                .filter((item) => item.supportedByNms === true);
+            setTools(entries);
+        } catch (error) {
+            const msg = error.response?.data?.msg || error.message || '加载节点工具失败';
+            toast.error(msg);
+        }
+        setCatalogLoading(false);
+    };
+
+    useEffect(() => {
+        fetchCatalog();
+        setResults({});
+    }, [activeServerId]);
+
+    const enabledTools = useMemo(
+        () => tools.filter((item) => item.available !== false),
+        [tools]
+    );
 
     const handleGenerate = async (tool) => {
-        if (!activeServerId) { toast.error('请先选择一台服务器'); return; }
-        setLoading(prev => ({ ...prev, [tool.key]: true }));
+        if (!activeServerId) {
+            toast.error('请先选择一台服务器');
+            return;
+        }
+        setLoading((prev) => ({ ...prev, [tool.key]: true }));
         try {
             const method = tool.method || 'get';
             const res = await panelApi(method, tool.path);
-            const value = res.data?.obj;
-            setResults(prev => ({
+            setResults((prev) => ({
                 ...prev,
-                [tool.key]: typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value),
+                [tool.key]: formatToolValue(res.data?.obj),
             }));
-        } catch {
-            toast.error('生成失败');
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '执行失败');
         }
-        setLoading(prev => ({ ...prev, [tool.key]: false }));
+        setLoading((prev) => ({ ...prev, [tool.key]: false }));
     };
 
     const handleCopy = async (text) => {
@@ -49,7 +76,7 @@ export default function Tools() {
     if (!activeServerId) {
         return (
             <>
-                <Header title="工具箱" />
+                <Header title="节点工具" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineWrench /></div>
@@ -62,59 +89,75 @@ export default function Tools() {
 
     return (
         <>
-            <Header title="工具箱" />
+            <Header title="节点工具" />
             <div className="page-content page-enter">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
-                    {TOOLS.map(tool => (
-                        <div className="card" key={tool.key}>
-                            <div className="card-header">
-                                <div className="flex items-center gap-8">
-                                    <div className="card-icon" style={{ background: 'var(--accent-primary-glow)', color: 'var(--accent-primary)', width: '32px', height: '32px', fontSize: '14px' }}>
-                                        <HiOutlineKey />
-                                    </div>
-                                    <div>
-                                        <span className="card-title" style={{ display: 'block' }}>{tool.label}</span>
-                                        <span className="text-sm text-muted">{tool.description}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {results[tool.key] && (
-                                <div style={{
-                                    background: 'var(--bg-primary)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '12px',
-                                    marginBottom: '12px',
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '11px',
-                                    wordBreak: 'break-all',
-                                    whiteSpace: 'pre-wrap',
-                                    maxHeight: '200px',
-                                    overflowY: 'auto',
-                                }}>
-                                    {results[tool.key]}
-                                </div>
-                            )}
-
-                            <div className="flex gap-8">
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => handleGenerate(tool)}
-                                    disabled={loading[tool.key]}
-                                >
-                                    {loading[tool.key] ? <span className="spinner" /> : <HiOutlineArrowPath />}
-                                    生成
-                                </button>
-                                {results[tool.key] && (
-                                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
-                                        <HiOutlineClipboard /> 复制
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>3x-ui 节点工具</h2>
+                        <p className="text-sm text-muted mt-1">
+                            根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书
+                        </p>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
+                        <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新工具列表
+                    </button>
                 </div>
+
+                {tools.length === 0 && !catalogLoading ? (
+                    <div className="card text-center" style={{ padding: '36px' }}>
+                        暂无可用节点工具
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
+                        {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
+                            <div className="card" key={tool.key}>
+                                <div className="card-header">
+                                    <div>
+                                        <span className="card-title" style={{ display: 'block' }}>{tool.label || tool.key}</span>
+                                        <span className="text-sm text-muted">{tool.description || '当前节点工具'}</span>
+                                    </div>
+                                    <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
+                                        {tool.available === false ? '不可用' : '可执行'}
+                                    </span>
+                                </div>
+
+                                {results[tool.key] && (
+                                    <div style={{
+                                        background: 'var(--bg-primary)',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '12px',
+                                        marginBottom: '12px',
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '11px',
+                                        wordBreak: 'break-all',
+                                        whiteSpace: 'pre-wrap',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                    }}>
+                                        {results[tool.key]}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                                    <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => handleGenerate(tool)}
+                                        disabled={loading[tool.key] || tool.available === false}
+                                    >
+                                        {loading[tool.key] ? <span className="spinner" /> : <HiOutlineArrowPath />}
+                                        生成
+                                    </button>
+                                    {results[tool.key] && (
+                                        <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
+                                            <HiOutlineClipboard /> 复制
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );

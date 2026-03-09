@@ -11,6 +11,18 @@ function renderAvailability(value) {
     return <span className="badge badge-neutral">未探测</span>;
 }
 
+function renderBooleanSupport(value) {
+    return value ? <span className="badge badge-success">已支持</span> : <span className="badge badge-warning">未接入</span>;
+}
+
+function renderAlignmentStatus(value) {
+    if (value === 'integrated') return <span className="badge badge-success">已集成</span>;
+    if (value === 'api_available_ui_missing') return <span className="badge badge-warning">API 可达 / UI 缺失</span>;
+    if (value === 'guided_only') return <span className="badge badge-neutral">仅文档引导</span>;
+    if (value === 'intentionally_unsupported') return <span className="badge badge-danger">明确不接入</span>;
+    return <span className="badge badge-neutral">未知</span>;
+}
+
 function renderProbeSource(source) {
     if (source === 'probed') return '已探测';
     if (source === 'unprobed') return '未探测';
@@ -39,79 +51,25 @@ export default function Capabilities() {
         fetchCapabilities();
     }, [activeServerId]);
 
-    const protocolList = useMemo(() => (
-        Array.isArray(data?.protocols) ? data.protocols : []
-    ), [data]);
+    const protocolList = useMemo(
+        () => (Array.isArray(data?.protocolDetails) ? data.protocolDetails : []),
+        [data]
+    );
 
     const toolEntries = useMemo(() => {
         if (!data?.tools || typeof data.tools !== 'object') return [];
-        return Object.entries(data.tools);
+        return Object.values(data.tools);
     }, [data]);
 
-    const systemModules = useMemo(() => {
-        if (!data) return [];
-        const hasX25519 = data.tools?.x25519?.available === true;
-        const hasEch = data.tools?.echCert?.available === true || data.tools?.echCert?.available === null;
-        const fallback = [
-            {
-                key: 'ssl',
-                title: 'SSL / 证书',
-                status: hasEch ? '可配置' : '需手工',
-                description: '证书生成与 HTTPS 相关能力，建议结合反向代理统一管理。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/SSL-Certificate',
-            },
-            {
-                key: 'fail2ban',
-                title: 'Fail2Ban',
-                status: '需手工',
-                description: '系统级防爆破策略，建议按节点部署并定期核验日志规则。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/Fail2ban',
-            },
-            {
-                key: 'warp',
-                title: 'Cloudflare WARP',
-                status: '需手工',
-                description: '网络级能力，不建议直接在面板执行高风险变更。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/Cloudflare-WARP',
-            },
-            {
-                key: 'tor',
-                title: 'TOR Proxy',
-                status: '需手工',
-                description: '出口代理能力，建议先在测试节点验证后灰度上线。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/TOR-Proxy',
-            },
-            {
-                key: 'reverse',
-                title: 'Reverse Proxy',
-                status: hasX25519 ? '可配置' : '需手工',
-                description: '建议通过 Nginx/Caddy 统一入口并配置健康检查。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/Reverse-Proxy',
-            },
-            {
-                key: 'env',
-                title: 'Environment',
-                status: '需手工',
-                description: '环境变量与系统参数建议由运维流水线托管。',
-                link: 'https://github.com/MHSanaei/3x-ui/wiki/Environment-Variables',
-            },
-        ];
-        if (Array.isArray(data.systemModules) && data.systemModules.length > 0) {
-            return data.systemModules.map((item) => ({
-                key: item.key,
-                title: item.label || item.key,
-                status: item.mode === 'integrated' ? '已集成' : '可引导',
-                description: '按官方文档执行，建议先在测试节点验证后上线。',
-                link: item.docs,
-            }));
-        }
-        return fallback;
-    }, [data]);
+    const systemModules = useMemo(
+        () => (Array.isArray(data?.systemModules) ? data.systemModules : []),
+        [data]
+    );
 
     if (!activeServerId) {
         return (
             <>
-                <Header title="系统能力" />
+                <Header title="3x-ui 能力" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineCircleStack /></div>
@@ -124,13 +82,13 @@ export default function Capabilities() {
 
     return (
         <>
-            <Header title="系统能力" />
+            <Header title="3x-ui 能力" />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>节点能力总览</h2>
+                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>3x-ui 对齐矩阵</h2>
                         <p className="text-sm text-muted mt-1">
-                            基于当前节点实时探测，反映可用 API、协议与系统模块接入状态
+                            展示当前节点的协议、工具接口与官方能力在 NMS 中的接入状态
                         </p>
                     </div>
                     <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
@@ -146,78 +104,117 @@ export default function Capabilities() {
                     <>
                         <div className="card mb-8">
                             <div className="card-header">
-                                <span className="card-title">协议支持</span>
+                                <span className="card-title">协议命名对齐</span>
                                 <span className="text-sm text-muted">{protocolList.length} 种</span>
                             </div>
-                            <div className="flex gap-2 flex-wrap">
-                                {protocolList.length === 0 ? (
-                                    <span className="text-sm text-muted">未检测到入站协议</span>
-                                ) : protocolList.map((item) => (
-                                    <span key={item} className="badge badge-info">{item}</span>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">系统模块对齐 (官方能力)</span>
-                            </div>
-                            <div
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                                    gap: '12px',
-                                }}
-                            >
-                                {systemModules.map((module) => (
-                                    <div
-                                        key={module.key}
-                                        style={{
-                                            border: '1px solid var(--border-color)',
-                                            borderRadius: 'var(--radius-md)',
-                                            padding: '12px',
-                                            background: 'var(--surface-soft)',
-                                        }}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <strong>{module.title}</strong>
-                                            <span className="badge badge-neutral">{module.status}</span>
-                                        </div>
-                                        <div className="text-sm text-muted mb-3">{module.description}</div>
-                                        <a
-                                            href={module.link}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="btn btn-secondary btn-sm"
+                            {protocolList.length === 0 ? (
+                                <div className="text-sm text-muted">未检测到入站协议</div>
+                            ) : (
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                                        gap: '12px',
+                                    }}
+                                >
+                                    {protocolList.map((item) => (
+                                        <div
+                                            key={item.key}
+                                            style={{
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: 'var(--radius-md)',
+                                                padding: '12px',
+                                                background: 'var(--surface-soft)',
+                                            }}
                                         >
-                                            官方文档
-                                        </a>
-                                    </div>
-                                ))}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <strong>{item.label}</strong>
+                                                <span className="badge badge-info">{item.key}</span>
+                                            </div>
+                                            <div className="text-xs text-muted">
+                                                {Array.isArray(item.legacyKeys) && item.legacyKeys.length > 0
+                                                    ? `兼容旧命名: ${item.legacyKeys.join(', ')}`
+                                                    : '无旧命名兼容项'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="card mb-8">
+                            <div className="card-header">
+                                <span className="card-title">官方能力矩阵</span>
+                            </div>
+                            <div className="table-container">
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>能力</th>
+                                            <th>3x-ui</th>
+                                            <th>NMS 状态</th>
+                                            <th>入口</th>
+                                            <th>说明</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {systemModules.length === 0 ? (
+                                            <tr><td colSpan={5} className="text-center">暂无数据</td></tr>
+                                        ) : systemModules.map((module) => (
+                                            <tr key={module.key}>
+                                                <td data-label="能力">
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span>{module.label}</span>
+                                                        <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
+                                                            官方文档
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                                <td data-label="3x-ui">{renderBooleanSupport(module.supportedBy3xui === true)}</td>
+                                                <td data-label="NMS 状态">{renderAlignmentStatus(module.status)}</td>
+                                                <td data-label="入口">
+                                                    <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
+                                                </td>
+                                                <td data-label="说明" className="text-sm text-muted">{module.note || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
                         <div className="card mb-8">
                             <div className="card-header">
-                                <span className="card-title">工具 API 探测</span>
+                                <span className="card-title">工具与接口</span>
                             </div>
                             <div className="table-container">
                                 <table className="table">
                                     <thead>
                                         <tr>
                                             <th>工具</th>
-                                            <th>状态</th>
+                                            <th>节点可用性</th>
+                                            <th>NMS 状态</th>
+                                            <th>入口</th>
                                             <th>来源</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {toolEntries.length === 0 ? (
-                                            <tr><td colSpan={3} className="text-center">暂无数据</td></tr>
-                                        ) : toolEntries.map(([tool, detail]) => (
-                                            <tr key={tool}>
-                                                <td>{tool}</td>
-                                                <td>{renderAvailability(detail?.available)}</td>
-                                                <td>{renderProbeSource(detail?.source)}</td>
+                                            <tr><td colSpan={5} className="text-center">暂无数据</td></tr>
+                                        ) : toolEntries.map((tool) => (
+                                            <tr key={tool.key}>
+                                                <td data-label="工具">
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span>{tool.label || tool.key}</span>
+                                                        <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td data-label="节点可用性">{renderAvailability(tool.available)}</td>
+                                                <td data-label="NMS 状态">{renderAlignmentStatus(tool.status)}</td>
+                                                <td data-label="入口">
+                                                    <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
+                                                </td>
+                                                <td data-label="来源" className="text-sm text-muted">{renderProbeSource(tool.source)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

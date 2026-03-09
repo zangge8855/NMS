@@ -1,0 +1,7 @@
+interface:
+  display_name: "NMS 3x-ui Alignment"
+  short_description: "Keeps NMS aligned with the latest 3x-ui behavior and naming."
+  default_prompt: "Use $nms-3xui-alignment to align this NMS repo with the latest 3x-ui release, protocol naming, and node capabilities."
+
+policy:
+  allow_implicit_invocation: true

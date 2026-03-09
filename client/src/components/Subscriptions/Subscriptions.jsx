@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink, HiOutlineQrCode } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
@@ -20,9 +21,24 @@ function normalizeInactiveReason(reason) {
     return reason;
 }
 
+function formatTokenDate(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('zh-CN');
+}
+
+function renderTokenStatus(status) {
+    if (status === 'active') return <span className="badge badge-success">活跃</span>;
+    if (status === 'expired') return <span className="badge badge-warning">已过期</span>;
+    if (status === 'revoked') return <span className="badge badge-danger">已撤销</span>;
+    return <span className="badge badge-neutral">{status || '未知'}</span>;
+}
+
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
     const defaultIdentity = useMemo(
@@ -38,12 +54,24 @@ export default function Subscriptions() {
     const [result, setResult] = useState(null);
     const [showQr, setShowQr] = useState(false);
     const [profileKey, setProfileKey] = useState('v2rayn');
+    const [tokenName, setTokenName] = useState('');
+    const [tokenTtlDays, setTokenTtlDays] = useState('30');
+    const [tokenLoading, setTokenLoading] = useState(false);
+    const [tokenActionId, setTokenActionId] = useState('');
+    const [lastIssuedToken, setLastIssuedToken] = useState(null);
 
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
     const activeProfile = useMemo(
         () => findSubscriptionProfile(result?.bundle, profileKey),
         [result, profileKey]
     );
+
+    const syncFromQuery = () => {
+        const emailFromQuery = String(searchParams.get('email') || '').trim();
+        const serverIdFromQuery = String(searchParams.get('serverId') || '').trim();
+        if (emailFromQuery) setSelectedEmail(emailFromQuery);
+        if (isAdmin && serverIdFromQuery) setSelectedServerId(serverIdFromQuery);
+    };
 
     const loadUsers = async () => {
         if (!isAdmin) {
@@ -59,7 +87,7 @@ export default function Subscriptions() {
             setUsers(list);
             setUsersAccessDenied(false);
 
-            if (!normalizedEmail && list.length > 0) {
+            if (!normalizedEmail && list.length > 0 && !searchParams.get('email')) {
                 setSelectedEmail(list[0]);
             }
 
@@ -111,6 +139,7 @@ export default function Subscriptions() {
                 matchedClientsActive: Number(payload.matchedClientsActive || 0),
                 scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
                 serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
+                token: payload.token || null,
             });
             if (bundle.defaultProfileKey) {
                 setProfileKey(bundle.defaultProfileKey);
@@ -122,6 +151,10 @@ export default function Subscriptions() {
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        syncFromQuery();
+    }, [searchParams, isAdmin]);
 
     useEffect(() => {
         loadUsers();
@@ -147,6 +180,55 @@ export default function Subscriptions() {
         toast.success(`${activeProfile.label} 订阅地址已复制`);
     };
 
+    const handleIssueToken = async () => {
+        if (!isAdmin || !normalizedEmail) return;
+        setTokenLoading(true);
+        try {
+            const payload = {};
+            const trimmedName = String(tokenName || '').trim();
+            if (trimmedName) payload.name = trimmedName;
+            const ttl = Number(tokenTtlDays);
+            if (Number.isFinite(ttl)) payload.ttlDays = ttl;
+            const res = await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/issue`, payload);
+            setLastIssuedToken(res.data?.obj || null);
+            toast.success('订阅 token 已签发');
+            setTokenName('');
+            await loadSubscription();
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '签发 token 失败');
+        }
+        setTokenLoading(false);
+    };
+
+    const handleRevokeToken = async (tokenId) => {
+        if (!isAdmin || !normalizedEmail || !tokenId) return;
+        setTokenActionId(tokenId);
+        try {
+            await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/revoke`, { tokenId });
+            toast.success('订阅 token 已撤销');
+            await loadSubscription();
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '撤销 token 失败');
+        }
+        setTokenActionId('');
+    };
+
+    const handleRevokeAllTokens = async () => {
+        if (!isAdmin || !normalizedEmail) return;
+        setTokenActionId('all');
+        try {
+            await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/revoke`, {
+                revokeAll: true,
+                reason: 'manual-revoke-all',
+            });
+            toast.success('全部 token 已撤销');
+            await loadSubscription();
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '批量撤销失败');
+        }
+        setTokenActionId('');
+    };
+
     return (
         <>
             <Header title="订阅中心" />
@@ -154,6 +236,11 @@ export default function Subscriptions() {
                 <div className="card mb-8">
                     <div className="card-header">
                         <span className="card-title">节点合并订阅（自动生成并持久保留）</span>
+                        {isAdmin && normalizedEmail && (
+                            <Link className="btn btn-secondary btn-sm" to={`/clients?q=${encodeURIComponent(normalizedEmail)}`}>
+                                用户管理
+                            </Link>
+                        )}
                     </div>
                     <div
                         style={{
@@ -254,7 +341,7 @@ export default function Subscriptions() {
                             </div>
                         </div>
 
-                        <div className="card">
+                        <div className="card mb-8">
                             <div className="card-header">
                                 <span className="card-title">持久订阅地址（多客户端）</span>
                             </div>
@@ -293,10 +380,129 @@ export default function Subscriptions() {
                             </div>
                             <SubscriptionClientLinks bundle={result.bundle} />
                         </div>
+
+                        {isAdmin && (
+                            <div className="card mb-8">
+                                <div className="card-header">
+                                    <span className="card-title">Token 生命周期管理</span>
+                                    <span className="badge badge-info">
+                                        {result.token?.activeCount || 0}/{result.token?.activeLimit || 0}
+                                    </span>
+                                </div>
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                        gap: '12px',
+                                        alignItems: 'end',
+                                        marginBottom: '16px',
+                                    }}
+                                >
+                                    <div className="form-group" style={{ margin: 0 }}>
+                                        <label className="form-label">用途标注</label>
+                                        <input
+                                            className="form-input"
+                                            value={tokenName}
+                                            onChange={(e) => setTokenName(e.target.value)}
+                                            placeholder="例如：Clash 客户端 / 用户自助"
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ margin: 0 }}>
+                                        <label className="form-label">有效期</label>
+                                        <select className="form-select" value={tokenTtlDays} onChange={(e) => setTokenTtlDays(e.target.value)}>
+                                            <option value="7">7 天</option>
+                                            <option value="30">30 天</option>
+                                            <option value="90">90 天</option>
+                                            <option value="365">365 天</option>
+                                            <option value="0">永久</option>
+                                        </select>
+                                    </div>
+                                    <button className="btn btn-primary" onClick={handleIssueToken} disabled={tokenLoading || !normalizedEmail}>
+                                        {tokenLoading ? <span className="spinner" /> : '签发 token'}
+                                    </button>
+                                    <button className="btn btn-secondary" onClick={handleRevokeAllTokens} disabled={tokenActionId === 'all' || !normalizedEmail}>
+                                        {tokenActionId === 'all' ? <span className="spinner" /> : '撤销全部'}
+                                    </button>
+                                </div>
+
+                                <div className="grid gap-3 mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                    <div className="card p-3">
+                                        <div className="text-sm text-muted">当前范围</div>
+                                        <div className="text-lg font-semibold">{result.token?.scope === 'server' ? '单节点' : '全节点'}</div>
+                                        <div className="text-xs text-muted mt-1">{result.token?.serverId || 'all'}</div>
+                                    </div>
+                                    <div className="card p-3">
+                                        <div className="text-sm text-muted">当前作用中的范围 token</div>
+                                        <div className="text-xs font-mono">{result.token?.currentTokenId || '-'}</div>
+                                        <div className="text-xs text-muted mt-1">{result.token?.autoIssued ? '系统自动签发' : '已有手动 token'}</div>
+                                    </div>
+                                    <div className="card p-3">
+                                        <div className="text-sm text-muted">当前作用中的 token 必须性</div>
+                                        <div className="text-lg font-semibold">{result.token?.tokenRequired ? '需要补签发' : '已满足'}</div>
+                                        <div className="text-xs text-muted mt-1">{result.token?.issueError || '当前范围已有可用 token'}</div>
+                                    </div>
+                                </div>
+
+                                {lastIssuedToken && (
+                                    <div className="card p-3 mb-4">
+                                        <div className="text-sm text-muted mb-2">最近签发</div>
+                                        <div className="text-xs text-muted mb-2">该 token 明文只在签发时返回一次。</div>
+                                        <div className="grid gap-2" style={{ display: 'grid', gap: '8px' }}>
+                                            <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.token || ''} />
+                                            <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px' }}>
+                                                <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.subscriptionUrl || ''} />
+                                                <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(lastIssuedToken.subscriptionUrl || '').then(() => toast.success('地址已复制'))}>
+                                                    <HiOutlineClipboard /> 复制地址
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="table-container">
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>用途</th>
+                                                <th>状态</th>
+                                                <th>到期时间</th>
+                                                <th>最近使用</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(result.token?.tokens || []).length === 0 ? (
+                                                <tr><td colSpan={5} className="text-center">暂无 token</td></tr>
+                                            ) : (result.token?.tokens || []).map((token) => (
+                                                <tr key={token.publicTokenId || token.id}>
+                                                    <td data-label="用途">
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            <span>{token.name || '未命名 token'}</span>
+                                                            <span className="text-xs text-muted font-mono">{token.publicTokenId || token.id}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label="状态">{renderTokenStatus(token.status)}</td>
+                                                    <td data-label="到期时间" className="text-sm text-muted">{formatTokenDate(token.expiresAt)}</td>
+                                                    <td data-label="最近使用" className="text-sm text-muted">{formatTokenDate(token.lastUsedAt)}</td>
+                                                    <td data-label="操作">
+                                                        <button
+                                                            className="btn btn-secondary btn-sm"
+                                                            onClick={() => handleRevokeToken(token.id)}
+                                                            disabled={tokenActionId === token.id || token.status !== 'active'}
+                                                        >
+                                                            {tokenActionId === token.id ? <span className="spinner" /> : '撤销'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
 
-                {/* QR Code Modal */}
                 {showQr && activeProfile?.url && (
                     <div className="modal-overlay" onClick={() => setShowQr(false)}>
                         <div

@@ -134,6 +134,12 @@ export default function UsersHub() {
     const [subscriptionResult, setSubscriptionResult] = useState(null);
     const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
 
+    useEffect(() => {
+        const queryValue = String(searchParams.get('q') || '').trim();
+        if (!queryValue) return;
+        setSearchTerm(queryValue);
+    }, [searchParams]);
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -1470,6 +1476,12 @@ export default function UsersHub() {
                                 </button>
                                 <button className="btn btn-primary" onClick={handleCopySubscription} disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}>
                                     <HiOutlineClipboard /> 复制
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => navigate(`/subscriptions?email=${encodeURIComponent(subscriptionEmail)}`)}
+                                >
+                                    打开订阅中心
                                 </button>
                             </div>
 

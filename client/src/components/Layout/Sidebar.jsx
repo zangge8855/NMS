@@ -32,9 +32,9 @@ const navSections = [
             { path: '/inbounds', icon: HiOutlineSignal, label: '入站管理', supportsGlobal: true },
             { path: '/clients', icon: HiOutlineUsers, label: '用户管理', supportsGlobal: true },
             { path: '/subscriptions', icon: HiOutlineLink, label: '订阅中心', supportsGlobal: true, userOnly: true },
-            { path: '/server', icon: HiOutlineCog6Tooth, label: '节点设置', supportsGlobal: true },
-            { path: '/capabilities', icon: HiOutlineSignal, label: '系统能力', supportsGlobal: false },
-            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: '密钥工具', supportsGlobal: false },
+            { path: '/server', icon: HiOutlineCog6Tooth, label: '节点控制台', supportsGlobal: true },
+            { path: '/capabilities', icon: HiOutlineSignal, label: '3x-ui 能力', supportsGlobal: false },
+            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: '节点工具', supportsGlobal: false },
         ],
     },
     {

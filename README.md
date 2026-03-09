@@ -105,6 +105,7 @@ pm2 startup systemd -u root --hp /root
 ### Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
 - [Subscription Output Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [Feature and UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
@@ -230,6 +231,7 @@ pm2 startup systemd -u root --hp /root
 ### 文档索引
 
 - [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
+- [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
 - [订阅输出说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [功能与 UI 审计](docs/NMS_FEATURE_UI_AUDIT.md)

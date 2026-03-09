@@ -6,15 +6,15 @@ import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import toast from 'react-hot-toast';
 
 const PROTOCOL_SCHEMA_FALLBACK = [
-    { key: 'vmess', supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
-    { key: 'vless', supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
-    { key: 'trojan', supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
-    { key: 'shadowsocks', supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
-    { key: 'http', supports: { transports: ['tcp'], securities: ['none'] } },
-    { key: 'tunnel', supports: { transports: [], securities: [] } },
-    { key: 'mixed', supports: { transports: [], securities: [] } },
-    { key: 'wireguard', supports: { transports: [], securities: [] } },
-    { key: 'tun', supports: { transports: [], securities: [] } },
+    { key: 'vmess', label: 'VMess', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
+    { key: 'vless', label: 'VLESS', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
+    { key: 'trojan', label: 'Trojan', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
+    { key: 'shadowsocks', label: 'Shadowsocks', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
+    { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: ['tcp'], securities: ['none'] } },
+    { key: 'tunnel', label: 'Tunnel', legacyKeys: ['dokodemo-door'], supports: { transports: [], securities: [] } },
+    { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
+    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
 ];
 const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
 
@@ -136,6 +136,20 @@ function parseJsonObject(text, fallbackValue = {}) {
 function normalizeHeadersObject(input) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
     return input;
+}
+
+function normalizeProtocolName(value, schemas = PROTOCOL_SCHEMA_FALLBACK) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const matched = (Array.isArray(schemas) ? schemas : []).find((item) => {
+        const key = String(item?.key || '').trim().toLowerCase();
+        if (!key) return false;
+        if (key === raw) return true;
+        return (Array.isArray(item?.legacyKeys) ? item.legacyKeys : [])
+            .map((legacy) => String(legacy || '').trim().toLowerCase())
+            .includes(raw);
+    });
+    return matched?.key || raw;
 }
 
 function _convertHeadersObjectToRows(headers) {
@@ -621,8 +635,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         return schemaProtocols;
     }, [schemaProtocols]);
 
-    const availableProtocols = useMemo(
-        () => protocolSchemas.map((item) => String(item.key || '').toLowerCase()).filter(Boolean),
+    const protocolOptions = useMemo(
+        () => protocolSchemas.map((item) => ({
+            key: String(item?.key || '').toLowerCase(),
+            label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
+            legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
+        })).filter((item) => item.key),
         [protocolSchemas]
     );
 
@@ -692,7 +710,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     useEffect(() => {
         if (editingInbound) {
             setRemark(editingInbound.remark);
-            setProtocol(editingInbound.protocol);
+                setProtocol(normalizeProtocolName(editingInbound.protocol, protocolSchemas));
             setPort(editingInbound.port);
             setListen(editingInbound.listen);
             setInboundEnabled(editingInbound.enable !== false);
@@ -839,6 +857,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 const normalized = list
                     .map((item) => ({
                         key: String(item?.key || '').toLowerCase(),
+                        label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
+                        legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
                         supports: {
                             transports: Array.isArray(item?.supports?.transports) && item.supports.transports.length > 0
                                 ? item.supports.transports
@@ -1482,7 +1502,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             <div className="form-group">
                                 <label className="form-label">协议</label>
                                 <select className="form-select" value={protocol} onChange={e => setProtocol(e.target.value)} disabled={!!editingInbound}>
-                                    {availableProtocols.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+                                    {protocolOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">
