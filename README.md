@@ -1,167 +1,251 @@
 # NMS - Node Management System
 
-NMS is a centralized multi-node management panel for 3x-ui. It supports user management, subscription distribution, traffic analytics, and audit logging.
+NMS is a centralized management panel for multiple 3x-ui nodes. It keeps user lifecycle, subscription delivery, audit, and node operations in one place without requiring an external subscription converter.
 
 ## English
 
-### Features
+### Highlights
 
 - Centralized management for multiple 3x-ui panels
-- User lifecycle: registration, admin approval, subscription provisioning
-- Built-in subscription outputs: v2rayN, Raw, Native, Reconstructed, Clash YAML, Mihomo YAML, sing-box import
-- Traffic analytics by client, inbound, and server
-- Audit capabilities: operation logs, 3x-ui panel logs, traffic trends, subscription access logs, optional IP geolocation
-- Security features: JWT auth, credential encryption, password policy, rate limiting
+- User lifecycle support: registration, email verification, password reset, admin-side user management
+- Built-in subscription outputs: `v2rayN`, `Raw`, `Native`, `Reconstructed`, `Clash YAML`, `Mihomo YAML`, `sing-box import`
+- User policy and provisioning controls: `limitIp`, traffic limit, expiry, per-client entitlement override
+- Audit coverage: operation audit, subscription access logs, traffic trends, centralized 3x-ui log view
+- Real visitor IP extraction under reverse proxy and Cloudflare
+- Admin operations: SMTP diagnostics, system backup export, DB mode controls, node health monitoring, notification center
+- Security baseline: JWT auth, credential encryption, password policy, rate limiting, SSRF protection
 
-### Subscription Notes
+### Architecture
 
-- NMS no longer depends on an external subscription converter.
-- Clash and Mihomo use NMS-generated YAML subscription URLs directly.
-- Managers can still view and copy the full subscription URL for users.
-- Exported node display names are privacy-safe: site name, domain, and email are not exposed in node labels.
+The backend is now organized as:
 
-### Audit Notes
+- `route -> service -> repository / panel gateway`
 
-- Audit Center is designed for centralized 3x-ui management.
-- The log panel in Audit Center uses aggregated 3x-ui panel logs instead of host syslog.
-- Traffic stats fall back to inbound totals when user-level traffic is unavailable from a node.
+This keeps public APIs stable while moving heavy business logic out of route files.
+
+### Operational Notes
+
+- NMS generates Clash and Mihomo YAML directly. No external subscription converter is required.
+- Clash / Mihomo rules now use MetaCubeX `meta-rules-dat` `mrs` rule providers.
+- Telegram backup can be triggered from NMS, but Telegram Bot configuration still lives in the 3x-ui panel because the official 3x-ui API does not document a config write endpoint for it.
+- 3x-ui log API support depends on the remote node version and capability. NMS detects support and degrades gracefully when a node does not expose the expected log endpoints.
 
 ### Requirements
 
-- Linux (Ubuntu 20.04+ / Debian 11+ recommended)
-- Node.js 18+ (Node.js 20 LTS recommended)
+- Linux (`Ubuntu 20.04+` / `Debian 11+` recommended)
+- Node.js `18+` (`20 LTS` recommended)
 - PM2
 - Nginx (recommended, optional)
-- PostgreSQL 14+ (optional, DB mode only)
+- PostgreSQL `14+` (optional, DB mode only)
 
 ### Quick Start (File Storage Mode)
 
 1. Install dependencies
 
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-    sudo npm install -g pm2
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+sudo npm install -g pm2
+```
 
 2. Deploy and build
 
-    sudo mkdir -p /opt/nms
-    sudo cp -r . /opt/nms/
-    cd /opt/nms/server && npm install --production
-    cd /opt/nms/client && npm install && npm run build
+```bash
+sudo mkdir -p /opt/nms
+sudo cp -r . /opt/nms/
+cd /opt/nms/server && npm install --production
+cd /opt/nms/client && npm install && npm run build
+```
 
 3. Configure environment
 
-    cd /opt/nms
-    cp .env.example .env
+```bash
+cd /opt/nms
+cp .env.example .env
+```
 
-Must change these values in .env: JWT_SECRET, CREDENTIALS_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD.
+You must change at least:
 
-4. Start service
+- `JWT_SECRET`
+- `CREDENTIALS_SECRET`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
 
-    cd /opt/nms
-    mkdir -p logs
-    pm2 start ecosystem.config.cjs
-    pm2 save
-    pm2 startup systemd -u root --hp /root
+Optional but strongly recommended:
 
-5. Access panel
+- `SUB_PUBLIC_BASE_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
 
-- http://SERVER_IP:3001
+4. Start the service
+
+```bash
+cd /opt/nms
+mkdir -p logs
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup systemd -u root --hp /root
+```
+
+5. Access the panel
+
+- `http://SERVER_IP:3001`
+
+### Main Admin Features
+
+- Multi-node server registration, connectivity test, group/tag/environment governance
+- Cross-node inbound management with sorting, batch actions, and protocol-aware editing
+- Cross-node user management with subscription provisioning and entitlement sync
+- Subscription access audit with real client IP, proxy IP, and optional geo lookup
+- System Settings with SMTP diagnostics, backup export, DB runtime mode controls, and health monitor status
+
+### Documentation
+
+- [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
+- [Subscription Output Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
+- [Feature and UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
+- [Gap Backlog](docs/NMS_GAP_BACKLOG.md)
 
 ### Docker and GHCR
 
 This repository includes:
 
-- Dockerfile
-- .dockerignore
-- .github/workflows/docker.yml
+- `Dockerfile`
+- `.dockerignore`
+- `.github/workflows/docker.yml`
 
-On push to main, GitHub Actions builds and publishes images to GHCR:
+On push to `main`, GitHub Actions builds and publishes images to GHCR:
 
-- ghcr.io/zangge8855/nms:latest
-- ghcr.io/zangge8855/nms:<commit_sha>
+- `ghcr.io/zangge8855/nms:latest`
+- `ghcr.io/zangge8855/nms:<commit_sha>`
 
-More configuration details: .env.example
+More configuration details: `.env.example`
 
 ---
 
 ## 中文
 
-### 功能
+### 核心能力
 
 - 多个 3x-ui 面板的集中管理
-- 用户全流程：注册、审核、开通订阅
-- 内置订阅输出：v2rayN、Raw、Native、Reconstructed、Clash YAML、Mihomo YAML、sing-box 导入链接
-- 流量统计：客户端、入站、服务器维度
-- 审计能力：操作日志、3x-ui 日志、流量趋势、订阅访问日志、可选 IP 归属地
-- 安全能力：JWT、凭据加密、密码策略、限流
+- 用户全流程支持：注册、邮箱验证、找回密码、管理员用户管理
+- 内置订阅输出：`v2rayN`、`Raw`、`Native`、`Reconstructed`、`Clash YAML`、`Mihomo YAML`、`sing-box 导入`
+- 用户策略与开通控制：`limitIp`、总流量、到期时间、单实例单独限定
+- 审计能力：操作审计、订阅访问日志、流量趋势、集中 3x-ui 日志查看
+- 在反代和 Cloudflare 场景下记录真实访客 IP
+- 管理端增强：SMTP 诊断、系统备份导出、DB 模式切换、节点健康巡检、通知中心
+- 安全基线：JWT、凭据加密、密码策略、限流、SSRF 防护
 
-### 订阅说明
+### 架构说明
 
-- NMS 现在不再依赖外部订阅转换器。
-- Clash / Mihomo 直接使用 NMS 生成的 YAML 订阅地址。
-- 管理者仍然可以查看和复制完整订阅链接发给用户。
-- 客户端导入后的节点显示名已做脱敏，不会把站点名、域名、邮箱暴露到节点标签里。
+后端当前已整理为：
 
-### 审计说明
+- `route -> service -> repository / panel gateway`
 
-- 审计中心面向集中管理 3x-ui 场景设计。
-- 审计中心日志页聚合的是各节点 3x-ui panel 日志，不再依赖宿主机 syslog。
-- 当某些节点拿不到用户级流量明细时，流量统计会自动回退到入站总流量采样。
+对外 API 保持兼容，重业务逻辑已经从路由层下沉。
+
+### 运行说明
+
+- NMS 现在直接生成 Clash / Mihomo YAML，不再依赖外部订阅转换器。
+- Clash / Mihomo 规则源已切换为 MetaCubeX `meta-rules-dat` 的 `mrs` 规则提供器。
+- NMS 可以触发 Telegram 备份，但 Telegram Bot 的 `Token / Chat ID / 定时通知` 仍需在 3x-ui 面板里配置，因为 3x-ui 官方 API 没有文档化的配置写入接口。
+- 3x-ui 日志 API 是否可用取决于远端节点版本和能力；NMS 会先做能力探测，不支持时返回兼容提示而不是盲目报错。
 
 ### 环境要求
 
-- Linux（推荐 Ubuntu 20.04+ / Debian 11+）
-- Node.js 18+（推荐 Node.js 20 LTS）
+- Linux（推荐 `Ubuntu 20.04+` / `Debian 11+`）
+- Node.js `18+`（推荐 `20 LTS`）
 - PM2
 - Nginx（推荐，可选）
-- PostgreSQL 14+（可选，仅数据库模式）
+- PostgreSQL `14+`（可选，仅数据库模式）
 
 ### 快速开始（文件存储模式）
 
 1. 安装依赖
 
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-    sudo npm install -g pm2
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+sudo npm install -g pm2
+```
 
 2. 部署并构建
 
-    sudo mkdir -p /opt/nms
-    sudo cp -r . /opt/nms/
-    cd /opt/nms/server && npm install --production
-    cd /opt/nms/client && npm install && npm run build
+```bash
+sudo mkdir -p /opt/nms
+sudo cp -r . /opt/nms/
+cd /opt/nms/server && npm install --production
+cd /opt/nms/client && npm install && npm run build
+```
 
 3. 配置环境变量
 
-    cd /opt/nms
-    cp .env.example .env
+```bash
+cd /opt/nms
+cp .env.example .env
+```
 
-必须修改 .env 中以下项：JWT_SECRET、CREDENTIALS_SECRET、ADMIN_USERNAME、ADMIN_PASSWORD。
+至少必须修改：
+
+- `JWT_SECRET`
+- `CREDENTIALS_SECRET`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+建议同时配置：
+
+- `SUB_PUBLIC_BASE_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
 
 4. 启动服务
 
-    cd /opt/nms
-    mkdir -p logs
-    pm2 start ecosystem.config.cjs
-    pm2 save
-    pm2 startup systemd -u root --hp /root
+```bash
+cd /opt/nms
+mkdir -p logs
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup systemd -u root --hp /root
+```
 
 5. 访问面板
 
-- http://SERVER_IP:3001
+- `http://SERVER_IP:3001`
+
+### 当前管理端重点能力
+
+- 多节点服务器接入、连通性测试、分组/标签/环境治理
+- 跨节点入站管理，支持排序、批量动作、协议感知编辑
+- 跨节点用户管理，支持订阅开通和限额同步
+- 订阅访问审计，支持真实 IP、代理 IP 和可选归属地
+- 系统设置中可直接查看 SMTP 状态、导出备份、切换 DB 模式、查看健康巡检状态
+
+### 文档索引
+
+- [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
+- [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
+- [订阅输出说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
+- [功能与 UI 审计](docs/NMS_FEATURE_UI_AUDIT.md)
+- [缺口与 Backlog](docs/NMS_GAP_BACKLOG.md)
 
 ### Docker 与 GHCR
 
 仓库已包含：
 
-- Dockerfile
-- .dockerignore
-- .github/workflows/docker.yml
+- `Dockerfile`
+- `.dockerignore`
+- `.github/workflows/docker.yml`
 
-推送到 main 后会自动构建并发布镜像到 GHCR：
+推送到 `main` 后会自动构建并发布镜像到 GHCR：
 
-- ghcr.io/zangge8855/nms:latest
-- ghcr.io/zangge8855/nms:<commit_sha>
+- `ghcr.io/zangge8855/nms:latest`
+- `ghcr.io/zangge8855/nms:<commit_sha>`
 
-更多配置请参考：.env.example
+更多配置请参考：`.env.example`

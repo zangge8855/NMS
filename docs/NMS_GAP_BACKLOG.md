@@ -3,48 +3,56 @@
 > 更新时间：2026-03-09  
 > 适用环境：当前开发环境（隐私优先）
 
-## 已补齐（本轮）
+## 已完成（当前阶段）
 
-- [x] 挂载订阅中心页面：`/subscriptions`
-- [x] 订阅中心支持“手动输入邮箱”模式，非 admin 不再依赖全量用户列表接口
-- [x] 系统设置新增数据库运维面板（状态、模式切换、回填、快照列表）
-- [x] 角色模型收敛为 `admin/user`，并兼容旧 `operator/viewer` 自动映射为 `user`
-- [x] `user` 角色仅保留订阅中心访问，且仅可查看自身订阅连接
-- [x] 外部订阅转换器依赖已移除；Clash / Mihomo 改为内置 YAML 订阅地址
-- [x] 管理端保留完整订阅链接展示；客户端节点显示名默认脱敏
-- [x] 审计中心“订阅访问”新增 IP 所属地列（支持 `myip.ipip.net` 响应解析）
-- [x] 归属地查询支持运行时开关、超时与缓存配置（默认可关闭）
-- [x] 用户策略支持按邮箱分配可访问节点/协议（用于“注册后按用户分配指定节点”）
-- [x] 审计中心日志页改为聚合各节点 3x-ui panel 日志
-- [x] 审计中心流量统计在缺少用户级明细时回退到入站总流量
-- [x] 入站支持手工排序，订阅生成顺序与入站顺序保持一致
-- [x] 入站下用户可直接查看流量并手动删除历史用户
+- [x] 订阅中心已挂载到 `/subscriptions`
+- [x] `user` 角色收敛为仅可访问自身订阅中心
+- [x] 外部订阅转换器依赖已移除
+- [x] Clash / Mihomo 改为内置 YAML 输出，并使用 `MetaCubeX meta-rules-dat` `mrs` 规则源
+- [x] 审计中心“订阅访问”支持真实 IP / 代理 IP 展示
+- [x] Cloudflare 场景下优先记录真实访客 IP
+- [x] 审计中心日志页改为统一 3x-ui 日志入口，并对节点能力做兼容处理
+- [x] 用户策略支持 `limitIp`、`trafficLimitBytes`、可访问节点和协议限制
+- [x] 入站里的用户支持“单独限定”并可恢复跟随统一策略
+- [x] 系统设置新增 SMTP 诊断
+- [x] 系统设置新增系统备份导出
+- [x] 系统设置新增节点健康巡检状态和“立即巡检”
+- [x] DB 回填已支持任务化执行、进度查看和取消
+- [x] DB 写入失败已接入告警与通知
+- [x] 后端已整理为 `route -> service -> repository / panel gateway`
 
-## P0（高优先）
+## P0（当前无阻塞缺口）
 
-- [ ] 为 DB 回填增加任务化执行（异步任务 ID、进度、可取消）
-- [ ] 增加 DB 写入失败告警（阈值告警 + 审计事件）
+- [ ] 无
 
-## P1（中优先）
+## P1（下一批最值得做）
 
 - [ ] 订阅中心补齐 token 生命周期管理 UI（签发、撤销、到期时间、用途标注）
 - [ ] 补齐“订阅中心”到“用户管理”的双向跳转（按 email 联动）
+- [ ] 为系统备份补恢复/导入工作流，目前仅支持导出
+- [ ] 为 `auth / subscriptions / provision-subscription` 增加更多 route 级集成测试
+- [ ] 准备带真实 inbound/client 的测试节点，补齐开通订阅到节点下发的实机闭环
+
+## P2（体验与运营增强）
+
 - [ ] 挂载集群向导页面：`/cluster`
-- [ ] 为集群向导补齐侧边栏入口与角色控制展示
-- [ ] 集群向导增加模板库（保存/复用入站模板）
-- [ ] 流量页增加按 server/group/environment 的组合筛选
-
-## P2（体验优化）
-
-- [ ] 审计中心增加“字段差异视图”（前后值对比）
-- [ ] 任务中心增加“失败原因聚类 + 一键重试策略推荐”
+- [ ] 为集群向导补齐模板库（保存/复用入站模板）
+- [ ] 流量页增加按 `server/group/environment` 的组合筛选
+- [ ] 审计中心增加“字段差异视图”
 - [ ] 服务器管理增加“批量标签编辑”与“分组批量迁移”
+
+## 明确保守处理的边界
+
+- Telegram Bot 的 `Token / Chat ID / Notification Time` 仍在 3x-ui 面板中配置，NMS 当前只负责触发 Telegram 备份
+- 未文档化的 3x-ui 私有设置暂不通过 NMS 直接写入
+- 3x-ui 日志能力受节点版本影响，NMS 只做能力探测和兼容 fallback
 
 ## 隐私与开发环境约束
 
-- DB 回填默认使用 `dry-run + redact`，仅在确认后执行真实写入。
-- 开发环境禁止接入生产数据库；敏感字段（token/password/secret/cookie）保持脱敏策略。
-- 审计/流量快照应持续采用匿名化字段（email/ip/userAgent hash 化）。
+- DB 回填默认使用 `dry-run + redact`
+- 开发环境禁止接入生产数据库
+- 敏感字段（`token/password/secret/cookie`）保持脱敏
+- 审计和流量快照继续采用匿名化字段，如哈希化的 `email/ip/userAgent`
 
 ---
 
@@ -54,46 +62,53 @@
 > 
 > Target environment: current development setup, privacy-first
 
-## Completed in the Current Round
+## Completed in the Current Phase
 
-- [x] Mounted Subscription Center at `/subscriptions`
-- [x] Subscription Center supports manual email input so non-admin users no longer depend on the full user list API
-- [x] Added DB operations panel to System Settings, including status, mode switch, backfill, and snapshot list
-- [x] Simplified the role model to `admin/user`, with automatic compatibility mapping from legacy `operator/viewer`
-- [x] `user` role now only keeps access to Subscription Center and can only view its own subscription identity
-- [x] Removed external subscription converter dependency; Clash / Mihomo now use built-in YAML subscription output
-- [x] Admin UI still shows full subscription links, while client node labels are privacy-masked by default
-- [x] Added IP geo column to subscription access auditing, including `myip.ipip.net` parsing support
-- [x] Geo lookup supports runtime enable/disable, timeout, and cache controls
-- [x] User policy can limit accessible servers and protocols by email
-- [x] Audit Center log page now aggregates 3x-ui panel logs
-- [x] Audit Center traffic stats fall back to inbound totals when per-user traffic is unavailable
-- [x] Inbounds now support manual sorting, and subscription output follows that order
-- [x] Users under each inbound can now show traffic usage and be removed manually
+- [x] Subscription Center is mounted at `/subscriptions`
+- [x] The `user` role is reduced to self-only Subscription Center access
+- [x] External subscription converter dependency has been removed
+- [x] Clash / Mihomo now use built-in YAML output with `MetaCubeX meta-rules-dat` `mrs` providers
+- [x] Subscription access audit now shows real IP and proxy IP
+- [x] Real visitor IP is preferred under Cloudflare
+- [x] Audit log view now uses a unified 3x-ui log entry with node capability fallback
+- [x] User policy supports `limitIp`, `trafficLimitBytes`, and accessible server/protocol scope
+- [x] Users inside inbounds can use per-client entitlement override and return to follow policy
+- [x] System Settings now expose SMTP diagnostics
+- [x] System Settings now expose system backup export
+- [x] System Settings now expose node health monitor status and manual run
+- [x] DB backfill is task-based with progress tracking and cancellation
+- [x] DB write failures now generate alerts and notifications
+- [x] The backend has been reorganized into `route -> service -> repository / panel gateway`
 
 ## P0
 
-- [ ] Make DB backfill task-based, with async task id, progress, and cancellation
-- [ ] Add DB write failure alerts, including threshold alarms and audit events
+- [ ] None at the current stage
 
 ## P1
 
 - [ ] Add token lifecycle management UI to Subscription Center, including issue, revoke, expiry, and purpose label
 - [ ] Add two-way navigation between Subscription Center and User Management by email
-- [ ] Mount the Cluster Wizard page at `/cluster`
-- [ ] Add the Cluster Wizard sidebar entry with role-based visibility
-- [ ] Add reusable inbound templates to Cluster Wizard
-- [ ] Add combined filters by `server/group/environment` on traffic pages
+- [ ] Add restore/import workflow for system backups, since the current phase only exports backup archives
+- [ ] Add more route-level integration tests for `auth`, `subscriptions`, and provisioning flows
+- [ ] Prepare a real node with inbound/client fixtures to complete end-to-end live-node validation
 
 ## P2
 
-- [ ] Add field diff view to Audit Center
-- [ ] Add grouped failure reasons and retry suggestions to Task Center
-- [ ] Add batch tag editing and batch group migration to Server Management
+- [ ] Mount the Cluster Wizard page at `/cluster`
+- [ ] Add reusable inbound templates to Cluster Wizard
+- [ ] Add combined filters by `server/group/environment` on traffic pages
+- [ ] Add a field diff view to Audit Center
+- [ ] Add batch tag editing and group migration to Server Management
+
+## Deliberately Conservative Boundaries
+
+- Telegram Bot `Token / Chat ID / Notification Time` still belong to the 3x-ui panel; NMS currently only triggers Telegram backup
+- Undocumented private 3x-ui settings are not written by NMS
+- 3x-ui log capability still depends on node version; NMS only detects support and performs graceful fallback
 
 ## Privacy and Development Constraints
 
-- DB backfill should default to `dry-run + redact`, and only perform real writes after explicit confirmation.
-- Development environments must not connect to production databases.
-- Sensitive fields such as `token/password/secret/cookie` must remain redacted.
-- Audit and traffic snapshots should continue to use anonymized fields such as hashed `email/ip/userAgent`.
+- DB backfill should default to `dry-run + redact`
+- Development environments must not connect to production databases
+- Sensitive fields such as `token/password/secret/cookie` must remain redacted
+- Audit and traffic snapshots should continue to use anonymized fields such as hashed `email/ip/userAgent`
