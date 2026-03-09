@@ -92,7 +92,7 @@ export default function ClientModal({
     const [password, setPassword] = useState('');
     const [subId, setSubId] = useState('');
     const [totalGB, setTotalGB] = useState(0);
-    const [expiryTime, setExpiryTime] = useState(0);
+    const [_expiryTime, setExpiryTime] = useState(0);
     const [expiryMode, setExpiryMode] = useState('never');
     const [expiryDateTime, setExpiryDateTime] = useState('');
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
@@ -470,7 +470,7 @@ export default function ClientModal({
                     );
                     assertOperationSucceeded(updateRes, '更新失败');
                     updateMsg = resolveResponseMsg(updateRes.data, updateMsg);
-                } catch (error) {
+                } catch {
                     // Backward compatibility for older/forked 3x-ui update payloads.
                     const fallbackRes = await api.post(
                         `/panel/${serverId}/panel/api/inbounds/updateClient/${encodeURIComponent(clientIdentifier)}`,

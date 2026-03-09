@@ -14,24 +14,6 @@ import {
     HiOutlineEye,
 } from 'react-icons/hi2';
 
-const ENV_OPTIONS = [
-    { value: 'unknown', label: '未知' },
-    { value: 'production', label: '生产' },
-    { value: 'staging', label: '预发布' },
-    { value: 'development', label: '开发' },
-    { value: 'testing', label: '测试' },
-    { value: 'dr', label: '容灾' },
-    { value: 'sandbox', label: '沙箱' },
-];
-
-const HEALTH_OPTIONS = [
-    { value: 'unknown', label: '未知' },
-    { value: 'healthy', label: '健康' },
-    { value: 'degraded', label: '降级' },
-    { value: 'unreachable', label: '不可达' },
-    { value: 'maintenance', label: '维护中' },
-];
-
 const PANEL_AUTH_REPAIR_CODES = new Set([
     'PANEL_CREDENTIAL_UNREADABLE',
     'PANEL_CREDENTIAL_MISSING',
@@ -84,8 +66,8 @@ export default function Servers() {
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [searchKeyword, setSearchKeyword] = useState('');
     const [filterGroup, setFilterGroup] = useState('all');
-    const [filterEnvironment, setFilterEnvironment] = useState('all');
-    const [filterHealth, setFilterHealth] = useState('all');
+    const [filterEnvironment] = useState('all');
+    const [filterHealth] = useState('all');
     const confirmAction = useConfirm();
 
     const resetForm = () => {

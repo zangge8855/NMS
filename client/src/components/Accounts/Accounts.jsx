@@ -425,7 +425,7 @@ export default function Accounts({ embedded = false }) {
             try {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
-            } catch (subErr) {
+            } catch {
                 toast('订阅已开通，但订阅详情加载失败，可稍后刷新查看', { icon: '⚠️' });
             }
 

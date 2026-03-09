@@ -16,7 +16,7 @@ const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'wireguard', supports: { transports: [], securities: [] } },
     { key: 'tun', supports: { transports: [], securities: [] } },
 ];
-const PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
+const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
 
 const NETWORK_LABELS = {
     tcp: 'TCP',
@@ -36,7 +36,7 @@ const SECURITY_LABELS = {
 };
 
 const FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', 'qq', '360', 'random', 'randomized', 'randomizednoalpn', 'unsafe'];
-const VMESS_SECURITY_OPTIONS = ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'];
+const _VMESS_SECURITY_OPTIONS = ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'];
 const TLS_VERSION_OPTIONS = ['1.0', '1.1', '1.2', '1.3'];
 const TLS_CIPHER_OPTIONS = [
     '',
@@ -54,7 +54,7 @@ const TLS_CIPHER_OPTIONS = [
     'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256',
     'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256',
 ];
-const SS_METHOD_OPTIONS = [
+const _SS_METHOD_OPTIONS = [
     'aes-256-gcm',
     'chacha20-poly1305',
     'chacha20-ietf-poly1305',
@@ -138,7 +138,7 @@ function normalizeHeadersObject(input) {
     return input;
 }
 
-function convertHeadersObjectToRows(headers) {
+function _convertHeadersObjectToRows(headers) {
     if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return [];
     return Object.entries(headers).map(([name, value]) => ({
         name: String(name || ''),
@@ -146,7 +146,7 @@ function convertHeadersObjectToRows(headers) {
     }));
 }
 
-function convertHeaderRowsToObject(rows) {
+function _convertHeaderRowsToObject(rows) {
     const result = {};
     (Array.isArray(rows) ? rows : []).forEach((row) => {
         const name = String(row?.name || '').trim();
@@ -523,7 +523,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     const [inboundEnabled, setInboundEnabled] = useState(true);
     const [trafficReset, setTrafficReset] = useState('never');
     const [totalGB, setTotalGB] = useState(0);
-    const [expiryTime, setExpiryTime] = useState(0);
+    const [_expiryTime, setExpiryTime] = useState(0);
     const [expiryMode, setExpiryMode] = useState('never');
     const [expiryDateTime, setExpiryDateTime] = useState('');
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
@@ -1279,7 +1279,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 parsedSettings = JSON.parse(settings);
                 parsedStreamSettings = JSON.parse(streamSettings);
                 parsedSniffing = JSON.parse(sniffing);
-            } catch (e) {
+            } catch {
                 toast.error('JSON 格式错误，请检查高级设置');
                 setLoading(false);
                 return;

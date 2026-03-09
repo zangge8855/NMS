@@ -59,7 +59,7 @@ const api = axios.create({
     },
 });
 
-function shouldClearSessionOnUnauthorized(error) {
+export function shouldClearSessionOnUnauthorized(error) {
     if (error?.response?.status !== 401) return false;
 
     const requestUrl = String(error?.config?.url || '').trim();

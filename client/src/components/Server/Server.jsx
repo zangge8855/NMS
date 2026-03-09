@@ -5,11 +5,9 @@ import Header from '../Layout/Header.jsx';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
-    HiOutlinePlay,
     HiOutlineStop,
     HiOutlineArrowPath,
     HiOutlineArrowDown,
-    HiOutlineArrowUp,
     HiOutlineGlobeAlt,
     HiOutlineCloudArrowDown,
     HiOutlineCloudArrowUp,

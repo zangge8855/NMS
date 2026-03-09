@@ -6,7 +6,7 @@ import { copyToClipboard, formatBytes } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import {
-    normalizeProtocol, normalizeEmail,
+    normalizeProtocol,
     UUID_PROTOCOLS, PASSWORD_PROTOCOLS,
     getClientIdentifier,
 } from '../../utils/protocol.js';
@@ -24,7 +24,6 @@ import {
     HiOutlineClipboard,
     HiOutlineExclamationTriangle,
     HiOutlineUsers,
-    HiOutlineXMark,
 } from 'react-icons/hi2';
 import ClientModal from './ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';

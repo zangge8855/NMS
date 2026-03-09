@@ -14,9 +14,6 @@ import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
     HiOutlineClock,
-    HiOutlineSignal,
-    HiOutlineUsers,
-    HiOutlineArrowsUpDown,
     HiOutlineServerStack,
 } from 'react-icons/hi2';
 

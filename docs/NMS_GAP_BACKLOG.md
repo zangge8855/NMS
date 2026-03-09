@@ -6,8 +6,6 @@
 ## 已补齐（本轮）
 
 - [x] 挂载订阅中心页面：`/subscriptions`
-- [x] 挂载集群向导页面：`/cluster`
-- [x] 侧边栏补齐“订阅中心 / 集群向导”入口，并按角色控制展示
 - [x] 订阅中心支持“手动输入邮箱”模式，非 admin 不再依赖全量用户列表接口
 - [x] 系统设置新增数据库运维面板（状态、模式切换、回填、快照列表）
 - [x] 角色模型收敛为 `admin/user`，并兼容旧 `operator/viewer` 自动映射为 `user`
@@ -31,6 +29,8 @@
 
 - [ ] 订阅中心补齐 token 生命周期管理 UI（签发、撤销、到期时间、用途标注）
 - [ ] 补齐“订阅中心”到“用户管理”的双向跳转（按 email 联动）
+- [ ] 挂载集群向导页面：`/cluster`
+- [ ] 为集群向导补齐侧边栏入口与角色控制展示
 - [ ] 集群向导增加模板库（保存/复用入站模板）
 - [ ] 流量页增加按 server/group/environment 的组合筛选
 
@@ -57,8 +57,6 @@
 ## Completed in the Current Round
 
 - [x] Mounted Subscription Center at `/subscriptions`
-- [x] Mounted Cluster Wizard at `/cluster`
-- [x] Added sidebar entries for Subscription Center and Cluster Wizard with role-based visibility
 - [x] Subscription Center supports manual email input so non-admin users no longer depend on the full user list API
 - [x] Added DB operations panel to System Settings, including status, mode switch, backfill, and snapshot list
 - [x] Simplified the role model to `admin/user`, with automatic compatibility mapping from legacy `operator/viewer`
@@ -82,6 +80,8 @@
 
 - [ ] Add token lifecycle management UI to Subscription Center, including issue, revoke, expiry, and purpose label
 - [ ] Add two-way navigation between Subscription Center and User Management by email
+- [ ] Mount the Cluster Wizard page at `/cluster`
+- [ ] Add the Cluster Wizard sidebar entry with role-based visibility
 - [ ] Add reusable inbound templates to Cluster Wizard
 - [ ] Add combined filters by `server/group/environment` on traffic pages
 

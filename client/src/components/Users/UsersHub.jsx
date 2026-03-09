@@ -19,8 +19,6 @@ import {
     HiOutlineMagnifyingGlass,
     HiOutlineLink,
     HiOutlineClipboard,
-    HiOutlineUsers,
-    HiOutlineKey,
     HiOutlineCheck,
     HiOutlineEye,
     HiOutlineEyeSlash,
@@ -29,7 +27,6 @@ import {
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
     HiOutlineArrowDownTray,
-    HiOutlineFunnel,
 } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
@@ -442,7 +439,7 @@ export default function UsersHub() {
             try {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
-            } catch (subErr) {
+            } catch {
                 toast('订阅已开通，但订阅详情加载失败，可稍后刷新查看', { icon: '⚠️' });
             }
 

@@ -1,0 +1,146 @@
+import React from 'react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import api from '../../api/client.js';
+import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useServer } from '../../contexts/ServerContext.jsx';
+import { renderWithRouter } from '../../test/render.jsx';
+import Subscriptions from './Subscriptions.jsx';
+
+vi.mock('../../api/client.js', () => ({
+    default: {
+        get: vi.fn(),
+    },
+}));
+
+vi.mock('../../contexts/AuthContext.jsx', () => ({
+    useAuth: vi.fn(),
+}));
+
+vi.mock('../../contexts/ServerContext.jsx', () => ({
+    useServer: vi.fn(),
+}));
+
+vi.mock('../Layout/Header.jsx', () => ({
+    default: ({ title }) => <div>{title}</div>,
+}));
+
+vi.mock('react-hot-toast', () => ({
+    default: {
+        error: vi.fn(),
+        success: vi.fn(),
+    },
+}));
+
+describe('Subscriptions', () => {
+    beforeEach(() => {
+        api.get.mockReset();
+        useAuth.mockReset();
+        useServer.mockReset();
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+    });
+
+    it('auto-loads the current user subscription and keeps the identity input read-only', async () => {
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        const emailInput = await screen.findByDisplayValue('user@example.com');
+        expect(emailInput).toHaveAttribute('readonly');
+        expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
+    });
+
+    it('shows a manual-input hint when the admin cannot access the global user list', async () => {
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                subscriptionEmail: '',
+            },
+        });
+        api.get.mockRejectedValueOnce({
+            response: {
+                status: 403,
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        expect(await screen.findByText('当前角色无全量用户列表权限，请手动输入邮箱')).toBeInTheDocument();
+    });
+
+    it('switches between client-specific subscription profiles', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                subscriptionEmail: '',
+            },
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            users: ['admin@example.com'],
+                            warnings: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/subscriptions/admin%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'admin@example.com',
+                            total: 2,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                            subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
+                            subscriptionUrlMihomo: 'https://sub.example.com/base?format=mihomo',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Clash / Verge' }));
+        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Mihomo Party' }));
+        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=mihomo')).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
+            expect(api.get).toHaveBeenCalledWith('/subscriptions/admin%40example.com');
+        });
+    });
+});

@@ -13,7 +13,6 @@ import {
     HiOutlinePencilSquare,
     HiOutlineArrowPath,
     HiOutlineServer,
-    HiOutlineUserPlus,
     HiOutlineSignal,
     HiOutlineBars3,
 } from 'react-icons/hi2';
@@ -22,88 +21,18 @@ import {
     reorderInboundsWithinServer,
     sortInboundsByOrder,
 } from '../../utils/inboundOrder.js';
+import {
+    safeNumber,
+    mergeInboundClientStats,
+    resolveClientQuota,
+    resolveClientUsed,
+    resolveUsagePercent,
+    resolveUsageTone,
+} from '../../utils/inboundClients.js';
 
 import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
-
-function safeNumber(value) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-}
-
-function resolveClientKeys(client = {}, protocol = '') {
-    const keys = new Set();
-    const identifier = String(getClientIdentifier(client, protocol) || '').trim();
-    const email = String(client.email || '').trim().toLowerCase();
-    const id = String(client.id || '').trim();
-    const password = String(client.password || '').trim();
-
-    if (identifier) keys.add(`identifier:${identifier}`);
-    if (email) keys.add(`email:${email}`);
-    if (id) keys.add(`id:${id}`);
-    if (password) keys.add(`password:${password}`);
-
-    return Array.from(keys);
-}
-
-function mergeInboundClientStats(inbound) {
-    let baseClients = [];
-    try {
-        const settings = JSON.parse(inbound?.settings || '{}');
-        baseClients = Array.isArray(settings.clients) ? settings.clients : [];
-    } catch {
-        baseClients = [];
-    }
-
-    const statsCandidates = [
-        inbound?.clientStats,
-        inbound?.clientTraffic,
-        inbound?.clientTraffics,
-        inbound?.clientTrafficsList,
-    ];
-    const statsRows = statsCandidates.find((item) => Array.isArray(item)) || [];
-    const statsMap = new Map();
-
-    statsRows.forEach((row) => {
-        resolveClientKeys(row, inbound?.protocol).forEach((key) => {
-            if (!statsMap.has(key)) {
-                statsMap.set(key, row);
-            }
-        });
-    });
-
-    return baseClients.map((client) => {
-        const stats = resolveClientKeys(client, inbound?.protocol)
-            .map((key) => statsMap.get(key))
-            .find(Boolean);
-
-        return {
-            ...(stats || {}),
-            ...client,
-        };
-    });
-}
-
-function resolveClientQuota(client) {
-    return safeNumber(client?.totalGB || client?.total || client?.totalBytes || 0);
-}
-
-function resolveClientUsed(client) {
-    return safeNumber(client?.up) + safeNumber(client?.down);
-}
-
-function resolveUsagePercent(usedBytes, totalBytes) {
-    if (!Number.isFinite(totalBytes) || totalBytes <= 0) return null;
-    return Math.max(0, Math.min(100, Math.round((usedBytes / totalBytes) * 100)));
-}
-
-function resolveUsageTone(percent) {
-    if (percent === null) return 'neutral';
-    if (percent >= 90) return 'danger';
-    if (percent >= 70) return 'warning';
-    return 'success';
-}
 
 export default function Inbounds() {
     const { servers } = useServer();
@@ -124,7 +53,7 @@ export default function Inbounds() {
 
     // Batch Client Add State
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-    const [clientTargets, setClientTargets] = useState([]);
+    const [clientTargets, _setClientTargets] = useState([]);
     const [batchResultData, setBatchResultData] = useState(null);
     const [batchResultTitle, setBatchResultTitle] = useState('批量执行结果');
 
@@ -329,23 +258,6 @@ export default function Inbounds() {
             const msg = err.response?.data?.msg || err.message || '批量启停失败';
             toast.error(msg);
         }
-    };
-
-    const handleBulkAddClient = () => {
-        const targets = selectedVisibleInbounds;
-        // Only protocols with 3x-ui "clients" model can be batch-added here.
-        const supported = targets.filter(t => {
-            const protocol = String(t.protocol || '').toLowerCase();
-            return ['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol);
-        });
-
-        if (supported.length === 0) {
-            toast.error('仅 VMESS / VLESS / TROJAN / SHADOWSOCKS 支持批量添加用户');
-            return;
-        }
-
-        setClientTargets(supported);
-        setIsClientModalOpen(true);
     };
 
     const handleDelete = async (inbound) => {

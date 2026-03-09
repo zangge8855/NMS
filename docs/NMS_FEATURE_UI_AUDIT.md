@@ -80,7 +80,7 @@
 ### 4.1 页面规模
 
 - 组件页面文件（`client/src/components/*/*.jsx`）：22 个
-- 主路由受保护页面入口：14 条
+- 主路由受保护页面入口：15 条
 - 侧边栏主导航项：13 项
 - 侧边栏系统区：2 项（服务器管理、退出登录）
 
@@ -92,7 +92,6 @@
 | `/inbounds` | 入站管理 | 仅 admin |
 | `/clients` | 用户管理 | 仅 admin |
 | `/subscriptions` | 订阅中心 | admin 可查全部；user 仅可查看自己的订阅连接 |
-| `/cluster` | 集群向导 | 仅 admin |
 | `/logs` | 日志查看 | 仅 admin |
 | `/server` | 节点设置 | 仅 admin |
 | `/tools` | 密钥工具 | 仅 admin；全局视图下隐藏 |
@@ -100,7 +99,7 @@
 | `/tasks` | 任务中心 | 仅 admin |
 | `/audit` | 审计中心 | 仅 admin |
 | `/servers` | 服务器管理 | 仅 admin |
-| `/accounts` | 账号管理 | 仅 admin 导航可见 |
+| `/accounts` | 账号管理别名 | 仅 admin；直接访问时重定向到 `/clients` |
 | `/settings` | 系统设置 | 仅 admin |
 
 ### 4.3 UI 组件使用统计（代码级）
@@ -260,7 +259,7 @@
 
 ## 8. 当前边界与注意点
 
-- `Subscriptions` 与 `ClusterWizard` 已挂载到主路由与导航；`ClusterWizard` 仅 admin 可访问。
+- `Subscriptions` 已挂载到主路由；`/accounts` 目前是跳转到 `/clients` 的兼容入口，`ClusterWizard` 前端页面当前未挂载。
 - `user` 角色仅保留订阅中心入口，且仅可查看自身邮箱对应的订阅连接。
 - 系统设置已新增数据库运维面板（状态、模式切换、回填、快照查看），仅 admin 可访问。
 - 全局视图下，`/tools`、`/capabilities` 会被隐藏并在访问时重定向；部分单节点动作（DB 导入导出、查看配置）在全局模式禁用。
@@ -354,7 +353,7 @@ Defined roles: `admin` and `user`.
 ### 4.1 Scale
 
 - Page component files: 22 under `client/src/components/*/*.jsx`
-- Protected main routes: 14
+- Protected main routes: 15
 - Main sidebar navigation items: 13
 - System-area sidebar items: 2
 
@@ -366,7 +365,6 @@ Defined roles: `admin` and `user`.
 | `/inbounds` | Inbounds | `admin` only |
 | `/clients` | Clients | `admin` only |
 | `/subscriptions` | Subscription Center | `admin` can inspect all; `user` only its own subscription |
-| `/cluster` | Cluster Wizard | `admin` only |
 | `/logs` | Logs | `admin` only |
 | `/server` | Server | `admin` only |
 | `/tools` | Tools | `admin` only; hidden in global mode |
@@ -374,7 +372,7 @@ Defined roles: `admin` and `user`.
 | `/tasks` | Tasks | `admin` only |
 | `/audit` | Audit Center | `admin` only |
 | `/servers` | Servers | `admin` only |
-| `/accounts` | Accounts | visible in admin navigation only |
+| `/accounts` | Accounts alias | `admin` only; direct access redirects to `/clients` |
 | `/settings` | System Settings | `admin` only |
 
 ## 5. Main Page Capabilities
@@ -515,7 +513,7 @@ Already implemented:
 
 ## 8. Current Boundaries and Notes
 
-- `Subscriptions` and `ClusterWizard` are mounted and visible in navigation; `ClusterWizard` is `admin` only.
+- `Subscriptions` is mounted as a real route; `/accounts` currently acts as a compatibility alias to `/clients`, and the `ClusterWizard` frontend page is not mounted right now.
 - `user` role only keeps Subscription Center access and can only inspect its own bound subscription identity.
 - System Settings now includes DB operations and remains `admin` only.
 - In global mode, some single-node pages and actions are hidden or disabled.

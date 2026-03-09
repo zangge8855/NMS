@@ -1,21 +1,30 @@
 name: docker
 
 on:
-  push:
-    branches: ["main"]
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
   docker:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    env:
+      COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -38,6 +47,6 @@ jobs:
           push: true
           tags: |
             ghcr.io/zangge8855/nms:latest
-            ghcr.io/zangge8855/nms:${{ github.sha }}
+            ghcr.io/zangge8855/nms:${{ env.COMMIT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

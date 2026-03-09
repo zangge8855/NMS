@@ -70,7 +70,6 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps — onClose is a stable inline callback; adding it would cause unnecessary re-runs
     useEffect(() => {
         setShowServerMenu(false);
         onClose?.();
