@@ -45,3 +45,55 @@
 - DB 回填默认使用 `dry-run + redact`，仅在确认后执行真实写入。
 - 开发环境禁止接入生产数据库；敏感字段（token/password/secret/cookie）保持脱敏策略。
 - 审计/流量快照应持续采用匿名化字段（email/ip/userAgent hash 化）。
+
+---
+
+# NMS Gaps / UI Backlog
+
+> Updated: 2026-03-09
+> 
+> Target environment: current development setup, privacy-first
+
+## Completed in the Current Round
+
+- [x] Mounted Subscription Center at `/subscriptions`
+- [x] Mounted Cluster Wizard at `/cluster`
+- [x] Added sidebar entries for Subscription Center and Cluster Wizard with role-based visibility
+- [x] Subscription Center supports manual email input so non-admin users no longer depend on the full user list API
+- [x] Added DB operations panel to System Settings, including status, mode switch, backfill, and snapshot list
+- [x] Simplified the role model to `admin/user`, with automatic compatibility mapping from legacy `operator/viewer`
+- [x] `user` role now only keeps access to Subscription Center and can only view its own subscription identity
+- [x] Removed external subscription converter dependency; Clash / Mihomo now use built-in YAML subscription output
+- [x] Admin UI still shows full subscription links, while client node labels are privacy-masked by default
+- [x] Added IP geo column to subscription access auditing, including `myip.ipip.net` parsing support
+- [x] Geo lookup supports runtime enable/disable, timeout, and cache controls
+- [x] User policy can limit accessible servers and protocols by email
+- [x] Audit Center log page now aggregates 3x-ui panel logs
+- [x] Audit Center traffic stats fall back to inbound totals when per-user traffic is unavailable
+- [x] Inbounds now support manual sorting, and subscription output follows that order
+- [x] Users under each inbound can now show traffic usage and be removed manually
+
+## P0
+
+- [ ] Make DB backfill task-based, with async task id, progress, and cancellation
+- [ ] Add DB write failure alerts, including threshold alarms and audit events
+
+## P1
+
+- [ ] Add token lifecycle management UI to Subscription Center, including issue, revoke, expiry, and purpose label
+- [ ] Add two-way navigation between Subscription Center and User Management by email
+- [ ] Add reusable inbound templates to Cluster Wizard
+- [ ] Add combined filters by `server/group/environment` on traffic pages
+
+## P2
+
+- [ ] Add field diff view to Audit Center
+- [ ] Add grouped failure reasons and retry suggestions to Task Center
+- [ ] Add batch tag editing and batch group migration to Server Management
+
+## Privacy and Development Constraints
+
+- DB backfill should default to `dry-run + redact`, and only perform real writes after explicit confirmation.
+- Development environments must not connect to production databases.
+- Sensitive fields such as `token/password/secret/cookie` must remain redacted.
+- Audit and traffic snapshots should continue to use anonymized fields such as hashed `email/ip/userAgent`.

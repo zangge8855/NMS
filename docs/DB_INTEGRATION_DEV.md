@@ -55,3 +55,63 @@ npm run db:backfill -- --no-dry-run --keys=users,servers
 2. 加载运行模式（`read/write`）；
 3. 当 `read=db` 时尝试从 DB 快照回填内存 Store；
 4. 当 `write=dual|db` 时进行一次基线同步。
+
+---
+
+# NMS Development Database Integration Guide
+
+## 1. Goal
+
+Add PostgreSQL persistence to backend stores without changing existing APIs, and support three modes:
+
+- `STORE_READ_MODE=file|db`
+- `STORE_WRITE_MODE=file|dual|db`
+
+File storage remains the default for safer migration.
+
+## 2. Configuration
+
+See the DB section in `.env.example`:
+
+- `DB_ENABLED`
+- `DB_URL`
+- `DB_SCHEMA`
+- `DB_POOL_MAX`
+- `DB_SSL_MODE`
+- `DB_MIGRATION_AUTO`
+- `STORE_READ_MODE`
+- `STORE_WRITE_MODE`
+- `DB_BACKFILL_REDACT`
+- `DB_BACKFILL_DRY_RUN`
+- `DB_PRIVACY_MODE`
+
+## 3. Added System APIs
+
+- `GET /api/system/db/status` (`admin` only)
+- `POST /api/system/db/backfill` (`admin` only)
+- `POST /api/system/db/switch` (`admin` only)
+
+## 4. Backfill Commands
+
+Run from the backend directory:
+
+```bash
+npm run db:backfill -- --dry-run --redact
+npm run db:backfill -- --no-dry-run --redact
+npm run db:backfill -- --no-dry-run --keys=users,servers
+```
+
+## 5. Privacy Policy in Development
+
+- Audit and traffic snapshots support redaction by default when written to DB, including hashed `email/ip/userAgent`.
+- Sensitive fields such as `password/token/secret/cookie` must not enter normal logs.
+- Use a development database only. Do not connect directly to production.
+
+## 6. Startup Behavior
+
+On startup, `server/index.js` will:
+
+1. Initialize the DB connection and ensure schema/table creation.
+2. Load the configured read/write mode.
+3. Rehydrate in-memory stores from DB snapshots when `read=db`.
+4. Run a baseline sync when `write=dual|db`.

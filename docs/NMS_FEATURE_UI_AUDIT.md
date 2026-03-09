@@ -280,3 +280,256 @@
 - 审计与流量：`server/routes/audit.js`，`server/routes/traffic.js`
 - 服务器存储与凭据加密：`server/store/serverStore.js`
 - WebSocket 实时推送：`server/wsServer.js`
+
+---
+
+# NMS Feature and UI Audit Report
+
+> Baseline: current `/root/NMS` repository, excluding deployment-specific differences
+> 
+> Audit date: 2026-03-09
+
+## 1. Positioning and Overall Conclusion
+
+This project is a centralized management panel for multiple 3x-ui nodes. Its current core coverage already matches the main operating scenarios:
+
+- Centralized multi-server management
+- Cross-node inbound management
+- Cross-node user lifecycle management
+- Traffic analytics and audit visibility
+
+Technical shape:
+
+- Frontend: React + Vite in `client/`
+- Backend: Express + WebSocket in `server/`
+- Node management model: proxying requests through `/api/panel/:serverId/*`
+
+## 2. Backend API Coverage
+
+### 2.1 Route Scale
+
+- Route files: 13 under `server/routes/*.js`
+- Route definitions: 61
+- Mounted API prefixes: 14
+- Effective public endpoints: 72 because `batch.js` is mounted under both `/api/batch` and `/api/jobs`
+
+### 2.2 Domain Breakdown
+
+| API Domain | Route Count | Primary Purpose |
+|---|---:|---|
+| `/api/auth` | 13 | Login, registration, verification, password reset, user management |
+| `/api/servers` | 7 | Server CRUD, batch import, connectivity tests, governance summary |
+| `/api/panel` | 1 (`all`) | Unified proxy to 3x-ui panel APIs |
+| `/api/batch` | 11 | Batch user/inbound actions, history, retry, cancel |
+| `/api/jobs` | 11 | Alias of batch capabilities |
+| `/api/cluster` | 4 | Cluster precheck, template rollout, user sync, subscription enable |
+| `/api/subscriptions` | 10 | Token issue/revoke, public subscription access, logs, user subscription query |
+| `/api/audit` | 2 | Audit event list and detail |
+| `/api/traffic` | 4 | Refresh, summary, user trend, node trend |
+| `/api/capabilities` | 1 | Node capability detection |
+| `/api/protocol-schemas` | 1 | Protocol schemas and defaults |
+| `/api/system` | 4 | System settings, risk confirmation token, credential rotation |
+| `/api/user-policy` | 2 | Subscription policy by server/protocol |
+| `/api/ws` | 1 | WebSocket ticket issue |
+
+### 2.3 Permission Model
+
+Defined roles: `admin` and `user`.
+
+- `admin`: full access to all management modules
+- `user`: access only to Subscription Center and only to its own subscription identity
+
+## 3. Core Business Coverage
+
+| Goal | Coverage | Notes |
+|---|---|---|
+| Multi-server 3x-ui management | Complete | Includes server CRUD, batch import, connectivity tests, credential recovery, grouping, and health status |
+| Cross-node user provisioning | Complete | Users can be provisioned to all nodes or selected targets, with protocol-aware credential handling |
+| Cross-node inbound management | Complete | Supports batch rollout with protocol, transport, TLS/REALITY, and advanced JSON editing |
+| Traffic and audit visibility | Complete | Audit Center covers operation logs, aggregated 3x-ui logs, traffic trends, and subscription access logs |
+| User management | Complete | Aggregated users, batch enable/disable/delete, conflict repair, subscription links, and policy control |
+
+## 4. Frontend Information Architecture
+
+### 4.1 Scale
+
+- Page component files: 22 under `client/src/components/*/*.jsx`
+- Protected main routes: 14
+- Main sidebar navigation items: 13
+- System-area sidebar items: 2
+
+### 4.2 Main Routes
+
+| Route | Page | Visibility |
+|---|---|---|
+| `/` | Dashboard | `admin` only |
+| `/inbounds` | Inbounds | `admin` only |
+| `/clients` | Clients | `admin` only |
+| `/subscriptions` | Subscription Center | `admin` can inspect all; `user` only its own subscription |
+| `/cluster` | Cluster Wizard | `admin` only |
+| `/logs` | Logs | `admin` only |
+| `/server` | Server | `admin` only |
+| `/tools` | Tools | `admin` only; hidden in global mode |
+| `/capabilities` | Capabilities | `admin` only; hidden in global mode |
+| `/tasks` | Tasks | `admin` only |
+| `/audit` | Audit Center | `admin` only |
+| `/servers` | Servers | `admin` only |
+| `/accounts` | Accounts | visible in admin navigation only |
+| `/settings` | System Settings | `admin` only |
+
+## 5. Main Page Capabilities
+
+### 5.1 Dashboard
+
+- Single-node CPU, memory, uptime, online users, inbound count, total traffic, CPU trend
+- Cluster-wide node summary, aggregated traffic, monitoring table, online user detail
+- Real-time updates through WebSocket `cluster_status`
+
+### 5.2 Servers
+
+- Add, edit, delete servers
+- Batch import
+- Single-node and batch connectivity tests
+- Credential repair modal
+- Governance metadata such as `group`, `tags`, `environment`, and `health`
+
+### 5.3 Inbounds
+
+- Aggregated cross-node inbound list
+- Manual drag sorting with persistent order, reused by subscription output
+- Batch enable, disable, delete, reset traffic, and add users
+- Expanded inbound view shows per-user traffic and supports manual user deletion
+- Simple mode and expert JSON mode for editing
+
+### 5.4 Clients
+
+- Cross-node aggregation by email/identity
+- Batch enable, disable, delete
+- Global user provisioning
+- Conflict scan and auto repair
+- Subscription policy modal
+- Subscription links and QR codes for `v2rayN/Raw/Native/Reconstructed/Clash YAML/Mihomo YAML/sing-box`
+
+### 5.5 Tasks
+
+- Batch task history
+- Task detail view
+- Retry failed items
+- Clear history
+
+### 5.6 Audit Center
+
+Three main tabs:
+
+- Operation audit
+- Traffic stats, including fallback to inbound totals when user-level traffic is missing
+- Subscription access analytics
+
+Additional notes:
+
+- The log tab is now intended for aggregated `3x-ui panel log`
+- Host `syslog` is no longer treated as the centralized audit log source
+
+### 5.7 Server
+
+- Xray start, stop, restart
+- Xray version install
+- Geo update
+- Telegram backup
+- DB export/import in single-node mode
+- Xray config viewer in single-node mode
+
+### 5.8 Logs
+
+- Single-node and cluster log views
+- Level filter, line limit, keyword filter, copy support
+- Global view defaults to aggregated 3x-ui panel logs to avoid stale syslog mode leakage
+
+### 5.9 Capabilities
+
+- Protocol support detection
+- Utility API detection such as `uuid`, `x25519`, `ml-dsa`, `ml-kem`, `vlessEnc`, `ech`
+- Links to official module documentation
+
+### 5.10 Tools
+
+- One-click generation for UUID, X25519, ML-DSA-65, ML-KEM-768, VLESS Enc, and ECH Cert
+
+### 5.11 Accounts
+
+- Admin can inspect user accounts
+- Admin can reset passwords with policy validation and generated passwords
+
+### 5.12 System Settings
+
+- Security parameters
+- Task parameters
+- Audit parameters
+- Credential rotation
+- Database operations panel
+
+### 5.13 Login
+
+- Login
+- Registration plus email verification
+- Password reset by email verification
+
+## 6. Security, Risk Control, and Audit
+
+### 6.1 Authentication
+
+- JWT bearer authentication
+- Frontend token stored in `sessionStorage`
+- 3x-ui panel sessions maintained by the backend
+
+### 6.2 Risk Control
+
+- High-risk batch actions can require confirmation tokens
+- Frontend batch operations request `/system/batch-risk-token`
+- Retry operations are also risk-scored
+
+### 6.3 Audit
+
+- Security events are written to dedicated audit storage
+- Sensitive fields such as `password/token/secret/cookie` are redacted
+- Subscription access is logged separately with `status/IP/UA/serverId/mode/format`
+
+### 6.4 Platform Protection
+
+- API rate limiting
+- Extra IP-based throttling on auth flows
+- SSRF protection on server address validation
+- AES-256-GCM encrypted node credential storage with key migration support
+
+## 7. Fit for the Goal of a Multi-Server 3x-ui Management Panel
+
+Overall fit: high.
+
+Already implemented:
+
+- Centralized multi-node access
+- Unified inbound and user orchestration
+- Risk-controlled batch execution
+- Traceable operation audit and subscription access audit
+- Real-time cluster visibility
+
+## 8. Current Boundaries and Notes
+
+- `Subscriptions` and `ClusterWizard` are mounted and visible in navigation; `ClusterWizard` is `admin` only.
+- `user` role only keeps Subscription Center access and can only inspect its own bound subscription identity.
+- System Settings now includes DB operations and remains `admin` only.
+- In global mode, some single-node pages and actions are hidden or disabled.
+
+## 9. Key Source Locations
+
+- Routes and navigation: `client/src/App.jsx`, `client/src/components/Layout/Sidebar.jsx`
+- Multi-node context: `client/src/contexts/ServerContext.jsx`
+- Auth context: `client/src/contexts/AuthContext.jsx`
+- Backend route mounting: `server/index.js`
+- Permission middleware: `server/middleware/auth.js`
+- Node proxying: `server/routes/proxy.js`
+- Batch jobs: `server/routes/batch.js`
+- Subscription stack: `server/routes/subscriptions.js`
+- Audit and traffic: `server/routes/audit.js`, `server/routes/traffic.js`
+- Server store and credential encryption: `server/store/serverStore.js`
+- WebSocket push layer: `server/wsServer.js`
