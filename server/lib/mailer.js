@@ -2,6 +2,34 @@ import nodemailer from 'nodemailer';
 import config from '../config.js';
 
 let transporter = null;
+let lastDelivery = {
+    ts: null,
+    type: '',
+    success: null,
+    error: '',
+    to: '',
+};
+
+function maskEmailAddress(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const atIndex = text.indexOf('@');
+    if (atIndex <= 1) return text;
+    const local = text.slice(0, atIndex);
+    const domain = text.slice(atIndex + 1);
+    if (!domain) return text;
+    return `${local.slice(0, 1)}***@${domain}`;
+}
+
+function recordDelivery(type, toEmail, success, error = '') {
+    lastDelivery = {
+        ts: new Date().toISOString(),
+        type: String(type || '').trim(),
+        success: success === true,
+        error: String(error || '').trim(),
+        to: maskEmailAddress(toEmail),
+    };
+}
 
 function getTransporter() {
     if (transporter) return transporter;
@@ -21,6 +49,58 @@ function getTransporter() {
     return transporter;
 }
 
+export function getEmailStatus() {
+    const configured = Boolean(
+        String(config.smtp.host || '').trim()
+        && String(config.smtp.user || '').trim()
+        && String(config.smtp.pass || '').trim()
+        && String(config.smtp.from || '').trim()
+    );
+
+    return {
+        configured,
+        host: String(config.smtp.host || '').trim(),
+        port: Number(config.smtp.port || 0),
+        secure: config.smtp.secure === true,
+        from: String(config.smtp.from || '').trim(),
+        userMasked: maskEmailAddress(config.smtp.user),
+        lastDelivery: { ...lastDelivery },
+    };
+}
+
+export function resetEmailStatusForTests() {
+    transporter = null;
+    lastDelivery = {
+        ts: null,
+        type: '',
+        success: null,
+        error: '',
+        to: '',
+    };
+}
+
+async function sendTrackedEmail({ type, toEmail, subject, html }) {
+    const t = getTransporter();
+    if (!t) {
+        const message = 'SMTP 未配置，无法发送邮件。请在 .env 中配置 SMTP_HOST 等参数';
+        recordDelivery(type, toEmail, false, message);
+        throw new Error(message);
+    }
+
+    try {
+        await t.sendMail({
+            from: config.smtp.from,
+            to: toEmail,
+            subject,
+            html,
+        });
+        recordDelivery(type, toEmail, true, '');
+    } catch (error) {
+        recordDelivery(type, toEmail, false, error.message || 'send failed');
+        throw error;
+    }
+}
+
 /**
  * 生成 6 位数字验证码
  */
@@ -35,11 +115,6 @@ export function generateVerifyCode() {
  * @param {string} username 用户名 (可选)
  */
 export async function sendVerificationEmail(toEmail, code, username = '') {
-    const t = getTransporter();
-    if (!t) {
-        throw new Error('SMTP 未配置，无法发送验证邮件。请在 .env 中配置 SMTP_HOST 等参数');
-    }
-
     const ttl = config.registration.verifyCodeTtlMinutes;
 
     const html = `
@@ -61,9 +136,9 @@ export async function sendVerificationEmail(toEmail, code, username = '') {
       </div>
     </div>`;
 
-    await t.sendMail({
-        from: config.smtp.from,
-        to: toEmail,
+    await sendTrackedEmail({
+        type: 'verification',
+        toEmail,
         subject: `[NMS] 邮箱验证码: ${code}`,
         html,
     });
@@ -76,11 +151,6 @@ export async function sendVerificationEmail(toEmail, code, username = '') {
  * @param {string} username 用户名 (可选)
  */
 export async function sendPasswordResetEmail(toEmail, code, username = '') {
-    const t = getTransporter();
-    if (!t) {
-        throw new Error('SMTP 未配置，无法发送重置邮件。请在 .env 中配置 SMTP_HOST 等参数');
-    }
-
     const ttl = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes;
     const html = `
     <div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:16px;overflow:hidden;">
@@ -101,9 +171,9 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
       </div>
     </div>`;
 
-    await t.sendMail({
-        from: config.smtp.from,
-        to: toEmail,
+    await sendTrackedEmail({
+        type: 'password_reset',
+        toEmail,
         subject: `[NMS] 密码重置验证码: ${code}`,
         html,
     });

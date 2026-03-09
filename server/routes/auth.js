@@ -5,10 +5,23 @@ import config from '../config.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { generateVerifyCode, sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
+import {
+    CLIENT_PROTOCOLS as DEPLOY_CLIENT_PROTOCOLS,
+    PASSWORD_PROTOCOLS as DEPLOY_PASSWORD_PROTOCOLS,
+    UUID_PROTOCOLS as DEPLOY_UUID_PROTOCOLS,
+    applyEntitlementToClient,
+    buildManagedClientData,
+    normalizeNonNegativeInt,
+    parseInboundClients,
+    postAddClient,
+    postUpdateClient,
+    resolveClientIdentifier,
+} from '../lib/clientEntitlements.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 import userStore from '../store/userStore.js';
 import serverStore from '../store/serverStore.js';
+import clientEntitlementOverrideStore from '../store/clientEntitlementOverrideStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
@@ -215,10 +228,6 @@ function ensurePersistentSubscriptionToken(email, actor = 'admin') {
     }
 }
 
-const DEPLOY_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
-const DEPLOY_UUID_PROTOCOLS = new Set(['vmess', 'vless']);
-const DEPLOY_PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
-
 function buildStableSubId(email) {
     return crypto.createHash('sha256').update(normalizeEmailInput(email)).digest('hex').slice(0, 16);
 }
@@ -252,8 +261,22 @@ function resolveDeployFlow(protocol, inbound) {
     return '';
 }
 
+function resolvePolicyEntitlement(policy = {}, options = {}) {
+    return {
+        expiryTime: normalizeNonNegativeInt(
+            options.expiryTime,
+            normalizeNonNegativeInt(policy.expiryTime, 0)
+        ),
+        limitIp: normalizeNonNegativeInt(options.limitIp, normalizeNonNegativeInt(policy.limitIp, 0)),
+        trafficLimitBytes: normalizeNonNegativeInt(
+            options.trafficLimitBytes,
+            normalizeNonNegativeInt(policy.trafficLimitBytes, 0)
+        ),
+    };
+}
+
 async function autoDeployClients(subscriptionEmail, allServers, policy, options = {}) {
-    const result = { total: 0, created: 0, skipped: 0, failed: 0, details: [] };
+    const result = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
     if (!email) return result;
 
@@ -285,10 +308,12 @@ async function autoDeployClients(subscriptionEmail, allServers, policy, options 
         : null; // null = all
 
     // Generate unified credentials
-    const uuid = crypto.randomUUID();
-    const password = crypto.randomBytes(16).toString('hex');
-    const subId = buildStableSubId(email);
-    const expiryTime = Math.max(0, Math.floor(Number(options.expiryTime) || 0));
+    const sharedCredentials = {
+        uuid: crypto.randomUUID(),
+        password: crypto.randomBytes(16).toString('hex'),
+        subId: buildStableSubId(email),
+    };
+    const baseEntitlement = resolvePolicyEntitlement(policy, options);
 
     for (const server of targetServers) {
         let client;
@@ -340,60 +365,56 @@ async function autoDeployClients(subscriptionEmail, allServers, policy, options 
             result.total += 1;
 
             try {
-                // Check if client already exists
-                let settings = {};
-                try {
-                    settings = typeof inbound.settings === 'string'
-                        ? JSON.parse(inbound.settings)
-                        : (inbound.settings || {});
-                } catch { /* ignore */ }
-                const existingClients = Array.isArray(settings.clients) ? settings.clients : [];
-                const alreadyExists = existingClients.some(
-                    (c) => normalizeEmailInput(c.email) === email
-                );
+                const existingClients = parseInboundClients(inbound);
+                const match = existingClients.find((c) => normalizeEmailInput(c.email) === email);
 
-                if (alreadyExists) {
-                    result.skipped += 1;
+                if (match) {
+                    const clientIdentifier = resolveClientIdentifier(match, protocol);
+                    const override = clientEntitlementOverrideStore.get(server.id, inbound.id, clientIdentifier);
+                    const targetEntitlement = override || baseEntitlement;
+                    const updatedClient = applyEntitlementToClient(match, targetEntitlement);
+
+                    const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
+                        && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
+                        && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0);
+
+                    if (isSameEntitlement) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: override ? 'override-up-to-date' : 'policy-up-to-date',
+                        });
+                        continue;
+                    }
+
+                    await postUpdateClient(client, inbound.id, clientIdentifier, updatedClient);
+                    result.updated += 1;
                     result.details.push({
                         serverId: server.id,
                         serverName: server.name,
                         inboundId: inbound.id,
                         inboundRemark: inbound.remark || '',
                         protocol,
-                        status: 'skipped',
+                        status: override ? 'override-updated' : 'updated',
                     });
                     continue;
                 }
 
-                // Build client data
-                const clientData = {
+                const clientData = buildManagedClientData({
                     email,
-                    enable: true,
-                    id: uuid,
-                    totalGB: 0,
-                    expiryTime,
-                    tgId: '',
-                    subId,
-                    limitIp: 0,
-                    comment: '',
-                    reset: 0,
-                };
+                    protocol,
+                    inbound,
+                    sharedCredentials,
+                    entitlement: baseEntitlement,
+                    resolveFlow: resolveDeployFlow,
+                });
 
-                if (DEPLOY_UUID_PROTOCOLS.has(protocol)) {
-                    clientData.flow = resolveDeployFlow(protocol, inbound);
-                }
-                if (DEPLOY_PASSWORD_PROTOCOLS.has(protocol)) {
-                    clientData.password = password;
-                }
-
-                await client.post(
-                    '/panel/api/inbounds/addClient',
-                    buildDeployFormBody({
-                        id: inbound.id,
-                        settings: { clients: [clientData] },
-                    }),
-                    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-                );
+                await postAddClient(client, inbound.id, clientData);
 
                 result.created += 1;
                 result.details.push({
@@ -743,16 +764,33 @@ router.post('/register', async (req, res) => {
             enabled: false,
         });
 
-        // 生成并发送验证码
         const code = generateVerifyCode();
         const expiresAt = new Date(Date.now() + config.registration.verifyCodeTtlMinutes * 60 * 1000).toISOString();
-        userStore.setVerifyCode(user.id, code, expiresAt);
 
         try {
             await sendVerificationEmail(email, code, username);
+            userStore.setVerifyCode(user.id, code, expiresAt);
+            appendSecurityAudit('verification_email_sent', req, {
+                ip: clientIp,
+                username,
+                email,
+                type: 'register',
+            });
         } catch (mailErr) {
-            console.error('Failed to send verification email:', mailErr.message);
-            // 不回滚用户, 允许后续重新发送
+            try {
+                userStore.remove(user.id);
+            } catch { /* ignore cleanup failure */ }
+            appendSecurityAudit('verification_email_failed', req, {
+                ip: clientIp,
+                username,
+                email,
+                type: 'register',
+                error: mailErr.message || 'send failed',
+            });
+            return res.status(503).json({
+                success: false,
+                msg: '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+            });
         }
 
         appendSecurityAudit('user_registered', req, { ip: clientIp, username, email });
@@ -828,11 +866,30 @@ router.post('/resend-code', async (req, res) => {
 
         const code = generateVerifyCode();
         const expiresAt = new Date(Date.now() + config.registration.verifyCodeTtlMinutes * 60 * 1000).toISOString();
-        userStore.setVerifyCode(user.id, code, expiresAt);
 
-        await sendVerificationEmail(email, code, user.username);
-
-        res.json({ success: true, msg: '验证码已重新发送' });
+        try {
+            await sendVerificationEmail(email, code, user.username);
+            userStore.setVerifyCode(user.id, code, expiresAt);
+            appendSecurityAudit('verification_email_sent', req, {
+                ip: clientIp,
+                username: user.username,
+                email,
+                type: 'resend',
+            });
+            return res.json({ success: true, msg: '验证码已重新发送' });
+        } catch (err) {
+            appendSecurityAudit('verification_email_failed', req, {
+                ip: clientIp,
+                username: user.username,
+                email,
+                type: 'resend',
+                error: err.message || 'send failed',
+            });
+            return res.status(503).json({
+                success: false,
+                msg: '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+            });
+        }
     } catch (err) {
         res.status(500).json({ success: false, msg: err.message });
     }
@@ -863,11 +920,24 @@ router.post('/forgot-password', async (req, res) => {
         const code = generateVerifyCode();
         const ttlMinutes = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes;
         const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
-        userStore.setPasswordResetCode(user.id, code, expiresAt);
 
-        await sendPasswordResetEmail(email, code, user.username);
-        appendSecurityAudit('password_reset_code_sent', req, { email, username: user.username });
-        return res.json({ success: true, msg: '重置验证码已发送，请查收邮箱' });
+        try {
+            await sendPasswordResetEmail(email, code, user.username);
+            userStore.setPasswordResetCode(user.id, code, expiresAt);
+            appendSecurityAudit('password_reset_email_sent', req, { email, username: user.username });
+            appendSecurityAudit('password_reset_code_sent', req, { email, username: user.username });
+            return res.json({ success: true, msg: '重置验证码已发送，请查收邮箱' });
+        } catch (err) {
+            appendSecurityAudit('password_reset_email_failed', req, {
+                email,
+                username: user.username,
+                error: err.message || 'send failed',
+            });
+            return res.status(503).json({
+                success: false,
+                msg: '重置验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+            });
+        }
     } catch (err) {
         return res.status(500).json({ success: false, msg: err.message || '发送失败' });
     }
@@ -1161,7 +1231,16 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
 
         const expiryTime = Math.max(0, Math.floor(Number(req.body?.expiryTime) || 0));
         const allServers = serverStore.getAll();
-        const result = await autoUpdateClientExpiry(subscriptionEmail, allServers, expiryTime);
+        const currentPolicy = userPolicyStore.get(subscriptionEmail);
+        const nextPolicy = userPolicyStore.upsert(
+            subscriptionEmail,
+            {
+                ...currentPolicy,
+                expiryTime,
+            },
+            String(req.user?.username || 'admin')
+        );
+        const result = await autoDeployClients(subscriptionEmail, allServers, nextPolicy, { expiryTime });
 
         appendSecurityAudit('user_expiry_updated', req, {
             targetUserId: target.id,
@@ -1226,15 +1305,6 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             protocolScopeMode = 'none';
         }
 
-        const actor = String(req.user?.username || req.user?.role || 'admin');
-        const user = userStore.setSubscriptionEmail(target.id, subscriptionEmail);
-        const policy = userPolicyStore.upsert(
-            subscriptionEmail,
-            { allowedServerIds, allowedProtocols, serverScopeMode, protocolScopeMode },
-            actor
-        );
-        const tokenState = ensurePersistentSubscriptionToken(subscriptionEmail, actor);
-
         // Parse expiry: support expiryTime (timestamp ms) or expiryDays (relative days)
         let expiryTime = 0;
         const rawExpiryTime = Number(req.body?.expiryTime || 0);
@@ -1244,6 +1314,25 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
         } else if (rawExpiryDays > 0) {
             expiryTime = Date.now() + Math.floor(rawExpiryDays) * 24 * 60 * 60 * 1000;
         }
+        const limitIp = normalizeNonNegativeInt(req.body?.limitIp, 0);
+        const trafficLimitBytes = normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0);
+
+        const actor = String(req.user?.username || req.user?.role || 'admin');
+        const user = userStore.setSubscriptionEmail(target.id, subscriptionEmail);
+        const policy = userPolicyStore.upsert(
+            subscriptionEmail,
+            {
+                allowedServerIds,
+                allowedProtocols,
+                serverScopeMode,
+                protocolScopeMode,
+                expiryTime,
+                limitIp,
+                trafficLimitBytes,
+            },
+            actor
+        );
+        const tokenState = ensurePersistentSubscriptionToken(subscriptionEmail, actor);
 
         // Parse allowed inbound keys (optional)
         const allowedInboundKeys = Array.isArray(req.body?.allowedInboundKeys)
@@ -1251,10 +1340,12 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             : [];
 
         // Auto-deploy clients to 3x-ui panels
-        let deployment = { total: 0, created: 0, skipped: 0, failed: 0, details: [] };
+        let deployment = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
         try {
             deployment = await autoDeployClients(subscriptionEmail, serverStore.getAll(), policy, {
                 expiryTime,
+                limitIp,
+                trafficLimitBytes,
                 allowedInboundKeys,
             });
         } catch (err) {
@@ -1267,9 +1358,13 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             subscriptionEmail,
             allowedServerCount: allowedServerIds.length,
             allowedProtocolCount: allowedProtocols.length,
+            expiryTime,
+            limitIp,
+            trafficLimitBytes,
             tokenAutoIssued: tokenState.autoIssued,
             tokenIssueError: tokenState.issueError || '',
             deploymentCreated: deployment.created,
+            deploymentUpdated: deployment.updated,
             deploymentSkipped: deployment.skipped,
             deploymentFailed: deployment.failed,
         });

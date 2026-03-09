@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
+import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -30,6 +31,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     const [noProtocolLimit, setNoProtocolLimit] = useState(true);
     const [selectedServerIds, setSelectedServerIds] = useState([]);
     const [selectedProtocols, setSelectedProtocols] = useState([]);
+    const [limitIp, setLimitIp] = useState('0');
+    const [trafficLimitGb, setTrafficLimitGb] = useState('0');
 
     useEffect(() => {
         if (!isOpen || !normalizedEmail) return;
@@ -37,6 +40,12 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
 
         const loadPolicy = async () => {
             setLoading(true);
+            setSelectedServerIds([]);
+            setSelectedProtocols([]);
+            setNoServerLimit(true);
+            setNoProtocolLimit(true);
+            setLimitIp('0');
+            setTrafficLimitGb('0');
             try {
                 const res = await api.get(`/user-policy/${encodeURIComponent(normalizedEmail)}`);
                 const payload = res.data?.obj || {};
@@ -51,6 +60,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setSelectedProtocols(protocols);
                 setNoServerLimit(serverScopeMode === 'all');
                 setNoProtocolLimit(protocolScopeMode === 'all');
+                setLimitIp(String(normalizeLimitIp(payload.limitIp)));
+                setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
@@ -96,6 +107,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             allowedProtocols: protocolScopeMode === 'selected' ? normalizedProtocols : [],
             serverScopeMode,
             protocolScopeMode,
+            limitIp: normalizeLimitIp(limitIp),
+            trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
         };
 
         setSaving(true);
@@ -181,6 +194,36 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                 <span>{item.label}</span>
                                             </label>
                                         ))}
+                                    </div>
+                                </div>
+
+                                <div className="card mt-4">
+                                    <div className="card-title mb-3">统一限额</div>
+                                    <div className="form-group">
+                                        <label className="form-label">IP 限制</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={0}
+                                            value={limitIp}
+                                            onChange={(e) => setLimitIp(e.target.value)}
+                                        />
+                                        <div className="text-xs text-muted mt-1">0 表示不限制并发连接 IP 数量</div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">总流量上限</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                step="0.5"
+                                                value={trafficLimitGb}
+                                                onChange={(e) => setTrafficLimitGb(e.target.value)}
+                                            />
+                                            <span className="text-sm text-muted">GB</span>
+                                        </div>
+                                        <div className="text-xs text-muted mt-1">0 表示不限制总流量</div>
                                     </div>
                                 </div>
                             </>

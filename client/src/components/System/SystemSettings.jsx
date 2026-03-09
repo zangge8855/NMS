@@ -84,6 +84,20 @@ export default function SystemSettings() {
     const [dbBackfillLoading, setDbBackfillLoading] = useState(false);
     const [dbBackfillResult, setDbBackfillResult] = useState(null);
     const [backfillTaskId, setBackfillTaskId] = useState(null);
+    const [emailStatusLoading, setEmailStatusLoading] = useState(false);
+    const [emailStatus, setEmailStatus] = useState(null);
+    const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
+    const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
+    const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
+        ? 'badge-success'
+        : emailStatus?.lastDelivery?.success === false
+            ? 'badge-danger'
+            : 'badge-neutral';
+    const emailDeliveryLabel = emailStatus?.lastDelivery?.success === true
+        ? '最近发送成功'
+        : emailStatus?.lastDelivery?.success === false
+            ? '最近发送失败'
+            : '暂无发送记录';
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -123,6 +137,20 @@ export default function SystemSettings() {
         setDbLoading(false);
     };
 
+    const fetchEmailStatus = async (options = {}) => {
+        const quiet = options.quiet === true;
+        setEmailStatusLoading(true);
+        try {
+            const res = await api.get('/system/email/status');
+            setEmailStatus(res.data?.obj || null);
+        } catch (error) {
+            if (!quiet) {
+                toast.error(error.response?.data?.msg || error.message || '加载 SMTP 状态失败');
+            }
+        }
+        setEmailStatusLoading(false);
+    };
+
     useEffect(() => {
         if (!isAdmin) {
             setLoading(false);
@@ -130,6 +158,7 @@ export default function SystemSettings() {
         }
         fetchSettings();
         fetchDbStatus({ quiet: true });
+        fetchEmailStatus({ quiet: true });
     }, [isAdmin]);
 
     const patchField = (section, key, value) => {
@@ -368,6 +397,61 @@ export default function SystemSettings() {
                             <div className="text-xs text-muted">
                                 Clash、Mihomo、sing-box 等常见客户端的专用订阅地址已直接内置到订阅页面，不再依赖外部订阅转换器。
                             </div>
+                        </div>
+
+                        <div className="card p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-lg font-semibold">SMTP 诊断</h3>
+                                    {emailStatus && (
+                                        <>
+                                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                        </>
+                                    )}
+                                </div>
+                                <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading}>
+                                    {emailStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                </button>
+                            </div>
+                            {!emailStatus ? (
+                                <div className="text-sm text-muted">尚未加载 SMTP 状态</div>
+                            ) : (
+                                <>
+                                    <div className="text-xs text-muted mb-3">仅展示诊断信息，不返回明文密码。</div>
+                                    <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                        <div className="card p-3">
+                                            <div className="text-sm text-muted">配置状态</div>
+                                            <div className="mt-2">
+                                                <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                                            </div>
+                                        </div>
+                                        <div className="card p-3">
+                                            <div className="text-sm text-muted">服务器</div>
+                                            <div className="text-lg font-semibold">{emailStatus.host || '-'}</div>
+                                            <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
+                                        </div>
+                                        <div className="card p-3">
+                                            <div className="text-sm text-muted">发件人</div>
+                                            <div className="text-lg font-semibold">{emailStatus.from || '-'}</div>
+                                            <div className="text-xs text-muted">账号 {emailStatus.userMasked || '-'}</div>
+                                        </div>
+                                        <div className="card p-3">
+                                            <div className="text-sm text-muted">加密模式</div>
+                                            <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="card p-3 mt-3">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                            <div className="text-sm font-medium">最近发送结果</div>
+                                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                        </div>
+                                        <div className="text-sm">最近发送: {emailStatus.lastDelivery?.ts ? new Date(emailStatus.lastDelivery.ts).toLocaleString('zh-CN') : '暂无'}</div>
+                                        <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
+                                        <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                     </div>

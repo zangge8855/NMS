@@ -11,6 +11,8 @@ const TOOL_CAPABILITIES = [
     { key: 'mlkem768', path: '/panel/api/server/getNewmlkem768', method: 'get', probe: true },
     { key: 'vlessEnc', path: '/panel/api/server/getNewVlessEnc', method: 'get', probe: true },
     { key: 'echCert', path: '/panel/api/server/getNewEchCert', method: 'post', probe: true },
+    { key: 'panelLogs', path: '/panel/api/server/logs/20', method: 'get', probe: true },
+    { key: 'xrayLogs', path: '/panel/api/server/xraylogs/20', method: 'get', probe: true },
 ];
 
 async function detectToolCapabilities(client) {

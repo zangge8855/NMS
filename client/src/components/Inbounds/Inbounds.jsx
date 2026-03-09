@@ -5,6 +5,7 @@ import Header from '../Layout/Header.jsx';
 import { formatBytes } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { getClientIdentifier } from '../../utils/protocol.js';
+import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -15,6 +16,8 @@ import {
     HiOutlineServer,
     HiOutlineSignal,
     HiOutlineBars3,
+    HiOutlineCheck,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
@@ -33,6 +36,18 @@ import {
 import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
+
+function toLocalDateTimeString(timestamp) {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function buildOverrideKey(serverId, inboundId, clientIdentifier) {
+    return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
+}
 
 export default function Inbounds() {
     const { servers } = useServer();
@@ -56,6 +71,13 @@ export default function Inbounds() {
     const [clientTargets, _setClientTargets] = useState([]);
     const [batchResultData, setBatchResultData] = useState(null);
     const [batchResultTitle, setBatchResultTitle] = useState('批量执行结果');
+    const [entitlementOpen, setEntitlementOpen] = useState(false);
+    const [entitlementTarget, setEntitlementTarget] = useState(null);
+    const [entitlementExpiryDate, setEntitlementExpiryDate] = useState('');
+    const [entitlementLimitIp, setEntitlementLimitIp] = useState('0');
+    const [entitlementTrafficLimitGb, setEntitlementTrafficLimitGb] = useState('0');
+    const [entitlementSaving, setEntitlementSaving] = useState(false);
+    const [overrideKeySet, setOverrideKeySet] = useState(new Set());
 
     const fetchAllInbounds = async () => {
         if (servers.length === 0) {
@@ -73,6 +95,15 @@ export default function Inbounds() {
             setInboundOrder(orderMap);
         } catch (err) {
             console.error('Failed to load inbound order:', err);
+        }
+
+        try {
+            const overrideRes = await api.get('/clients/entitlement-overrides');
+            const items = Array.isArray(overrideRes.data?.obj) ? overrideRes.data.obj : [];
+            setOverrideKeySet(new Set(items.map((item) => buildOverrideKey(item.serverId, item.inboundId, item.clientIdentifier))));
+        } catch (err) {
+            console.error('Failed to load entitlement overrides:', err);
+            setOverrideKeySet(new Set());
         }
 
         await Promise.all(servers.map(async (server) => {
@@ -372,6 +403,74 @@ export default function Inbounds() {
         }
     };
 
+    const openEntitlementModal = (inbound, client) => {
+        setEntitlementTarget({
+            inbound,
+            client,
+            clientIdentifier: String(getClientIdentifier(client, inbound.protocol) || '').trim(),
+        });
+        setEntitlementExpiryDate(toLocalDateTimeString(client.expiryTime));
+        setEntitlementLimitIp(String(normalizeLimitIp(client.limitIp)));
+        setEntitlementTrafficLimitGb(bytesToGigabytesInput(resolveClientQuota(client)));
+        setEntitlementSaving(false);
+        setEntitlementOpen(true);
+    };
+
+    const closeEntitlementModal = () => {
+        setEntitlementOpen(false);
+        setEntitlementTarget(null);
+        setEntitlementExpiryDate('');
+        setEntitlementLimitIp('0');
+        setEntitlementTrafficLimitGb('0');
+        setEntitlementSaving(false);
+    };
+
+    const submitEntitlementOverride = async (event) => {
+        event.preventDefault();
+        if (!entitlementTarget?.inbound || !entitlementTarget?.clientIdentifier) return;
+        setEntitlementSaving(true);
+        try {
+            await api.put('/clients/entitlement', {
+                serverId: entitlementTarget.inbound.serverId,
+                inboundId: String(entitlementTarget.inbound.id),
+                protocol: entitlementTarget.inbound.protocol,
+                email: entitlementTarget.client?.email || '',
+                clientIdentifier: entitlementTarget.clientIdentifier,
+                mode: 'override',
+                expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
+                limitIp: normalizeLimitIp(entitlementLimitIp),
+                trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
+            });
+            toast.success('单独限定已保存');
+            closeEntitlementModal();
+            fetchAllInbounds();
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || '保存单独限定失败');
+            setEntitlementSaving(false);
+        }
+    };
+
+    const restoreEntitlementPolicy = async () => {
+        if (!entitlementTarget?.inbound || !entitlementTarget?.clientIdentifier) return;
+        setEntitlementSaving(true);
+        try {
+            await api.put('/clients/entitlement', {
+                serverId: entitlementTarget.inbound.serverId,
+                inboundId: String(entitlementTarget.inbound.id),
+                protocol: entitlementTarget.inbound.protocol,
+                email: entitlementTarget.client?.email || '',
+                clientIdentifier: entitlementTarget.clientIdentifier,
+                mode: 'follow_policy',
+            });
+            toast.success('已恢复跟随统一策略');
+            closeEntitlementModal();
+            fetchAllInbounds();
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || '恢复统一策略失败');
+            setEntitlementSaving(false);
+        }
+    };
+
     const filteredInbounds = filterServerId === 'all'
         ? inbounds
         : inbounds.filter(i => i.serverId === filterServerId);
@@ -585,6 +684,7 @@ export default function Inbounds() {
                                                                         <th>ID/密码</th>
                                                                         <th>已用流量</th>
                                                                         <th>总量</th>
+                                                                        <th>IP 限制</th>
                                                                         <th>上 / 下行</th>
                                                                         <th>到期时间</th>
                                                                         <th>状态</th>
@@ -600,9 +700,18 @@ export default function Inbounds() {
                                                                         const remainingBytes = totalBytes > 0
                                                                             ? Math.max(0, totalBytes - usedBytes)
                                                                             : 0;
+                                                                        const clientIdentifier = String(getClientIdentifier(cl, ib.protocol) || '').trim();
+                                                                        const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
                                                                         return (
                                                                         <tr key={idx}>
-                                                                            <td>{cl.email || '-'}</td>
+                                                                            <td>
+                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                    <span>{cl.email || '-'}</span>
+                                                                                    {hasOverride && (
+                                                                                        <span className="badge badge-warning">单独限定</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
                                                                             <td className="font-mono truncate max-w-[200px]" title={cl.id || cl.password}>
                                                                                 {cl.id || cl.password || '-'}
                                                                             </td>
@@ -626,6 +735,7 @@ export default function Inbounds() {
                                                                                 </div>
                                                                             </td>
                                                                             <td>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td>{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
                                                                             <td>
                                                                                 <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                 <span className="text-muted mx-1">/</span>
@@ -638,6 +748,17 @@ export default function Inbounds() {
                                                                                 </span>
                                                                             </td>
                                                                             <td>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className={`btn btn-sm ${hasOverride ? 'btn-primary' : 'btn-secondary'}`}
+                                                                                    title={hasOverride ? '已单独限定，点击修改' : '单独限定'}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        openEntitlementModal(ib, cl);
+                                                                                    }}
+                                                                                >
+                                                                                    {hasOverride ? '已限定' : '限定'}
+                                                                                </button>
                                                                                 <button
                                                                                     type="button"
                                                                                     className="btn btn-danger btn-sm btn-icon"
@@ -709,6 +830,73 @@ export default function Inbounds() {
                     title={batchResultTitle}
                     data={batchResultData}
                 />
+
+                {entitlementOpen && entitlementTarget && (
+                    <div className="modal-overlay" onClick={closeEntitlementModal}>
+                        <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">单独限定</h3>
+                                <button className="modal-close" onClick={closeEntitlementModal}>
+                                    <HiOutlineXMark />
+                                </button>
+                            </div>
+                            <form onSubmit={submitEntitlementOverride}>
+                                <div className="modal-body">
+                                    <div className="mb-4 p-3 rounded bg-white/5 border border-white/10 text-sm">
+                                        <div>节点: <strong>{entitlementTarget.inbound.serverName}</strong></div>
+                                        <div>入站: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
+                                        <div>用户: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">到期时间</label>
+                                        <input
+                                            type="datetime-local"
+                                            className="form-input"
+                                            value={entitlementExpiryDate}
+                                            onChange={(e) => setEntitlementExpiryDate(e.target.value)}
+                                        />
+                                        <p className="text-xs text-muted mt-1">留空 = 永不过期</p>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">IP 限制</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            min={0}
+                                            value={entitlementLimitIp}
+                                            onChange={(e) => setEntitlementLimitIp(e.target.value)}
+                                        />
+                                        <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">总流量上限</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                min={0}
+                                                step="0.5"
+                                                value={entitlementTrafficLimitGb}
+                                                onChange={(e) => setEntitlementTrafficLimitGb(e.target.value)}
+                                            />
+                                            <span className="text-sm text-muted">GB</span>
+                                        </div>
+                                        <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={closeEntitlementModal}>取消</button>
+                                    <button type="button" className="btn btn-secondary" onClick={restoreEntitlementPolicy} disabled={entitlementSaving}>
+                                        {entitlementSaving ? <span className="spinner" /> : '恢复统一策略'}
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={entitlementSaving}>
+                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存限定</>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div >
         </>
     );

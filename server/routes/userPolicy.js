@@ -37,6 +37,12 @@ function normalizeScopeMode(input, fallback = 'all') {
     return text;
 }
 
+function normalizeNonNegativeInt(value, fallback = 0) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+    return Math.max(0, Math.floor(parsed));
+}
+
 router.use(authMiddleware);
 
 router.get('/:email', (req, res) => {
@@ -81,7 +87,15 @@ router.put('/:email', (req, res) => {
 
     const updated = userPolicyStore.upsert(
         email,
-        { allowedServerIds, allowedProtocols, serverScopeMode, protocolScopeMode },
+        {
+            allowedServerIds,
+            allowedProtocols,
+            serverScopeMode,
+            protocolScopeMode,
+            expiryTime: normalizeNonNegativeInt(req.body?.expiryTime, 0),
+            limitIp: normalizeNonNegativeInt(req.body?.limitIp, 0),
+            trafficLimitBytes: normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0),
+        },
         req.user?.role || 'admin'
     );
 

@@ -19,6 +19,7 @@ import {
 } from '../store/storeRegistry.js';
 import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
 import notificationService from '../lib/notifications.js';
+import { getEmailStatus } from '../lib/mailer.js';
 
 const router = Router();
 
@@ -56,6 +57,13 @@ router.get('/settings', adminOnly, (req, res) => {
     return res.json({
         success: true,
         obj: systemSettingsStore.getAll(),
+    });
+});
+
+router.get('/email/status', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: getEmailStatus(),
     });
 });
 

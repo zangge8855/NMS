@@ -188,6 +188,10 @@ class AuditStore {
         email = '',
         tokenId = '',
         ip = '',
+        clientIp = '',
+        proxyIp = '',
+        ipSource = '',
+        cfCountry = '',
         userAgent = '',
         status = 'denied',
         reason = '',
@@ -201,7 +205,11 @@ class AuditStore {
             ts: new Date().toISOString(),
             email: String(email || '').trim().toLowerCase(),
             tokenId: String(tokenId || '').trim(),
-            ip: String(ip || 'unknown').trim(),
+            clientIp: String(clientIp || ip || 'unknown').trim(),
+            proxyIp: String(proxyIp || '').trim(),
+            ipSource: String(ipSource || '').trim(),
+            cfCountry: String(cfCountry || '').trim().toUpperCase(),
+            ip: String(clientIp || ip || 'unknown').trim(),
             userAgent: String(userAgent || '').trim(),
             status: String(status || 'denied').trim().toLowerCase(),
             reason: String(reason || '').trim(),
@@ -325,7 +333,11 @@ class AuditStore {
             rows = rows.filter((item) => String(item.status || '').toLowerCase() === status);
         }
         if (ip) {
-            rows = rows.filter((item) => String(item.ip || '').includes(ip));
+            rows = rows.filter((item) => {
+                const candidateIp = String(item.clientIp || item.ip || '');
+                const candidateProxyIp = String(item.proxyIp || '');
+                return candidateIp.includes(ip) || candidateProxyIp.includes(ip);
+            });
         }
         if (serverId) {
             rows = rows.filter((item) => String(item.serverId || '') === serverId);
@@ -345,7 +357,7 @@ class AuditStore {
             return acc;
         }, {});
         const ipCounter = rows.reduce((acc, item) => {
-            const key = String(item.ip || 'unknown').trim() || 'unknown';
+            const key = String(item.clientIp || item.ip || 'unknown').trim() || 'unknown';
             acc[key] = (acc[key] || 0) + 1;
             return acc;
         }, {});
@@ -379,7 +391,7 @@ class AuditStore {
         const uniqueTokens = new Set(rows.map((item) => String(item.tokenId || '').trim()).filter(Boolean)).size;
         const uniqueUsers = new Set(rows.map((item) => String(item.email || '').trim().toLowerCase()).filter(Boolean)).size;
         const ipCounter = rows.reduce((acc, item) => {
-            const key = String(item.ip || 'unknown').trim() || 'unknown';
+            const key = String(item.clientIp || item.ip || 'unknown').trim() || 'unknown';
             acc[key] = (acc[key] || 0) + 1;
             return acc;
         }, {});

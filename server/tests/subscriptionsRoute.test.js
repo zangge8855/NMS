@@ -85,8 +85,14 @@ describe('mihomo config generation', () => {
         assert.match(yaml, /public-key: public-key-123/);
         assert.match(yaml, /ws-opts:/);
         assert.match(yaml, /rule-providers:/);
-        assert.match(yaml, /applications:/);
-        assert.match(yaml, /MATCH,PROXY/);
+        assert.match(yaml, /private-domain:/);
+        assert.match(yaml, /cn-domain:/);
+        assert.match(yaml, /format: mrs/);
+        assert.match(yaml, /name: GLOBAL/);
+        assert.match(yaml, /name: TELEGRAM/);
+        assert.match(yaml, /name: DOMESTIC/);
+        assert.match(yaml, /MATCH,GLOBAL/);
+        assert.doesNotMatch(yaml, /\.txt/);
         assert.doesNotMatch(yaml, /unsupported\.example\.com/);
     });
 

@@ -21,6 +21,46 @@ const LOG_LEVELS = [
     { value: 'none', label: 'None', color: '#8b5cf6' },
 ];
 
+const LOG_SOURCES = [
+    { value: 'panel', label: 'Panel 日志' },
+    { value: 'xray', label: 'Xray 日志' },
+    { value: 'system', label: '系统日志' },
+];
+
+function getSummaryToneMeta(tone) {
+    if (tone === 'danger') {
+        return {
+            badge: 'badge-danger',
+            iconColor: 'var(--accent-danger)',
+            style: {
+                borderColor: 'var(--accent-danger)',
+                background: 'var(--accent-danger-bg)',
+                color: 'var(--accent-danger)',
+            },
+        };
+    }
+    if (tone === 'warning') {
+        return {
+            badge: 'badge-warning',
+            iconColor: 'var(--accent-warning)',
+            style: {
+                borderColor: 'var(--accent-warning)',
+                background: 'var(--accent-warning-bg)',
+                color: 'var(--accent-warning)',
+            },
+        };
+    }
+    return {
+        badge: 'badge-info',
+        iconColor: 'var(--accent-info)',
+        style: {
+            borderColor: 'var(--accent-info)',
+            background: 'var(--accent-info-bg)',
+            color: 'var(--accent-info)',
+        },
+    };
+}
+
 function levelColor(line) {
     const lower = line.toLowerCase();
     if (lower.includes('[error]') || lower.includes('error:') || lower.includes('level=error'))
@@ -67,16 +107,16 @@ function extractLogTimestamp(line) {
 }
 
 export default function Logs({ embedded = false, sourceMode = 'auto', displayLabel = '' }) {
-    const { activeServerId, panelApi, activeServer, servers } = useServer();
+    const { activeServerId, activeServer, servers } = useServer();
     const isGlobal = activeServerId === 'global';
-    const lockedSourceMode = ['auto', 'panel', 'system'].includes(sourceMode) ? sourceMode : 'auto';
+    const lockedSourceMode = ['auto', 'panel', 'system', 'xray'].includes(sourceMode) ? sourceMode : 'auto';
 
     // State
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [keywords, setKeywords] = useState('');
     const [levelFilter, setLevelFilter] = useState('');
-    const [syslog, setSyslog] = useState(false);
+    const [selectedSource, setSelectedSource] = useState('panel');
     const [count, setCount] = useState(100);
     const [fetchSummary, setFetchSummary] = useState(null);
 
@@ -91,10 +131,14 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     }, [isGlobal, servers, selectedServerIds.length]);
 
     const logContainerRef = useRef(null);
-    const effectiveSyslog = lockedSourceMode === 'system'
-        ? true
-        : (lockedSourceMode === 'panel' ? false : (isGlobal ? false : syslog));
-    const sourceLabel = String(displayLabel || '').trim() || (effectiveSyslog ? '系统日志' : 'Panel 日志');
+    const resolvedSource = lockedSourceMode === 'auto'
+        ? selectedSource
+        : lockedSourceMode;
+    const activeSourceMeta = LOG_SOURCES.find((item) => item.value === resolvedSource) || LOG_SOURCES[0];
+    const sourceLabel = String(displayLabel || '').trim() || (
+        activeSourceMeta.label || 'Panel 日志'
+    );
+    const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
 
     // ── Fetch Logs ───────────────────────────────────────
     const fetchSingleLogs = useCallback(async () => {
@@ -102,12 +146,18 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         setLoading(true);
         setFetchSummary(null);
         try {
-            const body = { count, level: levelFilter || undefined };
-            const endpoint = effectiveSyslog ? '/server/api/server/log' : '/panel/api/server/log';
-            const res = await panelApi('post', endpoint, body);
-            const raw = res.data?.obj || '';
-            const lines = typeof raw === 'string' ? raw.split('\n').filter(Boolean) : [];
-            setLogs(lines.map(line => ({ line, serverName: activeServer?.name || '' })));
+            const res = await api.get(`/servers/${encodeURIComponent(activeServerId)}/logs`, {
+                params: { source: resolvedSource, count },
+            });
+            const payload = res.data?.obj || {};
+            const lines = Array.isArray(payload.lines) ? payload.lines : [];
+            setLogs(lines.map((line) => ({ line, serverName: activeServer?.name || '' })));
+            if (payload.supported === false || payload.warning) {
+                setFetchSummary({
+                    tone: payload.supported === false ? 'warning' : 'info',
+                    message: payload.warning || `${sourceLabel}当前节点不支持`,
+                });
+            }
         } catch (err) {
             const message = err.response?.data?.msg || err.message;
             toast.error('获取日志失败: ' + message);
@@ -118,7 +168,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             setLogs([]);
         }
         setLoading(false);
-    }, [activeServerId, panelApi, activeServer?.name, count, levelFilter, effectiveSyslog, sourceLabel]);
+    }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel]);
 
     const fetchGlobalLogs = useCallback(async () => {
         if (!isGlobal || selectedServerIds.length === 0) {
@@ -133,15 +183,16 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         setFetchSummary(null);
         try {
             const targetServers = servers.filter(s => selectedServerIds.includes(s.id));
-            const endpoint = effectiveSyslog ? '/server/api/server/log' : '/panel/api/server/log';
             const results = await Promise.allSettled(
                 targetServers.map(async (server) => {
-                    const res = await api.post(
-                        `/panel/${server.id}${endpoint}`,
-                        { count: Math.ceil(count / targetServers.length), level: levelFilter || undefined }
-                    );
-                    const raw = res.data?.obj || '';
-                    const lines = typeof raw === 'string' ? raw.split('\n').filter(Boolean) : [];
+                    const res = await api.get(`/servers/${encodeURIComponent(server.id)}/logs`, {
+                        params: {
+                            source: resolvedSource,
+                            count: Math.max(1, Math.ceil(count / targetServers.length)),
+                        },
+                    });
+                    const payload = res.data?.obj || {};
+                    const lines = Array.isArray(payload.lines) ? payload.lines : [];
                     return lines.map((line, index) => ({
                         line,
                         serverName: server.name,
@@ -184,7 +235,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             setLogs([]);
         }
         setLoading(false);
-    }, [isGlobal, selectedServerIds, servers, count, levelFilter, effectiveSyslog, sourceLabel]);
+    }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel]);
 
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
 
@@ -262,11 +313,16 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 <option value={500}>500 行</option>
                             </select>
 
-                            {lockedSourceMode === 'auto' && !isGlobal && (
-                                <label className="flex items-center gap-4 cursor-pointer">
-                                    <input type="checkbox" checked={syslog} onChange={e => setSyslog(e.target.checked)} />
-                                    <span className="text-sm">系统日志</span>
-                                </label>
+                            {lockedSourceMode === 'auto' && (
+                                <select
+                                    className="form-select w-140"
+                                    value={selectedSource}
+                                    onChange={(e) => setSelectedSource(e.target.value)}
+                                >
+                                    {LOG_SOURCES.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
                             )}
 
                             <input
@@ -323,12 +379,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {fetchSummary?.message && (
-                    <div className="card mb-4">
+                    <div className="card mb-4" style={fetchSummaryMeta.style}>
                         <div className="card-header card-header-flat-tight">
                             <div className="flex items-center gap-8">
-                                <HiOutlineExclamationTriangle className="text-muted" />
+                                <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.iconColor }} />
                                 <span className="text-sm">{fetchSummary.message}</span>
                             </div>
+                            <span className={`badge ${fetchSummaryMeta.badge}`}>{activeSourceMeta.label}</span>
                         </div>
                     </div>
                 )}
@@ -339,6 +396,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         <div className="flex items-center gap-8">
                             <HiOutlineDocumentText className="text-muted" />
                             <span className="card-title">{sourceLabel}</span>
+                            <span className="badge badge-neutral">{activeSourceMeta.label}</span>
                         </div>
                         <span className="text-sm text-muted">{filteredLogs.length} 行</span>
                     </div>

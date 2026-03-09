@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveClientIp } from '../lib/requestIp.js';
+import { resolveClientIp, resolveClientIpDetails } from '../lib/requestIp.js';
 
 describe('resolveClientIp', () => {
     it('returns req.ip when it is already a public address', () => {
@@ -50,5 +50,35 @@ describe('resolveClientIp', () => {
             socket: {},
         });
         assert.equal(ip, 'unknown');
+    });
+});
+
+describe('resolveClientIpDetails', () => {
+    it('prefers cloudflare real visitor ip over edge proxy address', () => {
+        const details = resolveClientIpDetails({
+            ip: '162.158.10.20',
+            headers: {
+                'cf-connecting-ip': '198.51.100.77',
+                'cf-ipcountry': 'US',
+            },
+            socket: { remoteAddress: '162.158.10.20' },
+        });
+        assert.equal(details.clientIp, '198.51.100.77');
+        assert.equal(details.proxyIp, '162.158.10.20');
+        assert.equal(details.ipSource, 'cf-connecting-ip');
+        assert.equal(details.cfCountry, 'US');
+    });
+
+    it('prefers cloudflare ipv6 header when connecting ip is pseudo ipv4', () => {
+        const details = resolveClientIpDetails({
+            ip: '172.68.1.2',
+            headers: {
+                'cf-connecting-ip': '192.0.2.10',
+                'cf-connecting-ipv6': '2001:db8::8',
+            },
+            socket: { remoteAddress: '172.68.1.2' },
+        });
+        assert.equal(details.clientIp, '2001:db8::8');
+        assert.equal(details.ipSource, 'cf-connecting-ipv6');
     });
 });

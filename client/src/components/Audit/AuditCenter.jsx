@@ -589,11 +589,12 @@ export default function AuditCenter() {
                         </div>
 
                         <div className="table-container glass-panel mb-8">
-                            <table className="table" style={{ minWidth: '900px', tableLayout: 'fixed' }}>
+                            <table className="table" style={{ minWidth: '1080px', tableLayout: 'fixed' }}>
                                 <colgroup>
                                     <col style={{ width: '160px' }} />
                                     <col style={{ width: '180px' }} />
                                     <col style={{ width: '80px' }} />
+                                    <col style={{ width: '140px' }} />
                                     <col style={{ width: '140px' }} />
                                     <col style={{ width: '120px' }} />
                                     <col />
@@ -603,23 +604,32 @@ export default function AuditCenter() {
                                         <th>时间</th>
                                         <th>邮箱</th>
                                         <th>状态</th>
-                                        <th>IP</th>
+                                        <th>真实 IP</th>
+                                        <th>代理 IP</th>
                                         <th>所属地</th>
                                         <th>UA</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {accessLoading ? (
-                                        <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
+                                        <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
                                     ) : accessData.items.length === 0 ? (
-                                        <tr><td colSpan={6}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
+                                        <tr><td colSpan={7}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
                                     ) : accessData.items.map((item) => (
                                         <tr key={item.id}>
                                             <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
                                             <td data-label="邮箱" style={{ wordBreak: 'break-all' }}>{item.email || '-'}</td>
                                             <td data-label="状态"><span className={`badge ${statusBadgeClass(item.status)}`}>{item.status}</span></td>
-                                            <td data-label="IP" className="font-mono" style={{ wordBreak: 'break-all' }}>{item.ip || '-'}</td>
-                                            <td data-label="所属地">{item.ipLocation || '-'}</td>
+                                            <td data-label="真实 IP" style={{ wordBreak: 'break-all' }}>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
+                                                    {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
+                                                </div>
+                                            </td>
+                                            <td data-label="代理 IP" className="text-xs text-muted" style={{ wordBreak: 'break-all' }}>
+                                                <span className="font-mono">{item.proxyIp || '-'}</span>
+                                            </td>
+                                            <td data-label="所属地" className="text-xs">{item.cfCountry || item.ipLocation || '-'}</td>
                                             <td data-label="UA" className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
                                         </tr>
                                     ))}
@@ -646,7 +656,7 @@ export default function AuditCenter() {
 
                 {tab === 'logs' && (
                     <Suspense fallback={<div className="flex items-center justify-center" style={{ padding: '64px 0' }}><span className="spinner" /></div>}>
-                        <Logs embedded sourceMode="panel" displayLabel="3x-ui 日志" />
+                        <Logs embedded sourceMode="auto" displayLabel="3x-ui 日志" />
                     </Suspense>
                 )}
             </div>

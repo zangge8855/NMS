@@ -7,7 +7,7 @@ import Logs from './Logs.jsx';
 
 vi.mock('../../api/client.js', () => ({
     default: {
-        post: vi.fn(),
+        get: vi.fn(),
     },
 }));
 
@@ -28,42 +28,43 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Logs', () => {
     beforeEach(() => {
-        api.post.mockReset();
+        api.get.mockReset();
         useServer.mockReset();
     });
 
     it('always uses panel logs in global mode', async () => {
         useServer.mockReturnValue({
             activeServerId: 'global',
-            panelApi: vi.fn(),
             activeServer: null,
             servers: [
                 { id: 'server-a', name: 'Node A' },
                 { id: 'server-b', name: 'Node B' },
             ],
         });
-        api.post.mockResolvedValue({
+        api.get.mockResolvedValue({
             data: {
-                obj: '2026-03-09T00:00:00Z first line\n',
+                obj: {
+                    lines: ['2026-03-09T00:00:00Z first line'],
+                    supported: true,
+                },
             },
         });
 
         renderWithRouter(<Logs embedded />);
 
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledTimes(2);
+            expect(api.get).toHaveBeenCalledTimes(2);
         });
 
-        const urls = api.post.mock.calls.map(([url]) => url);
-        expect(urls).toContain('/panel/server-a/panel/api/server/log');
-        expect(urls).toContain('/panel/server-b/panel/api/server/log');
-        expect(urls.some((url) => url.includes('/server/api/server/log'))).toBe(false);
+        const urls = api.get.mock.calls.map(([url]) => url);
+        expect(urls).toContain('/servers/server-a/logs');
+        expect(urls).toContain('/servers/server-b/logs');
+        expect(api.get.mock.calls.every(([, options]) => options?.params?.source === 'panel')).toBe(true);
     });
 
     it('shows a selection hint when no global server is available', async () => {
         useServer.mockReturnValue({
             activeServerId: 'global',
-            panelApi: vi.fn(),
             activeServer: null,
             servers: [],
         });
@@ -71,6 +72,6 @@ describe('Logs', () => {
         renderWithRouter(<Logs embedded />);
 
         expect(await screen.findByText('请至少选择一个节点后再查看聚合日志')).toBeInTheDocument();
-        expect(api.post).not.toHaveBeenCalled();
+        expect(api.get).not.toHaveBeenCalled();
     });
 });

@@ -11,7 +11,7 @@ import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
-import { resolveClientIp } from '../lib/requestIp.js';
+import { resolveClientIpDetails } from '../lib/requestIp.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const router = Router();
@@ -127,7 +127,7 @@ async function enrichAccessPayloadWithGeo(payload, includeGeo = true) {
     if (geoEnabled) {
         try {
             map = await ipGeoResolver.lookupMany([
-                ...items.map((item) => item?.ip),
+                ...items.map((item) => item?.clientIp || item?.ip),
                 ...topIps.map((item) => item?.ip),
             ]);
         } catch {
@@ -139,7 +139,7 @@ async function enrichAccessPayloadWithGeo(payload, includeGeo = true) {
         ...base,
         items: items.map((item) => ({
             ...item,
-            ipLocation: geoEnabled ? ipGeoResolver.pickFromMap(map, item?.ip) : '',
+            ipLocation: geoEnabled ? ipGeoResolver.pickFromMap(map, item?.clientIp || item?.ip) : '',
         })),
         topIps: topIps.map((item) => ({
             ...item,
@@ -997,36 +997,94 @@ function buildSubscriptionPayload(links) {
     return { raw, encoded };
 }
 
+const META_RULES_BASE_URL = 'https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo';
 const MIHOMO_RULE_PROVIDERS = [
-    { name: 'applications', behavior: 'classical', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt' },
-    { name: 'private', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt' },
-    { name: 'reject', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt' },
-    { name: 'icloud', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt' },
-    { name: 'apple', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/apple.txt' },
-    { name: 'google', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/google.txt' },
-    { name: 'proxy', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt' },
-    { name: 'direct', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt' },
-    { name: 'telegramcidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt' },
-    { name: 'lancidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt' },
-    { name: 'cncidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt' },
+    {
+        name: 'private-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/private-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/private.mrs`,
+    },
+    {
+        name: 'icloud-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/icloud-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/icloud.mrs`,
+    },
+    {
+        name: 'apple-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/apple-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/apple.mrs`,
+    },
+    {
+        name: 'google-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/google-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/google.mrs`,
+    },
+    {
+        name: 'proxy-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/proxy-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/proxy.mrs`,
+    },
+    {
+        name: 'telegram-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/telegram-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/telegram.mrs`,
+    },
+    {
+        name: 'cn-domain',
+        behavior: 'domain',
+        format: 'mrs',
+        path: './ruleset/cn-domain.mrs',
+        url: `${META_RULES_BASE_URL}/geosite/cn.mrs`,
+    },
+    {
+        name: 'private-ip',
+        behavior: 'ipcidr',
+        format: 'mrs',
+        path: './ruleset/private-ip.mrs',
+        url: `${META_RULES_BASE_URL}/geoip/private.mrs`,
+    },
+    {
+        name: 'telegram-ip',
+        behavior: 'ipcidr',
+        format: 'mrs',
+        path: './ruleset/telegram-ip.mrs',
+        url: `${META_RULES_BASE_URL}/geoip/telegram.mrs`,
+    },
+    {
+        name: 'cn-ip',
+        behavior: 'ipcidr',
+        format: 'mrs',
+        path: './ruleset/cn-ip.mrs',
+        url: `${META_RULES_BASE_URL}/geoip/cn.mrs`,
+    },
 ];
 
 const MIHOMO_RULES = [
-    'RULE-SET,applications,DIRECT',
     'DOMAIN,clash.razord.top,DIRECT',
     'DOMAIN,yacd.haishan.me,DIRECT',
-    'RULE-SET,private,DIRECT',
-    'RULE-SET,reject,REJECT',
-    'RULE-SET,icloud,DIRECT',
-    'RULE-SET,apple,DIRECT',
-    'RULE-SET,google,PROXY',
-    'RULE-SET,proxy,PROXY',
-    'RULE-SET,direct,DIRECT',
-    'RULE-SET,telegramcidr,PROXY',
-    'RULE-SET,lancidr,DIRECT',
-    'RULE-SET,cncidr,DIRECT',
-    'GEOIP,CN,DIRECT',
-    'MATCH,PROXY',
+    'RULE-SET,private-domain,DIRECT',
+    'RULE-SET,icloud-domain,DIRECT',
+    'RULE-SET,apple-domain,DIRECT',
+    'RULE-SET,google-domain,GLOBAL',
+    'RULE-SET,telegram-domain,TELEGRAM',
+    'RULE-SET,proxy-domain,GLOBAL',
+    'RULE-SET,cn-domain,DOMESTIC',
+    'RULE-SET,private-ip,DIRECT',
+    'RULE-SET,telegram-ip,TELEGRAM',
+    'RULE-SET,cn-ip,DOMESTIC',
+    'MATCH,GLOBAL',
 ];
 
 function normalizeSubscriptionFormat(format) {
@@ -1472,13 +1530,16 @@ function buildMihomoConfigObject(links = []) {
 
     if (proxies.length === 0) return null;
     const proxyNames = proxies.map((item) => item.name);
+    const selectableProxyTargets = ['AUTO', ...proxyNames, 'DIRECT'];
+    const flexibleProxyTargets = ['PROXY', 'AUTO', ...proxyNames, 'DIRECT'];
 
     const ruleProviders = {};
     MIHOMO_RULE_PROVIDERS.forEach((provider) => {
         ruleProviders[provider.name] = {
             type: 'http',
             behavior: provider.behavior,
-            path: `./ruleset/${provider.name}.yaml`,
+            format: provider.format,
+            path: provider.path,
             url: provider.url,
             interval: 86400,
         };
@@ -1495,7 +1556,7 @@ function buildMihomoConfigObject(links = []) {
             {
                 name: 'PROXY',
                 type: 'select',
-                proxies: ['AUTO', ...proxyNames, 'DIRECT'],
+                proxies: selectableProxyTargets,
             },
             {
                 name: 'AUTO',
@@ -1504,6 +1565,21 @@ function buildMihomoConfigObject(links = []) {
                 interval: 300,
                 tolerance: 50,
                 proxies: proxyNames,
+            },
+            {
+                name: 'GLOBAL',
+                type: 'select',
+                proxies: flexibleProxyTargets,
+            },
+            {
+                name: 'TELEGRAM',
+                type: 'select',
+                proxies: flexibleProxyTargets,
+            },
+            {
+                name: 'DOMESTIC',
+                type: 'select',
+                proxies: ['DIRECT', 'PROXY', 'AUTO', ...proxyNames],
             },
         ],
         'rule-providers': ruleProviders,
@@ -1690,15 +1766,16 @@ function getOrCreateScopeToken(email, serverId = '', actor = 'admin') {
     }
 }
 
-function getClientIp(req) {
-    return resolveClientIp(req);
-}
-
 function appendSubscriptionAccessAudit(req, payload = {}) {
+    const ipDetails = resolveClientIpDetails(req);
     auditStore.appendSubscriptionAccess({
         email: payload.email,
         tokenId: payload.tokenId,
-        ip: getClientIp(req),
+        ip: ipDetails.clientIp,
+        clientIp: ipDetails.clientIp,
+        proxyIp: ipDetails.proxyIp,
+        ipSource: ipDetails.ipSource,
+        cfCountry: ipDetails.cfCountry,
         userAgent: req?.headers?.['user-agent'] || '',
         status: payload.status,
         reason: payload.reason,

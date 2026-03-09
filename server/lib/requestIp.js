@@ -1,4 +1,5 @@
 import { isPrivateOrLocalIp, normalizeIpAddress } from './ipGeoResolver.js';
+import net from 'net';
 
 function firstHeaderValue(raw) {
     if (Array.isArray(raw)) return String(raw[0] || '').trim();
@@ -79,25 +80,133 @@ function collectForwardedIps(req) {
     return deduped;
 }
 
-export function resolveClientIp(req) {
+function resolveCloudflareClientIp(req) {
+    const cfConnectingIp = parseSingleIpHeader(req?.headers?.['cf-connecting-ip']);
+    const trueClientIp = parseSingleIpHeader(req?.headers?.['true-client-ip']);
+    const cfConnectingIpv6 = parseSingleIpHeader(req?.headers?.['cf-connecting-ipv6']);
+
+    if (cfConnectingIpv6 && cfConnectingIp && net.isIP(cfConnectingIp) === 4 && net.isIP(cfConnectingIpv6) === 6) {
+        return {
+            clientIp: cfConnectingIpv6,
+            source: 'cf-connecting-ipv6',
+        };
+    }
+    if (cfConnectingIp) {
+        return {
+            clientIp: cfConnectingIp,
+            source: 'cf-connecting-ip',
+        };
+    }
+    if (trueClientIp) {
+        return {
+            clientIp: trueClientIp,
+            source: 'true-client-ip',
+        };
+    }
+    if (cfConnectingIpv6) {
+        return {
+            clientIp: cfConnectingIpv6,
+            source: 'cf-connecting-ipv6',
+        };
+    }
+    return null;
+}
+
+function resolveForwardedClientIp(req) {
+    const expressIps = Array.isArray(req?.ips)
+        ? req.ips
+            .map((ip) => normalizeForwardedToken(ip))
+            .filter(Boolean)
+        : [];
+    if (expressIps.length > 0) {
+        const publicIp = expressIps.find((ip) => !isPrivateOrLocalIp(ip));
+        return {
+            clientIp: publicIp || expressIps[0],
+            source: 'req.ips',
+        };
+    }
+
+    const xForwardedFor = parseXForwardedFor(req?.headers?.['x-forwarded-for']);
+    if (xForwardedFor.length > 0) {
+        const publicIp = xForwardedFor.find((ip) => !isPrivateOrLocalIp(ip));
+        return {
+            clientIp: publicIp || xForwardedFor[0],
+            source: 'x-forwarded-for',
+        };
+    }
+
+    const forwardedHeader = parseForwardedHeader(req?.headers?.forwarded);
+    if (forwardedHeader.length > 0) {
+        const publicIp = forwardedHeader.find((ip) => !isPrivateOrLocalIp(ip));
+        return {
+            clientIp: publicIp || forwardedHeader[0],
+            source: 'forwarded',
+        };
+    }
+
+    const xRealIp = parseSingleIpHeader(req?.headers?.['x-real-ip']);
+    if (xRealIp) {
+        return {
+            clientIp: xRealIp,
+            source: 'x-real-ip',
+        };
+    }
+
+    const xClientIp = parseSingleIpHeader(req?.headers?.['x-client-ip']);
+    if (xClientIp) {
+        return {
+            clientIp: xClientIp,
+            source: 'x-client-ip',
+        };
+    }
+
+    return null;
+}
+
+export function resolveClientIpDetails(req) {
     const ipFromReq = normalizeIpAddress(req?.ip || '');
     const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
     const upstreamIp = ipFromReq || ipFromSocket;
-    if (upstreamIp && !isPrivateOrLocalIp(upstreamIp)) {
-        return upstreamIp;
+    const forwardedIps = collectForwardedIps(req);
+    const proxyIp = upstreamIp || '';
+    const cfCountry = String(req?.headers?.['cf-ipcountry'] || '').trim().toUpperCase();
+
+    const cloudflareResolved = resolveCloudflareClientIp(req);
+    if (cloudflareResolved?.clientIp) {
+        return {
+            clientIp: cloudflareResolved.clientIp,
+            proxyIp,
+            ipSource: cloudflareResolved.source,
+            forwardedChain: forwardedIps,
+            cfCountry,
+        };
     }
 
     // Trust forwarded headers when upstream is local/private,
     // or express has already parsed proxy chain into req.ips.
     const canTrustForwarded = isPrivateOrLocalIp(upstreamIp) || (Array.isArray(req?.ips) && req.ips.length > 0);
     if (canTrustForwarded) {
-        const forwardedIps = collectForwardedIps(req);
-        if (forwardedIps.length > 0) {
-            const publicIp = forwardedIps.find((ip) => !isPrivateOrLocalIp(ip));
-            if (publicIp) return publicIp;
-            return forwardedIps[0];
+        const forwardedResolved = resolveForwardedClientIp(req);
+        if (forwardedResolved?.clientIp) {
+            return {
+                clientIp: forwardedResolved.clientIp,
+                proxyIp,
+                ipSource: forwardedResolved.source,
+                forwardedChain: forwardedIps,
+                cfCountry,
+            };
         }
     }
 
-    return upstreamIp || 'unknown';
+    return {
+        clientIp: upstreamIp || 'unknown',
+        proxyIp,
+        ipSource: upstreamIp ? 'req.ip' : 'unknown',
+        forwardedChain: forwardedIps,
+        cfCountry,
+    };
+}
+
+export function resolveClientIp(req) {
+    return resolveClientIpDetails(req).clientIp;
 }

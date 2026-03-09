@@ -11,6 +11,7 @@ import {
     normalizeEmail, normalizeScopeMode,
     PROTOCOL_OPTIONS, PROTOCOL_KEY_SET,
 } from '../../utils/protocol.js';
+import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import UserPolicyModal from '../Clients/UserPolicyModal.jsx';
 import {
@@ -42,10 +43,10 @@ function formatDate(value) {
 function buildProvisionSuccessMessage(deployment) {
     const dep = deployment && typeof deployment === 'object' ? deployment : {};
     if (Number(dep.failed || 0) > 0) {
-        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
+        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 更新 ${dep.updated || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
     }
-    if (Number(dep.created || 0) > 0) {
-        return `订阅已开通，已下发 ${dep.created || 0} 个客户端到节点`;
+    if (Number(dep.created || 0) > 0 || Number(dep.updated || 0) > 0) {
+        return `订阅已开通，已同步 ${Number(dep.created || 0) + Number(dep.updated || 0)} 个客户端到节点`;
     }
     return '订阅已开通，链接已生成';
 }
@@ -90,6 +91,8 @@ export default function Accounts({ embedded = false }) {
     const [provisionServerIds, setProvisionServerIds] = useState([]);
     const [provisionProtocols, setProvisionProtocols] = useState([]);
     const [provisionExpiryDays, setProvisionExpiryDays] = useState(0);
+    const [provisionLimitIp, setProvisionLimitIp] = useState('0');
+    const [provisionTrafficLimitGb, setProvisionTrafficLimitGb] = useState('0');
     const [provisionResult, setProvisionResult] = useState(null);
 
     const loadUsers = async () => {
@@ -192,6 +195,8 @@ export default function Accounts({ embedded = false }) {
         setProvisionServerIds([]);
         setProvisionProtocols([]);
         setProvisionExpiryDays(0);
+        setProvisionLimitIp('0');
+        setProvisionTrafficLimitGb('0');
         setProvisionResult(null);
     };
 
@@ -227,11 +232,15 @@ export default function Accounts({ embedded = false }) {
             setProvisionProtocols(protocols);
             setProvisionNoServerLimit(serverScopeMode === 'all');
             setProvisionNoProtocolLimit(protocolScopeMode === 'all');
+            setProvisionLimitIp(String(normalizeLimitIp(policy.limitIp)));
+            setProvisionTrafficLimitGb(bytesToGigabytesInput(policy.trafficLimitBytes));
         } catch {
             setProvisionServerIds([]);
             setProvisionProtocols([]);
             setProvisionNoServerLimit(true);
             setProvisionNoProtocolLimit(true);
+            setProvisionLimitIp('0');
+            setProvisionTrafficLimitGb('0');
         }
         setProvisionInitLoading(false);
     };
@@ -406,6 +415,8 @@ export default function Accounts({ embedded = false }) {
             serverScopeMode,
             protocolScopeMode,
             expiryDays: Math.max(0, Math.floor(Number(provisionExpiryDays) || 0)),
+            limitIp: normalizeLimitIp(provisionLimitIp),
+            trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
         };
 
         setProvisionSaving(true);
@@ -745,18 +756,53 @@ export default function Accounts({ embedded = false }) {
                                             </div>
                                         </div>
 
-                                        <div className="form-group">
-                                            <label className="form-label">有效期</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    style={{ maxWidth: 120 }}
-                                                    min={0}
-                                                    value={provisionExpiryDays}
-                                                    onChange={(e) => setProvisionExpiryDays(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                                                />
-                                                <span className="text-sm text-muted">天（0 = 永不过期）</span>
+                                        <div className="card mb-4">
+                                            <div className="card-title mb-2">统一限额</div>
+                                            <div className="text-xs text-muted mb-3">
+                                                本次开通会把到期时间、IP 限制和总流量上限一并同步到策略和下发的客户端。
+                                            </div>
+                                            <div className="grid-auto-280-tight">
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">有效期</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            style={{ maxWidth: 120 }}
+                                                            min={0}
+                                                            value={provisionExpiryDays}
+                                                            onChange={(e) => setProvisionExpiryDays(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                                                        />
+                                                        <span className="text-sm text-muted">天</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted mt-1">0 = 永不过期</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">IP 限制</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionLimitIp}
+                                                        onChange={(e) => setProvisionLimitIp(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">总流量上限</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            step="0.5"
+                                                            value={provisionTrafficLimitGb}
+                                                            onChange={(e) => setProvisionTrafficLimitGb(e.target.value)}
+                                                        />
+                                                        <span className="text-sm text-muted">GB</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -773,6 +819,7 @@ export default function Accounts({ embedded = false }) {
                                                         <div className="text-sm mb-2">
                                                             <span className="font-medium">节点下发：</span>
                                                             <span className="badge badge-success mr-1">创建 {provisionResult.deployment.created}</span>
+                                                            <span className="badge badge-info mr-1">更新 {provisionResult.deployment.updated || 0}</span>
                                                             <span className="badge badge-neutral mr-1">跳过 {provisionResult.deployment.skipped}（已存在）</span>
                                                             {provisionResult.deployment.failed > 0 && (
                                                                 <span className="badge badge-danger">失败 {provisionResult.deployment.failed}</span>

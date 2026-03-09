@@ -6,6 +6,7 @@ import subscriptionTokenStore from './subscriptionTokenStore.js';
 import systemSettingsStore from './systemSettingsStore.js';
 import trafficStatsStore from './trafficStatsStore.js';
 import userPolicyStore from './userPolicyStore.js';
+import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
 
 function safeClone(value) {
@@ -25,6 +26,7 @@ const STORE_REGISTRY = [
     { key: 'system_settings', store: systemSettingsStore },
     { key: 'traffic', store: trafficStatsStore },
     { key: 'user_policies', store: userPolicyStore },
+    { key: 'client_entitlement_overrides', store: clientEntitlementOverrideStore },
 ];
 
 function resolveKeys(inputKeys = []) {

@@ -33,6 +33,12 @@ function normalizeScopeMode(value, fallback = 'all') {
     return text;
 }
 
+function normalizeNonNegativeInt(value, fallback = 0) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+    return Math.max(0, Math.floor(parsed));
+}
+
 function sanitizePolicy(input = {}) {
     const selectedServerIds = toUniqueStringArray(input.allowedServerIds, (item) => String(item || '').trim());
     const selectedProtocols = toUniqueStringArray(input.allowedProtocols, (item) => String(item || '').trim().toLowerCase())
@@ -54,6 +60,9 @@ function sanitizePolicy(input = {}) {
         allowedProtocols: protocolScopeMode === 'selected' ? selectedProtocols : [],
         serverScopeMode,
         protocolScopeMode,
+        expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
+        limitIp: normalizeNonNegativeInt(input.limitIp, 0),
+        trafficLimitBytes: normalizeNonNegativeInt(input.trafficLimitBytes, 0),
     };
 }
 
@@ -97,6 +106,9 @@ class UserPolicyStore {
                 allowedProtocols: [],
                 serverScopeMode: 'all',
                 protocolScopeMode: 'all',
+                expiryTime: 0,
+                limitIp: 0,
+                trafficLimitBytes: 0,
                 updatedAt: null,
                 updatedBy: '',
             };

@@ -8,6 +8,7 @@ import { copyToClipboard, formatBytes } from '../../utils/format.js';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import { normalizeEmail } from '../../utils/protocol.js';
+import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import toast from 'react-hot-toast';
@@ -42,10 +43,10 @@ const PROTOCOL_OPTIONS = [
 function buildProvisionSuccessMessage(deployment) {
     const dep = deployment && typeof deployment === 'object' ? deployment : {};
     if (Number(dep.failed || 0) > 0) {
-        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
+        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 更新 ${dep.updated || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
     }
-    if (Number(dep.created || 0) > 0) {
-        return `订阅已开通，已下发 ${dep.created || 0} 个客户端到节点`;
+    if (Number(dep.created || 0) > 0 || Number(dep.updated || 0) > 0) {
+        return `订阅已开通，已同步 ${Number(dep.created || 0) + Number(dep.updated || 0)} 个客户端到节点`;
     }
     return '订阅已开通，链接已生成';
 }
@@ -91,6 +92,8 @@ export default function UsersHub() {
     const [provisionSaving, setProvisionSaving] = useState(false);
     const [provisionEmail, setProvisionEmail] = useState('');
     const [provisionExpiryDate, setProvisionExpiryDate] = useState('');
+    const [provisionLimitIp, setProvisionLimitIp] = useState('0');
+    const [provisionTrafficLimitGb, setProvisionTrafficLimitGb] = useState('0');
     const [provisionResult, setProvisionResult] = useState(null);
     const [provisionSelectedInboundKeys, setProvisionSelectedInboundKeys] = useState(new Set());
     const [inboundExpiries, setInboundExpiries] = useState([]);
@@ -112,6 +115,8 @@ export default function UsersHub() {
     const [editNoProtocolLimit, setEditNoProtocolLimit] = useState(true);
     const [editServerIds, setEditServerIds] = useState([]);
     const [editProtocols, setEditProtocols] = useState([]);
+    const [editLimitIp, setEditLimitIp] = useState('0');
+    const [editTrafficLimitGb, setEditTrafficLimitGb] = useState('0');
 
     // Create user modal
     const [createOpen, setCreateOpen] = useState(false);
@@ -355,11 +360,13 @@ export default function UsersHub() {
         setProvisionSaving(false);
         setProvisionEmail('');
         setProvisionExpiryDate('');
+        setProvisionLimitIp('0');
+        setProvisionTrafficLimitGb('0');
         setProvisionResult(null);
         setProvisionSelectedInboundKeys(new Set());
     };
 
-    const openProvisionModal = (user) => {
+    const openProvisionModal = async (user) => {
         const suggestedEmail = normalizeEmail(user?.subscriptionEmail || user?.email);
         if (!suggestedEmail) {
             toast.error('该用户未配置邮箱，无法开通订阅');
@@ -368,7 +375,9 @@ export default function UsersHub() {
         setProvisionTargetUser(user);
         setProvisionEmail(suggestedEmail);
         setProvisionResult(null);
-        setProvisionInitLoading(false);
+        setProvisionInitLoading(true);
+        setProvisionLimitIp('0');
+        setProvisionTrafficLimitGb('0');
 
         // Default: select all inbounds
         setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)));
@@ -390,6 +399,17 @@ export default function UsersHub() {
         }
 
         setProvisionOpen(true);
+        try {
+            const policyRes = await api.get(`/user-policy/${encodeURIComponent(suggestedEmail)}`);
+            const policy = policyRes.data?.obj || {};
+            setProvisionLimitIp(String(normalizeLimitIp(policy.limitIp)));
+            setProvisionTrafficLimitGb(bytesToGigabytesInput(policy.trafficLimitBytes));
+        } catch {
+            setProvisionLimitIp('0');
+            setProvisionTrafficLimitGb('0');
+        }
+
+        setProvisionInitLoading(false);
     };
 
     const submitProvision = async (event) => {
@@ -424,6 +444,8 @@ export default function UsersHub() {
                 allowedProtocols: [],
                 allowedInboundKeys: Array.from(provisionSelectedInboundKeys),
                 expiryTime,
+                limitIp: normalizeLimitIp(provisionLimitIp),
+                trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
             });
             if (!res.data?.success) {
                 toast.error(res.data?.msg || '开通失败');
@@ -501,6 +523,8 @@ export default function UsersHub() {
         setEditNoProtocolLimit(true);
         setEditServerIds([]);
         setEditProtocols([]);
+        setEditLimitIp('0');
+        setEditTrafficLimitGb('0');
         if (policyEmail) {
             setEditPolicyLoading(true);
             api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
@@ -517,6 +541,8 @@ export default function UsersHub() {
                     const pMode = String(p.protocolScopeMode || '').toLowerCase();
                     setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
                     setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
+                    setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
+                    setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
                 })
                 .catch(() => {})
                 .finally(() => setEditPolicyLoading(false));
@@ -577,6 +603,8 @@ export default function UsersHub() {
                         allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
                         serverScopeMode,
                         protocolScopeMode,
+                        limitIp: normalizeLimitIp(editLimitIp),
+                        trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
                     });
                 } catch { /* best-effort */ }
             }
@@ -1177,6 +1205,38 @@ export default function UsersHub() {
                                                     ))}
                                                 </div>
                                             </div>
+                                            <div className="card mt-3">
+                                                <div className="text-sm font-medium mb-2">统一限额</div>
+                                                <div className="text-xs text-muted mb-3">这里保存的是该用户的默认限额；单个入站用户如有手工覆盖，会优先使用覆盖值。</div>
+                                                <div className="grid-auto-280-tight">
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">IP 限制</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editLimitIp}
+                                                            onChange={(e) => setEditLimitIp(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">0 = 不限制连接 IP 数量</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">总流量上限</label>
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="number"
+                                                                className="form-input"
+                                                                min={0}
+                                                                step="0.5"
+                                                                value={editTrafficLimitGb}
+                                                                onChange={(e) => setEditTrafficLimitGb(e.target.value)}
+                                                            />
+                                                            <span className="text-sm text-muted">GB</span>
+                                                        </div>
+                                                        <p className="text-muted text-sm mt-1">0 = 不限制总流量</p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </>
                                     )}
                                 </div>
@@ -1202,110 +1262,148 @@ export default function UsersHub() {
                         </div>
                         <form onSubmit={submitProvision}>
                             <div className="modal-body">
-                                <div className="form-group">
-                                    <label className="form-label">订阅绑定邮箱</label>
-                                    <input
-                                        type="email"
-                                        className="form-input"
-                                        value={provisionEmail}
-                                        onChange={(e) => setProvisionEmail(e.target.value)}
-                                        placeholder="与节点客户端配置一致的邮箱"
-                                    />
-                                </div>
+                                {provisionInitLoading ? (
+                                    <div className="text-center p-6"><span className="spinner" /></div>
+                                ) : (
+                                    <>
+                                        <div className="form-group">
+                                            <label className="form-label">订阅绑定邮箱</label>
+                                            <input
+                                                type="email"
+                                                className="form-input"
+                                                value={provisionEmail}
+                                                onChange={(e) => setProvisionEmail(e.target.value)}
+                                                placeholder="与节点客户端配置一致的邮箱"
+                                            />
+                                        </div>
 
-                                <div className="form-group">
-                                    <label className="form-label">到期时间</label>
-                                    <input
-                                        type="datetime-local"
-                                        className="form-input"
-                                        value={provisionExpiryDate}
-                                        onChange={(e) => setProvisionExpiryDate(e.target.value)}
-                                    />
-                                    <p className="text-muted text-sm mt-1">留空 = 永不过期</p>
-                                    {inboundExpiries.length > 0 && (
-                                        <div className="mt-2">
-                                            <div className="text-xs text-muted mb-1">参考：当前入站到期时间</div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {inboundExpiries
-                                                    .filter((e) => e.expiryTime > Date.now())
-                                                    .slice(0, 6)
-                                                    .map((e, i) => {
-                                                        const dateStr = new Date(e.expiryTime).toLocaleDateString('zh-CN');
-                                                        return (
-                                                            <button
-                                                                key={i}
-                                                                type="button"
-                                                                className="badge badge-neutral cursor-pointer"
-                                                                title={`${e.serverName} / ${e.inboundRemark}（${e.clientCount} 客户端）`}
-                                                                onClick={() => setProvisionExpiryDate(toLocalDateTimeString(e.expiryTime))}
-                                                            >
-                                                                {e.serverName}/{e.inboundRemark}: {dateStr}
-                                                            </button>
-                                                        );
-                                                    })}
+                                        <div className="card mb-4">
+                                            <div className="text-sm font-medium mb-2">统一限额</div>
+                                            <div className="text-xs text-muted mb-3">开通后会把到期时间、IP 限制和总流量上限同步到该用户的默认策略与选中入站客户端。</div>
+                                            <div className="grid-auto-280-tight">
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">到期时间</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        className="form-input"
+                                                        value={provisionExpiryDate}
+                                                        onChange={(e) => setProvisionExpiryDate(e.target.value)}
+                                                    />
+                                                    <p className="text-muted text-sm mt-1">留空 = 永不过期</p>
+                                                    {inboundExpiries.length > 0 && (
+                                                        <div className="mt-2">
+                                                            <div className="text-xs text-muted mb-1">参考：当前入站到期时间</div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {inboundExpiries
+                                                                    .filter((e) => e.expiryTime > Date.now())
+                                                                    .slice(0, 6)
+                                                                    .map((e, i) => {
+                                                                        const dateStr = new Date(e.expiryTime).toLocaleDateString('zh-CN');
+                                                                        return (
+                                                                            <button
+                                                                                key={i}
+                                                                                type="button"
+                                                                                className="badge badge-neutral cursor-pointer"
+                                                                                title={`${e.serverName} / ${e.inboundRemark}（${e.clientCount} 客户端）`}
+                                                                                onClick={() => setProvisionExpiryDate(toLocalDateTimeString(e.expiryTime))}
+                                                                            >
+                                                                                {e.serverName}/{e.inboundRemark}: {dateStr}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">IP 限制</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionLimitIp}
+                                                        onChange={(e) => setProvisionLimitIp(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">总流量上限</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            step="0.5"
+                                                            value={provisionTrafficLimitGb}
+                                                            onChange={(e) => setProvisionTrafficLimitGb(e.target.value)}
+                                                        />
+                                                        <span className="text-sm text-muted">GB</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
 
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        选择入站
-                                        <span className="text-muted text-xs ml-2">
-                                            已选 {provisionSelectedInboundKeys.size} / {allInbounds.length}
-                                        </span>
-                                    </label>
-                                    <div className="flex gap-2 mb-2">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)))}
-                                        >
-                                            全选
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => setProvisionSelectedInboundKeys(new Set())}
-                                        >
-                                            全不选
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-col gap-1" style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                                        {allInbounds.length === 0 ? (
-                                            <span className="text-sm text-muted">暂无可用入站</span>
-                                        ) : allInbounds.map((ib) => {
-                                            const checked = provisionSelectedInboundKeys.has(ib.key);
-                                            const expiryLabel = ib.expiryTime > 0
-                                                ? new Date(ib.expiryTime).toLocaleDateString('zh-CN')
-                                                : '永久';
-                                            return (
-                                                <label
-                                                    key={ib.key}
-                                                    className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-white/5' : ''}`}
-                                                    style={{ border: '1px solid var(--border-color)' }}
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                选择入站
+                                                <span className="text-muted text-xs ml-2">
+                                                    已选 {provisionSelectedInboundKeys.size} / {allInbounds.length}
+                                                </span>
+                                            </label>
+                                            <div className="flex gap-2 mb-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)))}
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={checked}
-                                                        onChange={(e) => {
-                                                            setProvisionSelectedInboundKeys((prev) => {
-                                                                const next = new Set(prev);
-                                                                if (e.target.checked) next.add(ib.key);
-                                                                else next.delete(ib.key);
-                                                                return next;
-                                                            });
-                                                        }}
-                                                    />
-                                                    <span className="font-medium">{ib.serverName}</span>
-                                                    <span className="text-muted">{ib.remark || ib.protocol}</span>
-                                                    <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
-                                                    <span className="text-muted text-xs ml-auto">到期: {expiryLabel}</span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                                    全选
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={() => setProvisionSelectedInboundKeys(new Set())}
+                                                >
+                                                    全不选
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-col gap-1" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                                {allInbounds.length === 0 ? (
+                                                    <span className="text-sm text-muted">暂无可用入站</span>
+                                                ) : allInbounds.map((ib) => {
+                                                    const checked = provisionSelectedInboundKeys.has(ib.key);
+                                                    const expiryLabel = ib.expiryTime > 0
+                                                        ? new Date(ib.expiryTime).toLocaleDateString('zh-CN')
+                                                        : '永久';
+                                                    return (
+                                                        <label
+                                                            key={ib.key}
+                                                            className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-white/5' : ''}`}
+                                                            style={{ border: '1px solid var(--border-color)' }}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={(e) => {
+                                                                    setProvisionSelectedInboundKeys((prev) => {
+                                                                        const next = new Set(prev);
+                                                                        if (e.target.checked) next.add(ib.key);
+                                                                        else next.delete(ib.key);
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                            />
+                                                            <span className="font-medium">{ib.serverName}</span>
+                                                            <span className="text-muted">{ib.remark || ib.protocol}</span>
+                                                            <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
+                                                            <span className="text-muted text-xs ml-auto">到期: {expiryLabel}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                                 {provisionResult && (
                                     <div className="card">
@@ -1320,6 +1418,7 @@ export default function UsersHub() {
                                                 <div className="text-sm mb-2">
                                                     <span className="font-medium">节点下发：</span>
                                                     <span className="badge badge-success mr-1">创建 {provisionResult.deployment.created}</span>
+                                                    <span className="badge badge-info mr-1">更新 {provisionResult.deployment.updated || 0}</span>
                                                     <span className="badge badge-neutral mr-1">跳过 {provisionResult.deployment.skipped}（已存在）</span>
                                                     {provisionResult.deployment.failed > 0 && (
                                                         <span className="badge badge-danger">失败 {provisionResult.deployment.failed}</span>
