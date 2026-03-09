@@ -163,7 +163,7 @@ class AuditStore {
             id: crypto.randomUUID(),
             ts: new Date().toISOString(),
             eventType: String(event || 'unknown'),
-            actor: req?.user?.role || 'anonymous',
+            actor: req?.user?.username || req?.user?.userId || 'anonymous',
             actorRole: req?.user?.role || 'anonymous',
             ip: resolveClientIp(req),
             method: req?.method || null,

@@ -2,6 +2,7 @@ import React from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { HiOutlineSignal, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineCloud } from 'react-icons/hi2';
+import NotificationBell from './NotificationBell.jsx';
 
 const themeIcons = {
     dark: HiOutlineMoon,
@@ -29,6 +30,7 @@ export default function Header({ title, icon, children }) {
             </div>
             <div className="header-right">
                 {children}
+                <NotificationBell />
                 <button
                     className="theme-toggle-btn"
                     onClick={cycleTheme}

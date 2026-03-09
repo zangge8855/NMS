@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import api from '../../api/client.js';
@@ -26,8 +27,12 @@ import {
     HiOutlineUserPlus,
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
+    HiOutlineArrowDownTray,
+    HiOutlineFunnel,
 } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -64,6 +69,11 @@ export default function UsersHub() {
     const [clientsMap, setClientsMap] = useState(new Map());
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     // Provision modal
     const [provisionOpen, setProvisionOpen] = useState(false);
@@ -210,6 +220,7 @@ export default function UsersHub() {
                 return { ...user, clientData, status };
             })
             .filter((user) => {
+                if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
                 if (!search) return true;
                 return [user.username, user.email, user.subscriptionEmail, user.status.label]
                     .some((v) => String(v || '').toLowerCase().includes(search));
@@ -222,7 +233,7 @@ export default function UsersHub() {
                 if (aOrder !== bOrder) return aOrder - bOrder;
                 return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
             });
-    }, [users, clientsMap, searchTerm]);
+    }, [users, clientsMap, searchTerm, statusFilter]);
 
     // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
@@ -270,6 +281,60 @@ export default function UsersHub() {
             }
         } catch (err) {
             toast.error(err.response?.data?.msg || err.message || '删除失败');
+        }
+    };
+
+    // --- Bulk operations ---
+    const handleBulkSetEnabled = async (enabled) => {
+        if (selectedIds.size === 0) return;
+        setBulkLoading(true);
+        try {
+            const res = await api.post('/auth/users/bulk-set-enabled', {
+                userIds: Array.from(selectedIds),
+                enabled,
+            });
+            if (res.data?.success) {
+                toast.success(res.data.msg);
+                setSelectedIds(new Set());
+                await fetchData();
+            } else {
+                toast.error(res.data?.msg || '操作失败');
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || '批量操作失败');
+        }
+        setBulkLoading(false);
+    };
+
+    const handleExportCSV = async () => {
+        try {
+            const res = await api.get('/auth/users/export', { responseType: 'blob' });
+            const url = URL.createObjectURL(res.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `users_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('CSV 已导出');
+        } catch {
+            toast.error('导出失败');
+        }
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === enrichedUsers.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(enrichedUsers.map(u => u.id)));
         }
     };
 
@@ -652,6 +717,18 @@ export default function UsersHub() {
         }
     }, [subscriptionModalOpen, subscriptionEmail]);
 
+    // Auto-open edit modal from URL query param
+    useEffect(() => {
+        const editId = searchParams.get('edit');
+        if (editId && users.length > 0 && !loading) {
+            const targetUser = users.find(u => u.id === editId);
+            if (targetUser) {
+                openEditModal(targetUser);
+                setSearchParams({}, { replace: true });
+            }
+        }
+    }, [users, loading, searchParams]);
+
     const activeSubscriptionProfile = useMemo(
         () => findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey),
         [subscriptionResult, subscriptionProfileKey]
@@ -683,6 +760,16 @@ export default function UsersHub() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        <select className="form-select" style={{ width: 'auto', minWidth: 100 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                            <option value="all">全部状态</option>
+                            <option value="active">已开通</option>
+                            <option value="enabled">已启用</option>
+                            <option value="disabled">已停用</option>
+                            <option value="pending">待审核</option>
+                        </select>
+                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
+                            <HiOutlineArrowDownTray /> 导出
+                        </button>
                         <button className="btn btn-secondary btn-sm" onClick={fetchData} title="刷新">
                             <HiOutlineArrowPath /> 刷新
                         </button>
@@ -692,10 +779,28 @@ export default function UsersHub() {
                     </div>
                 </div>
 
+                {selectedIds.size > 0 && (
+                    <div className="bulk-toolbar mb-4">
+                        <span className="bulk-toolbar-count">已选 {selectedIds.size} 个用户</span>
+                        <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnabled(true)} disabled={bulkLoading}>
+                            <HiOutlinePlayCircle /> 批量启用
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleBulkSetEnabled(false)} disabled={bulkLoading}>
+                            <HiOutlineNoSymbol /> 批量停用
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
+                            取消选择
+                        </button>
+                    </div>
+                )}
+
                 <div className="table-container glass-panel">
                     <table className="table">
                         <thead>
                             <tr>
+                                <th style={{ width: 40 }}>
+                                    <input type="checkbox" checked={enrichedUsers.length > 0 && selectedIds.size === enrichedUsers.length} onChange={toggleSelectAll} />
+                                </th>
                                 <th>用户名</th>
                                 <th>邮箱</th>
                                 <th>状态</th>
@@ -707,15 +812,16 @@ export default function UsersHub() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={7} className="text-center table-pad-64"><div className="spinner mx-auto" /></td></tr>
+                                <tr><td colSpan={8}><SkeletonTable rows={8} cols={8} /></td></tr>
                             ) : enrichedUsers.length === 0 ? (
-                                <tr><td colSpan={7} className="text-center table-empty">
-                                    {searchTerm ? '未找到匹配用户' : '暂无注册用户'}
+                                <tr><td colSpan={8}>
+                                    <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
                                 </td></tr>
                             ) : (
                                 enrichedUsers.map((user) => (
-                                    <tr key={user.id}>
-                                        <td data-label="用户名" className="font-medium">{user.username}</td>
+                                    <tr key={user.id} className={selectedIds.has(user.id) ? 'table-row-selected' : ''}>
+                                        <td><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                        <td data-label="用户名" className="font-medium table-cell-link" onClick={() => navigate(`/clients/${user.id}`)}>{user.username}</td>
                                         <td data-label="邮箱" className="text-sm text-muted">{user.email || user.subscriptionEmail || '-'}</td>
                                         <td data-label="状态">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
@@ -725,6 +831,9 @@ export default function UsersHub() {
                                         <td data-label="到期时间">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
                                         <td data-label="" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap">
+                                                <button className="btn btn-secondary btn-sm btn-icon" title="详情" onClick={() => navigate(`/clients/${user.id}`)}>
+                                                    <HiOutlineEye />
+                                                </button>
                                                 {/* Pending: Approve + Delete */}
                                                 {user.status.key === 'pending' && (
                                                     <>

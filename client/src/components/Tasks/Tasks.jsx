@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import toast from 'react-hot-toast';
@@ -212,14 +214,14 @@ export default function Tasks({ embedded = false }) {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center" style={{ padding: '32px' }}>
-                                        <div className="spinner mx-auto" />
+                                    <td colSpan={7} className="text-center" style={{ padding: '16px' }}>
+                                        <SkeletonTable rows={5} cols={7} />
                                     </td>
                                 </tr>
                             ) : filteredTasks.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center" style={{ padding: '32px' }}>
-                                        暂无批量任务
+                                    <td colSpan={7}>
+                                        <EmptyState title="暂无批量任务" subtitle="执行批量操作后将在此显示" />
                                     </td>
                                 </tr>
                             ) : (

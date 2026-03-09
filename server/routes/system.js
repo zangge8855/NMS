@@ -17,6 +17,8 @@ import {
     hydrateStoresFromDatabase,
     listStoreKeys,
 } from '../store/storeRegistry.js';
+import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
+import notificationService from '../lib/notifications.js';
 
 const router = Router();
 
@@ -203,25 +205,157 @@ router.post('/db/backfill', adminOnly, async (req, res) => {
     const dryRun = normalizeBoolean(body.dryRun, config.db?.backfillDryRunDefault !== false);
     const redact = normalizeBoolean(body.redact, config.db?.backfillRedact !== false);
     const keys = normalizeStoreKeys(body.keys);
+    const async_ = normalizeBoolean(body.async, true); // 默认异步模式
 
-    const output = await backfillStoresToDatabase({
-        dryRun,
-        redact,
-        keys,
-    });
+    const actor = req.user?.username || 'admin';
+    const targetKeys = keys.length > 0 ? keys : listStoreKeys();
 
+    if (async_) {
+        // 异步模式：立即返回 taskId，后台执行
+        const { taskId, signal } = taskQueue.create({
+            type: 'db_backfill',
+            actor,
+            meta: { dryRun, redact, keys: targetKeys },
+        });
+
+        // 后台异步执行
+        setImmediate(async () => {
+            taskQueue.start(taskId);
+            try {
+                // 逐 store 处理，逐步上报进度
+                const { writeStoreSnapshotNow } = await import('../store/dbMirror.js');
+                const { collectStoreSnapshots } = await import('../store/storeRegistry.js');
+                const storeKeys = targetKeys;
+                const total = storeKeys.length;
+                const details = [];
+
+                for (let i = 0; i < storeKeys.length; i++) {
+                    if (signal.aborted) {
+                        break;
+                    }
+                    const key = storeKeys[i];
+                    taskQueue.updateProgress(taskId, {
+                        step: i,
+                        total,
+                        label: `处理 ${key} (${i + 1}/${total})`,
+                    });
+
+                    try {
+                        const snapshots = collectStoreSnapshots([key]);
+                        const payload = snapshots[key];
+                        if (!payload) {
+                            details.push({ key, success: false, skipped: true, msg: 'snapshot-missing' });
+                        } else if (dryRun) {
+                            const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
+                            details.push({ key, success: true, dryRun: true, bytes });
+                        } else {
+                            await writeStoreSnapshotNow(key, payload, { redact });
+                            const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
+                            details.push({ key, success: true, dryRun: false, bytes });
+                        }
+                    } catch (err) {
+                        details.push({ key, success: false, msg: String(err?.message || err) });
+                    }
+                }
+
+                const result = {
+                    dryRun,
+                    redact,
+                    total: details.length,
+                    success: details.filter(d => d.success).length,
+                    failed: details.filter(d => !d.success).length,
+                    details,
+                    cancelled: signal.aborted,
+                };
+                taskQueue.complete(taskId, result);
+
+                appendSecurityAudit('db_backfill', { user: { username: actor } }, {
+                    dryRun, redact, keys: targetKeys,
+                    success: result.success, failed: result.failed,
+                    taskId, async: true,
+                });
+            } catch (err) {
+                taskQueue.fail(taskId, err);
+            }
+        });
+
+        return res.json({
+            success: true,
+            msg: '回填任务已启动',
+            obj: { taskId, async: true, status: TASK_STATUS.PENDING },
+        });
+    }
+
+    // 同步模式（向后兼容）
+    const output = await backfillStoresToDatabase({ dryRun, redact, keys });
     appendSecurityAudit('db_backfill', req, {
-        dryRun,
-        redact,
-        keys: keys.length > 0 ? keys : listStoreKeys(),
+        dryRun, redact,
+        keys: targetKeys,
         success: output.success,
         failed: output.failed,
     });
+    return res.json({ success: output.failed === 0, obj: output });
+});
 
-    return res.json({
-        success: output.failed === 0,
-        obj: output,
+// 获取任务状态
+router.get('/tasks', adminOnly, (req, res) => {
+    const { status, type, limit } = req.query;
+    const tasks = taskQueue.list({
+        status: status || undefined,
+        type: type || undefined,
+        limit: Number(limit) || 50,
     });
+    return res.json({ success: true, obj: { tasks } });
+});
+
+router.get('/tasks/:taskId', adminOnly, (req, res) => {
+    const task = taskQueue.get(req.params.taskId);
+    if (!task) {
+        return res.status(404).json({ success: false, msg: 'Task not found' });
+    }
+    return res.json({ success: true, obj: task });
+});
+
+router.delete('/tasks/:taskId', adminOnly, (req, res) => {
+    const task = taskQueue.get(req.params.taskId);
+    if (!task) {
+        return res.status(404).json({ success: false, msg: 'Task not found' });
+    }
+    if (task.status === TASK_STATUS.RUNNING || task.status === TASK_STATUS.PENDING) {
+        const cancelled = taskQueue.cancel(req.params.taskId);
+        if (cancelled) {
+            return res.json({ success: true, msg: 'Task cancellation requested' });
+        }
+        return res.status(500).json({ success: false, msg: 'Failed to cancel task' });
+    }
+    return res.status(400).json({ success: false, msg: `Cannot cancel task in status: ${task.status}` });
+});
+
+// 通知接口
+router.get('/notifications', authMiddleware, (req, res) => {
+    const limit = Number(req.query.limit) || 50;
+    const offset = Number(req.query.offset) || 0;
+    const result = notificationService.getAll({ limit, offset });
+    return res.json({
+        success: true,
+        obj: {
+            ...result,
+            unreadCount: notificationService.unreadCount(),
+        },
+    });
+});
+
+router.post('/notifications/read', authMiddleware, (req, res) => {
+    const { id, all } = req.body || {};
+    if (all) {
+        const count = notificationService.markAllRead();
+        return res.json({ success: true, msg: `${count} notifications marked as read` });
+    }
+    if (id) {
+        const ok = notificationService.markRead(id);
+        return res.json({ success: ok, msg: ok ? 'Marked as read' : 'Notification not found' });
+    }
+    return res.status(400).json({ success: false, msg: 'Provide id or all=true' });
 });
 
 router.post('/db/switch', adminOnly, async (req, res) => {

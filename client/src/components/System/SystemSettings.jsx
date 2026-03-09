@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { HiOutlineCog6Tooth } from 'react-icons/hi2';
+import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -85,6 +86,7 @@ export default function SystemSettings() {
     const [dbSwitchLoading, setDbSwitchLoading] = useState(false);
     const [dbBackfillLoading, setDbBackfillLoading] = useState(false);
     const [dbBackfillResult, setDbBackfillResult] = useState(null);
+    const [backfillTaskId, setBackfillTaskId] = useState(null);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -249,17 +251,26 @@ export default function SystemSettings() {
                 dryRun,
                 redact,
                 keys: selectedKeys,
+                async: true,
             });
-            const output = res.data?.obj || null;
-            setDbBackfillResult(output);
-            const failed = Number(output?.failed || 0);
-            const total = Number(output?.total || 0);
-            if (failed > 0) {
-                toast.error(`回填完成: ${total - failed}/${total} 成功`);
+            const obj = res.data?.obj || null;
+            if (obj?.taskId) {
+                // 异步模式：显示进度弹窗
+                setBackfillTaskId(obj.taskId);
+                toast('回填任务已启动，请关注进度弹窗');
             } else {
-                toast.success(`回填完成: ${total}/${total} 成功`);
+                // 同步模式回退
+                const output = obj;
+                setDbBackfillResult(output);
+                const failed = Number(output?.failed || 0);
+                const total = Number(output?.total || 0);
+                if (failed > 0) {
+                    toast.error(`回填完成: ${total - failed}/${total} 成功`);
+                } else {
+                    toast.success(`回填完成: ${total}/${total} 成功`);
+                }
+                await fetchDbStatus({ quiet: true });
             }
-            await fetchDbStatus({ quiet: true });
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '数据库回填失败');
         }
@@ -584,6 +595,16 @@ export default function SystemSettings() {
                     )}
                 </div>
             </div>
+            {backfillTaskId && (
+                <TaskProgressModal
+                    taskId={backfillTaskId}
+                    title="数据库回填进度"
+                    onClose={() => {
+                        setBackfillTaskId(null);
+                        fetchDbStatus({ quiet: true });
+                    }}
+                />
+            )}
         </>
     );
 }

@@ -15,20 +15,40 @@ import {
     HiOutlineChevronRight,
     HiOutlineSignal,
     HiOutlineShieldCheck,
+    HiOutlineClipboardDocumentList,
 } from 'react-icons/hi2';
+import { useNotifications } from '../../contexts/NotificationContext.jsx';
 
-const navItems = [
-    { path: '/', icon: HiOutlineChartBarSquare, label: '仪表盘', supportsGlobal: true },
-    { path: '/inbounds', icon: HiOutlineSignal, label: '入站管理', supportsGlobal: true },
-    { path: '/clients', icon: HiOutlineUsers, label: '用户管理', supportsGlobal: true },
-    { path: '/subscriptions', icon: HiOutlineLink, label: '订阅中心', supportsGlobal: true, userOnly: true },
-    { path: '/audit', icon: HiOutlineShieldCheck, label: '审计中心', supportsGlobal: true },
-    { path: '/settings', icon: HiOutlineCog6Tooth, label: '系统设置', supportsGlobal: true, adminOnly: true },
-    { path: '/capabilities', icon: HiOutlineSignal, label: '系统能力', supportsGlobal: false },
-    { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: '密钥工具', supportsGlobal: false },
-    { path: '/server', icon: HiOutlineCog6Tooth, label: '节点设置', supportsGlobal: true },
-
+const navSections = [
+    {
+        title: '监控',
+        items: [
+            { path: '/', icon: HiOutlineChartBarSquare, label: '仪表盘', supportsGlobal: true },
+        ],
+    },
+    {
+        title: '管理',
+        items: [
+            { path: '/inbounds', icon: HiOutlineSignal, label: '入站管理', supportsGlobal: true },
+            { path: '/clients', icon: HiOutlineUsers, label: '用户管理', supportsGlobal: true },
+            { path: '/subscriptions', icon: HiOutlineLink, label: '订阅中心', supportsGlobal: true, userOnly: true },
+            { path: '/server', icon: HiOutlineCog6Tooth, label: '节点设置', supportsGlobal: true },
+            { path: '/capabilities', icon: HiOutlineSignal, label: '系统能力', supportsGlobal: false },
+            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: '密钥工具', supportsGlobal: false },
+        ],
+    },
+    {
+        title: '运维',
+        items: [
+            { path: '/audit', icon: HiOutlineShieldCheck, label: '审计中心', supportsGlobal: true },
+            { path: '/tasks', icon: HiOutlineClipboardDocumentList, label: '任务中心', supportsGlobal: true },
+            { path: '/settings', icon: HiOutlineCog6Tooth, label: '系统设置', supportsGlobal: true, adminOnly: true },
+        ],
+    },
 ];
+
+// Flatten for global path check
+const navItems = navSections.flatMap(s => s.items);
 
 function isUnsupportedPathInGlobal(pathname) {
     if (!pathname) return false;
@@ -41,6 +61,7 @@ function isUnsupportedPathInGlobal(pathname) {
 export default function Sidebar({ collapsed, open = false, onClose, onToggle }) {
     const { servers, activeServer, activeServerId, selectServer } = useServer();
     const { logout, user } = useAuth();
+    const { unreadCount } = useNotifications();
     const [showServerMenu, setShowServerMenu] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
@@ -48,15 +69,6 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
-    const visibleNavItems = navItems.filter((item) => {
-        if (isUserOnly) {
-            return item.path === '/subscriptions';
-        }
-        if (item.userOnly && isAdmin) return false;
-        if (item.adminOnly && !isAdmin) return false;
-        if (isGlobalView && item.supportsGlobal === false) return false;
-        return true;
-    });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps — onClose is a stable inline callback; adding it would cause unnecessary re-runs
     useEffect(() => {
@@ -98,28 +110,43 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
 
             {/* Navigation */}
             <nav className="sidebar-nav">
-                <div className="nav-section">
-                    <div className="nav-section-title">导航</div>
-                    {visibleNavItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            end={item.path === '/'}
-                            onClick={onClose}
-                            className={({ isActive }) =>
-                                `nav-item ${isActive ? 'active' : ''}`
-                            }
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    {isActive && <div className="active-glow" />}
-                                    <span className="nav-item-icon"><item.icon /></span>
-                                    <span className="nav-label">{item.label}</span>
-                                </>
-                            )}
-                        </NavLink>
-                    ))}
-                </div>
+                {navSections.map((section) => {
+                    const sectionItems = section.items.filter((item) => {
+                        if (isUserOnly) return item.path === '/subscriptions';
+                        if (item.userOnly && isAdmin) return false;
+                        if (item.adminOnly && !isAdmin) return false;
+                        if (isGlobalView && item.supportsGlobal === false) return false;
+                        return true;
+                    });
+                    if (sectionItems.length === 0) return null;
+                    return (
+                        <div className="nav-section" key={section.title}>
+                            <div className="nav-section-title">{section.title}</div>
+                            {sectionItems.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    end={item.path === '/'}
+                                    onClick={onClose}
+                                    className={({ isActive }) =>
+                                        `nav-item ${isActive ? 'active' : ''}`
+                                    }
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {isActive && <div className="active-glow" />}
+                                            <span className="nav-item-icon"><item.icon /></span>
+                                            <span className="nav-label">{item.label}</span>
+                                            {item.path === '/audit' && unreadCount > 0 && !collapsed && (
+                                                <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                            )}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    );
+                })}
 
                 <div className="nav-section" style={{ marginTop: 'auto' }}>
                     <div className="nav-section-title">{isAdmin ? '系统' : '账户'}</div>

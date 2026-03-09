@@ -32,6 +32,35 @@ router.get('/events', (req, res) => {
     });
 });
 
+// ── CSV export audit events ──
+router.get('/events/export', (req, res) => {
+    const result = auditStore.queryEvents({
+        page: 1,
+        pageSize: 10000,
+        from: req.query.from,
+        to: req.query.to,
+        eventType: req.query.eventType,
+        actor: req.query.actor,
+        outcome: req.query.outcome,
+    });
+    const header = '时间,事件类型,操作者,IP,方法,路径,结果,目标邮箱,服务器ID';
+    const rows = result.items.map(e => [
+        e.ts || '',
+        `"${String(e.eventType || '').replace(/"/g, '""')}"`,
+        `"${String(e.actor || '').replace(/"/g, '""')}"`,
+        e.ip || '',
+        e.method || '',
+        `"${String(e.path || '').replace(/"/g, '""')}"`,
+        e.outcome || '',
+        `"${String(e.targetEmail || '').replace(/"/g, '""')}"`,
+        e.serverId || '',
+    ].join(','));
+    const csv = '\uFEFF' + [header, ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="audit_${new Date().toISOString().slice(0,10)}.csv"`);
+    return res.send(csv);
+});
+
 router.get('/events/:id', (req, res) => {
     const item = auditStore.getEventById(req.params.id);
     if (!item) {

@@ -21,6 +21,7 @@ import trafficRoutes from './routes/traffic.js';
 import userPolicyRoutes from './routes/userPolicy.js';
 import wsAuthRoutes from './routes/wsAuth.js';
 import systemRoutes from './routes/system.js';
+import usersRoutes from './routes/users.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
@@ -78,6 +79,7 @@ app.use('/api/panel', authMiddleware, adminOnly, proxyRoutes);
 app.use('/api/batch', authMiddleware, adminOnly, batchRoutes);
 app.use('/api/jobs', authMiddleware, adminOnly, batchRoutes);
 app.use('/api/user-policy', authMiddleware, adminOnly, userPolicyRoutes);
+app.use('/api/users', authMiddleware, adminOnly, usersRoutes);
 app.use('/api/system', authMiddleware, adminOnly, systemRoutes);
 
 // Subscriptions: public /sub/ endpoint has its own token auth, management is admin-only

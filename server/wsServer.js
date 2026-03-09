@@ -20,6 +20,8 @@ import { URL } from 'url';
 import serverStore from './store/serverStore.js';
 import { ensureAuthenticated } from './lib/panelClient.js';
 import { verifyWsTicket } from './lib/wsTicket.js';
+import taskQueue from './lib/taskQueue.js';
+import notificationService from './lib/notifications.js';
 
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
@@ -142,6 +144,7 @@ export function initWebSocket(httpServer) {
     wss.on('connection', (ws, req) => {
         ws.isAlive = true;
         ws.subscribedServerId = null;
+        ws.subscribedTaskIds = new Set();
         ws.user = req?.wsUser || null;
 
         ws.on('pong', () => { ws.isAlive = true; });
@@ -154,6 +157,15 @@ export function initWebSocket(httpServer) {
                 } else if (msg.type === 'ping') {
                     ws.isAlive = true;
                     safeSend(ws, { type: 'pong', ts: Date.now() });
+                } else if (msg.type === 'subscribe_task' && msg.taskId) {
+                    ws.subscribedTaskIds.add(String(msg.taskId));
+                    // 立即推送当前任务状态
+                    const task = taskQueue.get(msg.taskId);
+                    if (task) {
+                        safeSend(ws, { type: 'NMS_TASK_PROGRESS', ts: Date.now(), data: task });
+                    }
+                } else if (msg.type === 'unsubscribe_task' && msg.taskId) {
+                    ws.subscribedTaskIds.delete(String(msg.taskId));
                 }
             } catch {
                 // ignore malformed messages
@@ -161,6 +173,12 @@ export function initWebSocket(httpServer) {
         });
 
         ws.on('error', () => { });
+
+        // 连接时推送未读通知数量
+        const unread = notificationService.unreadCount();
+        if (unread > 0) {
+            safeSend(ws, { type: 'NMS_NOTIFICATION_COUNT', ts: Date.now(), data: { unreadCount: unread } });
+        }
     });
 
     // ── Broadcast Loop ─────────────────────────────
@@ -236,6 +254,37 @@ export function initWebSocket(httpServer) {
     }, BROADCAST_INTERVAL);
 
     wss.on('close', () => clearInterval(broadcastLoop));
+
+    // ── Task Progress Broadcast ─────────────────────────
+    taskQueue.on('progress', (task) => {
+        const payload = JSON.stringify({
+            type: 'NMS_TASK_PROGRESS',
+            ts: Date.now(),
+            data: task,
+        });
+        for (const ws of wss.clients) {
+            if (ws.readyState !== 1) continue;
+            if (ws.subscribedTaskIds?.has(task.id)) {
+                ws.send(payload);
+            }
+        }
+    });
+
+    // ── Notification Broadcast ──────────────────────────
+    notificationService.on('notification', (notification) => {
+        const payload = JSON.stringify({
+            type: 'NMS_NOTIFICATION',
+            ts: Date.now(),
+            data: {
+                notification,
+                unreadCount: notificationService.unreadCount(),
+            },
+        });
+        for (const ws of wss.clients) {
+            if (ws.readyState !== 1) continue;
+            ws.send(payload);
+        }
+    });
 
     console.log('  🔌 WebSocket server initialized on /ws');
     return wss;

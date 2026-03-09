@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { dbQuery, getDbConnectionStatus, isDbEnabled, isDbReady } from './client.js';
 import { getDbSchemaName } from './schema.js';
 import { getStoreModes } from './runtimeModes.js';
+import alertEngine from '../lib/alertEngine.js';
 
 const state = {
     writesQueued: 0,
@@ -151,10 +152,16 @@ export async function writeSnapshotNow(storeKey, payload, options = {}) {
     if (!key) return { success: false, skipped: true };
 
     const body = applyPrivacyRedaction(key, payload, options);
-    await upsertSnapshot(key, body);
-    state.writesSucceeded += 1;
-    state.lastWriteAt = new Date().toISOString();
-    return { success: true };
+    try {
+        await upsertSnapshot(key, body);
+        alertEngine.recordSuccess();
+        state.writesSucceeded += 1;
+        state.lastWriteAt = new Date().toISOString();
+        return { success: true };
+    } catch (error) {
+        alertEngine.recordFailure(key, String(error?.message || error));
+        throw error;
+    }
 }
 
 export function queueSnapshotWrite(storeKey, payload, options = {}) {
@@ -170,12 +177,15 @@ export function queueSnapshotWrite(storeKey, payload, options = {}) {
     writeChain = writeChain
         .then(async () => {
             await upsertSnapshot(key, body);
+            alertEngine.recordSuccess();
             state.writesSucceeded += 1;
             state.lastWriteAt = new Date().toISOString();
         })
         .catch((error) => {
+            const errMsg = String(error?.message || error);
+            alertEngine.recordFailure(key, errMsg);
             state.writesFailed += 1;
-            state.lastError = String(error?.message || error);
+            state.lastError = errMsg;
         })
         .finally(() => {
             state.pendingWrites = Math.max(0, state.pendingWrites - 1);

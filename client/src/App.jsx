@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { ServerProvider } from './contexts/ServerContext.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
+import { NotificationProvider } from './contexts/NotificationContext.jsx';
 import { Toaster } from 'react-hot-toast';
 import { HiOutlineBars3 } from 'react-icons/hi2';
 
@@ -11,11 +12,13 @@ const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
 const Inbounds = lazy(() => import('./components/Inbounds/Inbounds.jsx'));
 const UsersHub = lazy(() => import('./components/Users/UsersHub.jsx'));
+const UserDetail = lazy(() => import('./components/Users/UserDetail.jsx'));
 const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions.jsx'));
 const Logs = lazy(() => import('./components/Logs/Logs.jsx'));
 const ServerManagement = lazy(() => import('./components/Server/Server.jsx'));
 const Tools = lazy(() => import('./components/Tools/Tools.jsx'));
 const Servers = lazy(() => import('./components/Servers/Servers.jsx'));
+const ServerDetail = lazy(() => import('./components/Servers/ServerDetail.jsx'));
 const Capabilities = lazy(() => import('./components/Capabilities/Capabilities.jsx'));
 const Tasks = lazy(() => import('./components/Tasks/Tasks.jsx'));
 const AuditCenter = lazy(() => import('./components/Audit/AuditCenter.jsx'));
@@ -67,6 +70,7 @@ function ProtectedLayout() {
 
     return (
         <ServerProvider>
+        <NotificationProvider>
             <div className="app-layout">
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
@@ -92,6 +96,7 @@ function ProtectedLayout() {
                         <Route path="/" element={isAdmin ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
                         <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/server" element={isAdmin ? <LazyPage><ServerManagement /></LazyPage> : <Navigate to="/subscriptions" replace />} />
@@ -100,12 +105,14 @@ function ProtectedLayout() {
                         <Route path="/tasks" element={isAdmin ? <LazyPage><Tasks /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
                     </Routes>
                 </main>
             </div>
+        </NotificationProvider>
         </ServerProvider>
     );
 }

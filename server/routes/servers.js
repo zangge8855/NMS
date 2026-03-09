@@ -274,6 +274,17 @@ router.get('/governance/summary', (req, res) => {
     });
 });
 
+router.get('/:id', (req, res) => {
+    const allServers = serverStore.list();
+    const server = allServers.find(s => s.id === req.params.id);
+    if (!server) {
+        return res.status(404).json({ success: false, msg: '服务器不存在' });
+    }
+    // Return server without password
+    const { password, ...safe } = server;
+    return res.json({ success: true, obj: safe });
+});
+
 /**
  * POST /api/servers
  * Register a new 3x-ui panel server.
@@ -633,6 +644,53 @@ router.post('/:id/test', async (req, res) => {
         });
         res.status(500).json({ success: false, msg: `Connection failed: ${e.message}` });
     }
+});
+
+// ── Batch Update (labels, group, environment, tags) ───────
+router.patch('/batch', (req, res) => {
+    const { serverIds, updates } = req.body || {};
+    if (!Array.isArray(serverIds) || serverIds.length === 0) {
+        return res.status(400).json({ success: false, msg: 'serverIds is required' });
+    }
+    if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ success: false, msg: 'updates is required' });
+    }
+
+    const allowed = ['name', 'group', 'tags', 'environment', 'health'];
+    const filteredUpdates = {};
+    for (const key of allowed) {
+        if (updates[key] !== undefined) filteredUpdates[key] = updates[key];
+    }
+    if (Object.keys(filteredUpdates).length === 0) {
+        return res.status(400).json({ success: false, msg: 'No valid update fields provided' });
+    }
+
+    const results = { updated: [], failed: [] };
+    for (const id of serverIds) {
+        try {
+            const updated = serverStore.update(id, filteredUpdates);
+            if (updated) {
+                results.updated.push({ id, name: updated.name });
+            } else {
+                results.failed.push({ id, msg: 'Server not found' });
+            }
+        } catch (err) {
+            results.failed.push({ id, msg: String(err?.message || err) });
+        }
+    }
+
+    appendSecurityAudit('servers_batch_update', req, {
+        serverIds,
+        updates: filteredUpdates,
+        updatedCount: results.updated.length,
+        failedCount: results.failed.length,
+    });
+
+    return res.json({
+        success: results.failed.length === 0,
+        msg: `Updated ${results.updated.length}/${serverIds.length} servers`,
+        obj: results,
+    });
 });
 
 export { isBlockedHostname, validateServerUrl };

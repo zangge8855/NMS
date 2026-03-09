@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import Header from '../Layout/Header.jsx';
 import toast from 'react-hot-toast';
@@ -10,6 +11,7 @@ import {
     HiOutlinePencilSquare,
     HiOutlineSignal,
     HiOutlineServerStack,
+    HiOutlineEye,
 } from 'react-icons/hi2';
 
 const ENV_OPTIONS = [
@@ -37,6 +39,7 @@ const PANEL_AUTH_REPAIR_CODES = new Set([
 ]);
 
 export default function Servers() {
+    const navigate = useNavigate();
     const {
         servers, activeServerId, selectServer,
         addServer, addServersBatch, updateServer, removeServer, testConnection, fetchServers,
@@ -607,7 +610,7 @@ export default function Servers() {
                                                 <HiOutlineServerStack />
                                             </div>
                                             <div>
-                                                <div className={`server-card-name ${isActive ? 'text-glow' : ''}`}>{server.name}</div>
+                                                <div className={`server-card-name ${isActive ? 'text-glow' : ''} table-cell-link`} onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}>{server.name}</div>
                                                 <div className="text-sm text-muted font-mono mt-1">{getPanelUrl(server)}</div>
                                             </div>
                                         </div>
@@ -631,6 +634,9 @@ export default function Servers() {
                                     </div>
 
                                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <button className="btn btn-secondary btn-sm flex-1" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
+                                            <HiOutlineEye /> 详情
+                                        </button>
                                         <button
                                             className="btn btn-secondary btn-sm flex-1"
                                             onClick={() => handleTest(server.id)}

@@ -138,6 +138,7 @@ class UserStore {
             role: u.role,
             enabled: u.enabled !== false,
             createdAt: u.createdAt,
+            lastLoginAt: u.lastLoginAt || null,
         }));
     }
 
@@ -174,7 +175,11 @@ class UserStore {
         // 兼容旧版单密码登录: 无用户名时用 config.auth.adminPassword
         if (config.auth.allowLegacyPasswordLogin && !normalizedUsername && hasPassword && password === config.auth.adminPassword) {
             const admin = this.users.find(u => u.role === ROLES.admin);
-            if (admin) return { id: admin.id, username: admin.username, role: admin.role };
+            if (admin) {
+                admin.lastLoginAt = new Date().toISOString();
+                this._save();
+                return { id: admin.id, username: admin.username, role: admin.role };
+            }
         }
 
         if (!hasPassword) return null;
@@ -182,6 +187,8 @@ class UserStore {
         const user = this.getByUsername(normalizedUsername);
         if (!user) return null;
         if (!verifyPassword(password, user.passwordHash, user.passwordSalt)) return null;
+        user.lastLoginAt = new Date().toISOString();
+        this._save();
         return { id: user.id, username: user.username, role: user.role };
     }
 

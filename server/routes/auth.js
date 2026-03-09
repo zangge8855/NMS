@@ -963,6 +963,54 @@ router.post('/users', authMiddleware, adminOnly, (req, res) => {
     }
 });
 
+// ── Bulk enable/disable users ──
+router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, res) => {
+    const { userIds, enabled } = req.body || {};
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ success: false, msg: '请提供用户ID列表' });
+    }
+    const results = [];
+    for (const uid of userIds) {
+        try {
+            const updated = userStore.setEnabled(uid, !!enabled);
+            if (updated) {
+                results.push({ id: uid, success: true });
+            } else {
+                results.push({ id: uid, success: false, msg: '用户不存在' });
+            }
+        } catch (err) {
+            results.push({ id: uid, success: false, msg: err.message });
+        }
+    }
+    const successCount = results.filter(r => r.success).length;
+    return res.json({
+        success: true,
+        msg: `已${enabled ? '启用' : '停用'} ${successCount}/${userIds.length} 个用户`,
+        obj: results,
+    });
+});
+
+// ── CSV export users ──
+router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
+    const users = userStore.getAll();
+    const header = 'ID,用户名,邮箱,订阅邮箱,角色,状态,邮箱已验证,创建时间,最后登录';
+    const rows = users.map(u => [
+        u.id,
+        `"${String(u.username || '').replace(/"/g, '""')}"`,
+        `"${String(u.email || '').replace(/"/g, '""')}"`,
+        `"${String(u.subscriptionEmail || '').replace(/"/g, '""')}"`,
+        u.role,
+        u.enabled ? '启用' : '停用',
+        u.emailVerified ? '是' : '否',
+        u.createdAt || '',
+        u.lastLoginAt || '',
+    ].join(','));
+    const csv = '\uFEFF' + [header, ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="users_${new Date().toISOString().slice(0,10)}.csv"`);
+    return res.send(csv);
+});
+
 /**
  * PUT /api/auth/users/:id — 更新用户信息
  */

@@ -7,6 +7,7 @@ import {
     HiOutlineSignal,
     HiOutlineDocumentText,
     HiOutlineTrash,
+    HiOutlineArrowDownTray,
 } from 'react-icons/hi2';
 import {
     LineChart,
@@ -24,6 +25,8 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import toast from 'react-hot-toast';
 import Tasks from '../Tasks/Tasks.jsx';
 const Logs = lazy(() => import('../Logs/Logs.jsx'));
+import SkeletonTable from '../UI/SkeletonTable.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -186,6 +189,27 @@ export default function AuditCenter() {
         setAccessLoading(false);
     };
 
+    const handleExportAuditCSV = async () => {
+        try {
+            const params = {};
+            if (eventFilters.q) params.q = eventFilters.q;
+            if (eventFilters.eventType) params.eventType = eventFilters.eventType;
+            if (eventFilters.outcome) params.outcome = eventFilters.outcome;
+            if (eventFilters.targetEmail) params.targetEmail = eventFilters.targetEmail;
+            if (eventFilters.serverId) params.serverId = eventFilters.serverId;
+            const res = await api.get('/audit/events/export', { params, responseType: 'blob' });
+            const url = URL.createObjectURL(res.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('审计日志已导出');
+        } catch {
+            toast.error('导出失败');
+        }
+    };
+
     const handleClearEvents = async () => {
         const ok = await confirm({
             title: '清空操作审计日志',
@@ -309,6 +333,9 @@ export default function AuditCenter() {
                                 <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title="清空全部审计日志">
                                     <HiOutlineTrash /> 清空
                                 </button>
+                                <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="导出CSV">
+                                    <HiOutlineArrowDownTray /> 导出
+                                </button>
                             </div>
                         </div>
 
@@ -327,9 +354,9 @@ export default function AuditCenter() {
                                 </thead>
                                 <tbody>
                                     {eventsLoading ? (
-                                        <tr><td colSpan={7} className="text-center table-pad-28"><div className="spinner mx-auto" /></td></tr>
+                                        <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
                                     ) : eventsData.items.length === 0 ? (
-                                        <tr><td colSpan={7} className="text-center table-pad-28">暂无审计记录</td></tr>
+                                        <tr><td colSpan={7}><EmptyState title="暂无审计记录" subtitle="系统操作审计事件将在此显示" /></td></tr>
                                     ) : (
                                         eventsData.items.map((item) => (
                                             <tr key={item.id}>
@@ -577,9 +604,9 @@ export default function AuditCenter() {
                                 </thead>
                                 <tbody>
                                     {accessLoading ? (
-                                        <tr><td colSpan={6} className="text-center table-pad-28"><div className="spinner mx-auto" /></td></tr>
+                                        <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
                                     ) : accessData.items.length === 0 ? (
-                                        <tr><td colSpan={6} className="text-center table-pad-28">暂无访问记录</td></tr>
+                                        <tr><td colSpan={6}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
                                     ) : accessData.items.map((item) => (
                                         <tr key={item.id}>
                                             <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
@@ -626,9 +653,91 @@ export default function AuditCenter() {
                             <button className="modal-close" onClick={() => setSelectedEvent(null)}>×</button>
                         </div>
                         <div className="modal-body">
-                            <pre className="log-viewer log-viewer-compact">
-                                {JSON.stringify(selectedEvent, null, 2)}
-                            </pre>
+                            {/* 事件摘要 */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: '12px',
+                                marginBottom: '16px',
+                                fontSize: '13px',
+                            }}>
+                                <div>
+                                    <span style={{ color: 'var(--text-muted)' }}>事件类型: </span>
+                                    <span style={{ fontWeight: 600 }}>{selectedEvent.eventType}</span>
+                                </div>
+                                <div>
+                                    <span style={{ color: 'var(--text-muted)' }}>时间: </span>
+                                    <span>{formatDateTime(selectedEvent.ts)}</span>
+                                </div>
+                                <div>
+                                    <span style={{ color: 'var(--text-muted)' }}>操作者: </span>
+                                    <span style={{ fontWeight: 600 }}>{selectedEvent.actor || '-'}</span>
+                                    {selectedEvent.actorRole && (
+                                        <span className="badge badge-neutral" style={{ marginLeft: '6px', fontSize: '11px' }}>{selectedEvent.actorRole}</span>
+                                    )}
+                                </div>
+                                <div>
+                                    <span style={{ color: 'var(--text-muted)' }}>结果: </span>
+                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{selectedEvent.outcome || '-'}</span>
+                                </div>
+                                {selectedEvent.ip && (
+                                    <div>
+                                        <span style={{ color: 'var(--text-muted)' }}>IP: </span>
+                                        <span className="font-mono">{selectedEvent.ip}</span>
+                                    </div>
+                                )}
+                                {selectedEvent.path && (
+                                    <div>
+                                        <span style={{ color: 'var(--text-muted)' }}>路径: </span>
+                                        <span className="font-mono">{selectedEvent.method} {selectedEvent.path}</span>
+                                    </div>
+                                )}
+                                {selectedEvent.serverId && (
+                                    <div>
+                                        <span style={{ color: 'var(--text-muted)' }}>节点: </span>
+                                        <span>{selectedEvent.serverId}</span>
+                                    </div>
+                                )}
+                                {selectedEvent.targetEmail && (
+                                    <div>
+                                        <span style={{ color: 'var(--text-muted)' }}>目标用户: </span>
+                                        <span>{selectedEvent.targetEmail}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 变更前后对比（如有） */}
+                            {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
+                                <div style={{ marginBottom: '16px' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px', color: 'var(--text-primary)' }}>变更对比</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        {selectedEvent.beforeSnapshot && (
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--accent-danger)', marginBottom: '4px', fontWeight: 600 }}>变更前</div>
+                                                <pre className="log-viewer log-viewer-compact" style={{ maxHeight: '200px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                                                    {JSON.stringify(selectedEvent.beforeSnapshot, null, 2)}
+                                                </pre>
+                                            </div>
+                                        )}
+                                        {selectedEvent.afterSnapshot && (
+                                            <div>
+                                                <div style={{ fontSize: '11px', color: 'var(--accent-success)', marginBottom: '4px', fontWeight: 600 }}>变更后</div>
+                                                <pre className="log-viewer log-viewer-compact" style={{ maxHeight: '200px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                                                    {JSON.stringify(selectedEvent.afterSnapshot, null, 2)}
+                                                </pre>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 详细数据 */}
+                            <div>
+                                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px', color: 'var(--text-primary)' }}>事件详情</div>
+                                <pre className="log-viewer log-viewer-compact">
+                                    {JSON.stringify(selectedEvent.details || {}, null, 2)}
+                                </pre>
+                            </div>
                         </div>
                     </div>
                 </div>

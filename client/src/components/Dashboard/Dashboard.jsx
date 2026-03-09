@@ -19,6 +19,9 @@ import {
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMouseMove } from '../../hooks/useMouseMove.js';
+import NodeHealthGrid from './NodeHealthGrid.jsx';
+import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
+import { useNavigate } from 'react-router-dom';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -33,6 +36,7 @@ const DASHBOARD_ACCENT = {
 function StatCard({ card, loading }) {
     const ref = useMouseMove();
     const clickable = typeof card.onClick === 'function';
+    const animatedValue = useAnimatedCounter(card.animateValue || 0);
 
     return (
         <div
@@ -53,7 +57,7 @@ function StatCard({ card, loading }) {
                     style={{
                         background: card.bg,
                         color: card.color,
-                        boxShadow: `0 0 10px ${card.bg}` // Keep dynamic shadow inline for now or use tailored classes if possible
+                        boxShadow: `0 0 10px ${card.bg}`
                     }}
                 >
                     <card.icon />
@@ -63,6 +67,8 @@ function StatCard({ card, loading }) {
                 <div className="card-value text-glow text-2xl font-bold my-1">
                     {loading ? (
                         <div className="skeleton w-24 h-8 mt-1" />
+                    ) : card.animateValue !== undefined ? (
+                        `${animatedValue}${card.animateSuffix || ''}`
                     ) : (
                         card.value
                     )}
@@ -163,6 +169,7 @@ function WsStatusDot({ status }) {
 export default function Dashboard() {
     const { activeServerId, panelApi, activeServer, servers } = useServer();
     const { token } = useAuth();
+    const navigate = useNavigate();
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
 
@@ -425,6 +432,7 @@ export default function Dashboard() {
                 icon: HiOutlineServerStack, label: '节点状态',
                 value: `${globalStats.onlineServers} / ${globalStats.serverCount}`,
                 sub: '在线 / 总计', ...DASHBOARD_ACCENT.primary,
+                onClick: () => navigate('/servers'),
             },
             {
                 icon: HiOutlineUsers, label: '总在线用户',
@@ -437,12 +445,14 @@ export default function Dashboard() {
                 icon: HiOutlineSignal, label: '总入站规则',
                 value: `${globalStats.activeInbounds} / ${globalStats.totalInbounds}`,
                 sub: '启用 / 总计', ...DASHBOARD_ACCENT.warning,
+                onClick: () => navigate('/inbounds'),
             },
             {
                 icon: HiOutlineArrowsUpDown, label: '集群总流量',
                 value: formatBytes(globalStats.totalUp + globalStats.totalDown),
                 sub: `↑ ${formatBytes(globalStats.totalUp)}  ↓ ${formatBytes(globalStats.totalDown)}`,
                 ...DASHBOARD_ACCENT.primary,
+                onClick: () => navigate('/audit'),
             },
         ];
 
@@ -523,58 +533,13 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">节点监控</span>
+                    {/* 节点健康网格 */}
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>节点健康状态</span>
                             <span className="text-sm text-muted">{servers.length} 个节点</span>
                         </div>
-                        <div className="table-container border-none">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>节点名称</th><th>状态</th><th>地址</th>
-                                        <th>CPU</th><th>内存</th><th>在线</th><th>流量</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {servers.map(server => {
-                                        const s = serverStatuses[server.id];
-                                        return (
-                                            <tr key={server.id}>
-                                                <td data-label="节点名称" className="font-medium text-white">{server.name}</td>
-                                                <td data-label="状态">
-                                                    {s?.online ?
-                                                        <span className="badge badge-success">运行中</span> :
-                                                        <span className="badge badge-danger">离线</span>
-                                                    }
-                                                </td>
-                                                <td data-label="地址" className="text-muted">{server.url}</td>
-                                                <td data-label="CPU">
-                                                    {loading ? <div className="skeleton w-12 h-4" /> :
-                                                        (s?.online ? `${(s.status?.cpu ?? 0).toFixed(1)}%` : '--')
-                                                    }
-                                                </td>
-                                                <td data-label="内存">
-                                                    {loading ? <div className="skeleton w-12 h-4" /> :
-                                                        (s?.online && s.status?.mem ? `${((s.status.mem.current / s.status.mem.total) * 100).toFixed(1)}%` : '--')
-                                                    }
-                                                </td>
-                                                <td data-label="在线">
-                                                    {loading ? <div className="skeleton w-8 h-4" /> :
-                                                        (s?.online ? s.onlineCount : '--')
-                                                    }
-                                                </td>
-                                                <td data-label="流量">
-                                                    {loading ? <div className="skeleton w-16 h-4" /> :
-                                                        (s?.online ? `${formatBytes((s.up || 0) + (s.down || 0))}` : '--')
-                                                    }
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} />
                     </div>
                 </div>
             </>
@@ -591,7 +556,7 @@ export default function Dashboard() {
         { icon: HiOutlineCircleStack, label: '内存使用', value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary },
         { icon: HiOutlineClock, label: '运行时间', value: status ? formatUptime(status.uptime) : '--', ...DASHBOARD_ACCENT.success },
         { icon: HiOutlineArrowsUpDown, label: '总流量', value: formatBytes(totalUp + totalDown), sub: `↑ ${formatBytes(totalUp)}  ↓ ${formatBytes(totalDown)}`, ...DASHBOARD_ACCENT.primary },
-        { icon: HiOutlineSignal, label: '入站', value: `${activeInbounds} / ${inbounds.length}`, sub: '启用 / 总计', ...DASHBOARD_ACCENT.warning },
+        { icon: HiOutlineSignal, label: '入站', value: `${activeInbounds} / ${inbounds.length}`, sub: '启用 / 总计', ...DASHBOARD_ACCENT.warning, onClick: () => navigate('/inbounds') },
         { icon: HiOutlineUsers, label: '在线用户', value: String(onlineCount), sub: showOnlineDetail ? '点击收起明细' : '点击查看明细', onClick: () => setShowOnlineDetail((v) => !v), ...DASHBOARD_ACCENT.info },
     ];
 

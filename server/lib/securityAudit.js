@@ -51,7 +51,7 @@ export function appendSecurityAudit(event, req, details = {}) {
             ts: new Date().toISOString(),
             event,
             ip: resolveClientIp(req),
-            actor: req?.user?.role || 'anonymous',
+            actor: req?.user?.username || req?.user?.userId || 'anonymous',
             method: req?.method || null,
             path: req?.originalUrl || null,
             details: safeDetails,
