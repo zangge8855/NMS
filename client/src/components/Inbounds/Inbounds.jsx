@@ -4,6 +4,7 @@ import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import { formatBytes } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
+import { getClientIdentifier } from '../../utils/protocol.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -13,12 +14,96 @@ import {
     HiOutlineArrowPath,
     HiOutlineServer,
     HiOutlineUserPlus,
-    HiOutlineSignal
+    HiOutlineSignal,
+    HiOutlineBars3,
 } from 'react-icons/hi2';
+import {
+    normalizeInboundOrderMap,
+    reorderInboundsWithinServer,
+    sortInboundsByOrder,
+} from '../../utils/inboundOrder.js';
 
 import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
+
+function safeNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function resolveClientKeys(client = {}, protocol = '') {
+    const keys = new Set();
+    const identifier = String(getClientIdentifier(client, protocol) || '').trim();
+    const email = String(client.email || '').trim().toLowerCase();
+    const id = String(client.id || '').trim();
+    const password = String(client.password || '').trim();
+
+    if (identifier) keys.add(`identifier:${identifier}`);
+    if (email) keys.add(`email:${email}`);
+    if (id) keys.add(`id:${id}`);
+    if (password) keys.add(`password:${password}`);
+
+    return Array.from(keys);
+}
+
+function mergeInboundClientStats(inbound) {
+    let baseClients = [];
+    try {
+        const settings = JSON.parse(inbound?.settings || '{}');
+        baseClients = Array.isArray(settings.clients) ? settings.clients : [];
+    } catch {
+        baseClients = [];
+    }
+
+    const statsCandidates = [
+        inbound?.clientStats,
+        inbound?.clientTraffic,
+        inbound?.clientTraffics,
+        inbound?.clientTrafficsList,
+    ];
+    const statsRows = statsCandidates.find((item) => Array.isArray(item)) || [];
+    const statsMap = new Map();
+
+    statsRows.forEach((row) => {
+        resolveClientKeys(row, inbound?.protocol).forEach((key) => {
+            if (!statsMap.has(key)) {
+                statsMap.set(key, row);
+            }
+        });
+    });
+
+    return baseClients.map((client) => {
+        const stats = resolveClientKeys(client, inbound?.protocol)
+            .map((key) => statsMap.get(key))
+            .find(Boolean);
+
+        return {
+            ...(stats || {}),
+            ...client,
+        };
+    });
+}
+
+function resolveClientQuota(client) {
+    return safeNumber(client?.totalGB || client?.total || client?.totalBytes || 0);
+}
+
+function resolveClientUsed(client) {
+    return safeNumber(client?.up) + safeNumber(client?.down);
+}
+
+function resolveUsagePercent(usedBytes, totalBytes) {
+    if (!Number.isFinite(totalBytes) || totalBytes <= 0) return null;
+    return Math.max(0, Math.min(100, Math.round((usedBytes / totalBytes) * 100)));
+}
+
+function resolveUsageTone(percent) {
+    if (percent === null) return 'neutral';
+    if (percent >= 90) return 'danger';
+    if (percent >= 70) return 'warning';
+    return 'success';
+}
 
 export default function Inbounds() {
     const { servers } = useServer();
@@ -30,6 +115,9 @@ export default function Inbounds() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInbound, setEditingInbound] = useState(null);
     const [filterServerId, setFilterServerId] = useState('all');
+    const [inboundOrder, setInboundOrder] = useState({});
+    const [draggingKey, setDraggingKey] = useState('');
+    const [savingOrderServerId, setSavingOrderServerId] = useState('');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -48,6 +136,15 @@ export default function Inbounds() {
         setLoading(true);
         const allResults = [];
         setSelectedKeys(new Set());
+        let orderMap = inboundOrder;
+
+        try {
+            const orderRes = await api.get('/system/inbounds/order');
+            orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
+            setInboundOrder(orderMap);
+        } catch (err) {
+            console.error('Failed to load inbound order:', err);
+        }
 
         await Promise.all(servers.map(async (server) => {
             try {
@@ -67,14 +164,7 @@ export default function Inbounds() {
             }
         }));
 
-        allResults.sort((a, b) => {
-            if (a.serverId !== b.serverId) {
-                return String(a.serverName || '').localeCompare(String(b.serverName || ''));
-            }
-            return Number(a.port || 0) - Number(b.port || 0);
-        });
-
-        setInbounds(allResults);
+        setInbounds(sortInboundsByOrder(allResults, orderMap));
         setLoading(false);
     };
 
@@ -285,12 +375,88 @@ export default function Inbounds() {
         setIsModalOpen(true);
     };
 
-    const parseClients = (ib) => {
+    const persistInboundOrder = async (serverId, inboundIds) => {
+        setSavingOrderServerId(serverId);
         try {
-            const settings = JSON.parse(ib.settings || '{}');
-            return settings.clients || [];
-        } catch {
-            return [];
+            const res = await api.put('/system/inbounds/order', {
+                serverId,
+                inboundIds,
+            });
+            const savedIds = Array.isArray(res.data?.obj?.inboundIds) ? res.data.obj.inboundIds : inboundIds;
+            const nextOrder = {
+                ...inboundOrder,
+                [serverId]: savedIds,
+            };
+            setInboundOrder(nextOrder);
+            setInbounds((prev) => sortInboundsByOrder(prev, nextOrder));
+            toast.success('入站顺序已保存');
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || '保存排序失败');
+            fetchAllInbounds();
+        }
+        setSavingOrderServerId('');
+    };
+
+    const handleDropInbound = async (targetKey) => {
+        const draggedKey = draggingKey;
+        setDraggingKey('');
+        const next = reorderInboundsWithinServer(inbounds, draggedKey, targetKey);
+        if (!next.changed) return;
+
+        const nextOrder = {
+            ...inboundOrder,
+            [next.serverId]: next.inboundIds,
+        };
+        setInboundOrder(nextOrder);
+        setInbounds(next.items);
+        await persistInboundOrder(next.serverId, next.inboundIds);
+    };
+
+    const parseClients = (ib) => {
+        return mergeInboundClientStats(ib).map((client) => ({
+            ...client,
+            protocol: ib.protocol,
+            inboundId: ib.id,
+            serverId: ib.serverId,
+            serverName: ib.serverName,
+        }));
+    };
+
+    const handleDeleteClient = async (inbound, client) => {
+        const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
+        const displayName = client.email || identifier || '该用户';
+        const ok = await confirmAction({
+            title: '删除入站用户',
+            message: `确定删除 ${displayName} 吗？`,
+            details: `${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port}`,
+            confirmText: '确认删除',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        try {
+            const payload = await attachBatchRiskToken({
+                action: 'delete',
+                targets: [{
+                    serverId: inbound.serverId,
+                    serverName: inbound.serverName,
+                    inboundId: inbound.id,
+                    email: client.email || '',
+                    clientIdentifier: identifier,
+                    id: client.id || '',
+                    password: client.password || '',
+                }],
+            }, {
+                type: 'clients',
+                action: 'delete',
+                targetCount: 1,
+            });
+            await api.post('/batch/clients', payload);
+            toast.success('入站用户已删除');
+            fetchAllInbounds();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.msg || err.message || '删除失败');
         }
     };
 
@@ -299,6 +465,7 @@ export default function Inbounds() {
         : inbounds.filter(i => i.serverId === filterServerId);
     const selectedVisibleInbounds = filteredInbounds.filter(i => selectedKeys.has(i.uiKey));
     const selectedVisibleCount = selectedVisibleInbounds.length;
+    const tableColSpan = filterServerId === 'all' ? 10 : 9;
 
     if (servers.length === 0) {
         return (
@@ -365,6 +532,12 @@ export default function Inbounds() {
                     </div>
                 </div>
 
+                {savingOrderServerId && (
+                    <div className="text-xs text-muted mb-3">
+                        正在保存节点排序: {servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}
+                    </div>
+                )}
+
                 <div className="table-container glass-panel">
                     <table className="table">
                         <thead>
@@ -377,6 +550,7 @@ export default function Inbounds() {
                                         className="cursor-pointer"
                                     />
                                 </th>
+                                <th>排序</th>
                                 {filterServerId === 'all' && <th>节点</th>}
                                 <th>备注</th>
                                 <th>协议</th>
@@ -392,6 +566,7 @@ export default function Inbounds() {
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={`skeleton-${i}`}>
                                         <td className="p-4"><div className="skeleton w-4 h-4 rounded" /></td>
+                                        <td className="p-4"><div className="skeleton w-6 h-5" /></td>
                                         {filterServerId === 'all' && <td className="p-4"><div className="skeleton w-20 h-5" /></td>}
                                         <td className="p-4"><div className="skeleton w-24 h-5" /></td>
                                         <td className="p-4"><div className="skeleton w-12 h-5" /></td>
@@ -403,7 +578,7 @@ export default function Inbounds() {
                                     </tr>
                                 ))
                             ) : filteredInbounds.length === 0 ? (
-                                <tr><td colSpan={10} className="text-center" style={{ padding: '32px' }}>暂无入站规则</td></tr>
+                                <tr><td colSpan={tableColSpan} className="text-center" style={{ padding: '32px' }}>暂无入站规则</td></tr>
                             ) : (
                                 filteredInbounds.map((ib) => {
                                     const clients = parseClients(ib);
@@ -414,6 +589,12 @@ export default function Inbounds() {
                                             <tr
                                                 className={`cursor-pointer transition-colors hover-bg-surface ${isSelected ? 'bg-white/5' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleDropInbound(ib.uiKey);
+                                                }}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
                                                     <input
@@ -422,6 +603,21 @@ export default function Inbounds() {
                                                         onChange={() => toggleSelect(ib.uiKey)}
                                                         className="cursor-pointer"
                                                     />
+                                                </td>
+                                                <td data-label="排序" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-sm btn-icon"
+                                                        draggable
+                                                        title="拖拽排序"
+                                                        onDragStart={(e) => {
+                                                            e.stopPropagation();
+                                                            setDraggingKey(ib.uiKey);
+                                                        }}
+                                                        onDragEnd={() => setDraggingKey('')}
+                                                    >
+                                                        <HiOutlineBars3 />
+                                                    </button>
                                                 </td>
                                                 {filterServerId === 'all' && (
                                                     <td data-label="节点">
@@ -465,7 +661,7 @@ export default function Inbounds() {
                                             </tr>
                                             {isExpanded && clients.length > 0 && (
                                                 <tr>
-                                                    <td colSpan={10} className="p-0 bg-black/20">
+                                                    <td colSpan={tableColSpan} className="p-0 bg-black/20">
                                                         <div className="p-4">
                                                             <div className="text-xs font-bold text-muted mb-2 uppercase tracking-wider">
                                                                 用户列表 ({clients.length})
@@ -475,20 +671,53 @@ export default function Inbounds() {
                                                                     <tr>
                                                                         <th>Email</th>
                                                                         <th>ID/密码</th>
-                                                                        <th>流量 (总/已用)</th>
+                                                                        <th>已用流量</th>
+                                                                        <th>总量</th>
+                                                                        <th>上 / 下行</th>
                                                                         <th>到期时间</th>
                                                                         <th>状态</th>
+                                                                        <th>操作</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {clients.map((cl, idx) => (
+                                                                    {clients.map((cl, idx) => {
+                                                                        const usedBytes = resolveClientUsed(cl);
+                                                                        const totalBytes = resolveClientQuota(cl);
+                                                                        const usagePercent = resolveUsagePercent(usedBytes, totalBytes);
+                                                                        const usageTone = resolveUsageTone(usagePercent);
+                                                                        const remainingBytes = totalBytes > 0
+                                                                            ? Math.max(0, totalBytes - usedBytes)
+                                                                            : 0;
+                                                                        return (
                                                                         <tr key={idx}>
                                                                             <td>{cl.email || '-'}</td>
                                                                             <td className="font-mono truncate max-w-[200px]" title={cl.id || cl.password}>
                                                                                 {cl.id || cl.password || '-'}
                                                                             </td>
                                                                             <td>
-                                                                                {cl.totalGB ? formatBytes(cl.totalGB) : '∞'} / {formatBytes(cl.up + cl.down)}
+                                                                                <div className="inbound-client-usage">
+                                                                                    <div className="inbound-client-usage-head">
+                                                                                        <span className="font-medium">{formatBytes(usedBytes)}</span>
+                                                                                        <span className={`inbound-client-usage-badge ${usageTone}`}>
+                                                                                            {usagePercent === null ? '不限额' : `${usagePercent}%`}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <div className="inbound-client-usage-track">
+                                                                                        <div
+                                                                                            className={`inbound-client-usage-fill ${usageTone}`}
+                                                                                            style={{ width: `${usagePercent === null ? 18 : usagePercent}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="inbound-client-usage-meta">
+                                                                                        {totalBytes > 0 ? `剩余 ${formatBytes(remainingBytes)}` : '总量不限'}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td>
+                                                                                <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
+                                                                                <span className="text-muted mx-1">/</span>
+                                                                                <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                             </td>
                                                                             <td>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
                                                                             <td>
@@ -496,8 +725,22 @@ export default function Inbounds() {
                                                                                     {cl.enable !== false ? '启用' : '禁用'}
                                                                                 </span>
                                                                             </td>
+                                                                            <td>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-danger btn-sm btn-icon"
+                                                                                    title="删除该用户"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteClient(ib, cl);
+                                                                                    }}
+                                                                                >
+                                                                                    <HiOutlineTrash />
+                                                                                </button>
+                                                                            </td>
                                                                         </tr>
-                                                                    ))}
+                                                                    );
+                                                                    })}
                                                                 </tbody>
                                                             </table>
                                                         </div>

@@ -41,6 +41,17 @@ const PROTOCOL_OPTIONS = [
     { key: 'shadowsocks', label: 'Shadowsocks' },
 ];
 
+function buildProvisionSuccessMessage(deployment) {
+    const dep = deployment && typeof deployment === 'object' ? deployment : {};
+    if (Number(dep.failed || 0) > 0) {
+        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
+    }
+    if (Number(dep.created || 0) > 0) {
+        return `订阅已开通，已下发 ${dep.created || 0} 个客户端到节点`;
+    }
+    return '订阅已开通，链接已生成';
+}
+
 function toLocalDateTimeString(timestamp) {
     const d = new Date(timestamp);
     const pad = (n) => String(n).padStart(2, '0');
@@ -421,6 +432,9 @@ export default function UsersHub() {
                 setProvisionSaving(false);
                 return;
             }
+            const dep = res.data?.obj?.deployment || null;
+            const successMessage = buildProvisionSuccessMessage(dep);
+            toast.success(successMessage);
 
             const boundEmail = normalizeEmail(res.data?.obj?.subscription?.email || provisionNormalizedEmail);
             let subscriptionPayload = null;
@@ -428,12 +442,13 @@ export default function UsersHub() {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
             } catch (subErr) {
-                toast.error(subErr.response?.data?.msg || subErr.message || '订阅链接获取失败');
+                toast('订阅已开通，但订阅详情加载失败，可稍后刷新查看', { icon: '⚠️' });
             }
 
             setProvisionResult({
                 email: boundEmail,
-                deployment: res.data?.obj?.deployment || null,
+                deployment: dep,
+                successMessage,
                 subscriptionUrl: subscriptionPayload?.subscriptionUrl || '',
                 subscriptionUrlV2rayn: subscriptionPayload?.subscriptionUrlV2rayn || '',
                 subscriptionUrlRaw: subscriptionPayload?.subscriptionUrlRaw || '',
@@ -442,15 +457,11 @@ export default function UsersHub() {
                 subscriptionConverterConfigured: subscriptionPayload?.subscriptionConverterConfigured === true,
             });
 
-            const dep = res.data?.obj?.deployment;
-            if (dep && dep.failed > 0) {
-                toast.success(`订阅已开通，节点下发部分失败（创建 ${dep.created} / 跳过 ${dep.skipped} / 失败 ${dep.failed}）`);
-            } else if (dep && dep.created > 0) {
-                toast.success(`订阅已开通，已下发 ${dep.created} 个客户端到节点`);
-            } else {
-                toast.success('订阅已开通，链接已生成');
+            try {
+                await fetchData();
+            } catch (refreshErr) {
+                console.error('Failed to refresh users hub after provisioning:', refreshErr);
             }
-            await fetchData();
         } catch (err) {
             toast.error(err.response?.data?.msg || err.message || '开通失败');
         }
@@ -1309,6 +1320,9 @@ export default function UsersHub() {
                                     <div className="card">
                                         <div className="card-header">
                                             <span className="card-title">开通结果</span>
+                                        </div>
+                                        <div className="text-sm mb-3" style={{ color: 'var(--accent-success)' }}>
+                                            {provisionResult.successMessage || '订阅已成功开通'}
                                         </div>
                                         {provisionResult.deployment && provisionResult.deployment.total > 0 && (
                                             <div className="mb-3">

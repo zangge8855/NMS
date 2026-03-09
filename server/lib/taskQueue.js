@@ -19,6 +19,14 @@ export const TASK_STATUS = {
     CANCELLED: 'cancelled',
 };
 
+function startBackgroundInterval(fn, delayMs) {
+    const timer = setInterval(fn, delayMs);
+    if (typeof timer?.unref === 'function') {
+        timer.unref();
+    }
+    return timer;
+}
+
 class TaskQueue extends EventEmitter {
     constructor() {
         super();
@@ -215,6 +223,6 @@ class TaskQueue extends EventEmitter {
 const taskQueue = new TaskQueue();
 
 // 每10分钟清理一次过期任务
-setInterval(() => taskQueue.prune(), 10 * 60 * 1000);
+startBackgroundInterval(() => taskQueue.prune(), 10 * 60 * 1000);
 
 export default taskQueue;

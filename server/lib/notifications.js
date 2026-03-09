@@ -24,6 +24,22 @@ const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5分钟内同类告警去重
 const MAX_NOTIFICATIONS = 200; // 内存中最多保留条数
 const NOTIFICATIONS_FILE = path.join(config.dataDir, 'notifications.json');
 
+function startBackgroundInterval(fn, delayMs) {
+    const timer = setInterval(fn, delayMs);
+    if (typeof timer?.unref === 'function') {
+        timer.unref();
+    }
+    return timer;
+}
+
+function startBackgroundTimeout(fn, delayMs) {
+    const timer = setTimeout(fn, delayMs);
+    if (typeof timer?.unref === 'function') {
+        timer.unref();
+    }
+    return timer;
+}
+
 class NotificationService extends EventEmitter {
     constructor() {
         super();
@@ -47,7 +63,7 @@ class NotificationService extends EventEmitter {
     _scheduleSave() {
         if (this._savePending) return;
         this._savePending = true;
-        setTimeout(() => {
+        startBackgroundTimeout(() => {
             this._savePending = false;
             try {
                 fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(this.notifications, null, 2), 'utf8');
@@ -160,7 +176,7 @@ class NotificationService extends EventEmitter {
 const notificationService = new NotificationService();
 
 // 定期清理过期去重缓存条目（避免内存泄漏）
-setInterval(() => {
+startBackgroundInterval(() => {
     const cutoff = Date.now() - DEDUP_WINDOW_MS * 2;
     for (const [key, ts] of notificationService.dedupCache.entries()) {
         if (ts < cutoff) notificationService.dedupCache.delete(key);

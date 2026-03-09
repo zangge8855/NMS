@@ -179,9 +179,64 @@ function getServerHost(serverUrl) {
     }
 }
 
-function getTag(server, inbound, email) {
-    const inboundName = inbound.remark || `${inbound.protocol}-${inbound.port}`;
-    return `${server.name}-${inboundName}-${email}`;
+function sanitizeNodeLabel(value) {
+    const text = String(value || '')
+        .replace(/https?:\/\/\S+/gi, '')
+        .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return text.slice(0, 48);
+}
+
+function buildSafeTag(inbound) {
+    const remark = sanitizeNodeLabel(inbound?.remark);
+    const protocol = String(inbound?.protocol || 'node').trim().toUpperCase() || 'NODE';
+    const port = String(inbound?.port || '').trim();
+    const base = remark || protocol;
+    return port ? `${base}-${port}` : base;
+}
+
+function getTag(_server, inbound, _email) {
+    return buildSafeTag(inbound);
+}
+
+function sortInboundsForServer(serverId, inbounds = []) {
+    return systemSettingsStore.sortInboundList(serverId, inbounds);
+}
+
+function rewriteLinkFragment(link, label) {
+    const raw = String(link || '').trim();
+    if (!raw || !label) return raw;
+    const hashIndex = raw.indexOf('#');
+    if (hashIndex >= 0) {
+        return `${raw.slice(0, hashIndex)}#${encodeURIComponent(label)}`;
+    }
+    return `${raw}#${encodeURIComponent(label)}`;
+}
+
+function rewriteNativeLinkLabel(link, label) {
+    const raw = String(link || '').trim();
+    if (!raw || !label) return raw;
+
+    if (raw.startsWith('vmess://')) {
+        const encoded = raw.slice('vmess://'.length).trim();
+        if (!encoded) return raw;
+
+        try {
+            const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+            const padding = normalized.length % 4 === 0
+                ? ''
+                : '='.repeat(4 - (normalized.length % 4));
+            const payload = Buffer.from(normalized + padding, 'base64').toString('utf8');
+            const data = JSON.parse(payload);
+            data.ps = label;
+            return `vmess://${Buffer.from(JSON.stringify(data)).toString('base64')}`;
+        } catch {
+            return raw;
+        }
+    }
+
+    return rewriteLinkFragment(raw, label);
 }
 
 function setParamIfPresent(params, key, value) {
@@ -571,7 +626,10 @@ async function collectNativeLinks({
                 continue;
             }
 
-            parsed.forEach((line) => links.add(line));
+            parsed.forEach((line) => {
+                const label = `NODE-${links.size + 1}`;
+                links.add(rewriteNativeLinkLabel(line, label));
+            });
         } catch (error) {
             const reason = `native subscription failed for subId=${subId}: ${error.message}`;
             const detail = {
@@ -661,7 +719,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
     try {
         const client = await ensureAuthenticated(serverMeta.id);
         const listRes = await client.get('/panel/api/inbounds/list');
-        const inbounds = listRes.data?.obj || [];
+        const inbounds = sortInboundsForServer(serverMeta.id, listRes.data?.obj || []);
         const matchedEntries = [];
         const subIds = new Set();
 
@@ -705,20 +763,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
 
         perServer.matchedClientsActive = matchedEntries.length;
 
-        if ((mode === 'auto' || mode === 'native') && subIds.size > 0) {
-            nativeLinks = await collectNativeLinks({
-                client,
-                subIds: Array.from(subIds),
-                serverMeta,
-                perServer,
-                warnings,
-            });
-            nativeLinks.forEach((link) => links.add(link));
-            perServer.nativeLinks = nativeLinks.length;
-        }
-
-        const shouldReconstruct = mode === 'reconstructed'
-            || (mode === 'auto' && nativeLinks.length === 0);
+        const shouldReconstruct = mode === 'auto' || mode === 'reconstructed';
 
         if (shouldReconstruct) {
             for (const item of matchedEntries) {
@@ -763,6 +808,20 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
                 reconstructedLinks.push(link);
                 links.add(link);
             }
+        }
+
+        const shouldCollectNative = mode === 'native'
+            || (mode === 'auto' && reconstructedLinks.length === 0);
+        if (shouldCollectNative && subIds.size > 0) {
+            nativeLinks = await collectNativeLinks({
+                client,
+                subIds: Array.from(subIds),
+                serverMeta,
+                perServer,
+                warnings,
+            });
+            nativeLinks.forEach((link) => links.add(link));
+            perServer.nativeLinks = nativeLinks.length;
         }
 
         perServer.reconstructedLinks = reconstructedLinks.length;
@@ -1344,7 +1403,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
         try {
             const client = await ensureAuthenticated(serverMeta.id);
             const listRes = await client.get('/panel/api/inbounds/list');
-            const inbounds = Array.isArray(listRes.data?.obj) ? listRes.data.obj : [];
+            const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(listRes.data?.obj) ? listRes.data.obj : []);
 
             for (const inbound of inbounds) {
                 const settings = safeJsonParse(inbound.settings, {});

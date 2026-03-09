@@ -79,6 +79,58 @@ router.put('/settings', adminOnly, (req, res) => {
     }
 });
 
+router.get('/inbounds/order', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: systemSettingsStore.getInboundOrder(),
+    });
+});
+
+router.put('/inbounds/order', adminOnly, (req, res) => {
+    const serverId = String(req.body?.serverId || '').trim();
+    const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : null;
+
+    if (!serverId) {
+        return res.status(400).json({
+            success: false,
+            msg: 'serverId is required',
+        });
+    }
+    if (!serverStore.getById(serverId)) {
+        return res.status(404).json({
+            success: false,
+            msg: 'Server not found',
+        });
+    }
+    if (!inboundIds) {
+        return res.status(400).json({
+            success: false,
+            msg: 'inboundIds must be an array',
+        });
+    }
+
+    try {
+        const order = systemSettingsStore.setInboundOrder(serverId, inboundIds);
+        appendSecurityAudit('inbound_order_updated', req, {
+            serverId,
+            inboundCount: order.length,
+        });
+        return res.json({
+            success: true,
+            msg: 'Inbound order updated',
+            obj: {
+                serverId,
+                inboundIds: order,
+            },
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'Failed to update inbound order',
+        });
+    }
+});
+
 router.post('/batch-risk-token', adminOnly, (req, res) => {
     const type = String(req.body?.type || '').trim().toLowerCase();
     const action = String(req.body?.action || '').trim().toLowerCase();

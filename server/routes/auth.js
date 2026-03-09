@@ -15,13 +15,21 @@ import { authMiddleware, adminOnly } from '../middleware/auth.js';
 
 const router = Router();
 
+function startCleanupInterval(fn, delayMs) {
+    const timer = setInterval(fn, delayMs);
+    if (typeof timer?.unref === 'function') {
+        timer.unref();
+    }
+    return timer;
+}
+
 // --- Simple in-memory rate limiter for login ---
 const LOGIN_RATE_WINDOW = config.nodeEnv === 'development' ? 3 * 60 * 1000 : 15 * 60 * 1000;
 const LOGIN_RATE_WINDOW_MINUTES = Math.max(1, Math.round(LOGIN_RATE_WINDOW / 60_000));
 const LOGIN_RATE_MAX = config.nodeEnv === 'development' ? 300 : 20;
 const loginAttempts = new Map(); // `${ip}|${username}` -> { count, firstAttempt, blockedUntil }
 
-setInterval(() => {
+startCleanupInterval(() => {
     const now = Date.now();
     for (const [ip, data] of loginAttempts) {
         if ((data.blockedUntil && data.blockedUntil <= now) || (now - data.firstAttempt > LOGIN_RATE_WINDOW)) {
@@ -83,7 +91,7 @@ const REGISTER_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const REGISTER_RATE_MAX = 5;
 const registerAttempts = new Map();
 
-setInterval(() => {
+startCleanupInterval(() => {
     const now = Date.now();
     for (const [ip, data] of registerAttempts) {
         if (now - data.firstAttempt > REGISTER_RATE_WINDOW) registerAttempts.delete(ip);
@@ -107,7 +115,7 @@ const RESET_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const RESET_RATE_MAX = 8;
 const resetAttempts = new Map();
 
-setInterval(() => {
+startCleanupInterval(() => {
     const now = Date.now();
     for (const [ip, data] of resetAttempts) {
         if (now - data.firstAttempt > RESET_RATE_WINDOW) resetAttempts.delete(ip);

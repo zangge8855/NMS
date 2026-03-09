@@ -3324,6 +3324,84 @@ input[type="radio"]:focus {
   100% { background-position: 200% 0; }
 }
 
+.inbound-client-usage {
+  min-width: 160px;
+}
+
+.inbound-client-usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.inbound-client-usage-badge {
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.inbound-client-usage-badge.success {
+  color: var(--accent-success);
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.inbound-client-usage-badge.warning {
+  color: var(--accent-warning);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.inbound-client-usage-badge.danger {
+  color: var(--accent-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.inbound-client-usage-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.inbound-client-usage-fill {
+  height: 100%;
+  min-width: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.55), rgba(148, 163, 184, 0.85), rgba(148, 163, 184, 0.55));
+  background-size: 200% 100%;
+  animation: progressShimmer 2.2s linear infinite;
+}
+
+.inbound-client-usage-fill.success {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.55));
+  background-size: 200% 100%;
+}
+
+.inbound-client-usage-fill.warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.55), rgba(245, 158, 11, 0.9), rgba(245, 158, 11, 0.55));
+  background-size: 200% 100%;
+}
+
+.inbound-client-usage-fill.danger {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.9), rgba(239, 68, 68, 0.55));
+  background-size: 200% 100%;
+}
+
+.inbound-client-usage-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── Better empty state styling ───────────────────── */
 .empty-state {
   padding: 48px 24px;

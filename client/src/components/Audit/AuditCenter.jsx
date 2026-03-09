@@ -285,7 +285,7 @@ export default function AuditCenter() {
                         任务日志
                     </button>
                     <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
-                        系统日志
+                        3x-ui 日志
                     </button>
                 </div>
 
@@ -446,6 +446,9 @@ export default function AuditCenter() {
                                         ))}
                                     </select>
                                 </div>
+                                {trafficOverview?.userLevelSupported === false && (
+                                    <div className="text-xs text-muted mb-2">当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。</div>
+                                )}
                                 <div className="dashboard-chart">
                                     <ResponsiveContainer>
                                         <LineChart data={userTrend.points || []}>
@@ -492,6 +495,9 @@ export default function AuditCenter() {
                         <div className="grid-auto-280-tight">
                             <div className="card">
                                 <div className="card-header"><span className="card-title">流量 Top 用户</span></div>
+                                {trafficOverview?.userLevelSupported === false && (
+                                    <div className="text-xs text-muted mb-2">当前节点列表未提供用户级流量计数。</div>
+                                )}
                                 <div className="table-container">
                                     <table className="table">
                                         <thead><tr><th>用户</th><th>流量</th></tr></thead>
@@ -640,7 +646,7 @@ export default function AuditCenter() {
 
                 {tab === 'logs' && (
                     <Suspense fallback={<div className="flex items-center justify-center" style={{ padding: '64px 0' }}><span className="spinner" /></div>}>
-                        <Logs embedded />
+                        <Logs embedded sourceMode="panel" displayLabel="3x-ui 日志" />
                     </Suspense>
                 )}
             </div>

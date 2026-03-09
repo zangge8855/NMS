@@ -6,6 +6,7 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, formatUptime } from '../../utils/format.js';
+import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
 import toast from 'react-hot-toast';
 import {
     HiOutlineArrowLeft,
@@ -72,8 +73,18 @@ export default function ServerDetail() {
 
     const fetchInbounds = async () => {
         try {
-            const res = await api.get(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/list`);
-            setInbounds(res.data?.obj || []);
+            const [res, orderRes] = await Promise.all([
+                api.get(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/list`),
+                api.get('/system/inbounds/order').catch(() => ({ data: { obj: {} } })),
+            ]);
+            const rows = Array.isArray(res.data?.obj) ? res.data.obj.map((item) => ({
+                ...item,
+                serverId,
+                serverName: server?.name || '',
+            })) : [];
+            const orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
+            const sorted = sortInboundsByOrder(rows, orderMap).map(({ serverId: _sid, serverName: _sname, ...item }) => item);
+            setInbounds(sorted);
         } catch { /* ignore */ }
     };
 

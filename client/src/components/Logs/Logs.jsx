@@ -8,6 +8,7 @@ import {
     HiOutlineFunnel,
     HiOutlineClipboardDocument,
     HiOutlineServerStack,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
@@ -47,9 +48,28 @@ function LogLine({ line, showServer, serverName }) {
     );
 }
 
-export default function Logs({ embedded = false }) {
+function extractLogTimestamp(line) {
+    const text = String(line || '');
+    const isoMatch = text.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/);
+    if (isoMatch) {
+        const ts = new Date(isoMatch[0]).getTime();
+        if (Number.isFinite(ts)) return ts;
+    }
+
+    const localMatch = text.match(/\d{4}[/-]\d{2}[/-]\d{2}[ T]\d{2}:\d{2}:\d{2}/);
+    if (localMatch) {
+        const normalized = localMatch[0].replace(/\//g, '-');
+        const ts = new Date(normalized).getTime();
+        if (Number.isFinite(ts)) return ts;
+    }
+
+    return null;
+}
+
+export default function Logs({ embedded = false, sourceMode = 'auto', displayLabel = '' }) {
     const { activeServerId, panelApi, activeServer, servers } = useServer();
     const isGlobal = activeServerId === 'global';
+    const lockedSourceMode = ['auto', 'panel', 'system'].includes(sourceMode) ? sourceMode : 'auto';
 
     // State
     const [logs, setLogs] = useState([]);
@@ -58,6 +78,7 @@ export default function Logs({ embedded = false }) {
     const [levelFilter, setLevelFilter] = useState('');
     const [syslog, setSyslog] = useState(false);
     const [count, setCount] = useState(100);
+    const [fetchSummary, setFetchSummary] = useState(null);
 
     // Global mode: server selection
     const [selectedServerIds, setSelectedServerIds] = useState([]);
@@ -70,58 +91,100 @@ export default function Logs({ embedded = false }) {
     }, [isGlobal, servers, selectedServerIds.length]);
 
     const logContainerRef = useRef(null);
+    const effectiveSyslog = lockedSourceMode === 'system'
+        ? true
+        : (lockedSourceMode === 'panel' ? false : syslog);
+    const sourceLabel = String(displayLabel || '').trim() || (effectiveSyslog ? '系统日志' : 'Panel 日志');
 
     // ── Fetch Logs ───────────────────────────────────────
     const fetchSingleLogs = useCallback(async () => {
         if (!activeServerId || activeServerId === 'global') return;
         setLoading(true);
+        setFetchSummary(null);
         try {
             const body = { count, level: levelFilter || undefined };
-            const endpoint = syslog ? '/server/api/server/log' : '/panel/api/server/log';
+            const endpoint = effectiveSyslog ? '/server/api/server/log' : '/panel/api/server/log';
             const res = await panelApi('post', endpoint, body);
             const raw = res.data?.obj || '';
             const lines = typeof raw === 'string' ? raw.split('\n').filter(Boolean) : [];
             setLogs(lines.map(line => ({ line, serverName: activeServer?.name || '' })));
         } catch (err) {
-            toast.error('获取日志失败: ' + (err.response?.data?.msg || err.message));
+            const message = err.response?.data?.msg || err.message;
+            toast.error('获取日志失败: ' + message);
+            setFetchSummary({
+                tone: 'danger',
+                message: `${sourceLabel}加载失败：${message}`,
+            });
             setLogs([]);
         }
         setLoading(false);
-    }, [activeServerId, panelApi, activeServer?.name, count, levelFilter, syslog]);
+    }, [activeServerId, panelApi, activeServer?.name, count, levelFilter, effectiveSyslog, sourceLabel]);
 
     const fetchGlobalLogs = useCallback(async () => {
         if (!isGlobal || selectedServerIds.length === 0) {
             setLogs([]);
+            setFetchSummary({
+                tone: 'info',
+                message: '请至少选择一个节点后再查看聚合日志',
+            });
             return;
         }
         setLoading(true);
+        setFetchSummary(null);
         try {
             const targetServers = servers.filter(s => selectedServerIds.includes(s.id));
+            const endpoint = effectiveSyslog ? '/server/api/server/log' : '/panel/api/server/log';
             const results = await Promise.allSettled(
                 targetServers.map(async (server) => {
                     const res = await api.post(
-                        `/panel/${server.id}/panel/api/server/log`,
+                        `/panel/${server.id}${endpoint}`,
                         { count: Math.ceil(count / targetServers.length), level: levelFilter || undefined }
                     );
                     const raw = res.data?.obj || '';
                     const lines = typeof raw === 'string' ? raw.split('\n').filter(Boolean) : [];
-                    return lines.map(line => ({ line, serverName: server.name }));
+                    return lines.map((line, index) => ({
+                        line,
+                        serverName: server.name,
+                        sortTs: extractLogTimestamp(line),
+                        seq: index,
+                    }));
                 })
             );
 
             const allLogs = [];
+            const failedServers = [];
             for (const result of results) {
                 if (result.status === 'fulfilled') {
                     allLogs.push(...result.value);
+                } else {
+                    failedServers.push(result.reason?.response?.data?.msg || result.reason?.message || '未知错误');
                 }
             }
+            allLogs.sort((left, right) => {
+                if (left.sortTs !== null && right.sortTs !== null && left.sortTs !== right.sortTs) {
+                    return left.sortTs - right.sortTs;
+                }
+                return left.seq - right.seq;
+            });
             setLogs(allLogs);
+            if (failedServers.length > 0) {
+                setFetchSummary({
+                    tone: 'warning',
+                    message: `部分节点 ${sourceLabel}加载失败（${failedServers.length}/${targetServers.length}）`,
+                });
+            } else {
+                setFetchSummary(null);
+            }
         } catch (err) {
             toast.error('获取全局日志失败: ' + (err.message || '未知错误'));
+            setFetchSummary({
+                tone: 'danger',
+                message: `聚合${sourceLabel}加载失败：${err.message || '未知错误'}`,
+            });
             setLogs([]);
         }
         setLoading(false);
-    }, [isGlobal, selectedServerIds, servers, count, levelFilter]);
+    }, [isGlobal, selectedServerIds, servers, count, levelFilter, effectiveSyslog, sourceLabel]);
 
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
 
@@ -172,7 +235,7 @@ export default function Logs({ embedded = false }) {
     // ── Render ────────────────────────────────────────────
     return (
         <>
-            {!embedded && <Header title={isGlobal ? '集群日志' : '系统日志'} />}
+            {!embedded && <Header title={isGlobal ? `集群${sourceLabel}` : sourceLabel} />}
             <div className={embedded ? '' : 'page-content page-enter'}>
                 {/* Toolbar */}
                 <div className="card mb-4">
@@ -199,7 +262,7 @@ export default function Logs({ embedded = false }) {
                                 <option value={500}>500 行</option>
                             </select>
 
-                            {!isGlobal && (
+                            {lockedSourceMode === 'auto' && !isGlobal && (
                                 <label className="flex items-center gap-4 cursor-pointer">
                                     <input type="checkbox" checked={syslog} onChange={e => setSyslog(e.target.checked)} />
                                     <span className="text-sm">系统日志</span>
@@ -259,12 +322,23 @@ export default function Logs({ embedded = false }) {
                     </div>
                 )}
 
+                {fetchSummary?.message && (
+                    <div className="card mb-4">
+                        <div className="card-header card-header-flat-tight">
+                            <div className="flex items-center gap-8">
+                                <HiOutlineExclamationTriangle className="text-muted" />
+                                <span className="text-sm">{fetchSummary.message}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Log Viewer */}
                 <div className="card flex-1">
                     <div className="card-header">
                         <div className="flex items-center gap-8">
                             <HiOutlineDocumentText className="text-muted" />
-                            <span className="card-title">日志输出</span>
+                            <span className="card-title">{sourceLabel}</span>
                         </div>
                         <span className="text-sm text-muted">{filteredLogs.length} 行</span>
                     </div>

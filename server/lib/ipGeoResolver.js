@@ -1,8 +1,8 @@
 import net from 'node:net';
 import config from '../config.js';
 
-const DEFAULT_PROVIDER = 'ip_api';
-const DEFAULT_ENDPOINT = 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
+const DEFAULT_PROVIDER = 'ipip_myip';
+const DEFAULT_ENDPOINT = 'http://myip.ipip.net';
 const DEFAULT_TIMEOUT_MS = 3000;
 const DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60;
 const LOCAL_IP_LABEL = '内网/本地';
@@ -186,10 +186,10 @@ export function createIpGeoResolver(options = {}) {
 
     function fromCache(ip, nowTs = Date.now()) {
         const item = cache.get(ip);
-        if (!item) return '';
+        if (!item) return undefined;
         if (item.expiresAt <= nowTs) {
             cache.delete(ip);
-            return '';
+            return undefined;
         }
         return item.location;
     }
@@ -235,7 +235,7 @@ export function createIpGeoResolver(options = {}) {
         if (!runtime.enabled) return '';
 
         const cached = fromCache(ip);
-        if (cached) return cached;
+        if (cached !== undefined) return cached;
 
         if (inflight.has(ip)) {
             return inflight.get(ip);

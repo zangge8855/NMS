@@ -13,7 +13,7 @@ const upload = multer({
     },
 });
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-const ALLOWED_PREFIXES = ['/panel/api/', '/sub/'];
+const ALLOWED_PREFIXES = ['/panel/api/', '/server/api/', '/sub/'];
 
 function isAllowedPanelPath(path) {
     if (!path || typeof path !== 'string') return false;

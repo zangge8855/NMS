@@ -40,6 +40,45 @@ const ALLOWED_KEYS = {
 
 const GEO_PROVIDERS = new Set(['ip_api', 'ipip_myip']);
 
+function normalizeId(value) {
+    return String(value || '').trim();
+}
+
+function compareInboundFallback(a, b) {
+    const portDiff = Number(a?.port || 0) - Number(b?.port || 0);
+    if (portDiff !== 0) return portDiff;
+
+    const remarkDiff = String(a?.remark || '').localeCompare(String(b?.remark || ''));
+    if (remarkDiff !== 0) return remarkDiff;
+
+    const protocolDiff = String(a?.protocol || '').localeCompare(String(b?.protocol || ''));
+    if (protocolDiff !== 0) return protocolDiff;
+
+    return normalizeId(a?.id).localeCompare(normalizeId(b?.id));
+}
+
+function normalizeInboundOrderMap(input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+
+    const output = {};
+    for (const [rawServerId, rawInboundIds] of Object.entries(input)) {
+        const serverId = normalizeId(rawServerId);
+        if (!serverId || !Array.isArray(rawInboundIds)) continue;
+
+        const inboundIds = Array.from(new Set(
+            rawInboundIds
+                .map((item) => normalizeId(item))
+                .filter(Boolean)
+        ));
+
+        if (inboundIds.length > 0) {
+            output[serverId] = inboundIds;
+        }
+    }
+
+    return output;
+}
+
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
         fs.mkdirSync(config.dataDir, { recursive: true });
@@ -202,6 +241,7 @@ class SystemSettingsStore {
                 timeoutMs: Math.max(200, Number(config.audit?.ipGeo?.timeoutMs || 3000)),
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
             },
+            inboundOrder: {},
         };
     }
 
@@ -272,12 +312,14 @@ class SystemSettingsStore {
         const auditFallback = mergeSection(defaults.audit, fallbackRoot.audit);
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
+        const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
 
         const securityInput = mergeSection(defaults.security, input.security);
         const jobsInput = mergeSection(defaults.jobs, input.jobs);
         const auditInput = mergeSection(defaults.audit, input.audit);
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
+        const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
 
         return {
             security: this._normalizeSecurity(securityInput, securityFallback),
@@ -285,6 +327,7 @@ class SystemSettingsStore {
             audit: this._normalizeAudit(auditInput, auditFallback),
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
+            inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
     }
@@ -339,6 +382,64 @@ class SystemSettingsStore {
         return this.getAll().auditIpGeo;
     }
 
+    getInboundOrder(serverId = '') {
+        const all = this.getAll().inboundOrder || {};
+        const normalizedServerId = normalizeId(serverId);
+        if (!normalizedServerId) return all;
+        return Array.isArray(all[normalizedServerId]) ? [...all[normalizedServerId]] : [];
+    }
+
+    sortInboundList(serverId, inbounds = []) {
+        const rows = Array.isArray(inbounds) ? [...inbounds] : [];
+        const order = this.getInboundOrder(serverId);
+        const orderIndex = new Map(order.map((id, index) => [normalizeId(id), index]));
+
+        return rows.sort((left, right) => {
+            const leftIndex = orderIndex.get(normalizeId(left?.id));
+            const rightIndex = orderIndex.get(normalizeId(right?.id));
+            const leftKnown = Number.isInteger(leftIndex);
+            const rightKnown = Number.isInteger(rightIndex);
+
+            if (leftKnown && rightKnown) return leftIndex - rightIndex;
+            if (leftKnown) return -1;
+            if (rightKnown) return 1;
+            return compareInboundFallback(left, right);
+        });
+    }
+
+    setInboundOrder(serverId, inboundIds = []) {
+        const normalizedServerId = normalizeId(serverId);
+        if (!normalizedServerId) {
+            throw new Error('serverId is required');
+        }
+        if (!Array.isArray(inboundIds)) {
+            throw new Error('inboundIds must be an array');
+        }
+
+        const nextOrder = Array.from(new Set(
+            inboundIds
+                .map((item) => normalizeId(item))
+                .filter(Boolean)
+        ));
+        const nextInboundOrder = {
+            ...(this.settings.inboundOrder || {}),
+        };
+
+        if (nextOrder.length > 0) {
+            nextInboundOrder[normalizedServerId] = nextOrder;
+        } else {
+            delete nextInboundOrder[normalizedServerId];
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            inboundOrder: nextInboundOrder,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+        return this.getInboundOrder(normalizedServerId);
+    }
+
     update(patch = {}) {
         this._assertAllowedPayload(patch);
         const candidate = {
@@ -347,6 +448,7 @@ class SystemSettingsStore {
             audit: mergeSection(this.settings.audit, patch.audit),
             subscription: mergeSection(this.settings.subscription, patch.subscription),
             auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
+            inboundOrder: this.settings.inboundOrder,
             updatedAt: new Date().toISOString(),
         };
         this.settings = this._normalizeSettings(candidate, this.settings);

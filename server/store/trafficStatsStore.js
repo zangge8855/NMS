@@ -69,6 +69,78 @@ function safeJsonParse(text, fallback = {}) {
     }
 }
 
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function normalizeClientId(value) {
+    return String(value || '').trim();
+}
+
+function normalizeClientEmail(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function collectStatsCandidates(inbound) {
+    const candidates = [
+        inbound?.clientStats,
+        inbound?.clientTraffic,
+        inbound?.clientTraffics,
+        inbound?.clientTrafficsList,
+    ];
+    return candidates.find((item) => Array.isArray(item)) || [];
+}
+
+function resolveClientMergeKeys(client = {}) {
+    const keys = new Set();
+    const email = normalizeClientEmail(client.email);
+    const id = normalizeClientId(client.id);
+    const password = normalizeClientId(client.password);
+
+    if (email) keys.add(`email:${email}`);
+    if (id) keys.add(`id:${id}`);
+    if (password) keys.add(`password:${password}`);
+    return Array.from(keys);
+}
+
+function extractInboundClients(inbound) {
+    const settings = safeJsonParse(inbound?.settings, {});
+    const baseClients = Array.isArray(settings.clients) ? settings.clients : [];
+    const statsCandidates = collectStatsCandidates(inbound);
+    const statsByKey = new Map();
+    let hasExplicitClientTraffic = false;
+
+    statsCandidates.forEach((entry) => {
+        const row = entry && typeof entry === 'object' ? entry : {};
+        const keys = resolveClientMergeKeys(row);
+        if (keys.length === 0) return;
+        if (hasOwn(row, 'up') || hasOwn(row, 'down')) {
+            hasExplicitClientTraffic = true;
+        }
+        keys.forEach((key) => {
+            if (!statsByKey.has(key)) {
+                statsByKey.set(key, row);
+            }
+        });
+    });
+
+    const merged = baseClients.map((client) => {
+        const row = client && typeof client === 'object' ? client : {};
+        const stats = resolveClientMergeKeys(row)
+            .map((key) => statsByKey.get(key))
+            .find(Boolean);
+        if (hasOwn(row, 'up') || hasOwn(row, 'down')) {
+            hasExplicitClientTraffic = true;
+        }
+        return stats ? { ...stats, ...row } : row;
+    });
+
+    return {
+        clients: merged,
+        hasClientTraffic: hasExplicitClientTraffic,
+    };
+}
+
 async function runWithConcurrency(items, worker, concurrency = 3) {
     const list = Array.isArray(items) ? items : [];
     if (list.length === 0) return [];
@@ -224,8 +296,8 @@ class TrafficStatsStore {
             const inbounds = Array.isArray(listRes.data?.obj) ? listRes.data.obj : [];
 
             for (const inbound of inbounds) {
-                const settings = safeJsonParse(inbound.settings, {});
-                const clients = Array.isArray(settings.clients) ? settings.clients : [];
+                const { clients, hasClientTraffic } = extractInboundClients(inbound);
+                let clientTrafficCaptured = false;
                 for (let i = 0; i < clients.length; i += 1) {
                     const cl = clients[i] || {};
                     const email = String(cl.email || '').trim().toLowerCase();
@@ -252,6 +324,7 @@ class TrafficStatsStore {
                     };
 
                     if (deltaTotal <= 0) continue;
+                    clientTrafficCaptured = true;
                     result.samples.push({
                         id: crypto.randomUUID(),
                         ts: collectedAtIso,
@@ -267,6 +340,45 @@ class TrafficStatsStore {
                         totalBytes: deltaTotal,
                     });
                 }
+
+                if (!hasClientTraffic || clientTrafficCaptured) {
+                    continue;
+                }
+
+                const inboundUp = toNonNegativeInt(inbound?.up, 0);
+                const inboundDown = toNonNegativeInt(inbound?.down, 0);
+                const inboundTotal = inboundUp + inboundDown;
+                const inboundCounterKey = `${serverMeta.id}|${String(inbound.id || '')}|__inbound_total__`;
+                const prevInbound = this.counters[inboundCounterKey];
+                const deltaInboundUp = !prevInbound ? inboundUp : (inboundUp >= prevInbound.up ? (inboundUp - prevInbound.up) : inboundUp);
+                const deltaInboundDown = !prevInbound ? inboundDown : (inboundDown >= prevInbound.down ? (inboundDown - prevInbound.down) : inboundDown);
+                const deltaInboundTotal = deltaInboundUp + deltaInboundDown;
+
+                this.counters[inboundCounterKey] = {
+                    up: inboundUp,
+                    down: inboundDown,
+                    total: inboundTotal,
+                    serverId: serverMeta.id,
+                    inboundId: String(inbound.id || ''),
+                    email: '',
+                    lastSeenAt: collectedAtIso,
+                };
+
+                if (deltaInboundTotal <= 0) continue;
+                result.samples.push({
+                    id: crypto.randomUUID(),
+                    ts: collectedAtIso,
+                    granularity: 'raw',
+                    serverId: serverMeta.id,
+                    serverName: serverMeta.name,
+                    inboundId: String(inbound.id || ''),
+                    inboundRemark: inbound.remark || '',
+                    email: '',
+                    clientIdentifier: '__inbound_total__',
+                    upBytes: deltaInboundUp,
+                    downBytes: deltaInboundDown,
+                    totalBytes: deltaInboundTotal,
+                });
             }
         } catch (error) {
             result.warning = {
@@ -375,6 +487,7 @@ class TrafficStatsStore {
             to: range.to,
             sampleCount: samples.length,
             activeUsers: users.size,
+            userLevelSupported: samples.some((item) => Boolean(String(item.email || '').trim())),
             totals,
             topUsers,
             topServers,
