@@ -1,29 +1,35 @@
-import crypto from 'crypto';
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
 import config from '../config.js';
+import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
-import { ensureAuthenticated } from '../lib/panelClient.js';
-import { generateVerifyCode, sendVerificationEmail, sendPasswordResetEmail } from '../lib/mailer.js';
-import {
-    CLIENT_PROTOCOLS as DEPLOY_CLIENT_PROTOCOLS,
-    PASSWORD_PROTOCOLS as DEPLOY_PASSWORD_PROTOCOLS,
-    UUID_PROTOCOLS as DEPLOY_UUID_PROTOCOLS,
-    applyEntitlementToClient,
-    buildManagedClientData,
-    normalizeNonNegativeInt,
-    parseInboundClients,
-    postAddClient,
-    postUpdateClient,
-    resolveClientIdentifier,
-} from '../lib/clientEntitlements.js';
-import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { resolveClientIp } from '../lib/requestIp.js';
-import userStore from '../store/userStore.js';
-import serverStore from '../store/serverStore.js';
-import clientEntitlementOverrideStore from '../store/clientEntitlementOverrideStore.js';
-import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
-import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
+import {
+    normalizeEmailInput,
+    registerUser,
+    resendVerificationCode,
+    requestPasswordReset,
+    resetPasswordWithCode,
+    verifyEmailCode,
+} from '../services/emailAuthService.js';
+import {
+    changeOwnPassword,
+    createLoginSession,
+    validateSession,
+} from '../services/authSessionService.js';
+import {
+    adminResetUserPassword,
+    buildUsersCsv,
+    buildUsersExportFilename,
+    bulkSetUsersEnabled,
+    createManagedUser,
+    deleteManagedUser,
+    listUsers,
+    provisionManagedUserSubscription,
+    setManagedUserEnabled,
+    updateManagedUser,
+    updateManagedUserExpiry,
+    updateUserSubscriptionBinding,
+} from '../services/userAdminService.js';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 
 const router = Router();
@@ -146,436 +152,6 @@ function checkResetRate(ip) {
     return data.count <= RESET_RATE_MAX;
 }
 
-// Email format validation
-function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function normalizeEmailInput(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function resolveUserSubscriptionEmail(user) {
-    if (!user || typeof user !== 'object') return '';
-    if (Object.prototype.hasOwnProperty.call(user, 'subscriptionEmail')) {
-        return normalizeEmailInput(user.subscriptionEmail);
-    }
-    return normalizeEmailInput(user.email);
-}
-
-function normalizeServerIds(input = []) {
-    const values = Array.isArray(input) ? input : [];
-    return Array.from(new Set(
-        values
-            .map((item) => String(item || '').trim())
-            .filter(Boolean)
-    ));
-}
-
-function normalizeProtocols(input = []) {
-    const values = Array.isArray(input) ? input : [];
-    return Array.from(new Set(
-        values
-            .map((item) => String(item || '').trim().toLowerCase())
-            .filter((item) => ALLOWED_PROTOCOLS.has(item))
-    ));
-}
-
-function normalizeScopeMode(input, fallback = 'all') {
-    const normalizedFallback = POLICY_SCOPE_MODES.has(String(fallback || '').trim().toLowerCase())
-        ? String(fallback || '').trim().toLowerCase()
-        : 'all';
-    const text = String(input || '').trim().toLowerCase();
-    if (!text) return normalizedFallback;
-    if (!POLICY_SCOPE_MODES.has(text)) return normalizedFallback;
-    return text;
-}
-
-function buildScopeTokenName(serverId = '') {
-    return `auto-persistent:${serverId || 'all'}`;
-}
-
-function ensurePersistentSubscriptionToken(email, actor = 'admin') {
-    const scopeName = buildScopeTokenName('');
-    const existing = subscriptionTokenStore.getFirstActiveTokenByName(email, scopeName);
-    if (existing?.metadata?.id) {
-        return {
-            metadata: existing.metadata,
-            autoIssued: false,
-            issueError: null,
-        };
-    }
-
-    try {
-        const issued = subscriptionTokenStore.issue(email, {
-            name: scopeName,
-            noExpiry: true,
-            ttlDays: 0,
-            ignoreActiveLimit: true,
-            createdBy: actor,
-        });
-        return {
-            metadata: issued.metadata,
-            autoIssued: true,
-            issueError: null,
-        };
-    } catch (error) {
-        return {
-            metadata: null,
-            autoIssued: false,
-            issueError: error.message || 'Failed to issue persistent token',
-        };
-    }
-}
-
-function buildStableSubId(email) {
-    return crypto.createHash('sha256').update(normalizeEmailInput(email)).digest('hex').slice(0, 16);
-}
-
-function buildDeployFormBody(data = {}) {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(data)) {
-        if (value === undefined || value === null) continue;
-        if (typeof value === 'object') {
-            params.append(key, JSON.stringify(value));
-        } else {
-            params.append(key, String(value));
-        }
-    }
-    return params.toString();
-}
-
-function resolveDeployFlow(protocol, inbound) {
-    if (protocol !== 'vless') return '';
-    let stream = {};
-    try {
-        stream = typeof inbound.streamSettings === 'string'
-            ? JSON.parse(inbound.streamSettings)
-            : (inbound.streamSettings || {});
-    } catch { /* ignore */ }
-    const network = String(stream.network || '').toLowerCase();
-    const security = String(stream.security || '').toLowerCase();
-    if ((network === 'tcp' || network === 'http') && (security === 'reality' || security === 'tls')) {
-        return 'xtls-rprx-vision';
-    }
-    return '';
-}
-
-function resolvePolicyEntitlement(policy = {}, options = {}) {
-    return {
-        expiryTime: normalizeNonNegativeInt(
-            options.expiryTime,
-            normalizeNonNegativeInt(policy.expiryTime, 0)
-        ),
-        limitIp: normalizeNonNegativeInt(options.limitIp, normalizeNonNegativeInt(policy.limitIp, 0)),
-        trafficLimitBytes: normalizeNonNegativeInt(
-            options.trafficLimitBytes,
-            normalizeNonNegativeInt(policy.trafficLimitBytes, 0)
-        ),
-    };
-}
-
-async function autoDeployClients(subscriptionEmail, allServers, policy, options = {}) {
-    const result = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
-    const email = normalizeEmailInput(subscriptionEmail);
-    if (!email) return result;
-
-    // Determine target servers
-    const serverScopeMode = String(policy.serverScopeMode || 'all').toLowerCase();
-    let targetServers = [];
-    if (serverScopeMode === 'all') {
-        targetServers = allServers;
-    } else if (serverScopeMode === 'selected') {
-        const allowed = new Set(Array.isArray(policy.allowedServerIds) ? policy.allowedServerIds : []);
-        targetServers = allServers.filter((s) => allowed.has(s.id));
-    }
-    // 'none' → empty list
-
-    if (targetServers.length === 0) return result;
-
-    // Determine allowed protocols
-    const protocolScopeMode = String(policy.protocolScopeMode || 'all').toLowerCase();
-    let allowedProtocols = null; // null = all
-    if (protocolScopeMode === 'selected') {
-        allowedProtocols = new Set(Array.isArray(policy.allowedProtocols) ? policy.allowedProtocols : []);
-    } else if (protocolScopeMode === 'none') {
-        return result; // no protocols allowed
-    }
-
-    // Determine allowed inbounds (optional, from options)
-    const allowedInboundKeys = Array.isArray(options.allowedInboundKeys) && options.allowedInboundKeys.length > 0
-        ? new Set(options.allowedInboundKeys)
-        : null; // null = all
-
-    // Generate unified credentials
-    const sharedCredentials = {
-        uuid: crypto.randomUUID(),
-        password: crypto.randomBytes(16).toString('hex'),
-        subId: buildStableSubId(email),
-    };
-    const baseEntitlement = resolvePolicyEntitlement(policy, options);
-
-    for (const server of targetServers) {
-        let client;
-        try {
-            client = await ensureAuthenticated(server.id);
-        } catch (err) {
-            result.details.push({
-                serverId: server.id,
-                serverName: server.name,
-                status: 'failed',
-                error: `Auth failed: ${err.message}`,
-            });
-            result.failed += 1;
-            result.total += 1;
-            continue;
-        }
-
-        let inbounds;
-        try {
-            const listRes = await client.get('/panel/api/inbounds/list');
-            inbounds = listRes.data?.obj || [];
-        } catch (err) {
-            result.details.push({
-                serverId: server.id,
-                serverName: server.name,
-                status: 'failed',
-                error: `List inbounds failed: ${err.message}`,
-            });
-            result.failed += 1;
-            result.total += 1;
-            continue;
-        }
-
-        for (const inbound of inbounds) {
-            const protocol = String(inbound.protocol || '').toLowerCase();
-
-            // Skip non-client protocols
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
-
-            // Skip disabled inbounds
-            if (inbound.enable === false) continue;
-
-            // Skip protocols not in policy
-            if (allowedProtocols && !allowedProtocols.has(protocol)) continue;
-
-            // Skip inbounds not in selection (if specified)
-            if (allowedInboundKeys && !allowedInboundKeys.has(`${server.id}:${inbound.id}`)) continue;
-
-            result.total += 1;
-
-            try {
-                const existingClients = parseInboundClients(inbound);
-                const match = existingClients.find((c) => normalizeEmailInput(c.email) === email);
-
-                if (match) {
-                    const clientIdentifier = resolveClientIdentifier(match, protocol);
-                    const override = clientEntitlementOverrideStore.get(server.id, inbound.id, clientIdentifier);
-                    const targetEntitlement = override || baseEntitlement;
-                    const updatedClient = applyEntitlementToClient(match, targetEntitlement);
-
-                    const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
-                        && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
-                        && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0);
-
-                    if (isSameEntitlement) {
-                        result.skipped += 1;
-                        result.details.push({
-                            serverId: server.id,
-                            serverName: server.name,
-                            inboundId: inbound.id,
-                            inboundRemark: inbound.remark || '',
-                            protocol,
-                            status: 'skipped',
-                            reason: override ? 'override-up-to-date' : 'policy-up-to-date',
-                        });
-                        continue;
-                    }
-
-                    await postUpdateClient(client, inbound.id, clientIdentifier, updatedClient);
-                    result.updated += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: override ? 'override-updated' : 'updated',
-                    });
-                    continue;
-                }
-
-                const clientData = buildManagedClientData({
-                    email,
-                    protocol,
-                    inbound,
-                    sharedCredentials,
-                    entitlement: baseEntitlement,
-                    resolveFlow: resolveDeployFlow,
-                });
-
-                await postAddClient(client, inbound.id, clientData);
-
-                result.created += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'created',
-                });
-            } catch (err) {
-                result.failed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'failed',
-                    error: err.message,
-                });
-            }
-        }
-    }
-
-    return result;
-}
-
-async function autoUpdateClientExpiry(subscriptionEmail, allServers, newExpiryTime) {
-    const result = { total: 0, updated: 0, failed: 0, details: [] };
-    const email = normalizeEmailInput(subscriptionEmail);
-    if (!email) return result;
-    const expiryTime = Math.max(0, Math.floor(Number(newExpiryTime) || 0));
-
-    for (const server of allServers) {
-        let client;
-        try {
-            client = await ensureAuthenticated(server.id);
-        } catch { continue; }
-
-        let inbounds;
-        try {
-            const listRes = await client.get('/panel/api/inbounds/list');
-            inbounds = listRes.data?.obj || [];
-        } catch { continue; }
-
-        for (const inbound of inbounds) {
-            const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
-
-            let settings = {};
-            try {
-                settings = typeof inbound.settings === 'string'
-                    ? JSON.parse(inbound.settings)
-                    : (inbound.settings || {});
-            } catch { continue; }
-
-            const clients = Array.isArray(settings.clients) ? settings.clients : [];
-            const match = clients.find((c) => normalizeEmailInput(c.email) === email);
-            if (!match) continue;
-
-            result.total += 1;
-            try {
-                const identifier = match.id || match.password || '';
-                const updatedClient = { ...match, expiryTime };
-                await client.post(
-                    '/panel/api/inbounds/updateClient/' + encodeURIComponent(identifier),
-                    buildDeployFormBody({
-                        id: inbound.id,
-                        settings: { clients: [updatedClient] },
-                    }),
-                    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-                );
-                result.updated += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    status: 'updated',
-                });
-            } catch (err) {
-                result.failed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    status: 'failed',
-                    error: err.message,
-                });
-            }
-        }
-    }
-
-    return result;
-}
-
-async function autoRemoveClients(subscriptionEmail, allServers) {
-    const result = { total: 0, removed: 0, failed: 0, details: [] };
-    const email = normalizeEmailInput(subscriptionEmail);
-    if (!email) return result;
-
-    for (const server of allServers) {
-        let client;
-        try {
-            client = await ensureAuthenticated(server.id);
-        } catch {
-            continue; // skip servers we can't reach
-        }
-
-        let inbounds;
-        try {
-            const listRes = await client.get('/panel/api/inbounds/list');
-            inbounds = listRes.data?.obj || [];
-        } catch {
-            continue;
-        }
-
-        for (const inbound of inbounds) {
-            const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
-
-            let settings = {};
-            try {
-                settings = typeof inbound.settings === 'string'
-                    ? JSON.parse(inbound.settings)
-                    : (inbound.settings || {});
-            } catch { continue; }
-            const clients = Array.isArray(settings.clients) ? settings.clients : [];
-            const matched = clients.find((c) => normalizeEmailInput(c.email) === email);
-            if (!matched) continue;
-
-            result.total += 1;
-            const clientId = matched.id || matched.password || email;
-
-            try {
-                const encoded = encodeURIComponent(clientId);
-                await client.post(`/panel/api/inbounds/${inbound.id}/delClient/${encoded}`);
-                result.removed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    status: 'removed',
-                });
-            } catch (err) {
-                result.failed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    status: 'failed',
-                    error: err.message,
-                });
-            }
-        }
-    }
-    return result;
-}
-
 /**
  * POST /api/auth/login
  * 支持两种模式:
@@ -584,11 +160,7 @@ async function autoRemoveClients(subscriptionEmail, allServers) {
  */
 router.post('/login', (req, res) => {
     const clientIp = resolveClientIp(req);
-    const allowLegacyPasswordLogin = config.auth.allowLegacyPasswordLogin !== false;
-    const rawUsername = req.body?.username;
-    const rawPassword = req.body?.password;
-    const username = String(rawUsername || '').trim();
-    const password = typeof rawPassword === 'string' ? rawPassword : '';
+    const username = String(req.body?.username || '').trim();
     const rateState = getLoginRateState(clientIp, username);
     if (rateState.blocked) {
         appendSecurityAudit('login_rate_limited', req, { ip: clientIp });
@@ -598,44 +170,8 @@ router.post('/login', (req, res) => {
         });
     }
 
-    // 尝试多用户认证
-    const user = userStore.authenticate(username, password);
-
-    if (!user) {
-        // 向后兼容: 仅密码模式
-        const normalizedUsername = username;
-        const adminUser = userStore.getByUsername('admin') || userStore.getAll().find((item) => item.role === 'admin');
-        const legacyUsername = String(adminUser?.username || 'admin').trim();
-        const usernameMatchesLegacy = !normalizedUsername || normalizedUsername === legacyUsername;
-        if (usernameMatchesLegacy && allowLegacyPasswordLogin && password === config.auth.adminPassword) {
-            const tokenPayload = {
-                role: 'admin',
-                username: legacyUsername || 'admin',
-            };
-            if (adminUser?.id) tokenPayload.userId = adminUser.id;
-
-            const token = jwt.sign(tokenPayload, config.jwt.secret, {
-                expiresIn: config.jwt.expiresIn,
-            });
-            appendSecurityAudit('login_success', req, {
-                ip: clientIp,
-                username: tokenPayload.username,
-                role: 'admin',
-                legacyMode: true,
-            });
-            clearLoginRate(clientIp, username || tokenPayload.username);
-            return res.json({
-                success: true,
-                token,
-                user: {
-                    username: tokenPayload.username,
-                    role: 'admin',
-                    email: adminUser?.email || '',
-                    subscriptionEmail: resolveUserSubscriptionEmail(adminUser),
-                },
-            });
-        }
-
+    const result = createLoginSession(req.body);
+    if (!result.success) {
         recordLoginFailure(clientIp, username);
         const failState = getLoginRateState(clientIp, username);
         if (failState.blocked) {
@@ -646,46 +182,31 @@ router.post('/login', (req, res) => {
             });
         }
 
+        if (result.reason === 'email_not_verified') {
+            return res.status(403).json({
+                success: false,
+                msg: '邮箱尚未验证，请先完成邮箱验证',
+                needVerify: true,
+                email: result.email,
+            });
+        }
+        if (result.reason === 'user_disabled') {
+            return res.status(403).json({
+                success: false,
+                msg: '账号待审核，请等待管理员审核通过后再登录',
+            });
+        }
+
         appendSecurityAudit('login_failed', req, { ip: clientIp, username: username || '(none)' });
         return res.status(401).json({ success: false, msg: '用户名或密码错误' });
     }
 
-    // 检查邮箱是否已验证 (admin 用户跳过检查)
-    const fullUser = userStore.getByUsername(user.username);
-    if (fullUser && fullUser.email && !fullUser.emailVerified && fullUser.role !== 'admin') {
-        return res.status(403).json({
-            success: false,
-            msg: '邮箱尚未验证，请先完成邮箱验证',
-            needVerify: true,
-            email: fullUser.email,
-        });
-    }
-
-    // 检查账号是否已启用 (admin 用户跳过检查)
-    if (fullUser && fullUser.enabled === false && fullUser.role !== 'admin') {
-        return res.status(403).json({
-            success: false,
-            msg: '账号待审核，请等待管理员审核通过后再登录',
-        });
-    }
-
-    const token = jwt.sign(
-        { userId: user.id, role: user.role, username: user.username },
-        config.jwt.secret,
-        { expiresIn: config.jwt.expiresIn }
-    );
-
-    appendSecurityAudit('login_success', req, { ip: clientIp, username: user.username, role: user.role });
-    clearLoginRate(clientIp, user.username);
+    appendSecurityAudit('login_success', req, { ip: clientIp, ...result.audit });
+    clearLoginRate(clientIp, result.audit.username);
     res.json({
         success: true,
-        token,
-        user: {
-            username: user.username,
-            role: user.role,
-            email: fullUser?.email || '',
-            subscriptionEmail: resolveUserSubscriptionEmail(fullUser),
-        },
+        token: result.token,
+        user: result.user,
     });
 });
 
@@ -694,21 +215,11 @@ router.post('/login', (req, res) => {
  * 验证 JWT 是否有效, 返回用户信息
  */
 router.get('/check', (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ success: false });
-    }
     try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], config.jwt.secret);
-        const stored = decoded.userId ? userStore.getById(decoded.userId) : userStore.getByUsername(decoded.username);
+        const result = validateSession(req.headers.authorization);
         res.json({
             success: true,
-            user: {
-                username: decoded.username,
-                role: decoded.role,
-                email: stored?.email || '',
-                subscriptionEmail: resolveUserSubscriptionEmail(stored),
-            },
+            user: result.user,
         });
     } catch {
         res.status(401).json({ success: false });
@@ -736,71 +247,36 @@ router.post('/register', async (req, res) => {
     }
 
     try {
-        const { username, password, email } = req.body;
+        const result = await registerUser(req.body);
 
-        // 校验必填字段
-        if (!username || !password || !email) {
-            return res.status(400).json({ success: false, msg: '用户名、密码和邮箱不能为空' });
-        }
-
-        // 校验邮箱格式
-        if (!isValidEmail(email)) {
-            return res.status(400).json({ success: false, msg: '邮箱格式不正确' });
-        }
-
-        const passwordCheck = checkAccountPassword(password);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ success: false, msg: passwordCheck.reason });
-        }
-
-        // 创建用户 (emailVerified = false, enabled = false 待审核)
-        const user = userStore.add({
-            username,
-            password,
-            email,
-            subscriptionEmail: '',
-            role: config.registration.defaultRole,
-            emailVerified: false,
-            enabled: false,
+        appendSecurityAudit('verification_email_sent', req, {
+            ip: clientIp,
+            username: result.username,
+            email: result.email,
+            type: 'register',
         });
-
-        const code = generateVerifyCode();
-        const expiresAt = new Date(Date.now() + config.registration.verifyCodeTtlMinutes * 60 * 1000).toISOString();
-
-        try {
-            await sendVerificationEmail(email, code, username);
-            userStore.setVerifyCode(user.id, code, expiresAt);
-            appendSecurityAudit('verification_email_sent', req, {
-                ip: clientIp,
-                username,
-                email,
-                type: 'register',
-            });
-        } catch (mailErr) {
-            try {
-                userStore.remove(user.id);
-            } catch { /* ignore cleanup failure */ }
-            appendSecurityAudit('verification_email_failed', req, {
-                ip: clientIp,
-                username,
-                email,
-                type: 'register',
-                error: mailErr.message || 'send failed',
-            });
-            return res.status(503).json({
-                success: false,
-                msg: '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
-            });
-        }
-
-        appendSecurityAudit('user_registered', req, { ip: clientIp, username, email });
+        appendSecurityAudit('user_registered', req, {
+            ip: clientIp,
+            username: result.username,
+            email: result.email,
+        });
         res.json({
             success: true,
             msg: '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
-            email: user.email,
+            email: result.user.email,
         });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '注册失败');
+        if (error.code === 'VERIFICATION_EMAIL_SEND_FAILED') {
+            appendSecurityAudit('verification_email_failed', req, {
+                ip: clientIp,
+                username: error.details?.username || String(req.body?.username || '').trim(),
+                email: error.details?.email || normalizeEmailInput(req.body?.email),
+                type: error.details?.type || 'register',
+                error: error.details?.error || error.message,
+            });
+        }
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -809,34 +285,19 @@ router.post('/register', async (req, res) => {
  */
 router.post('/verify-email', (req, res) => {
     try {
-        const { email, code } = req.body;
-
-        if (!email || !code) {
-            return res.status(400).json({ success: false, msg: '请提供邮箱和验证码' });
-        }
-
-        const user = userStore.getByEmail(email);
-        if (!user) {
-            return res.status(404).json({ success: false, msg: '邮箱未注册' });
-        }
-
-        if (user.emailVerified) {
+        const result = verifyEmailCode(req.body);
+        if (result.alreadyVerified) {
             return res.json({ success: true, msg: '邮箱已验证' });
         }
 
-        if (!user.verifyCode || user.verifyCode !== code.trim()) {
-            return res.status(400).json({ success: false, msg: '验证码错误' });
-        }
-
-        if (user.verifyCodeExpiresAt && new Date(user.verifyCodeExpiresAt) < new Date()) {
-            return res.status(400).json({ success: false, msg: '验证码已过期，请重新发送' });
-        }
-
-        userStore.setEmailVerified(user.id);
-        appendSecurityAudit('email_verified', req, { email, username: user.username });
+        appendSecurityAudit('email_verified', req, {
+            email: result.email,
+            username: result.user.username,
+        });
         res.json({ success: true, msg: '邮箱验证成功，请登录' });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '邮箱验证失败');
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -850,48 +311,30 @@ router.post('/resend-code', async (req, res) => {
     }
 
     try {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ success: false, msg: '请提供邮箱' });
-        }
-
-        const user = userStore.getByEmail(email);
-        if (!user) {
-            return res.status(404).json({ success: false, msg: '邮箱未注册' });
-        }
-
-        if (user.emailVerified) {
+        const result = await resendVerificationCode(req.body);
+        if (result.alreadyVerified) {
             return res.json({ success: true, msg: '邮箱已验证，无需重发' });
         }
 
-        const code = generateVerifyCode();
-        const expiresAt = new Date(Date.now() + config.registration.verifyCodeTtlMinutes * 60 * 1000).toISOString();
-
-        try {
-            await sendVerificationEmail(email, code, user.username);
-            userStore.setVerifyCode(user.id, code, expiresAt);
-            appendSecurityAudit('verification_email_sent', req, {
-                ip: clientIp,
-                username: user.username,
-                email,
-                type: 'resend',
-            });
-            return res.json({ success: true, msg: '验证码已重新发送' });
-        } catch (err) {
+        appendSecurityAudit('verification_email_sent', req, {
+            ip: clientIp,
+            username: result.user.username,
+            email: result.email,
+            type: 'resend',
+        });
+        return res.json({ success: true, msg: '验证码已重新发送' });
+    } catch (err) {
+        const error = toHttpError(err, 500, '验证码重发失败');
+        if (error.code === 'VERIFICATION_EMAIL_SEND_FAILED') {
             appendSecurityAudit('verification_email_failed', req, {
                 ip: clientIp,
-                username: user.username,
-                email,
-                type: 'resend',
-                error: err.message || 'send failed',
-            });
-            return res.status(503).json({
-                success: false,
-                msg: '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+                username: error.details?.username || '',
+                email: error.details?.email || normalizeEmailInput(req.body?.email),
+                type: error.details?.type || 'resend',
+                error: error.details?.error || error.message,
             });
         }
-    } catch (err) {
-        res.status(500).json({ success: false, msg: err.message });
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -906,40 +349,31 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     try {
-        const email = String(req.body?.email || '').trim().toLowerCase();
-        if (!email || !isValidEmail(email)) {
-            return res.status(400).json({ success: false, msg: '请输入有效邮箱' });
-        }
-
-        const user = userStore.getByEmail(email);
-        if (!user || !user.emailVerified) {
+        const result = await requestPasswordReset(req.body);
+        if (result.hidden) {
             // 不暴露邮箱是否存在，防止枚举。
             return res.json({ success: true, msg: '如果邮箱已注册，验证码已发送，请查收邮箱' });
         }
 
-        const code = generateVerifyCode();
-        const ttlMinutes = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes;
-        const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
-
-        try {
-            await sendPasswordResetEmail(email, code, user.username);
-            userStore.setPasswordResetCode(user.id, code, expiresAt);
-            appendSecurityAudit('password_reset_email_sent', req, { email, username: user.username });
-            appendSecurityAudit('password_reset_code_sent', req, { email, username: user.username });
-            return res.json({ success: true, msg: '重置验证码已发送，请查收邮箱' });
-        } catch (err) {
+        appendSecurityAudit('password_reset_email_sent', req, {
+            email: result.email,
+            username: result.user.username,
+        });
+        appendSecurityAudit('password_reset_code_sent', req, {
+            email: result.email,
+            username: result.user.username,
+        });
+        return res.json({ success: true, msg: '重置验证码已发送，请查收邮箱' });
+    } catch (err) {
+        const error = toHttpError(err, 500, '发送失败');
+        if (error.code === 'PASSWORD_RESET_EMAIL_SEND_FAILED') {
             appendSecurityAudit('password_reset_email_failed', req, {
-                email,
-                username: user.username,
-                error: err.message || 'send failed',
-            });
-            return res.status(503).json({
-                success: false,
-                msg: '重置验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+                email: error.details?.email || normalizeEmailInput(req.body?.email),
+                username: error.details?.username || '',
+                error: error.details?.error || error.message,
             });
         }
-    } catch (err) {
-        return res.status(500).json({ success: false, msg: err.message || '发送失败' });
+        return res.status(error.status).json({ success: false, msg: error.message || '发送失败' });
     }
 });
 
@@ -948,43 +382,15 @@ router.post('/forgot-password', async (req, res) => {
  */
 router.post('/reset-password', (req, res) => {
     try {
-        const email = String(req.body?.email || '').trim().toLowerCase();
-        const code = String(req.body?.code || '').trim();
-        const newPassword = String(req.body?.newPassword || '');
-
-        if (!email || !code || !newPassword) {
-            return res.status(400).json({ success: false, msg: '邮箱、验证码和新密码不能为空' });
-        }
-        if (!isValidEmail(email)) {
-            return res.status(400).json({ success: false, msg: '邮箱格式不正确' });
-        }
-
-        const passwordCheck = checkAccountPassword(newPassword);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ success: false, msg: passwordCheck.reason });
-        }
-
-        const user = userStore.getByEmail(email);
-        if (!user) {
-            return res.status(400).json({ success: false, msg: '邮箱或验证码错误' });
-        }
-        if (!user.resetCode || user.resetCode !== code) {
-            return res.status(400).json({ success: false, msg: '邮箱或验证码错误' });
-        }
-        if (user.resetCodeExpiresAt && new Date(user.resetCodeExpiresAt) < new Date()) {
-            return res.status(400).json({ success: false, msg: '验证码已过期，请重新获取' });
-        }
-
-        userStore.update(user.id, { password: newPassword });
-        userStore.clearPasswordResetCode(user.id);
-
+        const result = resetPasswordWithCode(req.body);
         appendSecurityAudit('password_reset_completed', req, {
-            email,
-            username: user.username,
+            email: result.email,
+            username: result.user.username,
         });
         return res.json({ success: true, msg: '密码重置成功，请使用新密码登录' });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '密码重置失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -994,7 +400,7 @@ router.post('/reset-password', (req, res) => {
  * GET /api/auth/users — 获取所有用户列表
  */
 router.get('/users', authMiddleware, adminOnly, (req, res) => {
-    res.json({ success: true, obj: userStore.getAll() });
+    res.json({ success: true, obj: listUsers() });
 });
 
 /**
@@ -1002,90 +408,35 @@ router.get('/users', authMiddleware, adminOnly, (req, res) => {
  */
 router.post('/users', authMiddleware, adminOnly, (req, res) => {
     try {
-        const { username, password, role } = req.body;
-        const email = normalizeEmailInput(req.body?.email);
-        const subscriptionEmail = Object.prototype.hasOwnProperty.call(req.body || {}, 'subscriptionEmail')
-            ? normalizeEmailInput(req.body?.subscriptionEmail)
-            : email;
-
-        if (email && !isValidEmail(email)) {
-            return res.status(400).json({ success: false, msg: '邮箱格式不正确' });
-        }
-        if (subscriptionEmail && !isValidEmail(subscriptionEmail)) {
-            return res.status(400).json({ success: false, msg: '订阅绑定邮箱格式不正确' });
-        }
-
-        const passwordCheck = checkAccountPassword(password);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ success: false, msg: passwordCheck.reason });
-        }
-
-        const user = userStore.add({
-            username,
-            password,
-            role,
-            email,
-            subscriptionEmail,
-            emailVerified: true,
-            enabled: true,
-        });
-        appendSecurityAudit('user_created', req, {
-            targetUser: username,
-            role,
-            email,
-            subscriptionEmail: user.subscriptionEmail || '',
-        });
-        res.json({ success: true, obj: user });
+        const result = createManagedUser(req.body);
+        appendSecurityAudit('user_created', req, result.audit);
+        res.json({ success: true, obj: result.user });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '创建用户失败');
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
 // ── Bulk enable/disable users ──
 router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, res) => {
-    const { userIds, enabled } = req.body || {};
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-        return res.status(400).json({ success: false, msg: '请提供用户ID列表' });
+    try {
+        const result = bulkSetUsersEnabled(req.body);
+        return res.json({
+            success: true,
+            msg: `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`,
+            obj: result.results,
+        });
+    } catch (err) {
+        const error = toHttpError(err, 400, '批量更新用户状态失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
-    const results = [];
-    for (const uid of userIds) {
-        try {
-            const updated = userStore.setEnabled(uid, !!enabled);
-            if (updated) {
-                results.push({ id: uid, success: true });
-            } else {
-                results.push({ id: uid, success: false, msg: '用户不存在' });
-            }
-        } catch (err) {
-            results.push({ id: uid, success: false, msg: err.message });
-        }
-    }
-    const successCount = results.filter(r => r.success).length;
-    return res.json({
-        success: true,
-        msg: `已${enabled ? '启用' : '停用'} ${successCount}/${userIds.length} 个用户`,
-        obj: results,
-    });
 });
 
 // ── CSV export users ──
 router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
-    const users = userStore.getAll();
-    const header = 'ID,用户名,邮箱,订阅邮箱,角色,状态,邮箱已验证,创建时间,最后登录';
-    const rows = users.map(u => [
-        u.id,
-        `"${String(u.username || '').replace(/"/g, '""')}"`,
-        `"${String(u.email || '').replace(/"/g, '""')}"`,
-        `"${String(u.subscriptionEmail || '').replace(/"/g, '""')}"`,
-        u.role,
-        u.enabled ? '启用' : '停用',
-        u.emailVerified ? '是' : '否',
-        u.createdAt || '',
-        u.lastLoginAt || '',
-    ].join(','));
-    const csv = '\uFEFF' + [header, ...rows].join('\n');
+    const csv = buildUsersCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="users_${new Date().toISOString().slice(0,10)}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${buildUsersExportFilename()}"`);
     return res.send(csv);
 });
 
@@ -1094,39 +445,12 @@ router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
  */
 router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
     try {
-        const { username, password, role } = req.body;
-        const nextData = { username, password, role };
-
-        if (Object.prototype.hasOwnProperty.call(req.body, 'email')) {
-            const email = normalizeEmailInput(req.body?.email);
-            if (email && !isValidEmail(email)) {
-                return res.status(400).json({ success: false, msg: '邮箱格式不正确' });
-            }
-            nextData.email = email;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(req.body, 'subscriptionEmail')) {
-            const subscriptionEmail = normalizeEmailInput(req.body?.subscriptionEmail);
-            if (subscriptionEmail && !isValidEmail(subscriptionEmail)) {
-                return res.status(400).json({ success: false, msg: '订阅绑定邮箱格式不正确' });
-            }
-            nextData.subscriptionEmail = subscriptionEmail;
-        }
-
-        // 如果更新密码，检查账号密码策略
-        if (password) {
-            const passwordCheck = checkAccountPassword(password);
-            if (!passwordCheck.valid) {
-                return res.status(400).json({ success: false, msg: passwordCheck.reason });
-            }
-        }
-
-        const user = userStore.update(req.params.id, nextData);
-        if (!user) return res.status(404).json({ success: false, msg: '用户不存在' });
-        appendSecurityAudit('user_updated', req, { targetUser: user.username });
-        res.json({ success: true, obj: user });
+        const result = updateManagedUser(req.params.id, req.body);
+        appendSecurityAudit('user_updated', req, { targetUser: result.user.username });
+        res.json({ success: true, obj: result.user });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '更新用户失败');
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1135,31 +459,19 @@ router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
  */
 router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, (req, res) => {
     try {
-        if (!Object.prototype.hasOwnProperty.call(req.body || {}, 'subscriptionEmail')) {
-            return res.status(400).json({ success: false, msg: 'subscriptionEmail is required' });
-        }
-        const subscriptionEmail = normalizeEmailInput(req.body?.subscriptionEmail);
-        if (subscriptionEmail && !isValidEmail(subscriptionEmail)) {
-            return res.status(400).json({ success: false, msg: '订阅绑定邮箱格式不正确' });
-        }
-
-        const target = userStore.getById(req.params.id);
-        if (!target) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-
-        const updated = userStore.setSubscriptionEmail(req.params.id, subscriptionEmail);
+        const result = updateUserSubscriptionBinding(req.params.id, req.body);
         appendSecurityAudit('user_subscription_binding_updated', req, {
-            targetUserId: target.id,
-            targetUsername: target.username,
-            subscriptionEmail: updated?.subscriptionEmail || '',
+            targetUserId: result.target.id,
+            targetUsername: result.target.username,
+            subscriptionEmail: result.updated?.subscriptionEmail || '',
         });
         return res.json({
             success: true,
-            obj: updated,
+            obj: result.updated,
         });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '更新订阅绑定失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1168,49 +480,20 @@ router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, (req, r
  */
 router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const target = userStore.getById(req.params.id);
-        if (!target) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-        if (target.role === 'admin') {
-            return res.status(400).json({ success: false, msg: '管理员账号无法停用' });
-        }
-
-        const enabled = !!req.body?.enabled;
-        const updated = userStore.setEnabled(req.params.id, enabled);
-
-        const subscriptionEmail = resolveUserSubscriptionEmail(target);
-        const allServers = serverStore.getAll();
-
-        if (!enabled && subscriptionEmail) {
-            // 停用：删除 3x-ui 客户端 + 撤销订阅 token
-            try {
-                await autoRemoveClients(subscriptionEmail, allServers);
-            } catch { /* best-effort */ }
-            try {
-                subscriptionTokenStore.revokeAllByEmail(subscriptionEmail, 'user-disabled');
-            } catch { /* best-effort */ }
-        } else if (enabled && subscriptionEmail) {
-            // 启用：如果已有 policy，恢复客户端
-            const policy = userPolicyStore.get(subscriptionEmail);
-            if (policy) {
-                try {
-                    await autoDeployClients(subscriptionEmail, allServers, policy);
-                } catch { /* best-effort */ }
-                try {
-                    ensurePersistentSubscriptionToken(subscriptionEmail, String(req.user?.username || 'admin'));
-                } catch { /* best-effort */ }
-            }
-        }
-
-        appendSecurityAudit(enabled ? 'user_enabled' : 'user_disabled', req, {
-            targetUserId: target.id,
-            targetUsername: target.username,
-            enabled,
+        const result = await setManagedUserEnabled(
+            req.params.id,
+            req.body,
+            String(req.user?.username || 'admin')
+        );
+        appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, {
+            targetUserId: result.target.id,
+            targetUsername: result.target.username,
+            enabled: result.enabled,
         });
-        return res.json({ success: true, obj: updated });
+        return res.json({ success: true, obj: result.updated });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '更新用户状态失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1219,41 +502,24 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
  */
 router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const target = userStore.getById(req.params.id);
-        if (!target) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-
-        const subscriptionEmail = resolveUserSubscriptionEmail(target);
-        if (!subscriptionEmail) {
-            return res.status(400).json({ success: false, msg: '该用户无订阅邮箱' });
-        }
-
-        const expiryTime = Math.max(0, Math.floor(Number(req.body?.expiryTime) || 0));
-        const allServers = serverStore.getAll();
-        const currentPolicy = userPolicyStore.get(subscriptionEmail);
-        const nextPolicy = userPolicyStore.upsert(
-            subscriptionEmail,
-            {
-                ...currentPolicy,
-                expiryTime,
-            },
+        const result = await updateManagedUserExpiry(
+            req.params.id,
+            req.body,
             String(req.user?.username || 'admin')
         );
-        const result = await autoDeployClients(subscriptionEmail, allServers, nextPolicy, { expiryTime });
-
         appendSecurityAudit('user_expiry_updated', req, {
-            targetUserId: target.id,
-            targetUsername: target.username,
-            subscriptionEmail,
-            expiryTime,
-            updated: result.updated,
-            failed: result.failed,
+            targetUserId: result.target.id,
+            targetUsername: result.target.username,
+            subscriptionEmail: result.subscriptionEmail,
+            expiryTime: result.expiryTime,
+            updated: result.deployment.updated,
+            failed: result.deployment.failed,
         });
 
-        return res.json({ success: true, obj: result });
+        return res.json({ success: true, obj: result.deployment });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '更新到期时间失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1263,106 +529,21 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
  */
 router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const target = userStore.getById(req.params.id);
-        if (!target) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-        if (target.role === 'admin') {
-            return res.status(400).json({ success: false, msg: '管理员账号无需开通订阅' });
-        }
-
-        const requestedEmail = Object.prototype.hasOwnProperty.call(req.body || {}, 'subscriptionEmail')
-            ? req.body?.subscriptionEmail
-            : (target.subscriptionEmail || target.email);
-        const subscriptionEmail = normalizeEmailInput(requestedEmail);
-        if (!subscriptionEmail) {
-            return res.status(400).json({
-                success: false,
-                msg: '订阅绑定邮箱不能为空，请先为该用户设置邮箱',
-            });
-        }
-        if (!isValidEmail(subscriptionEmail)) {
-            return res.status(400).json({ success: false, msg: '订阅绑定邮箱格式不正确' });
-        }
-
-        const allowedServerIds = normalizeServerIds(req.body?.allowedServerIds);
-        const existingServerIds = new Set(serverStore.getAll().map((item) => item.id));
-        const invalidServerIds = allowedServerIds.filter((item) => !existingServerIds.has(item));
-        if (invalidServerIds.length > 0) {
-            return res.status(400).json({
-                success: false,
-                msg: `Unknown server IDs: ${invalidServerIds.join(', ')}`,
-            });
-        }
-        const allowedProtocols = normalizeProtocols(req.body?.allowedProtocols);
-        let serverScopeMode = normalizeScopeMode(req.body?.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all');
-        let protocolScopeMode = normalizeScopeMode(req.body?.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all');
-
-        if (serverScopeMode === 'selected' && allowedServerIds.length === 0) {
-            serverScopeMode = 'none';
-        }
-        if (protocolScopeMode === 'selected' && allowedProtocols.length === 0) {
-            protocolScopeMode = 'none';
-        }
-
-        // Parse expiry: support expiryTime (timestamp ms) or expiryDays (relative days)
-        let expiryTime = 0;
-        const rawExpiryTime = Number(req.body?.expiryTime || 0);
-        const rawExpiryDays = Number(req.body?.expiryDays || 0);
-        if (rawExpiryTime > 0) {
-            expiryTime = Math.floor(rawExpiryTime);
-        } else if (rawExpiryDays > 0) {
-            expiryTime = Date.now() + Math.floor(rawExpiryDays) * 24 * 60 * 60 * 1000;
-        }
-        const limitIp = normalizeNonNegativeInt(req.body?.limitIp, 0);
-        const trafficLimitBytes = normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0);
-
         const actor = String(req.user?.username || req.user?.role || 'admin');
-        const user = userStore.setSubscriptionEmail(target.id, subscriptionEmail);
-        const policy = userPolicyStore.upsert(
-            subscriptionEmail,
-            {
-                allowedServerIds,
-                allowedProtocols,
-                serverScopeMode,
-                protocolScopeMode,
-                expiryTime,
-                limitIp,
-                trafficLimitBytes,
-            },
-            actor
-        );
-        const tokenState = ensurePersistentSubscriptionToken(subscriptionEmail, actor);
-
-        // Parse allowed inbound keys (optional)
-        const allowedInboundKeys = Array.isArray(req.body?.allowedInboundKeys)
-            ? req.body.allowedInboundKeys.map((k) => String(k).trim()).filter(Boolean)
-            : [];
-
-        // Auto-deploy clients to 3x-ui panels
-        let deployment = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
-        try {
-            deployment = await autoDeployClients(subscriptionEmail, serverStore.getAll(), policy, {
-                expiryTime,
-                limitIp,
-                trafficLimitBytes,
-                allowedInboundKeys,
-            });
-        } catch (err) {
-            deployment.error = err.message || 'Auto-deploy failed';
-        }
+        const result = await provisionManagedUserSubscription(req.params.id, req.body, actor);
+        const { user, policy, subscription, deployment, context, target } = result;
 
         appendSecurityAudit('user_subscription_provisioned', req, {
             targetUserId: target.id,
             targetUsername: target.username,
-            subscriptionEmail,
-            allowedServerCount: allowedServerIds.length,
-            allowedProtocolCount: allowedProtocols.length,
-            expiryTime,
-            limitIp,
-            trafficLimitBytes,
-            tokenAutoIssued: tokenState.autoIssued,
-            tokenIssueError: tokenState.issueError || '',
+            subscriptionEmail: context.subscriptionEmail,
+            allowedServerCount: context.allowedServerIds.length,
+            allowedProtocolCount: context.allowedProtocols.length,
+            expiryTime: context.expiryTime,
+            limitIp: context.limitIp,
+            trafficLimitBytes: context.trafficLimitBytes,
+            tokenAutoIssued: context.tokenState.autoIssued,
+            tokenIssueError: context.tokenState.issueError || '',
             deploymentCreated: deployment.created,
             deploymentUpdated: deployment.updated,
             deploymentSkipped: deployment.skipped,
@@ -1374,21 +555,13 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             obj: {
                 user,
                 policy,
-                subscription: {
-                    email: subscriptionEmail,
-                    status: subscriptionEmail ? 'active' : 'pending',
-                    fetchPath: `/api/subscriptions/${encodeURIComponent(subscriptionEmail)}`,
-                    token: {
-                        currentTokenId: tokenState.metadata?.id || '',
-                        autoIssued: tokenState.autoIssued,
-                        issueError: tokenState.issueError,
-                    },
-                },
+                subscription,
                 deployment,
             },
         });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '开通订阅失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1397,30 +570,15 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
  */
 router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) => {
     try {
-        const newPassword = String(req.body?.newPassword || '');
-        if (!newPassword) {
-            return res.status(400).json({ success: false, msg: '新密码不能为空' });
-        }
-
-        const passwordCheck = checkAccountPassword(newPassword);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ success: false, msg: passwordCheck.reason });
-        }
-
-        const target = userStore.getById(req.params.id);
-        if (!target) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-
-        userStore.update(req.params.id, { password: newPassword });
-        userStore.clearPasswordResetCode(req.params.id);
+        const result = adminResetUserPassword(req.params.id, req.body);
         appendSecurityAudit('user_password_reset_by_admin', req, {
-            targetUserId: target.id,
-            targetUsername: target.username,
+            targetUserId: result.target.id,
+            targetUsername: result.target.username,
         });
         return res.json({ success: true, msg: '密码已重置' });
     } catch (err) {
-        return res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '管理员重置密码失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1429,67 +587,28 @@ router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) =>
  */
 router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const targetUser = userStore.getById(req.params.id);
-        if (!targetUser) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-        if (targetUser.role === 'admin') {
-            return res.status(400).json({ success: false, msg: '管理员账号不支持在此处删除' });
-        }
-
-        const cleanupEmails = Array.from(new Set([
-            normalizeEmailInput(targetUser.email),
-            resolveUserSubscriptionEmail(targetUser),
-        ].filter(Boolean)));
-        const ok = userStore.remove(req.params.id);
-        if (!ok) return res.status(404).json({ success: false, msg: '用户不存在' });
-
-        let revokedTokenCount = 0;
-        const removedPolicyEmails = [];
-        let cleanupError = '';
-        for (const email of cleanupEmails) {
-            try {
-                revokedTokenCount += subscriptionTokenStore.revokeAllByEmail(email, 'user-deleted');
-                const removed = userPolicyStore.remove(email);
-                if (removed) removedPolicyEmails.push(email);
-            } catch (error) {
-                cleanupError = error.message || 'cleanup-failed';
-            }
-        }
-
-        // Remove clients from 3x-ui panels
-        let clientCleanup = { total: 0, removed: 0, failed: 0 };
-        for (const email of cleanupEmails) {
-            try {
-                const removal = await autoRemoveClients(email, serverStore.getAll());
-                clientCleanup.total += removal.total;
-                clientCleanup.removed += removal.removed;
-                clientCleanup.failed += removal.failed;
-            } catch {
-                // best-effort, don't block user deletion
-            }
-        }
-
+        const result = await deleteManagedUser(req.params.id);
         appendSecurityAudit('user_deleted', req, {
-            targetUserId: targetUser.id,
-            targetUser: targetUser.username,
-            cleanupEmails,
-            revokedTokenCount,
-            removedPolicyEmails,
-            cleanupError,
-            clientCleanup,
+            targetUserId: result.targetUser.id,
+            targetUser: result.targetUser.username,
+            cleanupEmails: result.cleanupEmails,
+            revokedTokenCount: result.revokedTokenCount,
+            removedPolicyEmails: result.removedPolicyEmails,
+            cleanupError: result.cleanupError,
+            clientCleanup: result.clientCleanup,
         });
         res.json({
             success: true,
             obj: {
-                revokedTokenCount,
-                removedPolicyEmails,
-                cleanupError: cleanupError || null,
-                clientCleanup,
+                revokedTokenCount: result.revokedTokenCount,
+                removedPolicyEmails: result.removedPolicyEmails,
+                cleanupError: result.cleanupError || null,
+                clientCleanup: result.clientCleanup,
             },
         });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '删除用户失败');
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
@@ -1498,37 +617,12 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
  */
 router.put('/change-password', authMiddleware, (req, res) => {
     try {
-        const { oldPassword, newPassword } = req.body;
-        if (!oldPassword || !newPassword) {
-            return res.status(400).json({ success: false, msg: '请提供旧密码和新密码' });
-        }
-
-        const passwordCheck = checkAccountPassword(newPassword);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ success: false, msg: passwordCheck.reason });
-        }
-
-        const userId = req.user.userId;
-        if (!userId) {
-            return res.status(400).json({ success: false, msg: '无法识别当前用户' });
-        }
-
-        const user = userStore.getById(userId);
-        if (!user) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
-        }
-
-        // Verify old password
-        const verified = userStore.authenticate(user.username, oldPassword);
-        if (!verified) {
-            return res.status(401).json({ success: false, msg: '旧密码错误' });
-        }
-
-        userStore.update(userId, { password: newPassword });
-        appendSecurityAudit('password_changed', req, { username: user.username });
+        const result = changeOwnPassword(req.body, req.user);
+        appendSecurityAudit('password_changed', req, { username: result.user.username });
         res.json({ success: true, msg: '密码修改成功' });
     } catch (err) {
-        res.status(400).json({ success: false, msg: err.message });
+        const error = toHttpError(err, 400, '修改密码失败');
+        res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 

@@ -7,6 +7,7 @@ import { ensureAuthenticated } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
+import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
 
@@ -128,114 +129,6 @@ function parseBoolean(value, fallback = false) {
     if (['1', 'true', 'yes', 'on'].includes(text)) return true;
     if (['0', 'false', 'no', 'off'].includes(text)) return false;
     return fallback;
-}
-
-const LOG_SOURCES = new Set(['panel', 'xray', 'system']);
-
-function normalizeLogSource(value) {
-    const text = String(value || '').trim().toLowerCase();
-    return LOG_SOURCES.has(text) ? text : 'panel';
-}
-
-function normalizeLogCount(value, fallback = 100) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    return Math.max(1, Math.min(500, Math.floor(parsed)));
-}
-
-function isUnsupportedLogEndpoint(error) {
-    const status = Number(error?.response?.status || 0);
-    if ([400, 404, 405, 501].includes(status)) return true;
-    const message = String(error?.response?.data?.msg || error?.message || '').toLowerCase();
-    return message.includes('not found') || message.includes('not support') || message.includes('unsupported');
-}
-
-function extractLogLines(payload) {
-    const raw = payload?.data?.obj ?? payload?.obj ?? payload;
-    if (typeof raw === 'string') {
-        return raw
-            .split(/\r?\n/)
-            .map((line) => String(line || '').trimEnd())
-            .filter(Boolean);
-    }
-    if (Array.isArray(raw)) {
-        return raw
-            .map((line) => String(line || '').trimEnd())
-            .filter(Boolean);
-    }
-    if (Array.isArray(raw?.lines)) {
-        return raw.lines
-            .map((line) => String(line || '').trimEnd())
-            .filter(Boolean);
-    }
-    return [];
-}
-
-async function fetchLegacyLogLines(client, source, count) {
-    const endpoint = source === 'system'
-        ? '/server/api/server/log'
-        : '/panel/api/server/log';
-    const body = new URLSearchParams();
-    body.append('count', String(count));
-    const res = await client.post(endpoint, body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-    return extractLogLines(res);
-}
-
-async function fetchServerLogPayload(client, source, count) {
-    if (source === 'panel') {
-        try {
-            const preferred = await client.get(`/panel/api/server/logs/${count}`);
-            return {
-                supported: true,
-                lines: extractLogLines(preferred),
-                warning: '',
-                sourcePath: `/panel/api/server/logs/${count}`,
-            };
-        } catch (error) {
-            if (!isUnsupportedLogEndpoint(error)) {
-                throw error;
-            }
-            const lines = await fetchLegacyLogLines(client, 'panel', count);
-            return {
-                supported: true,
-                lines,
-                warning: '当前节点使用旧版日志接口兼容返回',
-                sourcePath: '/panel/api/server/log',
-            };
-        }
-    }
-
-    if (source === 'xray') {
-        try {
-            const preferred = await client.get(`/panel/api/server/xraylogs/${count}`);
-            return {
-                supported: true,
-                lines: extractLogLines(preferred),
-                warning: '',
-                sourcePath: `/panel/api/server/xraylogs/${count}`,
-            };
-        } catch (error) {
-            if (isUnsupportedLogEndpoint(error)) {
-                return {
-                    supported: false,
-                    lines: [],
-                    warning: '当前 3x-ui 版本不支持 Xray 日志接口',
-                    sourcePath: `/panel/api/server/xraylogs/${count}`,
-                };
-            }
-            throw error;
-        }
-    }
-
-    const lines = await fetchLegacyLogLines(client, 'system', count);
-    return {
-        supported: true,
-        lines,
-        warning: '',
-        sourcePath: '/server/api/server/log',
-    };
 }
 
 function applyServerFilters(servers, query = {}) {
@@ -383,22 +276,16 @@ router.get('/governance/summary', (req, res) => {
 });
 
 router.get('/:id/logs', async (req, res) => {
-    const server = serverStore.getById(req.params.id);
-    if (!server) {
-        return res.status(404).json({ success: false, msg: '服务器不存在' });
-    }
-
-    const source = normalizeLogSource(req.query?.source);
-    const count = normalizeLogCount(req.query?.count, 100);
-
     try {
-        const client = await ensureAuthenticated(server.id);
-        const payload = await fetchServerLogPayload(client, source, count);
+        const source = normalizeRequestedLogSource(req.query?.source);
+        const count = normalizeRequestedLogCount(req.query?.count, 100);
+        const payload = await fetchServerLogResult(req.params.id, { source, count });
+        const server = serverStore.getById(req.params.id);
         return res.json({
             success: true,
             obj: {
-                serverId: server.id,
-                serverName: server.name,
+                serverId: req.params.id,
+                serverName: server?.name || '',
                 source,
                 count,
                 supported: payload.supported !== false,
@@ -409,7 +296,7 @@ router.get('/:id/logs', async (req, res) => {
             },
         });
     } catch (error) {
-        return res.status(502).json({
+        return res.status(error?.status || 502).json({
             success: false,
             msg: error.message || '获取日志失败',
         });
@@ -835,5 +722,5 @@ router.patch('/batch', (req, res) => {
     });
 });
 
-export { isBlockedHostname, validateServerUrl, extractLogLines, fetchServerLogPayload };
+export { isBlockedHostname, validateServerUrl };
 export default router;

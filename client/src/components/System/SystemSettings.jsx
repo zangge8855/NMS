@@ -86,6 +86,12 @@ export default function SystemSettings() {
     const [backfillTaskId, setBackfillTaskId] = useState(null);
     const [emailStatusLoading, setEmailStatusLoading] = useState(false);
     const [emailStatus, setEmailStatus] = useState(null);
+    const [backupLoading, setBackupLoading] = useState(false);
+    const [backupStatusLoading, setBackupStatusLoading] = useState(false);
+    const [backupStatus, setBackupStatus] = useState(null);
+    const [monitorLoading, setMonitorLoading] = useState(false);
+    const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
+    const [monitorStatus, setMonitorStatus] = useState(null);
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
@@ -151,6 +157,34 @@ export default function SystemSettings() {
         setEmailStatusLoading(false);
     };
 
+    const fetchBackupStatus = async (options = {}) => {
+        const quiet = options.quiet === true;
+        setBackupStatusLoading(true);
+        try {
+            const res = await api.get('/system/backup/status');
+            setBackupStatus(res.data?.obj || null);
+        } catch (error) {
+            if (!quiet) {
+                toast.error(error.response?.data?.msg || error.message || '加载备份状态失败');
+            }
+        }
+        setBackupStatusLoading(false);
+    };
+
+    const fetchMonitorStatus = async (options = {}) => {
+        const quiet = options.quiet === true;
+        setMonitorStatusLoading(true);
+        try {
+            const res = await api.get('/system/monitor/status');
+            setMonitorStatus(res.data?.obj || null);
+        } catch (error) {
+            if (!quiet) {
+                toast.error(error.response?.data?.msg || error.message || '加载监控状态失败');
+            }
+        }
+        setMonitorStatusLoading(false);
+    };
+
     useEffect(() => {
         if (!isAdmin) {
             setLoading(false);
@@ -159,6 +193,8 @@ export default function SystemSettings() {
         fetchSettings();
         fetchDbStatus({ quiet: true });
         fetchEmailStatus({ quiet: true });
+        fetchBackupStatus({ quiet: true });
+        fetchMonitorStatus({ quiet: true });
     }, [isAdmin]);
 
     const patchField = (section, key, value) => {
@@ -301,6 +337,54 @@ export default function SystemSettings() {
             toast.error(error.response?.data?.msg || error.message || '数据库回填失败');
         }
         setDbBackfillLoading(false);
+    };
+
+    const exportBackup = async () => {
+        if (!isAdmin) return;
+        setBackupLoading(true);
+        try {
+            const res = await api.get('/system/backup/export', {
+                responseType: 'blob',
+            });
+            const blob = new Blob([res.data], { type: 'application/gzip' });
+            const url = window.URL.createObjectURL(blob);
+            const contentDisposition = String(res.headers?.['content-disposition'] || '');
+            const match = contentDisposition.match(/filename=\"?([^"]+)\"?/i);
+            const filename = match?.[1] || 'nms_backup.json.gz';
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = filename;
+            anchor.click();
+            window.URL.revokeObjectURL(url);
+            toast.success('系统备份已导出');
+            fetchBackupStatus({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '导出备份失败');
+        }
+        setBackupLoading(false);
+    };
+
+    const runMonitorCheck = async () => {
+        if (!isAdmin) return;
+        setMonitorLoading(true);
+        try {
+            const res = await api.post('/system/monitor/run');
+            const payload = res.data?.obj || null;
+            setMonitorStatus((prev) => ({
+                ...(prev || {}),
+                healthMonitor: {
+                    ...((prev && prev.healthMonitor) || {}),
+                    summary: payload?.summary || null,
+                    items: payload?.items || [],
+                    lastRunAt: payload?.summary?.checkedAt || new Date().toISOString(),
+                },
+            }));
+            toast.success('节点健康巡检已完成');
+            fetchMonitorStatus({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '节点健康巡检失败');
+        }
+        setMonitorLoading(false);
     };
 
     if (!isAdmin) {
@@ -452,6 +536,72 @@ export default function SystemSettings() {
                                     </div>
                                 </>
                             )}
+                        </div>
+
+                        <div className="card p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-semibold">系统备份</h3>
+                                <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
+                                    {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                </button>
+                            </div>
+                            <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包，不包含额外运行进程文件。</div>
+                            <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">可备份 Store</div>
+                                    <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
+                                    <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
+                                </div>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">最近导出</div>
+                                    <div className="text-lg font-semibold">{backupStatus?.lastExport?.createdAt ? new Date(backupStatus.lastExport.createdAt).toLocaleString('zh-CN') : '暂无'}</div>
+                                    <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
+                                </div>
+                            </div>
+                            <div className="mt-3">
+                                <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading}>
+                                    {backupLoading ? <span className="spinner" /> : '导出 gzip 备份'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="card p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-semibold">节点健康监控</h3>
+                                <div className="flex gap-2">
+                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
+                                        {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                    </button>
+                                    <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                                        {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="text-xs text-muted mb-3">后台会定期巡检已配置节点，并通过右上角通知中心推送异常/恢复告警。</div>
+                            <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">监控状态</div>
+                                    <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
+                                    <div className="text-xs text-muted mt-1">周期 {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟</div>
+                                </div>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">最近巡检</div>
+                                    <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.lastRunAt ? new Date(monitorStatus.healthMonitor.lastRunAt).toLocaleString('zh-CN') : '暂无'}</div>
+                                    <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
+                                </div>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">健康统计</div>
+                                    <div className="text-lg font-semibold">
+                                        正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
+                                    </div>
+                                    <div className="text-xs text-muted mt-1">维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0}</div>
+                                </div>
+                                <div className="card p-3">
+                                    <div className="text-sm text-muted">告警状态</div>
+                                    <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
+                                    <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
+                                </div>
+                            </div>
                         </div>
 
                     </div>

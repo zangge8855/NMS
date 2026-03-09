@@ -12,6 +12,7 @@ import userStore from '../store/userStore.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
+import { issueSubscriptionToken, listSubscriptionTokens, querySubscriptionAccess, revokeSubscriptionTokens, summarizeSubscriptionAccess } from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const router = Router();
@@ -2027,7 +2028,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const summary = auditStore.summarizeSubscriptionAccess({
+        const summary = await summarizeSubscriptionAccess({
             from: req.query.from,
             to: req.query.to,
             email: req.query.email,
@@ -2035,11 +2036,12 @@ router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
             status: req.query.status,
             ip: req.query.ip,
             serverId: req.query.serverId,
+        }, {
+            includeGeo: shouldIncludeGeoLookup(req),
         });
-        const payload = await enrichAccessPayloadWithGeo(summary, shouldIncludeGeoLookup(req));
         return res.json({
             success: true,
-            obj: payload,
+            obj: summary,
         });
     } catch (error) {
         return res.status(500).json({
@@ -2051,7 +2053,7 @@ router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/access', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const result = auditStore.querySubscriptionAccess({
+        const result = await querySubscriptionAccess({
             page: req.query.page,
             pageSize: req.query.pageSize,
             from: req.query.from,
@@ -2061,11 +2063,12 @@ router.get('/access', authMiddleware, adminOnly, async (req, res) => {
             status: req.query.status,
             ip: req.query.ip,
             serverId: req.query.serverId,
+        }, {
+            includeGeo: shouldIncludeGeoLookup(req),
         });
-        const payload = await enrichAccessPayloadWithGeo(result, shouldIncludeGeoLookup(req));
         return res.json({
             success: true,
-            obj: payload,
+            obj: result,
         });
     } catch (error) {
         return res.status(500).json({
@@ -2076,62 +2079,48 @@ router.get('/access', authMiddleware, adminOnly, async (req, res) => {
 });
 
 router.get('/:email/tokens', authMiddleware, adminOnly, (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    if (!email) {
-        return res.status(400).json({ success: false, msg: 'Email is required' });
+    try {
+        return res.json({
+            success: true,
+            obj: listSubscriptionTokens(req.params.email),
+        });
+    } catch (error) {
+        return res.status(error?.status || 400).json({ success: false, msg: error.message || 'Email is required' });
     }
-    const tokens = subscriptionTokenStore.listByEmail(email, {
-        includeRevoked: true,
-        includeExpired: true,
-    });
-    return res.json({
-        success: true,
-        obj: {
-            email,
-            active: subscriptionTokenStore.countActiveByEmail(email),
-            limit: config.subscription.maxActiveTokensPerUser,
-            tokens,
-        },
-    });
 });
 
 router.post('/:email/issue', authMiddleware, adminOnly, (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    const name = String(req.body?.name || '').trim();
-    const ttlDays = resolveTtlDays(req.body?.ttlDays);
-    if (!email) {
-        return res.status(400).json({ success: false, msg: 'Email is required' });
-    }
-
     try {
-        const issued = subscriptionTokenStore.issue(email, {
-            name,
-            ttlDays,
+        const issued = issueSubscriptionToken(req.params.email, {
+            name: req.body?.name,
+            ttlDays: req.body?.ttlDays,
             createdBy: req.user?.role || 'admin',
+            buildUrls: (token) => {
+                const publicBase = buildTokenPublicBase(req, req.params.email, token);
+                return buildSubscriptionUrls(publicBase, 'auto', '');
+            },
         });
-        const publicBase = buildTokenPublicBase(req, email, issued.token);
-        const urls = buildSubscriptionUrls(publicBase, 'auto', '');
         appendSecurityAudit('subscription_token_issued', req, {
-            email,
+            email: issued.email,
             tokenId: issued.tokenId,
-            ttlDays,
-            name,
+            ttlDays: issued.ttlDays,
+            name: issued.name,
         });
 
         return res.json({
             success: true,
             obj: {
-                email,
-                name,
-                ttlDays,
+                email: issued.email,
+                name: issued.name,
+                ttlDays: issued.ttlDays,
                 tokenId: issued.tokenId,
                 token: issued.token,
                 metadata: issued.metadata,
-                ...urls,
+                ...issued.urls,
             },
         });
     } catch (error) {
-        return res.status(400).json({
+        return res.status(error?.status || 400).json({
             success: false,
             msg: error.message || 'Failed to issue token',
         });
@@ -2139,46 +2128,32 @@ router.post('/:email/issue', authMiddleware, adminOnly, (req, res) => {
 });
 
 router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    if (!email) {
-        return res.status(400).json({ success: false, msg: 'Email is required' });
-    }
+    try {
+        const result = revokeSubscriptionTokens(req.params.email, req.body);
+        if (result.revokeAll) {
+            appendSecurityAudit('subscription_token_revoke_all', req, {
+                email: result.email,
+                revoked: result.revoked,
+                reason: result.reason,
+            });
+            return res.json({
+                success: true,
+                obj: { email: result.email, revoked: result.revoked },
+            });
+        }
 
-    const reason = String(req.body?.reason || 'manual-revoke').trim() || 'manual-revoke';
-    const revokeAll = normalizeBoolean(req.body?.revokeAll, false);
-
-    if (revokeAll) {
-        const revoked = subscriptionTokenStore.revokeAllByEmail(email, reason);
-        appendSecurityAudit('subscription_token_revoke_all', req, {
-            email,
-            revoked,
-            reason,
+        appendSecurityAudit('subscription_token_revoked', req, {
+            email: result.email,
+            tokenId: result.tokenId,
+            reason: result.reason,
         });
         return res.json({
             success: true,
-            obj: { email, revoked },
+            obj: result.revoked,
         });
+    } catch (error) {
+        return res.status(error?.status || 400).json({ success: false, msg: error.message || 'Failed to revoke token' });
     }
-
-    const tokenId = String(req.body?.tokenId || '').trim();
-    if (!tokenId) {
-        return res.status(400).json({ success: false, msg: 'tokenId is required' });
-    }
-
-    const revoked = subscriptionTokenStore.revoke(email, tokenId, reason);
-    if (!revoked) {
-        return res.status(404).json({ success: false, msg: 'Token not found' });
-    }
-
-    appendSecurityAudit('subscription_token_revoked', req, {
-        email,
-        tokenId,
-        reason,
-    });
-    return res.json({
-        success: true,
-        obj: revoked,
-    });
 });
 
 router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res) => {

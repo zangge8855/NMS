@@ -20,6 +20,9 @@ import {
 import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
 import notificationService from '../lib/notifications.js';
 import { getEmailStatus } from '../lib/mailer.js';
+import alertEngine from '../lib/alertEngine.js';
+import serverHealthMonitor from '../lib/serverHealthMonitor.js';
+import { createBackupArchive, getBackupStatus } from '../lib/systemBackup.js';
 
 const router = Router();
 
@@ -65,6 +68,61 @@ router.get('/email/status', adminOnly, (req, res) => {
         success: true,
         obj: getEmailStatus(),
     });
+});
+
+router.get('/backup/status', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: getBackupStatus(),
+    });
+});
+
+router.get('/backup/export', adminOnly, (req, res) => {
+    const keys = normalizeStoreKeys(req.query?.keys);
+    const { filename, buffer, meta } = createBackupArchive({ keys });
+    appendSecurityAudit('system_backup_exported', req, {
+        filename,
+        bytes: meta.bytes,
+        storeCount: meta.storeKeys.length,
+    });
+    res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buffer);
+});
+
+router.get('/monitor/status', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: {
+            healthMonitor: serverHealthMonitor.getStatus(),
+            dbAlerts: alertEngine.getStats(),
+            notifications: {
+                unreadCount: notificationService.unreadCount(),
+            },
+        },
+    });
+});
+
+router.post('/monitor/run', adminOnly, async (req, res) => {
+    try {
+        const result = await serverHealthMonitor.runOnce();
+        appendSecurityAudit('server_health_monitor_run', req, {
+            total: result.summary.total,
+            healthy: result.summary.healthy,
+            degraded: result.summary.degraded,
+            unreachable: result.summary.unreachable,
+            maintenance: result.summary.maintenance,
+        });
+        return res.json({
+            success: true,
+            obj: result,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            msg: error.message || '节点健康巡检失败',
+        });
+    }
 });
 
 router.put('/settings', adminOnly, (req, res) => {

@@ -26,6 +26,7 @@ import clientsRoutes from './routes/clients.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
+import serverHealthMonitor from './lib/serverHealthMonitor.js';
 
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -163,6 +164,8 @@ async function startServer() {
             console.warn('  ⚠️  Falling back to file-backed stores');
         }
     }
+
+    serverHealthMonitor.start();
 
     httpServer.listen(config.port, () => {
         console.log(`\n  🚀 Node Management System (NMS) running on http://localhost:${config.port}`);
