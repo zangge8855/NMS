@@ -9,6 +9,7 @@ import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwo
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import { normalizeEmail } from '../../utils/protocol.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
+import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import toast from 'react-hot-toast';
 import {
     HiOutlinePlusCircle,
@@ -449,12 +450,7 @@ export default function UsersHub() {
                 email: boundEmail,
                 deployment: dep,
                 successMessage,
-                subscriptionUrl: subscriptionPayload?.subscriptionUrl || '',
-                subscriptionUrlV2rayn: subscriptionPayload?.subscriptionUrlV2rayn || '',
-                subscriptionUrlRaw: subscriptionPayload?.subscriptionUrlRaw || '',
-                subscriptionUrlClash: subscriptionPayload?.subscriptionUrlClash || '',
-                subscriptionUrlSingbox: subscriptionPayload?.subscriptionUrlSingbox || '',
-                subscriptionConverterConfigured: subscriptionPayload?.subscriptionConverterConfigured === true,
+                bundle: buildSubscriptionProfileBundle(subscriptionPayload || {}),
             });
 
             try {
@@ -470,13 +466,11 @@ export default function UsersHub() {
 
     const provisionLinks = useMemo(() => {
         if (!provisionResult) return [];
-        const items = [
-            { key: 'v2rayn', label: 'v2rayN', url: provisionResult.subscriptionUrlV2rayn || provisionResult.subscriptionUrl },
-            { key: 'raw', label: 'Raw', url: provisionResult.subscriptionUrlRaw },
-            { key: 'clash', label: 'Clash', url: provisionResult.subscriptionUrlClash },
-            { key: 'singbox', label: 'sing-box', url: provisionResult.subscriptionUrlSingbox },
-        ];
-        return items.filter((item) => String(item.url || '').trim());
+        const available = Array.isArray(provisionResult.bundle?.availableProfiles)
+            ? provisionResult.bundle.availableProfiles
+            : [];
+        const preferredKeys = new Set(['v2rayn', 'clash', 'mihomo', 'singbox', 'raw']);
+        return available.filter((item) => preferredKeys.has(item.key));
     }, [provisionResult]);
 
     // --- Edit user modal ---
@@ -1336,11 +1330,6 @@ export default function UsersHub() {
                                                 </div>
                                             </div>
                                         )}
-                                        {!provisionResult.subscriptionConverterConfigured && (
-                                            <div className="text-xs text-muted mb-2">
-                                                提示: 尚未配置订阅转换器，Clash/sing-box 链接可能为空。
-                                            </div>
-                                        )}
                                         <div className="flex flex-col gap-2">
                                             {provisionLinks.map((item) => (
                                                 <div key={item.key} className="flex gap-2">
@@ -1355,6 +1344,7 @@ export default function UsersHub() {
                                                 </div>
                                             ))}
                                         </div>
+                                        <SubscriptionClientLinks bundle={provisionResult.bundle} />
                                     </div>
                                 )}
                             </div>
@@ -1413,12 +1403,8 @@ export default function UsersHub() {
                                         <div className="text-xs text-muted">
                                             {activeSubscriptionProfile?.hint || '请选择订阅类型'}
                                         </div>
-                                        {!subscriptionResult.bundle?.converterConfigured && (
-                                            <div className="text-xs text-muted">
-                                                提示：未配置"系统设置 → 订阅转换器 → 转换器地址"，Clash/sing-box 配置入口已隐藏。
-                                            </div>
-                                        )}
                                         <input className="form-input font-mono text-xs" value={activeSubscriptionProfile?.url || ''} readOnly />
+                                        <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
                                     </div>
                                     <div className="flex justify-center">
                                         {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (

@@ -141,6 +141,10 @@ function extractInboundClients(inbound) {
     };
 }
 
+function shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured) {
+    return !hasClientTraffic || !clientTrafficCaptured;
+}
+
 async function runWithConcurrency(items, worker, concurrency = 3) {
     const list = Array.isArray(items) ? items : [];
     if (list.length === 0) return [];
@@ -341,7 +345,7 @@ class TrafficStatsStore {
                     });
                 }
 
-                if (!hasClientTraffic || clientTrafficCaptured) {
+                if (!shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured)) {
                     continue;
                 }
 
@@ -589,3 +593,4 @@ class TrafficStatsStore {
 
 const trafficStatsStore = new TrafficStatsStore();
 export default trafficStatsStore;
+export { TrafficStatsStore, extractInboundClients, shouldUseInboundTotalFallback };

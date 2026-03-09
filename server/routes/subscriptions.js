@@ -152,15 +152,6 @@ async function enrichAccessPayloadWithGeo(payload, includeGeo = true) {
     };
 }
 
-function getConverterSettings() {
-    const runtime = systemSettingsStore.getSubscription();
-    return {
-        baseUrl: String(runtime?.converterBaseUrl || config.subscription?.converter?.baseUrl || '').trim(),
-        clashConfigUrl: String(runtime?.converterClashConfigUrl || config.subscription?.converter?.clashConfigUrl || '').trim(),
-        singboxConfigUrl: String(runtime?.converterSingboxConfigUrl || config.subscription?.converter?.singboxConfigUrl || '').trim(),
-    };
-}
-
 function appendQuery(url, query = {}) {
     const entries = Object.entries(query)
         .filter(([, value]) => value !== undefined && value !== null && String(value) !== '');
@@ -237,6 +228,15 @@ function rewriteNativeLinkLabel(link, label) {
     }
 
     return rewriteLinkFragment(raw, label);
+}
+
+function selectNativeSubIds(mode, allSubIds = [], fallbackSubIds = []) {
+    const source = mode === 'native' ? allSubIds : (mode === 'auto' ? fallbackSubIds : []);
+    return Array.from(new Set(
+        (Array.isArray(source) ? source : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+    ));
 }
 
 function setParamIfPresent(params, key, value) {
@@ -722,6 +722,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
         const inbounds = sortInboundsForServer(serverMeta.id, listRes.data?.obj || []);
         const matchedEntries = [];
         const subIds = new Set();
+        const fallbackSubIds = new Set();
 
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
@@ -756,8 +757,9 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
                     entry,
                     settings,
                     stream,
+                    subId: entry.subId ? String(entry.subId).trim() : '',
                 });
-                if (entry.subId) subIds.add(String(entry.subId));
+                if (entry.subId) subIds.add(String(entry.subId).trim());
             }
         }
 
@@ -779,6 +781,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
                     };
                     warnings.push(detail);
                     perServer.warnings.push(detail);
+                    if (item.subId) fallbackSubIds.add(item.subId);
                     continue;
                 }
 
@@ -802,6 +805,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
                             ? diagnostics.join('; ')
                             : 'unsupported or missing parameters',
                     });
+                    if (item.subId) fallbackSubIds.add(item.subId);
                     continue;
                 }
 
@@ -810,12 +814,12 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
             }
         }
 
-        const shouldCollectNative = mode === 'native'
-            || (mode === 'auto' && reconstructedLinks.length === 0);
-        if (shouldCollectNative && subIds.size > 0) {
+        const nativeSubIds = selectNativeSubIds(mode, Array.from(subIds), Array.from(fallbackSubIds));
+        const shouldCollectNative = nativeSubIds.length > 0;
+        if (shouldCollectNative) {
             nativeLinks = await collectNativeLinks({
                 client,
-                subIds: Array.from(subIds),
+                subIds: nativeSubIds,
                 serverMeta,
                 perServer,
                 warnings,
@@ -993,6 +997,526 @@ function buildSubscriptionPayload(links) {
     return { raw, encoded };
 }
 
+const MIHOMO_RULE_PROVIDERS = [
+    { name: 'applications', behavior: 'classical', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt' },
+    { name: 'private', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt' },
+    { name: 'reject', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt' },
+    { name: 'icloud', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt' },
+    { name: 'apple', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/apple.txt' },
+    { name: 'google', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/google.txt' },
+    { name: 'proxy', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt' },
+    { name: 'direct', behavior: 'domain', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt' },
+    { name: 'telegramcidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt' },
+    { name: 'lancidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt' },
+    { name: 'cncidr', behavior: 'ipcidr', url: 'https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt' },
+];
+
+const MIHOMO_RULES = [
+    'RULE-SET,applications,DIRECT',
+    'DOMAIN,clash.razord.top,DIRECT',
+    'DOMAIN,yacd.haishan.me,DIRECT',
+    'RULE-SET,private,DIRECT',
+    'RULE-SET,reject,REJECT',
+    'RULE-SET,icloud,DIRECT',
+    'RULE-SET,apple,DIRECT',
+    'RULE-SET,google,PROXY',
+    'RULE-SET,proxy,PROXY',
+    'RULE-SET,direct,DIRECT',
+    'RULE-SET,telegramcidr,PROXY',
+    'RULE-SET,lancidr,DIRECT',
+    'RULE-SET,cncidr,DIRECT',
+    'GEOIP,CN,DIRECT',
+    'MATCH,PROXY',
+];
+
+function normalizeSubscriptionFormat(format) {
+    const text = String(format || '').trim().toLowerCase();
+    if (text === 'raw') return 'raw';
+    if (text === 'clash' || text === 'mihomo') return 'clash';
+    return 'encoded';
+}
+
+function decodeBase64Text(text) {
+    const normalized = String(text || '').trim().replace(/-/g, '+').replace(/_/g, '/');
+    if (!normalized) return '';
+    const padding = normalized.length % 4 === 0
+        ? ''
+        : '='.repeat(4 - (normalized.length % 4));
+    return Buffer.from(normalized + padding, 'base64').toString('utf8');
+}
+
+function splitCommaValues(value) {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function decodeMaybeEncoded(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    try {
+        return decodeURIComponent(text);
+    } catch {
+        return text;
+    }
+}
+
+function extractLinkLabel(link, fallback = '') {
+    const hashIndex = String(link || '').indexOf('#');
+    const raw = hashIndex >= 0 ? String(link).slice(hashIndex + 1) : '';
+    const decoded = sanitizeNodeLabel(decodeMaybeEncoded(raw));
+    return decoded || fallback;
+}
+
+function makeUniqueName(base, usedNames) {
+    const seed = sanitizeNodeLabel(base) || 'NODE';
+    if (!usedNames.has(seed)) {
+        usedNames.add(seed);
+        return seed;
+    }
+    let index = 2;
+    let candidate = `${seed}-${index}`;
+    while (usedNames.has(candidate)) {
+        index += 1;
+        candidate = `${seed}-${index}`;
+    }
+    usedNames.add(candidate);
+    return candidate;
+}
+
+function isYamlPlainString(value) {
+    return /^[A-Za-z0-9._/@%-]+$/.test(value)
+        && !['true', 'false', 'null', 'yes', 'no', '~'].includes(value.toLowerCase());
+}
+
+function formatYamlScalar(value) {
+    if (value === null || value === undefined) return 'null';
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    const text = String(value);
+    if (!text) return '""';
+    if (isYamlPlainString(text)) return text;
+    return JSON.stringify(text);
+}
+
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function toYaml(value, indent = 0) {
+    const pad = ' '.repeat(indent);
+    if (Array.isArray(value)) {
+        if (value.length === 0) return `${pad}[]`;
+        return value.map((item) => {
+            if (Array.isArray(item) || isPlainObject(item)) {
+                const rendered = toYaml(item, indent + 2);
+                return `${pad}-\n${rendered}`;
+            }
+            return `${pad}- ${formatYamlScalar(item)}`;
+        }).join('\n');
+    }
+
+    if (isPlainObject(value)) {
+        const entries = Object.entries(value).filter(([, item]) => item !== undefined);
+        if (entries.length === 0) return `${pad}{}`;
+        return entries.map(([key, item]) => {
+            if (Array.isArray(item) || isPlainObject(item)) {
+                return `${pad}${key}:\n${toYaml(item, indent + 2)}`;
+            }
+            return `${pad}${key}: ${formatYamlScalar(item)}`;
+        }).join('\n');
+    }
+
+    return `${pad}${formatYamlScalar(value)}`;
+}
+
+function applySharedTlsConfig(proxy, options = {}) {
+    const security = String(options.security || '').trim().toLowerCase();
+    const servername = firstNonEmpty(options.servername, options.sni);
+    const alpn = splitCommaValues(options.alpn);
+    const fingerprint = firstNonEmpty(options.fingerprint);
+    const clientFingerprint = firstNonEmpty(options.clientFingerprint);
+    const publicKey = firstNonEmpty(options.publicKey);
+    const shortId = firstNonEmpty(options.shortId);
+
+    if (security === 'tls' || security === 'reality' || options.forceTls === true) {
+        if (options.tlsField !== false) {
+            proxy.tls = true;
+        }
+        if (options.servernameField === 'sni') {
+            if (servername) proxy.sni = servername;
+        } else if (servername) {
+            proxy.servername = servername;
+        }
+        if (alpn.length > 0) proxy.alpn = alpn;
+        if (fingerprint) proxy.fingerprint = fingerprint;
+        if (clientFingerprint) proxy['client-fingerprint'] = clientFingerprint;
+        if (options.skipCertVerify === true) proxy['skip-cert-verify'] = true;
+    }
+
+    if (security === 'reality' || publicKey) {
+        if (!publicKey) return false;
+        proxy['reality-opts'] = {
+            'public-key': publicKey,
+        };
+        if (shortId) {
+            proxy['reality-opts']['short-id'] = shortId;
+        }
+    }
+
+    return true;
+}
+
+function applyTransportToMihomoProxy(proxy, network, options = {}) {
+    const normalized = String(network || 'tcp').trim().toLowerCase() || 'tcp';
+    if (['httpupgrade', 'xhttp', 'kcp', 'quic'].includes(normalized)) {
+        return false;
+    }
+
+    if (normalized === 'http' || normalized === 'h2') {
+        proxy.network = normalized;
+        const path = decodeMaybeEncoded(options.path) || '/';
+        const hostList = splitCommaValues(decodeMaybeEncoded(options.host));
+        if (normalized === 'http') {
+            proxy['http-opts'] = {
+                path: splitCommaValues(path).length > 0 ? splitCommaValues(path) : [path],
+            };
+            if (hostList.length > 0) {
+                proxy['http-opts'].headers = { Host: hostList };
+            }
+        } else {
+            proxy['h2-opts'] = { path };
+            if (hostList.length > 0) {
+                proxy['h2-opts'].host = hostList;
+            }
+        }
+        return true;
+    }
+
+    if (normalized === 'ws') {
+        proxy.network = 'ws';
+        proxy['ws-opts'] = { path: decodeMaybeEncoded(options.path) || '/' };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            proxy['ws-opts'].headers = { Host: host };
+        }
+        return true;
+    }
+
+    if (normalized === 'grpc') {
+        proxy.network = 'grpc';
+        const serviceName = decodeMaybeEncoded(options.serviceName) || decodeMaybeEncoded(options.path);
+        if (serviceName) {
+            proxy['grpc-opts'] = { 'grpc-service-name': serviceName };
+        }
+        return true;
+    }
+
+    if (normalized === 'tcp') {
+        const headerType = String(options.headerType || '').trim().toLowerCase();
+        if (headerType && headerType !== 'none') {
+            return false;
+        }
+        proxy.network = 'tcp';
+        return true;
+    }
+
+    return false;
+}
+
+function parseVmessProxy(link, usedNames, index) {
+    const encoded = String(link || '').slice('vmess://'.length).trim();
+    if (!encoded) return null;
+
+    let payload;
+    try {
+        payload = JSON.parse(decodeBase64Text(encoded));
+    } catch {
+        return null;
+    }
+
+    const server = firstNonEmpty(payload.add, payload.server);
+    const port = Number(payload.port);
+    const uuid = firstNonEmpty(payload.id, payload.uuid);
+    if (!server || !Number.isFinite(port) || port <= 0 || !uuid) return null;
+
+    const name = makeUniqueName(payload.ps || extractLinkLabel(link, `NODE-${index}`), usedNames);
+    const proxy = {
+        name,
+        type: 'vmess',
+        server,
+        port,
+        udp: true,
+        uuid,
+        alterId: Number(payload.aid || 0) || 0,
+        cipher: firstNonEmpty(payload.scy, payload.cipher, 'auto'),
+    };
+
+    if (!applyTransportToMihomoProxy(proxy, payload.net || 'tcp', {
+        path: payload.path,
+        host: payload.host,
+        serviceName: payload.path,
+        headerType: payload.type,
+    })) {
+        return null;
+    }
+
+    if (!applySharedTlsConfig(proxy, {
+        security: payload.tls === 'tls' ? 'tls' : (payload.pbk ? 'reality' : ''),
+        servername: payload.sni,
+        alpn: payload.alpn,
+        publicKey: payload.pbk,
+        shortId: payload.sid,
+        clientFingerprint: payload.fp,
+    })) {
+        return null;
+    }
+
+    return proxy;
+}
+
+function parseVlessProxy(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+
+    const server = parsed.hostname;
+    const port = Number(parsed.port);
+    const uuid = decodeMaybeEncoded(parsed.username);
+    if (!server || !Number.isFinite(port) || port <= 0 || !uuid) return null;
+
+    const query = parsed.searchParams;
+    const network = query.get('type') || 'tcp';
+    const name = makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames);
+    const proxy = {
+        name,
+        type: 'vless',
+        server,
+        port,
+        udp: true,
+        uuid,
+        encryption: firstNonEmpty(query.get('encryption'), ''),
+    };
+
+    const flow = firstNonEmpty(query.get('flow'));
+    if (flow) proxy.flow = flow;
+
+    if (!applyTransportToMihomoProxy(proxy, network, {
+        path: query.get('path'),
+        host: query.get('host'),
+        serviceName: query.get('serviceName'),
+        headerType: query.get('headerType'),
+    })) {
+        return null;
+    }
+
+    if (!applySharedTlsConfig(proxy, {
+        security: query.get('security'),
+        servername: query.get('sni'),
+        alpn: query.get('alpn'),
+        publicKey: query.get('pbk'),
+        shortId: query.get('sid'),
+        clientFingerprint: query.get('fp'),
+        skipCertVerify: normalizeBoolean(query.get('allowInsecure'), false),
+    })) {
+        return null;
+    }
+
+    return proxy;
+}
+
+function parseTrojanProxy(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+
+    const server = parsed.hostname;
+    const port = Number(parsed.port);
+    const password = decodeMaybeEncoded(parsed.username);
+    if (!server || !Number.isFinite(port) || port <= 0 || !password) return null;
+
+    const query = parsed.searchParams;
+    const network = query.get('type') || 'tcp';
+    const name = makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames);
+    const proxy = {
+        name,
+        type: 'trojan',
+        server,
+        port,
+        udp: true,
+        password,
+    };
+
+    if (!applyTransportToMihomoProxy(proxy, network, {
+        path: query.get('path'),
+        host: query.get('host'),
+        serviceName: query.get('serviceName'),
+    })) {
+        return null;
+    }
+
+    if (!applySharedTlsConfig(proxy, {
+        security: query.get('security') || 'tls',
+        sni: query.get('sni'),
+        servernameField: 'sni',
+        tlsField: false,
+        forceTls: true,
+        alpn: query.get('alpn'),
+        publicKey: query.get('pbk'),
+        shortId: query.get('sid'),
+        clientFingerprint: query.get('fp'),
+        skipCertVerify: normalizeBoolean(query.get('allowInsecure'), false),
+    })) {
+        return null;
+    }
+
+    return proxy;
+}
+
+function parseShadowsocksUserInfo(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return { method: '', password: '' };
+    if (raw.includes(':')) {
+        const splitIndex = raw.indexOf(':');
+        return {
+            method: raw.slice(0, splitIndex),
+            password: raw.slice(splitIndex + 1),
+        };
+    }
+    try {
+        const decoded = decodeBase64Text(raw);
+        const splitIndex = decoded.indexOf(':');
+        if (splitIndex < 0) return { method: '', password: '' };
+        return {
+            method: decoded.slice(0, splitIndex),
+            password: decoded.slice(splitIndex + 1),
+        };
+    } catch {
+        return { method: '', password: '' };
+    }
+}
+
+function parseShadowsocksProxy(link, usedNames, index) {
+    const withoutScheme = String(link || '').slice('ss://'.length);
+    if (!withoutScheme) return null;
+
+    const [targetPart] = withoutScheme.split('#');
+    const [mainPart] = String(targetPart || '').split('?');
+    if (!mainPart) return null;
+
+    let userInfo = '';
+    let serverInfo = '';
+    if (mainPart.includes('@')) {
+        const splitIndex = mainPart.lastIndexOf('@');
+        userInfo = mainPart.slice(0, splitIndex);
+        serverInfo = mainPart.slice(splitIndex + 1);
+    } else {
+        try {
+            const decoded = decodeBase64Text(mainPart);
+            const splitIndex = decoded.lastIndexOf('@');
+            if (splitIndex < 0) return null;
+            userInfo = decoded.slice(0, splitIndex);
+            serverInfo = decoded.slice(splitIndex + 1);
+        } catch {
+            return null;
+        }
+    }
+
+    const endpointIndex = serverInfo.lastIndexOf(':');
+    if (endpointIndex < 0) return null;
+    const server = serverInfo.slice(0, endpointIndex);
+    const port = Number(serverInfo.slice(endpointIndex + 1));
+    const { method, password } = parseShadowsocksUserInfo(userInfo);
+    if (!server || !Number.isFinite(port) || port <= 0 || !method || !password) return null;
+
+    const name = makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames);
+    return {
+        name,
+        type: 'ss',
+        server,
+        port,
+        udp: true,
+        cipher: method,
+        password,
+    };
+}
+
+function parseMihomoProxyFromLink(link, usedNames, index) {
+    const normalized = String(link || '').trim();
+    if (!normalized) return null;
+    if (normalized.startsWith('vmess://')) return parseVmessProxy(normalized, usedNames, index);
+    if (normalized.startsWith('vless://')) return parseVlessProxy(normalized, usedNames, index);
+    if (normalized.startsWith('trojan://')) return parseTrojanProxy(normalized, usedNames, index);
+    if (normalized.startsWith('ss://')) return parseShadowsocksProxy(normalized, usedNames, index);
+    return null;
+}
+
+function buildMihomoConfigObject(links = []) {
+    const linkList = Array.isArray(links) ? links : [];
+    const usedNames = new Set();
+    const proxies = [];
+
+    linkList.forEach((link, index) => {
+        const proxy = parseMihomoProxyFromLink(link, usedNames, index + 1);
+        if (proxy) {
+            proxies.push(proxy);
+        }
+    });
+
+    if (proxies.length === 0) return null;
+    const proxyNames = proxies.map((item) => item.name);
+
+    const ruleProviders = {};
+    MIHOMO_RULE_PROVIDERS.forEach((provider) => {
+        ruleProviders[provider.name] = {
+            type: 'http',
+            behavior: provider.behavior,
+            path: `./ruleset/${provider.name}.yaml`,
+            url: provider.url,
+            interval: 86400,
+        };
+    });
+
+    return {
+        mode: 'rule',
+        'log-level': 'info',
+        ipv6: true,
+        'unified-delay': true,
+        'tcp-concurrent': true,
+        proxies,
+        'proxy-groups': [
+            {
+                name: 'PROXY',
+                type: 'select',
+                proxies: ['AUTO', ...proxyNames, 'DIRECT'],
+            },
+            {
+                name: 'AUTO',
+                type: 'url-test',
+                url: 'https://www.gstatic.com/generate_204',
+                interval: 300,
+                tolerance: 50,
+                proxies: proxyNames,
+            },
+        ],
+        'rule-providers': ruleProviders,
+        rules: MIHOMO_RULES,
+    };
+}
+
+function buildMihomoConfigFromLinks(links = []) {
+    const config = buildMihomoConfigObject(links);
+    if (!config) return '';
+    return `${toYaml(config)}\n`;
+}
+
 function getForwardedProtocol(req) {
     const raw = req.headers['x-forwarded-proto'];
     if (Array.isArray(raw)) return raw[0] || req.protocol;
@@ -1061,29 +1585,8 @@ function buildLegacyPublicBase(req, email) {
     return `${base}/api/subscriptions/public/${encodeURIComponent(email)}/${sig}`;
 }
 
-function buildConverterUrl(baseUrl, sourceUrl, target, configUrl = '') {
-    const normalizedBase = String(baseUrl || '').trim();
-    const normalizedSource = String(sourceUrl || '').trim();
-    if (!normalizedBase || !normalizedSource || !target) return '';
-    return appendQuery(normalizedBase, {
-        target,
-        url: normalizedSource,
-        insert: 'false',
-        emoji: 'true',
-        list: 'false',
-        udp: 'true',
-        scv: 'true',
-        fdn: 'false',
-        sort: 'false',
-        new_name: 'true',
-        config: configUrl || undefined,
-    });
-}
-
 function buildSubscriptionUrls(publicBase, mode, serverId) {
     const base = String(publicBase || '').trim();
-    const converter = getConverterSettings();
-    const converterConfigured = Boolean(converter.baseUrl);
     if (!base) {
         return {
             subscriptionUrl: '',
@@ -1094,8 +1597,9 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
             subscriptionUrlReconstructedRaw: '',
             subscriptionUrlV2rayn: '',
             subscriptionUrlClash: '',
+            subscriptionUrlMihomo: '',
             subscriptionUrlSingbox: '',
-            subscriptionConverterConfigured: converterConfigured,
+            subscriptionConverterConfigured: false,
         };
     }
     const query = {
@@ -1123,18 +1627,10 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         format: 'raw',
     });
 
-    const converterBaseUrl = converter.baseUrl;
-    const clashConfigUrl = converter.clashConfigUrl;
-    const singboxConfigUrl = converter.singboxConfigUrl;
-    const conversionSource = subscriptionUrlReconstructedRaw || subscriptionUrlRaw;
-
     const subscriptionUrlV2rayn = subscriptionUrl;
-    const subscriptionUrlClash = converterConfigured
-        ? buildConverterUrl(converterBaseUrl, conversionSource, 'clash', clashConfigUrl)
-        : '';
-    const subscriptionUrlSingbox = converterConfigured
-        ? buildConverterUrl(converterBaseUrl, conversionSource, 'singbox', singboxConfigUrl)
-        : '';
+    const subscriptionUrlClash = appendQuery(subscriptionUrl, { format: 'clash' });
+    const subscriptionUrlMihomo = appendQuery(subscriptionUrl, { format: 'mihomo' });
+    const subscriptionUrlSingbox = '';
 
     return {
         subscriptionUrl,
@@ -1145,8 +1641,9 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         subscriptionUrlReconstructedRaw,
         subscriptionUrlV2rayn,
         subscriptionUrlClash,
+        subscriptionUrlMihomo,
         subscriptionUrlSingbox,
-        subscriptionConverterConfigured: converterConfigured,
+        subscriptionConverterConfigured: false,
     };
 }
 
@@ -1217,7 +1714,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const tokenSecret = String(req.params.token || '').trim();
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
-    const format = req.query.format === 'raw' ? 'raw' : 'encoded';
+    const format = normalizeSubscriptionFormat(req.query.format);
 
     if (!tokenId || !tokenSecret) {
         appendSecurityAudit('subscription_public_denied', req, {
@@ -1306,6 +1803,14 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const { raw, encoded } = buildSubscriptionPayload(links);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Token-Id', tokenId);
+    if (format === 'clash') {
+        const yaml = buildMihomoConfigFromLinks(links);
+        if (!yaml) {
+            return res.status(410).send('no clash-compatible links found');
+        }
+        res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+        return res.send(yaml);
+    }
     if (format === 'raw') return res.send(raw);
     return res.send(encoded);
 }
@@ -1324,6 +1829,7 @@ router.get('/public/:email/:sig', async (req, res) => {
     const sig = String(req.params.sig || '');
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
+    const format = normalizeSubscriptionFormat(req.query.format);
 
     if (!email || !verifyEmailSig(email, sig)) {
         appendSecurityAudit('subscription_public_denied_legacy', req, {
@@ -1337,7 +1843,7 @@ router.get('/public/:email/:sig', async (req, res) => {
             reason: 'invalid-signature',
             mode,
             serverId,
-            format: req.query.format === 'raw' ? 'raw' : 'encoded',
+            format,
         });
         return res.status(403).send('invalid subscription signature');
     }
@@ -1352,7 +1858,7 @@ router.get('/public/:email/:sig', async (req, res) => {
             reason: 'server-not-found',
             mode,
             serverId,
-            format: req.query.format === 'raw' ? 'raw' : 'encoded',
+            format,
         });
         return res.status(404).send('server not found');
     }
@@ -1364,7 +1870,7 @@ router.get('/public/:email/:sig', async (req, res) => {
             reason: inactiveReason || 'no-links-found',
             mode,
             serverId,
-            format: req.query.format === 'raw' ? 'raw' : 'encoded',
+            format,
         });
         return res.status(410).send(inactiveReason || 'no links found');
     }
@@ -1376,12 +1882,20 @@ router.get('/public/:email/:sig', async (req, res) => {
         reason: 'ok',
         mode,
         serverId,
-        format: req.query.format === 'raw' ? 'raw' : 'encoded',
+        format,
     });
     const { raw, encoded } = buildSubscriptionPayload(links);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Legacy', '1');
-    if (req.query.format === 'raw') return res.send(raw);
+    if (format === 'clash') {
+        const yaml = buildMihomoConfigFromLinks(links);
+        if (!yaml) {
+            return res.status(410).send('no clash-compatible links found');
+        }
+        res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+        return res.send(yaml);
+    }
+    if (format === 'raw') return res.send(raw);
     return res.send(encoded);
 });
 
@@ -1655,6 +2169,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     let subscriptionUrlReconstructedRaw = '';
     let subscriptionUrlV2rayn = '';
     let subscriptionUrlClash = '';
+    let subscriptionUrlMihomo = '';
     let subscriptionUrlSingbox = '';
     let subscriptionConverterConfigured = false;
 
@@ -1669,6 +2184,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlReconstructedRaw = builtUrls.subscriptionUrlReconstructedRaw;
         subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
+        subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
         subscriptionUrlSingbox = builtUrls.subscriptionUrlSingbox;
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
     }
@@ -1707,6 +2223,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             subscriptionUrlReconstructedRaw,
             subscriptionUrlV2rayn,
             subscriptionUrlClash,
+            subscriptionUrlMihomo,
             subscriptionUrlSingbox,
             subscriptionConverterConfigured,
             legacySubscriptionUrl,
@@ -1726,3 +2243,8 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
 });
 
 export default router;
+export {
+    buildMihomoConfigFromLinks,
+    normalizeSubscriptionFormat,
+    selectNativeSubIds,
+};

@@ -15,6 +15,20 @@ function normalizeUrl(value) {
     return text || '';
 }
 
+function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `sing-box://import-remote-profile?url=${encodeURIComponent(url)}#${encodeURIComponent(String(name || 'NMS'))}`;
+}
+
+const TOOL_SITES = [
+    { key: 'v2rayn', label: 'v2rayN', url: 'https://github.com/2dust/v2rayN' },
+    { key: 'clash-verge', label: 'Clash Verge Rev', url: 'https://www.clashverge.dev/' },
+    { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
+    { key: 'singbox', label: 'sing-box', url: 'https://sing-box.sagernet.org/clients/' },
+    { key: 'hiddify', label: 'Hiddify', url: 'https://hiddify.com/app/' },
+];
+
 export function buildSubscriptionProfileBundle(payload = {}) {
     const mergedUrl = normalizeUrl(payload.subscriptionUrl) || normalizeUrl(payload.legacySubscriptionUrl);
     const rawUrl = normalizeUrl(payload.subscriptionUrlRaw) || appendQuery(mergedUrl, { format: 'raw' });
@@ -22,11 +36,12 @@ export function buildSubscriptionProfileBundle(payload = {}) {
     const reconstructedUrl = normalizeUrl(payload.subscriptionUrlReconstructed) || appendQuery(mergedUrl, { mode: 'reconstructed' });
     const reconstructedRawUrl = normalizeUrl(payload.subscriptionUrlReconstructedRaw)
         || appendQuery(reconstructedUrl || mergedUrl, { format: 'raw' });
+    const importSourceUrl = reconstructedRawUrl || rawUrl || mergedUrl;
 
     const v2raynUrl = normalizeUrl(payload.subscriptionUrlV2rayn) || mergedUrl;
-    const converterConfigured = payload.subscriptionConverterConfigured === true;
-    const clashUrl = converterConfigured ? normalizeUrl(payload.subscriptionUrlClash) : '';
-    const singboxUrl = converterConfigured ? normalizeUrl(payload.subscriptionUrlSingbox) : '';
+    const clashUrl = normalizeUrl(payload.subscriptionUrlClash) || appendQuery(mergedUrl, { format: 'clash' });
+    const mihomoUrl = normalizeUrl(payload.subscriptionUrlMihomo) || appendQuery(mergedUrl, { format: 'mihomo' });
+    const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox) || buildSingboxImportUrl(importSourceUrl);
 
     const profiles = [
         {
@@ -37,15 +52,21 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         },
         {
             key: 'clash',
-            label: 'Clash / Mihomo',
+            label: 'Clash / Verge',
             url: clashUrl,
-            hint: converterConfigured ? 'Clash 专用订阅' : '需先配置后端订阅转换器地址',
+            hint: 'Clash / Mihomo YAML 配置地址',
+        },
+        {
+            key: 'mihomo',
+            label: 'Mihomo Party',
+            url: mihomoUrl,
+            hint: 'Mihomo Party YAML 配置地址',
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
-            hint: converterConfigured ? 'sing-box 专用订阅' : '需先配置后端订阅转换器地址',
+            hint: 'sing-box 一键导入链接',
         },
         {
             key: 'raw',
@@ -78,8 +99,9 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         reconstructedRawUrl,
         v2raynUrl,
         clashUrl,
+        mihomoUrl,
         singboxUrl,
-        converterConfigured,
+        toolSites: TOOL_SITES,
         profiles,
         availableProfiles,
         defaultProfileKey,

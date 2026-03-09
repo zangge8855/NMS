@@ -46,9 +46,6 @@ function buildDraft(source = null) {
         },
         subscription: {
             publicBaseUrl: toText(settings.subscription?.publicBaseUrl, ''),
-            converterBaseUrl: toText(settings.subscription?.converterBaseUrl, ''),
-            converterClashConfigUrl: toText(settings.subscription?.converterClashConfigUrl, ''),
-            converterSingboxConfigUrl: toText(settings.subscription?.converterSingboxConfigUrl, ''),
         },
         auditIpGeo: {
             enabled: settings.auditIpGeo?.enabled === true,
@@ -355,7 +352,7 @@ export default function SystemSettings() {
                         </div>
 
                         <div className="card p-4">
-                            <h3 className="text-lg font-semibold mb-3">订阅转换器</h3>
+                            <h3 className="text-lg font-semibold mb-3">订阅地址</h3>
                             <div className="form-group">
                                 <label className="form-label">订阅公网地址（可选，建议配置）</label>
                                 <input
@@ -368,35 +365,8 @@ export default function SystemSettings() {
                                     配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">转换器地址（必填以启用 Clash/sing-box）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://converter.example/sub"
-                                    value={draft.subscription.converterBaseUrl}
-                                    onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Clash 规则模板地址（可选）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://example.com/clash.ini"
-                                    value={draft.subscription.converterClashConfigUrl}
-                                    onChange={(e) => patchField('subscription', 'converterClashConfigUrl', e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">sing-box 规则模板地址（可选）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://example.com/singbox.json"
-                                    value={draft.subscription.converterSingboxConfigUrl}
-                                    onChange={(e) => patchField('subscription', 'converterSingboxConfigUrl', e.target.value)}
-                                />
-                            </div>
                             <div className="text-xs text-muted">
-                                仅 `Clash / Mihomo` 与 `sing-box` 需要后端转换，`v2rayN/Raw/Native/Reconstructed` 不依赖转换器。
+                                Clash、Mihomo、sing-box 等常见客户端的专用订阅地址已直接内置到订阅页面，不再依赖外部订阅转换器。
                             </div>
                         </div>
 

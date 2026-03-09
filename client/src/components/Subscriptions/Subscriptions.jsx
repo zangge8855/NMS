@@ -6,6 +6,7 @@ import api from '../../api/client.js';
 import { copyToClipboard } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
+import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
@@ -274,13 +275,8 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                直连订阅：v2rayN / Raw / Native / Reconstructed；转换订阅：Clash / sing-box（可选附加规则模板）。
+                                常见客户端专用订阅地址已内置，Clash / Mihomo 会直接使用本机生成的配置地址。
                             </div>
-                            {!result.bundle?.converterConfigured && (
-                                <div className="text-xs text-muted mb-2">
-                                    提示：未配置“系统设置 → 订阅转换器 → 转换器地址”，Clash/sing-box 配置入口已隐藏。
-                                </div>
-                            )}
                             <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '10px' }}>
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
                                 <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
@@ -295,6 +291,7 @@ export default function Subscriptions() {
                                     <HiOutlineQrCode /> QR
                                 </button>
                             </div>
+                            <SubscriptionClientLinks bundle={result.bundle} />
                         </div>
                     </>
                 )}
@@ -323,6 +320,7 @@ export default function Subscriptions() {
                                 <p className="text-sm text-muted" style={{ wordBreak: 'break-all' }}>
                                     {result.email}
                                 </p>
+                                <SubscriptionClientLinks bundle={result.bundle} />
                             </div>
                             <div className="modal-footer">
                                 <button className="btn btn-secondary" onClick={() => setShowQr(false)}>关闭</button>

@@ -4,6 +4,7 @@ import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import { copyToClipboard } from '../../utils/format.js';
+import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -144,13 +145,11 @@ export default function Accounts({ embedded = false }) {
 
     const provisionLinks = useMemo(() => {
         if (!provisionResult) return [];
-        const items = [
-            { key: 'v2rayn', label: 'v2rayN', url: provisionResult.subscriptionUrlV2rayn || provisionResult.subscriptionUrl },
-            { key: 'raw', label: 'Raw', url: provisionResult.subscriptionUrlRaw },
-            { key: 'clash', label: 'Clash', url: provisionResult.subscriptionUrlClash },
-            { key: 'singbox', label: 'sing-box', url: provisionResult.subscriptionUrlSingbox },
-        ];
-        return items.filter((item) => String(item.url || '').trim());
+        const available = Array.isArray(provisionResult.bundle?.availableProfiles)
+            ? provisionResult.bundle.availableProfiles
+            : [];
+        const preferredKeys = new Set(['v2rayn', 'clash', 'mihomo', 'singbox', 'raw']);
+        return available.filter((item) => preferredKeys.has(item.key));
     }, [provisionResult]);
 
     const openResetModal = (user) => {
@@ -436,12 +435,7 @@ export default function Accounts({ embedded = false }) {
                 token: res.data?.obj?.subscription?.token || null,
                 deployment: dep,
                 successMessage,
-                subscriptionUrl: subscriptionPayload?.subscriptionUrl || '',
-                subscriptionUrlV2rayn: subscriptionPayload?.subscriptionUrlV2rayn || '',
-                subscriptionUrlRaw: subscriptionPayload?.subscriptionUrlRaw || '',
-                subscriptionUrlClash: subscriptionPayload?.subscriptionUrlClash || '',
-                subscriptionUrlSingbox: subscriptionPayload?.subscriptionUrlSingbox || '',
-                subscriptionConverterConfigured: subscriptionPayload?.subscriptionConverterConfigured === true,
+                bundle: buildSubscriptionProfileBundle(subscriptionPayload || {}),
             });
 
             try {
@@ -795,11 +789,6 @@ export default function Accounts({ embedded = false }) {
                                                                     ))}
                                                             </div>
                                                         )}
-                                                    </div>
-                                                )}
-                                                {!provisionResult.subscriptionConverterConfigured && (
-                                                    <div className="text-xs text-muted mb-2">
-                                                        提示: 尚未配置订阅转换器，Clash/sing-box 链接可能为空。
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col gap-2">

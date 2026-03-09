@@ -93,7 +93,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const logContainerRef = useRef(null);
     const effectiveSyslog = lockedSourceMode === 'system'
         ? true
-        : (lockedSourceMode === 'panel' ? false : syslog);
+        : (lockedSourceMode === 'panel' ? false : (isGlobal ? false : syslog));
     const sourceLabel = String(displayLabel || '').trim() || (effectiveSyslog ? '系统日志' : 'Panel 日志');
 
     // ── Fetch Logs ───────────────────────────────────────

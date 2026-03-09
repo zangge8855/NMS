@@ -25,9 +25,6 @@ const ALLOWED_KEYS = {
     ]),
     subscription: new Set([
         'publicBaseUrl',
-        'converterBaseUrl',
-        'converterClashConfigUrl',
-        'converterSingboxConfigUrl',
     ]),
     auditIpGeo: new Set([
         'enabled',
@@ -228,9 +225,6 @@ class SystemSettingsStore {
             },
             subscription: {
                 publicBaseUrl: String(config.subscription?.publicBaseUrl || '').trim(),
-                converterBaseUrl: String(config.subscription?.converter?.baseUrl || '').trim(),
-                converterClashConfigUrl: String(config.subscription?.converter?.clashConfigUrl || '').trim(),
-                converterSingboxConfigUrl: String(config.subscription?.converter?.singboxConfigUrl || '').trim(),
             },
             auditIpGeo: {
                 enabled: true,
@@ -285,9 +279,6 @@ class SystemSettingsStore {
     _normalizeSubscription(input = {}, fallback) {
         return {
             publicBaseUrl: normalizeHttpUrl(input.publicBaseUrl, fallback.publicBaseUrl),
-            converterBaseUrl: normalizeHttpUrl(input.converterBaseUrl, fallback.converterBaseUrl),
-            converterClashConfigUrl: normalizeHttpUrl(input.converterClashConfigUrl, fallback.converterClashConfigUrl),
-            converterSingboxConfigUrl: normalizeHttpUrl(input.converterSingboxConfigUrl, fallback.converterSingboxConfigUrl),
         };
     }
 

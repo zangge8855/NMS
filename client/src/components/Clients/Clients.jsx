@@ -31,6 +31,7 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import UserPolicyModal from './UserPolicyModal.jsx';
 import ConflictScannerModal from './ConflictScannerModal.jsx';
 import { QRCodeSVG } from 'qrcode.react';
+import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 
 function buildClientPayload(entry, enableOverride) {
     const protocol = normalizeProtocol(entry?.protocol);
@@ -832,12 +833,8 @@ export default function Clients() {
                                         <div className="text-xs text-muted">
                                             {activeSubscriptionProfile?.hint || '请选择订阅类型'}
                                         </div>
-                                        {!subscriptionResult.bundle?.converterConfigured && (
-                                            <div className="text-xs text-muted">
-                                                提示：未配置"系统设置 → 订阅转换器 → 转换器地址"，Clash/sing-box 配置入口已隐藏。
-                                            </div>
-                                        )}
                                         <input className="form-input font-mono text-xs" value={activeSubscriptionProfile?.url || ''} readOnly />
+                                        <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
                                     </div>
                                     <div className="flex justify-center">
                                         {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
