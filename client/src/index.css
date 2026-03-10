@@ -1361,7 +1361,7 @@ input[type="radio"]:focus {
 .header-title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 

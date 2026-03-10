@@ -587,7 +587,7 @@ body::before {
 }
 
 .header-title-group {
-  gap: 6px;
+  gap: 4px;
 }
 
 .header-eyebrow {
@@ -1706,6 +1706,16 @@ body::before {
 [data-theme="light"] .audit-table-shell,
 [data-theme="light"] .settings-table-shell {
   background: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="light"] .page-content > .card:hover,
+[data-theme="light"] .page-content > .servers-filter-card:hover,
+[data-theme="light"] .page-content > .audit-filter-card:hover,
+[data-theme="light"] .page-content > .audit-traffic-toolbar:hover,
+[data-theme="light"] .page-content > .settings-toolbar:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 252, 0.98) 100%);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 28px -22px rgba(15, 23, 42, 0.16);
 }
 
 [data-theme="light"] .server-card {

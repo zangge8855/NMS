@@ -16,7 +16,7 @@ const themeLabels = {
     auto: '跟随系统',
 };
 
-export default function Header({ title, subtitle = '', eyebrow = 'NMS', icon, children }) {
+export default function Header({ title, subtitle = '', icon, children }) {
     const { activeServer, activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
 
@@ -35,7 +35,6 @@ export default function Header({ title, subtitle = '', eyebrow = 'NMS', icon, ch
             <div className="header-left">
                 {icon && <span className="header-icon">{icon}</span>}
                 <div className="header-title-group">
-                    <span className="header-eyebrow">{eyebrow}</span>
                     <h1 className="header-title">{title}</h1>
                     {subtitle && <div className="header-subtitle">{subtitle}</div>}
                 </div>
