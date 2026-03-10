@@ -26,35 +26,43 @@ const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const DASHBOARD_ACCENT = {
-    primary: { color: 'var(--accent-primary)', bg: 'var(--accent-primary-bg)', tone: 'primary' },
-    info: { color: 'var(--accent-info)', bg: 'var(--accent-info-bg)', tone: 'info' },
-    warning: { color: 'var(--accent-warning)', bg: 'var(--accent-warning-bg)', tone: 'warning' },
-    success: { color: 'var(--accent-success)', bg: 'var(--accent-success-bg)', tone: 'success' },
+    primary: { tone: 'primary' },
+    info: { tone: 'info' },
+    warning: { tone: 'warning' },
+    success: { tone: 'success' },
 };
 
 function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue || 0);
+    const handleKeyDown = (event) => {
+        if (!clickable) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            card.onClick();
+        }
+    };
 
     return (
         <div
             className={`card dashboard-stat-card${clickable ? ' clickable' : ''}`}
-            style={{
-                '--dashboard-tone': card.color,
-                '--dashboard-tone-bg': card.bg,
-            }}
+            data-tone={card.tone || 'neutral'}
             onClick={clickable ? card.onClick : undefined}
+            onKeyDown={handleKeyDown}
+            role={clickable ? 'button' : undefined}
+            tabIndex={clickable ? 0 : undefined}
         >
-            <div className="card-header border-none pb-0">
-                <span className="card-title text-xs uppercase tracking-wider">
-                    {card.label}
-                </span>
-                <div className="card-icon">
+            <div className="dashboard-stat-card-head">
+                <div className="dashboard-stat-card-copy">
+                    <span className="dashboard-stat-card-label">{card.label}</span>
+                    {card.kicker && <span className="dashboard-stat-card-kicker">{card.kicker}</span>}
+                </div>
+                <div className="card-icon dashboard-stat-card-icon">
                     <card.icon />
                 </div>
             </div>
-            <div className="px-6 pb-6 pt-1">
-                <div className="card-value text-2xl font-bold my-1">
+            <div className="dashboard-stat-card-body">
+                <div className="card-value dashboard-stat-card-value">
                     {loading ? (
                         <div className="skeleton w-24 h-8 mt-1" />
                     ) : card.animateValue !== undefined ? (
@@ -64,7 +72,7 @@ function StatCard({ card, loading }) {
                     )}
                 </div>
                 {card.sub && (
-                    <div className="card-subtitle text-muted text-xs">
+                    <div className="dashboard-stat-card-subtitle">
                         {card.sub}
                     </div>
                 )}
@@ -128,23 +136,16 @@ function getWsUrl(ticket) {
 
 // ── Connection Status Indicator ──────────────────────────
 function WsStatusDot({ status }) {
-    const colors = {
-        connected: 'var(--accent-success)',
-        connecting: 'var(--accent-warning)',
-        reconnecting: 'var(--accent-warning)',
-        disconnected: 'var(--accent-danger)',
-    };
     const labels = {
         connected: '实时连接',
         connecting: '连接中...',
         reconnecting: '重连中...',
         disconnected: '已断开',
     };
-    const color = colors[status] || 'var(--text-muted)';
     return (
-        <div className="ws-status-chip" title={labels[status] || '未知'}>
-            <HiOutlineBolt style={{ color, fontSize: '14px' }} />
-            <span className="text-sm" style={{ color, fontSize: '11px' }}>
+        <div className="ws-status-chip" data-status={status || 'disconnected'} title={labels[status] || '未知'}>
+            <HiOutlineBolt className="ws-status-icon" />
+            <span className="ws-status-label">
                 {labels[status] || ''}
             </span>
         </div>
@@ -451,14 +452,14 @@ export default function Dashboard() {
                 />
                 <div className="page-content page-enter">
                     <div className="dashboard-toolbar">
-                        <div className="dashboard-toolbar-group">
+                        <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                             <div>
                                 <div className="dashboard-section-title">全局状态</div>
                                 <div className="dashboard-section-subtitle">统一查看节点可用性、会话与容量变化</div>
                             </div>
                             <WsStatusDot status={wsStatus} />
                         </div>
-                        <div className="dashboard-toolbar-group">
+                        <div className="dashboard-toolbar-group dashboard-toolbar-actions">
                             <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
                                 <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
                             </button>
@@ -568,14 +569,14 @@ export default function Dashboard() {
             />
             <div className="page-content page-enter">
                 <div className="dashboard-toolbar">
-                    <div className="dashboard-toolbar-group">
+                    <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                         <div>
                             <div className="dashboard-section-title">{activeServer?.name || '当前节点'}</div>
                             <div className="dashboard-section-subtitle">资源状态、入站容量与活跃会话</div>
                         </div>
                         <WsStatusDot status={wsStatus} />
                     </div>
-                    <div className="dashboard-toolbar-group">
+                    <div className="dashboard-toolbar-group dashboard-toolbar-actions">
                         <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
                             <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
                         </button>

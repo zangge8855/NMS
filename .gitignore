@@ -38,6 +38,7 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+output/
 
 # ---- Certificates / keys ----
 *.pem

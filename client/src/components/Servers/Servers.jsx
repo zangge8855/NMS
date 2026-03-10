@@ -490,14 +490,14 @@ export default function Servers() {
         <>
             <Header title="服务器管理" subtitle="管理 3x-ui 节点接入、健康检查与凭据状态" eyebrow="Server Registry" />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-6 glass-panel p-4">
+                <div className="flex items-center justify-between mb-6 glass-panel p-4 servers-toolbar">
                     <div>
                         <h2 className="text-glow section-title">已注册的服务器</h2>
                         <p className="text-muted mt-1 section-subtitle">管理您的 3x-ui 面板连接</p>
                     </div>
-                    <div className="flex gap-4 items-center flex-wrap justify-end">
+                    <div className="flex gap-4 items-center flex-wrap justify-end servers-toolbar-actions">
                         {selectedIds.size > 0 && (
-                            <div className="flex gap-2 items-center animate-fade-in">
+                            <div className="flex gap-2 items-center animate-fade-in servers-selection-bar">
                                 <span className="text-sm font-bold px-2 text-primary">已选 {selectedIds.size} 项</span>
                                 <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
                                     <HiOutlineTrash /> 删除
@@ -528,20 +528,20 @@ export default function Servers() {
                     </div>
                 </div>
 
-                <div className="card mb-4 p-3">
-                    <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+                <div className="card mb-4 p-3 servers-filter-card">
+                    <div className="flex items-center gap-3 servers-filter-bar" style={{ flexWrap: 'wrap' }}>
                         <input
-                            className="form-input"
-                            style={{ maxWidth: '260px' }}
+                            className="form-input servers-filter-search"
+                            style={{ width: 'min(320px, 100%)' }}
                             placeholder="搜索名称 / URL / 标签"
                             value={searchKeyword}
                             onChange={(e) => setSearchKeyword(e.target.value)}
                         />
-                        <select className="form-select" style={{ width: '160px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                        <select className="form-select servers-filter-select" style={{ width: '160px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
                             <option value="all">全部分组</option>
                             {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                         </select>
-                        <div className="text-sm text-muted" style={{ marginLeft: 'auto' }}>
+                        <div className="text-sm text-muted servers-filter-summary" style={{ marginLeft: 'auto' }}>
                             显示 {filteredServers.length} / {servers.length}
                         </div>
                     </div>
@@ -561,7 +561,7 @@ export default function Servers() {
                         <div className="empty-state-sub">请调整分组/环境/健康筛选条件</div>
                     </div>
                 ) : (
-                    <div className="grid-auto-280">
+                    <div className="grid-auto-280 servers-grid">
                         {filteredServers.map(server => {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
@@ -574,10 +574,10 @@ export default function Servers() {
                             return (
                                 <div
                                     key={server.id}
-                                    className={`card server-card hover-lift transition-all duration-300 ${isSelected ? 'ring-1 ring-primary-soft bg-white/5' : ''} ${isActive ? 'active' : ''}`}
+                                    className={`card server-card hover-lift transition-all duration-300 ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
                                     onClick={() => selectServer(server.id)}
                                 >
-                                    <div className="absolute top-4 right-4" onClick={e => e.stopPropagation()}>
+                                    <div className="absolute top-4 right-4 server-card-select" onClick={e => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             className="checkbox"
@@ -586,19 +586,19 @@ export default function Servers() {
                                         />
                                     </div>
 
-                                    <div className="flex items-center justify-between mb-6 pr-8">
+                                    <div className="flex items-center justify-between mb-6 pr-8 server-card-head">
                                         <div className="flex items-center gap-4">
                                             <div className="card-icon server-card-icon">
                                                 <HiOutlineServerStack />
                                             </div>
                                             <div>
                                                 <div className={`server-card-name ${isActive ? 'text-glow' : ''} table-cell-link`} onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}>{server.name}</div>
-                                                <div className="text-sm text-muted font-mono mt-1">{getPanelUrl(server)}</div>
+                                                <div className="text-sm text-muted font-mono mt-1 server-card-url">{getPanelUrl(server)}</div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 text-sm text-muted mb-6 bg-black/20 p-3 rounded-lg border border-white/5">
+                                    <div className="flex items-center gap-2 text-sm text-muted mb-6 bg-black/20 p-3 rounded-lg border border-white/5 server-card-meta">
                                         <div className="flex-1 truncate">
                                             <span className="opacity-70">用户: </span>
                                             <span className="font-medium text-primary">{server.username}</span>
@@ -607,7 +607,7 @@ export default function Servers() {
                                             <span className="badge badge-success px-2 py-0.5 text-xs">Active</span>
                                         )}
                                     </div>
-                                    <div className="flex flex-wrap gap-2 mb-4 text-xs">
+                                    <div className="flex flex-wrap gap-2 mb-4 text-xs server-card-tags">
                                         <span className="badge badge-neutral">分组: {server.group || '未分组'}</span>
                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                         {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
@@ -615,7 +615,7 @@ export default function Servers() {
                                         ))}
                                     </div>
 
-                                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex gap-2 server-card-actions" onClick={(e) => e.stopPropagation()}>
                                         <button className="btn btn-secondary btn-sm flex-1" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
                                             <HiOutlineEye /> 详情
                                         </button>

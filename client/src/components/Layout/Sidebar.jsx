@@ -96,21 +96,18 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
 
     return (
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''} `}>
-            {/* Logo */}
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">N</div>
                 <div className="sidebar-logo-copy">
                     <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS Cloud</span>
-                    <span className="sidebar-logo-subtitle">Node Management Console</span>
+                    <span className="sidebar-logo-subtitle">Unified Control Plane</span>
                 </div>
             </div>
 
-            {/* Toggle Button */}
-            <button className="sidebar-toggle" onClick={onToggle}>
+            <button className="sidebar-toggle" onClick={onToggle} aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}>
                 {collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />}
             </button>
 
-            {/* Navigation */}
             <nav className="sidebar-nav">
                 {navSections.map((section) => {
                     const sectionItems = section.items.filter((item) => {
@@ -150,7 +147,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                     );
                 })}
 
-                <div className="nav-section" style={{ marginTop: 'auto' }}>
+                <div className="nav-section nav-section-footer" style={{ marginTop: 'auto' }}>
                     <div className="nav-section-title">{isAdmin ? '系统' : '账户'}</div>
                     {isAdmin && (
                         <NavLink
@@ -167,72 +164,64 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                             )}
                         </NavLink>
                     )}
-                    <div className="nav-item" onClick={() => { logout(); onClose?.(); }}>
+                    <button
+                        type="button"
+                        className="nav-item nav-item-button sidebar-logout"
+                        onClick={() => { logout(); onClose?.(); }}
+                    >
                         <span className="nav-item-icon text-muted"><HiOutlineArrowRightOnRectangle /></span>
                         <span className="nav-label">退出登录</span>
-                    </div>
+                    </button>
                 </div>
             </nav>
 
-            {/* Server Selector */}
             {isAdmin && (
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (
-                    <div
-                        className={`server-selector-btn glass-panel ${showServerMenu ? 'active' : ''}`}
+                    <button
+                        type="button"
+                        className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
                         onClick={() => setShowServerMenu(!showServerMenu)}
+                        aria-expanded={showServerMenu}
                     >
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
                             <div className="server-name text-glow">集群总览</div>
                             <div className="server-addr text-muted">Global View</div>
                         </div>
-                        <HiOutlineChevronRight
-                            className="server-chevron"
-                            style={{
-                                transform: showServerMenu ? 'rotate(90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.2s',
-                                color: 'var(--accent-primary)'
-                            }}
-                        />
-                    </div>
+                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
+                    </button>
                 ) : activeServer ? (
-                    <div
-                        className={`server-selector-btn glass-panel ${showServerMenu ? 'active' : ''}`}
+                    <button
+                        type="button"
+                        className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
                         onClick={() => setShowServerMenu(!showServerMenu)}
+                        aria-expanded={showServerMenu}
                     >
                         <span className="server-dot server-dot-lg"><HiOutlineServerStack /></span>
                         <div className="server-info">
                             <div className="server-name text-glow">{activeServer.name}</div>
                             <div className="server-addr text-muted">{activeServer.url}</div>
                         </div>
-                        <HiOutlineChevronRight
-                            className="server-chevron"
-                            style={{
-                                transform: showServerMenu ? 'rotate(90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.2s',
-                                color: 'var(--accent-primary)'
-                            }}
-                        />
-                    </div>
+                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
+                    </button>
                 ) : (
-                    <div className="server-selector-btn glass-panel" onClick={() => setShowServerMenu(!showServerMenu)}>
+                    <button type="button" className="server-selector-btn" onClick={() => setShowServerMenu(!showServerMenu)} aria-expanded={showServerMenu}>
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
                             <div className="server-name text-glow">选择服务器</div>
                         </div>
-                        <HiOutlineChevronRight className="server-chevron" />
-                    </div>
+                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
+                    </button>
                 )}
 
-                {/* Server dropdown */}
                 {showServerMenu && (servers.length > 0 || activeServerId === 'global') && (
                     <div className="server-dropdown-menu">
                         <div
                             onClick={() => { selectServer('global'); setShowServerMenu(false); onClose?.(); }}
                             className={`server-dropdown-item ${activeServerId === 'global' ? 'active' : ''}`}
                         >
-                            <span className="server-dot flex"><HiOutlineCloud /></span>
+                            <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
                             <div>
                                 <div className="font-medium">集群总览</div>
                                 <div className="text-muted text-xs">Global View</div>
@@ -245,7 +234,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                                 onClick={() => { selectServer(s.id); setShowServerMenu(false); onClose?.(); }}
                                 className={`server-dropdown-item ${s.id === activeServerId ? 'active' : ''}`}
                             >
-                                <span className="server-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-success)' }} />
+                                <span className="server-dropdown-item-dot" />
                                 <div>
                                     <div className="font-medium">{s.name}</div>
                                     <div className="text-muted text-xs">{s.url}</div>

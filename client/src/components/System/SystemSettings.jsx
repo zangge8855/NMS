@@ -431,11 +431,11 @@ export default function SystemSettings() {
         <>
             <Header title="系统设置" subtitle="全局参数、运行诊断、存储与备份状态" eyebrow="Platform Settings" />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="text-sm text-muted">
+                <div className="flex items-center justify-between mb-6 settings-toolbar">
+                    <div className="text-sm text-muted settings-toolbar-copy">
                         {settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : '系统参数'}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 settings-toolbar-actions">
                         <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
                         <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
                             {saving ? <span className="spinner" /> : '保存设置'}
@@ -443,13 +443,13 @@ export default function SystemSettings() {
                     </div>
                 </div>
 
-                <fieldset disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
-                    <div className="grid-auto-280">
-                        <div className="card p-4" style={{ gridColumn: '1 / -1' }}>
+                <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
+                    <div className="grid-auto-280 settings-grid">
+                        <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">系统参数</div>
                             <div className="text-sm text-muted">影响任务保留、审计分页和订阅地址等全局行为。</div>
                         </div>
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel">
                             <h3 className="text-lg font-semibold mb-3">任务中心参数</h3>
                             <div className="text-xs text-muted mb-3">批量任务（用户操作、流量重置等）的运行与存储参数</div>
                             <div className="form-group">
@@ -479,7 +479,7 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel">
                             <h3 className="text-lg font-semibold mb-3">审计参数</h3>
                             <div className="text-xs text-muted mb-3">操作日志（登录、增删改查等）的存储策略</div>
                             <div className="form-group">
@@ -494,7 +494,7 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel">
                             <h3 className="text-lg font-semibold mb-3">订阅地址</h3>
                             <div className="form-group">
                                 <label className="form-label">订阅公网地址（可选，建议配置）</label>
@@ -513,11 +513,11 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
-                        <div className="card p-4" style={{ gridColumn: '1 / -1' }}>
+                        <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">运行诊断</div>
                             <div className="text-sm text-muted">只读查看当前邮件、备份和健康巡检状态，高风险操作仍需单独确认。</div>
                         </div>
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel settings-diagnostics-panel">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h3 className="text-lg font-semibold">SMTP 诊断</h3>
@@ -543,29 +543,29 @@ export default function SystemSettings() {
                             ) : (
                                 <>
                                     <div className="text-xs text-muted mb-3">SMTP 配置来自服务端 `.env`，修改后需要重启后端服务。此处仅展示诊断信息，不返回明文密码。</div>
-                                    <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                                        <div className="card p-3">
+                                    <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                        <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">配置状态</div>
                                             <div className="mt-2">
                                                 <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
                                             </div>
                                         </div>
-                                        <div className="card p-3">
+                                        <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">SMTP 服务</div>
                                             <div className="text-lg font-semibold">{emailStatus.service || '-'}</div>
                                             <div className="text-xs text-muted">auth {emailStatus.authMethod || 'AUTO'}</div>
                                         </div>
-                                        <div className="card p-3">
+                                        <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">服务器</div>
                                             <div className="text-lg font-semibold">{emailStatus.host || '-'}</div>
                                             <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
                                         </div>
-                                        <div className="card p-3">
+                                        <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">发件人</div>
                                             <div className="text-lg font-semibold">{emailStatus.from || '-'}</div>
                                             <div className="text-xs text-muted">账号 {emailStatus.userMasked || '-'}</div>
                                         </div>
-                                        <div className="card p-3">
+                                        <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">加密模式</div>
                                             <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
                                             <div className="text-xs text-muted">
@@ -573,7 +573,7 @@ export default function SystemSettings() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="card p-3 mt-3">
+                                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">最近连接测试</div>
                                             <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
@@ -582,7 +582,7 @@ export default function SystemSettings() {
                                         <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
                                         <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
                                     </div>
-                                    <div className="card p-3 mt-3">
+                                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">最近发送结果</div>
                                             <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
@@ -596,7 +596,7 @@ export default function SystemSettings() {
                             )}
                         </div>
 
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel settings-backup-panel">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-lg font-semibold">系统备份</h3>
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
@@ -604,13 +604,13 @@ export default function SystemSettings() {
                                 </button>
                             </div>
                             <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包，不包含额外运行进程文件。</div>
-                            <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                                <div className="card p-3">
+                            <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">可备份 Store</div>
                                     <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
                                     <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">最近导出</div>
                                     <div className="text-lg font-semibold">{backupStatus?.lastExport?.createdAt ? new Date(backupStatus.lastExport.createdAt).toLocaleString('zh-CN') : '暂无'}</div>
                                     <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
@@ -623,7 +623,7 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
-                        <div className="card p-4">
+                        <div className="card p-4 settings-panel settings-monitor-panel">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-lg font-semibold">节点健康监控</h3>
                                 <div className="flex gap-2">
@@ -636,25 +636,25 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                             <div className="text-xs text-muted mb-3">后台会定期巡检已配置节点，并通过右上角通知中心推送异常/恢复告警。</div>
-                            <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
-                                <div className="card p-3">
+                            <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">监控状态</div>
                                     <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
                                     <div className="text-xs text-muted mt-1">周期 {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">最近巡检</div>
                                     <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.lastRunAt ? new Date(monitorStatus.healthMonitor.lastRunAt).toLocaleString('zh-CN') : '暂无'}</div>
                                     <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">健康统计</div>
                                     <div className="text-lg font-semibold">
                                         正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
                                     </div>
                                     <div className="text-xs text-muted mt-1">维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0}</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">告警状态</div>
                                     <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
                                     <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
@@ -665,7 +665,7 @@ export default function SystemSettings() {
                     </div>
                 </fieldset>
 
-                <div className="card p-4 mt-6">
+                <div className="card p-4 mt-6 settings-panel settings-danger-panel">
                     <h3 className="text-lg font-semibold mb-3">凭据轮换</h3>
                     <div className="text-xs text-muted mb-3">更换 CREDENTIALS_SECRET 后，将已保存的节点凭据用新密钥重新加密。Dry Run 仅预演不修改数据。</div>
                     {isAdmin ? (
@@ -687,7 +687,7 @@ export default function SystemSettings() {
                     )}
                 </div>
 
-                <div className="card p-4 mt-6">
+                <div className="card p-4 mt-6 settings-panel settings-db-panel">
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-semibold">数据库接入状态</h3>
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
@@ -700,10 +700,10 @@ export default function SystemSettings() {
                     ) : (
                         <>
                             <div
-                                className="grid gap-3 mb-4"
+                                className="grid gap-3 mb-4 settings-mini-grid"
                                 style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}
                             >
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">DB 连接</div>
                                     <div className="text-lg font-semibold">
                                         {dbStatus.connection?.enabled ? (dbStatus.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
@@ -711,14 +711,14 @@ export default function SystemSettings() {
                                     <div className="text-xs text-muted">{dbStatus.connection?.error || '无错误'}</div>
                                     <div className="text-xs text-muted mt-1">需在 .env 中配置 DB_ENABLED=true 和 DB_URL</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">当前模式</div>
                                     <div className="text-lg font-semibold">
                                         read={dbStatus.currentModes?.readMode || 'file'} / write={dbStatus.currentModes?.writeMode || 'file'}
                                     </div>
                                     <div className="text-xs text-muted">queued {dbStatus.writesQueued || 0} · pending {dbStatus.pendingWrites || 0}</div>
                                 </div>
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">写入统计</div>
                                     <div className="text-lg font-semibold">
                                         成功 {dbStatus.writesSucceeded || 0} / 失败 {dbStatus.writesFailed || 0}
@@ -727,8 +727,8 @@ export default function SystemSettings() {
                                 </div>
                             </div>
 
-                            <div className="grid-auto-280">
-                                <div className="card p-3">
+                            <div className="grid-auto-280 settings-db-grid">
+                                <div className="card p-3 settings-mini-card settings-db-control-card">
                                     <h4 className="text-base font-semibold mb-2">切换读写模式</h4>
                                     <div className="text-xs text-muted mb-2">运行时切换数据源，无需重启。file=本地JSON，db=PostgreSQL，dual=同时写两者</div>
                                     <div className="form-group">
@@ -775,7 +775,7 @@ export default function SystemSettings() {
                                     </button>
                                 </div>
 
-                                <div className="card p-3">
+                                <div className="card p-3 settings-mini-card settings-db-control-card">
                                     <h4 className="text-base font-semibold mb-2">Store 回填到数据库</h4>
                                     <div className="text-xs text-muted mb-2">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
                                     <div className="form-group">
@@ -826,9 +826,9 @@ export default function SystemSettings() {
                                 </div>
                             </div>
 
-                            <div className="mt-4">
+                            <div className="mt-4 settings-snapshot-section">
                                 <h4 className="text-base font-semibold mb-2">数据库快照</h4>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                     <table className="table">
                                         <thead>
                                             <tr>

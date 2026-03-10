@@ -40,17 +40,20 @@ export default function Header({ title, subtitle = '', eyebrow = 'Node Managemen
                     {subtitle && <div className="header-subtitle">{subtitle}</div>}
                 </div>
             </div>
-            <div className="header-right">
+            <div className="header-actions">
                 {scopeLabel && (
                     <div className="header-context">
                         {ScopeIcon && <ScopeIcon style={{ fontSize: '14px' }} />}
-                        <span>{scopeLabel.title}</span>
-                        <strong>{scopeLabel.value}</strong>
+                        <div className="header-context-copy">
+                            <span className="header-context-label">{scopeLabel.title}</span>
+                            <strong>{scopeLabel.value}</strong>
+                        </div>
                     </div>
                 )}
                 {children}
                 <NotificationBell />
                 <button
+                    type="button"
                     className="theme-toggle-btn"
                     onClick={cycleTheme}
                     title={themeLabels[mode]}

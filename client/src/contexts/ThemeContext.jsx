@@ -17,7 +17,7 @@ function getStoredThemeMode() {
         return legacyStored;
     }
 
-    return 'auto';
+    return 'dark';
 }
 
 function getSystemTheme() {

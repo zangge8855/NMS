@@ -269,9 +269,9 @@ export default function AuditCenter() {
 
     return (
         <>
-            <Header title="审计中心" />
+            <Header title="审计中心" subtitle="统一查看操作链路、流量走势与订阅访问记录" eyebrow="Node Management Console" />
             <div className="page-content page-enter">
-                <div className="tabs mb-8">
+                <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
                         操作审计
                     </button>
@@ -291,8 +291,8 @@ export default function AuditCenter() {
 
                 {tab === 'events' && (
                     <>
-                        <div className="card mb-8 p-3">
-                            <div className="flex gap-2 items-center flex-wrap">
+                        <div className="card mb-8 p-3 audit-filter-card audit-filter-card-events">
+                            <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
                                 <input
                                     className="form-input w-180"
                                     placeholder="关键词"
@@ -339,7 +339,7 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="table-container glass-panel mb-8">
+                        <div className="table-container glass-panel mb-8 audit-table-shell audit-events-table-shell">
                             <table className="table">
                                 <thead>
                                     <tr>
@@ -378,7 +378,7 @@ export default function AuditCenter() {
                             </table>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between audit-pagination">
                             <div className="text-sm text-muted">共 {eventsData.total || 0} 条</div>
                             <div className="flex gap-2">
                                 <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>上一页</button>
@@ -393,7 +393,7 @@ export default function AuditCenter() {
 
                 {tab === 'traffic' && (
                     <>
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-6 audit-traffic-toolbar">
                             <div className="text-sm text-muted">
                                 最近采样: {formatDateTime(trafficOverview?.lastCollectionAt)}
                             </div>
@@ -413,24 +413,24 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="stats-grid mb-8">
-                            <div className="card">
+                        <div className="stats-grid mb-8 audit-stats-grid">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">总流量</span><HiOutlineChartBarSquare /></div>
                                 <div className="card-value">{formatBytes(trafficOverview?.totals?.totalBytes || 0)}</div>
                                 <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.totals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.totals?.downBytes || 0)}</div>
                             </div>
-                            <div className="card">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">活跃用户</span><HiOutlineUsers /></div>
                                 <div className="card-value">{trafficOverview?.activeUsers || 0}</div>
                             </div>
-                            <div className="card">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">采样点</span><HiOutlineSignal /></div>
                                 <div className="card-value">{trafficOverview?.sampleCount || 0}</div>
                             </div>
                         </div>
 
-                        <div className="grid-auto-280-tight mb-8">
-                            <div className="card">
+                        <div className="grid-auto-280-tight mb-8 audit-chart-grid">
+                            <div className="card audit-chart-card">
                                 <div className="card-header">
                                     <span className="card-title">用户流量趋势</span>
                                     <select
@@ -462,7 +462,7 @@ export default function AuditCenter() {
                                 </div>
                             </div>
 
-                            <div className="card">
+                            <div className="card audit-chart-card">
                                 <div className="card-header">
                                     <span className="card-title">节点流量趋势</span>
                                     <select
@@ -492,13 +492,13 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="grid-auto-280-tight">
-                            <div className="card">
+                        <div className="grid-auto-280-tight audit-leaderboard-grid">
+                            <div className="card audit-leaderboard-card">
                                 <div className="card-header"><span className="card-title">流量 Top 用户</span></div>
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">当前节点列表未提供用户级流量计数。</div>
                                 )}
-                                <div className="table-container">
+                                <div className="table-container audit-nested-table-shell">
                                     <table className="table">
                                         <thead><tr><th>用户</th><th>流量</th></tr></thead>
                                         <tbody>
@@ -514,9 +514,9 @@ export default function AuditCenter() {
                                     </table>
                                 </div>
                             </div>
-                            <div className="card">
+                            <div className="card audit-leaderboard-card">
                                 <div className="card-header"><span className="card-title">流量 Top 节点</span></div>
-                                <div className="table-container">
+                                <div className="table-container audit-nested-table-shell">
                                     <table className="table">
                                         <thead><tr><th>节点</th><th>流量</th></tr></thead>
                                         <tbody>
@@ -538,8 +538,8 @@ export default function AuditCenter() {
 
                 {tab === 'subscriptions' && (
                     <>
-                        <div className="card mb-8 p-3">
-                            <div className="flex gap-2 items-center flex-wrap">
+                        <div className="card mb-8 p-3 audit-filter-card audit-filter-card-subscriptions">
+                            <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
                                 <input
                                     className="form-input w-220"
                                     placeholder="邮箱过滤"
@@ -567,28 +567,28 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="stats-grid mb-8">
-                            <div className="card">
+                        <div className="stats-grid mb-8 audit-stats-grid">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">访问次数 (PV)</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.total || 0}</div>
                             </div>
-                            <div className="card">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">独立 IP (UV)</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.uniqueIpCount || 0}</div>
                             </div>
-                            <div className="card">
+                            <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">访问用户数</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.uniqueUsers || 0}</div>
                             </div>
                             {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
-                                <div className="card" key={key}>
+                                <div className="card audit-stat-card" key={key}>
                                     <div className="card-header"><span className="card-title">{key}</span><HiOutlineDocumentText /></div>
                                     <div className="card-value">{value}</div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="table-container glass-panel mb-8">
+                        <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
                             <table className="table" style={{ minWidth: '1080px', tableLayout: 'fixed' }}>
                                 <colgroup>
                                     <col style={{ width: '160px' }} />
@@ -637,7 +637,7 @@ export default function AuditCenter() {
                             </table>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between audit-pagination">
                             <div className="text-sm text-muted">共 {accessData.total || 0} 条</div>
                             <div className="flex gap-2">
                                 <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>上一页</button>
@@ -663,7 +663,7 @@ export default function AuditCenter() {
 
             {selectedEvent && (
                 <div className="modal-overlay" onClick={() => setSelectedEvent(null)}>
-                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">审计事件详情</h3>
                             <button className="modal-close" onClick={() => setSelectedEvent(null)}>×</button>

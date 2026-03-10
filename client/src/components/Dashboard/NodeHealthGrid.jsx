@@ -15,11 +15,11 @@ import {
 } from 'react-icons/hi2';
 
 function getNodeColor(serverData) {
-    if (!serverData?.online) return { bg: 'var(--accent-danger-bg)', border: 'var(--accent-danger)', dot: 'var(--accent-danger)', label: '离线' };
+    if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: '离线' };
     const cpu = serverData.status?.cpu ?? 0;
-    if (cpu > 85) return { bg: 'var(--accent-danger-bg)', border: 'var(--accent-danger)', dot: 'var(--accent-danger)', label: '高负载' };
-    if (cpu > 70) return { bg: 'var(--accent-warning-bg)', border: 'var(--accent-warning)', dot: 'var(--accent-warning)', label: '负载较高' };
-    return { bg: 'var(--accent-success-bg)', border: 'var(--accent-success)', dot: 'var(--accent-success)', label: '正常' };
+    if (cpu > 85) return { tone: 'danger', dot: 'var(--accent-danger)', label: '高负载' };
+    if (cpu > 70) return { tone: 'warning', dot: 'var(--accent-warning)', label: '负载较高' };
+    return { tone: 'success', dot: 'var(--accent-success)', label: '正常' };
 }
 
 function NodeTile({ server, serverData }) {
@@ -37,19 +37,19 @@ function NodeTile({ server, serverData }) {
             onClick={() => navigate('/server')}
             title={`${server.name} — ${color.label}`}
             style={{
-                border: `1px solid ${color.border}`,
-                background: color.bg,
                 '--node-color': color.dot,
             }}
+            data-tone={color.tone}
         >
-            <div className="node-health-tile-status" />
-
-            <div className="node-health-tile-title">
-                {isOnline
-                    ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
-                    : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
-                }
-                <span className="node-health-tile-name">{server.name}</span>
+            <div className="node-health-tile-head">
+                <div className="node-health-tile-title">
+                    {isOnline
+                        ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
+                        : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
+                    }
+                    <span className="node-health-tile-name">{server.name}</span>
+                </div>
+                <span className="node-health-tone-pill">{color.label}</span>
             </div>
 
             {isOnline ? (
@@ -80,7 +80,7 @@ function NodeTile({ server, serverData }) {
                     </div>
                 </div>
             ) : (
-                <div className="node-health-tile-value" style={{ color: 'var(--accent-danger)', fontSize: '12px' }}>
+                <div className="node-health-tile-message">
                     {serverData?.error || '无法连接'}
                 </div>
             )}

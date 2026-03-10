@@ -784,39 +784,44 @@ export default function UsersHub() {
         <>
             <Header title="用户管理" subtitle="统一维护账号、订阅状态、客户端与访问策略" eyebrow="Identity & Access" />
             <div className="page-content page-enter">
-                <div className="flex flex-col gap-4 mb-6">
+                <div className="flex flex-col gap-4 mb-6 users-shell-intro">
                     {/* Toolbar */}
-                    <div className="flex items-center gap-4 glass-panel p-4 mobile-toolbar">
-                        <div className="account-search-shell flex-1 max-w-sm">
-                            <HiOutlineMagnifyingGlass className="account-search-icon" />
-                            <input
-                                className="form-input account-search-input"
-                                placeholder="搜索用户名 / 邮箱..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                    <div className="flex items-center justify-between gap-4 glass-panel p-4 mobile-toolbar users-toolbar">
+                        <div className="flex items-center gap-4 users-toolbar-main">
+                            <div className="account-search-shell flex-1 max-w-sm">
+                                <HiOutlineMagnifyingGlass className="account-search-icon" />
+                                <input
+                                    className="form-input account-search-input"
+                                    placeholder="搜索用户名 / 邮箱..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <select className="form-select users-filter-select" style={{ width: 'auto', minWidth: 100 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                                <option value="all">全部状态</option>
+                                <option value="active">已开通</option>
+                                <option value="enabled">已启用</option>
+                                <option value="disabled">已停用</option>
+                                <option value="pending">待审核</option>
+                            </select>
                         </div>
-                        <select className="form-select" style={{ width: 'auto', minWidth: 100 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                            <option value="all">全部状态</option>
-                            <option value="active">已开通</option>
-                            <option value="enabled">已启用</option>
-                            <option value="disabled">已停用</option>
-                            <option value="pending">待审核</option>
-                        </select>
-                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
-                            <HiOutlineArrowDownTray /> 导出
-                        </button>
-                        <button className="btn btn-secondary btn-sm" onClick={fetchData} title="刷新">
-                            <HiOutlineArrowPath /> 刷新
-                        </button>
-                        <button className="btn btn-primary btn-sm" onClick={openCreateModal} title="添加账号">
-                            <HiOutlineUserPlus /> 添加账号
-                        </button>
+                        <div className="flex items-center gap-3 users-toolbar-actions">
+                            <div className="text-sm text-muted users-toolbar-summary">显示 {enrichedUsers.length} / {users.length} 位账号</div>
+                            <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
+                                <HiOutlineArrowDownTray /> 导出
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={fetchData} title="刷新">
+                                <HiOutlineArrowPath /> 刷新
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={openCreateModal} title="添加账号">
+                                <HiOutlineUserPlus /> 添加账号
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {selectedIds.size > 0 && (
-                    <div className="bulk-toolbar mb-4">
+                    <div className="bulk-toolbar mb-4 users-bulk-toolbar">
                         <span className="bulk-toolbar-count">已选 {selectedIds.size} 个用户</span>
                         <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnabled(true)} disabled={bulkLoading}>
                             <HiOutlinePlayCircle /> 批量启用
@@ -830,7 +835,7 @@ export default function UsersHub() {
                     </div>
                 )}
 
-                <div className="table-container glass-panel">
+                <div className="table-container glass-panel users-table-shell">
                     <table className="table">
                         <thead>
                             <tr>
@@ -855,7 +860,7 @@ export default function UsersHub() {
                                 </td></tr>
                             ) : (
                                 enrichedUsers.map((user) => (
-                                    <tr key={user.id} className={selectedIds.has(user.id) ? 'table-row-selected' : ''}>
+                                    <tr key={user.id} className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}`}>
                                         <td><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                         <td data-label="用户名" className="font-medium table-cell-link" onClick={() => navigate(`/clients/${user.id}`)}>{user.username}</td>
                                         <td data-label="邮箱" className="text-sm text-muted">{user.email || user.subscriptionEmail || '-'}</td>
@@ -866,7 +871,7 @@ export default function UsersHub() {
                                         <td data-label="已用流量">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
                                         <td data-label="到期时间">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
                                         <td data-label="" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex gap-2 flex-wrap">
+                                            <div className="flex gap-2 flex-wrap users-row-actions">
                                                 <button className="btn btn-secondary btn-sm btn-icon" title="详情" onClick={() => navigate(`/clients/${user.id}`)}>
                                                     <HiOutlineEye />
                                                 </button>

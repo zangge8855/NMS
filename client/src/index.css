@@ -89,9 +89,9 @@
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Typography */
-  --font-family: 'IBM Plex Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-family: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-display: 'IBM Plex Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   color-scheme: dark;
 }
 

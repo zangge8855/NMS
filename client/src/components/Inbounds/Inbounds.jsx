@@ -540,10 +540,10 @@ export default function Inbounds() {
             <Header title="入站管理" subtitle="跨节点维护协议、端口、客户端和限额策略" eyebrow="Traffic & Inbounds" />
             <div className="page-content page-enter">
                 {/* Toolbar */}
-                <div className="flex items-center justify-between mb-6 glass-panel p-4 mobile-toolbar">
-                    <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between mb-6 glass-panel p-4 mobile-toolbar inbounds-toolbar">
+                    <div className="flex items-center gap-4 inbounds-toolbar-main">
                         <select
-                            className="form-select"
+                            className="form-select inbounds-filter-select"
                             value={filterServerId}
                             onChange={(e) => setFilterServerId(e.target.value)}
                             style={{ width: 'auto', minWidth: '160px' }}
@@ -553,14 +553,14 @@ export default function Inbounds() {
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
-                        <div>
+                        <div className="inbounds-toolbar-copy">
                             <h2 className="text-glow text-lg font-semibold">入站列表</h2>
                             <p className="text-muted mt-1" style={{ fontSize: '12px' }}>共 {filteredInbounds.length} 条规则</p>
                         </div>
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 inbounds-toolbar-actions">
                         {selectedVisibleCount > 0 ? (
-                            <div className="flex gap-2 items-center animate-fade-in">
+                            <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
                                 <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
                                 <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>
                                     启用
@@ -587,12 +587,12 @@ export default function Inbounds() {
                 </div>
 
                 {savingOrderServerId && (
-                    <div className="text-xs text-muted mb-3">
+                    <div className="text-xs text-muted mb-3 inbounds-saving-note">
                         正在保存节点排序: {servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}
                     </div>
                 )}
 
-                <div className="table-container glass-panel">
+                <div className="table-container glass-panel inbounds-table-shell">
                     <table className="table">
                         <thead>
                             <tr>
@@ -641,7 +641,7 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface ${isSelected ? 'bg-white/5' : ''}`}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
                                                 onDragOver={(e) => e.preventDefault()}
                                                 onDrop={(e) => {
@@ -695,7 +695,7 @@ export default function Inbounds() {
                                                     </span>
                                                 </td>
                                                 <td data-label="" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex gap-2 inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon"
                                                             title="编辑"
@@ -715,12 +715,12 @@ export default function Inbounds() {
                                             </tr>
                                             {isExpanded && clients.length > 0 && (
                                                 <tr>
-                                                    <td colSpan={tableColSpan} className="p-0 bg-black/20">
-                                                        <div className="p-4">
-                                                            <div className="text-xs font-bold text-muted mb-2 uppercase tracking-wider">
+                                                    <td colSpan={tableColSpan} className="p-0 bg-black/20 inbounds-clients-cell">
+                                                        <div className="p-4 inbounds-clients-panel">
+                                                            <div className="text-xs font-bold text-muted mb-2 uppercase tracking-wider inbounds-clients-label">
                                                                 用户列表 ({clients.length})
                                                             </div>
-                                                            <table className="table w-full text-xs">
+                                                            <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
                                                                         <th>Email</th>
