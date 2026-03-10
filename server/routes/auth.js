@@ -152,6 +152,33 @@ function checkResetRate(ip) {
     return data.count <= RESET_RATE_MAX;
 }
 
+function buildUserAuditDetails(target, extra = {}) {
+    const fallbackEmail = normalizeEmailInput(target?.email);
+    const fallbackSubscriptionEmail = normalizeEmailInput(
+        Object.prototype.hasOwnProperty.call(target || {}, 'subscriptionEmail')
+            ? target?.subscriptionEmail
+            : target?.email
+    );
+    const email = normalizeEmailInput(
+        Object.prototype.hasOwnProperty.call(extra, 'email')
+            ? extra.email
+            : (fallbackEmail || fallbackSubscriptionEmail)
+    ) || fallbackEmail || fallbackSubscriptionEmail;
+    const subscriptionEmail = normalizeEmailInput(
+        Object.prototype.hasOwnProperty.call(extra, 'subscriptionEmail')
+            ? extra.subscriptionEmail
+            : (fallbackSubscriptionEmail || email)
+    );
+
+    return {
+        ...extra,
+        targetUserId: extra.targetUserId || target?.id || '',
+        targetUsername: extra.targetUsername || target?.username || '',
+        email,
+        subscriptionEmail,
+    };
+}
+
 /**
  * POST /api/auth/login
  * 支持两种模式:
@@ -161,9 +188,13 @@ function checkResetRate(ip) {
 router.post('/login', (req, res) => {
     const clientIp = resolveClientIp(req);
     const username = String(req.body?.username || '').trim();
+    const auditBase = {
+        ip: clientIp,
+        username: username || '(none)',
+    };
     const rateState = getLoginRateState(clientIp, username);
     if (rateState.blocked) {
-        appendSecurityAudit('login_rate_limited', req, { ip: clientIp });
+        appendSecurityAudit('login_rate_limited', req, auditBase);
         return res.status(429).json({
             success: false,
             msg: `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
@@ -175,7 +206,10 @@ router.post('/login', (req, res) => {
         recordLoginFailure(clientIp, username);
         const failState = getLoginRateState(clientIp, username);
         if (failState.blocked) {
-            appendSecurityAudit('login_rate_limited', req, { ip: clientIp });
+            appendSecurityAudit('login_rate_limited', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+            });
             return res.status(429).json({
                 success: false,
                 msg: `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
@@ -183,6 +217,10 @@ router.post('/login', (req, res) => {
         }
 
         if (result.reason === 'email_not_verified') {
+            appendSecurityAudit('login_denied_email_unverified', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+            });
             return res.status(403).json({
                 success: false,
                 msg: '邮箱尚未验证，请先完成邮箱验证',
@@ -191,13 +229,20 @@ router.post('/login', (req, res) => {
             });
         }
         if (result.reason === 'user_disabled') {
+            appendSecurityAudit('login_denied_user_disabled', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+            });
             return res.status(403).json({
                 success: false,
                 msg: '账号待审核，请等待管理员审核通过后再登录',
             });
         }
 
-        appendSecurityAudit('login_failed', req, { ip: clientIp, username: username || '(none)' });
+        appendSecurityAudit('login_failed', req, {
+            ...auditBase,
+            ...(result.audit || {}),
+        });
         return res.status(401).json({ success: false, msg: '用户名或密码错误' });
     }
 
@@ -446,7 +491,9 @@ router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
 router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
     try {
         const result = updateManagedUser(req.params.id, req.body);
-        appendSecurityAudit('user_updated', req, { targetUser: result.user.username });
+        appendSecurityAudit('user_updated', req, buildUserAuditDetails(result.user, {
+            targetUser: result.user.username,
+        }));
         res.json({ success: true, obj: result.user });
     } catch (err) {
         const error = toHttpError(err, 400, '更新用户失败');
@@ -460,11 +507,11 @@ router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
 router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, (req, res) => {
     try {
         const result = updateUserSubscriptionBinding(req.params.id, req.body);
-        appendSecurityAudit('user_subscription_binding_updated', req, {
+        appendSecurityAudit('user_subscription_binding_updated', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
             subscriptionEmail: result.updated?.subscriptionEmail || '',
-        });
+        }));
         return res.json({
             success: true,
             obj: result.updated,
@@ -485,11 +532,11 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
             req.body,
             String(req.user?.username || 'admin')
         );
-        appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, {
+        appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
             enabled: result.enabled,
-        });
+        }));
         return res.json({ success: true, obj: result.updated });
     } catch (err) {
         const error = toHttpError(err, 400, '更新用户状态失败');
@@ -507,14 +554,12 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
             req.body,
             String(req.user?.username || 'admin')
         );
-        appendSecurityAudit('user_expiry_updated', req, {
-            targetUserId: result.target.id,
-            targetUsername: result.target.username,
+        appendSecurityAudit('user_expiry_updated', req, buildUserAuditDetails(result.target, {
             subscriptionEmail: result.subscriptionEmail,
             expiryTime: result.expiryTime,
             updated: result.deployment.updated,
             failed: result.deployment.failed,
-        });
+        }));
 
         return res.json({ success: true, obj: result.deployment });
     } catch (err) {
@@ -533,9 +578,7 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
         const result = await provisionManagedUserSubscription(req.params.id, req.body, actor);
         const { user, policy, subscription, deployment, context, target } = result;
 
-        appendSecurityAudit('user_subscription_provisioned', req, {
-            targetUserId: target.id,
-            targetUsername: target.username,
+        appendSecurityAudit('user_subscription_provisioned', req, buildUserAuditDetails(target, {
             subscriptionEmail: context.subscriptionEmail,
             allowedServerCount: context.allowedServerIds.length,
             allowedProtocolCount: context.allowedProtocols.length,
@@ -548,7 +591,7 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             deploymentUpdated: deployment.updated,
             deploymentSkipped: deployment.skipped,
             deploymentFailed: deployment.failed,
-        });
+        }));
 
         return res.json({
             success: true,
@@ -571,10 +614,7 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
 router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) => {
     try {
         const result = adminResetUserPassword(req.params.id, req.body);
-        appendSecurityAudit('user_password_reset_by_admin', req, {
-            targetUserId: result.target.id,
-            targetUsername: result.target.username,
-        });
+        appendSecurityAudit('user_password_reset_by_admin', req, buildUserAuditDetails(result.target));
         return res.json({ success: true, msg: '密码已重置' });
     } catch (err) {
         const error = toHttpError(err, 400, '管理员重置密码失败');
@@ -588,15 +628,14 @@ router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) =>
 router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
     try {
         const result = await deleteManagedUser(req.params.id);
-        appendSecurityAudit('user_deleted', req, {
-            targetUserId: result.targetUser.id,
+        appendSecurityAudit('user_deleted', req, buildUserAuditDetails(result.targetUser, {
             targetUser: result.targetUser.username,
             cleanupEmails: result.cleanupEmails,
             revokedTokenCount: result.revokedTokenCount,
             removedPolicyEmails: result.removedPolicyEmails,
             cleanupError: result.cleanupError,
             clientCleanup: result.clientCleanup,
-        });
+        }));
         res.json({
             success: true,
             obj: {
@@ -618,7 +657,9 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
 router.put('/change-password', authMiddleware, (req, res) => {
     try {
         const result = changeOwnPassword(req.body, req.user);
-        appendSecurityAudit('password_changed', req, { username: result.user.username });
+        appendSecurityAudit('password_changed', req, buildUserAuditDetails(result.user, {
+            username: result.user.username,
+        }));
         res.json({ success: true, msg: '密码修改成功' });
     } catch (err) {
         const error = toHttpError(err, 400, '修改密码失败');

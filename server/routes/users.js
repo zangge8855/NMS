@@ -3,17 +3,50 @@ import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
+import { appendSecurityAudit } from '../lib/securityAudit.js';
 
 const router = Router();
 
-function toPositiveInt(value, fallback) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    return Math.floor(parsed);
-}
-
 function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
+}
+
+function collectUserEmails(user) {
+    return Array.from(new Set([
+        normalizeEmail(user?.email),
+        normalizeEmail(user?.subscriptionEmail || user?.email),
+    ].filter(Boolean)));
+}
+
+function buildAuditTarget(user) {
+    const email = normalizeEmail(user?.email);
+    const subscriptionEmail = normalizeEmail(user?.subscriptionEmail || user?.email);
+    return {
+        targetUserId: user?.id || '',
+        targetUsername: user?.username || '',
+        email: email || subscriptionEmail,
+        subscriptionEmail,
+    };
+}
+
+function mergeAuditResults(results = [], pageSize = 50) {
+    const seen = new Set();
+    const items = [];
+
+    results.forEach((result) => {
+        (result?.items || []).forEach((item) => {
+            const key = String(item?.id || `${item?.ts || ''}:${item?.eventType || ''}:${item?.path || ''}`);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            items.push(item);
+        });
+    });
+
+    items.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    return {
+        items: items.slice(0, pageSize),
+        total: items.length,
+    };
 }
 
 // GET /api/users/:id/detail — aggregate user detail
@@ -23,6 +56,7 @@ router.get('/:id/detail', (req, res) => {
         return res.status(404).json({ success: false, msg: '用户不存在' });
     }
 
+    const trackedEmails = collectUserEmails(user);
     const subscriptionEmail = normalizeEmail(user.subscriptionEmail || user.email);
 
     // User basic info (public fields)
@@ -49,10 +83,20 @@ router.get('/:id/detail', (req, res) => {
     // Recent audit events
     let recentAudit = { items: [], total: 0 };
     try {
-        recentAudit = auditStore.queryEvents({
-            targetEmail: subscriptionEmail || normalizeEmail(user.email),
-            pageSize: 20,
-        });
+        const auditQueries = trackedEmails.map((email) => auditStore.queryEvents({
+            targetEmail: email,
+            pageSize: 50,
+        }));
+        if (user.id) {
+            auditQueries.push(auditStore.queryEvents({
+                q: String(user.id),
+                pageSize: 50,
+            }));
+        }
+        recentAudit = mergeAuditResults(
+            auditQueries,
+            50
+        );
     } catch { /* ignore */ }
 
     // Subscription access logs
@@ -61,7 +105,7 @@ router.get('/:id/detail', (req, res) => {
         try {
             subscriptionAccess = auditStore.querySubscriptionAccess({
                 email: subscriptionEmail,
-                pageSize: 20,
+                pageSize: 50,
             });
         } catch { /* ignore */ }
     }
@@ -117,6 +161,14 @@ router.post('/:id/tokens', (req, res) => {
             noExpiry: req.body?.noExpiry === true,
             createdBy: req.user?.username || 'admin',
         });
+        appendSecurityAudit('subscription_token_issued', req, {
+            ...buildAuditTarget(user),
+            tokenId: result.tokenId,
+            publicTokenId: result.publicTokenId,
+            tokenName: result.metadata?.name || '',
+            ttlDays: result.ttlDays,
+            noExpiry: result.metadata?.expiresAt === null,
+        });
         return res.json({ success: true, obj: result });
     } catch (err) {
         return res.status(400).json({ success: false, msg: err.message });
@@ -137,6 +189,13 @@ router.delete('/:id/tokens/:tid', (req, res) => {
     if (!result) {
         return res.status(404).json({ success: false, msg: 'Token 不存在' });
     }
+    appendSecurityAudit('subscription_token_revoked', req, {
+        ...buildAuditTarget(user),
+        tokenId: result.id,
+        publicTokenId: result.publicTokenId || '',
+        tokenName: result.name || '',
+        revokedReason: result.revokedReason || 'admin-revoke',
+    });
     return res.json({ success: true, obj: result });
 });
 

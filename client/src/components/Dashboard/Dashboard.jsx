@@ -18,7 +18,6 @@ import {
     HiOutlineBolt,
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useMouseMove } from '../../hooks/useMouseMove.js';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
@@ -27,44 +26,35 @@ const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const DASHBOARD_ACCENT = {
-    primary: { color: 'var(--accent-primary)', bg: 'var(--accent-primary-bg)' },
-    info: { color: 'var(--accent-info)', bg: 'var(--accent-info-bg)' },
-    warning: { color: 'var(--accent-warning)', bg: 'var(--accent-warning-bg)' },
-    success: { color: 'var(--accent-success)', bg: 'var(--accent-success-bg)' },
+    primary: { color: 'var(--accent-primary)', bg: 'var(--accent-primary-bg)', tone: 'primary' },
+    info: { color: 'var(--accent-info)', bg: 'var(--accent-info-bg)', tone: 'info' },
+    warning: { color: 'var(--accent-warning)', bg: 'var(--accent-warning-bg)', tone: 'warning' },
+    success: { color: 'var(--accent-success)', bg: 'var(--accent-success-bg)', tone: 'success' },
 };
 
 function StatCard({ card, loading }) {
-    const ref = useMouseMove();
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue || 0);
 
     return (
         <div
-            ref={ref}
-            className={`card spotlight hover-lift relative overflow-hidden${clickable ? ' cursor-pointer' : ''}`}
+            className={`card dashboard-stat-card${clickable ? ' clickable' : ''}`}
             style={{
-                '--mouse-x': '50%',
-                '--mouse-y': '50%'
+                '--dashboard-tone': card.color,
+                '--dashboard-tone-bg': card.bg,
             }}
             onClick={clickable ? card.onClick : undefined}
         >
             <div className="card-header border-none pb-0">
-                <span className="card-title text-muted text-xs uppercase tracking-wider">
+                <span className="card-title text-xs uppercase tracking-wider">
                     {card.label}
                 </span>
-                <div
-                    className="card-icon shadow-lg"
-                    style={{
-                        background: card.bg,
-                        color: card.color,
-                        boxShadow: `0 0 10px ${card.bg}`
-                    }}
-                >
+                <div className="card-icon">
                     <card.icon />
                 </div>
             </div>
             <div className="px-6 pb-6 pt-1">
-                <div className="card-value text-glow text-2xl font-bold my-1">
+                <div className="card-value text-2xl font-bold my-1">
                     {loading ? (
                         <div className="skeleton w-24 h-8 mt-1" />
                     ) : card.animateValue !== undefined ? (
@@ -79,11 +69,6 @@ function StatCard({ card, loading }) {
                     </div>
                 )}
             </div>
-            {/* Ambient Background Glow */}
-            <div
-                className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full opacity-20 blur-xl pointer-events-none"
-                style={{ background: card.bg }}
-            />
         </div>
     );
 }
@@ -157,7 +142,7 @@ function WsStatusDot({ status }) {
     };
     const color = colors[status] || 'var(--text-muted)';
     return (
-        <div className="flex items-center gap-4" title={labels[status] || '未知'}>
+        <div className="ws-status-chip" title={labels[status] || '未知'}>
             <HiOutlineBolt style={{ color, fontSize: '14px' }} />
             <span className="text-sm" style={{ color, fontSize: '11px' }}>
                 {labels[status] || ''}
@@ -413,7 +398,7 @@ export default function Dashboard() {
     if (!activeServerId && servers.length === 0 && activeServerId !== 'global') {
         return (
             <>
-                <Header title="仪表盘" />
+                <Header title="仪表盘" subtitle="请先接入至少一台 3x-ui 节点后查看运行总览" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineServerStack style={{ fontSize: '48px' }} /></div>
@@ -458,14 +443,22 @@ export default function Dashboard() {
 
         return (
             <>
-                <Header title="集群仪表盘" icon={<HiOutlineCloud />} />
+                <Header
+                    title="集群仪表盘"
+                    subtitle="跨节点观察在线态、容量与异常分布"
+                    eyebrow="Operations Overview"
+                    icon={<HiOutlineCloud />}
+                />
                 <div className="page-content page-enter">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-12">
-                            <div className="text-sm text-muted">集群概览</div>
+                    <div className="dashboard-toolbar">
+                        <div className="dashboard-toolbar-group">
+                            <div>
+                                <div className="dashboard-section-title">全局状态</div>
+                                <div className="dashboard-section-subtitle">统一查看节点可用性、会话与容量变化</div>
+                            </div>
                             <WsStatusDot status={wsStatus} />
                         </div>
-                        <div className="flex items-center gap-8">
+                        <div className="dashboard-toolbar-group">
                             <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
                                 <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
                             </button>
@@ -488,8 +481,11 @@ export default function Dashboard() {
 
                     {showOnlineDetail && (
                         <div className="card mb-6">
-                            <div className="card-header">
-                                <span className="card-title">在线用户明细</span>
+                            <div className="dashboard-section-head">
+                                <div>
+                                    <div className="dashboard-section-title">在线用户明细</div>
+                                    <div className="dashboard-section-subtitle">按账号聚合，减少多会话噪音</div>
+                                </div>
                                 <span className="text-sm text-muted">
                                     {globalOnlineUserRows.length} 用户 / {globalOnlineUsers.length} 会话
                                 </span>
@@ -535,8 +531,11 @@ export default function Dashboard() {
 
                     {/* 节点健康网格 */}
                     <div className="mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>节点健康状态</span>
+                        <div className="dashboard-section-head">
+                            <div>
+                                <div className="dashboard-section-title">节点健康状态</div>
+                                <div className="dashboard-section-subtitle">快速识别离线、高负载和容量异常节点</div>
+                            </div>
                             <span className="text-sm text-muted">{servers.length} 个节点</span>
                         </div>
                         <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} />
@@ -562,14 +561,21 @@ export default function Dashboard() {
 
     return (
         <>
-            <Header title="仪表盘" />
+            <Header
+                title="仪表盘"
+                subtitle={activeServer ? `当前聚焦节点 ${activeServer.name} 的资源、入站与在线用户` : '当前节点运行总览'}
+                eyebrow="Node Overview"
+            />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-12">
-                        <div className="text-sm text-muted">{activeServer?.name || '当前节点'}</div>
+                <div className="dashboard-toolbar">
+                    <div className="dashboard-toolbar-group">
+                        <div>
+                            <div className="dashboard-section-title">{activeServer?.name || '当前节点'}</div>
+                            <div className="dashboard-section-subtitle">资源状态、入站容量与活跃会话</div>
+                        </div>
                         <WsStatusDot status={wsStatus} />
                     </div>
-                    <div className="flex items-center gap-8">
+                    <div className="dashboard-toolbar-group">
                         <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
                             <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
                         </button>
@@ -592,8 +598,11 @@ export default function Dashboard() {
 
                 {showOnlineDetail && (
                     <div className="card mb-6">
-                        <div className="card-header">
-                            <span className="card-title">在线用户明细</span>
+                        <div className="dashboard-section-head">
+                            <div>
+                                <div className="dashboard-section-title">在线用户明细</div>
+                                <div className="dashboard-section-subtitle">按邮箱归并显示当前节点会话</div>
+                            </div>
                             <span className="text-sm text-muted">{onlineUserRows.length} 用户 / {onlineUsers.length} 会话</span>
                         </div>
                         {onlineUserRows.length === 0 ? (
@@ -623,8 +632,11 @@ export default function Dashboard() {
 
                 {/* Inbound Summary */}
                 <div className="card mb-6">
-                    <div className="card-header">
-                        <span className="card-title">入站概览</span>
+                    <div className="dashboard-section-head">
+                        <div>
+                            <div className="dashboard-section-title">入站概览</div>
+                            <div className="dashboard-section-subtitle">聚焦前 10 条入站规则的协议、状态和流量</div>
+                        </div>
                         <span className="text-sm text-muted">{inbounds.length} 条入站规则</span>
                     </div>
                     <div className="table-container border-none">
@@ -660,8 +672,11 @@ export default function Dashboard() {
 
                 {/* CPU History Chart */}
                 <div className="card mb-6">
-                    <div className="card-header">
-                        <span className="card-title">CPU 使用率趋势</span>
+                    <div className="dashboard-section-head">
+                        <div>
+                            <div className="dashboard-section-title">CPU 使用率趋势</div>
+                            <div className="dashboard-section-subtitle">最近 30 个采样点的 CPU 变化</div>
+                        </div>
                     </div>
                     <div className="w-full dashboard-chart py-5">
                         {loading && cpuHistory.length === 0 ? (

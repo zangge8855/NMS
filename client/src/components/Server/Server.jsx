@@ -315,7 +315,7 @@ export default function ServerManagement() {
     if (!activeServerId) {
         return (
             <>
-                <Header title="节点控制台" />
+                <Header title="节点控制台" subtitle="统一执行节点运维、工具生成与数据操作" eyebrow="Node Operations" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineWrenchScrewdriver /></div>
@@ -328,7 +328,11 @@ export default function ServerManagement() {
 
     return (
         <>
-            <Header title={isGlobalView ? '节点控制台（集群）' : '节点控制台'} />
+            <Header
+                title={isGlobalView ? '节点控制台（集群）' : '节点控制台'}
+                subtitle={isGlobalView ? '对多节点执行统一维护动作，单节点专属能力自动禁用' : '当前节点的 Xray、数据、工具与面板能力'}
+                eyebrow="Node Operations"
+            />
             <div className="page-content page-enter">
                 <div className="card mb-6">
                     <div className="text-sm text-muted">

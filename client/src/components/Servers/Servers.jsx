@@ -488,7 +488,7 @@ export default function Servers() {
 
     return (
         <>
-            <Header title="服务器管理" />
+            <Header title="服务器管理" subtitle="管理 3x-ui 节点接入、健康检查与凭据状态" eyebrow="Server Registry" />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-6 glass-panel p-4">
                     <div>

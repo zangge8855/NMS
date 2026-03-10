@@ -49,6 +49,10 @@ function buildOverrideKey(serverId, inboundId, clientIdentifier) {
     return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
 }
 
+function buildClientActionKey(serverId, inboundId, clientIdentifier) {
+    return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
+}
+
 export default function Inbounds() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
@@ -78,6 +82,7 @@ export default function Inbounds() {
     const [entitlementTrafficLimitGb, setEntitlementTrafficLimitGb] = useState('0');
     const [entitlementSaving, setEntitlementSaving] = useState(false);
     const [overrideKeySet, setOverrideKeySet] = useState(new Set());
+    const [clientActionKey, setClientActionKey] = useState('');
 
     const fetchAllInbounds = async () => {
         if (servers.length === 0) {
@@ -403,6 +408,44 @@ export default function Inbounds() {
         }
     };
 
+    const handleToggleClientEnabled = async (inbound, client) => {
+        const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
+        if (!identifier) {
+            toast.error('缺少用户标识，无法切换状态');
+            return;
+        }
+
+        const nextAction = client.enable !== false ? 'disable' : 'enable';
+        const actionKey = buildClientActionKey(inbound.serverId, inbound.id, identifier);
+        setClientActionKey(actionKey);
+        try {
+            const payload = await attachBatchRiskToken({
+                action: nextAction,
+                targets: [{
+                    serverId: inbound.serverId,
+                    serverName: inbound.serverName,
+                    inboundId: inbound.id,
+                    protocol: inbound.protocol,
+                    email: client.email || '',
+                    clientIdentifier: identifier,
+                    client,
+                }],
+            }, {
+                type: 'clients',
+                action: nextAction,
+                targetCount: 1,
+            });
+            await api.post('/batch/clients', payload);
+            toast.success(nextAction === 'enable' ? '入站用户已启用' : '入站用户已禁用');
+            fetchAllInbounds();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.msg || err.message || '切换状态失败');
+        } finally {
+            setClientActionKey('');
+        }
+    };
+
     const openEntitlementModal = (inbound, client) => {
         setEntitlementTarget({
             inbound,
@@ -481,7 +524,7 @@ export default function Inbounds() {
     if (servers.length === 0) {
         return (
             <>
-                <Header title="入站管理" />
+                <Header title="入站管理" subtitle="跨节点维护协议、端口、客户端和限额策略" eyebrow="Traffic & Inbounds" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineSignal style={{ fontSize: '48px' }} /></div>
@@ -494,7 +537,7 @@ export default function Inbounds() {
 
     return (
         <>
-            <Header title="入站管理" />
+            <Header title="入站管理" subtitle="跨节点维护协议、端口、客户端和限额策略" eyebrow="Traffic & Inbounds" />
             <div className="page-content page-enter">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-6 glass-panel p-4 mobile-toolbar">
@@ -702,6 +745,8 @@ export default function Inbounds() {
                                                                             : 0;
                                                                         const clientIdentifier = String(getClientIdentifier(cl, ib.protocol) || '').trim();
                                                                         const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
+                                                                        const rowActionKey = buildClientActionKey(ib.serverId, ib.id, clientIdentifier);
+                                                                        const isActioning = clientActionKey === rowActionKey;
                                                                         return (
                                                                         <tr key={idx}>
                                                                             <td>
@@ -748,28 +793,47 @@ export default function Inbounds() {
                                                                                 </span>
                                                                             </td>
                                                                             <td>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className={`btn btn-sm ${hasOverride ? 'btn-primary' : 'btn-secondary'}`}
-                                                                                    title={hasOverride ? '已单独限定，点击修改' : '单独限定'}
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        openEntitlementModal(ib, cl);
-                                                                                    }}
-                                                                                >
-                                                                                    {hasOverride ? '已限定' : '限定'}
-                                                                                </button>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-danger btn-sm btn-icon"
-                                                                                    title="删除该用户"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleDeleteClient(ib, cl);
-                                                                                    }}
-                                                                                >
-                                                                                    <HiOutlineTrash />
-                                                                                </button>
+                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className={`btn btn-sm ${cl.enable !== false ? 'btn-danger' : 'btn-success'}`}
+                                                                                        title={cl.enable !== false ? '禁用该用户' : '启用该用户'}
+                                                                                        disabled={isActioning}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleToggleClientEnabled(ib, cl);
+                                                                                        }}
+                                                                                    >
+                                                                                        {isActioning
+                                                                                            ? <span className="spinner" />
+                                                                                            : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
+                                                                                        {cl.enable !== false ? '禁用' : '启用'}
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="btn btn-secondary btn-sm"
+                                                                                        title={hasOverride ? '已单独限定，点击修改' : '单独限定'}
+                                                                                        disabled={isActioning}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            openEntitlementModal(ib, cl);
+                                                                                        }}
+                                                                                    >
+                                                                                        {hasOverride ? '查看限定' : '单独限定'}
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="btn btn-danger btn-sm btn-icon"
+                                                                                        title="删除该用户"
+                                                                                        disabled={isActioning}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleDeleteClient(ib, cl);
+                                                                                        }}
+                                                                                    >
+                                                                                        <HiOutlineTrash />
+                                                                                    </button>
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     );

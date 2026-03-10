@@ -4,9 +4,13 @@ import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard } from '../../utils/format.js';
+import { mergeInboundClientStats } from '../../utils/inboundClients.js';
+import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlinePlusCircle,
@@ -22,6 +26,7 @@ import {
     HiOutlineArrowPath,
     HiOutlineXMark,
     HiOutlinePencilSquare,
+    HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 
 function UserAvatar({ username }) {
@@ -30,10 +35,10 @@ function UserAvatar({ username }) {
 }
 
 function StatCard({ label, value }) {
-    const animated = useAnimatedCounter(value);
+    const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value">{animated}</div>
+            <div className="stat-mini-value">{typeof value === 'number' ? animated : '...'}</div>
             <div className="stat-mini-label">{label}</div>
         </div>
     );
@@ -51,9 +56,63 @@ function timelineOutcomeClass(outcome) {
     return '';
 }
 
+const AUDIT_EVENT_LABELS = {
+    login_success: '登录成功',
+    login_failed: '登录失败',
+    login_denied_email_unverified: '登录被拒绝',
+    login_denied_user_disabled: '登录被拒绝',
+    password_changed: '修改密码',
+    user_updated: '更新用户资料',
+    user_enabled: '启用用户',
+    user_disabled: '停用用户',
+    user_deleted: '删除用户',
+    user_subscription_binding_updated: '更新订阅绑定',
+    user_subscription_provisioned: '开通订阅',
+    user_expiry_updated: '更新到期时间',
+    user_password_reset_by_admin: '管理员重置密码',
+    user_policy_updated: '更新用户策略',
+    subscription_token_issued: '签发订阅令牌',
+    subscription_token_revoked: '撤销订阅令牌',
+};
+
+function formatTimelineTitle(item) {
+    if (item.type === 'access') return '订阅访问';
+    return AUDIT_EVENT_LABELS[item.eventKey] || item.eventKey || '审计事件';
+}
+
+function formatOutcomeLabel(item) {
+    if (item.type === 'access') {
+        if (item.accessStatus === 'ok') return '成功';
+        if (item.accessStatus === 'expired') return '已过期';
+        if (item.accessStatus === 'revoked') return '已撤销';
+        return '失败';
+    }
+    if (item.outcome === 'success' || item.outcome === 'ok') return '成功';
+    if (item.outcome === 'failed' || item.outcome === 'denied') return '失败';
+    if (item.outcome === 'info') return '信息';
+    return '未知';
+}
+
+function formatSummaryText(item) {
+    const parts = [];
+
+    if (item.type === 'access') {
+        if (item.reason) parts.push(item.reason);
+        if (item.mode) parts.push(`模式 ${item.mode}`);
+        if (item.format) parts.push(`格式 ${item.format}`);
+        if (item.cfCountry) parts.push(`地区 ${item.cfCountry}`);
+        return parts.join(' · ');
+    }
+
+    if (item.summary) parts.push(item.summary);
+    if (item.path) parts.push(item.path);
+    return parts.join(' · ');
+}
+
 export default function UserDetail() {
     const { userId } = useParams();
     const navigate = useNavigate();
+    const confirmAction = useConfirm();
 
     const [loading, setLoading] = useState(true);
     const [detail, setDetail] = useState(null);
@@ -69,6 +128,19 @@ export default function UserDetail() {
     // Client data from servers
     const [clientData, setClientData] = useState([]);
     const [clientsLoading, setClientsLoading] = useState(false);
+    const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
+    const [clientIpModal, setClientIpModal] = useState({
+        open: false,
+        serverId: '',
+        serverName: '',
+        email: '',
+        title: '',
+        subtitle: '',
+        items: [],
+        loading: false,
+        clearing: false,
+        error: '',
+    });
 
     const fetchDetail = async () => {
         setLoading(true);
@@ -86,7 +158,10 @@ export default function UserDetail() {
     };
 
     const fetchClients = async () => {
-        if (!detail?.user?.subscriptionEmail && !detail?.user?.email) return;
+        if (!detail?.user?.subscriptionEmail && !detail?.user?.email) {
+            setClientData([]);
+            return;
+        }
         setClientsLoading(true);
         try {
             // Fetch all server inbounds to find this user's clients
@@ -100,11 +175,11 @@ export default function UserDetail() {
                     const ibRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
                     const inbounds = ibRes.data?.obj || [];
                     for (const ib of inbounds) {
-                        const protocol = String(ib.protocol || '').toLowerCase();
-                        if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) continue;
                         let settings = {};
                         try { settings = JSON.parse(ib.settings); } catch {}
-                        const ibClients = settings.clients || [];
+                        if (!Array.isArray(settings.clients) || settings.clients.length === 0) continue;
+                        const protocol = String(ib.protocol || '').toLowerCase();
+                        const ibClients = mergeInboundClientStats(ib);
                         for (const cl of ibClients) {
                             if ((cl.email || '').toLowerCase() === email) {
                                 clients.push({
@@ -112,11 +187,12 @@ export default function UserDetail() {
                                     serverName: server.name,
                                     inboundId: ib.id,
                                     inboundRemark: ib.remark || '',
+                                    email: cl.email || email,
                                     protocol,
                                     port: ib.port,
-                                    up: cl.up || 0,
-                                    down: cl.down || 0,
-                                    expiryTime: cl.expiryTime || 0,
+                                    up: Number(cl.up) || 0,
+                                    down: Number(cl.down) || 0,
+                                    expiryTime: Number(cl.expiryTime) || 0,
                                     enable: cl.enable !== false,
                                 });
                             }
@@ -126,7 +202,9 @@ export default function UserDetail() {
             }));
 
             setClientData(clients);
-        } catch {}
+        } catch {
+            setClientData([]);
+        }
         setClientsLoading(false);
     };
 
@@ -135,25 +213,69 @@ export default function UserDetail() {
     }, [userId]);
 
     useEffect(() => {
-        if (detail && activeTab === 'clients') {
+        if (detail) {
             fetchClients();
         }
-    }, [detail, activeTab]);
+    }, [detail]);
 
     const user = detail?.user;
     const tokens = detail?.tokens || [];
     const recentAudit = detail?.recentAudit?.items || [];
     const subscriptionAccess = detail?.subscriptionAccess?.items || [];
+    const clientSummaryLoading = !!detail && clientsLoading && clientData.length === 0;
 
     // Merge audit + subscription access into timeline
     const timeline = useMemo(() => {
         if (!detail) return [];
         const items = [];
         recentAudit.forEach(e => {
-            items.push({ ts: e.ts, type: 'audit', event: e.eventType, outcome: e.outcome, detail: e.path || '', ip: e.ip });
+            const details = e.details || {};
+            const summaryParts = [];
+            if (details.targetUsername) summaryParts.push(`目标 ${details.targetUsername}`);
+            if (details.subscriptionEmail && details.subscriptionEmail !== details.email) summaryParts.push(`订阅邮箱 ${details.subscriptionEmail}`);
+            if (typeof details.enabled === 'boolean') summaryParts.push(details.enabled ? '状态 已启用' : '状态 已停用');
+            if (details.expiryTime > 0) summaryParts.push(`到期 ${new Date(details.expiryTime).toLocaleDateString('zh-CN')}`);
+            if (typeof details.allowedServerCount === 'number') summaryParts.push(`服务器 ${details.allowedServerCount}`);
+            if (typeof details.allowedProtocolCount === 'number') summaryParts.push(`协议 ${details.allowedProtocolCount}`);
+            if (typeof details.limitIp === 'number' && details.limitIp > 0) summaryParts.push(`限 IP ${details.limitIp}`);
+            if (typeof details.trafficLimitBytes === 'number' && details.trafficLimitBytes > 0) summaryParts.push(`限流量 ${formatBytes(details.trafficLimitBytes)}`);
+            if (typeof details.updated === 'number' || typeof details.failed === 'number') {
+                summaryParts.push(`部署 ${Number(details.updated || 0)} 成功 / ${Number(details.failed || 0)} 失败`);
+            }
+            if (details.cleanupError) summaryParts.push(`清理异常 ${details.cleanupError}`);
+
+            items.push({
+                id: `audit-${e.id || `${e.ts}-${e.eventType}`}`,
+                ts: e.ts,
+                type: 'audit',
+                eventKey: e.eventType,
+                outcome: e.outcome,
+                path: e.path || '',
+                ip: e.ip,
+                actor: e.actor || '',
+                serverId: e.serverId || '',
+                tokenId: details.publicTokenId || details.tokenId || '',
+                userAgent: details.userAgent || '',
+                summary: summaryParts.join(' · '),
+            });
         });
         subscriptionAccess.forEach(e => {
-            items.push({ ts: e.ts, type: 'access', event: `订阅访问 (${e.status})`, outcome: e.status === 'ok' ? 'success' : 'failed', detail: e.reason || '', ip: e.ip });
+            items.push({
+                id: `access-${e.id || `${e.ts}-${e.tokenId || e.ip}`}`,
+                ts: e.ts,
+                type: 'access',
+                eventKey: 'subscription_access',
+                accessStatus: e.status,
+                outcome: e.status === 'ok' ? 'success' : 'failed',
+                reason: e.reason || '',
+                ip: e.clientIp || e.ip,
+                tokenId: e.tokenId || '',
+                serverId: e.serverId || '',
+                userAgent: e.userAgent || '',
+                cfCountry: e.cfCountry || '',
+                mode: e.mode || '',
+                format: e.format || '',
+            });
         });
         return items.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 50);
     }, [detail]);
@@ -215,10 +337,136 @@ export default function UserDetail() {
         }
     };
 
+    const closeClientIpModal = () => {
+        setClientIpModal({
+            open: false,
+            serverId: '',
+            serverName: '',
+            email: '',
+            title: '',
+            subtitle: '',
+            items: [],
+            loading: false,
+            clearing: false,
+            error: '',
+        });
+    };
+
+    const loadClientIps = async (target, options = {}) => {
+        if (!target?.serverId || !target?.email) return;
+        const supportState = clientIpSupportByServer[target.serverId];
+        if (supportState?.supported === false) return;
+
+        if (options.preserveOpen !== true) {
+            setClientIpModal((prev) => ({
+                ...prev,
+                open: true,
+                serverId: target.serverId,
+                serverName: target.serverName || '',
+                email: target.email,
+                title: `节点访问 IP — ${target.serverName || target.serverId}`,
+                subtitle: `${target.email} · 节点级记录${target.inboundRemark ? ` · 入站 ${target.inboundRemark}` : ''}`,
+                items: [],
+                loading: true,
+                clearing: false,
+                error: '',
+            }));
+        } else {
+            setClientIpModal((prev) => ({
+                ...prev,
+                loading: true,
+                error: '',
+            }));
+        }
+
+        try {
+            const res = await api.post(`/panel/${encodeURIComponent(target.serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(target.email)}`);
+            const items = normalizePanelClientIps(res.data?.obj);
+            setClientIpSupportByServer((prev) => ({
+                ...prev,
+                [target.serverId]: { supported: true, reason: '' },
+            }));
+            setClientIpModal((prev) => ({
+                ...prev,
+                open: true,
+                serverId: target.serverId,
+                serverName: target.serverName || '',
+                email: target.email,
+                title: `节点访问 IP — ${target.serverName || target.serverId}`,
+                subtitle: `${target.email} · 节点级记录${target.inboundRemark ? ` · 入站 ${target.inboundRemark}` : ''}`,
+                items,
+                loading: false,
+                error: '',
+            }));
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || '加载节点访问 IP 失败';
+            if (isUnsupportedPanelClientIpsError(err)) {
+                setClientIpSupportByServer((prev) => ({
+                    ...prev,
+                    [target.serverId]: {
+                        supported: false,
+                        reason: msg || '当前节点的 3x-ui 版本不支持节点 IP 接口',
+                    },
+                }));
+            }
+            setClientIpModal((prev) => ({
+                ...prev,
+                open: true,
+                loading: false,
+                error: msg,
+                items: [],
+            }));
+            toast.error(msg);
+        }
+    };
+
+    const clearClientIps = async () => {
+        if (!clientIpModal.serverId || !clientIpModal.email) return;
+        const ok = await confirmAction({
+            title: '清空节点访问 IP',
+            message: `确定清空 ${clientIpModal.email} 在 ${clientIpModal.serverName || clientIpModal.serverId} 的节点访问 IP 记录吗？`,
+            confirmText: '确认清空',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setClientIpModal((prev) => ({
+            ...prev,
+            clearing: true,
+            error: '',
+        }));
+
+        try {
+            await api.post(`/panel/${encodeURIComponent(clientIpModal.serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
+            toast.success('节点访问 IP 记录已清空');
+            await loadClientIps({
+                serverId: clientIpModal.serverId,
+                serverName: clientIpModal.serverName,
+                email: clientIpModal.email,
+                inboundRemark: '',
+                inboundId: '',
+            }, { preserveOpen: true });
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || '清空节点访问 IP 失败';
+            setClientIpModal((prev) => ({
+                ...prev,
+                clearing: false,
+                error: msg,
+            }));
+            toast.error(msg);
+            return;
+        }
+
+        setClientIpModal((prev) => ({
+            ...prev,
+            clearing: false,
+        }));
+    };
+
     if (loading) {
         return (
             <>
-                <Header title="用户详情" />
+                <Header title="用户详情" subtitle="账号、客户端、订阅令牌与活动日志" eyebrow="Identity Detail" />
                 <div className="page-content page-enter">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
@@ -231,7 +479,7 @@ export default function UserDetail() {
     if (!user) {
         return (
             <>
-                <Header title="用户详情" />
+                <Header title="用户详情" subtitle="账号、客户端、订阅令牌与活动日志" eyebrow="Identity Detail" />
                 <div className="page-content page-enter">
                     <EmptyState title="用户不存在" subtitle="该用户可能已被删除" action={
                         <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
@@ -252,7 +500,7 @@ export default function UserDetail() {
 
     return (
         <>
-            <Header title={`用户详情 — ${user.username}`} />
+            <Header title={`用户详情 — ${user.username}`} subtitle="查看账号状态、客户端分布、订阅令牌与活动日志" eyebrow="Identity Detail" />
             <div className="page-content page-enter">
                 {/* Back button */}
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
@@ -321,11 +569,14 @@ export default function UserDetail() {
                         {activeTab === 'overview' && (
                             <div>
                                 <div className="stat-mini-grid">
-                                    <StatCard label="总流量" value={totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0} />
-                                    <StatCard label="客户端数" value={clientData.length} />
+                                    <StatCard label="总流量" value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
+                                    <StatCard label="客户端数" value={clientSummaryLoading ? null : clientData.length} />
                                     <StatCard label="Token 数" value={tokens.length} />
                                     <StatCard label="审计记录" value={detail?.recentAudit?.total || 0} />
                                 </div>
+                                {clientSummaryLoading && (
+                                    <p className="text-muted text-sm mb-4">客户端汇总加载中...</p>
+                                )}
                                 {totalTraffic > 0 && (
                                     <p className="text-muted text-sm mb-4">总流量: {formatBytes(totalTraffic)}</p>
                                 )}
@@ -348,6 +599,9 @@ export default function UserDetail() {
                         {/* Clients Tab */}
                         {activeTab === 'clients' && (
                             <div>
+                                {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
+                                    <div className="text-xs text-muted mb-3">旧版 3x-ui 节点不支持 `clientIps` 接口时，节点 IP 按钮会自动禁用。</div>
+                                )}
                                 {clientsLoading ? (
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
@@ -363,10 +617,18 @@ export default function UserDetail() {
                                                     <th>流量</th>
                                                     <th>到期时间</th>
                                                     <th>状态</th>
+                                                    <th>操作</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {clientData.map((c, i) => (
+                                                {clientData.map((c, i) => {
+                                                    const supportState = clientIpSupportByServer[c.serverId];
+                                                    const clientIpUnsupported = supportState?.supported === false;
+                                                    const clientIpDisabled = !c.email || clientIpUnsupported;
+                                                    const clientIpTitle = !c.email
+                                                        ? '该客户端缺少邮箱标识'
+                                                        : (clientIpUnsupported ? supportState.reason : '查看该用户在当前节点上的代理访问 IP');
+                                                    return (
                                                     <tr key={i}>
                                                         <td>{c.serverName}</td>
                                                         <td>{c.inboundRemark || c.inboundId}</td>
@@ -374,8 +636,20 @@ export default function UserDetail() {
                                                         <td>{formatBytes((c.up || 0) + (c.down || 0))}</td>
                                                         <td>{c.expiryTime > 0 ? new Date(c.expiryTime).toLocaleDateString('zh-CN') : '永久'}</td>
                                                         <td><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
+                                                        <td>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-sm"
+                                                                onClick={() => loadClientIps(c)}
+                                                                disabled={clientIpDisabled}
+                                                                title={clientIpTitle}
+                                                            >
+                                                                <HiOutlineGlobeAlt /> 节点 IP
+                                                            </button>
+                                                        </td>
                                                     </tr>
-                                                ))}
+                                                );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -456,15 +730,29 @@ export default function UserDetail() {
                                 ) : (
                                     <div className="timeline-list">
                                         {timeline.map((item, i) => (
-                                            <div key={i} className="timeline-item">
+                                            <div key={item.id || i} className="timeline-item">
                                                 <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
                                                 <div className="timeline-content">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="font-medium">{item.event}</span>
+                                                        <span className="font-medium">{formatTimelineTitle(item)}</span>
                                                         <span className="timeline-time">{formatTime(item.ts)}</span>
                                                     </div>
-                                                    {item.detail && <div className="text-sm text-muted mt-1 truncate">{item.detail}</div>}
-                                                    {item.ip && <div className="text-xs text-muted">IP: {item.ip}</div>}
+                                                    <div className="flex gap-2 flex-wrap mt-2">
+                                                        <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
+                                                            {item.type === 'access' ? '订阅访问' : '审计事件'}
+                                                        </span>
+                                                        <span className={`badge ${item.outcome === 'success' || item.outcome === 'ok' ? 'badge-success' : item.outcome === 'failed' || item.outcome === 'denied' ? 'badge-danger' : 'badge-neutral'}`}>
+                                                            {formatOutcomeLabel(item)}
+                                                        </span>
+                                                        {item.actor && <span className="badge badge-neutral">操作者 {item.actor}</span>}
+                                                        {item.serverId && <span className="badge badge-info">节点 {item.serverId}</span>}
+                                                        {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
+                                                    </div>
+                                                    {formatSummaryText(item) && <div className="text-sm text-muted mt-2">{formatSummaryText(item)}</div>}
+                                                    <div className="text-xs text-muted mt-1">
+                                                        {item.ip ? `IP: ${item.ip}` : 'IP: -'}
+                                                        {item.userAgent ? ` · UA: ${item.userAgent}` : ''}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -513,6 +801,25 @@ export default function UserDetail() {
                     </div>
                 </div>
             )}
+
+            <ClientIpModal
+                isOpen={clientIpModal.open}
+                title={clientIpModal.title}
+                subtitle={clientIpModal.subtitle}
+                loading={clientIpModal.loading}
+                clearing={clientIpModal.clearing}
+                items={clientIpModal.items}
+                error={clientIpModal.error}
+                onClose={closeClientIpModal}
+                onRefresh={() => loadClientIps({
+                    serverId: clientIpModal.serverId,
+                    serverName: clientIpModal.serverName,
+                    email: clientIpModal.email,
+                    inboundRemark: '',
+                    inboundId: '',
+                }, { preserveOpen: true })}
+                onClear={clientIpSupportByServer[clientIpModal.serverId]?.supported === false ? undefined : clearClientIps}
+            />
         </>
     );
 }

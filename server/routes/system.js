@@ -19,7 +19,7 @@ import {
 } from '../store/storeRegistry.js';
 import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
 import notificationService from '../lib/notifications.js';
-import { getEmailStatus } from '../lib/mailer.js';
+import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import { createBackupArchive, getBackupStatus } from '../lib/systemBackup.js';
@@ -68,6 +68,40 @@ router.get('/email/status', adminOnly, (req, res) => {
         success: true,
         obj: getEmailStatus(),
     });
+});
+
+router.post('/email/test', adminOnly, async (req, res) => {
+    try {
+        const result = await verifySmtpConnection();
+        appendSecurityAudit('smtp_connection_verified', req, {
+            host: getEmailStatus().host,
+            service: getEmailStatus().service,
+            success: true,
+        });
+        return res.json({
+            success: true,
+            msg: result.message || 'SMTP 连接验证成功',
+            obj: getEmailStatus(),
+        });
+    } catch (error) {
+        appendSecurityAudit('smtp_connection_verified', req, {
+            host: getEmailStatus().host,
+            service: getEmailStatus().service,
+            success: false,
+            error: error.message || 'SMTP 连接验证失败',
+            code: error.code || '',
+            responseCode: Number.isFinite(Number(error.responseCode)) ? Number(error.responseCode) : null,
+            command: error.command || '',
+        });
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'SMTP 连接验证失败',
+            obj: {
+                ...getEmailStatus(),
+                lastVerification: getEmailStatus().lastVerification,
+            },
+        });
+    }
 });
 
 router.get('/backup/status', adminOnly, (req, res) => {

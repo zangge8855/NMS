@@ -99,7 +99,10 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
             {/* Logo */}
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">N</div>
-                <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
+                <div className="sidebar-logo-copy">
+                    <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS Cloud</span>
+                    <span className="sidebar-logo-subtitle">Node Management Console</span>
+                </div>
             </div>
 
             {/* Toggle Button */}

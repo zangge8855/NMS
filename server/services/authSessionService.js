@@ -22,6 +22,17 @@ function buildSessionUser(user, fallback = {}) {
     };
 }
 
+function buildAuditUser(user, fallback = {}) {
+    const sessionUser = buildSessionUser(user, fallback);
+    return {
+        userId: String(user?.id || fallback.userId || '').trim(),
+        username: sessionUser.username,
+        role: sessionUser.role,
+        email: normalizeEmailInput(sessionUser.email),
+        subscriptionEmail: normalizeEmailInput(sessionUser.subscriptionEmail),
+    };
+}
+
 function buildSignedToken(payload, deps = {}) {
     const jwtConfig = deps.jwtConfig || config.jwt;
     const signer = deps.jwtSign || jwt.sign;
@@ -38,6 +49,7 @@ function createLoginSession(payload = {}, deps = {}) {
     const user = userRepo.authenticate(username, password);
 
     if (!user) {
+        const existingUser = username ? userRepo.getByUsername(username) : null;
         const adminUser = userRepo.getByUsername('admin') || userRepo.list().find((item) => item.role === 'admin');
         const legacyUsername = String(adminUser?.username || 'admin').trim();
         const usernameMatchesLegacy = !username || username === legacyUsername;
@@ -54,8 +66,7 @@ function createLoginSession(payload = {}, deps = {}) {
                 token: buildSignedToken(tokenPayload, deps),
                 user: buildSessionUser(adminUser, tokenPayload),
                 audit: {
-                    username: tokenPayload.username,
-                    role: 'admin',
+                    ...buildAuditUser(adminUser, tokenPayload),
                     legacyMode: true,
                 },
             };
@@ -64,6 +75,7 @@ function createLoginSession(payload = {}, deps = {}) {
         return {
             success: false,
             reason: 'invalid_credentials',
+            audit: existingUser ? buildAuditUser(existingUser) : null,
         };
     }
 
@@ -73,6 +85,7 @@ function createLoginSession(payload = {}, deps = {}) {
             success: false,
             reason: 'email_not_verified',
             email: fullUser.email,
+            audit: buildAuditUser(fullUser),
         };
     }
 
@@ -80,6 +93,9 @@ function createLoginSession(payload = {}, deps = {}) {
         return {
             success: false,
             reason: 'user_disabled',
+            email: normalizeEmailInput(fullUser.email),
+            subscriptionEmail: resolveUserSubscriptionEmail(fullUser),
+            audit: buildAuditUser(fullUser),
         };
     }
 
@@ -89,8 +105,7 @@ function createLoginSession(payload = {}, deps = {}) {
         token: buildSignedToken(tokenPayload, deps),
         user: buildSessionUser(fullUser, tokenPayload),
         audit: {
-            username: user.username,
-            role: user.role,
+            ...buildAuditUser(fullUser, tokenPayload),
             legacyMode: false,
         },
     };

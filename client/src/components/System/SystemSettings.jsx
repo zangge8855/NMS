@@ -85,6 +85,7 @@ export default function SystemSettings() {
     const [dbBackfillResult, setDbBackfillResult] = useState(null);
     const [backfillTaskId, setBackfillTaskId] = useState(null);
     const [emailStatusLoading, setEmailStatusLoading] = useState(false);
+    const [emailTestLoading, setEmailTestLoading] = useState(false);
     const [emailStatus, setEmailStatus] = useState(null);
     const [backupLoading, setBackupLoading] = useState(false);
     const [backupStatusLoading, setBackupStatusLoading] = useState(false);
@@ -104,6 +105,16 @@ export default function SystemSettings() {
         : emailStatus?.lastDelivery?.success === false
             ? '最近发送失败'
             : '暂无发送记录';
+    const emailVerificationBadge = emailStatus?.lastVerification?.success === true
+        ? 'badge-success'
+        : emailStatus?.lastVerification?.success === false
+            ? 'badge-danger'
+            : 'badge-neutral';
+    const emailVerificationLabel = emailStatus?.lastVerification?.success === true
+        ? '连接测试成功'
+        : emailStatus?.lastVerification?.success === false
+            ? '连接测试失败'
+            : '未测试';
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -155,6 +166,21 @@ export default function SystemSettings() {
             }
         }
         setEmailStatusLoading(false);
+    };
+
+    const testEmailConnection = async () => {
+        if (!isAdmin) return;
+        setEmailTestLoading(true);
+        try {
+            const res = await api.post('/system/email/test');
+            setEmailStatus(res.data?.obj || null);
+            toast.success(res.data?.msg || 'SMTP 连接验证成功');
+        } catch (error) {
+            const payload = error.response?.data?.obj || null;
+            if (payload) setEmailStatus(payload);
+            toast.error(error.response?.data?.msg || error.message || 'SMTP 连接验证失败');
+        }
+        setEmailTestLoading(false);
     };
 
     const fetchBackupStatus = async (options = {}) => {
@@ -390,7 +416,7 @@ export default function SystemSettings() {
     if (!isAdmin) {
         return (
             <>
-                <Header title="系统设置" />
+                <Header title="系统设置" subtitle="仅管理员可查看和调整全局运行参数" eyebrow="Platform Settings" />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineCog6Tooth /></div>
@@ -403,7 +429,7 @@ export default function SystemSettings() {
 
     return (
         <>
-            <Header title="系统设置" />
+            <Header title="系统设置" subtitle="全局参数、运行诊断、存储与备份状态" eyebrow="Platform Settings" />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-6">
                     <div className="text-sm text-muted">
@@ -419,6 +445,10 @@ export default function SystemSettings() {
 
                 <fieldset disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
                     <div className="grid-auto-280">
+                        <div className="card p-4" style={{ gridColumn: '1 / -1' }}>
+                            <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">系统参数</div>
+                            <div className="text-sm text-muted">影响任务保留、审计分页和订阅地址等全局行为。</div>
+                        </div>
                         <div className="card p-4">
                             <h3 className="text-lg font-semibold mb-3">任务中心参数</h3>
                             <div className="text-xs text-muted mb-3">批量任务（用户操作、流量重置等）的运行与存储参数</div>
@@ -483,6 +513,10 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
+                        <div className="card p-4" style={{ gridColumn: '1 / -1' }}>
+                            <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">运行诊断</div>
+                            <div className="text-sm text-muted">只读查看当前邮件、备份和健康巡检状态，高风险操作仍需单独确认。</div>
+                        </div>
                         <div className="card p-4">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -491,24 +525,35 @@ export default function SystemSettings() {
                                         <>
                                             <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
                                             <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
                                         </>
                                     )}
                                 </div>
-                                <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading}>
-                                    {emailStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                                </button>
+                                <div className="flex gap-2">
+                                    <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                                        {emailTestLoading ? <span className="spinner" /> : '测试连接'}
+                                    </button>
+                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
+                                        {emailStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                    </button>
+                                </div>
                             </div>
                             {!emailStatus ? (
                                 <div className="text-sm text-muted">尚未加载 SMTP 状态</div>
                             ) : (
                                 <>
-                                    <div className="text-xs text-muted mb-3">仅展示诊断信息，不返回明文密码。</div>
+                                    <div className="text-xs text-muted mb-3">SMTP 配置来自服务端 `.env`，修改后需要重启后端服务。此处仅展示诊断信息，不返回明文密码。</div>
                                     <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                                         <div className="card p-3">
                                             <div className="text-sm text-muted">配置状态</div>
                                             <div className="mt-2">
                                                 <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
                                             </div>
+                                        </div>
+                                        <div className="card p-3">
+                                            <div className="text-sm text-muted">SMTP 服务</div>
+                                            <div className="text-lg font-semibold">{emailStatus.service || '-'}</div>
+                                            <div className="text-xs text-muted">auth {emailStatus.authMethod || 'AUTO'}</div>
                                         </div>
                                         <div className="card p-3">
                                             <div className="text-sm text-muted">服务器</div>
@@ -523,7 +568,19 @@ export default function SystemSettings() {
                                         <div className="card p-3">
                                             <div className="text-sm text-muted">加密模式</div>
                                             <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
+                                            <div className="text-xs text-muted">
+                                                {emailStatus.requireTLS ? 'requireTLS' : (emailStatus.ignoreTLS ? 'ignoreTLS' : 'auto TLS')}
+                                            </div>
                                         </div>
+                                    </div>
+                                    <div className="card p-3 mt-3">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                            <div className="text-sm font-medium">最近连接测试</div>
+                                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                                        </div>
+                                        <div className="text-sm">最近测试: {emailStatus.lastVerification?.ts ? new Date(emailStatus.lastVerification.ts).toLocaleString('zh-CN') : '暂无'}</div>
+                                        <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
+                                        <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
                                     </div>
                                     <div className="card p-3 mt-3">
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -533,6 +590,7 @@ export default function SystemSettings() {
                                         <div className="text-sm">最近发送: {emailStatus.lastDelivery?.ts ? new Date(emailStatus.lastDelivery.ts).toLocaleString('zh-CN') : '暂无'}</div>
                                         <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
                                         <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
+                                        <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
                                     </div>
                                 </>
                             )}

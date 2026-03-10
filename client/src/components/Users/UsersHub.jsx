@@ -782,7 +782,7 @@ export default function UsersHub() {
 
     return (
         <>
-            <Header title="用户管理" />
+            <Header title="用户管理" subtitle="统一维护账号、订阅状态、客户端与访问策略" eyebrow="Identity & Access" />
             <div className="page-content page-enter">
                 <div className="flex flex-col gap-4 mb-6">
                     {/* Toolbar */}

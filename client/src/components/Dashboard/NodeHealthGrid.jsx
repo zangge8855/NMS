@@ -37,90 +37,50 @@ function NodeTile({ server, serverData }) {
             onClick={() => navigate('/server')}
             title={`${server.name} — ${color.label}`}
             style={{
-                background: color.bg,
                 border: `1px solid ${color.border}`,
-                borderRadius: 'var(--radius-md)',
-                padding: '14px 16px',
-                cursor: 'pointer',
-                transition: 'all var(--transition-fast)',
-                position: 'relative',
-                overflow: 'hidden',
-                minWidth: 0,
-            }}
-            onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 4px 16px ${color.border}40`;
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+                background: color.bg,
+                '--node-color': color.dot,
             }}
         >
-            {/* 状态点 */}
-            <div style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: color.dot,
-                boxShadow: isOnline ? `0 0 6px ${color.dot}` : 'none',
-                animation: isOnline ? undefined : 'none',
-            }} />
+            <div className="node-health-tile-status" />
 
-            {/* 节点名称 */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '10px',
-            }}>
+            <div className="node-health-tile-title">
                 {isOnline
                     ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
                     : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
                 }
-                <span style={{
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    color: 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                }}>
-                    {server.name}
-                </span>
+                <span className="node-health-tile-name">{server.name}</span>
             </div>
 
             {isOnline ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div className="node-health-tile-meta">
                     <div>
-                        <div style={{ marginBottom: '2px' }}>CPU</div>
-                        <div style={{ fontWeight: 600, color: cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                        <div>CPU</div>
+                        <div className="node-health-tile-value" style={{ color: cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
                             {cpu.toFixed(1)}%
                         </div>
                     </div>
                     <div>
-                        <div style={{ marginBottom: '2px' }}>内存</div>
-                        <div style={{ fontWeight: 600, color: memPercent > 80 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                        <div>内存</div>
+                        <div className="node-health-tile-value" style={{ color: memPercent > 80 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
                             {memPercent.toFixed(1)}%
                         </div>
                     </div>
                     <div>
-                        <div style={{ marginBottom: '2px' }}>在线</div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div>在线</div>
+                        <div className="node-health-tile-value">
                             {serverData?.onlineCount ?? 0}
                         </div>
                     </div>
                     <div>
-                        <div style={{ marginBottom: '2px' }}>流量</div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div>流量</div>
+                        <div className="node-health-tile-value">
                             {formatBytes(traffic)}
                         </div>
                     </div>
                 </div>
             ) : (
-                <div style={{ fontSize: '12px', color: 'var(--accent-danger)', fontWeight: 500 }}>
+                <div className="node-health-tile-value" style={{ color: 'var(--accent-danger)', fontSize: '12px' }}>
                     {serverData?.error || '无法连接'}
                 </div>
             )}
@@ -139,11 +99,7 @@ export default function NodeHealthGrid({ servers, serverStatuses }) {
     }
 
     return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: '12px',
-        }}>
+        <div className="node-health-grid">
             {servers.map(server => (
                 <NodeTile
                     key={server.id}

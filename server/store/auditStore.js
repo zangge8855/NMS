@@ -155,6 +155,7 @@ class AuditStore {
         const derivedTargetEmail = String(
             targetEmail
             || safeDetails?.email
+            || safeDetails?.subscriptionEmail
             || req?.params?.email
             || ''
         ).trim().toLowerCase();

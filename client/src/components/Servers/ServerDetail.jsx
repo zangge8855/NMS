@@ -4,24 +4,28 @@ import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, formatUptime } from '../../utils/format.js';
 import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
+import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
     HiOutlineCpuChip,
     HiOutlineCircleStack,
     HiOutlineClock,
+    HiOutlineGlobeAlt,
     HiOutlineServerStack,
 } from 'react-icons/hi2';
 
 function StatMini({ label, value, suffix }) {
-    const animated = useAnimatedCounter(value || 0);
+    const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value">{animated}{suffix || ''}</div>
+            <div className="stat-mini-value">{typeof value === 'number' ? animated : '...'}{typeof value === 'number' ? (suffix || '') : ''}</div>
             <div className="stat-mini-label">{label}</div>
         </div>
     );
@@ -35,14 +39,25 @@ function formatTime(ts) {
 export default function ServerDetail() {
     const { serverId } = useParams();
     const navigate = useNavigate();
+    const confirmAction = useConfirm();
 
     const [loading, setLoading] = useState(true);
     const [server, setServer] = useState(null);
     const [status, setStatus] = useState(null);
     const [inbounds, setInbounds] = useState([]);
     const [onlines, setOnlines] = useState([]);
+    const [onlinesLoading, setOnlinesLoading] = useState(false);
     const [auditEvents, setAuditEvents] = useState([]);
     const [activeTab, setActiveTab] = useState('overview');
+    const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
+    const [clientIpModal, setClientIpModal] = useState({
+        open: false,
+        email: '',
+        items: [],
+        loading: false,
+        clearing: false,
+        error: '',
+    });
 
     const fetchServer = async () => {
         setLoading(true);
@@ -86,6 +101,7 @@ export default function ServerDetail() {
     };
 
     const fetchOnlines = async () => {
+        setOnlinesLoading(true);
         try {
             const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/onlines`);
             const data = res.data?.obj || [];
@@ -93,12 +109,20 @@ export default function ServerDetail() {
             const users = [];
             if (Array.isArray(data)) {
                 data.forEach(item => {
-                    if (typeof item === 'string') users.push(item);
-                    else if (item?.email) users.push(item.email);
+                    if (typeof item === 'string') {
+                        const email = item.trim();
+                        if (email) users.push(email);
+                    } else if (item?.email) {
+                        const email = String(item.email).trim();
+                        if (email) users.push(email);
+                    }
                 });
             }
             setOnlines(users);
-        } catch { /* ignore */ }
+        } catch {
+            setOnlines([]);
+        }
+        setOnlinesLoading(false);
     };
 
     const fetchAudit = async () => {
@@ -109,9 +133,13 @@ export default function ServerDetail() {
     };
 
     useEffect(() => {
+        setOnlines([]);
+        setClientIpSupport({ supported: true, reason: '' });
+        closeClientIpModal();
         fetchServer();
         fetchStatus();
         fetchInbounds();
+        fetchOnlines();
     }, [serverId]);
 
     useEffect(() => {
@@ -124,6 +152,20 @@ export default function ServerDetail() {
     }, [inbounds]);
 
     const activeInbounds = useMemo(() => inbounds.filter(ib => ib.enable !== false).length, [inbounds]);
+    const onlineUsers = useMemo(() => {
+        const grouped = new Map();
+        onlines.forEach((item) => {
+            const email = String(item || '').trim();
+            if (!email) return;
+            const current = grouped.get(email) || { email, sessions: 0 };
+            current.sessions += 1;
+            grouped.set(email, current);
+        });
+        return Array.from(grouped.values()).sort((a, b) => {
+            if (b.sessions !== a.sessions) return b.sessions - a.sessions;
+            return a.email.localeCompare(b.email, 'zh-CN');
+        });
+    }, [onlines]);
 
     const clientCount = useMemo(() => {
         let count = 0;
@@ -140,12 +182,113 @@ export default function ServerDetail() {
         fetchServer();
         fetchStatus();
         fetchInbounds();
+        fetchOnlines();
+    };
+
+    const closeClientIpModal = () => {
+        setClientIpModal({
+            open: false,
+            email: '',
+            items: [],
+            loading: false,
+            clearing: false,
+            error: '',
+        });
+    };
+
+    const loadClientIps = async (email, options = {}) => {
+        const normalizedEmail = String(email || '').trim();
+        if (!normalizedEmail || clientIpSupport.supported === false) return;
+
+        if (options.preserveOpen !== true) {
+            setClientIpModal({
+                open: true,
+                email: normalizedEmail,
+                items: [],
+                loading: true,
+                clearing: false,
+                error: '',
+            });
+        } else {
+            setClientIpModal((prev) => ({
+                ...prev,
+                loading: true,
+                error: '',
+            }));
+        }
+
+        try {
+            const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(normalizedEmail)}`);
+            const items = normalizePanelClientIps(res.data?.obj);
+            setClientIpSupport({ supported: true, reason: '' });
+            setClientIpModal((prev) => ({
+                ...prev,
+                open: true,
+                email: normalizedEmail,
+                items,
+                loading: false,
+                error: '',
+            }));
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || '加载节点访问 IP 失败';
+            if (isUnsupportedPanelClientIpsError(err)) {
+                setClientIpSupport({
+                    supported: false,
+                    reason: msg || '当前节点的 3x-ui 版本不支持节点 IP 接口',
+                });
+            }
+            setClientIpModal((prev) => ({
+                ...prev,
+                open: true,
+                loading: false,
+                error: msg,
+                items: [],
+            }));
+            toast.error(msg);
+        }
+    };
+
+    const clearClientIps = async () => {
+        if (!clientIpModal.email) return;
+        const ok = await confirmAction({
+            title: '清空节点访问 IP',
+            message: `确定清空 ${clientIpModal.email} 在当前节点的访问 IP 记录吗？`,
+            confirmText: '确认清空',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setClientIpModal((prev) => ({
+            ...prev,
+            clearing: true,
+            error: '',
+        }));
+
+        try {
+            await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
+            toast.success('节点访问 IP 记录已清空');
+            await loadClientIps(clientIpModal.email, { preserveOpen: true });
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || '清空节点访问 IP 失败';
+            setClientIpModal((prev) => ({
+                ...prev,
+                clearing: false,
+                error: msg,
+            }));
+            toast.error(msg);
+            return;
+        }
+
+        setClientIpModal((prev) => ({
+            ...prev,
+            clearing: false,
+        }));
     };
 
     if (loading) {
         return (
             <>
-                <Header title="服务器详情" />
+                <Header title="服务器详情" subtitle="节点资源、入站、在线用户与审计记录" eyebrow="Server Detail" />
                 <div className="page-content page-enter">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
@@ -158,7 +301,7 @@ export default function ServerDetail() {
     if (!server) {
         return (
             <>
-                <Header title="服务器详情" />
+                <Header title="服务器详情" subtitle="节点资源、入站、在线用户与审计记录" eyebrow="Server Detail" />
                 <div className="page-content page-enter">
                     <EmptyState title="服务器不存在" subtitle="该服务器可能已被删除" action={
                         <button className="btn btn-secondary" onClick={() => navigate('/servers')}>
@@ -183,7 +326,7 @@ export default function ServerDetail() {
 
     return (
         <>
-            <Header title={`服务器 — ${server.name}`} />
+            <Header title={`服务器 — ${server.name}`} subtitle="资源状态、入站配置、在线会话与节点审计" eyebrow="Server Detail" />
             <div className="page-content page-enter">
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
                     <HiOutlineArrowLeft /> 返回服务器列表
@@ -228,9 +371,12 @@ export default function ServerDetail() {
                 <div className="stat-mini-grid mb-6">
                     <StatMini label="入站规则" value={activeInbounds} suffix={` / ${inbounds.length}`} />
                     <StatMini label="客户端数" value={clientCount} />
-                    <StatMini label="在线用户" value={onlines.length} />
+                    <StatMini label="在线用户" value={onlinesLoading && onlineUsers.length === 0 ? null : onlineUsers.length} suffix={onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
                     <StatMini label="总流量 (MB)" value={Math.round(totalTraffic / (1024 * 1024))} />
                 </div>
+                {onlinesLoading && onlineUsers.length === 0 && (
+                    <div className="text-xs text-muted mb-6">在线用户汇总加载中...</div>
+                )}
 
                 {/* Tabs */}
                 <div className="user-detail-tabs">
@@ -326,18 +472,38 @@ export default function ServerDetail() {
                         {activeTab === 'onlines' && (
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <span className="text-sm text-muted">当前在线: {onlines.length}</span>
+                                    <div className="text-sm text-muted">
+                                        在线用户 {onlineUsers.length} / 会话 {onlines.length}
+                                        {clientIpSupport.supported === false ? ` · 节点 IP 不可用: ${clientIpSupport.reason}` : ''}
+                                    </div>
                                     <button className="btn btn-secondary btn-sm" onClick={fetchOnlines}><HiOutlineArrowPath /> 刷新</button>
                                 </div>
-                                {onlines.length === 0 ? (
+                                {onlinesLoading ? (
+                                    <SkeletonTable rows={4} cols={3} />
+                                ) : onlineUsers.length === 0 ? (
                                     <EmptyState title="当前无在线用户" subtitle="该服务器暂无活跃连接" />
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">
-                                            <thead><tr><th>#</th><th>用户标识</th></tr></thead>
+                                            <thead><tr><th>#</th><th>用户标识</th><th>会话数</th><th>操作</th></tr></thead>
                                             <tbody>
-                                                {onlines.map((user, i) => (
-                                                    <tr key={i}><td>{i + 1}</td><td className="font-mono">{user}</td></tr>
+                                                {onlineUsers.map((item, i) => (
+                                                    <tr key={item.email}>
+                                                        <td>{i + 1}</td>
+                                                        <td className="font-mono">{item.email}</td>
+                                                        <td>{item.sessions}</td>
+                                                        <td>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-sm"
+                                                                onClick={() => loadClientIps(item.email)}
+                                                                disabled={clientIpSupport.supported === false}
+                                                                title={clientIpSupport.supported === false ? clientIpSupport.reason : '查看该用户在当前节点上的代理访问 IP'}
+                                                            >
+                                                                <HiOutlineGlobeAlt /> 节点 IP
+                                                            </button>
+                                                        </td>
+                                                    </tr>
                                                 ))}
                                             </tbody>
                                         </table>
@@ -373,6 +539,19 @@ export default function ServerDetail() {
                     </div>
                 </div>
             </div>
+
+            <ClientIpModal
+                isOpen={clientIpModal.open}
+                title={`节点访问 IP — ${server?.name || serverId}`}
+                subtitle={clientIpModal.email ? `${clientIpModal.email} · 节点级记录` : ''}
+                loading={clientIpModal.loading}
+                clearing={clientIpModal.clearing}
+                items={clientIpModal.items}
+                error={clientIpModal.error}
+                onClose={closeClientIpModal}
+                onRefresh={() => loadClientIps(clientIpModal.email, { preserveOpen: true })}
+                onClear={clientIpSupport.supported === false ? undefined : clearClientIps}
+            />
         </>
     );
 }

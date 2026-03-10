@@ -38,6 +38,7 @@ test('createLoginSession supports legacy admin password login', () => {
     assert.equal(result.token, 'token-for:admin');
     assert.equal(result.audit.legacyMode, true);
     assert.equal(result.user.role, 'admin');
+    assert.equal(result.audit.email, 'admin@example.com');
 });
 
 test('createLoginSession returns verify state for unverified users', () => {
@@ -66,6 +67,65 @@ test('createLoginSession returns verify state for unverified users', () => {
     assert.equal(result.success, false);
     assert.equal(result.reason, 'email_not_verified');
     assert.equal(result.email, 'alice@example.com');
+    assert.equal(result.audit.email, 'alice@example.com');
+});
+
+test('createLoginSession returns disabled users with audit metadata', () => {
+    const repo = {
+        authenticate() {
+            return { id: 'user-4', username: 'dave', role: 'user' };
+        },
+        getByUsername() {
+            return {
+                id: 'user-4',
+                username: 'dave',
+                role: 'user',
+                email: 'dave@example.com',
+                subscriptionEmail: 'sub-dave@example.com',
+                emailVerified: true,
+                enabled: false,
+            };
+        },
+    };
+
+    const result = createLoginSession(
+        { username: 'dave', password: 'pass' },
+        { userRepository: repo }
+    );
+
+    assert.equal(result.success, false);
+    assert.equal(result.reason, 'user_disabled');
+    assert.equal(result.audit.subscriptionEmail, 'sub-dave@example.com');
+});
+
+test('createLoginSession returns audit metadata for invalid password of known user', () => {
+    const repo = {
+        authenticate() {
+            return null;
+        },
+        getByUsername(username) {
+            if (username !== 'eve') return null;
+            return {
+                id: 'user-5',
+                username: 'eve',
+                role: 'user',
+                email: 'eve@example.com',
+                subscriptionEmail: 'eve@example.com',
+            };
+        },
+        list() {
+            return [];
+        },
+    };
+
+    const result = createLoginSession(
+        { username: 'eve', password: 'wrong' },
+        { userRepository: repo, authConfig: { allowLegacyPasswordLogin: false, adminPassword: 'ignored' } }
+    );
+
+    assert.equal(result.success, false);
+    assert.equal(result.reason, 'invalid_credentials');
+    assert.equal(result.audit.username, 'eve');
 });
 
 test('validateSession returns normalized session user', () => {

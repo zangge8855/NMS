@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
 
@@ -98,6 +99,18 @@ router.put('/:email', (req, res) => {
         },
         req.user?.role || 'admin'
     );
+
+    appendSecurityAudit('user_policy_updated', req, {
+        email,
+        subscriptionEmail: email,
+        allowedServerIds,
+        allowedProtocols,
+        serverScopeMode,
+        protocolScopeMode,
+        expiryTime: updated?.expiryTime || 0,
+        limitIp: updated?.limitIp || 0,
+        trafficLimitBytes: updated?.trafficLimitBytes || 0,
+    });
 
     return res.json({
         success: true,
