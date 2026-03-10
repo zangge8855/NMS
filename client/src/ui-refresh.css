@@ -19,7 +19,7 @@
 
   --text-primary: #0f172a;
   --text-secondary: #2f3f53;
-  --text-muted: #475569;
+  --text-muted: #334155;
   --text-on-accent: #ffffff;
 
   --surface-soft: rgba(99, 102, 241, 0.06);
@@ -357,6 +357,8 @@ body::before {
   height: 28px;
   right: -14px;
   background: var(--bg-card);
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar-nav {
@@ -1973,15 +1975,26 @@ body::before {
 }
 
 [data-theme="light"] .btn-secondary:hover,
+[data-theme="light"] .btn-secondary:focus-visible,
 [data-theme="light"] .theme-toggle-btn:hover,
+[data-theme="light"] .theme-toggle-btn:focus-visible,
 [data-theme="light"] .btn-ghost:hover,
+[data-theme="light"] .btn-ghost:focus-visible,
 [data-theme="light"] .btn-icon:hover,
+[data-theme="light"] .btn-icon:focus-visible,
 [data-theme="light"] .modal-close:hover,
+[data-theme="light"] .modal-close:focus-visible,
 [data-theme="light"] .server-selector-btn:hover,
+[data-theme="light"] .server-selector-btn:focus-visible,
 [data-theme="light"] .server-selector-btn.active,
 [data-theme="light"] .nav-item:hover,
+[data-theme="light"] .nav-item:focus-visible,
 [data-theme="light"] .tab:hover,
-[data-theme="light"] .audit-tabs .tab:hover {
+[data-theme="light"] .tab:focus-visible,
+[data-theme="light"] .audit-tabs .tab:hover,
+[data-theme="light"] .audit-tabs .tab:focus-visible,
+[data-theme="light"] .server-chip:hover,
+[data-theme="light"] .server-chip:focus-visible {
   background: rgba(99, 102, 241, 0.08);
   border-color: rgba(99, 102, 241, 0.18);
   color: var(--text-primary);
@@ -2004,6 +2017,9 @@ body::before {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+[data-theme="light"] .form-input:focus,
+[data-theme="light"] .form-select:focus,
+[data-theme="light"] .form-textarea:focus,
 [data-theme="light"] .servers-filter-search:focus,
 [data-theme="light"] .servers-filter-select:focus,
 [data-theme="light"] .audit-filter-bar .form-input:focus,

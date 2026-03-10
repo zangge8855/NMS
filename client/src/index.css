@@ -309,6 +309,7 @@ a:hover {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   transition: margin-left var(--transition-base);
   display: flex;
