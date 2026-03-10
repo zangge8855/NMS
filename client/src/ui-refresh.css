@@ -255,12 +255,15 @@ body::before {
 .modal-overlay {
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(14px);
+  opacity: 1;
 }
 
 .modal {
   background: var(--gradient-surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow-2xl);
+  opacity: 1;
+  transform: none;
 }
 
 .modal-header,
