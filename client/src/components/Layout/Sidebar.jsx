@@ -16,7 +16,7 @@ import {
     HiOutlineSignal,
     HiOutlineShieldCheck,
     HiOutlineClipboardDocumentList,
-    HiOutlineMagnifyingGlass,
+    
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 
