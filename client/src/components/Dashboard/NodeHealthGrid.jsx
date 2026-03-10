@@ -30,12 +30,23 @@ function NodeTile({ server, serverData }) {
     const mem = serverData?.status?.mem;
     const memPercent = mem ? ((mem.current / mem.total) * 100) : 0;
     const traffic = (serverData?.up || 0) + (serverData?.down || 0);
+    const statusLabel = `${server.name} — ${color.label}`;
+    const handleOpen = () => navigate('/server');
+    const handleKeyDown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleOpen();
+        }
+    };
 
     return (
         <div
             className="node-health-tile"
-            onClick={() => navigate('/server')}
-            title={`${server.name} — ${color.label}`}
+            onClick={handleOpen}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label={statusLabel}
             style={{
                 '--node-color': color.dot,
             }}

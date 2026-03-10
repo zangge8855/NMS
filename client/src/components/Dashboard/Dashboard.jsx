@@ -142,11 +142,20 @@ function WsStatusDot({ status }) {
         reconnecting: '重连中...',
         disconnected: '已断开',
     };
+    const currentStatus = status || 'disconnected';
+    const label = labels[currentStatus] || '未知';
+
     return (
-        <div className="ws-status-chip" data-status={status || 'disconnected'} title={labels[status] || '未知'}>
+        <div
+            className="ws-status-chip"
+            data-status={currentStatus}
+            role="status"
+            aria-live="polite"
+            aria-label={label}
+        >
             <HiOutlineBolt className="ws-status-icon" />
             <span className="ws-status-label">
-                {labels[status] || ''}
+                {label}
             </span>
         </div>
     );

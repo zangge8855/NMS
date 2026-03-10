@@ -33,6 +33,7 @@
 - 默认主题：`dark`
 - 保留主题切换：`dark -> light -> auto`
 - 深色版作为主设计稿，亮色版只做同质映射，不另起一套语言
+- 亮色版的 hover / focus / tab / tooltip / 次级按钮态必须使用同一套浅色 token，不能再出现悬浮后局部发黑的“深色补丁感”
 
 实现位置：
 
@@ -99,6 +100,7 @@
 - 表格表头与表体边界统一
 - 批量条、筛选条、统计卡共享同一套表面层级
 - 次级卡片使用 `mini-card` 语义，不再和主卡片同权
+- 登录页使用单卡片居中布局，不再保留额外品牌展示区和营销式说明文案
 
 ### 8. CSS 组织方式
 
@@ -133,6 +135,11 @@
 - `/clients`
 - `/audit`
 - `/settings`
+
+本轮额外关注点：
+
+- 亮色模式下仪表盘、服务器管理、审计中心、日志页的搜索框、标签页、图标按钮、次级按钮 hover / focus 是否仍出现发黑块
+- 图表 tooltip、卡片 meta 区、筛选条和表格 hover 是否与浅色主题层级一致
 
 ### 10. 后续迭代建议
 
@@ -180,6 +187,7 @@ Avoid:
 - default theme: `dark`
 - theme cycle remains: `dark -> light -> auto`
 - dark is the primary reference, light follows the same visual language
+- light mode hover, focus, tab, tooltip, and secondary-button states must use the same light token system instead of falling back to dark-looking overlays
 
 Implementation:
 
@@ -224,3 +232,20 @@ Pages:
 - base styles live in `client/src/index.css`
 - the current visual refinement layer lives in `client/src/ui-refresh.css`
 - new visual work should prefer semantic classes plus centralized CSS instead of inline styles
+- the login page now uses a centered single-card layout without a separate brand showcase block
+
+### 8. Current Acceptance Focus
+
+Check these in both dark and light themes:
+
+- `/login`
+- `/`
+- `/servers`
+- `/audit`
+- `/logs`
+- `/settings`
+
+Additional light-theme checks:
+
+- search fields, tabs, icon buttons, and secondary buttons should not flash dark patches on hover or focus
+- tooltips, filter bars, card meta sections, and table hover layers should stay within the same light hierarchy

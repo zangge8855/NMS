@@ -30,6 +30,8 @@ This keeps public APIs stable while moving heavy business logic out of route fil
 - Telegram backup can be triggered from NMS, but Telegram Bot configuration still lives in the 3x-ui panel because the official 3x-ui API does not document a config write endpoint for it.
 - 3x-ui log API support depends on the remote node version and capability. NMS detects support and degrades gracefully when a node does not expose the expected log endpoints.
 - The admin UI is now dark-first by default. The current visual baseline uses `IBM Plex Sans + Noto Sans SC + JetBrains Mono`.
+- In production frontend-hosting mode, missing `client/dist/index.html` now returns an explicit `503` on SPA routes instead of an opaque `500` file error. Rebuild and sync the frontend bundle before restarting PM2.
+- Inbound `settings` and `streamSettings` are normalized from either plain objects or JSON strings, so mixed panel payload shapes no longer break client counts or subscription generation.
 
 ### Requirements
 
@@ -109,6 +111,8 @@ cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
 pm2 restart nms
 ```
 
+This repository no longer relies on a `deploy.sh` helper. Use the explicit build, sync, and restart steps above or follow the full runbook.
+
 For a full runbook, see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
 
 ### Main Admin Features
@@ -175,6 +179,8 @@ More configuration details: `.env.example`
 - NMS 可以触发 Telegram 备份，但 Telegram Bot 的 `Token / Chat ID / 定时通知` 仍需在 3x-ui 面板里配置，因为 3x-ui 官方 API 没有文档化的配置写入接口。
 - 3x-ui 日志 API 是否可用取决于远端节点版本和能力；NMS 会先做能力探测，不支持时返回兼容提示而不是盲目报错。
 - 当前管理端默认以深色主题作为主设计稿，字体基线为 `IBM Plex Sans + Noto Sans SC + JetBrains Mono`。
+- 生产环境如果启用了前端静态托管，但缺少 `client/dist/index.html`，SPA 路由现在会明确返回 `503`，而不是 `sendFile` 的 `500` 文件错误；升级时请先重新构建并同步前端产物。
+- 入站 `settings` / `streamSettings` 已统一兼容“对象”或“JSON 字符串”两种形态，面板返回格式不一致时也不会再把客户端数量或订阅结果误判为空。
 
 ### 环境要求
 
@@ -253,6 +259,8 @@ cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
 cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
 pm2 restart nms
 ```
+
+仓库已不再依赖 `deploy.sh` 之类的包装脚本；请直接使用上面的显式构建、同步和重启步骤，或参考完整 Runbook。
 
 完整说明见：[部署与升级 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
 

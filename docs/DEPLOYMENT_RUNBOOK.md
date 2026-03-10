@@ -70,6 +70,11 @@ pm2 save
 
 如果代码在 `/root/NMS`，运行实例在 `/opt/nms`，建议按下面顺序升级：
 
+说明：
+
+- 仓库当前不再提供 `deploy.sh` 之类的一键脚本，升级以显式构建、同步和 PM2 重启为准
+- 如果前端未构建或 `client/dist/index.html` 没有同步到运行目录，浏览器访问 `/`、`/login` 等 SPA 路由会返回明确的 `503`
+
 1. 本地构建和测试
 
 ```bash
@@ -137,6 +142,7 @@ curl -sS http://127.0.0.1:3001/
 - 返回新的 `index-*.js`
 - 返回新的 `index-*.css`
 - 字体链接包含 `IBM Plex Sans`、`JetBrains Mono`、`Noto Sans SC`
+- 如果返回 `503 Frontend build missing`，说明运行目录缺少前端构建产物，需要重新执行前端构建和同步步骤
 
 接口可用性：
 
@@ -193,6 +199,7 @@ rm -f /tmp/nms_ui_check.cjs /tmp/nms_ui_round3_check.cjs
 - 如果运行实例实际读取的是 `/opt/nms`，仅在 `/root/NMS` 构建不会自动生效
 - 某些环境中 headless browser 需要脱离沙箱运行
 - 3x-ui 日志能力、Telegram 配置能力取决于远端节点版本和官方 API 暴露范围
+- 升级时如果面板节点返回的入站 `settings` / `streamSettings` 既有对象也有 JSON 字符串，新版本已兼容两种形态；无需再手工统一数据格式
 
 ---
 
@@ -224,6 +231,11 @@ Recommended order:
 3. sync backend files when needed
 4. restart `pm2`
 
+Notes:
+
+- the repo no longer ships a `deploy.sh` wrapper; use the explicit commands in this runbook
+- if `client/dist/index.html` is missing in the runtime instance, SPA routes such as `/` and `/login` now return an explicit `503` instead of a generic file error
+
 ### 4. Core Commands
 
 Build and test:
@@ -252,3 +264,10 @@ pm2 restart nms
 - no debug screenshots or temporary scripts
 - verify built asset hashes from `http://127.0.0.1:3001/`
 - verify critical routes after restart
+- if the root route returns `503 Frontend build missing`, rebuild the frontend and sync `client/dist` again
+
+### 6. Current Edges
+
+- building only in `/root/NMS` does not affect a live `/opt/nms` instance until files are synced
+- headless browser checks may still require unsandboxed execution in some environments
+- inbound `settings` / `streamSettings` may come back as either plain objects or JSON strings from different panel versions; current code accepts both forms

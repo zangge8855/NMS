@@ -1,6 +1,6 @@
 # NMS 架构总览
 
-> 更新时间：2026-03-09
+> 更新时间：2026-03-10
 
 ## 中文
 
@@ -68,6 +68,12 @@
   `GET /api/system/notifications`
   `POST /api/system/notifications/read`
 
+### 5.1 近期稳定性收口
+
+- 入站 `settings` / `streamSettings` 统一接受“对象”或“JSON 字符串”两种输入形态
+- 前后端都不再假设 3x-ui 面板一定返回字符串化 JSON，避免客户端数量统计、订阅构造和流量聚合被误判为空
+- 生产环境下如果启用了前端静态托管但缺少 `client/dist/index.html`，服务端会对 SPA 路由返回明确 `503`，而不是抛出 `sendFile` 文件错误
+
 ### 6. 用户限额与策略模型
 
 统一策略层：
@@ -126,7 +132,7 @@ NMS 通过官方 API 能稳定做的事情：
 
 # NMS Architecture Overview
 
-> Updated: 2026-03-09
+> Updated: 2026-03-10
 
 ## English
 
@@ -188,6 +194,12 @@ These services hold the main business logic that previously lived in route files
 - Notification center
   `GET /api/system/notifications`
   `POST /api/system/notifications/read`
+
+### 5.1 Recent Hardening Notes
+
+- inbound `settings` and `streamSettings` now accept either plain objects or JSON strings
+- both client and server paths no longer assume that 3x-ui always returns stringified JSON, which avoids empty client counts, broken subscription rendering, and dropped traffic aggregation
+- when frontend hosting is enabled in production but `client/dist/index.html` is missing, the server now returns an explicit `503` for SPA routes instead of surfacing a raw `sendFile` file error
 
 ### 6. Entitlement Model
 
