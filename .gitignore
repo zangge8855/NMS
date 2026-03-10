@@ -42,6 +42,7 @@ Thumbs.db
 *.temp
 .cache/
 output/
+.playwright-cli/
 
 # ---- Certificates / keys ----
 *.pem

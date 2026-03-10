@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import Header from '../Layout/Header.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -642,11 +643,11 @@ export default function Servers() {
 
                 {/* Add/Edit Modal */}
                 {showForm && (
-                    <div className="modal-overlay" onClick={resetForm}>
+                    <ModalShell isOpen={showForm} onClose={resetForm}>
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">{editingId ? '编辑服务器' : '添加服务器'}</h3>
-                                <button className="modal-close" onClick={resetForm}>×</button>
+                                <button type="button" className="modal-close" onClick={resetForm}>×</button>
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
@@ -701,16 +702,16 @@ export default function Servers() {
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </ModalShell>
                 )}
 
                 {/* Batch Add Modal */}
                 {showBatchForm && (
-                    <div className="modal-overlay" onClick={resetBatchForm}>
+                    <ModalShell isOpen={showBatchForm} onClose={resetBatchForm}>
                         <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">批量添加服务器</h3>
-                                <button className="modal-close" onClick={resetBatchForm}>×</button>
+                                <button type="button" className="modal-close" onClick={resetBatchForm}>×</button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
@@ -842,15 +843,15 @@ export default function Servers() {
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </ModalShell>
                 )}
 
                 {credentialRepair.open && (
-                    <div className="modal-overlay" onClick={closeCredentialRepair}>
+                    <ModalShell isOpen={credentialRepair.open} onClose={closeCredentialRepair}>
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">修复节点登录凭据</h3>
-                                <button className="modal-close" onClick={closeCredentialRepair}>×</button>
+                                <button type="button" className="modal-close" onClick={closeCredentialRepair}>×</button>
                             </div>
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">
@@ -900,7 +901,7 @@ export default function Servers() {
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </ModalShell>
                 )}
             </div>
         </>

@@ -3,6 +3,7 @@ import { HiOutlineXMark, HiOutlineCheck } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 
 const PROTOCOL_SCHEMA_FALLBACK = [
@@ -1441,7 +1442,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg inbound-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">{editingInbound ? '编辑入站' : '批量添加入站'}</h3>
@@ -1454,7 +1455,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             />
                             专家模式 (JSON)
                         </label>
-                        <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                        <button type="button" className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
                     </div>
                 </div>
 
@@ -3331,6 +3332,6 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 }

@@ -12,6 +12,7 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { extractInboundClients } from '../../utils/inboundClients.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 import {
     HiOutlinePlusCircle,
@@ -991,11 +992,11 @@ export default function UsersHub() {
 
             {/* Create User Modal */}
             {createOpen && (
-                <div className="modal-overlay" onClick={closeCreateModal}>
+                <ModalShell isOpen={createOpen} onClose={closeCreateModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">添加用户账号</h3>
-                            <button className="modal-close" onClick={closeCreateModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeCreateModal}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitCreate}>
                             <div className="modal-body">
@@ -1074,16 +1075,16 @@ export default function UsersHub() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {/* Edit User Modal */}
             {editOpen && editUser && (
-                <div className="modal-overlay" onClick={closeEditModal}>
+                <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">编辑用户 - {editUser.username}</h3>
-                            <button className="modal-close" onClick={closeEditModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeEditModal}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
@@ -1257,16 +1258,16 @@ export default function UsersHub() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {/* Provision Modal */}
             {provisionOpen && provisionTargetUser && (
-                <div className="modal-overlay" onClick={closeProvisionModal}>
+                <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">开通订阅 - {provisionTargetUser.username}</h3>
-                            <button className="modal-close" onClick={closeProvisionModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeProvisionModal}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitProvision}>
                             <div className="modal-body">
@@ -1460,26 +1461,27 @@ export default function UsersHub() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {/* Subscription Modal */}
             {subscriptionModalOpen && (
-                <div className="modal-overlay" onClick={() => setSubscriptionModalOpen(false)}>
+                <ModalShell isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)}>
                     <div className="modal modal-wide glass-panel" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">订阅链接 - {subscriptionEmail}</h3>
-                            <button className="modal-close" onClick={() => setSubscriptionModalOpen(false)}>×</button>
+                            <button type="button" className="modal-close" onClick={() => setSubscriptionModalOpen(false)}>×</button>
                         </div>
                         <div className="modal-body">
                             <div className="grid-auto-160 mb-4">
-                                <button className="btn btn-secondary" onClick={() => loadSubscription(subscriptionEmail)} disabled={subscriptionLoading}>
+                                <button type="button" className="btn btn-secondary" onClick={() => loadSubscription(subscriptionEmail)} disabled={subscriptionLoading}>
                                     {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新</>}
                                 </button>
-                                <button className="btn btn-primary" onClick={handleCopySubscription} disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}>
+                                <button type="button" className="btn btn-primary" onClick={handleCopySubscription} disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}>
                                     <HiOutlineClipboard /> 复制
                                 </button>
                                 <button
+                                    type="button"
                                     className="btn btn-secondary"
                                     onClick={() => navigate(`/subscriptions?email=${encodeURIComponent(subscriptionEmail)}`)}
                                 >
@@ -1534,10 +1536,10 @@ export default function UsersHub() {
                             )}
                         </div>
                         <div className="modal-footer">
-                            <button className="btn btn-secondary" onClick={() => setSubscriptionModalOpen(false)}>关闭</button>
+                            <button type="button" className="btn btn-secondary" onClick={() => setSubscriptionModalOpen(false)}>关闭</button>
                         </div>
                     </div>
-                </div>
+                </ModalShell>
             )}
         </>
     );
