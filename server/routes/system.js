@@ -23,17 +23,9 @@ import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import { createBackupArchive, getBackupStatus } from '../lib/systemBackup.js';
+import { normalizeBoolean } from '../lib/normalize.js';
 
 const router = Router();
-
-function normalizeBoolean(value, fallback = false) {
-    if (value === undefined || value === null) return fallback;
-    if (typeof value === 'boolean') return value;
-    const text = String(value).trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(text)) return true;
-    if (['0', 'false', 'no', 'off'].includes(text)) return false;
-    return fallback;
-}
 
 function normalizeMode(value, allowed = [], fallback = '') {
     const text = String(value || '').trim().toLowerCase();

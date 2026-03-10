@@ -9,6 +9,7 @@ import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
 } from '../lib/batchRiskControl.js';
+import { normalizeBoolean } from '../lib/normalize.js';
 
 const router = Router();
 
@@ -45,17 +46,6 @@ function normalizeConcurrency(value, fallback = 5) {
         Number(systemSettingsStore.getJobs().maxConcurrency || config.jobs?.maxConcurrency || 10)
     );
     return Math.min(bounded, maxConcurrency);
-}
-
-function normalizeBoolean(value, fallback = false) {
-    if (value === undefined || value === null) return fallback;
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'string') {
-        const lower = value.trim().toLowerCase();
-        if (['1', 'true', 'yes', 'on'].includes(lower)) return true;
-        if (['0', 'false', 'no', 'off'].includes(lower)) return false;
-    }
-    return Boolean(value);
 }
 
 function normalizeClientIdentifier(target = {}, fallbackClient = {}, protocolHint = '') {

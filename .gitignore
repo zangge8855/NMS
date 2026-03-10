@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# ---- Claude Code ----
+.claude/
+
 # ---- Runtime data (contains sensitive/user data) ----
 data/*.json
 data/*.log

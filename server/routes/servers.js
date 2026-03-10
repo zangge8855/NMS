@@ -7,6 +7,7 @@ import { ensureAuthenticated } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
+import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
@@ -120,15 +121,6 @@ function parseTagList(value) {
             .filter(Boolean);
     }
     return [];
-}
-
-function parseBoolean(value, fallback = false) {
-    if (value === undefined || value === null || value === '') return fallback;
-    if (typeof value === 'boolean') return value;
-    const text = String(value).trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(text)) return true;
-    if (['0', 'false', 'no', 'off'].includes(text)) return false;
-    return fallback;
 }
 
 function applyServerFilters(servers, query = {}) {
@@ -304,14 +296,11 @@ router.get('/:id/logs', async (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
-    const allServers = serverStore.list();
-    const server = allServers.find(s => s.id === req.params.id);
+    const server = serverStore.getAll().find(s => s.id === req.params.id);
     if (!server) {
         return res.status(404).json({ success: false, msg: '服务器不存在' });
     }
-    // Return server without password
-    const { password, ...safe } = server;
-    return res.json({ success: true, obj: safe });
+    return res.json({ success: true, obj: server });
 });
 
 /**

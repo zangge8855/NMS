@@ -88,6 +88,28 @@ function NodeTile({ server, serverData }) {
     );
 }
 
+function SkeletonTile() {
+    return (
+        <div className="node-health-skeleton">
+            <div className="node-health-skeleton-head">
+                <div className="node-health-skeleton-title">
+                    <div className="skeleton node-health-skeleton-bar" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
+                    <div className="skeleton node-health-skeleton-bar" style={{ width: '80px' }} />
+                </div>
+                <div className="skeleton node-health-skeleton-pill" />
+            </div>
+            <div className="node-health-skeleton-meta">
+                {[1, 2, 3, 4].map(i => (
+                    <div className="node-health-skeleton-metric" key={i}>
+                        <div className="skeleton node-health-skeleton-metric-label" />
+                        <div className="skeleton node-health-skeleton-metric-value" />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function NodeHealthGrid({ servers, serverStatuses }) {
     if (!servers || servers.length === 0) {
         return (
@@ -98,14 +120,20 @@ export default function NodeHealthGrid({ servers, serverStatuses }) {
         );
     }
 
+    const hasStatuses = serverStatuses && Object.keys(serverStatuses).length > 0;
+
     return (
         <div className="node-health-grid">
             {servers.map(server => (
-                <NodeTile
-                    key={server.id}
-                    server={server}
-                    serverData={serverStatuses?.[server.id]}
-                />
+                hasStatuses ? (
+                    <NodeTile
+                        key={server.id}
+                        server={server}
+                        serverData={serverStatuses?.[server.id]}
+                    />
+                ) : (
+                    <SkeletonTile key={server.id} />
+                )
             ))}
         </div>
     );

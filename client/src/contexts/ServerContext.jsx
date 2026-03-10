@@ -108,8 +108,8 @@ export function ServerProvider({ children }) {
         const res = await api.delete(`/servers/${id}`);
         if (res.data.success) {
             if (activeServerId === id) {
-                setActiveServerId(null);
-                persistActiveServerId(null);
+                setActiveServerId('global');
+                persistActiveServerId('global');
             }
             await fetchServers();
         }

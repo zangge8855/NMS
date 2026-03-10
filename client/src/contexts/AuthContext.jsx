@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [token, setToken] = useState(getStoredToken);
 
     const checkAuth = useCallback(async () => {
         const token = getStoredToken();
@@ -65,6 +66,7 @@ export function AuthProvider({ children }) {
             const res = await api.post('/auth/login', { username, password });
             if (res.data.success) {
                 setStoredToken(res.data.token);
+                setToken(res.data.token);
                 setIsAuthenticated(true);
                 setUser(res.data.user || null);
                 return { success: true };
@@ -131,6 +133,7 @@ export function AuthProvider({ children }) {
 
     const logout = () => {
         clearStoredToken();
+        setToken(null);
         setIsAuthenticated(false);
         setUser(null);
     };
@@ -142,7 +145,7 @@ export function AuthProvider({ children }) {
             register, verifyEmail, resendCode,
             requestPasswordReset, resetPassword,
             user,
-            token: getStoredToken(),
+            token,
         }}>
             {children}
         </AuthContext.Provider>

@@ -17,7 +17,7 @@ import {
     HiOutlineCloud,
     HiOutlineBolt,
 } from 'react-icons/hi2';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
@@ -689,27 +689,28 @@ export default function Dashboard() {
                                 <AreaChart data={cpuHistory}>
                                     <defs>
                                         <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.4} />
+                                            <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                                     <XAxis dataKey="time" hide />
                                     <YAxis domain={[0, 100]} hide />
                                     <Tooltip
                                         contentStyle={{
-                                            background: 'var(--bg-card)',
-                                            backdropFilter: 'blur(8px)',
-                                            border: '1px solid var(--border-highlight)',
-                                            borderRadius: 'var(--radius-md)',
+                                            background: 'rgba(17, 17, 19, 0.95)',
+                                            backdropFilter: 'blur(12px)',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '12px',
                                             fontSize: '12px',
-                                            color: 'var(--text-primary)',
-                                            boxShadow: 'var(--shadow-lg)'
+                                            color: '#fafafa',
+                                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
                                         }}
                                         itemStyle={{ color: 'var(--accent-primary-hover)' }}
                                         formatter={(v) => [`${v.toFixed(1)}%`, 'CPU']}
-                                        cursor={{ stroke: 'var(--border-color)', strokeWidth: 2 }}
+                                        cursor={{ stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 2 }}
                                     />
-                                    <Area type="monotone" dataKey="cpu" stroke="var(--accent-primary)" strokeWidth={3} fill="url(#cpuGradient)" animationDuration={1500} />
+                                    <Area type="monotone" dataKey="cpu" stroke="var(--accent-primary)" strokeWidth={2} fill="url(#cpuGradient)" animationDuration={1500} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         )}

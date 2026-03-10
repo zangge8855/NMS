@@ -46,6 +46,7 @@ function startCleanupInterval(fn, delayMs) {
 const LOGIN_RATE_WINDOW = config.nodeEnv === 'development' ? 3 * 60 * 1000 : 15 * 60 * 1000;
 const LOGIN_RATE_WINDOW_MINUTES = Math.max(1, Math.round(LOGIN_RATE_WINDOW / 60_000));
 const LOGIN_RATE_MAX = config.nodeEnv === 'development' ? 300 : 20;
+const LOGIN_RATE_MAP_LIMIT = 10000;
 const loginAttempts = new Map(); // `${ip}|${username}` -> { count, firstAttempt, blockedUntil }
 
 startCleanupInterval(() => {
@@ -88,6 +89,7 @@ function recordLoginFailure(ip, username = '') {
     const now = Date.now();
     const data = loginAttempts.get(key);
     if (!data || now - data.firstAttempt > LOGIN_RATE_WINDOW) {
+        if (loginAttempts.size >= LOGIN_RATE_MAP_LIMIT) return;
         loginAttempts.set(key, { count: 1, firstAttempt: now, blockedUntil: 0 });
         return;
     }

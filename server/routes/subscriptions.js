@@ -12,6 +12,7 @@ import userStore from '../store/userStore.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
+import { normalizeBoolean } from '../lib/normalize.js';
 import { issueSubscriptionToken, listSubscriptionTokens, querySubscriptionAccess, revokeSubscriptionTokens, summarizeSubscriptionAccess } from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
@@ -99,15 +100,6 @@ function toPositiveInt(value, fallback) {
 function resolveTtlDays(value) {
     const requested = toPositiveInt(value, config.subscription.defaultTtlDays);
     return Math.max(1, Math.min(requested, config.subscription.maxTtlDays));
-}
-
-function normalizeBoolean(value, fallback = false) {
-    if (value === undefined || value === null) return fallback;
-    if (typeof value === 'boolean') return value;
-    const text = String(value).trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(text)) return true;
-    if (['0', 'false', 'no', 'off'].includes(text)) return false;
-    return fallback;
 }
 
 function shouldIncludeGeoLookup(req) {

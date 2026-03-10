@@ -269,7 +269,7 @@ export default function AuditCenter() {
 
     return (
         <>
-            <Header title="审计中心" subtitle="统一查看操作链路、流量走势与订阅访问记录" eyebrow="Node Management Console" />
+            <Header title="审计中心" subtitle="统一查看操作链路、流量走势与订阅访问记录" eyebrow="Audit & Security" />
             <div className="page-content page-enter">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>

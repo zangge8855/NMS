@@ -1,76 +1,79 @@
 /* ============================================
-   Node Management System (NMS) — Premium Design System
-   Dark-themed UI with advanced glassmorphism
+   NMS — Node Management System Design System
    ============================================ */
 
 /* --- CSS Custom Properties --- */
 :root {
-  /* Colors - Enterprise Cloud Theme */
-  --bg-primary: #08111d;
-  --bg-secondary: #0d1726;
-  --bg-tertiary: #122033;
+  /* Background — Slate-950 base */
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #111113;
+  --bg-tertiary: #18181b;
 
   /* Surface tokens */
-  --bg-card: rgba(11, 21, 35, 0.94);
-  --bg-card-hover: rgba(14, 27, 44, 0.98);
-  --bg-glass: rgba(148, 163, 184, 0.04);
-  --bg-input: rgba(9, 18, 31, 0.92);
+  --bg-card: rgba(17, 17, 19, 0.92);
+  --bg-card-hover: rgba(24, 24, 27, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --bg-input: rgba(14, 14, 16, 0.95);
 
-  --border-color: rgba(148, 163, 184, 0.14);
-  --border-highlight: rgba(148, 163, 184, 0.24);
-  --border-focus: rgba(59, 130, 246, 0.36);
-  --border-glass: 1px solid rgba(148, 163, 184, 0.12);
+  /* Border — cool neutral */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(56, 189, 248, 0.4);
+  --border-glass: 1px solid rgba(255, 255, 255, 0.06);
 
-  --text-primary: #f2f7ff;
-  --text-secondary: #b8c5d9;
-  --text-muted: #8ea0b8;
+  /* Text — pure white system */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
   --text-inverse: #0f172a;
-  --text-on-accent: #ffffff;
-  --surface-soft: rgba(148, 163, 184, 0.06);
-  --surface-subtle: rgba(7, 14, 24, 0.82);
-  --surface-hover: rgba(148, 163, 184, 0.1);
-  --stroke-soft: rgba(148, 163, 184, 0.08);
-  --stroke-medium: rgba(148, 163, 184, 0.16);
-  --overlay-backdrop: rgba(4, 10, 18, 0.72);
-  --mobile-sheet-bg: rgba(8, 15, 26, 0.96);
-  --log-bg: #0a1422;
-  --log-text: #d5dfed;
+  --text-on-accent: #000000;
 
-  /* Accent Colors */
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #74a8ff;
-  --accent-primary-glow: rgba(59, 130, 246, 0.18);
-  --accent-primary-bg: rgba(59, 130, 246, 0.11);
+  /* Surface & stroke */
+  --surface-soft: rgba(255, 255, 255, 0.05);
+  --surface-subtle: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --stroke-soft: rgba(255, 255, 255, 0.06);
+  --stroke-medium: rgba(255, 255, 255, 0.10);
+  --overlay-backdrop: rgba(0, 0, 0, 0.72);
+  --mobile-sheet-bg: rgba(10, 10, 11, 0.96);
+  --log-bg: #0c0c0e;
+  --log-text: #e4e4e7;
 
-  --accent-success: #22c55e;
-  --accent-success-bg: rgba(34, 197, 94, 0.11);
-  --accent-success-glow: rgba(34, 197, 94, 0.14);
+  /* Accent — fluorescent color system */
+  --accent-primary: #38bdf8;
+  --accent-primary-hover: #7dd3fc;
+  --accent-primary-glow: rgba(56, 189, 248, 0.18);
+  --accent-primary-bg: rgba(56, 189, 248, 0.12);
 
-  --accent-warning: #f59e0b;
-  --accent-warning-bg: rgba(245, 158, 11, 0.11);
-  --accent-warning-glow: rgba(245, 158, 11, 0.14);
+  --accent-success: #34d399;
+  --accent-success-bg: rgba(52, 211, 153, 0.12);
+  --accent-success-glow: rgba(52, 211, 153, 0.16);
 
-  --accent-danger: #ef4444;
-  --accent-danger-bg: rgba(239, 68, 68, 0.11);
-  --accent-danger-glow: rgba(239, 68, 68, 0.14);
+  --accent-warning: #fbbf24;
+  --accent-warning-bg: rgba(251, 191, 36, 0.12);
+  --accent-warning-glow: rgba(251, 191, 36, 0.16);
 
-  --accent-info: #38bdf8;
-  --accent-info-bg: rgba(56, 189, 248, 0.11);
-  --accent-info-glow: rgba(56, 189, 248, 0.14);
+  --accent-danger: #f87171;
+  --accent-danger-bg: rgba(248, 113, 113, 0.12);
+  --accent-danger-glow: rgba(248, 113, 113, 0.16);
+
+  --accent-info: #818cf8;
+  --accent-info-bg: rgba(129, 140, 248, 0.12);
+  --accent-info-glow: rgba(129, 140, 248, 0.16);
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #4f8cff 0%, #2563eb 100%);
-  --gradient-success: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-  --gradient-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(15, 26, 41, 0.96) 0%, rgba(10, 19, 31, 0.96) 100%);
+  --gradient-primary: linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
+  --gradient-success: linear-gradient(135deg, #34d399 0%, #6ee7b7 100%);
+  --gradient-danger: linear-gradient(135deg, #f87171 0%, #fca5a5 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(17, 17, 19, 0.96) 0%, rgba(10, 10, 11, 0.98) 100%);
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.35);
-  --shadow-md: 0 12px 24px -18px rgba(2, 6, 23, 0.76);
-  --shadow-lg: 0 18px 36px -24px rgba(2, 6, 23, 0.82);
-  --shadow-2xl: 0 28px 60px -32px rgba(2, 6, 23, 0.9);
-  --shadow-glow: 0 0 0 transparent;
-  --shadow-glow-primary: 0 0 0 transparent;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-2xl: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 8px 20px -12px var(--accent-primary-glow);
+  --shadow-glow-primary: 0 12px 28px -16px rgba(56, 189, 248, 0.35);
 
   /* Layout & Spacing */
   --sidebar-width: 260px;
@@ -78,9 +81,9 @@
   --header-height: 70px;
 
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* Transitions & Animation */
@@ -88,10 +91,10 @@
   --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography */
-  --font-family: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-display: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  /* Typography — Inter + CJK fallback */
+  --font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -107,22 +110,18 @@
 html {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-family);
-  background: var(--bg-primary);
+  background: #0a0a0b;
   color: var(--text-primary);
   line-height: 1.6;
   overflow-x: hidden;
   min-height: 100vh;
-  background-image:
-    radial-gradient(circle at 12% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 26%),
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(180deg, #09111d 0%, #07101a 100%);
-  background-size: auto, 32px 32px, 32px 32px, auto;
   background-attachment: fixed;
 }
 

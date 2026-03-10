@@ -16,6 +16,7 @@ import {
     HiOutlineSignal,
     HiOutlineShieldCheck,
     HiOutlineClipboardDocumentList,
+    HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 
@@ -63,6 +64,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const { logout, user } = useAuth();
     const { unreadCount } = useNotifications();
     const [showServerMenu, setShowServerMenu] = useState(false);
+    const [serverSearch, setServerSearch] = useState('');
     const location = useLocation();
     const navigate = useNavigate();
     const serverSelectorRef = useRef(null);
@@ -72,8 +74,9 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
 
     useEffect(() => {
         setShowServerMenu(false);
+        setServerSearch('');
         onClose?.();
-    }, [location.pathname]);
+    }, [location.pathname, onClose]);
 
     useEffect(() => {
         if (!isGlobalView) return;
@@ -99,8 +102,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">N</div>
                 <div className="sidebar-logo-copy">
-                    <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS Cloud</span>
-                    <span className="sidebar-logo-subtitle">Unified Control Plane</span>
+                    <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
+                    <span className="sidebar-logo-subtitle">Node Management System</span>
                 </div>
             </div>
 
@@ -127,6 +130,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                                     to={item.path}
                                     end={item.path === '/'}
                                     onClick={onClose}
+                                    data-tooltip={item.label}
                                     className={({ isActive }) =>
                                         `nav-item ${isActive ? 'active' : ''}`
                                     }
@@ -175,6 +179,14 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                 </div>
             </nav>
 
+            <div className="sidebar-user">
+                <div className="sidebar-user-avatar">{user?.username?.[0]?.toUpperCase() || 'U'}</div>
+                <div className="sidebar-user-info">
+                    <div className="sidebar-user-name">{user?.username || '用户'}</div>
+                    <div className="sidebar-user-role">{isAdmin ? '管理员' : '用户'}</div>
+                </div>
+            </div>
+
             {isAdmin && (
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (
@@ -217,8 +229,19 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
 
                 {showServerMenu && (servers.length > 0 || activeServerId === 'global') && (
                     <div className="server-dropdown-menu">
+                        {servers.length >= 4 && (
+                            <input
+                                type="text"
+                                className="server-search-input"
+                                placeholder="搜索服务器…"
+                                value={serverSearch}
+                                onChange={(e) => setServerSearch(e.target.value)}
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        )}
                         <div
-                            onClick={() => { selectServer('global'); setShowServerMenu(false); onClose?.(); }}
+                            onClick={() => { selectServer('global'); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
                             className={`server-dropdown-item ${activeServerId === 'global' ? 'active' : ''}`}
                         >
                             <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
@@ -228,17 +251,24 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                             </div>
                         </div>
 
-                        {servers.map(s => (
+                        {servers
+                            .filter(s => {
+                                if (!serverSearch.trim()) return true;
+                                const q = serverSearch.trim().toLowerCase();
+                                return (s.name || '').toLowerCase().includes(q) || (s.url || '').toLowerCase().includes(q);
+                            })
+                            .map(s => (
                             <div
                                 key={s.id}
-                                onClick={() => { selectServer(s.id); setShowServerMenu(false); onClose?.(); }}
+                                onClick={() => { selectServer(s.id); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
                                 className={`server-dropdown-item ${s.id === activeServerId ? 'active' : ''}`}
                             >
                                 <span className="server-dropdown-item-dot" />
-                                <div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
                                     <div className="font-medium">{s.name}</div>
                                     <div className="text-muted text-xs">{s.url}</div>
                                 </div>
+                                <span className="server-health-dot" data-health={s.health || 'unknown'} />
                             </div>
                         ))}
                     </div>

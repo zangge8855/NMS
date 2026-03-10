@@ -1,7 +1,7 @@
 import React from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
-import { HiOutlineSignal, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineCloud } from 'react-icons/hi2';
+import { HiOutlineSignal, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineCloud, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 
 const themeIcons = {
@@ -16,7 +16,7 @@ const themeLabels = {
     auto: '跟随系统',
 };
 
-export default function Header({ title, subtitle = '', eyebrow = 'Node Management Console', icon, children }) {
+export default function Header({ title, subtitle = '', eyebrow = 'NMS', icon, children }) {
     const { activeServer, activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
 
@@ -41,8 +41,14 @@ export default function Header({ title, subtitle = '', eyebrow = 'Node Managemen
                 </div>
             </div>
             <div className="header-actions">
+                <div className="header-search">
+                    <HiOutlineMagnifyingGlass className="header-search-icon" />
+                    <input placeholder="搜索..." className="header-search-input" readOnly tabIndex={-1} />
+                    <kbd className="header-search-kbd">⌘K</kbd>
+                </div>
                 {scopeLabel && (
                     <div className="header-context">
+                        <span className="system-health-dot" data-status="healthy" />
                         {ScopeIcon && <ScopeIcon style={{ fontSize: '14px' }} />}
                         <div className="header-context-copy">
                             <span className="header-context-label">{scopeLabel.title}</span>

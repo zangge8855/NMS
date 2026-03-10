@@ -192,7 +192,6 @@ export function initWebSocket(httpServer) {
         try {
             const servers = serverStore.getAll();
             if (servers.length === 0) {
-                broadcasting = false;
                 return;
             }
 
@@ -249,8 +248,9 @@ export function initWebSocket(httpServer) {
             }
         } catch (err) {
             console.error('[WebSocket] Broadcast error:', err.message);
+        } finally {
+            broadcasting = false;
         }
-        broadcasting = false;
     }, BROADCAST_INTERVAL);
 
     wss.on('close', () => clearInterval(broadcastLoop));

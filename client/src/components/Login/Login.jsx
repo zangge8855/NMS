@@ -255,49 +255,27 @@ export default function Login() {
             <div className="login-shell">
                 <section className="login-showcase">
                     <div className="login-showcase-panel">
-                        <div className="login-kicker">Enterprise Node Operations</div>
-                        <h1 className="login-showcase-title">统一管理节点、订阅、审计与系统动作。</h1>
+                        <div className="login-showcase-brand">
+                            <div className="login-showcase-brand-icon">N</div>
+                            <div className="login-showcase-brand-text">NMS</div>
+                        </div>
+                        <h1 className="login-showcase-title">Node Management System</h1>
                         <p className="login-showcase-copy">
-                            为多节点 3x-ui 运维提供一个更稳重、更清晰、更专业的控制中枢。
-                            所有关键状态、权限动作与用户生命周期都在同一个界面闭环完成。
+                            多节点集中管控平台
                         </p>
 
                         <div className="login-showcase-metrics">
                             <div className="login-showcase-metric">
                                 <strong>Multi-Node</strong>
-                                <span>统一接入与观测</span>
+                                <span>集群管理</span>
                             </div>
                             <div className="login-showcase-metric">
                                 <strong>Subscription</strong>
-                                <span>交付与审计联动</span>
+                                <span>订阅管理</span>
                             </div>
                             <div className="login-showcase-metric">
-                                <strong>Security</strong>
-                                <span>权限与重置闭环</span>
-                            </div>
-                        </div>
-
-                        <div className="login-showcase-points">
-                            <div className="login-showcase-point">
-                                <span className="login-showcase-point-index">01</span>
-                                <div>
-                                    <div className="login-showcase-point-title">统一控制域</div>
-                                    <div className="login-showcase-point-copy">集中查看节点健康、资源容量与在线会话。</div>
-                                </div>
-                            </div>
-                            <div className="login-showcase-point">
-                                <span className="login-showcase-point-index">02</span>
-                                <div>
-                                    <div className="login-showcase-point-title">专业运营后台</div>
-                                    <div className="login-showcase-point-copy">保持数据密度，同时让结构、颜色和层级足够克制。</div>
-                                </div>
-                            </div>
-                            <div className="login-showcase-point">
-                                <span className="login-showcase-point-index">03</span>
-                                <div>
-                                    <div className="login-showcase-point-title">可审计的操作链路</div>
-                                    <div className="login-showcase-point-copy">从账号认证到批量动作，都围绕稳定与可追踪设计。</div>
-                                </div>
+                                <strong>Audit</strong>
+                                <span>安全审计</span>
                             </div>
                         </div>
                     </div>
@@ -311,8 +289,7 @@ export default function Login() {
                                 <div className="login-logo-icon">N</div>
                                 <div className="login-logo-copy">
                                     <span className="login-logo-eyebrow">Node Management System</span>
-                                    <h1>NMS Cloud</h1>
-                                    <p>Unified control plane for node operations</p>
+                                    <h1>NMS</h1>
                                 </div>
                             </div>
                         </div>
