@@ -236,6 +236,14 @@ export default function Login() {
         setSuccess('');
     };
 
+    const modeTitle = mode === MODE_LOGIN
+        ? '登录'
+        : mode === MODE_REGISTER
+            ? '注册'
+            : mode === MODE_VERIFY
+                ? '邮箱验证'
+                : '找回密码';
+
     // ── Render ───────────────────────────────────────────────
     return (
         <div className="login-page">
@@ -253,45 +261,11 @@ export default function Login() {
             </button>
 
             <div className="login-shell">
-                <section className="login-showcase">
-                    <div className="login-showcase-panel">
-                        <div className="login-showcase-brand">
-                            <div className="login-showcase-brand-icon">N</div>
-                            <div className="login-showcase-brand-text">NMS</div>
-                        </div>
-                        <h1 className="login-showcase-title">Node Management System</h1>
-                        <p className="login-showcase-copy">
-                            多节点集中管控平台
-                        </p>
-
-                        <div className="login-showcase-metrics">
-                            <div className="login-showcase-metric">
-                                <strong>Multi-Node</strong>
-                                <span>集群管理</span>
-                            </div>
-                            <div className="login-showcase-metric">
-                                <strong>Subscription</strong>
-                                <span>订阅管理</span>
-                            </div>
-                            <div className="login-showcase-metric">
-                                <strong>Audit</strong>
-                                <span>安全审计</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 <div className="login-card-column">
                     <div className="login-card">
                         <div className="login-card-border" />
-                        <div className="login-logo">
-                            <div className="login-logo-row">
-                                <div className="login-logo-icon">N</div>
-                                <div className="login-logo-copy">
-                                    <span className="login-logo-eyebrow">Node Management System</span>
-                                    <h1>NMS</h1>
-                                </div>
-                            </div>
+                        <div className="login-form-heading">
+                            <h1>{modeTitle}</h1>
                         </div>
 
                         {(mode === MODE_LOGIN || mode === MODE_REGISTER) && (

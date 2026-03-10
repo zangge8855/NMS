@@ -698,13 +698,13 @@ export default function Dashboard() {
                                     <YAxis domain={[0, 100]} hide />
                                     <Tooltip
                                         contentStyle={{
-                                            background: 'rgba(17, 17, 19, 0.95)',
+                                            background: 'var(--bg-card)',
                                             backdropFilter: 'blur(12px)',
-                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            border: '1px solid var(--border-color)',
                                             borderRadius: '12px',
                                             fontSize: '12px',
-                                            color: '#fafafa',
-                                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+                                            color: 'var(--text-primary)',
+                                            boxShadow: 'var(--shadow-lg)'
                                         }}
                                         itemStyle={{ color: 'var(--accent-primary-hover)' }}
                                         formatter={(v) => [`${v.toFixed(1)}%`, 'CPU']}
