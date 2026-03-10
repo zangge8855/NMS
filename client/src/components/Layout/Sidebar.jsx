@@ -3,53 +3,14 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import {
-    HiOutlineChartBarSquare,
     HiOutlineCloud,
     HiOutlineServerStack,
-    HiOutlineUsers,
-    HiOutlineCog6Tooth,
-    HiOutlineWrenchScrewdriver,
-    HiOutlineLink,
     HiOutlineArrowRightOnRectangle,
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
-    HiOutlineSignal,
-    HiOutlineShieldCheck,
-    HiOutlineClipboardDocumentList,
-    
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
-
-const navSections = [
-    {
-        title: '监控',
-        items: [
-            { path: '/', icon: HiOutlineChartBarSquare, label: '仪表盘', supportsGlobal: true },
-        ],
-    },
-    {
-        title: '管理',
-        items: [
-            { path: '/inbounds', icon: HiOutlineSignal, label: '入站管理', supportsGlobal: true },
-            { path: '/clients', icon: HiOutlineUsers, label: '用户管理', supportsGlobal: true },
-            { path: '/subscriptions', icon: HiOutlineLink, label: '订阅中心', supportsGlobal: true, userOnly: true },
-            { path: '/server', icon: HiOutlineCog6Tooth, label: '节点控制台', supportsGlobal: true },
-            { path: '/capabilities', icon: HiOutlineSignal, label: '3x-ui 能力', supportsGlobal: false },
-            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: '节点工具', supportsGlobal: false },
-        ],
-    },
-    {
-        title: '运维',
-        items: [
-            { path: '/audit', icon: HiOutlineShieldCheck, label: '审计中心', supportsGlobal: true },
-            { path: '/tasks', icon: HiOutlineClipboardDocumentList, label: '任务中心', supportsGlobal: true },
-            { path: '/settings', icon: HiOutlineCog6Tooth, label: '系统设置', supportsGlobal: true, adminOnly: true },
-        ],
-    },
-];
-
-// Flatten for global path check
-const navItems = navSections.flatMap(s => s.items);
+import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
 
 function isUnsupportedPathInGlobal(pathname) {
     if (!pathname) return false;
@@ -70,7 +31,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const serverSelectorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
-    const isUserOnly = !isAdmin;
+    const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView });
+    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView });
 
     useEffect(() => {
         setShowServerMenu(false);
@@ -112,19 +74,11 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
             </button>
 
             <nav className="sidebar-nav">
-                {navSections.map((section) => {
-                    const sectionItems = section.items.filter((item) => {
-                        if (isUserOnly) return item.path === '/subscriptions';
-                        if (item.userOnly && isAdmin) return false;
-                        if (item.adminOnly && !isAdmin) return false;
-                        if (isGlobalView && item.supportsGlobal === false) return false;
-                        return true;
-                    });
-                    if (sectionItems.length === 0) return null;
+                {visibleSections.map((section) => {
                     return (
                         <div className="nav-section" key={section.title}>
                             <div className="nav-section-title">{section.title}</div>
-                            {sectionItems.map((item) => (
+                            {section.items.map((item) => (
                                 <NavLink
                                     key={item.path}
                                     to={item.path}
@@ -153,21 +107,22 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
 
                 <div className="nav-section nav-section-footer" style={{ marginTop: 'auto' }}>
                     <div className="nav-section-title">{isAdmin ? '系统' : '账户'}</div>
-                    {isAdmin && (
+                    {visibleFooterItems.map((item) => (
                         <NavLink
-                            to="/servers"
+                            key={item.path}
+                            to={item.path}
                             onClick={onClose}
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                         >
                             {({ isActive }) => (
                                 <>
                                     {isActive && <div className="active-glow" />}
-                                    <span className="nav-item-icon"><HiOutlineServerStack /></span>
-                                    <span className="nav-label">服务器管理</span>
+                                    <span className="nav-item-icon"><item.icon /></span>
+                                    <span className="nav-label">{item.label}</span>
                                 </>
                             )}
                         </NavLink>
-                    )}
+                    ))}
                     <button
                         type="button"
                         className="nav-item nav-item-button sidebar-logout"
