@@ -1,5 +1,7 @@
 import {
+    extractInboundClients,
     mergeInboundClientStats,
+    parseJsonObjectLike,
     resolveClientQuota,
     resolveClientUsed,
     resolveUsagePercent,
@@ -38,6 +40,52 @@ describe('inbound client helpers', () => {
                 down: 20,
             },
         ]);
+    });
+
+    it('accepts object-like inbound settings without dropping clients', () => {
+        const inbound = {
+            protocol: 'vless',
+            settings: {
+                clients: [
+                    {
+                        id: 'client-2',
+                        email: 'object@example.com',
+                        totalGB: 2048,
+                    },
+                ],
+            },
+            clientStats: [
+                {
+                    id: 'client-2',
+                    email: 'object@example.com',
+                    up: 30,
+                    down: 40,
+                },
+            ],
+        };
+
+        expect(extractInboundClients(inbound)).toEqual([
+            {
+                id: 'client-2',
+                email: 'object@example.com',
+                totalGB: 2048,
+            },
+        ]);
+        expect(mergeInboundClientStats(inbound)).toEqual([
+            {
+                id: 'client-2',
+                email: 'object@example.com',
+                totalGB: 2048,
+                up: 30,
+                down: 40,
+            },
+        ]);
+    });
+
+    it('falls back safely for invalid non-object JSON payloads', () => {
+        expect(parseJsonObjectLike('[]', { clients: [] })).toEqual({ clients: [] });
+        expect(parseJsonObjectLike('not-json', { clients: [] })).toEqual({ clients: [] });
+        expect(extractInboundClients({ settings: 'not-json' })).toEqual([]);
     });
 
     it('derives quota, used bytes, percent, and tone consistently', () => {

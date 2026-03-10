@@ -81,6 +81,8 @@ Optional but strongly recommended:
 - `SMTP_PASS`
 - `SMTP_FROM`
 
+The `.env.example` SMTP section is intentionally provider-neutral. Put your real mail provider host, port, and credentials only in your local `.env`.
+
 4. Start the service
 
 ```bash
@@ -223,6 +225,8 @@ cp .env.example .env
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
+
+`.env.example` 里的 SMTP 段保持为通用模板，不写死某个邮箱服务商；实际服务商主机、端口和凭据只填写到你本地部署的 `.env` 中。
 
 4. 启动服务
 

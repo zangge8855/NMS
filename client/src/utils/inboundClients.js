@@ -5,6 +5,28 @@ export function safeNumber(value) {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
+export function parseJsonObjectLike(value, fallback = {}) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return value;
+    }
+    const text = String(value || '').trim();
+    if (!text) return fallback;
+    try {
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return fallback;
+        }
+        return parsed;
+    } catch {
+        return fallback;
+    }
+}
+
+export function extractInboundClients(inbound) {
+    const settings = parseJsonObjectLike(inbound?.settings, {});
+    return Array.isArray(settings.clients) ? settings.clients : [];
+}
+
 function resolveClientKeys(client = {}, protocol = '') {
     const keys = new Set();
     const identifier = String(getClientIdentifier(client, protocol) || '').trim();
@@ -21,13 +43,7 @@ function resolveClientKeys(client = {}, protocol = '') {
 }
 
 export function mergeInboundClientStats(inbound) {
-    let baseClients = [];
-    try {
-        const settings = JSON.parse(inbound?.settings || '{}');
-        baseClients = Array.isArray(settings.clients) ? settings.clients : [];
-    } catch {
-        baseClients = [];
-    }
+    const baseClients = extractInboundClients(inbound);
 
     const statsCandidates = [
         inbound?.clientStats,

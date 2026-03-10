@@ -10,6 +10,7 @@ import {
     UUID_PROTOCOLS, PASSWORD_PROTOCOLS,
     getClientIdentifier,
 } from '../../utils/protocol.js';
+import { extractInboundClients } from '../../utils/inboundClients.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -150,11 +151,7 @@ export default function Clients() {
                             });
                         }
 
-                        let ibClients = [];
-                        try {
-                            const settings = JSON.parse(ib.settings);
-                            ibClients = settings.clients || [];
-                        } catch { }
+                        const ibClients = extractInboundClients(ib);
 
                         ibClients.forEach((cl) => {
                             allClients.push({

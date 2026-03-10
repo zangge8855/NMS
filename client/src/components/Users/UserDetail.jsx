@@ -175,11 +175,9 @@ export default function UserDetail() {
                     const ibRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
                     const inbounds = ibRes.data?.obj || [];
                     for (const ib of inbounds) {
-                        let settings = {};
-                        try { settings = JSON.parse(ib.settings); } catch {}
-                        if (!Array.isArray(settings.clients) || settings.clients.length === 0) continue;
-                        const protocol = String(ib.protocol || '').toLowerCase();
                         const ibClients = mergeInboundClientStats(ib);
+                        if (ibClients.length === 0) continue;
+                        const protocol = String(ib.protocol || '').toLowerCase();
                         for (const cl of ibClients) {
                             if ((cl.email || '').toLowerCase() === email) {
                                 clients.push({

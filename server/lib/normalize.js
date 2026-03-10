@@ -10,3 +10,20 @@ export function normalizeBoolean(value, fallback = false) {
     if (['0', 'false', 'no', 'off'].includes(text)) return false;
     return fallback;
 }
+
+export function parseJsonObjectLike(value, fallback = {}) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return value;
+    }
+    const text = String(value || '').trim();
+    if (!text) return fallback;
+    try {
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return fallback;
+        }
+        return parsed;
+    } catch {
+        return fallback;
+    }
+}

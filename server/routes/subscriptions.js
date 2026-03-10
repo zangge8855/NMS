@@ -12,7 +12,7 @@ import userStore from '../store/userStore.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
-import { normalizeBoolean } from '../lib/normalize.js';
+import { normalizeBoolean, parseJsonObjectLike } from '../lib/normalize.js';
 import { issueSubscriptionToken, listSubscriptionTokens, querySubscriptionAccess, revokeSubscriptionTokens, summarizeSubscriptionAccess } from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
@@ -41,14 +41,6 @@ const RECONSTRUCTED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsock
 const LINK_PATTERN = /^(vmess|vless|trojan|ss|hy2|hysteria2|tuic|socks|http):\/\//i;
 const MODE_SET = new Set(['auto', 'native', 'reconstructed']);
 const POLICY_SCOPE_SET = new Set(['all', 'selected', 'none']);
-
-function safeJsonParse(text, fallback = {}) {
-    try {
-        return JSON.parse(text || '{}');
-    } catch {
-        return fallback;
-    }
-}
 
 function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
@@ -419,9 +411,7 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
     }
 
     const net = stream.network || 'tcp';
-    const inboundSettings = typeof inbound.settings === 'string'
-        ? safeJsonParse(inbound.settings, {})
-        : (inbound.settings || {});
+    const inboundSettings = parseJsonObjectLike(inbound.settings, {});
     const params = new URLSearchParams();
     params.set('type', net);
     params.set('encryption', firstNonEmpty(inboundSettings.encryption, client.encryption, 'none'));
@@ -719,8 +709,8 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
 
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
-            const settings = safeJsonParse(inbound.settings, {});
-            const stream = safeJsonParse(inbound.streamSettings, {});
+            const settings = parseJsonObjectLike(inbound.settings, {});
+            const stream = parseJsonObjectLike(inbound.streamSettings, {});
             const clients = Array.isArray(settings.clients) ? settings.clients : [];
 
             for (const entry of clients) {
@@ -1990,7 +1980,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
             const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(listRes.data?.obj) ? listRes.data.obj : []);
 
             for (const inbound of inbounds) {
-                const settings = safeJsonParse(inbound.settings, {});
+                const settings = parseJsonObjectLike(inbound.settings, {});
                 const clients = Array.isArray(settings.clients) ? settings.clients : [];
                 for (const entry of clients) {
                     const email = normalizeEmail(entry.email);

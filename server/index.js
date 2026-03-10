@@ -3,9 +3,6 @@ import { createServer } from 'http';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
 import config from './config.js';
 import { initWebSocket } from './wsServer.js';
 import { authMiddleware, adminOnly } from './middleware/auth.js';
@@ -26,10 +23,8 @@ import clientsRoutes from './routes/clients.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
+import { registerClientBuildRoutes } from './lib/clientBuild.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
-
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const httpServer = createServer(app);
@@ -101,19 +96,7 @@ app.use('/api', (req, res) => {
 // Serve React build in production (or when explicitly enabled)
 const shouldServeClientBuild = config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';
 if (shouldServeClientBuild) {
-    const clientBuild = resolve(__dirname, '..', 'client', 'dist');
-    const clientIndexFile = resolve(clientBuild, 'index.html');
-    const hasClientIndex = fs.existsSync(clientIndexFile);
-    if (!hasClientIndex) {
-        console.warn(`[Client] Build file not found: ${clientIndexFile}`);
-    }
-    app.use(express.static(clientBuild));
-    app.get('*', (req, res, next) => {
-        res.sendFile(clientIndexFile, (err) => {
-            if (err) return next(err);
-            return undefined;
-        });
-    });
+    registerClientBuildRoutes(app);
 }
 
 // ── Global Error Handler ───────────────────────────────────

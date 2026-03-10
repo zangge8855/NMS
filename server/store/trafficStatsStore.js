@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import config from '../config.js';
 import serverStore from './serverStore.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
+import { parseJsonObjectLike } from '../lib/normalize.js';
 import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
 
 const TRAFFIC_SAMPLES_FILE = path.join(config.dataDir, 'traffic_samples.json');
@@ -61,14 +62,6 @@ function normalizeDateInput(value, fallback = null) {
     return date.toISOString();
 }
 
-function safeJsonParse(text, fallback = {}) {
-    try {
-        return JSON.parse(text || '{}');
-    } catch {
-        return fallback;
-    }
-}
-
 function hasOwn(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
@@ -104,7 +97,7 @@ function resolveClientMergeKeys(client = {}) {
 }
 
 function extractInboundClients(inbound) {
-    const settings = safeJsonParse(inbound?.settings, {});
+    const settings = parseJsonObjectLike(inbound?.settings, {});
     const baseClients = Array.isArray(settings.clients) ? settings.clients : [];
     const statsCandidates = collectStatsCandidates(inbound);
     const statsByKey = new Map();

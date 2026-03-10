@@ -10,6 +10,7 @@ import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../u
 import { normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
+import { extractInboundClients } from '../../utils/inboundClients.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import toast from 'react-hot-toast';
 import {
@@ -164,11 +165,7 @@ export default function UsersHub() {
                     if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
                     if (ib.enable === false) return;
 
-                    let ibClients = [];
-                    try {
-                        const settings = JSON.parse(ib.settings);
-                        ibClients = settings.clients || [];
-                    } catch { }
+                    const ibClients = extractInboundClients(ib);
 
                     const ibKey = `${server.id}:${ib.id}`;
 
