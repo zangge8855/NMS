@@ -46,7 +46,8 @@ export default function ServerDetail() {
     const [status, setStatus] = useState(null);
     const [inbounds, setInbounds] = useState([]);
     const [onlines, setOnlines] = useState([]);
-    const [onlinesLoading, setOnlinesLoading] = useState(false);
+    const [inboundsLoading, setInboundsLoading] = useState(true);
+    const [onlinesLoading, setOnlinesLoading] = useState(true);
     const [auditEvents, setAuditEvents] = useState([]);
     const [activeTab, setActiveTab] = useState('overview');
     const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
@@ -84,6 +85,7 @@ export default function ServerDetail() {
     };
 
     const fetchInbounds = async () => {
+        setInboundsLoading(true);
         try {
             const [res, orderRes] = await Promise.all([
                 api.get(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/list`),
@@ -97,7 +99,10 @@ export default function ServerDetail() {
             const orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
             const sorted = sortInboundsByOrder(rows, orderMap).map(({ serverId: _sid, serverName: _sname, ...item }) => item);
             setInbounds(sorted);
-        } catch { /* ignore */ }
+        } catch {
+            setInbounds([]);
+        }
+        setInboundsLoading(false);
     };
 
     const fetchOnlines = async () => {
@@ -133,7 +138,10 @@ export default function ServerDetail() {
     };
 
     useEffect(() => {
+        setInbounds([]);
         setOnlines([]);
+        setInboundsLoading(true);
+        setOnlinesLoading(true);
         setClientIpSupport({ supported: true, reason: '' });
         closeClientIpModal();
         fetchServer();
@@ -323,6 +331,8 @@ export default function ServerDetail() {
         { key: 'onlines', label: '在线用户' },
         { key: 'audit', label: '审计日志' },
     ];
+    const showInboundStats = !inboundsLoading || inbounds.length > 0;
+    const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
 
     return (
         <>
@@ -369,10 +379,10 @@ export default function ServerDetail() {
 
                 {/* Stats */}
                 <div className="stat-mini-grid mb-6">
-                    <StatMini label="入站规则" value={activeInbounds} suffix={` / ${inbounds.length}`} />
-                    <StatMini label="客户端数" value={clientCount} />
-                    <StatMini label="在线用户" value={onlinesLoading && onlineUsers.length === 0 ? null : onlineUsers.length} suffix={onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
-                    <StatMini label="总流量 (MB)" value={Math.round(totalTraffic / (1024 * 1024))} />
+                    <StatMini label="入站规则" value={showInboundStats ? activeInbounds : null} suffix={showInboundStats ? ` / ${inbounds.length}` : ''} />
+                    <StatMini label="客户端数" value={showInboundStats ? clientCount : null} />
+                    <StatMini label="在线用户" value={showOnlineStats ? onlineUsers.length : null} suffix={showOnlineStats && onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
+                    <StatMini label="总流量 (MB)" value={showInboundStats ? Math.round(totalTraffic / (1024 * 1024)) : null} />
                 </div>
                 {onlinesLoading && onlineUsers.length === 0 && (
                     <div className="text-xs text-muted mb-6">在线用户汇总加载中...</div>

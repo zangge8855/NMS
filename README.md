@@ -134,6 +134,7 @@ For a full runbook, see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
 - [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
 - [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
+- [Review Harness](docs/REVIEW_HARNESS.md)
 - [Subscription Output Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [Feature and UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
 - [Gap Backlog](docs/NMS_GAP_BACKLOG.md)

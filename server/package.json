@@ -8,6 +8,9 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "db:backfill": "node scripts/backfill_to_db.js",
+    "review:fake-panel": "node scripts/review_fake_panel.js",
+    "review:seed": "node scripts/seed_review_harness.js",
+    "review:server": "PORT=3101 DATA_DIR=/tmp/nms-review-harness ALLOW_PRIVATE_SERVER_URL=true SERVE_CLIENT=true node index.js",
     "test": "node --test --test-isolation=none"
   },
   "dependencies": {

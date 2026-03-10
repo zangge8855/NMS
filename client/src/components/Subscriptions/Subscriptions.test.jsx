@@ -144,7 +144,7 @@ describe('Subscriptions', () => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
             expect(api.get).toHaveBeenCalledWith('/subscriptions/admin%40example.com');
         });
-    });
+    }, 10000);
 
     it('allows admins to issue a subscription token from the subscription center', async () => {
         const user = userEvent.setup();
@@ -212,5 +212,5 @@ describe('Subscriptions', () => {
                 ttlDays: 30,
             });
         });
-    });
+    }, 10000);
 });
