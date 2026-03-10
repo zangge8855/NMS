@@ -14,7 +14,9 @@ import {
     HiOutlineCloudArrowUp,
     HiOutlineWrenchScrewdriver,
     HiOutlineClipboard,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
+import ModalShell from '../UI/ModalShell.jsx';
 
 export default function ServerManagement() {
     const { activeServerId, panelApi, servers } = useServer();
@@ -534,11 +536,11 @@ export default function ServerManagement() {
             </div>
 
             {showConfig && (
-                <div className="modal-overlay" onClick={() => setShowConfig(false)}>
+                <ModalShell isOpen={showConfig} onClose={() => setShowConfig(false)}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">Xray 配置</h3>
-                            <button className="modal-close" onClick={() => setShowConfig(false)}>×</button>
+                            <button className="modal-close" onClick={() => setShowConfig(false)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             <pre className="log-viewer" style={{ maxHeight: '500px', fontSize: '11px' }}>
@@ -546,7 +548,7 @@ export default function ServerManagement() {
                             </pre>
                         </div>
                     </div>
-                </div>
+                </ModalShell>
             )}
         </>
     );

@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import ModalShell from '../components/UI/ModalShell.jsx';
 
 const ConfirmContext = createContext(null);
 
@@ -41,28 +42,11 @@ export function ConfirmProvider({ children }) {
         });
     }, []);
 
-    useEffect(() => {
-        const onKeyDown = (event) => {
-            if (event.key === 'Escape' && dialog) {
-                closeDialog(false);
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [dialog, closeDialog]);
-
-    useEffect(() => () => {
-        if (resolverRef.current) {
-            resolverRef.current(false);
-            resolverRef.current = null;
-        }
-    }, []);
-
     return (
         <ConfirmContext.Provider value={confirm}>
             {children}
-            {dialog && (
-                <div className="modal-overlay" onClick={() => closeDialog(false)}>
+            <ModalShell isOpen={!!dialog} onClose={() => closeDialog(false)}>
+                {dialog && (
                     <div className="modal" style={{ maxWidth: '440px' }} onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{dialog.title}</h3>
@@ -102,8 +86,8 @@ export function ConfirmProvider({ children }) {
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </ModalShell>
         </ConfirmContext.Provider>
     );
 }

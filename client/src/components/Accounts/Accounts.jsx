@@ -28,6 +28,7 @@ import {
     HiOutlineEye,
     HiOutlineEyeSlash,
 } from 'react-icons/hi2';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function isSubscriptionActive(user) {
     return Boolean(normalizeEmail(user?.subscriptionEmail));
@@ -669,7 +670,7 @@ export default function Accounts({ embedded = false }) {
             />
 
             {provisionOpen && provisionTargetUser && (
-                <div className="modal-overlay" onClick={closeProvisionModal}>
+                <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">一键开通订阅 - {provisionTargetUser.username}</h3>
@@ -865,11 +866,11 @@ export default function Accounts({ embedded = false }) {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {createOpen && (
-                <div className="modal-overlay" onClick={closeCreateModal}>
+                <ModalShell isOpen={createOpen} onClose={closeCreateModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">添加用户账号</h3>
@@ -987,11 +988,11 @@ export default function Accounts({ embedded = false }) {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {bindingOpen && bindingTargetUser && (
-                <div className="modal-overlay" onClick={closeBindingModal}>
+                <ModalShell isOpen={bindingOpen} onClose={closeBindingModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">绑定订阅邮箱 - {bindingTargetUser.username}</h3>
@@ -1032,11 +1033,11 @@ export default function Accounts({ embedded = false }) {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             {resetOpen && targetUser && (
-                <div className="modal-overlay" onClick={closeResetModal}>
+                <ModalShell isOpen={resetOpen} onClose={closeResetModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">重置密码 - {targetUser.username}</h3>
@@ -1101,7 +1102,7 @@ export default function Accounts({ embedded = false }) {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
         </>
     );

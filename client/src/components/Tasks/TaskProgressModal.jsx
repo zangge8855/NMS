@@ -14,6 +14,7 @@ import {
     HiOutlineCog6Tooth,
 } from 'react-icons/hi2';
 import useTaskProgress from '../../hooks/useTaskProgress.js';
+import ModalShell from '../UI/ModalShell.jsx';
 
 const STATUS_CONFIG = {
     pending: { label: '等待中', color: 'var(--text-muted)', icon: HiOutlineCog6Tooth },
@@ -59,7 +60,7 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
     };
 
     return (
-        <div className="modal-overlay" onClick={isTerminal ? onClose : undefined}>
+        <ModalShell isOpen={!!taskId} onClose={isTerminal ? onClose : undefined} closeOnOverlayClick={isTerminal}>
             <div
                 className="modal"
                 onClick={e => e.stopPropagation()}
@@ -191,6 +192,6 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                     )}
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 }

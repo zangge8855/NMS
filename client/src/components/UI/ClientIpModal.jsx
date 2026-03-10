@@ -1,5 +1,6 @@
 import React from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
+import ModalShell from './ModalShell.jsx';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -29,7 +30,7 @@ export default function ClientIpModal({
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <div>
@@ -97,6 +98,6 @@ export default function ClientIpModal({
                     <button type="button" className="btn btn-secondary" onClick={onClose}>关闭</button>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 }

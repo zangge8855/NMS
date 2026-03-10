@@ -13,6 +13,7 @@ import {
     HiOutlineSignal,
     HiOutlineServerStack,
     HiOutlineEye,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 
 const PANEL_AUTH_REPAIR_CODES = new Set([
@@ -647,7 +648,7 @@ export default function Servers() {
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">{editingId ? '编辑服务器' : '添加服务器'}</h3>
-                                <button type="button" className="modal-close" onClick={resetForm}>×</button>
+                                <button type="button" className="modal-close" onClick={resetForm}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
@@ -711,7 +712,7 @@ export default function Servers() {
                         <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">批量添加服务器</h3>
-                                <button type="button" className="modal-close" onClick={resetBatchForm}>×</button>
+                                <button type="button" className="modal-close" onClick={resetBatchForm}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
@@ -851,7 +852,7 @@ export default function Servers() {
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">修复节点登录凭据</h3>
-                                <button type="button" className="modal-close" onClick={closeCredentialRepair}>×</button>
+                                <button type="button" className="modal-close" onClick={closeCredentialRepair}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">

@@ -5,6 +5,7 @@ import {
     HiOutlineCheckCircle,
     HiOutlineExclamationTriangle,
     HiOutlineWrenchScrewdriver,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
@@ -16,6 +17,7 @@ import {
     getClientIdentifier,
     getConflictTypeLabels,
 } from '../../utils/clientConflict.js';
+import ModalShell from '../UI/ModalShell.jsx';
 
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
@@ -209,11 +211,11 @@ export default function ConflictScannerModal({
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-wide glass-panel" style={{ maxWidth: '1200px' }} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">冲突扫描与修复</h3>
-                    <button className="modal-close" onClick={onClose}>×</button>
+                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
                 </div>
 
                 <div className="modal-body">
@@ -356,7 +358,7 @@ export default function ConflictScannerModal({
                     <button className="btn btn-secondary" onClick={onClose}>关闭</button>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 }
 

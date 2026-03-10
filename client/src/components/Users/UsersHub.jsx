@@ -1470,7 +1470,7 @@ export default function UsersHub() {
                     <div className="modal modal-wide glass-panel" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">订阅链接 - {subscriptionEmail}</h3>
-                            <button type="button" className="modal-close" onClick={() => setSubscriptionModalOpen(false)}>×</button>
+                            <button type="button" className="modal-close" onClick={() => setSubscriptionModalOpen(false)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             <div className="grid-auto-160 mb-4">

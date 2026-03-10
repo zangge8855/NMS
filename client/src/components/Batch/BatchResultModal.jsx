@@ -1,5 +1,6 @@
 import React from 'react';
 import { HiOutlineXMark } from 'react-icons/hi2';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function labelByAction(action) {
     const map = {
@@ -20,7 +21,7 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
     const results = Array.isArray(data.results) ? data.results : [];
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">{title}</h3>
@@ -80,6 +81,6 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 }

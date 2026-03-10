@@ -25,6 +25,7 @@ import {
     HiOutlineClipboard,
     HiOutlineExclamationTriangle,
     HiOutlineUsers,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import ClientModal from './ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
@@ -32,6 +33,7 @@ import UserPolicyModal from './UserPolicyModal.jsx';
 import ConflictScannerModal from './ConflictScannerModal.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function buildClientPayload(entry, enableOverride) {
     const protocol = normalizeProtocol(entry?.protocol);
@@ -773,14 +775,14 @@ export default function Clients() {
 
             {/* Subscription Modal */}
             {subscriptionModalOpen && (
-                <div className="modal-overlay" onClick={() => setSubscriptionModalOpen(false)}>
+                <ModalShell isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)}>
                     <div
                         className="modal modal-wide glass-panel"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="modal-header">
                             <h3 className="modal-title">用户订阅</h3>
-                            <button className="modal-close" onClick={() => setSubscriptionModalOpen(false)}>×</button>
+                            <button className="modal-close" onClick={() => setSubscriptionModalOpen(false)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             <div className="grid-auto-160 mb-4">
@@ -853,7 +855,7 @@ export default function Clients() {
                             <button className="btn btn-secondary" onClick={() => setSubscriptionModalOpen(false)}>关闭</button>
                         </div>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             <ClientModal

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink, HiOutlineQrCode } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -10,6 +10,7 @@ import Header from '../Layout/Header.jsx';
 import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function normalizeInactiveReason(reason) {
     const text = String(reason || '').trim().toLowerCase();
@@ -504,7 +505,7 @@ export default function Subscriptions() {
                 )}
 
                 {showQr && activeProfile?.url && (
-                    <div className="modal-overlay" onClick={() => setShowQr(false)}>
+                    <ModalShell isOpen={showQr} onClose={() => setShowQr(false)}>
                         <div
                             className="modal glass-panel"
                             onClick={(e) => e.stopPropagation()}
@@ -512,7 +513,7 @@ export default function Subscriptions() {
                         >
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">订阅二维码 · {activeProfile.label}</h3>
-                                <button className="modal-close" onClick={() => setShowQr(false)}>×</button>
+                                <button className="modal-close" onClick={() => setShowQr(false)}><HiOutlineXMark /></button>
                             </div>
                             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                                 <div className="qr-surface qr-surface-lg">
@@ -535,7 +536,7 @@ export default function Subscriptions() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </ModalShell>
                 )}
             </div>
         </>

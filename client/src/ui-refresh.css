@@ -2260,11 +2260,11 @@ body::before {
 }
 
 .modal-overlay {
-  animation: nms-overlay-enter 0.2s ease-out;
+  animation: nms-overlay-enter 0.2s ease-out forwards;
 }
 
 .modal {
-  animation: nms-modal-enter 0.26s cubic-bezier(0.22, 0.68, 0, 1.04);
+  animation: nms-modal-enter 0.26s cubic-bezier(0.22, 0.68, 0, 1.04) forwards;
 }
 
 /* ── StatCard hover micro-animation ───────────────────────── */

@@ -36,6 +36,7 @@ import {
 import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -896,7 +897,7 @@ export default function Inbounds() {
                 />
 
                 {entitlementOpen && entitlementTarget && (
-                    <div className="modal-overlay" onClick={closeEntitlementModal}>
+                    <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">单独限定</h3>
@@ -959,7 +960,7 @@ export default function Inbounds() {
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </ModalShell>
                 )}
             </div >
         </>

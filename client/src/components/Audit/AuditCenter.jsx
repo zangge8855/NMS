@@ -8,6 +8,7 @@ import {
     HiOutlineDocumentText,
     HiOutlineTrash,
     HiOutlineArrowDownTray,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import {
     LineChart,
@@ -27,6 +28,7 @@ import Tasks from '../Tasks/Tasks.jsx';
 const Logs = lazy(() => import('../Logs/Logs.jsx'));
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -662,11 +664,11 @@ export default function AuditCenter() {
             </div>
 
             {selectedEvent && (
-                <div className="modal-overlay" onClick={() => setSelectedEvent(null)}>
+                <ModalShell isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)}>
                     <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">审计事件详情</h3>
-                            <button className="modal-close" onClick={() => setSelectedEvent(null)}>×</button>
+                            <button className="modal-close" onClick={() => setSelectedEvent(null)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}
@@ -756,7 +758,7 @@ export default function AuditCenter() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </ModalShell>
             )}
         </>
     );

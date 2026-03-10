@@ -7,6 +7,7 @@ import {
     UUID_PROTOCOLS, PASSWORD_PROTOCOLS,
 } from '../../utils/protocol.js';
 import { generateSecurePassword, generateUuidLocal, generateHexToken } from '../../utils/crypto.js';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 
 const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
@@ -554,7 +555,7 @@ export default function ClientModal({
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">
@@ -824,6 +825,6 @@ export default function ClientModal({
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 }

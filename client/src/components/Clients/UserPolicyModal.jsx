@@ -3,6 +3,7 @@ import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
+import ModalShell from '../UI/ModalShell.jsx';
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -126,7 +127,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">订阅权限策略</h3>
@@ -237,6 +238,6 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 }

@@ -5,6 +5,7 @@ import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard } from '../../utils/format.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
@@ -764,7 +765,7 @@ export default function UserDetail() {
 
             {/* Issue Token Modal */}
             {tokenModalOpen && (
-                <div className="modal-overlay" onClick={() => setTokenModalOpen(false)}>
+                <ModalShell isOpen={tokenModalOpen} onClose={() => setTokenModalOpen(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">签发订阅令牌</h3>
@@ -797,7 +798,7 @@ export default function UserDetail() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </ModalShell>
             )}
 
             <ClientIpModal
