@@ -29,6 +29,7 @@ This keeps public APIs stable while moving heavy business logic out of route fil
 - Clash / Mihomo rules now use MetaCubeX `meta-rules-dat` `mrs` rule providers.
 - Telegram backup can be triggered from NMS, but Telegram Bot configuration still lives in the 3x-ui panel because the official 3x-ui API does not document a config write endpoint for it.
 - 3x-ui log API support depends on the remote node version and capability. NMS detects support and degrades gracefully when a node does not expose the expected log endpoints.
+- The admin UI is now dark-first by default. The current visual baseline uses `IBM Plex Sans + Noto Sans SC + JetBrains Mono`.
 
 ### Requirements
 
@@ -94,6 +95,20 @@ pm2 startup systemd -u root --hp /root
 
 - `http://SERVER_IP:3001`
 
+### Upgrade and Deployment Workflow
+
+Use this when upgrading an existing `/opt/nms` deployment:
+
+```bash
+cd /root/NMS/client && npm install && npm run build
+cd /root/NMS/client && npm test
+cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
+cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
+pm2 restart nms
+```
+
+For a full runbook, see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
+
 ### Main Admin Features
 
 - Multi-node server registration, connectivity test, group/tag/environment governance
@@ -105,6 +120,8 @@ pm2 startup systemd -u root --hp /root
 ### Documentation
 
 - [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- [Admin UI Design Baseline](docs/UI_DESIGN_SYSTEM.md)
+- [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
 - [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
 - [Subscription Output Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
@@ -155,6 +172,7 @@ More configuration details: `.env.example`
 - Clash / Mihomo 规则源已切换为 MetaCubeX `meta-rules-dat` 的 `mrs` 规则提供器。
 - NMS 可以触发 Telegram 备份，但 Telegram Bot 的 `Token / Chat ID / 定时通知` 仍需在 3x-ui 面板里配置，因为 3x-ui 官方 API 没有文档化的配置写入接口。
 - 3x-ui 日志 API 是否可用取决于远端节点版本和能力；NMS 会先做能力探测，不支持时返回兼容提示而不是盲目报错。
+- 当前管理端默认以深色主题作为主设计稿，字体基线为 `IBM Plex Sans + Noto Sans SC + JetBrains Mono`。
 
 ### 环境要求
 
@@ -220,6 +238,20 @@ pm2 startup systemd -u root --hp /root
 
 - `http://SERVER_IP:3001`
 
+### 升级与部署流程
+
+对已有 `/opt/nms` 实例升级时，建议按下面的顺序执行：
+
+```bash
+cd /root/NMS/client && npm install && npm run build
+cd /root/NMS/client && npm test
+cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
+cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
+pm2 restart nms
+```
+
+完整说明见：[部署与升级 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+
 ### 当前管理端重点能力
 
 - 多节点服务器接入、连通性测试、分组/标签/环境治理
@@ -231,6 +263,8 @@ pm2 startup systemd -u root --hp /root
 ### 文档索引
 
 - [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
+- [管理端 UI 设计基线](docs/UI_DESIGN_SYSTEM.md)
+- [部署与升级 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
 - [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
 - [订阅输出说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
