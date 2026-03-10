@@ -770,6 +770,26 @@ body::before {
   font-size: 12px;
 }
 
+.form-label,
+.table th,
+.nav-section-title,
+.header-context-label,
+.dashboard-section-subtitle {
+  color: var(--text-secondary);
+}
+
+.header-subtitle,
+.section-subtitle,
+.inbound-client-usage-meta,
+.inbounds-saving-note,
+.header-search-item-meta,
+.table-note,
+.table-empty,
+.notification-item-time,
+.notification-item-body {
+  color: var(--text-secondary);
+}
+
 /* System Health Dot */
 .system-health-dot {
   width: 8px;

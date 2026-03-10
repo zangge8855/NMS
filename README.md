@@ -13,6 +13,7 @@ NMS is a centralized management panel for multiple 3x-ui nodes. It keeps user li
 - Audit coverage: operation audit, subscription access logs, traffic trends, centralized 3x-ui log view
 - Real visitor IP extraction under reverse proxy and Cloudflare
 - Admin operations: SMTP diagnostics, system backup export, DB mode controls, node health monitoring, notification center
+- Admin shell polish: working global page search in the top header with `Ctrl/Cmd + K`, plus improved light-theme readability and interaction consistency
 - Security baseline: JWT auth, credential encryption, password policy, rate limiting, SSRF protection
 
 ### Architecture
@@ -30,6 +31,8 @@ This keeps public APIs stable while moving heavy business logic out of route fil
 - Telegram backup can be triggered from NMS, but Telegram Bot configuration still lives in the 3x-ui panel because the official 3x-ui API does not document a config write endpoint for it.
 - 3x-ui log API support depends on the remote node version and capability. NMS detects support and degrades gracefully when a node does not expose the expected log endpoints.
 - The admin UI is now dark-first by default. The current visual baseline uses `IBM Plex Sans + Noto Sans SC + JetBrains Mono`.
+- The top header search is now interactive instead of decorative. It can route by page keyword and supports `Ctrl/Cmd + K`.
+- Light theme text tokens and interaction states were tightened so muted labels, helper text, and page-level search surfaces stay readable without dark hover artifacts.
 - In production frontend-hosting mode, missing `client/dist/index.html` now returns an explicit `503` on SPA routes instead of an opaque `500` file error. Rebuild and sync the frontend bundle before restarting PM2.
 - Inbound `settings` and `streamSettings` are normalized from either plain objects or JSON strings, so mixed panel payload shapes no longer break client counts or subscription generation.
 
@@ -121,6 +124,7 @@ For a full runbook, see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
 - Cross-node inbound management with sorting, batch actions, and protocol-aware editing
 - Cross-node user management with subscription provisioning and entitlement sync
 - Subscription access audit with real client IP, proxy IP, and optional geo lookup
+- A shared admin shell with theme toggle, notification center, and top-header page search
 - System Settings with SMTP diagnostics, backup export, DB runtime mode controls, and health monitor status
 
 ### Documentation
@@ -162,6 +166,7 @@ More configuration details: `.env.example`
 - 审计能力：操作审计、订阅访问日志、流量趋势、集中 3x-ui 日志查看
 - 在反代和 Cloudflare 场景下记录真实访客 IP
 - 管理端增强：SMTP 诊断、系统备份导出、DB 模式切换、节点健康巡检、通知中心
+- 管理端壳层增强：顶部全局页面搜索已可用，支持 `Ctrl/Cmd + K`，并补齐了浅色主题下的可读性与交互一致性
 - 安全基线：JWT、凭据加密、密码策略、限流、SSRF 防护
 
 ### 架构说明
@@ -179,6 +184,8 @@ More configuration details: `.env.example`
 - NMS 可以触发 Telegram 备份，但 Telegram Bot 的 `Token / Chat ID / 定时通知` 仍需在 3x-ui 面板里配置，因为 3x-ui 官方 API 没有文档化的配置写入接口。
 - 3x-ui 日志 API 是否可用取决于远端节点版本和能力；NMS 会先做能力探测，不支持时返回兼容提示而不是盲目报错。
 - 当前管理端默认以深色主题作为主设计稿，字体基线为 `IBM Plex Sans + Noto Sans SC + JetBrains Mono`。
+- 顶部搜索栏现在是可交互的页面搜索入口，不再只是装饰性占位；支持按页面关键词跳转，也支持 `Ctrl/Cmd + K` 快捷键。
+- 浅色主题的文字 token 与搜索/悬浮交互层已统一收口，副标题、说明字、表头和搜索结果不再偏灰难辨，也不会在 hover 时回退成深色补丁。
 - 生产环境如果启用了前端静态托管，但缺少 `client/dist/index.html`，SPA 路由现在会明确返回 `503`，而不是 `sendFile` 的 `500` 文件错误；升级时请先重新构建并同步前端产物。
 - 入站 `settings` / `streamSettings` 已统一兼容“对象”或“JSON 字符串”两种形态，面板返回格式不一致时也不会再把客户端数量或订阅结果误判为空。
 
@@ -270,6 +277,7 @@ pm2 restart nms
 - 跨节点入站管理，支持排序、批量动作、协议感知编辑
 - 跨节点用户管理，支持订阅开通和限额同步
 - 订阅访问审计，支持真实 IP、代理 IP 和可选归属地
+- 统一管理端壳层，支持主题切换、通知中心和顶部页面搜索
 - 系统设置中可直接查看 SMTP 状态、导出备份、切换 DB 模式、查看健康巡检状态
 
 ### 文档索引
