@@ -19,7 +19,10 @@ export function createClientBuildFallbackHandler({
     missingBuildMessage = DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
 }) {
     return (req, res, next) => {
-        if (!hasClientIndex) {
+        const exists = typeof hasClientIndex === 'function'
+            ? !!hasClientIndex()
+            : !!hasClientIndex;
+        if (!exists) {
             return res.status(503).type('text/plain').send(missingBuildMessage);
         }
         return res.sendFile(clientIndexFile, (err) => {
@@ -41,7 +44,7 @@ export function registerClientBuildRoutes(app, options = {}) {
     app.use(express.static(clientBuild));
     app.get('*', createClientBuildFallbackHandler({
         clientIndexFile,
-        hasClientIndex,
+        hasClientIndex: () => fs.existsSync(clientIndexFile),
         missingBuildMessage,
     }));
 

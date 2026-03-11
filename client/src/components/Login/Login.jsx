@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop } from 'react-icons/hi2';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
@@ -13,9 +14,18 @@ const MODE_FORGOT = 'forgot';
 export default function Login() {
     const [mode, setMode] = useState(MODE_LOGIN);
     const { mode: themeMode, cycleTheme } = useTheme();
+    const { t, toggleLocale, locale } = useI18n();
 
     const themeIcons = { dark: HiOutlineMoon, light: HiOutlineSun, auto: HiOutlineComputerDesktop };
     const ThemeIcon = themeIcons[themeMode] || HiOutlineMoon;
+    const passwordPolicyHint = locale === 'en-US'
+        ? 'Use at least 8 characters and include 3 character types.'
+        : PASSWORD_POLICY_HINT;
+    const themeToggleTitle = themeMode === 'dark'
+        ? t('shell.themeLight')
+        : themeMode === 'light'
+            ? t('shell.themeAuto')
+            : t('shell.themeDark');
 
     // Login fields
     const [username, setUsername] = useState('');
@@ -237,12 +247,12 @@ export default function Login() {
     };
 
     const modeTitle = mode === MODE_LOGIN
-        ? '登录'
+        ? t('pages.login.title')
         : mode === MODE_REGISTER
-            ? '注册'
+            ? t('pages.login.registerTitle')
             : mode === MODE_VERIFY
-                ? '邮箱验证'
-                : '找回密码';
+                ? t('pages.login.verifyTitle')
+                : t('pages.login.forgotTitle');
 
     // ── Render ───────────────────────────────────────────────
     return (
@@ -251,14 +261,26 @@ export default function Login() {
             <div className="login-bg-glow two" />
             <div className="login-bg-glow three" />
 
-            <button
-                type="button"
-                className="login-theme-toggle theme-toggle-btn"
-                onClick={cycleTheme}
-                title={themeMode === 'dark' ? '切换到亮色' : themeMode === 'light' ? '切换到自动' : '切换到暗色'}
-            >
-                <ThemeIcon />
-            </button>
+            <div className="login-top-actions">
+                <button
+                    type="button"
+                    className="login-locale-toggle theme-toggle-btn language-toggle-btn"
+                    onClick={toggleLocale}
+                    title={t('shell.switchLanguage')}
+                    aria-label={t('shell.switchLanguage')}
+                >
+                    <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                </button>
+                <button
+                    type="button"
+                    className="login-theme-toggle theme-toggle-btn"
+                    onClick={cycleTheme}
+                    title={themeToggleTitle}
+                    aria-label={themeToggleTitle}
+                >
+                    <ThemeIcon />
+                </button>
+            </div>
 
             <div className="login-shell">
                 <div className="login-card-column">
@@ -275,14 +297,14 @@ export default function Login() {
                                     className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
                                     onClick={() => switchMode(MODE_LOGIN)}
                                 >
-                                    登录
+                                    {t('pages.login.title')}
                                 </button>
                                 <button
                                     type="button"
                                     className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
                                     onClick={() => switchMode(MODE_REGISTER)}
                                 >
-                                    注册
+                                    {t('pages.login.registerTitle')}
                                 </button>
                             </div>
                         )}
@@ -293,13 +315,13 @@ export default function Login() {
                         {mode === MODE_LOGIN && (
                             <form onSubmit={handleLogin} className="auth-form">
                                 <div className="form-group">
-                                    <label className="form-label">用户名</label>
+                                    <label className="form-label">{t('pages.login.username')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineUser className="input-icon" />
                                         <input
                                             type="text"
                                             className="form-input input-with-icon"
-                                            placeholder="请输入用户名"
+                                            placeholder={t('pages.login.usernamePlaceholder')}
                                             value={username}
                                             onChange={(e) => setUsername(e.target.value)}
                                             autoFocus
@@ -308,13 +330,13 @@ export default function Login() {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">密码</label>
+                                    <label className="form-label">{t('pages.login.password')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
                                             type="password"
                                             className="form-input input-with-icon"
-                                            placeholder="请输入密码"
+                                            placeholder={t('pages.login.passwordPlaceholder')}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             autoComplete="current-password"
@@ -333,7 +355,7 @@ export default function Login() {
                                             switchMode(MODE_FORGOT);
                                         }}
                                     >
-                                        忘记密码？
+                                        {t('pages.login.toForgot')}
                                     </button>
                                 </div>
                                 <button
@@ -341,7 +363,7 @@ export default function Login() {
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
                                     disabled={loading || !password}
                                 >
-                                    {loading ? <span className="spinner" /> : '登 录'}
+                                    {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
                             </form>
                         )}
@@ -349,13 +371,13 @@ export default function Login() {
                         {mode === MODE_REGISTER && (
                             <form onSubmit={handleRegister} className="auth-form">
                                 <div className="form-group">
-                                    <label className="form-label">用户名</label>
+                                    <label className="form-label">{t('pages.login.username')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineUser className="input-icon" />
                                         <input
                                             type="text"
                                             className="form-input input-with-icon"
-                                            placeholder="选择一个用户名"
+                                            placeholder={t('pages.login.registerUsernamePlaceholder')}
                                             value={regUsername}
                                             onChange={(e) => setRegUsername(e.target.value)}
                                             autoFocus
@@ -364,13 +386,13 @@ export default function Login() {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">邮箱</label>
+                                    <label className="form-label">{t('pages.login.email')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineEnvelope className="input-icon" />
                                         <input
                                             type="email"
                                             className="form-input input-with-icon"
-                                            placeholder="你的邮箱地址"
+                                            placeholder={t('pages.login.registerEmailPlaceholder')}
                                             value={regEmail}
                                             onChange={(e) => setRegEmail(e.target.value)}
                                             autoComplete="email"
@@ -378,28 +400,28 @@ export default function Login() {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">密码</label>
+                                    <label className="form-label">{t('pages.login.password')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
                                             type="password"
                                             className="form-input input-with-icon"
-                                            placeholder="至少8位，含3类字符"
+                                            placeholder={t('pages.login.registerPasswordPlaceholder')}
                                             value={regPassword}
                                             onChange={(e) => setRegPassword(e.target.value)}
                                             autoComplete="new-password"
                                         />
                                     </div>
-                                    <p className="text-muted text-sm mt-1">{PASSWORD_POLICY_HINT}</p>
+                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">确认密码</label>
+                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
                                             type="password"
                                             className="form-input input-with-icon"
-                                            placeholder="再次输入密码"
+                                            placeholder={t('pages.login.confirmPasswordPlaceholder')}
                                             value={regConfirm}
                                             onChange={(e) => setRegConfirm(e.target.value)}
                                             autoComplete="new-password"
@@ -414,7 +436,7 @@ export default function Login() {
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
                                     disabled={loading || !regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm}
                                 >
-                                    {loading ? <span className="spinner" /> : '注 册'}
+                                    {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
                                 </button>
                             </form>
                         )}
@@ -423,17 +445,17 @@ export default function Login() {
                             <form onSubmit={handleVerify} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />
-                                    <h2>邮箱验证</h2>
+                                    <h2>{t('pages.login.verifyTitle')}</h2>
                                     <p className="text-muted text-sm">
-                                        验证码已发送至 <strong>{verifyEmail}</strong>
+                                        {t('pages.login.verifySentTo', { email: verifyEmail })}
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">验证码</label>
+                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
                                     <input
                                         type="text"
                                         className="form-input verify-code-input"
-                                        placeholder="输入 6 位验证码"
+                                        placeholder={t('pages.login.verifyCodePlaceholder')}
                                         value={verifyCode}
                                         onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         maxLength={6}
@@ -447,7 +469,7 @@ export default function Login() {
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
                                     disabled={loading || verifyCode.length !== 6}
                                 >
-                                    {loading ? <span className="spinner" /> : '验 证'}
+                                    {loading ? <span className="spinner" /> : t('pages.login.verifyButton')}
                                 </button>
                                 <div className="verify-actions">
                                     <button
@@ -457,14 +479,14 @@ export default function Login() {
                                         disabled={resendCooldown > 0}
                                     >
                                         <HiOutlineArrowPath className={resendCooldown > 0 ? '' : 'spin-on-hover'} />
-                                        {resendCooldown > 0 ? `${resendCooldown}s 后可重发` : '重新发送验证码'}
+                                        {resendCooldown > 0 ? `${resendCooldown}s` : t('pages.login.resendCode')}
                                     </button>
                                     <button
                                         type="button"
                                         className="btn-link"
                                         onClick={() => switchMode(MODE_LOGIN)}
                                     >
-                                        返回登录
+                                        {t('pages.login.toLogin')}
                                     </button>
                                 </div>
                             </form>
@@ -474,20 +496,20 @@ export default function Login() {
                             <form onSubmit={handleResetPassword} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />
-                                    <h2>找回密码</h2>
+                                    <h2>{t('pages.login.forgotTitle')}</h2>
                                     <p className="text-muted text-sm">
-                                        输入邮箱验证码并设置新密码
+                                        {t('pages.login.forgotSubtitle')}
                                     </p>
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">邮箱</label>
+                                    <label className="form-label">{t('pages.login.email')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineEnvelope className="input-icon" />
                                         <input
                                             type="email"
                                             className="form-input input-with-icon"
-                                            placeholder="注册邮箱"
+                                            placeholder={t('pages.login.resetEmailPlaceholder')}
                                             value={resetEmail}
                                             onChange={(e) => setResetEmail(e.target.value)}
                                             autoComplete="email"
@@ -496,12 +518,12 @@ export default function Login() {
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">验证码</label>
+                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
                                     <div className="verify-code-row">
                                         <input
                                             type="text"
                                             className="form-input verify-code-input"
-                                            placeholder="输入 6 位验证码"
+                                            placeholder={t('pages.login.resetCodePlaceholder')}
                                             value={resetCode}
                                             onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                             maxLength={6}
@@ -514,35 +536,35 @@ export default function Login() {
                                             disabled={loading || !resetEmail || resetCooldown > 0}
                                         >
                                             <HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />
-                                            {resetCooldown > 0 ? `${resetCooldown}s` : '发送验证码'}
+                                            {resetCooldown > 0 ? `${resetCooldown}s` : t('pages.login.sendCode')}
                                         </button>
                                     </div>
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">新密码</label>
+                                    <label className="form-label">{t('pages.login.newPassword')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
                                             type="password"
                                             className="form-input input-with-icon"
-                                            placeholder="至少8位，含3类字符"
+                                            placeholder={t('pages.login.resetPasswordPlaceholder')}
                                             value={resetPassword}
                                             onChange={(e) => setResetPassword(e.target.value)}
                                             autoComplete="new-password"
                                         />
                                     </div>
-                                    <p className="text-muted text-sm mt-1">{PASSWORD_POLICY_HINT}</p>
+                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">确认新密码</label>
+                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
                                             type="password"
                                             className="form-input input-with-icon"
-                                            placeholder="再次输入新密码"
+                                            placeholder={t('pages.login.resetConfirmPlaceholder')}
                                             value={resetConfirm}
                                             onChange={(e) => setResetConfirm(e.target.value)}
                                             autoComplete="new-password"
@@ -558,7 +580,7 @@ export default function Login() {
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
                                     disabled={loading || !resetEmail || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
                                 >
-                                    {loading ? <span className="spinner" /> : '重置密码'}
+                                    {loading ? <span className="spinner" /> : t('pages.login.resetButton')}
                                 </button>
 
                                 <div className="verify-actions">
@@ -567,7 +589,7 @@ export default function Login() {
                                         className="btn-link"
                                         onClick={() => switchMode(MODE_LOGIN)}
                                     >
-                                        返回登录
+                                        {t('pages.login.toLogin')}
                                     </button>
                                 </div>
                             </form>

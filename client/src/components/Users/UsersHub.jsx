@@ -4,6 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes } from '../../utils/format.js';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
@@ -73,9 +74,39 @@ function formatExpiryLabel(expiryValues) {
     return new Date(earliest).toLocaleDateString('zh-CN');
 }
 
+function normalizeAliasInput(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    return text.startsWith('/') ? text : `/${text}`;
+}
+
+const RESERVED_ALIAS_PREFIXES = ['/api', '/assets', '/src', '/node_modules', '/@vite'];
+const RESERVED_ALIAS_ROUTES = ['/', '/login', '/favicon.ico', '/robots.txt', '/manifest.json', '/manifest.webmanifest', '/vite.svg'];
+const RESERVED_APP_ROUTES = ['/subscriptions', '/clients', '/servers', '/inbounds', '/settings', '/audit', '/tasks', '/server', '/tools', '/capabilities', '/logs'];
+
+function getAliasPathError(value) {
+    const normalized = normalizeAliasInput(value).toLowerCase();
+    if (!normalized) return '';
+    if (normalized.length > 120) return '兼容订阅路径长度不能超过 120 个字符';
+    if (!/^\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(normalized)) {
+        return '兼容订阅路径仅支持小写字母、数字、连字符和多级路径';
+    }
+    if (RESERVED_ALIAS_ROUTES.includes(normalized)) {
+        return '兼容订阅路径与系统保留路径冲突';
+    }
+    if (RESERVED_ALIAS_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`))) {
+        return '兼容订阅路径与系统保留路径冲突';
+    }
+    if (RESERVED_APP_ROUTES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`))) {
+        return '兼容订阅路径与前端路由冲突';
+    }
+    return '';
+}
+
 export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
+    const { t } = useI18n();
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
@@ -106,6 +137,7 @@ export default function UsersHub() {
     const [editUser, setEditUser] = useState(null);
     const [editUsername, setEditUsername] = useState('');
     const [editEmail, setEditEmail] = useState('');
+    const [editAliasPath, setEditAliasPath] = useState('');
     const [editPassword, setEditPassword] = useState('');
     const [showEditPassword, setShowEditPassword] = useState(false);
     const [editExpiryDate, setEditExpiryDate] = useState('');
@@ -125,6 +157,7 @@ export default function UsersHub() {
     const [createSaving, setCreateSaving] = useState(false);
     const [createUsername, setCreateUsername] = useState('');
     const [createEmail, setCreateEmail] = useState('');
+    const [createAliasPath, setCreateAliasPath] = useState('');
     const [createPassword, setCreatePassword] = useState('');
     const [showCreatePassword, setShowCreatePassword] = useState(true);
     const [createProvisionAfterCreate, setCreateProvisionAfterCreate] = useState(true);
@@ -501,6 +534,7 @@ export default function UsersHub() {
         setEditUser(user);
         setEditUsername(user.username || '');
         setEditEmail(user.email || '');
+        setEditAliasPath(user.subscriptionAliasPath || '');
         setEditPassword('');
         setShowEditPassword(false);
         setEditSaving(false);
@@ -572,12 +606,18 @@ export default function UsersHub() {
         }
 
         const email = normalizeEmail(editEmail);
+        const aliasPath = normalizeAliasInput(editAliasPath).toLowerCase();
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             toast.error('邮箱格式不正确');
             return;
         }
+        const aliasError = getAliasPathError(aliasPath);
+        if (aliasError) {
+            toast.error(aliasError);
+            return;
+        }
 
-        const payload = { username, email };
+        const payload = { username, email, subscriptionAliasPath: aliasPath };
         if (editPassword) {
             const passwordError = getPasswordPolicyError(editPassword);
             if (passwordError) {
@@ -651,6 +691,7 @@ export default function UsersHub() {
     const openCreateModal = () => {
         setCreateUsername('');
         setCreateEmail('');
+        setCreateAliasPath('');
         setCreatePassword(generateSecurePassword());
         setCreateProvisionAfterCreate(true);
         setCreateSaving(false);
@@ -666,6 +707,7 @@ export default function UsersHub() {
         event.preventDefault();
         const username = String(createUsername || '').trim();
         const email = normalizeEmail(createEmail);
+        const aliasPath = normalizeAliasInput(createAliasPath).toLowerCase();
         const password = String(createPassword || '');
 
         if (!username) { toast.error('用户名不能为空'); return; }
@@ -674,6 +716,11 @@ export default function UsersHub() {
         if (passwordError) { toast.error(passwordError); return; }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             toast.error('邮箱格式不正确');
+            return;
+        }
+        const aliasError = getAliasPathError(aliasPath);
+        if (aliasError) {
+            toast.error(aliasError);
             return;
         }
 
@@ -685,6 +732,7 @@ export default function UsersHub() {
                 role: 'user',
                 email,
                 subscriptionEmail: email,
+                subscriptionAliasPath: aliasPath,
             });
             if (!res.data?.success || !res.data?.obj) {
                 toast.error(res.data?.msg || '创建用户失败');
@@ -734,6 +782,8 @@ export default function UsersHub() {
                 email: subPayload.email || email,
                 bundle,
                 subscriptionActive: subPayload.subscriptionActive !== false,
+                subscriptionAliasPath: subPayload.subscriptionAliasPath || '',
+                subscriptionAliasUrl: subPayload.subscriptionAliasUrl || '',
             });
             if (bundle.defaultProfileKey) {
                 setSubscriptionProfileKey(bundle.defaultProfileKey);
@@ -780,7 +830,11 @@ export default function UsersHub() {
 
     return (
         <>
-            <Header title="用户管理" subtitle="统一维护账号、订阅状态、客户端与访问策略" eyebrow="Identity & Access" />
+            <Header
+                title={t('pages.usersHub.title')}
+                subtitle={t('pages.usersHub.subtitle')}
+                eyebrow={t('pages.usersHub.eyebrow')}
+            />
             <div className="page-content page-enter">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between gap-4 mb-6 glass-panel p-4 mobile-toolbar users-toolbar">
@@ -1019,6 +1073,17 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
+                                    <label className="form-label">兼容订阅路径（可选）</label>
+                                    <input
+                                        className="form-input font-mono"
+                                        value={createAliasPath}
+                                        onChange={(e) => setCreateAliasPath(e.target.value)}
+                                        placeholder="/sub/legacy-user-a"
+                                        autoComplete="off"
+                                    />
+                                    <p className="text-muted text-sm mt-1">用于兼容旧系统订阅地址。留空则仅保留系统默认地址。</p>
+                                </div>
+                                <div className="form-group">
                                     <label className="form-label">初始密码</label>
                                     <div className="flex gap-2">
                                         <input
@@ -1102,6 +1167,17 @@ export default function UsersHub() {
                                         value={editEmail}
                                         onChange={(e) => setEditEmail(e.target.value)}
                                     />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">兼容订阅路径（可选）</label>
+                                    <input
+                                        className="form-input font-mono"
+                                        value={editAliasPath}
+                                        onChange={(e) => setEditAliasPath(e.target.value)}
+                                        placeholder="/sub/legacy-user-a"
+                                        autoComplete="off"
+                                    />
+                                    <p className="text-muted text-sm mt-1">配置后，旧客户端可继续通过该路径访问新域名下的订阅内容。</p>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">重置密码（留空则不修改）</label>
@@ -1514,6 +1590,24 @@ export default function UsersHub() {
                                             {activeSubscriptionProfile?.hint || '请选择订阅类型'}
                                         </div>
                                         <input className="form-input font-mono text-xs" value={activeSubscriptionProfile?.url || ''} readOnly />
+                                        {subscriptionResult.subscriptionAliasUrl && (
+                                            <div className="grid gap-2">
+                                                <div className="text-xs text-muted">兼容迁移地址</div>
+                                                <div className="subscription-link-grid subscription-link-grid-migration" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px' }}>
+                                                    <input className="form-input font-mono text-xs" value={subscriptionResult.subscriptionAliasUrl} readOnly />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
+                                                        onClick={() => copyToClipboard(subscriptionResult.subscriptionAliasUrl).then(() => toast.success('兼容地址已复制'))}
+                                                    >
+                                                        <HiOutlineClipboard /> 复制
+                                                    </button>
+                                                </div>
+                                                {subscriptionResult.subscriptionAliasPath && (
+                                                    <div className="text-xs text-muted">路径: {subscriptionResult.subscriptionAliasPath}</div>
+                                                )}
+                                            </div>
+                                        )}
                                         <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
                                     </div>
                                     <div className="flex justify-center">

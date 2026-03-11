@@ -50,6 +50,7 @@ export function AuthProvider({ children }) {
                     role: String(decoded?.role || ''),
                     email: '',
                     subscriptionEmail: '',
+                    subscriptionAliasPath: '',
                 });
             }
         }

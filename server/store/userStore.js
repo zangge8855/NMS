@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
+import { validateSubscriptionAliasPath } from '../lib/subscriptionAlias.js';
 import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
 
 const USERS_FILE = path.join(config.dataDir, 'users.json');
@@ -58,6 +59,11 @@ function resolveSubscriptionEmail(user) {
     return normalizeEmailValue(user.email);
 }
 
+function resolveSubscriptionAliasPath(user) {
+    if (!user || typeof user !== 'object') return '';
+    return String(user.subscriptionAliasPath || '').trim().toLowerCase();
+}
+
 class UserStore {
     constructor() {
         this._ensureDataDir();
@@ -81,6 +87,7 @@ class UserStore {
                     const subscriptionEmail = hasSubscriptionBindingField(item)
                         ? normalizeEmailValue(item?.subscriptionEmail)
                         : email;
+                    const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
                     const enabled = normalizeRole(item?.role) === ROLES.admin
                         ? true
                         : (item?.enabled !== undefined ? !!item.enabled : true);
@@ -89,6 +96,7 @@ class UserStore {
                         role: normalizeRole(item?.role),
                         email,
                         subscriptionEmail,
+                        subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
                         enabled,
                     };
                 });
@@ -121,6 +129,7 @@ class UserStore {
                 role: ROLES.admin,
                 enabled: true,
                 subscriptionEmail: '',
+                subscriptionAliasPath: '',
                 createdAt: new Date().toISOString(),
             });
             this._save();
@@ -134,6 +143,7 @@ class UserStore {
             username: u.username,
             email: normalizeEmailValue(u.email),
             subscriptionEmail: resolveSubscriptionEmail(u),
+            subscriptionAliasPath: resolveSubscriptionAliasPath(u),
             emailVerified: !!u.emailVerified,
             role: u.role,
             enabled: u.enabled !== false,
@@ -162,6 +172,12 @@ class UserStore {
         const normalized = normalizeEmailValue(subscriptionEmail);
         if (!normalized) return null;
         return this.users.find(u => resolveSubscriptionEmail(u) === normalized) || null;
+    }
+
+    getBySubscriptionAliasPath(subscriptionAliasPath) {
+        const normalized = String(subscriptionAliasPath || '').trim().toLowerCase();
+        if (!normalized) return null;
+        return this.users.find((user) => resolveSubscriptionAliasPath(user) === normalized) || null;
     }
 
     /**
@@ -212,10 +228,14 @@ class UserStore {
             ? payload.subscriptionEmail
             : normalizedEmail;
         const normalizedSubscriptionEmail = normalizeEmailValue(rawSubscriptionEmail);
+        const aliasCheck = validateSubscriptionAliasPath(payload.subscriptionAliasPath, {
+            findByPath: (path) => this.getBySubscriptionAliasPath(path),
+        });
         if (normalizedSubscriptionEmail) {
             const existingBinding = this.getBySubscriptionEmail(normalizedSubscriptionEmail);
             if (existingBinding) throw new Error(`订阅绑定邮箱 "${normalizedSubscriptionEmail}" 已被其他账号占用`);
         }
+        if (!aliasCheck.ok) throw new Error(aliasCheck.message);
 
         const passwordCheck = checkAccountPassword(password);
         if (!passwordCheck.valid) throw new Error(passwordCheck.reason);
@@ -226,6 +246,7 @@ class UserStore {
             username: normalizedUsername,
             email: normalizedEmail,
             subscriptionEmail: normalizedSubscriptionEmail,
+            subscriptionAliasPath: aliasCheck.value,
             emailVerified: !!emailVerified,
             enabled: !!enabled,
             verifyCode: null,
@@ -244,6 +265,7 @@ class UserStore {
             username: user.username,
             email: user.email,
             subscriptionEmail: resolveSubscriptionEmail(user),
+            subscriptionAliasPath: resolveSubscriptionAliasPath(user),
             emailVerified: user.emailVerified,
             enabled: user.enabled !== false,
             role: user.role,
@@ -278,6 +300,14 @@ class UserStore {
             }
             this.users[idx].subscriptionEmail = nextBinding;
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'subscriptionAliasPath')) {
+            const aliasCheck = validateSubscriptionAliasPath(data.subscriptionAliasPath, {
+                findByPath: (path) => this.getBySubscriptionAliasPath(path),
+                excludeUserId: id,
+            });
+            if (!aliasCheck.ok) throw new Error(aliasCheck.message);
+            this.users[idx].subscriptionAliasPath = aliasCheck.value;
+        }
         if (data.password) {
             const passwordCheck = checkAccountPassword(data.password);
             if (!passwordCheck.valid) throw new Error(passwordCheck.reason);
@@ -302,6 +332,7 @@ class UserStore {
             username: this.users[idx].username,
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
+            subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -324,6 +355,7 @@ class UserStore {
             username: this.users[idx].username,
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
+            subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -341,6 +373,7 @@ class UserStore {
             username: this.users[idx].username,
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
+            subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -410,7 +443,17 @@ class UserStore {
 
     importState(snapshot = {}) {
         const nextUsers = Array.isArray(snapshot?.users) ? snapshot.users : [];
-        this.users = nextUsers;
+        this.users = nextUsers.map((item) => {
+            const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
+            return {
+                ...item,
+                email: normalizeEmailValue(item?.email),
+                subscriptionEmail: Object.prototype.hasOwnProperty.call(item || {}, 'subscriptionEmail')
+                    ? normalizeEmailValue(item?.subscriptionEmail)
+                    : normalizeEmailValue(item?.email),
+                subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
+            };
+        });
         this._ensureDefaultAdmin();
     }
 }

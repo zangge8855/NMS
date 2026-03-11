@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineSignal, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineCloud, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getSearchableNavItems } from './navConfig.js';
@@ -11,12 +12,6 @@ const themeIcons = {
     dark: HiOutlineMoon,
     light: HiOutlineSun,
     auto: HiOutlineComputerDesktop,
-};
-
-const themeLabels = {
-    dark: '深色模式',
-    light: '浅色模式',
-    auto: '跟随系统',
 };
 
 const MAX_SEARCH_RESULTS = 8;
@@ -30,10 +25,11 @@ function getShortcutLabel() {
     return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 }
 
-export default function Header({ title, subtitle = '', eyebrow = '', icon, children }) {
+export default function Header({ title, subtitle = '', eyebrow = '', icon, children, showContext = true }) {
     const { activeServer, activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
+    const { locale, toggleLocale, t } = useI18n();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchTerm, setSearchTerm] = useState('');
@@ -46,17 +42,22 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
     const isAdmin = user?.role === 'admin';
     const isGlobalView = activeServerId === 'global';
     const shortcutLabel = useMemo(() => getShortcutLabel(), []);
+    const themeLabels = useMemo(() => ({
+        dark: t('shell.themeDark'),
+        light: t('shell.themeLight'),
+        auto: t('shell.themeAuto'),
+    }), [t]);
 
     const scopeLabel = activeServer
-        ? { icon: HiOutlineSignal, title: '单节点', value: activeServer.name }
+        ? { icon: HiOutlineSignal, title: t('shell.scopeServerTitle'), value: activeServer.name }
         : activeServerId === 'global'
-            ? { icon: HiOutlineCloud, title: '控制域', value: '集群总览' }
+            ? { icon: HiOutlineCloud, title: t('shell.scopeGlobalTitle'), value: t('shell.scopeGlobalValue') }
             : null;
 
     const ScopeIcon = scopeLabel?.icon;
     const searchableItems = useMemo(
-        () => getSearchableNavItems({ isAdmin, isGlobalView }),
-        [isAdmin, isGlobalView]
+        () => getSearchableNavItems({ isAdmin, isGlobalView, locale }),
+        [isAdmin, isGlobalView, locale]
     );
 
     const filteredItems = useMemo(() => {
@@ -78,7 +79,7 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
                 return { ...item, score };
             })
             .filter(Boolean)
-            .sort((a, b) => (b.score - a.score) || a.label.localeCompare(b.label, 'zh-CN'))
+            .sort((a, b) => (b.score - a.score) || a.label.localeCompare(b.label, locale))
             .slice(0, MAX_SEARCH_RESULTS);
     }, [searchTerm, searchableItems]);
 
@@ -175,7 +176,7 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
                     <HiOutlineMagnifyingGlass className="header-search-icon" />
                     <input
                         ref={inputRef}
-                        placeholder="搜索页面..."
+                        placeholder={t('shell.searchPlaceholder')}
                         className="header-search-input"
                         value={searchTerm}
                         onChange={(event) => {
@@ -184,14 +185,14 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
                         }}
                         onFocus={() => setSearchOpen(true)}
                         onKeyDown={handleSearchKeyDown}
-                        aria-label="全局页面搜索"
+                        aria-label={t('shell.searchAriaLabel')}
                     />
                     <kbd className="header-search-kbd">{shortcutLabel}</kbd>
                     {searchOpen && (
                         <div className="header-search-results">
                             {filteredItems.length === 0 ? (
                                 <div className="header-search-empty">
-                                    没有匹配页面
+                                    {t('shell.searchEmpty')}
                                 </div>
                             ) : (
                                 filteredItems.map((item, index) => {
@@ -219,7 +220,7 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
                         </div>
                     )}
                 </div>
-                {scopeLabel && (
+                {showContext && scopeLabel && (
                     <div className="header-context">
                         <span className="system-health-dot" data-status="healthy" />
                         {ScopeIcon && <ScopeIcon style={{ fontSize: '14px' }} />}
@@ -230,6 +231,15 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
                     </div>
                 )}
                 {children}
+                <button
+                    type="button"
+                    className="theme-toggle-btn language-toggle-btn"
+                    onClick={toggleLocale}
+                    title={t('shell.switchLanguage')}
+                    aria-label={t('shell.switchLanguage')}
+                >
+                    <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                </button>
                 <NotificationBell />
                 <button
                     type="button"

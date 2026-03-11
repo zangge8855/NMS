@@ -49,4 +49,11 @@ describe('Header', () => {
         expect(container.querySelector('.header-eyebrow')).toBeNull();
         expect(container.querySelector('.header-subtitle')).toBeNull();
     });
+
+    it('hides the scope context when showContext is false', () => {
+        const { container } = renderWithRouter(<Header title="订阅中心" showContext={false} />);
+
+        expect(screen.getByRole('heading', { name: '订阅中心' })).toBeInTheDocument();
+        expect(container.querySelector('.header-context')).toBeNull();
+    });
 });

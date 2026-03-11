@@ -44,7 +44,7 @@ describe('Subscriptions', () => {
         });
     });
 
-    it('auto-loads the current user subscription and keeps the identity input read-only', async () => {
+    it('auto-loads the current user subscription without exposing admin controls', async () => {
         useAuth.mockReturnValue({
             user: {
                 role: 'user',
@@ -69,9 +69,9 @@ describe('Subscriptions', () => {
 
         renderWithRouter(<Subscriptions />);
 
-        const emailInput = await screen.findByDisplayValue('user@example.com');
-        expect(emailInput).toHaveAttribute('readonly');
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
+        expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
     });
 

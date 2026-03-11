@@ -1,211 +1,323 @@
-# NMS 部署与升级 Runbook
+# NMS Deployment Runbook / NMS 部署 Runbook
 
-> 更新时间：2026-03-11
+> Updated: 2026-03-11
 
 ## 中文
 
 ### 1. 适用范围
 
-这份 Runbook 面向两类场景：
+这份文档面向两类场景：
 
-- 首次把 NMS 部署到服务器
-- 已有 `/opt/nms` 实例的前后端升级
+- 首次部署 NMS
+- 升级已有的 NMS 实例
 
-### 2. 默认目录约定
+默认约定：
 
-推荐约定：
-
-- 仓库工作区：`/root/NMS`
+- 代码工作区：`/root/NMS`
 - 运行目录：`/opt/nms`
+- 服务端口：`3001`
 - PM2 应用名：`nms`
 
-### 3. 首次部署
+### 2. 部署前检查
 
-1. 安装依赖
+建议在开始前确认：
+
+- 系统为 `Ubuntu 20.04+` 或 `Debian 11+`
+- Node.js 版本为 `18+`，推荐 `20 LTS`
+- 目标服务器已放行 `80`、`443`，以及需要时的 `3001`
+- 准备好一套强密码和两段独立随机密钥：
+  - `JWT_SECRET`
+  - `CREDENTIALS_SECRET`
+- 如果公网使用订阅链接，准备好最终域名，例如 `https://nms.example.com`
+
+### 3. 源码部署
+
+#### 3.1 安装基础依赖
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
+sudo apt-get install -y nodejs nginx
 sudo npm install -g pm2
 ```
 
-2. 拷贝代码
+#### 3.2 拷贝代码到运行目录
 
 ```bash
 sudo mkdir -p /opt/nms
 sudo cp -r /root/NMS/. /opt/nms/
 ```
 
-3. 安装并构建
+#### 3.3 安装依赖并构建前端
 
 ```bash
 cd /opt/nms/server && npm install --production
 cd /opt/nms/client && npm install && npm run build
 ```
 
-4. 配置环境变量
+#### 3.4 配置环境变量
 
 ```bash
 cd /opt/nms
 cp .env.example .env
 ```
 
-至少要修改：
+生产环境至少要修改：
 
 - `JWT_SECRET`
 - `CREDENTIALS_SECRET`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 
-5. 启动
+强烈建议同时配置：
+
+- `SUB_PUBLIC_BASE_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+
+数据库模式可选配置：
+
+- `DB_ENABLED=true`
+- `DB_URL=postgres://...`
+- `STORE_READ_MODE=db`
+- `STORE_WRITE_MODE=dual` 或 `db`
+
+#### 3.5 启动服务
 
 ```bash
 cd /opt/nms
 mkdir -p logs
 pm2 start ecosystem.config.cjs
 pm2 save
+pm2 startup systemd -u root --hp /root
 ```
 
-### 4. 升级现有实例
+默认访问地址：
 
-如果代码在 `/root/NMS`，运行实例在 `/opt/nms`，建议按下面顺序升级：
+- `http://服务器IP:3001`
+
+### 4. Docker / GHCR 部署
+
+仓库已提供 `Dockerfile`，也可直接使用 GHCR 镜像：
+
+- `ghcr.io/zangge8855/nms:latest`
+- `ghcr.io/zangge8855/nms:<commit_sha>`
+
+示例：
+
+```bash
+docker run -d \
+  --name nms \
+  -p 3001:3001 \
+  -v /opt/nms/data:/app/data \
+  -v /opt/nms/logs:/app/logs \
+  --env-file /opt/nms/.env \
+  ghcr.io/zangge8855/nms:latest
+```
 
 说明：
 
-- 仓库当前不再提供 `deploy.sh` 之类的一键脚本，升级以显式构建、同步和 PM2 重启为准
-- 如果前端未构建或 `client/dist/index.html` 没有同步到运行目录，浏览器访问 `/`、`/login` 等 SPA 路由会返回明确的 `503`
+- `.env` 仍然由你自己维护
+- `data/` 和 `logs/` 要持久化挂载
+- 若启用反代，公网建议走 `80/443`，容器端口继续保留 `3001`
 
-1. 本地构建和测试
+### 5. Nginx 反向代理
+
+建议把 NMS 放在标准 HTTPS 站点后面，并同时代理 HTTP 与 WebSocket：
+
+```nginx
+server {
+    listen 80;
+    server_name nms.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name nms.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/nms.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/nms.example.com/privkey.pem;
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws {
+        proxy_pass http://127.0.0.1:3001/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+完成后请把系统设置中的订阅公网地址设为：
+
+- `https://nms.example.com`
+
+### 6. 首次上线后的初始化
+
+建议按这个顺序做：
+
+1. 使用 `.env` 中的管理员账号登录
+2. 进入“系统设置”，设置订阅公网地址
+3. 配置 SMTP，并执行一次 SMTP 连接测试
+4. 在“服务器管理”中添加 3x-ui 节点并验证连通性
+5. 在“入站管理”检查节点拉取结果
+6. 在“用户管理 / 订阅中心”验证订阅链接可访问
+7. 如需承接旧系统地址，为用户设置兼容订阅路径
+
+### 7. 升级现有实例
+
+推荐顺序：
+
+#### 7.1 在工作区构建和测试
 
 ```bash
 cd /root/NMS/client && npm install && npm run build
 cd /root/NMS/client && npm test
+cd /root/NMS/server && npm test
 ```
 
-2. 同步前端产物
+#### 7.2 同步前端产物
 
 ```bash
+mkdir -p /opt/nms/client/dist/assets
 cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
 cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
 ```
 
-3. 如后端代码有变化，再同步后端
+#### 7.3 同步后端和配置文件
 
 ```bash
 rsync -av --delete /root/NMS/server/ /opt/nms/server/
+rsync -av /root/NMS/client/public/ /opt/nms/client/public/
 rsync -av /root/NMS/ecosystem.config.cjs /opt/nms/
 ```
 
-4. 重启服务
+如 `package.json` 或锁文件有变化，再执行：
+
+```bash
+cd /opt/nms/server && npm install --production
+```
+
+#### 7.4 重启服务
 
 ```bash
 pm2 restart nms
 ```
 
-### 5. 常用 PM2 操作
+### 8. 备份与回滚建议
 
-启动：
+至少要备份：
 
-```bash
-pm2 start ecosystem.config.cjs
-```
+- `/opt/nms/.env`
+- `/opt/nms/data/`
+- `/opt/nms/logs/`
+- 如果启用了数据库模式，还要备份 PostgreSQL 数据库
 
-重启：
+回滚时建议成组回退：
 
-```bash
-pm2 restart nms
-```
+- 后端代码
+- 前端 `client/dist`
+- `.env`
+- 数据目录或数据库快照
 
-停止：
+不要只回滚其中一部分，否则容易出现接口和前端 bundle 不匹配。
 
-```bash
-pm2 stop nms
-```
+### 9. 验证清单
 
-查看状态：
+服务状态：
 
 ```bash
 pm2 list
-pm2 logs nms
+pm2 logs nms --lines 100
 ```
 
-### 6. 验证清单
-
-前端资源：
+前端首页：
 
 ```bash
 curl -sS http://127.0.0.1:3001/
 ```
 
-需要确认：
-
-- 返回新的 `index-*.js`
-- 返回新的 `index-*.css`
-- 字体链接包含 `IBM Plex Sans`、`JetBrains Mono`、`Noto Sans SC`
-- 如果返回 `503 Frontend build missing`，说明运行目录缺少前端构建产物，需要重新执行前端构建和同步步骤
-
-接口可用性：
+接口连通：
 
 ```bash
 curl -sS http://127.0.0.1:3001/api/auth/check
 ```
 
-页面回归建议：
+建议人工回归这些页面：
 
 - `/login`
 - `/`
 - `/servers`
 - `/inbounds`
 - `/clients`
+- `/subscriptions`
 - `/audit`
+- `/tasks`
+- `/logs`
 - `/settings`
 
-### 7. 文档与 Git 发布流程
+### 10. 常见问题
 
-建议顺序：
+#### 10.1 打开页面返回 `503 Frontend build missing`
 
-```bash
-git status
-git add .
-git commit -m "your message"
-git push origin main
-```
+说明运行目录缺少 `client/dist/index.html`。重新构建并同步前端产物即可。
+
+#### 10.2 登录正常但某些页面是空白
+
+优先检查：
+
+- 前后端是否来自同一版本
+- `client/dist/assets` 和 `index.html` 是否同步完整
+- 浏览器是否缓存了旧 bundle
+
+#### 10.3 订阅地址里出现 `localhost` 或内网地址
+
+请到系统设置中填写订阅公网地址，或在 `.env` 中设置 `SUB_PUBLIC_BASE_URL`。
+
+#### 10.4 WebSocket 不通，仪表盘实时状态不更新
+
+优先检查：
+
+- Nginx 是否代理了 `/ws`
+- 是否保留了 `Upgrade` / `Connection` 头
+- HTTPS 和站点域名是否一致
+
+#### 10.5 数据库模式切换后数据不完整
+
+确认：
+
+- `DB_ENABLED=true`
+- `DB_URL` 可用
+- `STORE_READ_MODE` / `STORE_WRITE_MODE` 正确
+- 是否已经执行过回填
+
+### 11. 发布前 Git 检查
 
 发布前确认：
 
-- `.env`、密钥、密码、数据文件没有进入 git
-- 调试截图、临时脚本、导出包已经删除
-- `.gitignore` 已覆盖 `output/`、日志、运行时数据
-
-### 8. 隐私与清理
-
-不建议入库的内容：
-
-- `output/` 下的截图
-- `/tmp` 下的临时验收脚本
-- `.env`
-- `data/**/*.json`
-- 日志文件
-
-清理示例：
-
-```bash
-rm -rf /root/NMS/output
-rm -f /tmp/nms_ui_check.cjs /tmp/nms_ui_round3_check.cjs
-```
-
-### 9. 当前已知边界
-
-- 如果运行实例实际读取的是 `/opt/nms`，仅在 `/root/NMS` 构建不会自动生效
-- 某些环境中 headless browser 需要脱离沙箱运行
-- 3x-ui 日志能力、Telegram 配置能力取决于远端节点版本和官方 API 暴露范围
-- 升级时如果面板节点返回的入站 `settings` / `streamSettings` 既有对象也有 JSON 字符串，新版本已兼容两种形态；无需再手工统一数据格式
+- `.env` 没有入库
+- `data/**/*.json` 没有入库
+- `client/dist`、`node_modules`、截图、临时脚本没有入库
+- 使用说明、部署文档与当前实现一致
 
 ---
-
-# NMS Deployment and Upgrade Runbook
-
-> Updated: 2026-03-11
 
 ## English
 
@@ -213,61 +325,311 @@ rm -f /tmp/nms_ui_check.cjs /tmp/nms_ui_round3_check.cjs
 
 This runbook covers:
 
-- first-time deployment
-- upgrading an existing `/opt/nms` instance
+- first-time NMS deployment
+- upgrading an existing NMS instance
 
-### 2. Recommended Paths
+Default assumptions:
 
 - workspace repo: `/root/NMS`
-- runtime instance: `/opt/nms`
+- runtime path: `/opt/nms`
+- service port: `3001`
 - PM2 app name: `nms`
 
-### 3. Upgrade Flow
+### 2. Preflight Checklist
 
-Recommended order:
+Before deployment, confirm:
 
-1. build and test in the workspace
-2. sync frontend assets into `/opt/nms/client/dist`
-3. sync backend files when needed
-4. restart `pm2`
+- the host runs `Ubuntu 20.04+` or `Debian 11+`
+- Node.js is `18+`, preferably `20 LTS`
+- ports `80`, `443`, and optionally `3001` are available
+- you have strong secrets ready for:
+  - `JWT_SECRET`
+  - `CREDENTIALS_SECRET`
+- you know the final public base URL, for example `https://nms.example.com`
+
+### 3. Source Deployment
+
+#### 3.1 Install dependencies
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs nginx
+sudo npm install -g pm2
+```
+
+#### 3.2 Copy the project into the runtime directory
+
+```bash
+sudo mkdir -p /opt/nms
+sudo cp -r /root/NMS/. /opt/nms/
+```
+
+#### 3.3 Install dependencies and build the frontend
+
+```bash
+cd /opt/nms/server && npm install --production
+cd /opt/nms/client && npm install && npm run build
+```
+
+#### 3.4 Create the runtime environment file
+
+```bash
+cd /opt/nms
+cp .env.example .env
+```
+
+At minimum, change:
+
+- `JWT_SECRET`
+- `CREDENTIALS_SECRET`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+Strongly recommended:
+
+- `SUB_PUBLIC_BASE_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+
+Optional DB mode settings:
+
+- `DB_ENABLED=true`
+- `DB_URL=postgres://...`
+- `STORE_READ_MODE=db`
+- `STORE_WRITE_MODE=dual` or `db`
+
+#### 3.5 Start the service
+
+```bash
+cd /opt/nms
+mkdir -p logs
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup systemd -u root --hp /root
+```
+
+Default access URL:
+
+- `http://SERVER_IP:3001`
+
+### 4. Docker / GHCR Deployment
+
+The repo ships a `Dockerfile`, and GHCR images are also published:
+
+- `ghcr.io/zangge8855/nms:latest`
+- `ghcr.io/zangge8855/nms:<commit_sha>`
+
+Example:
+
+```bash
+docker run -d \
+  --name nms \
+  -p 3001:3001 \
+  -v /opt/nms/data:/app/data \
+  -v /opt/nms/logs:/app/logs \
+  --env-file /opt/nms/.env \
+  ghcr.io/zangge8855/nms:latest
+```
 
 Notes:
 
-- the repo no longer ships a `deploy.sh` wrapper; use the explicit commands in this runbook
-- if `client/dist/index.html` is missing in the runtime instance, SPA routes such as `/` and `/login` now return an explicit `503` instead of a generic file error
+- maintain the `.env` file yourself
+- persist both `data/` and `logs/`
+- for public traffic, put the container behind HTTPS and keep the internal port at `3001`
 
-### 4. Core Commands
+### 5. Nginx Reverse Proxy
 
-Build and test:
+NMS should typically sit behind HTTPS with both HTTP and WebSocket proxying:
+
+```nginx
+server {
+    listen 80;
+    server_name nms.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name nms.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/nms.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/nms.example.com/privkey.pem;
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws {
+        proxy_pass http://127.0.0.1:3001/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+After that, set the subscription public base URL to:
+
+- `https://nms.example.com`
+
+### 6. Initial Post-Deploy Setup
+
+Recommended order:
+
+1. Log in with the admin account from `.env`
+2. Open `System Settings` and set the public subscription base URL
+3. Configure SMTP and run an SMTP test
+4. Add your 3x-ui nodes under `Servers`
+5. Confirm inbound sync under `Inbounds`
+6. Verify subscription URLs under `Users / Subscriptions`
+7. If you are migrating from another system, assign legacy subscription alias paths to users
+
+### 7. Upgrade an Existing Instance
+
+Recommended order:
+
+#### 7.1 Build and test in the workspace
 
 ```bash
 cd /root/NMS/client && npm install && npm run build
 cd /root/NMS/client && npm test
+cd /root/NMS/server && npm test
 ```
 
-Sync frontend:
+#### 7.2 Sync frontend artifacts
 
 ```bash
+mkdir -p /opt/nms/client/dist/assets
 cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
 cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
 ```
 
-Restart:
+#### 7.3 Sync backend files and runtime config
+
+```bash
+rsync -av --delete /root/NMS/server/ /opt/nms/server/
+rsync -av /root/NMS/client/public/ /opt/nms/client/public/
+rsync -av /root/NMS/ecosystem.config.cjs /opt/nms/
+```
+
+If dependencies changed, run:
+
+```bash
+cd /opt/nms/server && npm install --production
+```
+
+#### 7.4 Restart
 
 ```bash
 pm2 restart nms
 ```
 
-### 5. Publish Checklist
+### 8. Backup and Rollback
 
-- no secrets or runtime data in git
-- no debug screenshots or temporary scripts
-- verify built asset hashes from `http://127.0.0.1:3001/`
-- verify critical routes after restart
-- if the root route returns `503 Frontend build missing`, rebuild the frontend and sync `client/dist` again
+At minimum, back up:
 
-### 6. Current Edges
+- `/opt/nms/.env`
+- `/opt/nms/data/`
+- `/opt/nms/logs/`
+- the PostgreSQL database if DB mode is enabled
 
-- building only in `/root/NMS` does not affect a live `/opt/nms` instance until files are synced
-- headless browser checks may still require unsandboxed execution in some environments
-- inbound `settings` / `streamSettings` may come back as either plain objects or JSON strings from different panel versions; current code accepts both forms
+Rollback should treat these as one release unit:
+
+- backend code
+- frontend `client/dist`
+- `.env`
+- data directory or DB snapshot
+
+Avoid rolling back only one layer, or the frontend and backend may drift out of sync.
+
+### 9. Validation Checklist
+
+Service state:
+
+```bash
+pm2 list
+pm2 logs nms --lines 100
+```
+
+Frontend root:
+
+```bash
+curl -sS http://127.0.0.1:3001/
+```
+
+API health:
+
+```bash
+curl -sS http://127.0.0.1:3001/api/auth/check
+```
+
+Recommended manual checks:
+
+- `/login`
+- `/`
+- `/servers`
+- `/inbounds`
+- `/clients`
+- `/subscriptions`
+- `/audit`
+- `/tasks`
+- `/logs`
+- `/settings`
+
+### 10. Common Issues
+
+#### 10.1 `503 Frontend build missing`
+
+The runtime instance is missing `client/dist/index.html`. Rebuild the frontend and sync the generated artifacts.
+
+#### 10.2 Login works but some pages are blank
+
+Check:
+
+- frontend and backend come from the same release
+- both `client/dist/assets` and `index.html` were synced
+- the browser is not serving a cached bundle
+
+#### 10.3 Subscription URLs show `localhost` or a private address
+
+Set the public subscription base URL in `System Settings` or via `SUB_PUBLIC_BASE_URL`.
+
+#### 10.4 WebSocket is broken and dashboard live status does not update
+
+Check:
+
+- Nginx proxies `/ws`
+- `Upgrade` and `Connection` headers are preserved
+- the public protocol and domain are correct
+
+#### 10.5 DB mode does not show the expected data
+
+Confirm:
+
+- `DB_ENABLED=true`
+- `DB_URL` is reachable
+- `STORE_READ_MODE` and `STORE_WRITE_MODE` are correct
+- the backfill step was actually run
+
+### 11. Pre-Push Git Hygiene
+
+Before pushing:
+
+- do not commit `.env`
+- do not commit `data/**/*.json`
+- do not commit `client/dist`, `node_modules`, screenshots, or temporary scripts
+- keep deployment and usage docs aligned with the actual runtime behavior

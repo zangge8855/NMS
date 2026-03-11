@@ -96,6 +96,45 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(userStore.getBySubscriptionEmail('bind-empty@example.com'), null);
     });
 
+    it('should normalize and store subscription alias paths', () => {
+        const user = userStore.add({
+            username: 'alias_user',
+            password: 'Pass1234!',
+            role: ROLES.user,
+            email: 'alias@example.com',
+            subscriptionAliasPath: 'Legacy/User-A',
+        });
+
+        assert.equal(user.subscriptionAliasPath, '/legacy/user-a');
+        assert.equal(userStore.getBySubscriptionAliasPath('/legacy/user-a')?.id, user.id);
+    });
+
+    it('should reject duplicate subscription alias paths', () => {
+        assert.throws(
+            () => userStore.add({
+                username: 'alias_user_2',
+                password: 'Pass1234!',
+                role: ROLES.user,
+                email: 'alias-2@example.com',
+                subscriptionAliasPath: '/legacy/user-a',
+            }),
+            /已被其他用户占用/
+        );
+    });
+
+    it('should reject reserved subscription alias paths', () => {
+        assert.throws(
+            () => userStore.add({
+                username: 'alias_reserved',
+                password: 'Pass1234!',
+                role: ROLES.user,
+                email: 'alias-reserved@example.com',
+                subscriptionAliasPath: '/api/subscriptions/demo',
+            }),
+            /系统保留路径冲突/
+        );
+    });
+
     it('should authenticate the new user', () => {
         const result = userStore.authenticate('user1', 'Pass1234!');
         assert.ok(result, 'Should authenticate');
@@ -155,6 +194,15 @@ describe('UserStore', { concurrency: false }, () => {
         userStore.update(usr.id, { password: 'NewPass789!' });
         const result = userStore.authenticate('user1', 'NewPass789!');
         assert.ok(result, 'Should auth with new password');
+    });
+
+    it('should update a user subscription alias path', () => {
+        const users = userStore.getAll();
+        const usr = users.find(u => u.username === 'user1');
+        const updated = userStore.update(usr.id, { subscriptionAliasPath: '/migrated/user-1' });
+
+        assert.equal(updated.subscriptionAliasPath, '/migrated/user-1');
+        assert.equal(userStore.getBySubscriptionAliasPath('/migrated/user-1')?.id, usr.id);
     });
 
     it('should set and clear password reset code', () => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import { copyToClipboard } from '../../utils/format.js';
@@ -20,6 +21,7 @@ import ModalShell from '../UI/ModalShell.jsx';
 
 export default function ServerManagement() {
     const { activeServerId, panelApi, servers } = useServer();
+    const { t } = useI18n();
     const isGlobalView = activeServerId === 'global';
     const confirmAction = useConfirm();
     const [xrayVersions, setXrayVersions] = useState([]);
@@ -317,7 +319,11 @@ export default function ServerManagement() {
     if (!activeServerId) {
         return (
             <>
-                <Header title="节点控制台" subtitle="统一执行节点运维、工具生成与数据操作" eyebrow="Node Operations" />
+                <Header
+                    title={t('pages.serverConsole.title')}
+                    subtitle={t('pages.serverConsole.emptySubtitle')}
+                    eyebrow={t('pages.serverConsole.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineWrenchScrewdriver /></div>
@@ -331,9 +337,9 @@ export default function ServerManagement() {
     return (
         <>
             <Header
-                title={isGlobalView ? '节点控制台（集群）' : '节点控制台'}
-                subtitle={isGlobalView ? '对多节点执行统一维护动作，单节点专属能力自动禁用' : '当前节点的 Xray、数据、工具与面板能力'}
-                eyebrow="Node Operations"
+                title={isGlobalView ? t('pages.serverConsole.globalTitle') : t('pages.serverConsole.title')}
+                subtitle={isGlobalView ? t('pages.serverConsole.globalSubtitle') : t('pages.serverConsole.subtitle')}
+                eyebrow={t('pages.serverConsole.eyebrow')}
             />
             <div className="page-content page-enter">
                 <div className="card mb-6">

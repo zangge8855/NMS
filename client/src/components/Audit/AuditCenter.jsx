@@ -29,6 +29,7 @@ const Logs = lazy(() => import('../Logs/Logs.jsx'));
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -59,6 +60,7 @@ function trendLabel(value, granularity) {
 }
 
 export default function AuditCenter() {
+    const { t } = useI18n();
     const [tab, setTab] = useState('events');
     const confirm = useConfirm();
 
@@ -271,7 +273,11 @@ export default function AuditCenter() {
 
     return (
         <>
-            <Header title="审计中心" subtitle="统一查看操作链路、流量走势与订阅访问记录" eyebrow="Audit & Security" />
+            <Header
+                title={t('pages.audit.title')}
+                subtitle={t('pages.audit.subtitle')}
+                eyebrow={t('pages.audit.eyebrow')}
+            />
             <div className="page-content page-enter">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ function formatToolValue(value) {
 
 export default function Tools() {
     const { activeServerId, panelApi } = useServer();
+    const { t } = useI18n();
     const [results, setResults] = useState({});
     const [loading, setLoading] = useState({});
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -76,7 +78,7 @@ export default function Tools() {
     if (!activeServerId) {
         return (
             <>
-                <Header title="节点工具" />
+                <Header title={t('pages.tools.title')} />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineWrench /></div>
@@ -89,7 +91,7 @@ export default function Tools() {
 
     return (
         <>
-            <Header title="节点工具" />
+            <Header title={t('pages.tools.title')} />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-8">
                     <div>

@@ -4,17 +4,20 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { ConfirmProvider } from './contexts/ConfirmContext.jsx';
+import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import './index.css';
 import './ui-refresh.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
-            <AuthProvider>
-                <ConfirmProvider>
-                    <App />
-                </ConfirmProvider>
-            </AuthProvider>
+            <LanguageProvider>
+                <AuthProvider>
+                    <ConfirmProvider>
+                        <App />
+                    </ConfirmProvider>
+                </AuthProvider>
+            </LanguageProvider>
         </BrowserRouter>
     </React.StrictMode>
 );

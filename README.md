@@ -1,50 +1,39 @@
 # NMS - Node Management System
 
-NMS is a centralized management panel for multiple 3x-ui nodes. It keeps user lifecycle, subscription delivery, audit, and node operations in one place without requiring an external subscription converter.
+NMS is a centralized management panel for multiple 3x-ui nodes. It keeps node operations, inbound management, user lifecycle, subscriptions, audit, tasks, and system settings in one place.
+
+NMS 是一套面向多 3x-ui 节点的集中管理面板，把节点运维、入站管理、用户生命周期、订阅分发、审计、任务中心和系统设置统一到一个后台中。
 
 ## English
 
 ### Highlights
 
-- Centralized management for multiple 3x-ui panels
-- User lifecycle support: registration, email verification, password reset, admin-side user management
+- Centralized multi-node management for 3x-ui panels
+- User lifecycle support: registration, verification, password reset, admin-side user governance
 - Built-in subscription outputs: `v2rayN`, `Raw`, `Native`, `Reconstructed`, `Clash YAML`, `Mihomo YAML`, `sing-box import`
-- User policy and provisioning controls: `limitIp`, traffic limit, expiry, per-client entitlement override
-- Audit coverage: operation audit, subscription access logs, traffic trends, centralized 3x-ui log view
-- Real visitor IP extraction under reverse proxy and Cloudflare
-- Admin operations: SMTP diagnostics, system backup export, DB mode controls, node health monitoring, notification center
-- Admin shell polish: working global page search in the top header with `Ctrl/Cmd + K`, fully responsive mobile layout with drawer sidebar, plus improved light-theme readability and interaction consistency
-- Security baseline: JWT auth, credential encryption, password policy, rate limiting, SSRF protection
+- User-level legacy subscription path migration for smooth domain replacement
+- Audit coverage for operations, subscription access, traffic trends, and centralized logs
+- System settings for SMTP diagnostics, backup export, DB runtime mode, and health monitoring
+- Responsive admin shell for desktop and mobile, with theme mode following the system by default
+- Chinese-first UI with optional English switching; the header now shows one language at a time
 
 ### Architecture
 
-The backend is now organized as:
+The backend is organized as:
 
 - `route -> service -> repository / panel gateway`
 
-This keeps public APIs stable while moving heavy business logic out of route files.
-
-### Operational Notes
-
-- NMS generates Clash and Mihomo YAML directly. No external subscription converter is required.
-- Clash / Mihomo rules now use MetaCubeX `meta-rules-dat` `mrs` rule providers.
-- Telegram backup can be triggered from NMS, but Telegram Bot configuration still lives in the 3x-ui panel because the official 3x-ui API does not document a config write endpoint for it.
-- 3x-ui log API support depends on the remote node version and capability. NMS detects support and degrades gracefully when a node does not expose the expected log endpoints.
-- The admin UI is now dark-first by default. The current visual baseline uses `IBM Plex Sans + Noto Sans SC + JetBrains Mono`.
-- The top header search is now interactive instead of decorative. It can route by page keyword and supports `Ctrl/Cmd + K`.
-- Light theme text tokens and interaction states were tightened so muted labels, helper text, and page-level search surfaces stay readable without dark hover artifacts.
-- In production frontend-hosting mode, missing `client/dist/index.html` now returns an explicit `503` on SPA routes instead of an opaque `500` file error. Rebuild and sync the frontend bundle before restarting PM2.
-- Inbound `settings` and `streamSettings` are normalized from either plain objects or JSON strings, so mixed panel payload shapes no longer break client counts or subscription generation.
+This keeps HTTP contracts stable and moves business logic out of route files.
 
 ### Requirements
 
-- Linux (`Ubuntu 20.04+` / `Debian 11+` recommended)
-- Node.js `18+` (`20 LTS` recommended)
-- PM2
-- Nginx (recommended, optional)
-- PostgreSQL `14+` (optional, DB mode only)
+- Linux: `Ubuntu 20.04+` or `Debian 11+` recommended
+- Node.js: `18+` required, `20 LTS` recommended
+- PM2 for source deployment
+- Nginx recommended for public access
+- PostgreSQL `14+` optional, only if you enable DB mode
 
-### Quick Start (File Storage Mode)
+### Quick Start
 
 1. Install dependencies
 
@@ -54,30 +43,35 @@ sudo apt-get install -y nodejs
 sudo npm install -g pm2
 ```
 
-2. Deploy and build
+2. Copy the project to the runtime directory
 
 ```bash
 sudo mkdir -p /opt/nms
 sudo cp -r . /opt/nms/
+```
+
+3. Install and build
+
+```bash
 cd /opt/nms/server && npm install --production
 cd /opt/nms/client && npm install && npm run build
 ```
 
-3. Configure environment
+4. Create the runtime environment file
 
 ```bash
 cd /opt/nms
 cp .env.example .env
 ```
 
-You must change at least:
+Change at least these values before production startup:
 
 - `JWT_SECRET`
 - `CREDENTIALS_SECRET`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 
-Optional but strongly recommended:
+Recommended:
 
 - `SUB_PUBLIC_BASE_URL`
 - `SMTP_HOST`
@@ -86,73 +80,57 @@ Optional but strongly recommended:
 - `SMTP_PASS`
 - `SMTP_FROM`
 
-The `.env.example` SMTP section is intentionally provider-neutral. Put your real mail provider host, port, and credentials only in your local `.env`.
-
-4. Start the service
+5. Start the service
 
 ```bash
 cd /opt/nms
 mkdir -p logs
 pm2 start ecosystem.config.cjs
 pm2 save
-pm2 startup systemd -u root --hp /root
 ```
 
-5. Access the panel
+6. Open the panel
 
 - `http://SERVER_IP:3001`
 
-### Upgrade and Deployment Workflow
+### Deployment Options
 
-Use this when upgrading an existing `/opt/nms` deployment:
+- Source + PM2: recommended when you want a conventional Linux deployment under `/opt/nms`
+- Docker / GHCR: recommended when you want image-based delivery
 
-```bash
-cd /root/NMS/client && npm install && npm run build
-cd /root/NMS/client && npm test
-cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
-cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
-pm2 restart nms
-```
+Available image tags:
 
-This repository no longer relies on a `deploy.sh` helper. Use the explicit build, sync, and restart steps above or follow the full runbook.
+- `ghcr.io/zangge8855/nms:latest`
+- `ghcr.io/zangge8855/nms:<commit_sha>`
 
-For a full runbook, see [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md).
+### First Setup Checklist
 
-### Main Admin Features
+- Log in with the admin account from `.env`
+- Open `System Settings` and set the public subscription base URL
+- Add your 3x-ui nodes in `Servers`
+- Verify node connectivity before importing users or inbounds
+- Configure SMTP only if you need verification or password-reset mail
+- Review `Subscriptions` and, if needed, assign a legacy alias path to users for old-client migration
 
-- Multi-node server registration, connectivity test, group/tag/environment governance
-- Cross-node inbound management with sorting, batch actions, and protocol-aware editing
-- Cross-node user management with subscription provisioning and entitlement sync
-- Subscription access audit with real client IP, proxy IP, and optional geo lookup
-- A shared admin shell with theme toggle, notification center, and top-header page search
-- System Settings with SMTP diagnostics, backup export, DB runtime mode controls, and health monitor status
+### Current UI Baseline
+
+- Theme mode defaults to `auto` and follows the system theme
+- UI locale defaults to `zh-CN` and can be switched to `en-US`
+- Chinese font stack prefers locally installed `Source Han Sans SC` / `Noto Sans SC` / system CJK fonts
+- Light mode hover, tooltip, search panel, audit card, tasks, logs, and modal surfaces were normalized for readability
 
 ### Documentation
 
+- [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [User Guide](docs/USER_GUIDE.md)
 - [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
 - [Admin UI Design Baseline](docs/UI_DESIGN_SYSTEM.md)
-- [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
 - [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
 - [Review Harness](docs/REVIEW_HARNESS.md)
 - [Subscription Output Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [Feature and UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
 - [Gap Backlog](docs/NMS_GAP_BACKLOG.md)
-
-### Docker and GHCR
-
-This repository includes:
-
-- `Dockerfile`
-- `.dockerignore`
-- `.github/workflows/docker.yml`
-
-On push to `main`, GitHub Actions builds and publishes images to GHCR:
-
-- `ghcr.io/zangge8855/nms:latest`
-- `ghcr.io/zangge8855/nms:<commit_sha>`
-
-More configuration details: `.env.example`
 
 ---
 
@@ -161,44 +139,31 @@ More configuration details: `.env.example`
 ### 核心能力
 
 - 多个 3x-ui 面板的集中管理
-- 用户全流程支持：注册、邮箱验证、找回密码、管理员用户管理
+- 用户全流程支持：注册、验证、找回密码、管理员侧用户治理
 - 内置订阅输出：`v2rayN`、`Raw`、`Native`、`Reconstructed`、`Clash YAML`、`Mihomo YAML`、`sing-box 导入`
-- 用户策略与开通控制：`limitIp`、总流量、到期时间、单实例单独限定
-- 审计能力：操作审计、订阅访问日志、流量趋势、集中 3x-ui 日志查看
-- 在反代和 Cloudflare 场景下记录真实访客 IP
-- 管理端增强：SMTP 诊断、系统备份导出、DB 模式切换、节点健康巡检、通知中心
-- 管理端壳层增强：顶部全局页面搜索已可用，支持 `Ctrl/Cmd + K`，实现全站移动端自适应与抽屉式侧边栏，并补齐了浅色主题下的可读性与交互一致性
-- 安全基线：JWT、凭据加密、密码策略、限流、SSRF 防护
+- 支持“旧订阅路径迁移”能力，方便把老系统地址平滑迁移到新域名
+- 审计覆盖操作日志、订阅访问、流量趋势和集中日志查看
+- 系统设置提供 SMTP 诊断、备份导出、数据库运行模式和健康巡检
+- 管理后台适配 PC 与手机端，默认跟随系统主题
+- 默认中文界面，可切换英文；页头同一时刻只显示一种语言
 
 ### 架构说明
 
-后端当前已整理为：
+后端当前按以下层次组织：
 
 - `route -> service -> repository / panel gateway`
 
-对外 API 保持兼容，重业务逻辑已经从路由层下沉。
-
-### 运行说明
-
-- NMS 现在直接生成 Clash / Mihomo YAML，不再依赖外部订阅转换器。
-- Clash / Mihomo 规则源已切换为 MetaCubeX `meta-rules-dat` 的 `mrs` 规则提供器。
-- NMS 可以触发 Telegram 备份，但 Telegram Bot 的 `Token / Chat ID / 定时通知` 仍需在 3x-ui 面板里配置，因为 3x-ui 官方 API 没有文档化的配置写入接口。
-- 3x-ui 日志 API 是否可用取决于远端节点版本和能力；NMS 会先做能力探测，不支持时返回兼容提示而不是盲目报错。
-- 当前管理端默认以深色主题作为主设计稿，字体基线为 `IBM Plex Sans + Noto Sans SC + JetBrains Mono`。
-- 顶部搜索栏现在是可交互的页面搜索入口，不再只是装饰性占位；支持按页面关键词跳转，也支持 `Ctrl/Cmd + K` 快捷键。
-- 浅色主题的文字 token 与搜索/悬浮交互层已统一收口，副标题、说明字、表头和搜索结果不再偏灰难辨，也不会在 hover 时回退成深色补丁。
-- 生产环境如果启用了前端静态托管，但缺少 `client/dist/index.html`，SPA 路由现在会明确返回 `503`，而不是 `sendFile` 的 `500` 文件错误；升级时请先重新构建并同步前端产物。
-- 入站 `settings` / `streamSettings` 已统一兼容“对象”或“JSON 字符串”两种形态，面板返回格式不一致时也不会再把客户端数量或订阅结果误判为空。
+这样可以保持 HTTP 接口稳定，同时把重业务逻辑从路由文件中抽离。
 
 ### 环境要求
 
-- Linux（推荐 `Ubuntu 20.04+` / `Debian 11+`）
-- Node.js `18+`（推荐 `20 LTS`）
-- PM2
-- Nginx（推荐，可选）
-- PostgreSQL `14+`（可选，仅数据库模式）
+- Linux：推荐 `Ubuntu 20.04+` 或 `Debian 11+`
+- Node.js：最低 `18+`，推荐 `20 LTS`
+- PM2：源码部署推荐
+- Nginx：公网访问推荐
+- PostgreSQL `14+`：可选，仅在启用数据库模式时需要
 
-### 快速开始（文件存储模式）
+### 快速开始
 
 1. 安装依赖
 
@@ -208,23 +173,28 @@ sudo apt-get install -y nodejs
 sudo npm install -g pm2
 ```
 
-2. 部署并构建
+2. 拷贝项目到运行目录
 
 ```bash
 sudo mkdir -p /opt/nms
 sudo cp -r . /opt/nms/
+```
+
+3. 安装并构建
+
+```bash
 cd /opt/nms/server && npm install --production
 cd /opt/nms/client && npm install && npm run build
 ```
 
-3. 配置环境变量
+4. 创建运行环境文件
 
 ```bash
 cd /opt/nms
 cp .env.example .env
 ```
 
-至少必须修改：
+生产环境启动前至少要改：
 
 - `JWT_SECRET`
 - `CREDENTIALS_SECRET`
@@ -240,69 +210,54 @@ cp .env.example .env
 - `SMTP_PASS`
 - `SMTP_FROM`
 
-`.env.example` 里的 SMTP 段保持为通用模板，不写死某个邮箱服务商；实际服务商主机、端口和凭据只填写到你本地部署的 `.env` 中。
-
-4. 启动服务
+5. 启动服务
 
 ```bash
 cd /opt/nms
 mkdir -p logs
 pm2 start ecosystem.config.cjs
 pm2 save
-pm2 startup systemd -u root --hp /root
 ```
 
-5. 访问面板
+6. 访问面板
 
-- `http://SERVER_IP:3001`
+- `http://服务器IP:3001`
 
-### 升级与部署流程
+### 部署方式
 
-对已有 `/opt/nms` 实例升级时，建议按下面的顺序执行：
+- 源码 + PM2：适合常规 Linux 部署，运行目录通常为 `/opt/nms`
+- Docker / GHCR：适合镜像化交付
 
-```bash
-cd /root/NMS/client && npm install && npm run build
-cd /root/NMS/client && npm test
-cp -R /root/NMS/client/dist/assets/. /opt/nms/client/dist/assets/
-cp /root/NMS/client/dist/index.html /opt/nms/client/dist/index.html
-pm2 restart nms
-```
-
-仓库已不再依赖 `deploy.sh` 之类的包装脚本；请直接使用上面的显式构建、同步和重启步骤，或参考完整 Runbook。
-
-完整说明见：[部署与升级 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
-
-### 当前管理端重点能力
-
-- 多节点服务器接入、连通性测试、分组/标签/环境治理
-- 跨节点入站管理，支持排序、批量动作、协议感知编辑
-- 跨节点用户管理，支持订阅开通和限额同步
-- 订阅访问审计，支持真实 IP、代理 IP 和可选归属地
-- 统一管理端壳层，支持主题切换、通知中心和顶部页面搜索
-- 系统设置中可直接查看 SMTP 状态、导出备份、切换 DB 模式、查看健康巡检状态
-
-### 文档索引
-
-- [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
-- [管理端 UI 设计基线](docs/UI_DESIGN_SYSTEM.md)
-- [部署与升级 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
-- [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
-- [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
-- [订阅输出说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
-- [功能与 UI 审计](docs/NMS_FEATURE_UI_AUDIT.md)
-- [缺口与 Backlog](docs/NMS_GAP_BACKLOG.md)
-
-### Docker 与 GHCR
-
-仓库已包含：
-
-- `Dockerfile`
-- `.dockerignore`
-- `.github/workflows/docker.yml`
-
-推送到 `main` 后会自动构建并发布镜像到 GHCR：
+可用镜像标签：
 
 - `ghcr.io/zangge8855/nms:latest`
 - `ghcr.io/zangge8855/nms:<commit_sha>`
 
-更多配置请参考：`.env.example`
+### 首次配置清单
+
+- 使用 `.env` 中的管理员账号登录
+- 进入“系统设置”填写订阅公网地址
+- 在“服务器管理”中录入各 3x-ui 节点
+- 在导入用户或入站前先做节点连通性检查
+- 只有在需要邮箱验证或找回密码时再配置 SMTP
+- 如需承接旧系统订阅地址，在“用户管理 / 订阅中心”为用户设置兼容路径
+
+### 当前 UI 基线
+
+- 主题模式默认 `auto`，自动跟随系统深浅主题
+- 界面语言默认 `zh-CN`，可切换 `en-US`
+- 中文字体优先使用本地安装的 `Source Han Sans SC`、`Noto Sans SC` 和系统中文字体
+- 浅色主题下的 hover、tooltip、搜索面板、审计卡片、任务页、日志页和弹窗表面已做统一收口
+
+### 文档索引
+
+- [部署 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [使用说明](docs/USER_GUIDE.md)
+- [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
+- [管理端 UI 设计基线](docs/UI_DESIGN_SYSTEM.md)
+- [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
+- [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
+- [Review Harness](docs/REVIEW_HARNESS.md)
+- [订阅输出说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
+- [功能与 UI 审计](docs/NMS_FEATURE_UI_AUDIT.md)
+- [缺口与 Backlog](docs/NMS_GAP_BACKLOG.md)

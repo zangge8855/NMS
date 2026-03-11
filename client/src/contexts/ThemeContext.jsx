@@ -7,6 +7,7 @@ const LEGACY_STORAGE_KEY = 'xui_theme';
 const VALID_THEMES = ['light', 'dark', 'auto'];
 
 function getStoredThemeMode() {
+    if (typeof window === 'undefined') return 'auto';
     const stored = localStorage.getItem(STORAGE_KEY);
     if (VALID_THEMES.includes(stored)) return stored;
 
@@ -17,7 +18,7 @@ function getStoredThemeMode() {
         return legacyStored;
     }
 
-    return 'dark';
+    return 'auto';
 }
 
 function getSystemTheme() {
@@ -52,7 +53,7 @@ export function ThemeProvider({ children }) {
     }, [mode]);
 
     const setMode = useCallback((newMode) => {
-        const m = VALID_THEMES.includes(newMode) ? newMode : 'dark';
+        const m = VALID_THEMES.includes(newMode) ? newMode : 'auto';
         setModeState(m);
         localStorage.setItem(STORAGE_KEY, m);
         localStorage.removeItem(LEGACY_STORAGE_KEY);

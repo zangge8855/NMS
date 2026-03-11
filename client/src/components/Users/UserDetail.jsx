@@ -12,6 +12,7 @@ import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlinePlusCircle,
@@ -111,6 +112,7 @@ function formatSummaryText(item) {
 }
 
 export default function UserDetail() {
+    const { t } = useI18n();
     const { userId } = useParams();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -465,7 +467,11 @@ export default function UserDetail() {
     if (loading) {
         return (
             <>
-                <Header title="用户详情" subtitle="账号、客户端、订阅令牌与活动日志" eyebrow="Identity Detail" />
+                <Header
+                    title={t('pages.userDetail.title')}
+                    subtitle={t('pages.userDetail.subtitle')}
+                    eyebrow={t('pages.userDetail.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
@@ -478,7 +484,11 @@ export default function UserDetail() {
     if (!user) {
         return (
             <>
-                <Header title="用户详情" subtitle="账号、客户端、订阅令牌与活动日志" eyebrow="Identity Detail" />
+                <Header
+                    title={t('pages.userDetail.title')}
+                    subtitle={t('pages.userDetail.subtitle')}
+                    eyebrow={t('pages.userDetail.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <EmptyState title="用户不存在" subtitle="该用户可能已被删除" action={
                         <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
@@ -499,7 +509,11 @@ export default function UserDetail() {
 
     return (
         <>
-            <Header title={`用户详情 — ${user.username}`} subtitle="查看账号状态、客户端分布、订阅令牌与活动日志" eyebrow="Identity Detail" />
+            <Header
+                title={t('pages.userDetail.titleWithName', { name: user.username })}
+                subtitle={t('pages.userDetail.subtitle')}
+                eyebrow={t('pages.userDetail.eyebrow')}
+            />
             <div className="page-content page-enter">
                 {/* Back button */}
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
@@ -528,6 +542,11 @@ export default function UserDetail() {
                                 {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
                                     <div className="user-profile-meta-item">
                                         <HiOutlineEnvelope /> 订阅邮箱: {user.subscriptionEmail}
+                                    </div>
+                                )}
+                                {user.subscriptionAliasPath && (
+                                    <div className="user-profile-meta-item">
+                                        <HiOutlineGlobeAlt /> 兼容路径: {user.subscriptionAliasPath}
                                     </div>
                                 )}
                             </div>

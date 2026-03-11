@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -23,6 +24,7 @@ const PANEL_AUTH_REPAIR_CODES = new Set([
 ]);
 
 export default function Servers() {
+    const { t } = useI18n();
     const navigate = useNavigate();
     const {
         servers, activeServerId, selectServer,
@@ -490,7 +492,11 @@ export default function Servers() {
 
     return (
         <>
-            <Header title="服务器管理" subtitle="管理 3x-ui 节点接入、健康检查与凭据状态" eyebrow="Server Registry" />
+            <Header
+                title={t('pages.servers.title')}
+                subtitle={t('pages.servers.subtitle')}
+                eyebrow={t('pages.servers.eyebrow')}
+            />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-6 glass-panel p-4 servers-toolbar">
                     <div>

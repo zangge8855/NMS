@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { LanguageProvider } from '../contexts/LanguageContext.jsx';
 
 export function renderWithRouter(ui, options = {}) {
     const { route = '/', ...rest } = options;
@@ -12,7 +13,7 @@ export function renderWithRouter(ui, options = {}) {
             }}
             initialEntries={[route]}
         >
-            {ui}
+            <LanguageProvider>{ui}</LanguageProvider>
         </MemoryRouter>,
         rest
     );

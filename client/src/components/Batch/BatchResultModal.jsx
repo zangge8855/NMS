@@ -22,7 +22,7 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
 
     return (
         <ModalShell isOpen={isOpen} onClose={onClose}>
-            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal modal-lg batch-result-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">{title}</h3>
                     <button className="modal-close" onClick={onClose}>
@@ -31,7 +31,7 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                 </div>
 
                 <div className="modal-body">
-                    <div className="card" style={{ marginBottom: '12px', padding: '12px' }}>
+                    <div className="card batch-result-summary" style={{ marginBottom: '12px', padding: '12px' }}>
                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
                             <span className="badge badge-neutral">总计 {summary.total}</span>
                             <span className="badge badge-success">成功 {summary.success}</span>
@@ -39,7 +39,7 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                         </div>
                     </div>
 
-                    <div className="table-container" style={{ maxHeight: '420px', overflow: 'auto' }}>
+                    <div className="table-container batch-result-table" style={{ maxHeight: '420px', overflow: 'auto' }}>
                         <table className="table">
                             <thead>
                                 <tr>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import {
     HiOutlineCloud,
     HiOutlineServerStack,
@@ -23,6 +24,7 @@ function isUnsupportedPathInGlobal(pathname) {
 export default function Sidebar({ collapsed, open = false, onClose, onToggle }) {
     const { servers, activeServer, activeServerId, selectServer } = useServer();
     const { logout, user } = useAuth();
+    const { locale, t } = useI18n();
     const { unreadCount } = useNotifications();
     const [showServerMenu, setShowServerMenu] = useState(false);
     const [serverSearch, setServerSearch] = useState('');
@@ -31,8 +33,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const serverSelectorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
-    const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView });
-    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView });
+    const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
+    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
 
     useEffect(() => {
         setShowServerMenu(false);
@@ -65,11 +67,15 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">N</div>
                 <div className="sidebar-logo-copy">
                     <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
-                    <span className="sidebar-logo-subtitle">Node Management System</span>
+                    <span className="sidebar-logo-subtitle">{t('shell.brandSubtitle')}</span>
                 </div>
             </div>
 
-            <button className="sidebar-toggle" onClick={onToggle} aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}>
+            <button
+                className="sidebar-toggle"
+                onClick={onToggle}
+                aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
+            >
                 {collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />}
             </button>
 
@@ -106,7 +112,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                 })}
 
                 <div className="nav-section nav-section-footer" style={{ marginTop: 'auto' }}>
-                    <div className="nav-section-title">{isAdmin ? '系统' : '账户'}</div>
+                    <div className="nav-section-title">{isAdmin ? t('nav.system') : t('nav.account')}</div>
                     {visibleFooterItems.map((item) => (
                         <NavLink
                             key={item.path}
@@ -129,7 +135,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                         onClick={() => { logout(); onClose?.(); }}
                     >
                         <span className="nav-item-icon text-muted"><HiOutlineArrowRightOnRectangle /></span>
-                        <span className="nav-label">退出登录</span>
+                        <span className="nav-label">{t('shell.logout')}</span>
                     </button>
                 </div>
             </nav>
@@ -137,8 +143,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
             <div className="sidebar-user">
                 <div className="sidebar-user-avatar">{user?.username?.[0]?.toUpperCase() || 'U'}</div>
                 <div className="sidebar-user-info">
-                    <div className="sidebar-user-name">{user?.username || '用户'}</div>
-                    <div className="sidebar-user-role">{isAdmin ? '管理员' : '用户'}</div>
+                    <div className="sidebar-user-name">{user?.username || t('shell.roleUser')}</div>
+                    <div className="sidebar-user-role">{isAdmin ? t('shell.roleAdmin') : t('shell.roleUser')}</div>
                 </div>
             </div>
 
@@ -153,8 +159,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                     >
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
-                            <div className="server-name text-glow">集群总览</div>
-                            <div className="server-addr text-muted">Global View</div>
+                            <div className="server-name text-glow">{t('shell.scopeGlobalValue')}</div>
+                            <div className="server-addr text-muted">{t('shell.scopeGlobalSubtitle')}</div>
                         </div>
                         <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
                     </button>
@@ -176,7 +182,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                     <button type="button" className="server-selector-btn" onClick={() => setShowServerMenu(!showServerMenu)} aria-expanded={showServerMenu}>
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
-                            <div className="server-name text-glow">选择服务器</div>
+                            <div className="server-name text-glow">{t('shell.selectServer')}</div>
                         </div>
                         <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
                     </button>
@@ -188,7 +194,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                             <input
                                 type="text"
                                 className="server-search-input"
-                                placeholder="搜索服务器…"
+                                placeholder={t('shell.searchServersPlaceholder')}
                                 value={serverSearch}
                                 onChange={(e) => setServerSearch(e.target.value)}
                                 autoFocus
@@ -201,8 +207,8 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                         >
                             <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
                             <div>
-                                <div className="font-medium">集群总览</div>
-                                <div className="text-muted text-xs">Global View</div>
+                                <div className="font-medium">{t('shell.scopeGlobalValue')}</div>
+                                <div className="text-muted text-xs">{t('shell.scopeGlobalSubtitle')}</div>
                             </div>
                         </div>
 

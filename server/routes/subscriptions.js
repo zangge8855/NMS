@@ -9,6 +9,7 @@ import config from '../config.js';
 import auditStore from '../store/auditStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
+import { normalizeSubscriptionAliasPath, isReservedSubscriptionAliasPath } from '../lib/subscriptionAlias.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
@@ -1644,8 +1645,23 @@ function buildLegacyPublicBase(req, email) {
     return `${base}/api/subscriptions/public/${encodeURIComponent(email)}/${sig}`;
 }
 
-function buildSubscriptionUrls(publicBase, mode, serverId) {
+function resolveSubscriptionAliasPathByEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return '';
+    const owner = userStore.getBySubscriptionEmail(normalizedEmail) || userStore.getByEmail(normalizedEmail);
+    return normalizeSubscriptionAliasPath(owner?.subscriptionAliasPath);
+}
+
+function buildAliasPublicBase(req, email) {
+    const base = resolvePublicBase(req);
+    const aliasPath = resolveSubscriptionAliasPathByEmail(email);
+    if (!base || !aliasPath) return '';
+    return `${base}${aliasPath}`;
+}
+
+function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
     const base = String(publicBase || '').trim();
+    const aliasBase = String(options.aliasBase || '').trim();
     if (!base) {
         return {
             subscriptionUrl: '',
@@ -1658,6 +1674,10 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
             subscriptionUrlClash: '',
             subscriptionUrlMihomo: '',
             subscriptionUrlSingbox: '',
+            subscriptionAliasUrl: '',
+            subscriptionAliasUrlRaw: '',
+            subscriptionAliasUrlClash: '',
+            subscriptionAliasUrlMihomo: '',
             subscriptionConverterConfigured: false,
         };
     }
@@ -1690,6 +1710,10 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
     const subscriptionUrlClash = appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = appendQuery(subscriptionUrl, { format: 'mihomo' });
     const subscriptionUrlSingbox = '';
+    const subscriptionAliasUrl = aliasBase ? appendQuery(aliasBase, query) : '';
+    const subscriptionAliasUrlRaw = subscriptionAliasUrl ? appendQuery(subscriptionAliasUrl, { format: 'raw' }) : '';
+    const subscriptionAliasUrlClash = subscriptionAliasUrl ? appendQuery(subscriptionAliasUrl, { format: 'clash' }) : '';
+    const subscriptionAliasUrlMihomo = subscriptionAliasUrl ? appendQuery(subscriptionAliasUrl, { format: 'mihomo' }) : '';
 
     return {
         subscriptionUrl,
@@ -1702,6 +1726,10 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         subscriptionUrlClash,
         subscriptionUrlMihomo,
         subscriptionUrlSingbox,
+        subscriptionAliasUrl,
+        subscriptionAliasUrlRaw,
+        subscriptionAliasUrlClash,
+        subscriptionAliasUrlMihomo,
         subscriptionConverterConfigured: false,
     };
 }
@@ -1959,6 +1987,84 @@ router.get('/public/:email/:sig', async (req, res) => {
     return res.send(encoded);
 });
 
+async function handleSubscriptionAliasRequest(req, res, next) {
+    if (req.method !== 'GET') return next();
+    const aliasPath = normalizeSubscriptionAliasPath(req.path);
+    if (!aliasPath || isReservedSubscriptionAliasPath(aliasPath)) return next();
+
+    const owner = userStore.getBySubscriptionAliasPath(aliasPath);
+    if (!owner) return next();
+
+    const email = normalizeEmail(owner.subscriptionEmail || owner.email);
+    const mode = normalizeMode(req.query.mode);
+    const serverId = normalizeServerId(req.query.serverId);
+    const format = normalizeSubscriptionFormat(req.query.format);
+
+    if (!email) {
+        appendSubscriptionAccessAudit(req, {
+            email: '',
+            tokenId: 'alias-path',
+            status: 'denied',
+            reason: 'user-not-found',
+            mode,
+            serverId,
+            format,
+        });
+        return res.status(404).send('subscription alias not bound');
+    }
+
+    const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
+    if (serverNotFound) {
+        appendSubscriptionAccessAudit(req, {
+            email,
+            tokenId: 'alias-path',
+            status: 'denied',
+            reason: 'server-not-found',
+            mode,
+            serverId,
+            format,
+        });
+        return res.status(404).send('server not found');
+    }
+
+    if (links.length === 0) {
+        appendSubscriptionAccessAudit(req, {
+            email,
+            tokenId: 'alias-path',
+            status: inactiveReason === 'all-expired-or-disabled' ? 'expired' : 'denied',
+            reason: inactiveReason || 'no-links-found',
+            mode,
+            serverId,
+            format,
+        });
+        return res.status(410).send(inactiveReason || 'no links found');
+    }
+
+    appendSubscriptionAccessAudit(req, {
+        email,
+        tokenId: 'alias-path',
+        status: 'success',
+        reason: 'ok',
+        mode,
+        serverId,
+        format,
+    });
+
+    const { raw, encoded } = buildSubscriptionPayload(links);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Subscription-Alias-Path', aliasPath);
+    if (format === 'clash') {
+        const yaml = buildMihomoConfigFromLinks(links);
+        if (!yaml) {
+            return res.status(410).send('no clash-compatible links found');
+        }
+        res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+        return res.send(yaml);
+    }
+    if (format === 'raw') return res.send(raw);
+    return res.send(encoded);
+}
+
 router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     const requestedServerId = normalizeServerId(req.query.serverId);
     const allServers = serverStore.getAll();
@@ -2205,11 +2311,17 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     let subscriptionUrlClash = '';
     let subscriptionUrlMihomo = '';
     let subscriptionUrlSingbox = '';
+    let subscriptionAliasUrl = '';
+    let subscriptionAliasUrlRaw = '';
+    let subscriptionAliasUrlClash = '';
+    let subscriptionAliasUrlMihomo = '';
     let subscriptionConverterConfigured = false;
+    const subscriptionAliasPath = resolveSubscriptionAliasPathByEmail(email);
 
     if (scopeToken?.token) {
         const publicBase = buildTokenPublicBase(req, email, scopeToken.token);
-        const builtUrls = buildSubscriptionUrls(publicBase, mode, serverId);
+        const aliasBase = buildAliasPublicBase(req, email);
+        const builtUrls = buildSubscriptionUrls(publicBase, mode, serverId, { aliasBase });
         subscriptionUrl = builtUrls.subscriptionUrl;
         subscriptionUrlRaw = builtUrls.subscriptionUrlRaw;
         subscriptionUrlNative = builtUrls.subscriptionUrlNative;
@@ -2220,6 +2332,10 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
         subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
         subscriptionUrlSingbox = builtUrls.subscriptionUrlSingbox;
+        subscriptionAliasUrl = builtUrls.subscriptionAliasUrl;
+        subscriptionAliasUrlRaw = builtUrls.subscriptionAliasUrlRaw;
+        subscriptionAliasUrlClash = builtUrls.subscriptionAliasUrlClash;
+        subscriptionAliasUrlMihomo = builtUrls.subscriptionAliasUrlMihomo;
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
     }
     const legacySubscriptionUrl = '';
@@ -2259,6 +2375,11 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             subscriptionUrlClash,
             subscriptionUrlMihomo,
             subscriptionUrlSingbox,
+            subscriptionAliasPath,
+            subscriptionAliasUrl,
+            subscriptionAliasUrlRaw,
+            subscriptionAliasUrlClash,
+            subscriptionAliasUrlMihomo,
             subscriptionConverterConfigured,
             legacySubscriptionUrl,
             token: {
@@ -2279,6 +2400,8 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
 export default router;
 export {
     buildMihomoConfigFromLinks,
+    buildSubscriptionUrls,
+    handleSubscriptionAliasRequest,
     normalizeSubscriptionFormat,
     selectNativeSubIds,
 };

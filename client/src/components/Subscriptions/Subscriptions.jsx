@@ -10,6 +10,7 @@ import Header from '../Layout/Header.jsx';
 import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 
 function normalizeInactiveReason(reason) {
@@ -36,9 +37,18 @@ function renderTokenStatus(status) {
     return <span className="badge badge-neutral">{status || '未知'}</span>;
 }
 
+function getAliasProfileUrl(result, profileKey) {
+    if (!result) return '';
+    if (profileKey === 'clash') return result.subscriptionAliasUrlClash || '';
+    if (profileKey === 'mihomo') return result.subscriptionAliasUrlMihomo || '';
+    if (profileKey === 'raw') return result.subscriptionAliasUrlRaw || '';
+    return result.subscriptionAliasUrl || '';
+}
+
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
+    const { t } = useI18n();
     const [searchParams] = useSearchParams();
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
@@ -64,6 +74,10 @@ export default function Subscriptions() {
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
     const activeProfile = useMemo(
         () => findSubscriptionProfile(result?.bundle, profileKey),
+        [result, profileKey]
+    );
+    const activeAliasUrl = useMemo(
+        () => getAliasProfileUrl(result, profileKey),
         [result, profileKey]
     );
 
@@ -141,6 +155,11 @@ export default function Subscriptions() {
                 scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
                 serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
                 token: payload.token || null,
+                subscriptionAliasPath: payload.subscriptionAliasPath || '',
+                subscriptionAliasUrl: payload.subscriptionAliasUrl || '',
+                subscriptionAliasUrlRaw: payload.subscriptionAliasUrlRaw || '',
+                subscriptionAliasUrlClash: payload.subscriptionAliasUrlClash || '',
+                subscriptionAliasUrlMihomo: payload.subscriptionAliasUrlMihomo || '',
             });
             if (bundle.defaultProfileKey) {
                 setProfileKey(bundle.defaultProfileKey);
@@ -232,8 +251,9 @@ export default function Subscriptions() {
 
     return (
         <>
-            <Header title="订阅中心" />
+            <Header title={t('pages.subscriptions.title')} showContext={isAdmin} />
             <div className="page-content page-enter">
+                {isAdmin && (
                 <div className="card mb-8">
                     <div className="card-header">
                         <span className="card-title">节点合并订阅（自动生成并持久保留）</span>
@@ -304,43 +324,55 @@ export default function Subscriptions() {
                         </button>
                     </div>
                 </div>
+                )}
 
                 {!result ? (
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineLink /></div>
-                        <div className="empty-state-text">输入邮箱后会自动加载订阅地址</div>
+                        <div className="empty-state-text">
+                            {isUserOnly ? (defaultIdentity ? '正在加载订阅地址' : '管理员尚未为当前账号分配订阅链接') : '输入邮箱后会自动加载订阅地址'}
+                        </div>
                     </div>
                 ) : (
                     <>
-                        <div
-                            className="grid gap-4 mb-8"
-                            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}
-                        >
-                            <div className="card">
-                                <div className="text-sm text-muted">用户</div>
-                                <div style={{ fontSize: '18px', fontWeight: 700 }}>{result.email}</div>
-                            </div>
-                            <div className="card">
-                                <div className="text-sm text-muted">状态</div>
-                                <div style={{ fontSize: '24px', fontWeight: 700 }}>
-                                    {result.subscriptionActive ? '可用' : '失效'}
+                        {isAdmin && (
+                            <div
+                                className="grid gap-4 mb-8"
+                                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}
+                            >
+                                <div className="card">
+                                    <div className="text-sm text-muted">用户</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 700 }}>{result.email}</div>
                                 </div>
-                                <div className="text-sm text-muted">{result.inactiveReason || '-'}</div>
-                            </div>
-                            <div className="card">
-                                <div className="text-sm text-muted">有效节点链接数</div>
-                                <div style={{ fontSize: '24px', fontWeight: 700 }}>{result.total}</div>
-                            </div>
-                            <div className="card">
-                                <div className="text-sm text-muted">过滤统计</div>
-                                <div className="text-sm text-muted">
-                                    过期 {result.filteredExpired} / 禁用 {result.filteredDisabled} / 权限 {result.filteredByPolicy}
+                                <div className="card">
+                                    <div className="text-sm text-muted">状态</div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700 }}>
+                                        {result.subscriptionActive ? '可用' : '失效'}
+                                    </div>
+                                    <div className="text-sm text-muted">{result.inactiveReason || '-'}</div>
                                 </div>
-                                <div className="text-sm text-muted">
-                                    匹配 {result.matchedClientsActive}/{result.matchedClientsRaw}
+                                <div className="card">
+                                    <div className="text-sm text-muted">有效节点链接数</div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700 }}>{result.total}</div>
                                 </div>
+                                <div className="card">
+                                    <div className="text-sm text-muted">过滤统计</div>
+                                    <div className="text-sm text-muted">
+                                        过期 {result.filteredExpired} / 禁用 {result.filteredDisabled} / 权限 {result.filteredByPolicy}
+                                    </div>
+                                    <div className="text-sm text-muted">
+                                        匹配 {result.matchedClientsActive}/{result.matchedClientsRaw}
+                                    </div>
+                                </div>
+                                {result.subscriptionAliasPath && (
+                                    <div className="card">
+                                        <div className="text-sm text-muted">兼容迁移路径</div>
+                                        <div style={{ fontSize: '18px', fontWeight: 700 }}>{result.subscriptionAliasPath}</div>
+                                        <div className="text-sm text-muted">旧系统客户端可继续使用这条路径访问</div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
+                        )}
 
                         <div className="card mb-8">
                             <div className="card-header">
@@ -379,6 +411,21 @@ export default function Subscriptions() {
                                     <HiOutlineQrCode /> QR
                                 </button>
                             </div>
+                            {activeAliasUrl && (
+                                <>
+                                    <div className="text-xs text-muted mb-2 mt-3">兼容迁移地址</div>
+                                    <div className="subscription-link-grid subscription-link-grid-migration" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '10px' }}>
+                                        <input className="form-input font-mono text-xs" value={activeAliasUrl} readOnly />
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => copyToClipboard(activeAliasUrl).then(() => toast.success('兼容地址已复制'))}
+                                            disabled={!result.subscriptionActive}
+                                        >
+                                            <HiOutlineClipboard /> 复制迁移地址
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                             <SubscriptionClientLinks bundle={result.bundle} />
                         </div>
 

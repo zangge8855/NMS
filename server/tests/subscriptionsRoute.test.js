@@ -10,6 +10,7 @@ process.env.JWT_SECRET = 'test-secret-key-for-subscription-routes';
 
 const {
     buildMihomoConfigFromLinks,
+    buildSubscriptionUrls,
     normalizeSubscriptionFormat,
     selectNativeSubIds,
 } = await import('../routes/subscriptions.js');
@@ -44,6 +45,23 @@ describe('subscription response formats', () => {
         assert.equal(normalizeSubscriptionFormat('raw'), 'raw');
         assert.equal(normalizeSubscriptionFormat('encoded'), 'encoded');
         assert.equal(normalizeSubscriptionFormat('something-else'), 'encoded');
+    });
+});
+
+describe('subscription url generation', () => {
+    it('builds token and alias subscription variants together', () => {
+        const urls = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            { aliasBase: 'https://new.example.com/sub/legacy-user-a' }
+        );
+
+        assert.equal(urls.subscriptionUrl, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value');
+        assert.equal(urls.subscriptionAliasUrl, 'https://new.example.com/sub/legacy-user-a');
+        assert.equal(urls.subscriptionAliasUrlRaw, 'https://new.example.com/sub/legacy-user-a?format=raw');
+        assert.equal(urls.subscriptionAliasUrlClash, 'https://new.example.com/sub/legacy-user-a?format=clash');
+        assert.equal(urls.subscriptionAliasUrlMihomo, 'https://new.example.com/sub/legacy-user-a?format=mihomo');
     });
 });
 

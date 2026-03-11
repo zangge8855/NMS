@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import {
@@ -108,6 +109,7 @@ function extractLogTimestamp(line) {
 
 export default function Logs({ embedded = false, sourceMode = 'auto', displayLabel = '' }) {
     const { activeServerId, activeServer, servers } = useServer();
+    const { t } = useI18n();
     const isGlobal = activeServerId === 'global';
     const lockedSourceMode = ['auto', 'panel', 'system', 'xray'].includes(sourceMode) ? sourceMode : 'auto';
 
@@ -286,12 +288,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     // ── Render ────────────────────────────────────────────
     return (
         <>
-            {!embedded && <Header title={isGlobal ? `集群${sourceLabel}` : sourceLabel} />}
+            {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}` : sourceLabel} />}
             <div className={embedded ? '' : 'page-content page-enter'}>
                 {/* Toolbar */}
-                <div className="card mb-4">
+                <div className="card mb-4 logs-toolbar">
                     <div className="card-header card-header-flat">
-                        <div className="flex items-center gap-8 flex-wrap flex-1">
+                        <div className="flex items-center gap-8 flex-wrap flex-1 logs-toolbar-main">
                             <HiOutlineFunnel className="text-muted" />
 
                             <select
@@ -333,7 +335,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             />
                         </div>
 
-                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-8 logs-toolbar-actions">
                             <button className="btn btn-secondary btn-sm" onClick={copyLogs} title="复制日志">
                                 <HiOutlineClipboardDocument /> 复制
                             </button>
@@ -347,7 +349,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                 {/* Global Mode: Server Selector */}
                 {isGlobal && (
-                    <div className="card mb-4">
+                    <div className="card mb-4 logs-server-card">
                         <div className="card-header card-header-flat-tight">
                             <div className="flex items-center gap-8">
                                 <HiOutlineServerStack className="text-muted" />
@@ -379,7 +381,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {fetchSummary?.message && (
-                    <div className="card mb-4" style={fetchSummaryMeta.style}>
+                    <div className="card mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
                         <div className="card-header card-header-flat-tight">
                             <div className="flex items-center gap-8">
                                 <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.iconColor }} />
@@ -391,7 +393,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {/* Log Viewer */}
-                <div className="card flex-1">
+                <div className="card flex-1 logs-viewer-card">
                     <div className="card-header">
                         <div className="flex items-center gap-8">
                             <HiOutlineDocumentText className="text-muted" />

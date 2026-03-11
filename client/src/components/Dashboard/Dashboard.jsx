@@ -21,6 +21,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import NodeHealthGrid from './NodeHealthGrid.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -164,6 +165,7 @@ function WsStatusDot({ status }) {
 export default function Dashboard() {
     const { activeServerId, panelApi, activeServer, servers } = useServer();
     const { token } = useAuth();
+    const { t } = useI18n();
     const navigate = useNavigate();
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
@@ -408,7 +410,11 @@ export default function Dashboard() {
     if (!activeServerId && servers.length === 0 && activeServerId !== 'global') {
         return (
             <>
-                <Header title="仪表盘" subtitle="请先接入至少一台 3x-ui 节点后查看运行总览" />
+                <Header
+                    title={t('pages.dashboardEmpty.title')}
+                    subtitle={t('pages.dashboardEmpty.subtitle')}
+                />
+                
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineServerStack style={{ fontSize: '48px' }} /></div>
@@ -454,9 +460,9 @@ export default function Dashboard() {
         return (
             <>
                 <Header
-                    title="集群仪表盘"
-                    subtitle="跨节点观察在线态、容量与异常分布"
-                    eyebrow="Operations Overview"
+                    title={t('pages.dashboardGlobal.title')}
+                    subtitle={t('pages.dashboardGlobal.subtitle')}
+                    eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
                 />
                 <div className="page-content page-enter">
@@ -572,9 +578,11 @@ export default function Dashboard() {
     return (
         <>
             <Header
-                title="仪表盘"
-                subtitle={activeServer ? `当前聚焦节点 ${activeServer.name} 的资源、入站与在线用户` : '当前节点运行总览'}
-                eyebrow="Node Overview"
+                title={t('pages.dashboardNode.title')}
+                subtitle={activeServer
+                    ? t('pages.dashboardNode.subtitleWithName', { name: activeServer.name })
+                    : t('pages.dashboardNode.subtitle')}
+                eyebrow={t('pages.dashboardNode.eyebrow')}
             />
             <div className="page-content page-enter">
                 <div className="dashboard-toolbar">

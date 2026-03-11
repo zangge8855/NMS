@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineCircleStack } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 
@@ -31,6 +32,7 @@ function renderProbeSource(source) {
 
 export default function Capabilities() {
     const { activeServerId } = useServer();
+    const { t } = useI18n();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
 
@@ -69,7 +71,7 @@ export default function Capabilities() {
     if (!activeServerId) {
         return (
             <>
-                <Header title="3x-ui 能力" />
+                <Header title={t('pages.capabilities.title')} />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineCircleStack /></div>
@@ -82,7 +84,7 @@ export default function Capabilities() {
 
     return (
         <>
-            <Header title="3x-ui 能力" />
+            <Header title={t('pages.capabilities.title')} />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-8">
                     <div>

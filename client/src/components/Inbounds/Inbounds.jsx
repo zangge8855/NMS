@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import { formatBytes } from '../../utils/format.js';
@@ -56,6 +57,7 @@ function buildClientActionKey(serverId, inboundId, clientIdentifier) {
 
 export default function Inbounds() {
     const { servers } = useServer();
+    const { t } = useI18n();
     const confirmAction = useConfirm();
 
     const [inbounds, setInbounds] = useState([]);
@@ -525,7 +527,11 @@ export default function Inbounds() {
     if (servers.length === 0) {
         return (
             <>
-                <Header title="入站管理" subtitle="跨节点维护协议、端口、客户端和限额策略" eyebrow="Traffic & Inbounds" />
+                <Header
+                    title={t('pages.inbounds.title')}
+                    subtitle={t('pages.inbounds.subtitle')}
+                    eyebrow={t('pages.inbounds.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineSignal style={{ fontSize: '48px' }} /></div>
@@ -538,7 +544,11 @@ export default function Inbounds() {
 
     return (
         <>
-            <Header title="入站管理" subtitle="跨节点维护协议、端口、客户端和限额策略" eyebrow="Traffic & Inbounds" />
+            <Header
+                title={t('pages.inbounds.title')}
+                subtitle={t('pages.inbounds.subtitle')}
+                eyebrow={t('pages.inbounds.eyebrow')}
+            />
             <div className="page-content page-enter">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-6 glass-panel p-4 mobile-toolbar inbounds-toolbar">

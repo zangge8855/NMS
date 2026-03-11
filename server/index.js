@@ -9,7 +9,7 @@ import { authMiddleware, adminOnly } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import proxyRoutes from './routes/proxy.js';
-import subscriptionRoutes from './routes/subscriptions.js';
+import subscriptionRoutes, { handleSubscriptionAliasRequest } from './routes/subscriptions.js';
 import batchRoutes from './routes/batch.js';
 import capabilitiesRoutes from './routes/capabilities.js';
 import protocolSchemasRoutes from './routes/protocolSchemas.js';
@@ -92,6 +92,9 @@ app.use('/api', (req, res) => {
     });
 });
 
+app.use((req, res, next) => {
+    Promise.resolve(handleSubscriptionAliasRequest(req, res, next)).catch(next);
+});
 
 // Serve React build in production (or when explicitly enabled)
 const shouldServeClientBuild = config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';

@@ -11,6 +11,7 @@ import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inbou
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
@@ -37,6 +38,7 @@ function formatTime(ts) {
 }
 
 export default function ServerDetail() {
+    const { t } = useI18n();
     const { serverId } = useParams();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -296,7 +298,11 @@ export default function ServerDetail() {
     if (loading) {
         return (
             <>
-                <Header title="服务器详情" subtitle="节点资源、入站、在线用户与审计记录" eyebrow="Server Detail" />
+                <Header
+                    title={t('pages.serverDetail.title')}
+                    subtitle={t('pages.serverDetail.subtitle')}
+                    eyebrow={t('pages.serverDetail.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
@@ -309,7 +315,11 @@ export default function ServerDetail() {
     if (!server) {
         return (
             <>
-                <Header title="服务器详情" subtitle="节点资源、入站、在线用户与审计记录" eyebrow="Server Detail" />
+                <Header
+                    title={t('pages.serverDetail.title')}
+                    subtitle={t('pages.serverDetail.subtitle')}
+                    eyebrow={t('pages.serverDetail.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <EmptyState title="服务器不存在" subtitle="该服务器可能已被删除" action={
                         <button className="btn btn-secondary" onClick={() => navigate('/servers')}>
@@ -336,7 +346,11 @@ export default function ServerDetail() {
 
     return (
         <>
-            <Header title={`服务器 — ${server.name}`} subtitle="资源状态、入站配置、在线会话与节点审计" eyebrow="Server Detail" />
+            <Header
+                title={t('pages.serverDetail.titleWithName', { name: server.name })}
+                subtitle={t('pages.serverDetail.subtitle')}
+                eyebrow={t('pages.serverDetail.eyebrow')}
+            />
             <div className="page-content page-enter">
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
                     <HiOutlineArrowLeft /> 返回服务器列表

@@ -91,10 +91,10 @@
   --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography — Inter + CJK fallback */
-  --font-family: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-display: 'IBM Plex Sans', 'Noto Sans SC', system-ui, sans-serif;
+  /* Typography — prefer locally available Chinese UI fonts over remote webfonts */
+  --font-family: 'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --font-display: 'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
 }
 

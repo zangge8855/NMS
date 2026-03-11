@@ -4,6 +4,7 @@ import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineCog6Tooth } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 
@@ -58,6 +59,7 @@ function buildDraft(source = null) {
 }
 
 export default function SystemSettings() {
+    const { t } = useI18n();
     const { user } = useAuth();
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
@@ -416,7 +418,11 @@ export default function SystemSettings() {
     if (!isAdmin) {
         return (
             <>
-                <Header title="系统设置" subtitle="仅管理员可查看和调整全局运行参数" eyebrow="Platform Settings" />
+                <Header
+                    title={t('pages.settings.title')}
+                    subtitle={t('pages.settings.limitedSubtitle')}
+                    eyebrow={t('pages.settings.eyebrow')}
+                />
                 <div className="page-content page-enter">
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineCog6Tooth /></div>
@@ -429,7 +435,11 @@ export default function SystemSettings() {
 
     return (
         <>
-            <Header title="系统设置" subtitle="全局参数、运行诊断、存储与备份状态" eyebrow="Platform Settings" />
+            <Header
+                title={t('pages.settings.title')}
+                subtitle={t('pages.settings.subtitle')}
+                eyebrow={t('pages.settings.eyebrow')}
+            />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-6 settings-toolbar">
                     <div className="text-sm text-muted settings-toolbar-copy">

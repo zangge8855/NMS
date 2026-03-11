@@ -8,6 +8,7 @@ import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import toast from 'react-hot-toast';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 function formatAction(type, action) {
     return `${type || '-'} / ${action || '-'}`;
@@ -15,6 +16,7 @@ function formatAction(type, action) {
 
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
+    const { t } = useI18n();
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
@@ -145,16 +147,16 @@ export default function Tasks({ embedded = false }) {
 
     return (
         <>
-            {!embedded && <Header title="任务中心" />}
+            {!embedded && <Header title={t('pages.tasks.title')} />}
             <div className={embedded ? '' : 'page-content page-enter'}>
-                <div className="flex items-center justify-between mb-8">
-                    <div>
+                <div className="page-section-head tasks-page-head mb-8">
+                    <div className="tasks-page-copy">
                         <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
                             {embedded ? '任务日志' : '批量任务历史'}
                         </h2>
                         <p className="text-sm text-muted mt-1">记录批量用户/入站操作的执行结果</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 tasks-page-actions">
                         <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
                             <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
                         </button>
@@ -164,7 +166,7 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 </div>
 
-                <div className="card mb-8" style={{ padding: '12px' }}>
+                <div className="card mb-8 tasks-filter-card" style={{ padding: '12px' }}>
                     <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
                         <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ width: '140px' }}>
                             <option value="all">全部类型</option>
@@ -198,7 +200,7 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 </div>
 
-                <div className="table-container">
+                <div className="table-container tasks-table-shell">
                     <table className="table">
                         <thead>
                             <tr>

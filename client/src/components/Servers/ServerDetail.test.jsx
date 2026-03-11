@@ -134,7 +134,7 @@ describe('ServerDetail', () => {
 
         renderWithRouter(<ServerDetail />);
 
-        await screen.findByText('服务器 — Test Server');
+        await screen.findByText('服务器 · Test Server');
 
         const inboundCard = screen.getByText('入站规则').closest('.stat-mini-card');
         const clientsCard = screen.getByText('客户端数').closest('.stat-mini-card');
