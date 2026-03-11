@@ -6085,6 +6085,13 @@ body::before {
   gap: 8px;
 }
 
+.inbounds-usage-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .inbounds-clients-cell {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(10, 10, 11, 0.5);
@@ -6102,6 +6109,20 @@ body::before {
 
 .inbounds-clients-table th {
   font-size: 10px;
+}
+
+.inbounds-client-id-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(100%, 220px);
+}
+
+.inbounds-client-id-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .users-toolbar,
@@ -8837,6 +8858,8 @@ input[type="radio"]:focus-visible {
 }
 
 .server-card-summary {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
   min-width: 0;
   width: 100%;
   align-items: flex-start !important;
@@ -8845,6 +8868,16 @@ input[type="radio"]:focus-visible {
 .server-card-copy {
   min-width: 0;
   width: 100%;
+  overflow: hidden;
+}
+
+.server-card-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .server-card-url-row {
@@ -8870,6 +8903,10 @@ input[type="radio"]:focus-visible {
 @media (max-width: 768px) {
   .server-card-head {
     grid-template-columns: 1fr;
+  }
+
+  .server-card-summary {
+    width: 100%;
   }
 
   .server-card-controls {

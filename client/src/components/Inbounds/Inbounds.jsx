@@ -4,7 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
-import { formatBytes } from '../../utils/format.js';
+import { copyToClipboard, formatBytes } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { getClientIdentifier } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
@@ -19,6 +19,7 @@ import {
     HiOutlineSignal,
     HiOutlineBars3,
     HiOutlineCheck,
+    HiOutlineClipboard,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import {
@@ -55,6 +56,15 @@ function buildOverrideKey(serverId, inboundId, clientIdentifier) {
 
 function buildClientActionKey(serverId, inboundId, clientIdentifier) {
     return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
+}
+
+function maskSensitiveValue(value) {
+    const text = String(value || '').trim();
+    if (!text) return '-';
+    if (text.length <= 8) {
+        return `${text.slice(0, 2)}***${text.slice(-2)}`;
+    }
+    return `${text.slice(0, 6)}...${text.slice(-4)}`;
 }
 
 export default function Inbounds() {
@@ -525,6 +535,12 @@ export default function Inbounds() {
         : inbounds.filter(i => i.serverId === filterServerId);
     const selectedVisibleInbounds = filteredInbounds.filter(i => selectedKeys.has(i.uiKey));
     const selectedVisibleCount = selectedVisibleInbounds.length;
+    const bulkToggleEnable = selectedVisibleCount > 0
+        ? !selectedVisibleInbounds.every((item) => item.enable !== false)
+        : true;
+    const bulkToggleLabel = bulkToggleEnable ? '启用选中' : '禁用选中';
+    const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
+    const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
     const tableColSpan = filterServerId === 'all' ? 10 : 9;
     const isBatchSelecting = selectedVisibleCount > 0;
 
@@ -579,11 +595,9 @@ export default function Inbounds() {
                         {selectedVisibleCount > 0 ? (
                             <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
                                 <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
-                                <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>
-                                    启用
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => handleBulkSetEnable(false)}>
-                                    停用
+                                <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
+                                    {bulkToggleIcon}
+                                    {bulkToggleLabel}
                                 </button>
                                 <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
                                     <HiOutlineTrash /> 删除
@@ -626,7 +640,7 @@ export default function Inbounds() {
                                 <th>备注</th>
                                 <th>协议</th>
                                 <th>监听:端口</th>
-                                <th>用户数</th>
+                                <th>使用情况</th>
                                 <th>流量 (上/下)</th>
                                 <th>状态</th>
                                 <th>操作</th>
@@ -653,6 +667,7 @@ export default function Inbounds() {
                             ) : (
                                 filteredInbounds.map((ib) => {
                                     const clients = parseClients(ib);
+                                    const hasAssignedClients = clients.length > 0;
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
                                     return (
@@ -706,7 +721,14 @@ export default function Inbounds() {
                                                 <td data-label="备注" className="font-medium text-white">{ib.remark || '-'}</td>
                                                 <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="用户数" className="cell-mono-right">{clients.length}</td>
+                                                <td data-label="使用情况">
+                                                    <div className="inbounds-usage-cell">
+                                                        <span className="cell-mono-right">{clients.length}</span>
+                                                        <span className={`badge ${hasAssignedClients ? 'badge-success' : 'badge-neutral'}`}>
+                                                            {hasAssignedClients ? '有人使用' : '暂无用户'}
+                                                        </span>
+                                                    </div>
+                                                </td>
                                                 <td data-label="流量" className="text-sm">
                                                     <span className="text-success">↑{formatBytes(ib.up)}</span>
                                                     <span className="text-muted mx-1">/</span>
@@ -747,7 +769,7 @@ export default function Inbounds() {
                                                                 <thead>
                                                                     <tr>
                                                                         <th>Email</th>
-                                                                        <th>ID/密码</th>
+                                                                        <th>ID/密码（脱敏）</th>
                                                                         <th>已用流量</th>
                                                                         <th>总量</th>
                                                                         <th>IP 限制</th>
@@ -770,6 +792,8 @@ export default function Inbounds() {
                                                                         const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
                                                                         const rowActionKey = buildClientActionKey(ib.serverId, ib.id, clientIdentifier);
                                                                         const isActioning = clientActionKey === rowActionKey;
+                                                                        const rawCredential = cl.id || cl.password || '';
+                                                                        const maskedCredential = maskSensitiveValue(rawCredential);
                                                                         return (
                                                                         <tr key={idx}>
                                                                             <td>
@@ -780,8 +804,27 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="font-mono truncate max-w-[200px]" title={cl.id || cl.password}>
-                                                                                {cl.id || cl.password || '-'}
+                                                                            <td className="cell-mono">
+                                                                                <div className="inbounds-client-id-row">
+                                                                                    <span className="inbounds-client-id-text">
+                                                                                        {maskedCredential}
+                                                                                    </span>
+                                                                                    {rawCredential && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="btn btn-ghost btn-xs btn-icon"
+                                                                                            title="复制完整 ID / 密码"
+                                                                                            disabled={isActioning}
+                                                                                            onClick={async (e) => {
+                                                                                                e.stopPropagation();
+                                                                                                await copyToClipboard(rawCredential);
+                                                                                                toast.success('完整 ID / 密码已复制');
+                                                                                            }}
+                                                                                        >
+                                                                                            <HiOutlineClipboard />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
                                                                             </td>
                                                                             <td>
                                                                                 <div className="inbound-client-usage">
@@ -904,8 +947,10 @@ export default function Inbounds() {
                 {selectedVisibleCount > 0 && (
                     <div className="mobile-batch-bar">
                         <div className="batch-count">已选 {selectedVisibleCount} 项</div>
-                        <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>启用</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleBulkSetEnable(false)}>停用</button>
+                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
+                            {bulkToggleIcon}
+                            {bulkToggleLabel}
+                        </button>
                         <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> 删除</button>
                         <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> 重置</button>
                     </div>
