@@ -8581,3 +8581,127 @@ input[type="radio"]:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Final layout fixes --- */
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .card,
+[data-theme="light"] .modal,
+[data-theme="light"] .table-container,
+[data-theme="light"] .header-search-results,
+[data-theme="light"] .notification-dropdown,
+[data-theme="light"] .server-dropdown-menu {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.server-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-right: 0;
+}
+
+.server-card-summary,
+.server-card-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.server-card-controls {
+  position: static;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.server-card-controls input[type="checkbox"] {
+  flex: 0 0 auto;
+}
+
+.subscription-link-grid {
+  align-items: stretch;
+}
+
+.subscription-link-grid .form-input {
+  min-width: 0;
+}
+
+.settings-backup-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.settings-backup-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-backup-action-footer {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+}
+
+.settings-backup-inspection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-backup-inspection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.settings-backup-inspection-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke-soft);
+  background: var(--surface-soft);
+}
+
+.settings-backup-inspection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.settings-panel-actions {
+  flex-wrap: wrap;
+}
+
+.settings-panel-actions .btn {
+  white-space: nowrap;
+}
+
+.servers-select-all-btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .server-card-head {
+    flex-direction: column;
+  }
+
+  .server-card-controls {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .settings-backup-inspection-actions {
+    justify-content: flex-start;
+  }
+
+  .settings-panel-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

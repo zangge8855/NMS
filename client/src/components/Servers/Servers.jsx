@@ -50,7 +50,6 @@ export default function Servers() {
         username: '',
         password: '',
         group: '',
-        tags: '',
         environment: 'unknown',
         health: 'unknown',
         entries: '',
@@ -96,7 +95,6 @@ export default function Servers() {
             username: '',
             password: '',
             group: '',
-            tags: '',
             environment: 'unknown',
             health: 'unknown',
             entries: '',
@@ -234,7 +232,6 @@ export default function Servers() {
                     username,
                     password,
                     group: String(batchForm.group || '').trim(),
-                    tags: String(batchForm.tags || '').split(',').map((item) => item.trim()).filter(Boolean),
                     environment: batchForm.environment,
                     health: batchForm.health,
                 },
@@ -530,15 +527,9 @@ export default function Servers() {
                                 <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
                                     <HiOutlinePlusCircle /> 添加服务器
                                 </button>
-                                <label className="flex items-center gap-2 cursor-pointer btn btn-secondary btn-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={allVisibleSelected}
-                                        onChange={toggleSelectAll}
-                                        className="hidden"
-                                    />
-                                    <span>{allVisibleSelected ? '取消全选' : '全选'}</span>
-                                </label>
+                                <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
+                                    {allVisibleSelected ? '取消全选' : '全选'}
+                                </button>
                             </div>
                         </>
                     )}
@@ -594,27 +585,12 @@ export default function Servers() {
                                     className={`card server-card hover-lift transition-all duration-300 ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
                                     onClick={() => selectServer(server.id)}
                                 >
-                                    <div className="server-card-controls" onClick={e => e.stopPropagation()}>
-                                        <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title="编辑">
-                                            <HiOutlinePencilSquare />
-                                        </button>
-                                        <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title="删除">
-                                            <HiOutlineTrash />
-                                        </button>
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => toggleSelect(server.id)}
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center justify-between mb-6 pr-8 server-card-head">
-                                        <div className="flex items-center gap-4">
+                                    <div className="server-card-head">
+                                        <div className="flex items-center gap-4 server-card-summary">
                                             <div className="card-icon server-card-icon">
                                                 <HiOutlineServerStack />
                                             </div>
-                                            <div>
+                                            <div className="server-card-copy">
                                                 <div className={`server-card-name ${isActive ? 'text-glow' : ''} table-cell-link`} onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}>{server.name}</div>
                                                 <div className="server-card-url-row">
                                                     <div className="text-sm text-muted font-mono mt-1 server-card-url" title={panelUrl}>{panelUrl}</div>
@@ -634,6 +610,20 @@ export default function Servers() {
                                                     )}
                                                 </div>
                                             </div>
+                                        </div>
+                                        <div className="server-card-controls" onClick={e => e.stopPropagation()}>
+                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title="编辑">
+                                                <HiOutlinePencilSquare />
+                                            </button>
+                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title="删除">
+                                                <HiOutlineTrash />
+                                            </button>
+                                            <input
+                                                type="checkbox"
+                                                className="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => toggleSelect(server.id)}
+                                            />
                                         </div>
                                     </div>
 
@@ -771,26 +761,14 @@ export default function Servers() {
                                                 />
                                             </div>
                                         </div>
-
-                                        <div className="grid-auto-220">
-                                            <div className="form-group">
-                                                <label className="form-label">默认分组</label>
-                                                <input
-                                                    className="form-input"
-                                                    placeholder="例如: 亚太"
-                                                    value={batchForm.group}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">默认标签 (逗号分隔)</label>
-                                                <input
-                                                    className="form-input"
-                                                    placeholder="core,vip"
-                                                    value={batchForm.tags}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, tags: e.target.value }))}
-                                                />
-                                            </div>
+                                        <div className="form-group">
+                                            <label className="form-label">默认分组</label>
+                                            <input
+                                                className="form-input"
+                                                placeholder="例如: 亚太"
+                                                value={batchForm.group}
+                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
+                                            />
                                         </div>
 
                                         <div className="form-group mt-3 mb-0">

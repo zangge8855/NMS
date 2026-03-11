@@ -13,7 +13,14 @@ import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
 import { normalizeBoolean, parseJsonObjectLike } from '../lib/normalize.js';
-import { issueSubscriptionToken, listSubscriptionTokens, querySubscriptionAccess, revokeSubscriptionTokens, summarizeSubscriptionAccess } from '../services/subscriptionAuditService.js';
+import {
+    issueSubscriptionToken,
+    listSubscriptionTokens,
+    querySubscriptionAccess,
+    resetPersistentSubscriptionToken,
+    revokeSubscriptionTokens,
+    summarizeSubscriptionAccess,
+} from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const router = Router();
@@ -2137,6 +2144,49 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
         });
     } catch (error) {
         return res.status(error?.status || 400).json({ success: false, msg: error.message || 'Failed to revoke token' });
+    }
+});
+
+router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, (req, res) => {
+    try {
+        const serverId = normalizeServerId(req.body?.serverId);
+        const scopeName = buildScopeTokenName(serverId);
+        const issued = resetPersistentSubscriptionToken(req.params.email, {
+            name: scopeName,
+            reason: serverId ? 'subscription-link-reset:server' : 'subscription-link-reset:all',
+            createdBy: req.user?.username || req.user?.role || 'system',
+            buildUrls: (token) => {
+                const publicBase = buildTokenPublicBase(req, req.params.email, token);
+                return buildSubscriptionUrls(publicBase, 'auto', serverId);
+            },
+        });
+
+        appendSecurityAudit('subscription_link_reset', req, {
+            email: issued.email,
+            scope: serverId ? 'server' : 'all',
+            serverId: serverId || '',
+            revoked: issued.revokedCount,
+            tokenId: issued.tokenId,
+        });
+
+        return res.json({
+            success: true,
+            obj: {
+                email: issued.email,
+                scope: serverId ? 'server' : 'all',
+                serverId: serverId || '',
+                revokedCount: issued.revokedCount,
+                tokenId: issued.tokenId,
+                token: issued.token,
+                metadata: issued.metadata,
+                ...issued.urls,
+            },
+        });
+    } catch (error) {
+        return res.status(error?.status || 400).json({
+            success: false,
+            msg: error.message || 'Failed to reset subscription link',
+        });
     }
 });
 

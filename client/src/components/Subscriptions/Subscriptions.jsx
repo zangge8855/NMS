@@ -61,6 +61,7 @@ export default function Subscriptions() {
     const [tokenTtlDays, setTokenTtlDays] = useState('30');
     const [tokenLoading, setTokenLoading] = useState(false);
     const [tokenActionId, setTokenActionId] = useState('');
+    const [resetLoading, setResetLoading] = useState(false);
     const [lastIssuedToken, setLastIssuedToken] = useState(null);
 
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
@@ -232,6 +233,24 @@ export default function Subscriptions() {
         setTokenActionId('');
     };
 
+    const handleResetLink = async () => {
+        if (!normalizedEmail) return;
+        setResetLoading(true);
+        try {
+            const payload = {};
+            if (isAdmin && selectedServerId && selectedServerId !== 'all') {
+                payload.serverId = selectedServerId;
+            }
+            await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/reset-link`, payload);
+            setLastIssuedToken(null);
+            toast.success('订阅链接已重置，旧地址已失效');
+            await loadSubscription();
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '重置订阅链接失败');
+        }
+        setResetLoading(false);
+    };
+
     return (
         <>
             <Header title={t('pages.subscriptions.title')} />
@@ -334,6 +353,13 @@ export default function Subscriptions() {
                         <div className="card mb-8">
                             <div className="card-header">
                                 <span className="card-title">持久订阅地址</span>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={handleResetLink}
+                                    disabled={resetLoading || !normalizedEmail}
+                                >
+                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置订阅链接</>}
+                                </button>
                             </div>
                             <div
                                 className="grid gap-2 mb-3"
@@ -353,6 +379,9 @@ export default function Subscriptions() {
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
                                 常见客户端专用订阅地址已内置，Clash / Mihomo 共用同一份 YAML 配置。
+                            </div>
+                            <div className="text-xs text-muted mb-3">
+                                如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
                             </div>
                             <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '10px' }}>
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />

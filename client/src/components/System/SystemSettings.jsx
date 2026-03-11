@@ -611,12 +611,12 @@ export default function SystemSettings() {
                                         </>
                                     )}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 settings-panel-actions">
                                     <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                        {emailTestLoading ? <span className="spinner" /> : '测试连接'}
+                                        {emailTestLoading ? <span className="spinner" /> : '测试'}
                                     </button>
                                     <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
-                                        {emailStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                        {emailStatusLoading ? <span className="spinner" /> : '刷新'}
                                     </button>
                                 </div>
                             </div>
@@ -703,44 +703,70 @@ export default function SystemSettings() {
                                     <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
                                 </div>
                             </div>
-                            <div className="grid gap-3 mt-3" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', alignItems: 'end' }}>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">恢复备份文件</label>
-                                    <input
-                                        className="form-input"
-                                        type="file"
-                                        accept=".gz,.json.gz,application/gzip"
-                                        onChange={(event) => {
-                                            const file = event.target.files?.[0] || null;
-                                            setBackupFile(file);
-                                            setBackupInspection(null);
-                                        }}
-                                    />
-                                    <div className="text-xs text-muted mt-1">{backupFile?.name || '请选择 NMS 导出的 gzip 备份文件'}</div>
+                            <div className="settings-backup-actions mt-3">
+                                <div className="card p-3 settings-mini-card settings-backup-action-card">
+                                    <div className="text-sm font-medium">导出当前快照</div>
+                                    <div className="text-xs text-muted mt-1">下载当前系统 store 的 gzip 快照，适合在变更前先留存一份回滚点。</div>
+                                    <div className="settings-backup-action-footer">
+                                        <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
+                                            {backupLoading ? <span className="spinner" /> : '导出 gzip 备份'}
+                                        </button>
+                                    </div>
                                 </div>
-                                <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                    {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
-                                    {backupLoading ? <span className="spinner" /> : '导出 gzip 备份'}
-                                </button>
+                                <div className="card p-3 settings-mini-card settings-backup-action-card">
+                                    <div className="text-sm font-medium">恢复已有备份</div>
+                                    <div className="text-xs text-muted mt-1">先上传并校验备份包，再决定是否恢复，避免误覆盖当前系统数据。</div>
+                                    <div className="form-group mb-0 mt-3">
+                                        <label className="form-label">恢复备份文件</label>
+                                        <input
+                                            className="form-input"
+                                            type="file"
+                                            accept=".gz,.json.gz,application/gzip"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0] || null;
+                                                setBackupFile(file);
+                                                setBackupInspection(null);
+                                            }}
+                                        />
+                                        <div className="text-xs text-muted mt-1">{backupFile?.name || '请选择 NMS 导出的 gzip 备份文件'}</div>
+                                    </div>
+                                    <div className="settings-backup-action-footer">
+                                        <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                                            {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             {backupInspection && (
-                                <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
+                                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
                                     <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                         <div className="text-sm font-medium">备份预览</div>
                                         <span className="badge badge-success">可校验</span>
                                     </div>
-                                    <div className="text-sm">备份时间: {backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
-                                    <div className="text-sm text-muted mt-1">格式: {backupInspection.format} v{backupInspection.version}</div>
-                                    <div className="text-sm text-muted mt-1">可恢复 Store: {(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                    <div className="settings-backup-inspection-grid">
+                                        <div className="settings-backup-inspection-item">
+                                            <div className="text-xs text-muted">备份时间</div>
+                                            <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
+                                        </div>
+                                        <div className="settings-backup-inspection-item">
+                                            <div className="text-xs text-muted">格式版本</div>
+                                            <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
+                                        </div>
+                                        <div className="settings-backup-inspection-item">
+                                            <div className="text-xs text-muted">可恢复 Store</div>
+                                            <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                        </div>
+                                    </div>
                                     {(backupInspection.unsupportedKeys || []).length > 0 && (
                                         <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
                                     )}
                                     {(backupInspection.missingKeys || []).length > 0 && (
                                         <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
                                     )}
-                                    <div className="mt-3">
+                                    <div className="settings-backup-inspection-actions">
+                                        <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                                            {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
+                                        </button>
                                         <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
                                             {backupRestoreLoading ? <span className="spinner" /> : '恢复该备份'}
                                         </button>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     issueSubscriptionToken,
     querySubscriptionAccess,
+    resetPersistentSubscriptionToken,
     revokeSubscriptionTokens,
 } from '../services/subscriptionAuditService.js';
 
@@ -64,5 +65,50 @@ describe('subscriptionAuditService', () => {
             }),
             /tokenId is required/
         );
+    });
+
+    it('rotates the named persistent token and returns fresh urls', () => {
+        const calls = [];
+        const result = resetPersistentSubscriptionToken('user@example.com', {
+            name: 'auto-persistent:all',
+            createdBy: 'alice',
+            buildUrls: () => ({ subscriptionUrl: 'https://example.com/sub/new' }),
+        }, {
+            subscriptionTokenRepository: {
+                listByEmail: () => ([
+                    { id: 'scope-1', name: 'auto-persistent:all', status: 'active' },
+                    { id: 'manual-1', name: 'manual', status: 'active' },
+                ]),
+                revoke: (email, tokenId, reason) => {
+                    calls.push(['revoke', email, tokenId, reason]);
+                    return { id: tokenId };
+                },
+                issue: (email, options) => {
+                    calls.push(['issue', email, options]);
+                    return {
+                        tokenId: 'scope-2',
+                        token: 'scope-2.secret',
+                        metadata: {
+                            id: 'scope-2',
+                            email,
+                            name: options.name,
+                        },
+                    };
+                },
+            },
+        });
+
+        assert.equal(result.email, 'user@example.com');
+        assert.equal(result.revokedCount, 1);
+        assert.equal(result.tokenId, 'scope-2');
+        assert.equal(result.urls.subscriptionUrl, 'https://example.com/sub/new');
+        assert.deepEqual(calls[0], ['revoke', 'user@example.com', 'scope-1', 'subscription-link-reset']);
+        assert.deepEqual(calls[1], ['issue', 'user@example.com', {
+            name: 'auto-persistent:all',
+            ttlDays: 0,
+            noExpiry: true,
+            ignoreActiveLimit: true,
+            createdBy: 'alice',
+        }]);
     });
 });

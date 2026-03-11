@@ -343,6 +343,7 @@ export default function ServerDetail() {
     ];
     const showInboundStats = !inboundsLoading || inbounds.length > 0;
     const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
+    const hasEnvironment = String(server.environment || '').trim() && String(server.environment || '').trim() !== 'unknown';
 
     return (
         <>
@@ -369,7 +370,9 @@ export default function ServerDetail() {
                                 <span className={`badge ${healthBadge[server.health] || 'badge-neutral'}`}>
                                     {healthLabel[server.health] || '未知'}
                                 </span>
-                                <span className="badge badge-neutral">{envLabel[server.environment] || server.environment || '未分类'}</span>
+                                {hasEnvironment && (
+                                    <span className="badge badge-neutral">{envLabel[server.environment] || server.environment}</span>
+                                )}
                                 {server.group && <span className="badge badge-info">{server.group}</span>}
                             </div>
                             <div className="user-profile-meta">
@@ -422,7 +425,7 @@ export default function ServerDetail() {
                                         <div><span className="text-muted">名称:</span> {server.name}</div>
                                         <div><span className="text-muted">URL:</span> <span className="font-mono">{server.url}</span></div>
                                         <div><span className="text-muted">用户名:</span> {server.username}</div>
-                                        <div><span className="text-muted">环境:</span> {envLabel[server.environment] || '未知'}</div>
+                                        {hasEnvironment && <div><span className="text-muted">环境:</span> {envLabel[server.environment] || server.environment}</div>}
                                         <div><span className="text-muted">分组:</span> {server.group || '未分组'}</div>
                                         <div><span className="text-muted">健康状态:</span> {healthLabel[server.health] || '未知'}</div>
                                         {server.basePath && <div><span className="text-muted">基础路径:</span> <span className="font-mono">{server.basePath}</span></div>}

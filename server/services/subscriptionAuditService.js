@@ -123,6 +123,54 @@ function issueSubscriptionToken(email, input = {}, deps = {}) {
     };
 }
 
+function resetPersistentSubscriptionToken(email, input = {}, deps = {}) {
+    const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        throw createHttpError(400, 'Email is required');
+    }
+
+    const scopeName = String(input.name || '').trim();
+    if (!scopeName) {
+        throw createHttpError(400, 'scope name is required');
+    }
+
+    const reason = String(input.reason || 'subscription-link-reset').trim() || 'subscription-link-reset';
+    const activeTokens = repository.listByEmail(normalizedEmail, {
+        includeRevoked: false,
+        includeExpired: false,
+    }).filter((token) => String(token?.name || '').trim() === scopeName);
+
+    let revokedCount = 0;
+    activeTokens.forEach((token) => {
+        const revoked = repository.revoke(normalizedEmail, token.id, reason);
+        if (revoked) {
+            revokedCount += 1;
+        }
+    });
+
+    const issued = repository.issue(normalizedEmail, {
+        name: scopeName,
+        ttlDays: 0,
+        noExpiry: true,
+        ignoreActiveLimit: true,
+        createdBy: input.createdBy || 'system',
+    });
+
+    return {
+        email: normalizedEmail,
+        name: scopeName,
+        revokedCount,
+        reason,
+        tokenId: issued.tokenId,
+        token: issued.token,
+        metadata: issued.metadata,
+        urls: typeof input.buildUrls === 'function'
+            ? input.buildUrls(issued.token)
+            : {},
+    };
+}
+
 function revokeSubscriptionTokens(email, input = {}, deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const normalizedEmail = normalizeEmail(email);
@@ -163,6 +211,7 @@ export {
     issueSubscriptionToken,
     listSubscriptionTokens,
     querySubscriptionAccess,
+    resetPersistentSubscriptionToken,
     revokeSubscriptionTokens,
     summarizeSubscriptionAccess,
 };

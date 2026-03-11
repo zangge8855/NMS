@@ -175,6 +175,7 @@ export default function UsersHub() {
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [subscriptionResult, setSubscriptionResult] = useState(null);
     const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
+    const [subscriptionResetLoading, setSubscriptionResetLoading] = useState(false);
 
     useEffect(() => {
         const queryValue = String(searchParams.get('q') || '').trim();
@@ -832,6 +833,28 @@ export default function UsersHub() {
         }
         await copyToClipboard(profile.url);
         toast.success(`${profile.label} 订阅地址已复制`);
+    };
+
+    const handleResetSubscription = async () => {
+        if (!subscriptionEmail) return;
+        const ok = await confirmAction({
+            title: '重置订阅链接',
+            message: '重置后当前展示的订阅地址会失效，需要把新地址重新发给用户。',
+            details: `目标用户: ${subscriptionEmail}`,
+            confirmText: '确认重置',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setSubscriptionResetLoading(true);
+        try {
+            await api.post(`/subscriptions/${encodeURIComponent(subscriptionEmail)}/reset-link`, {});
+            toast.success('订阅链接已重置，旧地址已失效');
+            await loadSubscription(subscriptionEmail);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '重置订阅链接失败');
+        }
+        setSubscriptionResetLoading(false);
     };
 
     return (
@@ -1545,6 +1568,14 @@ export default function UsersHub() {
                             <div className="grid-auto-160 mb-4">
                                 <button type="button" className="btn btn-secondary" onClick={() => loadSubscription(subscriptionEmail)} disabled={subscriptionLoading}>
                                     {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新</>}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleResetSubscription}
+                                    disabled={subscriptionResetLoading || !subscriptionEmail}
+                                >
+                                    {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置链接</>}
                                 </button>
                                 <button type="button" className="btn btn-primary" onClick={handleCopySubscription} disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}>
                                     <HiOutlineClipboard /> 复制

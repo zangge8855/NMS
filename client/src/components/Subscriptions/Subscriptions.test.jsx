@@ -213,4 +213,48 @@ describe('Subscriptions', () => {
             });
         });
     }, 10000);
+
+    it('allows users to reset their own persistent subscription link', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockResolvedValue({
+            data: {
+                obj: {
+                    subscriptionUrl: 'https://sub.example.com/new',
+                },
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/subscriptions/user%40example.com/reset-link', {});
+        });
+    });
 });
