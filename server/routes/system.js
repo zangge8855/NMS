@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
@@ -22,10 +23,14 @@ import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
-import { createBackupArchive, getBackupStatus } from '../lib/systemBackup.js';
+import { createBackupArchive, getBackupStatus, inspectBackupArchive, restoreBackupArchive } from '../lib/systemBackup.js';
 import { normalizeBoolean } from '../lib/normalize.js';
 
 const router = Router();
+const backupUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 function normalizeMode(value, allowed = [], fallback = '') {
     const text = String(value || '').trim().toLowerCase();
@@ -114,6 +119,80 @@ router.get('/backup/export', adminOnly, (req, res) => {
     res.setHeader('Content-Type', 'application/gzip');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send(buffer);
+});
+
+router.post('/backup/inspect', adminOnly, backupUpload.single('file'), (req, res) => {
+    if (!req.file?.buffer) {
+        return res.status(400).json({
+            success: false,
+            msg: '请上传备份文件',
+        });
+    }
+
+    try {
+        const inspection = inspectBackupArchive(req.file.buffer);
+        return res.json({
+            success: true,
+            obj: {
+                ...inspection,
+                filename: String(req.file.originalname || '').trim(),
+            },
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '备份文件校验失败',
+        });
+    }
+});
+
+router.post('/backup/restore', adminOnly, backupUpload.single('file'), async (req, res) => {
+    if (!req.file?.buffer) {
+        return res.status(400).json({
+            success: false,
+            msg: '请上传备份文件',
+        });
+    }
+
+    let keys = [];
+    try {
+        const rawKeys = req.body?.keys;
+        if (typeof rawKeys === 'string' && rawKeys.trim().startsWith('[')) {
+            const parsed = JSON.parse(rawKeys);
+            keys = normalizeStoreKeys(parsed);
+        } else {
+            keys = normalizeStoreKeys(rawKeys);
+        }
+    } catch {
+        return res.status(400).json({
+            success: false,
+            msg: '恢复范围参数无效',
+        });
+    }
+
+    try {
+        const output = await restoreBackupArchive(req.file.buffer, {
+            filename: req.file.originalname,
+            keys,
+        });
+        appendSecurityAudit('system_backup_restored', req, {
+            filename: String(req.file.originalname || '').trim(),
+            sourceCreatedAt: output.meta?.sourceCreatedAt || '',
+            storeCount: output.meta?.storeKeys?.length || 0,
+            restored: output.result?.restored || 0,
+            failed: output.result?.failed || 0,
+        });
+        return res.json({
+            success: true,
+            msg: '备份已恢复',
+            obj: output,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '恢复备份失败',
+        });
+    }
 });
 
 router.get('/monitor/status', adminOnly, (req, res) => {

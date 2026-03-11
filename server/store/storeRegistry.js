@@ -142,3 +142,46 @@ export async function backfillStoresToDatabase(options = {}) {
         details,
     };
 }
+
+export async function restoreStoreSnapshots(snapshots = {}, options = {}) {
+    const items = resolveKeys(options.keys);
+    const source = snapshots && typeof snapshots === 'object' && !Array.isArray(snapshots) ? snapshots : {};
+    const details = [];
+
+    for (const { key, store } of items) {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) {
+            details.push({ key, restored: false, reason: 'snapshot-missing' });
+            continue;
+        }
+
+        if (typeof store?.importState !== 'function') {
+            details.push({ key, restored: false, reason: 'importState-not-implemented' });
+            continue;
+        }
+
+        try {
+            store.importState(source[key]);
+
+            if (typeof store?._save === 'function') {
+                store._save();
+            } else if (typeof store?.exportState === 'function') {
+                await writeStoreSnapshotNow(key, store.exportState(), { redact: false });
+            }
+
+            details.push({ key, restored: true, reason: 'ok' });
+        } catch (error) {
+            details.push({
+                key,
+                restored: false,
+                reason: String(error?.message || error),
+            });
+        }
+    }
+
+    return {
+        total: details.length,
+        restored: details.filter((item) => item.restored).length,
+        failed: details.filter((item) => !item.restored).length,
+        details,
+    };
+}

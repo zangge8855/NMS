@@ -6,9 +6,10 @@ import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../utils/format.js';
+import { copyToClipboard, getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
+    HiOutlineClipboard,
     HiOutlinePlusCircle,
     HiOutlineTrash,
     HiOutlinePencilSquare,
@@ -500,41 +501,47 @@ export default function Servers() {
             />
             <div className="page-content page-enter">
                 <div className="flex items-center justify-between mb-6 glass-panel p-4 servers-toolbar">
-                    <div>
-                        <h2 className="text-glow section-title">已注册的服务器</h2>
-                        <p className="text-muted mt-1 section-subtitle">管理您的 3x-ui 面板连接</p>
-                    </div>
-                    <div className="flex gap-4 items-center flex-wrap justify-end servers-toolbar-actions">
-                        {selectedIds.size > 0 && (
-                            <div className="flex gap-2 items-center animate-fade-in servers-selection-bar">
-                                <span className="text-sm font-bold px-2 text-primary">已选 {selectedIds.size} 项</span>
-                                <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
-                                    <HiOutlineTrash /> 删除
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={loading.bulkTest}>
-                                    {loading.bulkTest ? <span className="spinner" /> : <HiOutlineSignal />} 测试
-                                </button>
+                    {selectedIds.size > 0 ? (
+                        <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
+                            <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
+                            <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={loading.bulkTest}>
+                                {loading.bulkTest ? <span className="spinner" /> : <HiOutlineSignal />} 批量测试
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                                <HiOutlineTrash /> 批量删除
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
+                                取消全选
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div>
+                                <h2 className="text-glow section-title">已注册的服务器</h2>
+                                <p className="text-muted mt-1 section-subtitle">管理您的 3x-ui 面板连接</p>
                             </div>
-                        )}
-                        <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
-                        >
-                            <HiOutlinePlusCircle /> 批量添加
-                        </button>
-                        <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
-                            <HiOutlinePlusCircle /> 添加服务器
-                        </button>
-                        <label className="flex items-center gap-2 cursor-pointer btn btn-secondary btn-sm">
-                            <input
-                                type="checkbox"
-                                checked={allVisibleSelected}
-                                onChange={toggleSelectAll}
-                                className="hidden"
-                            />
-                            <span>{allVisibleSelected ? '取消全选' : '全选'}</span>
-                        </label>
-                    </div>
+                            <div className="flex gap-4 items-center flex-wrap justify-end servers-toolbar-actions">
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
+                                >
+                                    <HiOutlinePlusCircle /> 批量添加
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
+                                    <HiOutlinePlusCircle /> 添加服务器
+                                </button>
+                                <label className="flex items-center gap-2 cursor-pointer btn btn-secondary btn-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleSelectAll}
+                                        className="hidden"
+                                    />
+                                    <span>{allVisibleSelected ? '取消全选' : '全选'}</span>
+                                </label>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="card mb-4 p-3 servers-filter-card">
@@ -574,6 +581,7 @@ export default function Servers() {
                         {filteredServers.map(server => {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
+                            const panelUrl = getPanelUrl(server);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: '凭据不可解密' }
@@ -586,7 +594,13 @@ export default function Servers() {
                                     className={`card server-card hover-lift transition-all duration-300 ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
                                     onClick={() => selectServer(server.id)}
                                 >
-                                    <div className="absolute top-4 right-4 server-card-select" onClick={e => e.stopPropagation()}>
+                                    <div className="server-card-controls" onClick={e => e.stopPropagation()}>
+                                        <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title="编辑">
+                                            <HiOutlinePencilSquare />
+                                        </button>
+                                        <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title="删除">
+                                            <HiOutlineTrash />
+                                        </button>
                                         <input
                                             type="checkbox"
                                             className="checkbox"
@@ -602,7 +616,23 @@ export default function Servers() {
                                             </div>
                                             <div>
                                                 <div className={`server-card-name ${isActive ? 'text-glow' : ''} table-cell-link`} onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}>{server.name}</div>
-                                                <div className="text-sm text-muted font-mono mt-1 server-card-url">{getPanelUrl(server)}</div>
+                                                <div className="server-card-url-row">
+                                                    <div className="text-sm text-muted font-mono mt-1 server-card-url" title={panelUrl}>{panelUrl}</div>
+                                                    {panelUrl && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-ghost btn-xs btn-icon server-card-copy-btn"
+                                                            title="复制面板地址"
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                await copyToClipboard(panelUrl);
+                                                                toast.success('面板地址已复制');
+                                                            }}
+                                                        >
+                                                            <HiOutlineClipboard />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -635,12 +665,6 @@ export default function Servers() {
                                         >
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testResults[server.id] === 'success' ? '正常' : testResults[server.id] === 'error' ? '失败' : '测试连接'}
-                                        </button>
-                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleEdit(server)} title="编辑">
-                                            <HiOutlinePencilSquare />
-                                        </button>
-                                        <button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDelete(server.id)} title="删除">
-                                            <HiOutlineTrash />
                                         </button>
                                     </div>
                                 </div>
@@ -716,87 +740,89 @@ export default function Servers() {
                 {/* Batch Add Modal */}
                 {showBatchForm && (
                     <ModalShell isOpen={showBatchForm} onClose={resetBatchForm}>
-                        <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">批量添加服务器</h3>
                                 <button type="button" className="modal-close" onClick={resetBatchForm}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
-                                    <div className="grid-auto-220">
-                                        <div className="form-group">
-                                            <label className="form-label">公共用户名 *</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="例如: root"
-                                                value={batchForm.username}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
+                                    <div className="server-batch-form-shell">
+                                        <div className="grid-auto-220">
+                                            <div className="form-group">
+                                                <label className="form-label">公共用户名 *</label>
+                                                <input
+                                                    className="form-input"
+                                                    placeholder="例如: root"
+                                                    value={batchForm.username}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">公共密码 *</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="password"
+                                                    placeholder="密码"
+                                                    value={batchForm.password}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid-auto-220">
+                                            <div className="form-group">
+                                                <label className="form-label">默认分组</label>
+                                                <input
+                                                    className="form-input"
+                                                    placeholder="例如: 亚太"
+                                                    value={batchForm.group}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">默认标签 (逗号分隔)</label>
+                                                <input
+                                                    className="form-input"
+                                                    placeholder="core,vip"
+                                                    value={batchForm.tags}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, tags: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group mt-3 mb-0">
+                                            <label className="form-check-label w-fit">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={batchForm.testConnection}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, testConnection: e.target.checked }))}
+                                                />
+                                                <span>添加后自动测试连接</span>
+                                            </label>
+                                        </div>
+
+                                        <div className="form-group mt-4">
+                                            <label className="form-label">服务器清单 *</label>
+                                            <textarea
+                                                rows={9}
+                                                placeholder={[
+                                                    '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
+                                                    '# 1列: panelUrl',
+                                                    '# 2列: name,panelUrl',
+                                                    '# 3列(兼容旧格式): name,panelUrl,basePath',
+                                                    'https://1.2.3.4:2053/Raw1',
+                                                    '新加坡-02,https://sg2.example.com:2053/Raw2',
+                                                    'https://hk1.example.com:2053',
+                                                ].join('\n')}
+                                                value={batchForm.entries}
+                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, entries: e.target.value }))}
                                                 required
+                                                className="form-textarea textarea-mono-sm"
                                             />
                                         </div>
-                                        <div className="form-group">
-                                            <label className="form-label">公共密码 *</label>
-                                            <input
-                                                className="form-input"
-                                                type="password"
-                                                placeholder="密码"
-                                                value={batchForm.password}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid-auto-220">
-                                        <div className="form-group">
-                                            <label className="form-label">默认分组</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="例如: 亚太"
-                                                value={batchForm.group}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">默认标签 (逗号分隔)</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="core,vip"
-                                                value={batchForm.tags}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, tags: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="form-group mt-3 mb-0">
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={batchForm.testConnection}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, testConnection: e.target.checked }))}
-                                            />
-                                            添加后自动测试连接
-                                        </label>
-                                    </div>
-
-                                    <div className="form-group mt-4">
-                                        <label className="form-label">服务器清单 *</label>
-                                        <textarea
-                                            rows={9}
-                                            placeholder={[
-                                                '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
-                                                '# 1列: panelUrl',
-                                                '# 2列: name,panelUrl',
-                                                '# 3列(兼容旧格式): name,panelUrl,basePath',
-                                                'https://1.2.3.4:2053/Raw1',
-                                                '新加坡-02,https://sg2.example.com:2053/Raw2',
-                                                'https://hk1.example.com:2053',
-                                            ].join('\n')}
-                                            value={batchForm.entries}
-                                            onChange={(e) => setBatchForm((prev) => ({ ...prev, entries: e.target.value }))}
-                                            required
-                                            className="form-textarea textarea-mono-sm"
-                                        />
                                     </div>
 
                                     {batchResult && (
@@ -891,13 +917,13 @@ export default function Servers() {
                                         />
                                     </div>
                                     {selectedIds.size > 1 && (
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit mt-2">
+                                        <label className="form-check-label w-fit mt-2">
                                             <input
                                                 type="checkbox"
                                                 checked={credentialRepair.applyToSelected}
                                                 onChange={(e) => setCredentialRepair((prev) => ({ ...prev, applyToSelected: e.target.checked }))}
                                             />
-                                            同时应用到已选中的 {selectedIds.size} 个节点
+                                            <span>同时应用到已选中的 {selectedIds.size} 个节点</span>
                                         </label>
                                     )}
                                 </div>

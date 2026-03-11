@@ -6,7 +6,6 @@ import { AuthProvider } from './contexts/AuthContext.jsx';
 import { ConfirmProvider } from './contexts/ConfirmContext.jsx';
 import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import './index.css';
-import './ui-refresh.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

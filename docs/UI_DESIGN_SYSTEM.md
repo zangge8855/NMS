@@ -51,7 +51,6 @@
 
 - `client/index.html`
 - `client/src/index.css`
-- `client/src/ui-refresh.css`
 
 ### 5. 色彩与层级
 
@@ -114,13 +113,9 @@
 
 - `client/src/index.css`
 
-视觉覆盖层：
-
-- `client/src/ui-refresh.css`
-
 原则：
 
-- 新的视觉收口优先写进 `ui-refresh.css`
+- 所有视觉收口统一写进 `client/src/index.css`
 - 业务组件只补稳定语义 class，不直接堆大量 inline style
 - 组件逻辑和视觉 token 尽量分离
 
@@ -242,8 +237,7 @@ Pages:
 
 ### 7. Implementation Notes
 
-- base styles live in `client/src/index.css`
-- the current visual refinement layer lives in `client/src/ui-refresh.css`
+- base styles and visual refinements both live in `client/src/index.css`
 - new visual work should prefer semantic classes plus centralized CSS instead of inline styles
 - the login page now uses a centered single-card layout without a separate brand showcase block
 - header search results, filter inputs, and lightweight dropdown surfaces should share the same text and surface tokens across dark and light themes

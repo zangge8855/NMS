@@ -92,6 +92,10 @@ export default function SystemSettings() {
     const [backupLoading, setBackupLoading] = useState(false);
     const [backupStatusLoading, setBackupStatusLoading] = useState(false);
     const [backupStatus, setBackupStatus] = useState(null);
+    const [backupInspectLoading, setBackupInspectLoading] = useState(false);
+    const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
+    const [backupFile, setBackupFile] = useState(null);
+    const [backupInspection, setBackupInspection] = useState(null);
     const [monitorLoading, setMonitorLoading] = useState(false);
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
@@ -392,6 +396,74 @@ export default function SystemSettings() {
         setBackupLoading(false);
     };
 
+    const inspectBackup = async () => {
+        if (!isAdmin || !backupFile) {
+            toast.error('请先选择备份文件');
+            return;
+        }
+        setBackupInspectLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', backupFile);
+            const res = await api.post('/system/backup/inspect', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setBackupInspection(res.data?.obj || null);
+            toast.success('备份文件校验通过');
+        } catch (error) {
+            setBackupInspection(null);
+            toast.error(error.response?.data?.msg || error.message || '备份文件校验失败');
+        }
+        setBackupInspectLoading(false);
+    };
+
+    const restoreBackup = async () => {
+        if (!isAdmin || !backupFile) {
+            toast.error('请先选择备份文件');
+            return;
+        }
+
+        const inspection = backupInspection || null;
+        const restoreKeys = inspection?.restorableKeys || [];
+        const ok = await confirmAction({
+            title: '恢复系统备份',
+            message: '恢复后会立即覆盖备份中包含的同名 store，当前系统数据将被替换。',
+            details: [
+                `文件: ${backupFile.name || '-'}`,
+                inspection?.createdAt ? `备份时间: ${new Date(inspection.createdAt).toLocaleString('zh-CN')}` : '备份时间: 未知',
+                `恢复范围: ${restoreKeys.length > 0 ? restoreKeys.join(', ') : '自动识别'}`,
+            ].join('\n'),
+            confirmText: '确认恢复',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setBackupRestoreLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', backupFile);
+            if (restoreKeys.length > 0) {
+                formData.append('keys', JSON.stringify(restoreKeys));
+            }
+            const res = await api.post('/system/backup/restore', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const payload = res.data?.obj || null;
+            setBackupInspection(payload?.inspection || inspection);
+            toast.success(res.data?.msg || '备份已恢复');
+            await Promise.all([
+                fetchSettings(),
+                fetchBackupStatus({ quiet: true }),
+                fetchDbStatus({ quiet: true }),
+                fetchEmailStatus({ quiet: true }),
+                fetchMonitorStatus({ quiet: true }),
+            ]);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '恢复备份失败');
+        }
+        setBackupRestoreLoading(false);
+    };
+
     const runMonitorCheck = async () => {
         if (!isAdmin) return;
         setMonitorLoading(true);
@@ -613,7 +685,7 @@ export default function SystemSettings() {
                                     {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
                                 </button>
                             </div>
-                            <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包，不包含额外运行进程文件。</div>
+                            <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。</div>
                             <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">可备份 Store</div>
@@ -625,12 +697,56 @@ export default function SystemSettings() {
                                     <div className="text-lg font-semibold">{backupStatus?.lastExport?.createdAt ? new Date(backupStatus.lastExport.createdAt).toLocaleString('zh-CN') : '暂无'}</div>
                                     <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
                                 </div>
+                                <div className="card p-3 settings-mini-card">
+                                    <div className="text-sm text-muted">最近恢复</div>
+                                    <div className="text-lg font-semibold">{backupStatus?.lastImport?.restoredAt ? new Date(backupStatus.lastImport.restoredAt).toLocaleString('zh-CN') : '暂无'}</div>
+                                    <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
+                                </div>
                             </div>
-                            <div className="mt-3">
-                                <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading}>
+                            <div className="grid gap-3 mt-3" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', alignItems: 'end' }}>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">恢复备份文件</label>
+                                    <input
+                                        className="form-input"
+                                        type="file"
+                                        accept=".gz,.json.gz,application/gzip"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0] || null;
+                                            setBackupFile(file);
+                                            setBackupInspection(null);
+                                        }}
+                                    />
+                                    <div className="text-xs text-muted mt-1">{backupFile?.name || '请选择 NMS 导出的 gzip 备份文件'}</div>
+                                </div>
+                                <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                                    {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
                                     {backupLoading ? <span className="spinner" /> : '导出 gzip 备份'}
                                 </button>
                             </div>
+                            {backupInspection && (
+                                <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
+                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                        <div className="text-sm font-medium">备份预览</div>
+                                        <span className="badge badge-success">可校验</span>
+                                    </div>
+                                    <div className="text-sm">备份时间: {backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
+                                    <div className="text-sm text-muted mt-1">格式: {backupInspection.format} v{backupInspection.version}</div>
+                                    <div className="text-sm text-muted mt-1">可恢复 Store: {(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                    {(backupInspection.unsupportedKeys || []).length > 0 && (
+                                        <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
+                                    )}
+                                    {(backupInspection.missingKeys || []).length > 0 && (
+                                        <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
+                                    )}
+                                    <div className="mt-3">
+                                        <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
+                                            {backupRestoreLoading ? <span className="spinner" /> : '恢复该备份'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="card p-4 settings-panel settings-monitor-panel">
