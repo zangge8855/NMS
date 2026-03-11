@@ -69,25 +69,6 @@ function maskSensitiveValue(value) {
     return `${text.slice(0, 6)}...${text.slice(-4)}`;
 }
 
-function summarizeInboundUsers(clients = [], maxVisible = 2) {
-    const labels = [];
-    const seen = new Set();
-
-    clients.forEach((client) => {
-        const label = String(client?.email || getClientIdentifier(client, client?.protocol) || '').trim();
-        if (!label) return;
-        const normalized = label.toLowerCase();
-        if (seen.has(normalized)) return;
-        seen.add(normalized);
-        labels.push(label);
-    });
-
-    return {
-        visible: labels.slice(0, maxVisible),
-        hiddenCount: Math.max(0, labels.length - maxVisible),
-    };
-}
-
 function normalizeOnlineEntry(entry) {
     if (typeof entry === 'string') {
         return [String(entry).trim().toLowerCase()].filter(Boolean);
@@ -200,29 +181,36 @@ export default function Inbounds() {
 
                 if (inboundsRes.data?.obj) {
                     const serverInbounds = inboundsRes.data.obj.map((ib) => {
-                        const inboundClients = mergeInboundClientStats(ib);
+                        const inboundClients = mergeInboundClientStats(ib).map((client) => {
+                            const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
+                                return total + (onlineCounter.get(key) || 0);
+                            }, 0);
+                            return {
+                                ...client,
+                                onlineSessionCount: matchedSessions,
+                                isOnline: matchedSessions > 0,
+                            };
+                        });
                         let onlineSessionCount = 0;
                         let onlineUserCount = 0;
 
                         inboundClients.forEach((client) => {
-                            const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
-                                return total + (onlineCounter.get(key) || 0);
-                            }, 0);
-                            if (matchedSessions > 0) {
+                            if (client.onlineSessionCount > 0) {
                                 onlineUserCount += 1;
-                                onlineSessionCount += matchedSessions;
+                                onlineSessionCount += client.onlineSessionCount;
                             }
                         });
 
                         return {
-                        ...ib,
-                        serverId: server.id,
-                        serverName: server.name,
-                        uiKey: `${server.id}-${ib.id}`,
-                        onlineSessionCount,
-                        onlineUserCount,
-                        hasOnlineUsers: onlineSessionCount > 0,
-                    };
+                            ...ib,
+                            clients: inboundClients,
+                            serverId: server.id,
+                            serverName: server.name,
+                            uiKey: `${server.id}-${ib.id}`,
+                            onlineSessionCount,
+                            onlineUserCount,
+                            hasOnlineUsers: onlineSessionCount > 0,
+                        };
                     });
                     allResults.push(...serverInbounds);
                 }
@@ -483,6 +471,15 @@ export default function Inbounds() {
     };
 
     const parseClients = (ib) => {
+        if (Array.isArray(ib?.clients)) {
+            return ib.clients.map((client) => ({
+                ...client,
+                protocol: ib.protocol,
+                inboundId: ib.id,
+                serverId: ib.serverId,
+                serverName: ib.serverName,
+            }));
+        }
         return mergeInboundClientStats(ib).map((client) => ({
             ...client,
             protocol: ib.protocol,
@@ -773,7 +770,6 @@ export default function Inbounds() {
                             ) : (
                                 filteredInbounds.map((ib) => {
                                     const clients = parseClients(ib);
-                                    const usageSummary = summarizeInboundUsers(clients);
                                     const siblingInbounds = filteredInbounds.filter((item) => item.serverId === ib.serverId);
                                     const siblingIndex = siblingInbounds.findIndex((item) => item.uiKey === ib.uiKey);
                                     const canMoveUp = siblingIndex > 0;
@@ -860,25 +856,9 @@ export default function Inbounds() {
                                                 <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label="用户数">
-                                                    <div className="inbounds-usage-cell">
-                                                        <div className="inbounds-usage-head">
-                                                            <span className="cell-mono-right">{clients.length}</span>
-                                                        </div>
-                                                        {usageSummary.visible.length > 0 && (
-                                                            <div className="inbounds-usage-users">
-                                                                {usageSummary.visible.map((label) => (
-                                                                    <span key={`${ib.uiKey}-${label}`} className="inbounds-usage-user" title={label}>
-                                                                        {label}
-                                                                    </span>
-                                                                ))}
-                                                                {usageSummary.hiddenCount > 0 && (
-                                                                    <span className="inbounds-usage-user inbounds-usage-more">
-                                                                        +{usageSummary.hiddenCount}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    <span className="cell-mono-right inbounds-user-count" title={`共 ${clients.length} 位用户`}>
+                                                        {clients.length}
+                                                    </span>
                                                 </td>
                                                 <td data-label="流量" className="text-sm">
                                                     <span className="text-success">↑{formatBytes(ib.up)}</span>
@@ -956,6 +936,8 @@ export default function Inbounds() {
                                                                         const isActioning = clientActionKey === rowActionKey;
                                                                         const rawCredential = cl.id || cl.password || '';
                                                                         const maskedCredential = maskSensitiveValue(rawCredential);
+                                                                        const toggleLabel = cl.enable !== false ? '禁用' : '启用';
+                                                                        const toggleTitle = cl.enable !== false ? '禁用该用户' : '启用该用户';
                                                                         return (
                                                                         <tr key={idx}>
                                                                             <td>
@@ -1016,16 +998,25 @@ export default function Inbounds() {
                                                                             </td>
                                                                             <td>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
                                                                             <td>
-                                                                                <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                                                                    {cl.enable !== false ? '启用' : '禁用'}
-                                                                                </span>
+                                                                                <div className="inbounds-client-status-stack">
+                                                                                    <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
+                                                                                        {cl.enable !== false ? '启用' : '禁用'}
+                                                                                    </span>
+                                                                                    <span
+                                                                                        className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
+                                                                                        title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
+                                                                                    >
+                                                                                        <span className="inbounds-client-online-dot" aria-hidden="true" />
+                                                                                        {cl.isOnline ? '在线' : '离线'}
+                                                                                    </span>
+                                                                                </div>
                                                                             </td>
                                                                             <td>
                                                                                 <div className="flex items-center gap-2 flex-wrap">
                                                                                     <button
                                                                                         type="button"
                                                                                         className={`btn btn-sm ${cl.enable !== false ? 'btn-danger' : 'btn-success'}`}
-                                                                                        title={cl.enable !== false ? '禁用该用户' : '启用该用户'}
+                                                                                        title={toggleTitle}
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
@@ -1035,7 +1026,7 @@ export default function Inbounds() {
                                                                                         {isActioning
                                                                                             ? <span className="spinner" />
                                                                                             : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
-                                                                                        {cl.enable !== false ? '禁用' : '启用'}
+                                                                                        {toggleLabel}
                                                                                     </button>
                                                                                     <button
                                                                                         type="button"

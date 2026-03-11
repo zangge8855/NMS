@@ -1,0 +1,134 @@
+import React from 'react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import api from '../../api/client.js';
+import { useServer } from '../../contexts/ServerContext.jsx';
+import { renderWithRouter } from '../../test/render.jsx';
+import Inbounds from './Inbounds.jsx';
+
+vi.mock('../../api/client.js', () => ({
+    default: {
+        get: vi.fn(),
+        post: vi.fn(),
+        put: vi.fn(),
+    },
+}));
+
+vi.mock('../../contexts/ServerContext.jsx', () => ({
+    useServer: vi.fn(),
+}));
+
+vi.mock('../../contexts/ConfirmContext.jsx', () => ({
+    useConfirm: () => vi.fn(),
+}));
+
+vi.mock('../Layout/Header.jsx', () => ({
+    default: ({ title }) => <div>{title}</div>,
+}));
+
+vi.mock('./InboundModal.jsx', () => ({
+    default: () => null,
+}));
+
+vi.mock('../Clients/ClientModal.jsx', () => ({
+    default: () => null,
+}));
+
+vi.mock('../Batch/BatchResultModal.jsx', () => ({
+    default: () => null,
+}));
+
+vi.mock('../UI/ModalShell.jsx', () => ({
+    default: ({ children }) => <div>{children}</div>,
+}));
+
+vi.mock('../UI/EmptyState.jsx', () => ({
+    default: ({ title }) => <div>{title}</div>,
+}));
+
+vi.mock('react-hot-toast', () => ({
+    default: {
+        error: vi.fn(),
+        success: vi.fn(),
+    },
+}));
+
+describe('Inbounds', () => {
+    beforeEach(() => {
+        api.get.mockReset();
+        api.post.mockReset();
+        api.put.mockReset();
+        useServer.mockReset();
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 1,
+                            remark: 'Main Inbound',
+                            protocol: 'vless',
+                            listen: '0.0.0.0',
+                            port: 443,
+                            enable: true,
+                            up: 1024,
+                            down: 2048,
+                            settings: JSON.stringify({
+                                clients: [
+                                    { email: 'alice@example.com', id: 'alice-uuid', enable: true },
+                                    { email: 'bob@example.com', id: 'bob-uuid', enable: false },
+                                ],
+                            }),
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: ['alice@example.com'],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+    });
+
+    it('shows only the client count in the summary and exposes per-user online status', async () => {
+        const user = userEvent.setup();
+        const { container } = renderWithRouter(<Inbounds />);
+
+        const inboundName = await screen.findByText('Main Inbound');
+        const summaryRow = inboundName.closest('tr');
+        if (!summaryRow) throw new Error('Missing inbound summary row');
+
+        expect(within(summaryRow).getByText('2')).toBeInTheDocument();
+        expect(container.querySelector('.inbounds-usage-users')).toBeNull();
+
+        await user.click(summaryRow);
+
+        const aliceRow = (await screen.findByText('alice@example.com')).closest('tr');
+        const bobRow = (await screen.findByText('bob@example.com')).closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+        if (!bobRow) throw new Error('Missing Bob row');
+
+        expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
+        expect(within(aliceRow).getByRole('button', { name: /禁用/ })).toBeInTheDocument();
+
+        expect(within(bobRow).getByText('离线')).toBeInTheDocument();
+        expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
+    });
+});
