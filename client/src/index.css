@@ -92,9 +92,9 @@
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Typography — Inter + CJK fallback */
-  --font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --font-family: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --font-display: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', 'Noto Sans SC', system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -390,10 +390,11 @@ a:hover {
 }
 
 .sidebar-logo {
-  height: var(--header-height);
+  min-height: var(--header-height);
+  height: auto;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 14px 20px;
   gap: 14px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(255, 255, 255, 0.01);
@@ -420,8 +421,9 @@ a:hover {
 .sidebar-logo-text {
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
   white-space: nowrap;
   opacity: 1;
   transition: opacity var(--transition-fast);
@@ -651,12 +653,14 @@ a:hover {
 
 /* --- Header --- */
 .header {
-  height: var(--header-height);
+  min-height: var(--header-height);
+  height: auto;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  gap: 16px;
+  padding: 16px 32px;
   background: rgba(8, 15, 26, 0.88);
   backdrop-filter: blur(10px);
   position: sticky;
@@ -669,12 +673,17 @@ a:hover {
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.04em;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.header-right {
+.header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
+  min-width: 0;
 }
 
 /* --- Cards --- */
@@ -1343,6 +1352,7 @@ input[type="radio"]:focus {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1362,22 +1372,27 @@ input[type="radio"]:focus {
 .header-title-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .header-eyebrow {
+  display: block;
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-subtitle {
   font-size: 12px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .header-context {
@@ -2104,15 +2119,19 @@ input[type="radio"]:focus {
 .sidebar-logo-copy {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
 }
 
 .sidebar-logo-subtitle {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: none;
+  white-space: normal;
+  max-width: 20ch;
 }
 
 .sidebar-logo-text-gradient {
@@ -2215,12 +2234,13 @@ input[type="radio"]:focus {
     font-size: 18px;
   }
 
-  .header-right {
+  .header-actions {
     gap: 8px;
   }
 
   .header-context,
-  .header-subtitle {
+  .header-subtitle,
+  .header-eyebrow {
     display: none;
   }
 
@@ -2228,7 +2248,7 @@ input[type="radio"]:focus {
     display: none;
   }
 
-  .header-right .badge {
+  .header-actions .badge {
     display: none;
   }
 
@@ -2479,7 +2499,7 @@ input[type="radio"]:focus {
   }
 
   .header {
-    padding: 0 20px 0 68px;
+    padding: 12px 20px 12px 68px;
   }
 
   .header-title {
