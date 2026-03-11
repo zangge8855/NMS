@@ -673,9 +673,11 @@ export default function Dashboard() {
                                 </span>
                             </div>
                             {globalOnlineUserRows.length === 0 ? (
-                                <div className="empty-state empty-state-compact">
-                                    <div className="empty-state-text">{t('pages.dashboardCommon.onlineEmpty')}</div>
-                                </div>
+                                <EmptyState
+                                    title={t('pages.dashboardCommon.onlineEmpty')}
+                                    size="compact"
+                                    hideIcon
+                                />
                             ) : (
                                 <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
                                     <table className="table">
@@ -815,9 +817,11 @@ export default function Dashboard() {
                             <span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUserRows.length, sessions: onlineUsers.length })}</span>
                         </div>
                         {onlineUserRows.length === 0 ? (
-                            <div className="empty-state empty-state-compact">
-                                <div className="empty-state-text">{t('pages.dashboardCommon.onlineEmpty')}</div>
-                            </div>
+                            <EmptyState
+                                title={t('pages.dashboardCommon.onlineEmpty')}
+                                size="compact"
+                                hideIcon
+                            />
                         ) : (
                             <div className="table-container table-scroll table-scroll-md overflow-x-auto">
                                 <table className="table">

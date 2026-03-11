@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const BODY_MODAL_COUNT_KEY = 'nmsModalOpenCount';
@@ -12,6 +12,7 @@ const BODY_MODAL_RIGHT_KEY = 'nmsModalRight';
 const BODY_MODAL_TOUCH_ACTION_KEY = 'nmsModalTouchAction';
 const BODY_MODAL_SCROLL_Y_KEY = 'nmsModalScrollY';
 const APP_ROOT_MODAL_INERT_COUNT_KEY = 'nmsModalInertCount';
+const MODAL_EXIT_DURATION_MS = 180;
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',
@@ -168,6 +169,23 @@ export default function ModalShell({
     const previousFocusRef = useRef(null);
     const startSentinelRef = useRef(null);
     const endSentinelRef = useRef(null);
+    const [shouldRender, setShouldRender] = useState(isOpen);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            return undefined;
+        }
+
+        if (!shouldRender) return undefined;
+        const timeoutId = window.setTimeout(() => {
+            previousFocusRef.current?.focus?.({ preventScroll: true });
+            previousFocusRef.current = null;
+            setShouldRender(false);
+        }, MODAL_EXIT_DURATION_MS);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [isOpen, shouldRender]);
 
     const focusDialogBoundary = (direction) => {
         const dialog = getDialogElement(overlayRef.current);
@@ -208,8 +226,6 @@ export default function ModalShell({
             overlayInteractiveRef.current = false;
             unlockScroll();
             restoreAppRootIsolation();
-            previousFocusRef.current?.focus?.({ preventScroll: true });
-            previousFocusRef.current = null;
         };
     }, [isOpen]);
 
@@ -234,12 +250,13 @@ export default function ModalShell({
         };
     }, [isOpen, onClose]);
 
-    if (!isOpen || typeof document === 'undefined') return null;
+    if (!shouldRender || typeof document === 'undefined') return null;
 
     return createPortal(
         <div
             ref={overlayRef}
             className="modal-overlay"
+            data-state={isOpen ? 'open' : 'closed'}
             onTouchMove={(event) => {
                 if (event.target === event.currentTarget) {
                     event.preventDefault();

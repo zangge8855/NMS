@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
@@ -7,6 +8,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getSearchableNavItems } from './navConfig.js';
+import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 
 const themeIcons = {
     dark: HiOutlineMoon,
@@ -25,6 +27,11 @@ function getShortcutLabel() {
     return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 }
 
+function clamp(value, min, max) {
+    if (max <= min) return min;
+    return Math.min(Math.max(value, min), max);
+}
+
 export default function Header({ title, subtitle = '', icon, children, showSubtitle = false }) {
     const { activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
@@ -37,6 +44,7 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const searchRef = useRef(null);
     const inputRef = useRef(null);
+    const searchResultsRef = useRef(null);
     const searchResultsId = useId();
 
     const ThemeIcon = themeIcons[mode] || HiOutlineMoon;
@@ -86,7 +94,9 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
     useEffect(() => {
         if (!searchOpen) return undefined;
         const handleClickOutside = (event) => {
-            if (searchRef.current && !searchRef.current.contains(event.target)) {
+            const clickedInsideSearch = searchRef.current?.contains(event.target);
+            const clickedInsideResults = searchResultsRef.current?.contains(event.target);
+            if (!clickedInsideSearch && !clickedInsideResults) {
                 setSearchOpen(false);
             }
         };
@@ -151,7 +161,86 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
         }
     };
 
+    const computeSearchResultsPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
+        const viewportPadding = 12;
+        const gap = 10;
+        const width = Math.min(
+            Math.max(anchorRect.width + 48, 320),
+            Math.min(420, viewport.width - (viewportPadding * 2))
+        );
+        const left = clamp(anchorRect.right - width, viewportPadding, viewport.width - width - viewportPadding);
+        const spaceBelow = viewport.height - anchorRect.bottom - viewportPadding - gap;
+        const spaceAbove = anchorRect.top - viewportPadding - gap;
+        const measuredHeight = panelRect.height || 280;
+        const openUpward = spaceBelow < Math.min(220, measuredHeight) && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(180, openUpward ? spaceAbove : spaceBelow);
+        const renderedHeight = Math.min(measuredHeight, maxHeight);
+        const top = openUpward
+            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
+            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+
+        return {
+            top: `${top}px`,
+            left: `${left}px`,
+            width: `${width}px`,
+            maxHeight: `${maxHeight}px`,
+        };
+    }, []);
+
+    const { panelStyle: searchResultsStyle, isReady: isSearchResultsReady } = useFloatingPanel({
+        open: searchOpen,
+        anchorRef: searchRef,
+        panelRef: searchResultsRef,
+        computePosition: computeSearchResultsPosition,
+        deps: [filteredItems.length, searchTerm],
+    });
+
+    const searchResults = searchOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                ref={searchResultsRef}
+                className={`header-search-results${isSearchResultsReady ? ' is-ready' : ''}`}
+                id={searchResultsId}
+                role="listbox"
+                style={searchResultsStyle}
+            >
+                {filteredItems.length === 0 ? (
+                    <div className="header-search-empty">
+                        {t('shell.searchEmpty')}
+                    </div>
+                ) : (
+                    filteredItems.map((item, index) => {
+                        const ItemIcon = item.icon;
+                        const isHighlighted = index === highlightedIndex;
+                        return (
+                            <button
+                                key={item.path}
+                                id={`${searchResultsId}-${index}`}
+                                type="button"
+                                className={`header-search-item${isHighlighted ? ' active' : ''}`}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                onClick={() => handleSelect(item)}
+                                role="option"
+                                aria-selected={isHighlighted}
+                            >
+                                <span className="header-search-item-icon">
+                                    <ItemIcon />
+                                </span>
+                                <span className="header-search-item-copy">
+                                    <span className="header-search-item-label">{item.label}</span>
+                                    <span className="header-search-item-meta">{item.section}</span>
+                                </span>
+                            </button>
+                        );
+                    })
+                )}
+            </div>,
+            document.body
+        )
+        : null;
+
     return (
+        <>
         <header className="header">
             <div className="header-left">
                 {icon && <span className="header-icon">{icon}</span>}
@@ -188,40 +277,6 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
                         aria-activedescendant={searchOpen && filteredItems[highlightedIndex] ? `${searchResultsId}-${highlightedIndex}` : undefined}
                     />
                     <kbd className="header-search-kbd">{shortcutLabel}</kbd>
-                    {searchOpen && (
-                        <div className="header-search-results" id={searchResultsId} role="listbox">
-                            {filteredItems.length === 0 ? (
-                                <div className="header-search-empty">
-                                    {t('shell.searchEmpty')}
-                                </div>
-                            ) : (
-                                filteredItems.map((item, index) => {
-                                    const ItemIcon = item.icon;
-                                    const isHighlighted = index === highlightedIndex;
-                                    return (
-                                        <button
-                                            key={item.path}
-                                            id={`${searchResultsId}-${index}`}
-                                            type="button"
-                                            className={`header-search-item${isHighlighted ? ' active' : ''}`}
-                                            onMouseEnter={() => setHighlightedIndex(index)}
-                                            onClick={() => handleSelect(item)}
-                                            role="option"
-                                            aria-selected={isHighlighted}
-                                        >
-                                            <span className="header-search-item-icon">
-                                                <ItemIcon />
-                                            </span>
-                                            <span className="header-search-item-copy">
-                                                <span className="header-search-item-label">{item.label}</span>
-                                                <span className="header-search-item-meta">{item.section}</span>
-                                            </span>
-                                        </button>
-                                    );
-                                })
-                            )}
-                        </div>
-                    )}
                 </div>
                 {children}
                 <button
@@ -245,5 +300,7 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
                 </button>
             </div>
         </header>
+        {searchResults}
+        </>
     );
 }

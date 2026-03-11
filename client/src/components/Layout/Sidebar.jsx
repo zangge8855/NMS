@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 import {
     HiOutlineCloud,
     HiOutlineServerStack,
@@ -22,6 +23,11 @@ function isUnsupportedPathInGlobal(pathname) {
     });
 }
 
+function clamp(value, min, max) {
+    if (max <= min) return min;
+    return Math.min(Math.max(value, min), max);
+}
+
 export default function Sidebar({ collapsed, open = false, isMobile = false, onClose, onToggle }) {
     const { servers, activeServer, activeServerId, selectServer } = useServer();
     const { logout, user } = useAuth();
@@ -29,22 +35,33 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const { unreadCount } = useNotifications();
     const [showServerMenu, setShowServerMenu] = useState(false);
     const [serverSearch, setServerSearch] = useState('');
-    const [dropdownStyle, setDropdownStyle] = useState(null);
+    const [navFlyout, setNavFlyout] = useState(null);
     const location = useLocation();
     const navigate = useNavigate();
     const serverSelectorRef = useRef(null);
     const serverDropdownRef = useRef(null);
     const serverTriggerRef = useRef(null);
+    const navFlyoutRef = useRef(null);
+    const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
 
+    navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
+
     useEffect(() => {
         setShowServerMenu(false);
         setServerSearch('');
+        setNavFlyout(null);
         onClose?.();
     }, [location.pathname]);
+
+    useEffect(() => {
+        if (!collapsed || isMobile) {
+            setNavFlyout(null);
+        }
+    }, [collapsed, isMobile]);
 
     useEffect(() => {
         if (!isGlobalView) return;
@@ -67,65 +84,96 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showServerMenu]);
 
-    useEffect(() => {
-        if (!showServerMenu) {
-            setDropdownStyle(null);
-            return undefined;
-        }
+    const computeServerDropdownPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
+        const viewportPadding = 12;
+        const gap = 8;
+        const desiredWidth = collapsed ? 280 : Math.max(anchorRect.width, 280);
+        const width = Math.min(desiredWidth, viewport.width - (viewportPadding * 2));
+        const left = collapsed
+            ? clamp(anchorRect.right + gap, viewportPadding, viewport.width - width - viewportPadding)
+            : clamp(anchorRect.left, viewportPadding, viewport.width - width - viewportPadding);
 
-        let animationFrame = 0;
-        const syncDropdownPosition = () => {
-            const trigger = serverTriggerRef.current;
-            const dropdown = serverDropdownRef.current;
-            if (!trigger) return;
+        const measuredHeight = panelRect.height || 320;
+        const spaceBelow = viewport.height - anchorRect.bottom - viewportPadding - gap;
+        const spaceAbove = anchorRect.top - viewportPadding - gap;
+        const openUpward = spaceBelow < Math.min(280, measuredHeight) && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(160, openUpward ? spaceAbove : spaceBelow);
+        const renderedHeight = Math.min(measuredHeight, maxHeight);
+        const top = openUpward
+            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
+            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
 
-            const rect = trigger.getBoundingClientRect();
-            const viewportPadding = 12;
-            const gap = 8;
-            const desiredWidth = collapsed ? 280 : Math.max(rect.width, 280);
-            const width = Math.min(desiredWidth, window.innerWidth - (viewportPadding * 2));
-            const left = collapsed
-                ? Math.min(rect.right + gap, window.innerWidth - width - viewportPadding)
-                : Math.min(Math.max(rect.left, viewportPadding), window.innerWidth - width - viewportPadding);
-
-            const measuredHeight = dropdown?.offsetHeight || 320;
-            const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
-            const spaceAbove = rect.top - viewportPadding - gap;
-            const openUpward = spaceBelow < Math.min(280, measuredHeight) && spaceAbove > spaceBelow;
-            const maxHeight = Math.max(160, openUpward ? spaceAbove : spaceBelow);
-            const top = openUpward
-                ? Math.max(viewportPadding, rect.top - Math.min(measuredHeight, maxHeight) - gap)
-                : Math.min(rect.bottom + gap, window.innerHeight - Math.min(measuredHeight, maxHeight) - viewportPadding);
-
-            setDropdownStyle({
-                position: 'fixed',
-                top: `${top}px`,
-                left: `${left}px`,
-                width: `${width}px`,
-                maxHeight: `${maxHeight}px`,
-            });
+        return {
+            top: `${top}px`,
+            left: `${left}px`,
+            width: `${width}px`,
+            maxHeight: `${maxHeight}px`,
         };
+    }, [collapsed]);
 
-        const scheduleSync = () => {
-            window.cancelAnimationFrame(animationFrame);
-            animationFrame = window.requestAnimationFrame(syncDropdownPosition);
-        };
+    const { panelStyle: dropdownStyle, isReady: isServerDropdownReady } = useFloatingPanel({
+        open: showServerMenu,
+        anchorRef: serverTriggerRef,
+        panelRef: serverDropdownRef,
+        computePosition: computeServerDropdownPosition,
+        deps: [serverSearch, servers.length],
+    });
 
-        scheduleSync();
-        window.addEventListener('resize', scheduleSync);
-        window.addEventListener('scroll', scheduleSync, true);
-        return () => {
-            window.cancelAnimationFrame(animationFrame);
-            window.removeEventListener('resize', scheduleSync);
-            window.removeEventListener('scroll', scheduleSync, true);
+    const showNavFlyout = collapsed && !isMobile && !!navFlyout;
+
+    const computeNavFlyoutPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
+        const viewportPadding = 12;
+        const gap = 12;
+        const panelWidth = Math.max(144, Math.min(220, panelRect.width || 160));
+        const panelHeight = panelRect.height || 44;
+        const left = clamp(anchorRect.right + gap, viewportPadding, viewport.width - panelWidth - viewportPadding);
+        const top = clamp(
+            anchorRect.top + (anchorRect.height / 2) - (panelHeight / 2),
+            viewportPadding,
+            viewport.height - panelHeight - viewportPadding
+        );
+
+        return {
+            top: `${top}px`,
+            left: `${left}px`,
+            minWidth: `${panelWidth}px`,
         };
-    }, [collapsed, serverSearch, showServerMenu, servers.length]);
+    }, []);
+
+    const { panelStyle: navFlyoutStyle, isReady: isNavFlyoutReady } = useFloatingPanel({
+        open: showNavFlyout,
+        anchorRef: navFlyoutAnchorRef,
+        panelRef: navFlyoutRef,
+        computePosition: computeNavFlyoutPosition,
+        deps: [navFlyout?.id],
+    });
+
+    const openNavFlyout = (id, label, target) => {
+        if (!collapsed || isMobile || !target) return;
+        setNavFlyout({ id, label, anchorEl: target });
+    };
+
+    const closeNavFlyout = (id) => {
+        setNavFlyout((current) => (current?.id === id ? null : current));
+    };
+
+    const getNavFlyoutProps = (id, label) => (
+        collapsed && !isMobile
+            ? {
+                onMouseEnter: (event) => openNavFlyout(id, label, event.currentTarget),
+                onMouseLeave: () => closeNavFlyout(id),
+                onFocus: (event) => openNavFlyout(id, label, event.currentTarget),
+                onBlur: () => closeNavFlyout(id),
+                title: label,
+            }
+            : {}
+    );
 
     const serverMenu = showServerMenu && (servers.length > 0 || activeServerId === 'global') && typeof document !== 'undefined'
         ? createPortal(
             <div
                 ref={serverDropdownRef}
-                className="server-dropdown-menu"
+                className={`server-dropdown-menu${isServerDropdownReady ? ' is-ready' : ''}`}
                 style={dropdownStyle || undefined}
             >
                 {servers.length >= 4 && (
@@ -174,8 +222,23 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         )
         : null;
 
+    const navFlyoutMenu = showNavFlyout && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                ref={navFlyoutRef}
+                className={`sidebar-nav-flyout${isNavFlyoutReady ? ' is-ready' : ''}`}
+                style={navFlyoutStyle}
+                role="tooltip"
+            >
+                {navFlyout.label}
+            </div>,
+            document.body
+        )
+        : null;
+
     return (
-        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''} `}>
+        <>
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">
                     <img src="/nms-logo.png" alt="NMS" className="sidebar-logo-image" />
@@ -206,8 +269,12 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                     key={item.path}
                                     to={item.path}
                                     end={item.path === '/'}
-                                    onClick={onClose}
+                                    onClick={() => {
+                                        closeNavFlyout(item.path);
+                                        onClose?.();
+                                    }}
                                     data-tooltip={item.label}
+                                    {...getNavFlyoutProps(item.path, item.label)}
                                     className={({ isActive }) =>
                                         `nav-item ${isActive ? 'active' : ''}`
                                     }
@@ -234,7 +301,11 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         <NavLink
                             key={item.path}
                             to={item.path}
-                            onClick={onClose}
+                            onClick={() => {
+                                closeNavFlyout(item.path);
+                                onClose?.();
+                            }}
+                            {...getNavFlyoutProps(item.path, item.label)}
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                         >
                             {({ isActive }) => (
@@ -249,7 +320,12 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                     <button
                         type="button"
                         className="nav-item nav-item-button sidebar-logout"
-                        onClick={() => { logout(); onClose?.(); }}
+                        onClick={() => {
+                            closeNavFlyout('logout');
+                            logout();
+                            onClose?.();
+                        }}
+                        {...getNavFlyoutProps('logout', t('shell.logout'))}
                     >
                         <span className="nav-item-icon text-muted"><HiOutlineArrowRightOnRectangle /></span>
                         <span className="nav-label">{t('shell.logout')}</span>
@@ -310,5 +386,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
             )}
             {serverMenu}
         </aside>
+        {navFlyoutMenu}
+        </>
     );
 }

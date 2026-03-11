@@ -53,26 +53,26 @@ export const REVIEW_CREDENTIALS = Object.freeze({
     admin: {
         username: 'review-admin',
         password: deriveFixturePassword('review-admin-password', 'REVIEW_ADMIN_PASSWORD'),
-        email: 'review-admin@example.com',
-        subscriptionEmail: 'admin-sub@example.com',
+        email: 'review-admin@fixtures.invalid',
+        subscriptionEmail: 'review-admin-sub@fixtures.invalid',
     },
     user: {
         username: 'review-user',
         password: deriveFixturePassword('review-user-password', 'REVIEW_USER_PASSWORD'),
-        email: 'review-user@example.com',
-        subscriptionEmail: 'alice@example.com',
+        email: 'review-user@fixtures.invalid',
+        subscriptionEmail: 'review-user-sub@fixtures.invalid',
     },
     operator: {
         username: 'review-ops',
         password: deriveFixturePassword('review-ops-password', 'REVIEW_OPERATOR_PASSWORD'),
-        email: 'review-ops@example.com',
-        subscriptionEmail: 'ops@example.com',
+        email: 'review-ops@fixtures.invalid',
+        subscriptionEmail: 'review-ops-sub@fixtures.invalid',
     },
     suspended: {
         username: 'review-suspended',
         password: deriveFixturePassword('review-suspended-password', 'REVIEW_SUSPENDED_PASSWORD'),
-        email: 'review-suspended@example.com',
-        subscriptionEmail: 'suspended@example.com',
+        email: 'review-suspended@fixtures.invalid',
+        subscriptionEmail: 'review-suspended-sub@fixtures.invalid',
     },
     panels: {
         healthy: {
@@ -277,8 +277,8 @@ function buildHealthyPanelState() {
             ],
         },
         clientIps: {
-            'alice@example.com': ['198.51.100.10', '198.51.100.11'],
-            'admin-sub@example.com': ['203.0.113.8'],
+            [REVIEW_CREDENTIALS.user.subscriptionEmail]: ['198.51.100.10', '198.51.100.11'],
+            [REVIEW_CREDENTIALS.admin.subscriptionEmail]: ['203.0.113.8'],
         },
         inbounds: [
             {
@@ -295,7 +295,7 @@ function buildHealthyPanelState() {
                     clients: [
                         {
                             id: '11111111-1111-1111-1111-111111111111',
-                            email: 'alice@example.com',
+                            email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                             enable: true,
                             flow: 'xtls-rprx-vision',
                             expiryTime: 1767225600000,
@@ -308,7 +308,7 @@ function buildHealthyPanelState() {
                         },
                         {
                             id: '11111111-1111-1111-1111-111111111112',
-                            email: 'admin-sub@example.com',
+                            email: REVIEW_CREDENTIALS.admin.subscriptionEmail,
                             enable: true,
                             flow: '',
                             expiryTime: 0,
@@ -334,12 +334,12 @@ function buildHealthyPanelState() {
                 },
                 clientStats: [
                     {
-                        email: 'alice@example.com',
+                        email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                         up: 268435456,
                         down: 536870912,
                     },
                     {
-                        email: 'admin-sub@example.com',
+                        email: REVIEW_CREDENTIALS.admin.subscriptionEmail,
                         up: 134217728,
                         down: 268435456,
                     },
@@ -359,7 +359,7 @@ function buildHealthyPanelState() {
                     clients: [
                         {
                             password: REVIEW_FIXTURE_VALUES.trojanClientPassword,
-                            email: 'ops@example.com',
+                            email: REVIEW_CREDENTIALS.operator.subscriptionEmail,
                             enable: true,
                             expiryTime: 1767225600000,
                             limitIp: 3,
@@ -381,7 +381,7 @@ function buildHealthyPanelState() {
                 }),
                 clientStats: [
                     {
-                        email: 'ops@example.com',
+                        email: REVIEW_CREDENTIALS.operator.subscriptionEmail,
                         up: 67108864,
                         down: 134217728,
                     },
@@ -401,7 +401,7 @@ function buildHealthyPanelState() {
                     clients: [
                         {
                             password: REVIEW_FIXTURE_VALUES.shadowsocksClientPassword,
-                            email: 'suspended@example.com',
+                            email: REVIEW_CREDENTIALS.suspended.subscriptionEmail,
                             enable: false,
                             expiryTime: 1760000000000,
                             limitIp: 1,
@@ -419,10 +419,10 @@ function buildHealthyPanelState() {
             },
         ],
         onlineSessions: [
-            'alice@example.com',
-            { email: 'alice@example.com' },
-            { email: 'admin-sub@example.com' },
-            { email: 'ops@example.com' },
+            REVIEW_CREDENTIALS.user.subscriptionEmail,
+            { email: REVIEW_CREDENTIALS.user.subscriptionEmail },
+            { email: REVIEW_CREDENTIALS.admin.subscriptionEmail },
+            { email: REVIEW_CREDENTIALS.operator.subscriptionEmail },
         ],
     };
 }
@@ -477,7 +477,7 @@ function buildLegacyPanelState() {
                     clients: [
                         {
                             id: '22222222-2222-2222-2222-222222222222',
-                            email: 'alice@example.com',
+                            email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                             enable: true,
                             expiryTime: 1767225600000,
                             limitIp: 1,
@@ -496,7 +496,7 @@ function buildLegacyPanelState() {
                 }),
                 clientStats: [
                     {
-                        email: 'alice@example.com',
+                        email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                         up: 33554432,
                         down: 67108864,
                     },
@@ -521,7 +521,7 @@ function buildLegacyPanelState() {
             },
         ],
         onlineSessions: [
-            { email: 'alice@example.com' },
+            { email: REVIEW_CREDENTIALS.user.subscriptionEmail },
         ],
     };
 }
@@ -704,7 +704,7 @@ function buildReviewAudit() {
                 actorRole: 'admin',
                 ip: '198.51.100.10',
                 method: 'POST',
-                path: '/api/subscriptions/alice%40example.com/issue',
+                path: `/api/subscriptions/${encodeURIComponent(REVIEW_CREDENTIALS.user.subscriptionEmail)}/issue`,
                 outcome: 'success',
                 resourceType: 'subscription_token',
                 resourceId: 'review-active-token',
@@ -828,7 +828,7 @@ function buildReviewJobs() {
                     serverId: REVIEW_SERVER_IDS.healthy,
                     serverName: 'Review Healthy Node',
                     inboundId: 101,
-                    email: 'alice@example.com',
+                    email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                     msg: 'Client added',
                 },
                 {
@@ -836,7 +836,7 @@ function buildReviewJobs() {
                     serverId: REVIEW_SERVER_IDS.authFail,
                     serverName: 'Review Auth Failure',
                     inboundId: 101,
-                    email: 'alice@example.com',
+                    email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                     msg: '3x-ui auth failed',
                 },
             ],
@@ -903,7 +903,7 @@ function buildReviewTraffic() {
                 ts: '2026-03-09T06:00:00.000Z',
                 serverId: REVIEW_SERVER_IDS.healthy,
                 inboundId: '101',
-                email: 'alice@example.com',
+                email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 33554432,
                 downBytes: 67108864,
                 totalBytes: 100663296,
@@ -912,7 +912,7 @@ function buildReviewTraffic() {
                 ts: '2026-03-09T12:00:00.000Z',
                 serverId: REVIEW_SERVER_IDS.healthy,
                 inboundId: '101',
-                email: 'alice@example.com',
+                email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 67108864,
                 downBytes: 100663296,
                 totalBytes: 167772160,
@@ -921,7 +921,7 @@ function buildReviewTraffic() {
                 ts: '2026-03-10T06:00:00.000Z',
                 serverId: REVIEW_SERVER_IDS.healthy,
                 inboundId: '102',
-                email: 'ops@example.com',
+                email: REVIEW_CREDENTIALS.operator.subscriptionEmail,
                 upBytes: 16777216,
                 downBytes: 33554432,
                 totalBytes: 50331648,
@@ -930,19 +930,19 @@ function buildReviewTraffic() {
                 ts: '2026-03-10T06:30:00.000Z',
                 serverId: REVIEW_SERVER_IDS.legacy,
                 inboundId: '201',
-                email: 'alice@example.com',
+                email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 8388608,
                 downBytes: 12582912,
                 totalBytes: 20971520,
             },
         ],
         counters: {
-            [`${REVIEW_SERVER_IDS.healthy}|101|email:alice@example.com`]: {
+            [`${REVIEW_SERVER_IDS.healthy}|101|email:${REVIEW_CREDENTIALS.user.subscriptionEmail}`]: {
                 up: 100663296,
                 down: 167772160,
                 lastSeenAt: '2026-03-10T06:30:00.000Z',
             },
-            [`${REVIEW_SERVER_IDS.healthy}|102|email:ops@example.com`]: {
+            [`${REVIEW_SERVER_IDS.healthy}|102|email:${REVIEW_CREDENTIALS.operator.subscriptionEmail}`]: {
                 up: 16777216,
                 down: 33554432,
                 lastSeenAt: '2026-03-10T06:30:00.000Z',
@@ -962,7 +962,7 @@ function buildReviewOverrides() {
                 serverId: REVIEW_SERVER_IDS.healthy,
                 inboundId: '101',
                 clientIdentifier: '11111111-1111-1111-1111-111111111111',
-                email: 'alice@example.com',
+                email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 expiryTime: 1767225600000,
                 limitIp: 1,
                 trafficLimitBytes: 2147483648,

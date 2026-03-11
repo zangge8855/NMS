@@ -46,7 +46,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/zangge8855/nms:latest
-            ghcr.io/zangge8855/nms:${{ env.COMMIT_SHA }}
+            ghcr.io/${{ github.repository_owner }}/nms:latest
+            ghcr.io/${{ github.repository_owner }}/nms:${{ env.COMMIT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -562,11 +562,13 @@ export default function Servers() {
                         action={<button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><HiOutlinePlusCircle /> 新增服务器</button>}
                     />
                 ) : filteredServers.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineServerStack /></div>
-                        <div className="empty-state-text">没有匹配的服务器</div>
-                        <div className="empty-state-sub">请调整分组/环境/健康筛选条件</div>
-                    </div>
+                    <EmptyState
+                        title="没有匹配的服务器"
+                        subtitle="请调整分组、环境或健康状态筛选条件"
+                        icon={<HiOutlineServerStack />}
+                        size="compact"
+                        surface
+                    />
                 ) : (
                     <div className="grid-auto-280 servers-grid">
                         {filteredServers.map(server => {

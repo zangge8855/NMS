@@ -14,12 +14,31 @@ function EmptyIcon() {
     );
 }
 
-export default function EmptyState({ title = '暂无数据', subtitle, action, icon }) {
+export default function EmptyState({
+    title = '暂无数据',
+    subtitle,
+    action,
+    icon,
+    size = 'default',
+    surface = false,
+    hideIcon = false,
+    className = '',
+}) {
+    const classes = [
+        'empty-state',
+        size !== 'default' ? `empty-state--${size}` : '',
+        surface ? 'empty-state--surface' : '',
+        className,
+    ].filter(Boolean);
+    const shouldRenderIcon = !hideIcon;
+
     return (
-        <div className="empty-state">
-            <div className="empty-state-icon">
-                {icon || <EmptyIcon />}
-            </div>
+        <div className={classes.join(' ')}>
+            {shouldRenderIcon && (
+                <div className="empty-state-icon" aria-hidden="true">
+                    {icon || <EmptyIcon />}
+                </div>
+            )}
             <h3 className="empty-state-title">{title}</h3>
             {subtitle && <p className="empty-state-sub">{subtitle}</p>}
             {action && <div className="empty-state-action mt-4">{action}</div>}

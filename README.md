@@ -100,8 +100,8 @@ pm2 save
 
 Available image tags:
 
-- `ghcr.io/zangge8855/nms:latest`
-- `ghcr.io/zangge8855/nms:<commit_sha>`
+- `ghcr.io/<your-github-user-or-org>/nms:latest`
+- `ghcr.io/<your-github-user-or-org>/nms:<commit_sha>`
 
 ### First Setup Checklist
 
@@ -230,8 +230,8 @@ pm2 save
 
 可用镜像标签：
 
-- `ghcr.io/zangge8855/nms:latest`
-- `ghcr.io/zangge8855/nms:<commit_sha>`
+- `ghcr.io/<你的 GitHub 用户或组织>/nms:latest`
+- `ghcr.io/<你的 GitHub 用户或组织>/nms:<commit_sha>`
 
 ### 首次配置清单
 

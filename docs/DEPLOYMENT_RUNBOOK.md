@@ -102,8 +102,8 @@ pm2 startup systemd -u root --hp /root
 
 仓库已提供 `Dockerfile`，也可直接使用 GHCR 镜像：
 
-- `ghcr.io/zangge8855/nms:latest`
-- `ghcr.io/zangge8855/nms:<commit_sha>`
+- `ghcr.io/<your-github-user-or-org>/nms:latest`
+- `ghcr.io/<your-github-user-or-org>/nms:<commit_sha>`
 
 示例：
 
@@ -114,7 +114,7 @@ docker run -d \
   -v /opt/nms/data:/app/data \
   -v /opt/nms/logs:/app/logs \
   --env-file /opt/nms/.env \
-  ghcr.io/zangge8855/nms:latest
+  ghcr.io/<your-github-user-or-org>/nms:latest
 ```
 
 说明：
@@ -419,8 +419,8 @@ Default access URL:
 
 The repo ships a `Dockerfile`, and GHCR images are also published:
 
-- `ghcr.io/zangge8855/nms:latest`
-- `ghcr.io/zangge8855/nms:<commit_sha>`
+- `ghcr.io/<your-github-user-or-org>/nms:latest`
+- `ghcr.io/<your-github-user-or-org>/nms:<commit_sha>`
 
 Example:
 
@@ -431,7 +431,7 @@ docker run -d \
   -v /opt/nms/data:/app/data \
   -v /opt/nms/logs:/app/logs \
   --env-file /opt/nms/.env \
-  ghcr.io/zangge8855/nms:latest
+  ghcr.io/<your-github-user-or-org>/nms:latest
 ```
 
 Notes:

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render.jsx';
 import Sidebar from './Sidebar.jsx';
 
@@ -52,4 +52,19 @@ describe('Sidebar', () => {
         expect(sidebar).not.toHaveClass('collapsed');
         expect(screen.getByRole('button', { name: '收起侧边栏' })).toBeInTheDocument();
     }, 15000);
+
+    it('renders collapsed nav flyout in a portal without clipping', async () => {
+        const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
+
+        const navItem = container.querySelector('.nav-item');
+        expect(navItem).not.toBeNull();
+
+        fireEvent.mouseEnter(navItem);
+
+        await waitFor(() => {
+            const flyout = document.body.querySelector('.sidebar-nav-flyout.is-ready');
+            expect(flyout).toBeInTheDocument();
+            expect(flyout).toHaveTextContent('仪表盘');
+        });
+    });
 });

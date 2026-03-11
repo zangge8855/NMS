@@ -1,0 +1,91 @@
+/* Layout, sidebar, and structural UI polish overrides. */
+
+.app-layout {
+  overflow: visible;
+}
+
+.sidebar {
+  overflow: visible;
+  transition: width 300ms ease-in-out, transform 300ms ease-in-out !important;
+}
+
+.main-content {
+  transition: margin-left 300ms ease-in-out, width 300ms ease-in-out, max-width 300ms ease-in-out !important;
+}
+
+.sidebar-nav {
+  min-height: 0;
+  padding-right: 12px;
+}
+
+.nav-item,
+.server-selector-btn {
+  min-height: 44px;
+}
+
+.nav-item {
+  overflow: hidden;
+  border-radius: 14px;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.nav-item:hover,
+.server-selector-btn:hover,
+.server-selector-btn.active {
+  background: var(--surface-elevated-hover) !important;
+}
+
+.nav-item.active {
+  background: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(96, 165, 250, 0.28) !important;
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.08);
+}
+
+.active-glow {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+.nav-label,
+.server-name,
+.server-addr,
+.sidebar-user-name,
+.sidebar-user-role {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar.collapsed .nav-item::after {
+  display: none !important;
+  content: none !important;
+}
+
+.card,
+.table-container,
+.modal,
+.header-search-results,
+.notification-dropdown,
+.server-dropdown-menu {
+  border: 1px solid var(--surface-elevated-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--surface-elevated-shadow) !important;
+}
+
+.card,
+.table-container,
+.modal {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.card,
+.table-container {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.56) 100%) !important;
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .table-container,
+[data-theme="light"] .modal {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 100%) !important;
+}

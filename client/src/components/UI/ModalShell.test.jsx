@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ModalShell from './ModalShell.jsx';
 
@@ -69,5 +69,29 @@ describe('ModalShell', () => {
         await waitFor(() => {
             expect(trigger).toHaveFocus();
         });
+    });
+
+    it('closes when the overlay is clicked', async () => {
+        const onClose = vi.fn();
+
+        render(
+            <ModalShell isOpen onClose={onClose}>
+                <div className="modal">
+                    <button type="button">Dismissible Content</button>
+                </div>
+            </ModalShell>
+        );
+
+        const overlay = document.body.querySelector('.modal-overlay');
+        expect(overlay).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Dismissible Content' })).toHaveFocus();
+        });
+
+        fireEvent.pointerDown(overlay);
+        fireEvent.click(overlay);
+
+        expect(onClose).toHaveBeenCalledTimes(1);
     });
 });
