@@ -12,6 +12,8 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function normalizeInactiveReason(reason) {
     const text = String(reason || '').trim().toLowerCase();
@@ -257,57 +259,64 @@ export default function Subscriptions() {
             <Header title={t('pages.subscriptions.title')} />
             <div className="page-content page-enter">
                 {isAdmin && (
-                <div className="card mb-8 subscriptions-toolbar">
-                    <div className="subscriptions-toolbar-main">
-                        <div className="form-group subscriptions-toolbar-field">
-                            <label className="form-label">用户邮箱</label>
-                            <input
-                                type="email"
-                                className="form-input"
-                                placeholder="user@example.com"
-                                list="subscription-user-list"
-                                value={selectedEmail}
-                                onChange={(e) => setSelectedEmail(e.target.value)}
-                                readOnly={isUserOnly}
-                            />
-                            <datalist id="subscription-user-list">
-                                {users.map((email) => (
-                                    <option key={email} value={email} />
-                                ))}
-                            </datalist>
-                        </div>
-                        <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
-                            <label className="form-label">订阅范围</label>
-                            <select
-                                className="form-select"
-                                value={selectedServerId}
-                                onChange={(e) => setSelectedServerId(e.target.value)}
-                            >
-                                <option value="all">全部节点</option>
-                                {servers.map((server) => (
-                                    <option key={server.id} value={server.id}>{server.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="subscriptions-toolbar-actions">
-                        {normalizedEmail && (
-                            <Link className="btn btn-secondary" to={linkedUserHref}>
-                                用户管理
-                            </Link>
+                    <PageToolbar
+                        className="card mb-8 subscriptions-toolbar"
+                        main={(
+                            <>
+                                <div className="form-group subscriptions-toolbar-field">
+                                    <label className="form-label">用户邮箱</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        placeholder="user@example.com"
+                                        list="subscription-user-list"
+                                        value={selectedEmail}
+                                        onChange={(e) => setSelectedEmail(e.target.value)}
+                                        readOnly={isUserOnly}
+                                    />
+                                    <datalist id="subscription-user-list">
+                                        {users.map((email) => (
+                                            <option key={email} value={email} />
+                                        ))}
+                                    </datalist>
+                                </div>
+                                <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
+                                    <label className="form-label">订阅范围</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedServerId}
+                                        onChange={(e) => setSelectedServerId(e.target.value)}
+                                    >
+                                        <option value="all">全部节点</option>
+                                        {servers.map((server) => (
+                                            <option key={server.id} value={server.id}>{server.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </>
                         )}
-                        <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
-                                {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新用户列表</>}
-                        </button>
-                        <button className="btn btn-primary" onClick={loadSubscription} disabled={loading || !normalizedEmail}>
-                            {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新加载</>}
-                        </button>
-                    </div>
-                    <div className="subscriptions-toolbar-status text-xs text-muted">
-                        {usersAccessDenied ? '当前角色无全量用户列表权限，请手动输入邮箱'
-                            : `已加载 ${users.length} 个用户，可直接搜索或选择`}
-                    </div>
-                </div>
+                        actions={(
+                            <>
+                                {normalizedEmail && (
+                                    <Link className="btn btn-secondary" to={linkedUserHref}>
+                                        用户管理
+                                    </Link>
+                                )}
+                                <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                    {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新用户列表</>}
+                                </button>
+                                <button className="btn btn-primary" onClick={loadSubscription} disabled={loading || !normalizedEmail}>
+                                    {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新加载</>}
+                                </button>
+                            </>
+                        )}
+                        meta={(
+                            <span className="subscriptions-toolbar-status">
+                                {usersAccessDenied ? '当前角色无全量用户列表权限，请手动输入邮箱'
+                                    : `已加载 ${users.length} 个用户，可直接搜索或选择`}
+                            </span>
+                        )}
+                    />
                 )}
 
                 {!result ? (
@@ -354,16 +363,19 @@ export default function Subscriptions() {
                         )}
 
                         <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">持久订阅地址</span>
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={handleResetLink}
-                                    disabled={resetLoading || !normalizedEmail}
-                                >
-                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置订阅链接</>}
-                                </button>
-                            </div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="持久订阅地址"
+                                actions={(
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={handleResetLink}
+                                        disabled={resetLoading || !normalizedEmail}
+                                    >
+                                        {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置订阅链接</>}
+                                    </button>
+                                )}
+                            />
                             <div
                                 className="grid gap-2 mb-3"
                                 style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}
@@ -405,12 +417,15 @@ export default function Subscriptions() {
 
                         {isAdmin && (
                             <div className="card mb-8">
-                                <div className="card-header">
-                                    <span className="card-title">Token 生命周期管理</span>
-                                    <span className="badge badge-info">
-                                        {result.token?.activeCount || 0}/{result.token?.activeLimit || 0}
-                                    </span>
-                                </div>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="Token 生命周期管理"
+                                    meta={(
+                                        <span className="badge badge-info">
+                                            {result.token?.activeCount || 0}/{result.token?.activeLimit || 0}
+                                        </span>
+                                    )}
+                                />
                                 <div
                                     style={{
                                         display: 'grid',

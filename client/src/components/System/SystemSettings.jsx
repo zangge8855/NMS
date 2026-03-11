@@ -14,6 +14,8 @@ import {
 } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -563,17 +565,18 @@ export default function SystemSettings() {
                 eyebrow={t('pages.settings.eyebrow')}
             />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-6 settings-toolbar">
-                    <div className="text-sm text-muted settings-toolbar-copy">
-                        {settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : '系统参数'}
-                    </div>
-                    <div className="flex gap-2 settings-toolbar-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
-                        <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                            {saving ? <span className="spinner" /> : '保存设置'}
-                        </button>
-                    </div>
-                </div>
+                <PageToolbar
+                    className="settings-toolbar mb-6"
+                    main={<div className="page-toolbar-copy settings-toolbar-copy">{settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : '系统参数'}</div>}
+                    actions={(
+                        <>
+                            <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
+                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                {saving ? <span className="spinner" /> : '保存设置'}
+                            </button>
+                        </>
+                    )}
+                />
 
                 <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
                     <div className="grid-auto-280 settings-grid">
@@ -650,26 +653,28 @@ export default function SystemSettings() {
                             <div className="text-sm text-muted">只读查看当前邮件、备份和健康巡检状态，高风险操作仍需单独确认。</div>
                         </div>
                         <div className="card p-4 settings-panel settings-diagnostics-panel">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="text-lg font-semibold">SMTP 诊断</h3>
-                                    {emailStatus && (
-                                        <>
-                                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                                        </>
-                                    )}
-                                </div>
-                                <div className="flex gap-2 settings-panel-actions">
-                                    <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                        {emailTestLoading ? <span className="spinner" /> : '测试'}
-                                    </button>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
-                                        {emailStatusLoading ? <span className="spinner" /> : '刷新'}
-                                    </button>
-                                </div>
-                            </div>
+                            <SectionHeader
+                                className="mb-3"
+                                compact
+                                title="SMTP 诊断"
+                                meta={emailStatus && (
+                                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                                        <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                                        <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                        <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                                    </div>
+                                )}
+                                actions={(
+                                    <div className="settings-panel-actions">
+                                        <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                                            {emailTestLoading ? <span className="spinner" /> : '测试'}
+                                        </button>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
+                                            {emailStatusLoading ? <span className="spinner" /> : '刷新'}
+                                        </button>
+                                    </div>
+                                )}
+                            />
                             {!emailStatus ? (
                                 <div className="text-sm text-muted">尚未加载 SMTP 状态</div>
                             ) : (
@@ -729,12 +734,16 @@ export default function SystemSettings() {
                         </div>
 
                         <div className="card p-4 settings-panel settings-backup-panel">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-lg font-semibold">系统备份</h3>
-                                <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
-                                    {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                                </button>
-                            </div>
+                            <SectionHeader
+                                className="mb-3"
+                                compact
+                                title="系统备份"
+                                actions={(
+                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
+                                        {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                    </button>
+                                )}
+                            />
                             <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。</div>
                             <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                                 <div className="card p-3 settings-mini-card">
@@ -820,17 +829,21 @@ export default function SystemSettings() {
                         </div>
 
                         <div className="card p-4 settings-panel settings-monitor-panel">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-lg font-semibold">节点健康监控</h3>
-                                <div className="flex gap-2">
-                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
-                                        {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                                    </button>
-                                    <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                                        {monitorLoading ? <span className="spinner" /> : '立即巡检'}
-                                    </button>
-                                </div>
-                            </div>
+                            <SectionHeader
+                                className="mb-3"
+                                compact
+                                title="节点健康监控"
+                                actions={(
+                                    <>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
+                                            {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                                        </button>
+                                        <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                                            {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                                        </button>
+                                    </>
+                                )}
+                            />
                             <div className="text-xs text-muted mb-3">后台会定期巡检已配置节点，并通过右上角通知中心推送异常/恢复告警。</div>
                             <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
                                 <div className="card p-3 settings-mini-card">
@@ -884,12 +897,16 @@ export default function SystemSettings() {
                 </div>
 
                 <div className="card p-4 mt-6 settings-panel settings-db-panel">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-semibold">数据库接入状态</h3>
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
-                            {dbLoading ? <span className="spinner" /> : '刷新状态'}
-                        </button>
-                    </div>
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title="数据库接入状态"
+                        actions={(
+                            <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
+                                {dbLoading ? <span className="spinner" /> : '刷新状态'}
+                            </button>
+                        )}
+                    />
 
                     {!dbStatus ? (
                         <div className="text-sm text-muted">尚未加载数据库状态</div>

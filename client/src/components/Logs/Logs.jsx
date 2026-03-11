@@ -17,6 +17,9 @@ import {
     HiOutlineArrowsPointingIn,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
+import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function getSummaryToneMeta(tone) {
     if (tone === 'danger') {
@@ -182,7 +185,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     );
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
 
-    // ── Fetch Logs ───────────────────────────────────────
     const fetchSingleLogs = useCallback(async () => {
         if (!activeServerId || activeServerId === 'global') return;
         setLoading(true);
@@ -292,14 +294,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         if (activeServerId) fetchLogs();
     }, [activeServerId, fetchLogs]);
 
-    // Auto-scroll to bottom
     useEffect(() => {
         if (autoScrollEnabled && logContainerRef.current) {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [autoScrollEnabled, logs]);
 
-    // ── Filter ───────────────────────────────────────────
     const filteredLogs = useMemo(() => {
         let result = logs;
         if (keywords.trim()) {
@@ -312,7 +312,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         return result;
     }, [keywords, levelFilter, logs]);
 
-    // ── Copy ─────────────────────────────────────────────
     const copyLogs = () => {
         const text = filteredLogs.map(e =>
             isGlobal ? `[${e.serverName}] ${e.line}` : e.line
@@ -331,7 +330,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         });
     };
 
-    // ── Toggle server selection ──────────────────────────
     const toggleServer = (serverId) => {
         setSelectedServerIds(prev =>
             prev.includes(serverId)
@@ -343,17 +341,16 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const selectAllServers = () => setSelectedServerIds(servers.map(s => s.id));
     const selectNoneServers = () => setSelectedServerIds([]);
 
-    // ── Render ────────────────────────────────────────────
     return (
         <>
             {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}` : sourceLabel} />}
             <div className={`${embedded ? '' : 'page-content page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
-                <div className="card mb-4 logs-toolbar">
-                    <div className="card-header card-header-flat">
-                        <div className="flex items-center gap-8 flex-wrap flex-1 logs-toolbar-main">
+                <PageToolbar
+                    className="card mb-4 logs-toolbar"
+                    main={(
+                        <>
                             <HiOutlineFunnel className="text-muted" />
-
                             <select
                                 className="form-select w-120"
                                 value={levelFilter}
@@ -391,9 +388,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 value={keywords}
                                 onChange={e => setKeywords(e.target.value)}
                             />
-                        </div>
-
-                        <div className="flex items-center gap-8 logs-toolbar-actions">
+                        </>
+                    )}
+                    actions={(
+                        <>
                             <button
                                 className="btn btn-ghost btn-sm"
                                 onClick={() => setAutoScrollEnabled((value) => !value)}
@@ -427,24 +425,33 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
                                 {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
                             </button>
-                        </div>
-                    </div>
-                </div>
+                        </>
+                    )}
+                />
 
                 {/* Global Mode: Server Selector */}
                 {isGlobal && (
                     <div className="card mb-4 logs-server-card">
-                        <div className="card-header card-header-flat-tight">
-                            <div className="flex items-center gap-8">
-                                <HiOutlineServerStack className="text-muted" />
-                                <span className="card-title text-sm">{t('pages.logs.serverSelection')}</span>
-                                <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
-                                <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
-                            </div>
-                            <span className="text-sm text-muted">
-                                {t('pages.logs.selectedServers', { selected: selectedServerIds.length, total: servers.length })}
-                            </span>
-                        </div>
+                        <SectionHeader
+                            className="card-header card-header-flat-tight section-header section-header--compact"
+                            title={(
+                                <div className="flex items-center gap-8">
+                                    <HiOutlineServerStack className="text-muted" />
+                                    <span className="card-title text-sm">{t('pages.logs.serverSelection')}</span>
+                                </div>
+                            )}
+                            meta={(
+                                <span className="text-sm text-muted">
+                                    {t('pages.logs.selectedServers', { selected: selectedServerIds.length, total: servers.length })}
+                                </span>
+                            )}
+                            actions={(
+                                <>
+                                    <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
+                                </>
+                            )}
+                        />
                         <div className="log-server-chips">
                             {servers.map(server => (
                                 <label
@@ -466,32 +473,40 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                 {fetchSummary?.message && (
                     <div className="card mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
-                        <div className="card-header card-header-flat-tight">
-                            <div className="flex items-center gap-8">
-                                <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.iconColor }} />
-                                <span className="text-sm">{fetchSummary.message}</span>
-                            </div>
-                            <span className={`badge ${fetchSummaryMeta.badge}`}>{activeSourceMeta.label}</span>
-                        </div>
+                        <SectionHeader
+                            className="card-header card-header-flat-tight section-header section-header--compact"
+                            title={(
+                                <div className="flex items-center gap-8">
+                                    <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.iconColor }} />
+                                    <span className="text-sm">{fetchSummary.message}</span>
+                                </div>
+                            )}
+                            meta={<span className={`badge ${fetchSummaryMeta.badge}`}>{activeSourceMeta.label}</span>}
+                        />
                     </div>
                 )}
 
                 {/* Log Viewer */}
                 <div className="card flex-1 logs-viewer-card">
-                        <div className="card-header">
-                            <div className="flex items-center gap-8">
+                    <SectionHeader
+                        className="card-header section-header section-header--compact"
+                        title={(
+                            <div className="flex items-center gap-8 flex-wrap">
                                 <HiOutlineDocumentText className="text-muted" />
                                 <span className="card-title">{sourceLabel}</span>
                                 <span className="badge badge-neutral">{activeSourceMeta.label}</span>
-                            {levelFilter && activeLevelMeta && <span className="badge badge-info">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</span>}
-                        </div>
-                        <div className="logs-viewer-meta">
-                            <span className="text-sm text-muted">{t('pages.logs.lineCount', { count: filteredLogs.length })}</span>
-                            <span className={`logs-scroll-chip ${autoScrollEnabled ? 'is-live' : 'is-paused'}`}>
-                                {autoScrollEnabled ? t('pages.logs.autoScroll') : t('pages.logs.paused')}
-                            </span>
-                        </div>
-                    </div>
+                                {levelFilter && activeLevelMeta && <span className="badge badge-info">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</span>}
+                            </div>
+                        )}
+                        meta={(
+                            <div className="logs-viewer-meta">
+                                <span className="text-sm text-muted">{t('pages.logs.lineCount', { count: filteredLogs.length })}</span>
+                                <span className={`logs-scroll-chip ${autoScrollEnabled ? 'is-live' : 'is-paused'}`}>
+                                    {autoScrollEnabled ? t('pages.logs.autoScroll') : t('pages.logs.paused')}
+                                </span>
+                            </div>
+                        )}
+                    />
                     <div
                         ref={logContainerRef}
                         className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
@@ -502,11 +517,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 <div className="empty-state-text mt-3">{t('pages.logs.loadingLogs')}</div>
                             </div>
                         ) : filteredLogs.length === 0 ? (
-                            <div className="empty-state empty-state-medium">
-                                <div className="empty-state-icon"><HiOutlineDocumentText /></div>
-                                <div className="empty-state-text">{t('pages.logs.empty')}</div>
-                                <div className="empty-state-sub">{t('pages.logs.emptySubtitle')}</div>
-                            </div>
+                            <EmptyState
+                                title={t('pages.logs.empty')}
+                                subtitle={t('pages.logs.emptySubtitle')}
+                                size="compact"
+                                icon={<HiOutlineDocumentText />}
+                            />
                         ) : (
                             filteredLogs.map((entry, index) => (
                                 <LogLine

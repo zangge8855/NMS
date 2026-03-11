@@ -34,6 +34,7 @@ import ConflictScannerModal from './ConflictScannerModal.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
 
 function buildClientPayload(entry, enableOverride) {
     const protocol = normalizeProtocol(entry?.protocol);
@@ -597,51 +598,63 @@ export default function Clients() {
         <>
             <Header title="客户端管理" />
             <div className="page-content page-enter">
-                <div className="flex flex-col gap-4 mb-6">
-                    {/* Toolbar Row 1: Server Filter + Search + Refresh */}
-                    <div className="flex items-center gap-4 glass-panel p-4 mobile-toolbar">
-                        <select
-                            className="form-select"
-                            value={filterServerId}
-                            onChange={(e) => setFilterServerId(e.target.value)}
-                            style={{ width: 'auto', minWidth: '160px' }}
-                        >
-                            <option value="all">全部节点</option>
-                            {servers.map((s) => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
-                        <div className="account-search-shell flex-1 max-w-sm">
-                            <HiOutlineMagnifyingGlass className="account-search-icon" />
-                            <input
-                                className="form-input account-search-input"
-                                placeholder="搜索 Email / 用户名 / UUID..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                <PageToolbar
+                    className="card mb-4 clients-toolbar"
+                    main={(
+                        <>
+                            <select
+                                className="form-select"
+                                value={filterServerId}
+                                onChange={(e) => setFilterServerId(e.target.value)}
+                                style={{ width: 'auto', minWidth: '160px' }}
+                            >
+                                <option value="all">全部节点</option>
+                                {servers.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                            <div className="account-search-shell">
+                                <HiOutlineMagnifyingGlass className="account-search-icon" />
+                                <input
+                                    className="form-input account-search-input"
+                                    placeholder="搜索 Email / 用户名 / UUID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </>
+                    )}
+                    actions={(
                         <button className="btn btn-secondary btn-sm" onClick={fetchAllClients} title="刷新">
                             <HiOutlineArrowPath /> 刷新
                         </button>
-                    </div>
+                    )}
+                    meta={<span>显示 {filteredClients.length} / {clients.length} 位账号</span>}
+                />
 
-                    {/* Toolbar Row 2: Batch Actions + Feature Buttons */}
-                    <div className="flex items-center gap-4 flex-wrap">
-                        {selectedVisibleCount > 0 && (
-                            <div className="flex gap-2 items-center animate-fade-in">
-                                <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
-                                <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>
-                                    启用
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => handleBulkSetEnable(false)}>
-                                    停用
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
-                                    <HiOutlineTrash /> 删除
-                                </button>
-                            </div>
-                        )}
-                        <div className="flex gap-2 items-center flex-wrap">
+                <PageToolbar
+                    className="card mb-6 clients-action-toolbar"
+                    compact
+                    main={selectedVisibleCount > 0 ? (
+                        <div className="clients-selection-state animate-fade-in">
+                            <span className="text-sm font-bold text-primary clients-selection-count">已选 {selectedVisibleCount} 项</span>
+                            <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>
+                                启用
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleBulkSetEnable(false)}>
+                                停用
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                                <HiOutlineTrash /> 删除
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-subtitle">支持跨节点添加用户、冲突扫描和订阅链接查看。</div>
+                        </div>
+                    )}
+                    actions={(
+                        <>
                             <button className="btn btn-primary btn-sm" onClick={handleOpenAddAllNodes} title="添加到全部节点">
                                 <HiOutlinePlusCircle /> 添加客户端(全节点)
                             </button>
@@ -651,9 +664,9 @@ export default function Clients() {
                             <button className="btn btn-secondary btn-sm" onClick={() => openSubscriptionModal()} title="订阅链接">
                                 <HiOutlineLink /> 订阅
                             </button>
-                        </div>
-                    </div>
-                </div>
+                        </>
+                    )}
+                />
 
                 <div className="table-container glass-panel">
                     <table className="table">
@@ -667,13 +680,13 @@ export default function Clients() {
                                         className="cursor-pointer"
                                     />
                                 </th>
-                                <th>状态</th>
+                                <th className="table-cell-center">状态</th>
                                 <th>Email</th>
                                 {filterServerId === 'all' && <th>节点</th>}
                                 <th>入站</th>
-                                <th>已用流量</th>
+                                <th className="table-cell-right">已用流量</th>
                                 <th>到期时间</th>
-                                <th>操作</th>
+                                <th className="table-cell-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -706,7 +719,7 @@ export default function Clients() {
                                                     className="cursor-pointer"
                                                 />
                                             </td>
-                                            <td data-label="状态">
+                                            <td data-label="状态" className="table-cell-center">
                                                 <span className={`badge ${badgeClass}`}>
                                                     {client.statusLabel}
                                                 </span>
@@ -726,8 +739,8 @@ export default function Clients() {
                                             </td>
                                             <td data-label="已用流量" className="cell-mono-right">{formatBytes(client.totalUsed)}</td>
                                             <td data-label="到期时间" className="cell-mono">{formatExpiryLabel(client.expiryValues)}</td>
-                                            <td data-label="" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex gap-2">
+                                            <td data-label="" className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
+                                                <div className="table-row-actions">
                                                     <button
                                                         className="btn btn-secondary btn-sm btn-icon"
                                                         title="编辑"
@@ -766,15 +779,6 @@ export default function Clients() {
                     </table>
                 </div>
 
-                {/* Mobile Batch Action Bar */}
-                {selectedVisibleCount > 0 && (
-                    <div className="mobile-batch-bar">
-                        <div className="batch-count">已选 {selectedVisibleCount} 项</div>
-                        <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnable(true)}>启用</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleBulkSetEnable(false)}>停用</button>
-                        <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> 删除</button>
-                    </div>
-                )}
             </div>
 
             {/* Subscription Modal */}

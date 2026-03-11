@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
 
 function formatAction(type, action) {
     return `${type || '-'} / ${action || '-'}`;
@@ -83,10 +84,10 @@ export default function Tasks({ embedded = false }) {
     ), [tasks, typeFilter, actionFilter, serverFilter, failedOnlyFilter]);
 
     const shellClassName = embedded ? '' : 'page-content page-enter';
-    const headClassName = embedded ? 'flex items-center justify-between mb-6 audit-traffic-toolbar' : 'page-section-head tasks-page-head mb-8';
-    const filterCardClassName = embedded ? 'card mb-8 p-3 audit-filter-card audit-filter-card-tasks' : 'card mb-8 tasks-filter-card';
+    const filterCardClassName = embedded ? 'card mb-8 p-3 audit-filter-card audit-filter-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
     const tableShellClassName = embedded ? 'table-container glass-panel mb-8 audit-table-shell audit-tasks-table-shell' : 'table-container tasks-table-shell';
-    const paginationClassName = embedded ? 'flex items-center justify-between audit-pagination' : 'flex items-center justify-between audit-pagination';
+    const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
+    const paginationClassName = 'audit-pagination page-pagination';
 
     const handleView = async (id) => {
         try {
@@ -155,38 +156,41 @@ export default function Tasks({ embedded = false }) {
         <>
             {!embedded && <Header title={t('pages.tasks.title')} />}
             <div className={shellClassName}>
-                <div className={headClassName}>
-                    <div className="tasks-page-copy">
-                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
-                            {embedded ? '批量操作历史' : '批量任务历史'}
-                        </h2>
-                        <p className="text-sm text-muted mt-1">{embedded ? '与上方操作审计配套，集中查看批量任务与重试结果' : '记录批量用户/入站操作的执行结果'}</p>
-                    </div>
-                    <div className="flex gap-2 tasks-page-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
-                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
-                        </button>
-                        <button className="btn btn-danger btn-sm" onClick={handleClear}>
-                            <HiOutlineTrash /> 清空
-                        </button>
-                    </div>
-                </div>
+                <PageToolbar
+                    className={headClassName}
+                    main={(
+                        <div className="page-toolbar-copy tasks-page-copy">
+                            <div className="page-toolbar-title">{embedded ? '批量操作历史' : '批量任务历史'}</div>
+                            <div className="page-toolbar-subtitle">{embedded ? '与上方操作审计配套，集中查看批量任务与重试结果' : '记录批量用户/入站操作的执行结果'}</div>
+                        </div>
+                    )}
+                    actions={(
+                        <div className="tasks-page-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
+                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={handleClear}>
+                                <HiOutlineTrash /> 清空
+                            </button>
+                        </div>
+                    )}
+                />
 
-                <div className={filterCardClassName} style={{ padding: '12px' }}>
-                    <div className="flex items-center gap-3 tasks-filter-row audit-filter-bar" style={{ flexWrap: 'wrap' }}>
-                        <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ width: '140px' }}>
+                <div className={filterCardClassName}>
+                    <div className="tasks-filter-row audit-filter-bar">
+                        <select className="form-select w-140" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                             <option value="all">全部类型</option>
                             {typeOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                         </select>
-                        <select className="form-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} style={{ width: '140px' }}>
+                        <select className="form-select w-140" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                             <option value="all">全部动作</option>
                             {actionOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                         </select>
-                        <select className="form-select" value={serverFilter} onChange={(e) => setServerFilter(e.target.value)} style={{ width: '180px' }}>
+                        <select className="form-select w-180" value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                             <option value="all">全部节点</option>
                             {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                         </select>
-                        <label className="flex items-center gap-2 text-sm" style={{ cursor: 'pointer' }}>
+                        <label className="toolbar-checkbox">
                             <input
                                 type="checkbox"
                                 checked={failedOnlyFilter}
@@ -194,13 +198,13 @@ export default function Tasks({ embedded = false }) {
                             />
                             仅失败任务
                         </label>
-                        <select className="form-select" value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)} style={{ width: '180px' }}>
+                        <select className="form-select w-180" value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                             <option value="none">重试策略: 全部失败项</option>
                             <option value="server">重试策略: 按节点分组</option>
                             <option value="error">重试策略: 按错误分组</option>
                             <option value="server_error">重试策略: 节点+错误分组</option>
                         </select>
-                        <div className="text-sm text-muted tasks-filter-meta" style={{ marginLeft: 'auto' }}>
+                        <div className="text-sm text-muted tasks-filter-meta">
                             共 {filteredTasks.length} 条
                         </div>
                     </div>
@@ -213,10 +217,10 @@ export default function Tasks({ embedded = false }) {
                                 <th>时间</th>
                                 <th>类型/动作</th>
                                 <th>节点</th>
-                                <th>总计</th>
-                                <th>成功</th>
-                                <th>失败</th>
-                                <th>操作</th>
+                                <th className="table-cell-right">总计</th>
+                                <th className="table-cell-right">成功</th>
+                                <th className="table-cell-right">失败</th>
+                                <th className="table-cell-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -246,10 +250,11 @@ export default function Tasks({ embedded = false }) {
                                                 return `${head} +${servers.length - 2}`;
                                             })()}
                                         </td>
-                                        <td data-label="总计">{task.summary?.total ?? '-'}</td>
-                                        <td data-label="成功">{task.summary?.success ?? '-'}</td>
-                                        <td data-label="失败">{task.summary?.failed ?? '-'}</td>
-                                        <td data-label="操作" className="flex gap-2 tasks-row-actions">
+                                        <td data-label="总计" className="table-cell-right">{task.summary?.total ?? '-'}</td>
+                                        <td data-label="成功" className="table-cell-right">{task.summary?.success ?? '-'}</td>
+                                        <td data-label="失败" className="table-cell-right">{task.summary?.failed ?? '-'}</td>
+                                        <td data-label="操作" className="table-cell-actions">
+                                            <div className="table-row-actions tasks-row-actions">
                                             <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleView(task.id)} title="查看详情">
                                                 <HiOutlineEye />
                                             </button>
@@ -263,6 +268,7 @@ export default function Tasks({ embedded = false }) {
                                                     {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
                                                 </button>
                                             )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -272,7 +278,7 @@ export default function Tasks({ embedded = false }) {
                 </div>
 
                 <div className={paginationClassName}>
-                    <div className="text-sm text-muted">最近保留 {filteredTasks.length} 条</div>
+                    <div className="page-pagination-meta">最近保留 {filteredTasks.length} 条</div>
                 </div>
             </div>
 

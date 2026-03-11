@@ -384,7 +384,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: var(--z-sticky);
+  z-index: calc(var(--z-sticky) + 1);
   backdrop-filter: blur(10px);
 }
 

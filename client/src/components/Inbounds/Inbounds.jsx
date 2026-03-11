@@ -828,9 +828,8 @@ export default function Inbounds() {
                 eyebrow={t('pages.inbounds.eyebrow')}
             />
             <div className="page-content page-enter">
-                {/* Toolbar */}
-                <div className="flex items-center justify-between mb-6 glass-panel p-4 mobile-toolbar inbounds-toolbar">
-                    <div className="flex items-center gap-4 inbounds-toolbar-main">
+                <div className="inbounds-toolbar glass-panel mb-6">
+                    <div className="inbounds-toolbar-main">
                         <select
                             className="form-select inbounds-filter-select"
                             value={filterServerId}
@@ -847,7 +846,7 @@ export default function Inbounds() {
                             <p className="text-muted mt-1" style={{ fontSize: '12px' }}>共 {filteredInbounds.length} 条规则</p>
                         </div>
                     </div>
-                    <div className="flex gap-4 inbounds-toolbar-actions">
+                    <div className="inbounds-toolbar-actions">
                         {selectedVisibleCount > 0 ? (
                             <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
                                 <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
@@ -1292,7 +1291,6 @@ export default function Inbounds() {
                     }}
                 />
 
-                {/* Mobile Batch Action Bar */}
                 {selectedVisibleCount > 0 && (
                     <div className="mobile-batch-bar">
                         <div className="batch-count">已选 {selectedVisibleCount} 项</div>

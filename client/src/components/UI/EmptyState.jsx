@@ -39,8 +39,10 @@ export default function EmptyState({
                     {icon || <EmptyIcon />}
                 </div>
             )}
-            <h3 className="empty-state-title">{title}</h3>
-            {subtitle && <p className="empty-state-sub">{subtitle}</p>}
+            <div className="empty-state-body">
+                <h3 className="empty-state-title">{title}</h3>
+                {subtitle && <p className="empty-state-sub">{subtitle}</p>}
+            </div>
             {action && <div className="empty-state-action mt-4">{action}</div>}
         </div>
     );

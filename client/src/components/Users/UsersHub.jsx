@@ -941,9 +941,8 @@ export default function UsersHub() {
                 eyebrow={t('pages.usersHub.eyebrow')}
             />
             <div className="page-content page-enter">
-                {/* Toolbar */}
-                <div className="flex items-center justify-between gap-4 mb-6 glass-panel p-4 mobile-toolbar users-toolbar">
-                    <div className="flex items-center gap-4 users-toolbar-main">
+                <div className="users-toolbar glass-panel mb-6">
+                    <div className="users-toolbar-main">
                         <div className="account-search-shell flex-1 max-w-sm">
                             <HiOutlineMagnifyingGlass className="account-search-icon" />
                             <input
@@ -961,7 +960,7 @@ export default function UsersHub() {
                             <option value="pending">待审核</option>
                         </select>
                     </div>
-                    <div className="flex items-center gap-3 users-toolbar-actions">
+                    <div className="users-toolbar-actions">
                         <div className="text-sm text-muted users-toolbar-summary">显示 {enrichedUsers.length} / {users.length} 位账号</div>
                         <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
                             <HiOutlineArrowDownTray /> 导出

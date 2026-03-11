@@ -61,6 +61,545 @@
   content: none !important;
 }
 
+.page-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+}
+
+.page-toolbar--compact {
+  padding: 14px 16px;
+  gap: 12px;
+}
+
+.page-toolbar-main,
+.page-toolbar-actions,
+.page-pagination-actions,
+.table-row-actions,
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-toolbar-main {
+  flex: 1 1 520px;
+}
+
+.page-toolbar-main > * {
+  min-width: 0;
+}
+
+.page-toolbar-actions {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.page-toolbar-meta {
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.page-toolbar-copy,
+.section-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.page-toolbar-title,
+.section-header-title {
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.page-toolbar-subtitle,
+.section-header-subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.page-toolbar-main .form-group {
+  margin: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-header--align-start {
+  justify-content: flex-start;
+}
+
+.section-header-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.section-header-meta {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.section-header--compact {
+  gap: 12px;
+}
+
+.page-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-pagination-meta {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.toolbar-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-elevated-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.toolbar-checkbox input {
+  margin: 0;
+}
+
+.table-cell-center {
+  text-align: center;
+}
+
+.table-cell-right {
+  text-align: right;
+}
+
+.table-cell-actions {
+  text-align: center;
+}
+
+.table-row-actions {
+  justify-content: center;
+}
+
+.table-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.clients-toolbar .account-search-shell,
+.clients-toolbar .form-select {
+  min-width: 0;
+}
+
+.clients-toolbar .account-search-shell {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.clients-selection-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.clients-selection-count {
+  white-space: nowrap;
+}
+
+.logs-server-toolbar-actions,
+.settings-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subscriptions-toolbar .page-toolbar-main {
+  flex: 1 1 560px;
+  align-items: flex-end;
+}
+
+.clients-action-toolbar .page-toolbar-main,
+.logs-toolbar .page-toolbar-main {
+  flex: 1 1 560px;
+}
+
+.clients-action-toolbar .page-toolbar-actions,
+.logs-toolbar .page-toolbar-actions,
+.subscriptions-toolbar .page-toolbar-actions,
+.audit-traffic-toolbar .page-toolbar-actions,
+.settings-toolbar .page-toolbar-actions {
+  justify-content: flex-end;
+}
+
+.tasks-page-actions,
+.tasks-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tasks-filter-meta {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.logs-viewer-card .section-header,
+.logs-server-card .section-header,
+.logs-summary-card .section-header {
+  align-items: center;
+}
+
+.servers-toolbar,
+.inbounds-toolbar,
+.users-toolbar,
+.subscriptions-toolbar,
+.audit-traffic-toolbar,
+.settings-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+.servers-toolbar-copy,
+.inbounds-toolbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.servers-toolbar-actions,
+.inbounds-toolbar-actions,
+.users-toolbar-actions,
+.subscriptions-toolbar-main,
+.subscriptions-toolbar-actions,
+.audit-traffic-toolbar-actions,
+.settings-toolbar-actions,
+.audit-pagination-actions,
+.audit-filter-bar,
+.users-toolbar-main,
+.inbounds-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.users-toolbar-main {
+  flex: 1 1 520px;
+}
+
+.subscriptions-toolbar-main {
+  flex: 1 1 560px;
+  align-items: flex-end;
+}
+
+.users-toolbar-actions,
+.inbounds-toolbar-actions,
+.servers-toolbar-actions,
+.subscriptions-toolbar-actions,
+.audit-traffic-toolbar-actions,
+.settings-toolbar-actions {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.users-toolbar-actions {
+  gap: 10px;
+}
+
+.audit-filter-bar {
+  align-items: stretch;
+}
+
+.audit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-toolbar-copy,
+.audit-traffic-toolbar-copy {
+  min-width: 0;
+}
+
+.users-toolbar-summary {
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+.users-toolbar .account-search-shell {
+  flex: 1 1 320px;
+  max-width: 480px;
+}
+
+.users-filter-select,
+.inbounds-filter-select,
+.servers-filter-select {
+  flex: 0 0 auto;
+}
+
+.inbounds-toolbar-main {
+  flex: 1 1 420px;
+}
+
+.servers-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.servers-filter-summary {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.dashboard-refresh-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+  gap: 6px;
+  border-radius: 12px !important;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .page-toolbar,
+  .page-toolbar--stack-tablet,
+  .section-header,
+  .page-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .users-toolbar,
+  .subscriptions-toolbar,
+  .audit-traffic-toolbar,
+  .settings-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .servers-toolbar-actions,
+  .inbounds-toolbar-actions,
+  .users-toolbar-actions,
+  .subscriptions-toolbar-actions,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .users-toolbar-main,
+  .inbounds-toolbar-main,
+  .subscriptions-toolbar-main,
+  .audit-filter-bar,
+  .audit-pagination-actions,
+  .page-toolbar-main,
+  .page-toolbar-actions,
+  .page-pagination-actions,
+  .section-header-side,
+  .section-header-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .section-header-meta {
+    text-align: left;
+  }
+
+  .servers-filter-summary,
+  .users-toolbar-summary {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-toolbar {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .users-toolbar,
+  .subscriptions-toolbar,
+  .audit-filter-card,
+  .audit-traffic-toolbar,
+  .settings-toolbar {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .users-toolbar-main,
+  .users-toolbar-actions,
+  .inbounds-toolbar-main,
+  .inbounds-toolbar-actions,
+  .servers-toolbar-actions,
+  .servers-filter-bar,
+  .subscriptions-toolbar-main,
+  .subscriptions-toolbar-actions,
+  .audit-filter-bar,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .audit-pagination,
+  .audit-pagination-actions,
+  .page-toolbar-main,
+  .page-toolbar-actions,
+  .page-pagination,
+  .page-pagination-actions,
+  .section-header-actions {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .users-toolbar-main,
+  .inbounds-toolbar-main,
+  .servers-filter-bar,
+  .subscriptions-toolbar-main,
+  .audit-filter-bar,
+  .audit-pagination,
+  .page-toolbar-main,
+  .page-pagination {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: 0 0 auto;
+  }
+
+  .subscriptions-toolbar-actions,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .audit-pagination-actions,
+  .page-toolbar-actions,
+  .page-pagination-actions {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .users-toolbar .account-search-shell,
+  .users-filter-select,
+  .inbounds-filter-select,
+  .servers-filter-search,
+  .servers-filter-select,
+  .subscriptions-toolbar-field,
+  .subscriptions-toolbar-field-sm,
+  .audit-filter-bar .form-input,
+  .audit-filter-bar .form-select,
+  .audit-traffic-toolbar .form-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .users-toolbar-summary,
+  .servers-filter-summary {
+    width: 100%;
+    order: -1;
+  }
+
+  .users-toolbar-actions .btn,
+  .inbounds-toolbar-actions > .btn,
+  .servers-toolbar-actions .btn,
+  .servers-selection-bar-takeover .btn,
+  .subscriptions-toolbar-actions .btn,
+  .audit-filter-bar .btn,
+  .audit-traffic-toolbar-actions .btn,
+  .settings-toolbar-actions .btn,
+  .audit-pagination-actions .btn,
+  .page-toolbar-actions .btn,
+  .page-pagination-actions .btn,
+  .section-header-actions .btn {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: center;
+  }
+
+  .inbounds-selection-bar,
+  .servers-selection-bar-takeover {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .inbounds-selection-bar .btn {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: center;
+  }
+
+  .dashboard-toolbar-actions .dashboard-refresh-btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 124px;
+    min-height: 40px;
+  }
+
+  .subscriptions-toolbar-status,
+  .audit-traffic-toolbar-copy,
+  .settings-toolbar-copy,
+  .audit-pagination > .text-sm,
+  .page-toolbar-meta,
+  .page-pagination-meta,
+  .section-header-meta {
+    width: 100%;
+  }
+
+  .table-row-actions {
+    justify-content: flex-start;
+  }
+
+  .clients-selection-state {
+    align-items: stretch;
+  }
+}
+
 .card,
 .table-container,
 .modal,

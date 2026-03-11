@@ -497,7 +497,7 @@ export default function Servers() {
                 eyebrow={t('pages.servers.eyebrow')}
             />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-6 glass-panel p-4 servers-toolbar">
+                <div className="servers-toolbar glass-panel mb-6">
                     {selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
                             <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
@@ -513,11 +513,11 @@ export default function Servers() {
                         </div>
                     ) : (
                         <>
-                            <div>
+                            <div className="servers-toolbar-copy">
                                 <h2 className="text-glow section-title">已注册的服务器</h2>
                                 <p className="text-muted mt-1 section-subtitle">管理您的 3x-ui 面板连接</p>
                             </div>
-                            <div className="flex gap-4 items-center flex-wrap justify-end servers-toolbar-actions">
+                            <div className="servers-toolbar-actions">
                                 <button
                                     className="btn btn-secondary btn-sm"
                                     onClick={() => { setBatchResult(null); setShowBatchForm(true); }}

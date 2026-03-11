@@ -31,6 +31,8 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -391,7 +393,7 @@ export default function AuditCenter() {
                 {tab === 'events' && (
                     <>
                         <div className="card mb-8 p-3 audit-filter-card audit-filter-card-events">
-                            <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
+                            <div className="audit-filter-bar">
                                 <input
                                     className="form-input w-180"
                                     placeholder="关键词"
@@ -465,7 +467,7 @@ export default function AuditCenter() {
                                                 <td data-label="操作者">{item.actor || '-'}</td>
                                                 <td data-label="节点">{item.serverId || '-'}</td>
                                                 <td data-label="用户">{resolveAuditTarget(item)}</td>
-                                                <td data-label="操作">
+                                                <td data-label="操作" className="table-cell-actions">
                                                     <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
                                                         <HiOutlineEye />
                                                     </button>
@@ -477,9 +479,9 @@ export default function AuditCenter() {
                             </table>
                         </div>
 
-                        <div className="flex items-center justify-between audit-pagination">
-                            <div className="text-sm text-muted">共 {eventsData.total || 0} 条</div>
-                            <div className="flex gap-2">
+                        <div className="audit-pagination page-pagination">
+                            <div className="page-pagination-meta">共 {eventsData.total || 0} 条</div>
+                            <div className="audit-pagination-actions page-pagination-actions">
                                 <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>上一页</button>
                                 <span className="text-sm text-muted self-center">
                                     {eventsPage} / {eventsData.totalPages || 1}
@@ -496,25 +498,26 @@ export default function AuditCenter() {
 
                 {tab === 'traffic' && (
                     <>
-                        <div className="flex items-center justify-between mb-6 audit-traffic-toolbar">
-                            <div className="text-sm text-muted">
-                                最近采样: {formatDateTime(trafficOverview?.lastCollectionAt)}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <select
-                                    className="form-select w-130"
-                                    value={trafficGranularity}
-                                    onChange={(e) => setTrafficGranularity(e.target.value)}
-                                >
-                                    <option value="auto">自动粒度</option>
-                                    <option value="hour">按小时</option>
-                                    <option value="day">按天</option>
-                                </select>
-                                <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                    <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> 立即采样
-                                </button>
-                            </div>
-                        </div>
+                        <PageToolbar
+                            className="audit-traffic-toolbar mb-6"
+                            main={<div className="page-toolbar-copy audit-traffic-toolbar-copy">最近采样: {formatDateTime(trafficOverview?.lastCollectionAt)}</div>}
+                            actions={(
+                                <>
+                                    <select
+                                        className="form-select w-130"
+                                        value={trafficGranularity}
+                                        onChange={(e) => setTrafficGranularity(e.target.value)}
+                                    >
+                                        <option value="auto">自动粒度</option>
+                                        <option value="hour">按小时</option>
+                                        <option value="day">按天</option>
+                                    </select>
+                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
+                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> 立即采样
+                                    </button>
+                                </>
+                            )}
+                        />
 
                         <div className="stats-grid mb-8 audit-stats-grid">
                             <div className="card audit-stat-card">
@@ -534,21 +537,24 @@ export default function AuditCenter() {
 
                         <div className="grid-auto-280-tight mb-8 audit-chart-grid">
                             <div className="card audit-chart-card">
-                                <div className="card-header">
-                                    <span className="card-title">用户流量趋势</span>
-                                    <select
-                                        className="form-select w-220"
-                                        value={selectedUser}
-                                        onChange={(e) => setSelectedUser(e.target.value)}
-                                    >
-                                        <option value="">请选择用户</option>
-                                        {topUsers.map((item) => (
-                                            <option key={item.email} value={item.email}>
-                                                {item.email} ({formatBytes(item.totalBytes)})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="用户流量趋势"
+                                    actions={(
+                                        <select
+                                            className="form-select w-220"
+                                            value={selectedUser}
+                                            onChange={(e) => setSelectedUser(e.target.value)}
+                                        >
+                                            <option value="">请选择用户</option>
+                                            {topUsers.map((item) => (
+                                                <option key={item.email} value={item.email}>
+                                                    {item.email} ({formatBytes(item.totalBytes)})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                />
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。</div>
                                 )}
@@ -566,21 +572,24 @@ export default function AuditCenter() {
                             </div>
 
                             <div className="card audit-chart-card">
-                                <div className="card-header">
-                                    <span className="card-title">节点流量趋势</span>
-                                    <select
-                                        className="form-select w-220"
-                                        value={selectedServerId}
-                                        onChange={(e) => setSelectedServerId(e.target.value)}
-                                    >
-                                        <option value="">请选择节点</option>
-                                        {topServers.map((item) => (
-                                            <option key={item.serverId} value={item.serverId}>
-                                                {item.serverName} ({formatBytes(item.totalBytes)})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="节点流量趋势"
+                                    actions={(
+                                        <select
+                                            className="form-select w-220"
+                                            value={selectedServerId}
+                                            onChange={(e) => setSelectedServerId(e.target.value)}
+                                        >
+                                            <option value="">请选择节点</option>
+                                            {topServers.map((item) => (
+                                                <option key={item.serverId} value={item.serverId}>
+                                                    {item.serverName} ({formatBytes(item.totalBytes)})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                />
                                 <div className="dashboard-chart">
                                     <ResponsiveContainer>
                                         <LineChart data={serverTrend.points || []}>
@@ -597,20 +606,23 @@ export default function AuditCenter() {
 
                         <div className="grid-auto-280-tight audit-leaderboard-grid">
                             <div className="card audit-leaderboard-card">
-                                <div className="card-header"><span className="card-title">流量 Top 用户</span></div>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="流量 Top 用户"
+                                />
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">当前节点列表未提供用户级流量计数。</div>
                                 )}
                                 <div className="table-container audit-nested-table-shell">
                                     <table className="table">
-                                        <thead><tr><th>用户</th><th>流量</th></tr></thead>
+                                        <thead><tr><th>用户</th><th className="table-cell-right">流量</th></tr></thead>
                                         <tbody>
                                             {topUsers.length === 0 ? (
                                                 <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
                                             ) : topUsers.map((item) => (
                                                 <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
                                                     <td data-label="用户">{item.email}</td>
-                                                    <td data-label="流量">{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label="流量" className="table-cell-right">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -618,17 +630,20 @@ export default function AuditCenter() {
                                 </div>
                             </div>
                             <div className="card audit-leaderboard-card">
-                                <div className="card-header"><span className="card-title">流量 Top 节点</span></div>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="流量 Top 节点"
+                                />
                                 <div className="table-container audit-nested-table-shell">
                                     <table className="table">
-                                        <thead><tr><th>节点</th><th>流量</th></tr></thead>
+                                        <thead><tr><th>节点</th><th className="table-cell-right">流量</th></tr></thead>
                                         <tbody>
                                             {topServers.length === 0 ? (
                                                 <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
                                             ) : topServers.map((item) => (
                                                 <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
                                                     <td data-label="节点">{item.serverName}</td>
-                                                    <td data-label="流量">{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label="流量" className="table-cell-right">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -750,9 +765,9 @@ export default function AuditCenter() {
                             </table>
                         </div>
 
-                        <div className="flex items-center justify-between audit-pagination">
-                            <div className="text-sm text-muted">共 {accessData.total || 0} 条</div>
-                            <div className="flex gap-2">
+                        <div className="audit-pagination page-pagination">
+                            <div className="page-pagination-meta">共 {accessData.total || 0} 条</div>
+                            <div className="page-pagination-actions">
                                 <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>上一页</button>
                                 <span className="text-sm text-muted self-center">
                                     {accessPage} / {accessData.totalPages || 1}

@@ -24,6 +24,8 @@ import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -633,24 +635,27 @@ export default function Dashboard() {
                     icon={<HiOutlineCloud />}
                 />
                 <div className="page-content page-enter">
-                    <div className="dashboard-toolbar">
-                        <div className="dashboard-toolbar-group dashboard-toolbar-copy">
-                            <div>
-                                <div className="dashboard-section-title">{t('pages.dashboardGlobal.toolbarTitle')}</div>
-                            </div>
-                            <WsStatusDot status={wsStatus} />
-                        </div>
-                        <div className="dashboard-toolbar-group dashboard-toolbar-actions">
+                    <PageToolbar
+                        className="dashboard-toolbar"
+                        main={(
+                            <>
+                                <div className="page-toolbar-copy dashboard-toolbar-copy">
+                                    <div className="page-toolbar-title">{t('pages.dashboardGlobal.toolbarTitle')}</div>
+                                </div>
+                                <WsStatusDot status={wsStatus} />
+                            </>
+                        )}
+                        actions={(
                             <button
-                                className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                                className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                                 onClick={toggleAutoRefresh}
                                 title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                             >
                                 <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
                                 {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                             </button>
-                        </div>
-                    </div>
+                        )}
+                    />
 
                     <div className="stats-grid mb-8">
                         {globalCards.map((card, idx) => (
@@ -660,18 +665,19 @@ export default function Dashboard() {
 
                     {showOnlineDetail && (
                         <div className="card mb-6">
-                            <div className="dashboard-section-head">
-                                <div>
-                                    <div className="dashboard-section-title">{t('pages.dashboardGlobal.onlineDetailTitle')}</div>
-                                    <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.onlineDetailSubtitle')}</div>
-                                </div>
-                                <span className="text-sm text-muted">
-                                    {t('pages.dashboardCommon.userSessionSummary', {
-                                        users: globalOnlineUserRows.length,
-                                        sessions: globalOnlineUsers.length,
-                                    })}
-                                </span>
-                            </div>
+                            <SectionHeader
+                                className="dashboard-section-head"
+                                title={t('pages.dashboardGlobal.onlineDetailTitle')}
+                                subtitle={t('pages.dashboardGlobal.onlineDetailSubtitle')}
+                                meta={(
+                                    <span className="text-sm text-muted">
+                                        {t('pages.dashboardCommon.userSessionSummary', {
+                                            users: globalOnlineUserRows.length,
+                                            sessions: globalOnlineUsers.length,
+                                        })}
+                                    </span>
+                                )}
+                            />
                             {globalOnlineUserRows.length === 0 ? (
                                 <EmptyState
                                     title={t('pages.dashboardCommon.onlineEmpty')}
@@ -719,13 +725,12 @@ export default function Dashboard() {
 
                     {/* 节点健康网格 */}
                     <div className="mb-6">
-                        <div className="dashboard-section-head">
-                            <div>
-                                <div className="dashboard-section-title">{t('pages.dashboardGlobal.nodeHealthTitle')}</div>
-                                <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.nodeHealthSubtitle')}</div>
-                            </div>
-                            <span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>
-                        </div>
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardGlobal.nodeHealthTitle')}
+                            subtitle={t('pages.dashboardGlobal.nodeHealthSubtitle')}
+                            meta={<span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
+                        />
                         <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
                     </div>
                 </div>
@@ -782,24 +787,27 @@ export default function Dashboard() {
                 eyebrow={t('pages.dashboardNode.eyebrow')}
             />
             <div className="page-content page-enter">
-                <div className="dashboard-toolbar">
-                    <div className="dashboard-toolbar-group dashboard-toolbar-copy">
-                        <div>
-                            <div className="dashboard-section-title">{activeServer?.name || t('pages.dashboardNode.currentNodeFallback')}</div>
-                        </div>
-                        <WsStatusDot status={wsStatus} />
-                    </div>
-                    <div className="dashboard-toolbar-group dashboard-toolbar-actions">
+                <PageToolbar
+                    className="dashboard-toolbar"
+                    main={(
+                        <>
+                            <div className="page-toolbar-copy dashboard-toolbar-copy">
+                                <div className="page-toolbar-title">{activeServer?.name || t('pages.dashboardNode.currentNodeFallback')}</div>
+                            </div>
+                            <WsStatusDot status={wsStatus} />
+                        </>
+                    )}
+                    actions={(
                         <button
-                            className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                            className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                             onClick={toggleAutoRefresh}
                             title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                         >
                             <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
                             {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         </button>
-                    </div>
-                </div>
+                    )}
+                />
 
                 <div className="stats-grid">
                     {statCards.map((card, idx) => (
@@ -809,13 +817,12 @@ export default function Dashboard() {
 
                 {showOnlineDetail && (
                     <div className="card mb-6">
-                        <div className="dashboard-section-head">
-                            <div>
-                                <div className="dashboard-section-title">{t('pages.dashboardNode.onlineDetailTitle')}</div>
-                                <div className="dashboard-section-subtitle">{t('pages.dashboardNode.onlineDetailSubtitle')}</div>
-                            </div>
-                            <span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUserRows.length, sessions: onlineUsers.length })}</span>
-                        </div>
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardNode.onlineDetailTitle')}
+                            subtitle={t('pages.dashboardNode.onlineDetailSubtitle')}
+                            meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUserRows.length, sessions: onlineUsers.length })}</span>}
+                        />
                         {onlineUserRows.length === 0 ? (
                             <EmptyState
                                 title={t('pages.dashboardCommon.onlineEmpty')}
@@ -845,13 +852,12 @@ export default function Dashboard() {
 
                 {/* Inbound Summary */}
                 <div className="card mb-6">
-                    <div className="dashboard-section-head">
-                        <div>
-                            <div className="dashboard-section-title">{t('pages.dashboardNode.inboundsTitle')}</div>
-                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.inboundsSubtitle')}</div>
-                        </div>
-                        <span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>
-                    </div>
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title={t('pages.dashboardNode.inboundsTitle')}
+                        subtitle={t('pages.dashboardNode.inboundsSubtitle')}
+                        meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
+                    />
                     <div className="table-container border-none overflow-x-auto">
                         <table className="table">
                             <thead>
@@ -892,12 +898,11 @@ export default function Dashboard() {
 
                 {/* CPU History Chart */}
                 <div className="card mb-6">
-                    <div className="dashboard-section-head">
-                        <div>
-                            <div className="dashboard-section-title">{t('pages.dashboardNode.cpuChartTitle')}</div>
-                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.cpuChartSubtitle')}</div>
-                        </div>
-                    </div>
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title={t('pages.dashboardNode.cpuChartTitle')}
+                        subtitle={t('pages.dashboardNode.cpuChartSubtitle')}
+                    />
                     <div className="w-full dashboard-chart py-5">
                         {loading && cpuHistory.length === 0 ? (
                             <div className="w-full h-full flex flex-col gap-4 px-6">
