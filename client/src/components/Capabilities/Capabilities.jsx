@@ -5,6 +5,9 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
+import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function renderAvailability(value) {
     if (value === true) return <span className="badge badge-success">可用</span>;
@@ -86,50 +89,44 @@ export default function Capabilities() {
         <>
             <Header title={t('pages.capabilities.title')} />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>3x-ui 对齐矩阵</h2>
-                        <p className="text-sm text-muted mt-1">
-                            展示当前节点的协议、工具接口与官方能力在 NMS 中的接入状态
-                        </p>
-                    </div>
-                    <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                        <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
-                    </button>
-                </div>
+                <PageToolbar
+                    className="card mb-8 capabilities-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">3x-ui 对齐矩阵</div>
+                            <div className="page-toolbar-subtitle">
+                                展示当前节点的协议、工具接口与官方能力在 NMS 中的接入状态
+                            </div>
+                        </div>
+                    )}
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                        </button>
+                    )}
+                />
 
                 {!data ? (
-                    <div className="card text-center" style={{ padding: '36px' }}>
-                        {loading ? '加载中...' : '暂无能力数据'}
-                    </div>
+                    <EmptyState
+                        title={loading ? '加载中...' : '暂无能力数据'}
+                        subtitle="切换到具体节点后会显示当前节点的能力探测结果。"
+                        surface
+                    />
                 ) : (
                     <>
                         <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">协议命名对齐</span>
-                                <span className="text-sm text-muted">{protocolList.length} 种</span>
-                            </div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="协议命名对齐"
+                                meta={<span className="text-sm text-muted">{protocolList.length} 种</span>}
+                            />
                             {protocolList.length === 0 ? (
                                 <div className="text-sm text-muted">未检测到入站协议</div>
                             ) : (
-                                <div
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                                        gap: '12px',
-                                    }}
-                                >
+                                <div className="capability-protocol-grid">
                                     {protocolList.map((item) => (
-                                        <div
-                                            key={item.key}
-                                            style={{
-                                                border: '1px solid var(--border-color)',
-                                                borderRadius: 'var(--radius-md)',
-                                                padding: '12px',
-                                                background: 'var(--surface-soft)',
-                                            }}
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
+                                        <div key={item.key} className="capability-protocol-card">
+                                            <div className="capability-card-head">
                                                 <strong>{item.label}</strong>
                                                 <span className="badge badge-info">{item.key}</span>
                                             </div>
@@ -145,9 +142,10 @@ export default function Capabilities() {
                         </div>
 
                         <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">官方能力矩阵</span>
-                            </div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="官方能力矩阵"
+                            />
                             <div className="table-container">
                                 <table className="table">
                                     <thead>
@@ -186,9 +184,10 @@ export default function Capabilities() {
                         </div>
 
                         <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">工具与接口</span>
-                            </div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="工具与接口"
+                            />
                             <div className="table-container">
                                 <table className="table">
                                     <thead>
@@ -225,11 +224,12 @@ export default function Capabilities() {
                         </div>
 
                         <div className="card mb-8">
-                            <div className="card-header">
-                                <span className="card-title">批量动作支持</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="批量动作支持"
+                            />
+                            <div className="capability-batch-grid">
+                                <div className="capability-stack">
                                     <div className="text-sm text-muted mb-2">用户批量</div>
                                     <div className="flex gap-2 flex-wrap">
                                         {(data.batchActions?.clients || []).map((x) => (
@@ -237,7 +237,7 @@ export default function Capabilities() {
                                         ))}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="capability-stack">
                                     <div className="text-sm text-muted mb-2">入站批量</div>
                                     <div className="flex gap-2 flex-wrap">
                                         {(data.batchActions?.inbounds || []).map((x) => (
@@ -249,9 +249,10 @@ export default function Capabilities() {
                         </div>
 
                         <div className="card">
-                            <div className="card-header">
-                                <span className="card-title">订阅聚合模式</span>
-                            </div>
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="订阅聚合模式"
+                            />
                             <div className="flex gap-2 flex-wrap">
                                 {(data.subscriptionModes || []).map((mode) => (
                                     <span key={mode} className="badge badge-success">{mode}</span>

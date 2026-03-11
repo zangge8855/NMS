@@ -10,6 +10,9 @@ import {
     HiOutlineArrowPath,
     HiOutlineWrench,
 } from 'react-icons/hi2';
+import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function formatToolValue(value) {
     if (value === undefined || value === null) return '';
@@ -93,55 +96,47 @@ export default function Tools() {
         <>
             <Header title={t('pages.tools.title')} />
             <div className="page-content page-enter">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>3x-ui 节点工具</h2>
-                        <p className="text-sm text-muted mt-1">
-                            根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书
-                        </p>
-                    </div>
-                    <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
-                        <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新工具列表
-                    </button>
-                </div>
+                <PageToolbar
+                    className="card mb-8 tools-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">3x-ui 节点工具</div>
+                            <div className="page-toolbar-subtitle">
+                                根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书
+                            </div>
+                        </div>
+                    )}
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
+                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新工具列表
+                        </button>
+                    )}
+                />
 
                 {tools.length === 0 && !catalogLoading ? (
-                    <div className="card text-center" style={{ padding: '36px' }}>
-                        暂无可用节点工具
-                    </div>
+                    <EmptyState title="暂无可用节点工具" subtitle="当前节点尚未暴露可执行工具接口。" surface />
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
+                    <div className="tools-grid">
                         {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
-                            <div className="card" key={tool.key}>
-                                <div className="card-header">
-                                    <div>
-                                        <span className="card-title" style={{ display: 'block' }}>{tool.label || tool.key}</span>
-                                        <span className="text-sm text-muted">{tool.description || '当前节点工具'}</span>
-                                    </div>
-                                    <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
-                                        {tool.available === false ? '不可用' : '可执行'}
-                                    </span>
-                                </div>
+                            <div className="card tool-card" key={tool.key}>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title={tool.label || tool.key}
+                                    subtitle={tool.description || '当前节点工具'}
+                                    meta={(
+                                        <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
+                                            {tool.available === false ? '不可用' : '可执行'}
+                                        </span>
+                                    )}
+                                />
 
                                 {results[tool.key] && (
-                                    <div style={{
-                                        background: 'var(--bg-primary)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-md)',
-                                        padding: '12px',
-                                        marginBottom: '12px',
-                                        fontFamily: 'var(--font-mono)',
-                                        fontSize: '11px',
-                                        wordBreak: 'break-all',
-                                        whiteSpace: 'pre-wrap',
-                                        maxHeight: '200px',
-                                        overflowY: 'auto',
-                                    }}>
+                                    <div className="tool-card-result">
                                         {results[tool.key]}
                                     </div>
                                 )}
 
-                                <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                                <div className="tool-card-actions">
                                     <button
                                         className="btn btn-primary btn-sm"
                                         onClick={() => handleGenerate(tool)}

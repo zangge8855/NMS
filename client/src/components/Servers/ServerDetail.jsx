@@ -12,6 +12,7 @@ import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../..
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
@@ -369,7 +370,7 @@ export default function ServerDetail() {
                         <div className="user-profile-info">
                             <div className="user-profile-name">{server.name}</div>
                             <div className="user-profile-email font-mono">{server.url}</div>
-                            <div className="flex gap-2 mb-3">
+                            <div className="user-profile-badges">
                                 <span className={`badge ${healthBadge[server.health] || 'badge-neutral'}`}>
                                     {healthLabel[server.health] || '未知'}
                                 </span>
@@ -501,13 +502,20 @@ export default function ServerDetail() {
                         {/* Online Users Tab */}
                         {activeTab === 'onlines' && (
                             <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="text-sm text-muted">
-                                        在线用户 {onlineUsers.length} / 会话 {onlines.length}
-                                        {clientIpSupport.supported === false ? ` · 节点 IP 不可用: ${clientIpSupport.reason}` : ''}
-                                    </div>
-                                    <button className="btn btn-secondary btn-sm" onClick={fetchOnlines}><HiOutlineArrowPath /> 刷新</button>
-                                </div>
+                                <SectionHeader
+                                    className="mb-4"
+                                    compact
+                                    title="在线用户"
+                                    meta={(
+                                        <div className="text-sm text-muted">
+                                            在线用户 {onlineUsers.length} / 会话 {onlines.length}
+                                            {clientIpSupport.supported === false ? ` · 节点 IP 不可用: ${clientIpSupport.reason}` : ''}
+                                        </div>
+                                    )}
+                                    actions={(
+                                        <button className="btn btn-secondary btn-sm" onClick={fetchOnlines}><HiOutlineArrowPath /> 刷新</button>
+                                    )}
+                                />
                                 {onlinesLoading ? (
                                     <SkeletonTable rows={4} cols={3} />
                                 ) : onlineUsers.length === 0 ? (
@@ -522,7 +530,7 @@ export default function ServerDetail() {
                                                         <td data-label="序号">{i + 1}</td>
                                                         <td data-label="用户标识" className="font-mono">{item.email}</td>
                                                         <td data-label="会话数">{item.sessions}</td>
-                                                        <td data-label="操作">
+                                                        <td data-label="操作" className="table-cell-actions">
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm"
@@ -553,7 +561,7 @@ export default function ServerDetail() {
                                             <div key={i} className="timeline-item">
                                                 <div className={`timeline-dot ${e.outcome === 'success' ? 'success' : e.outcome === 'failed' ? 'danger' : 'info'}`} />
                                                 <div className="timeline-content">
-                                                    <div className="flex items-center justify-between">
+                                                    <div className="timeline-head">
                                                         <span className="font-medium">{e.eventType}</span>
                                                         <span className="timeline-time">{formatTime(e.ts)}</span>
                                                     </div>

@@ -13,6 +13,7 @@ import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../..
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlinePlusCircle,
@@ -535,7 +536,7 @@ export default function UserDetail() {
                         <div className="user-profile-info">
                             <div className="user-profile-name">{user.username}</div>
                             <div className="user-profile-email">{user.email || user.subscriptionEmail || '未设置邮箱'}</div>
-                            <div className="flex gap-2 mb-3">
+                            <div className="user-profile-badges">
                                 <span className={`badge ${user.role === 'admin' ? 'badge-info' : 'badge-neutral'}`}>{user.role}</span>
                                 <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? '已启用' : '已停用'}</span>
                                 {user.emailVerified && <span className="badge badge-success">邮箱已验证</span>}
@@ -657,7 +658,7 @@ export default function UserDetail() {
                                                         <td data-label="流量">{formatBytes((c.up || 0) + (c.down || 0))}</td>
                                                         <td data-label="到期时间">{c.expiryTime > 0 ? new Date(c.expiryTime).toLocaleDateString('zh-CN') : '永久'}</td>
                                                         <td data-label="状态"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
-                                                        <td data-label="操作">
+                                                        <td data-label="操作" className="table-cell-actions">
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm"
@@ -681,12 +682,17 @@ export default function UserDetail() {
                         {/* Tokens Tab */}
                         {activeTab === 'tokens' && (
                             <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-sm text-muted">共 {tokens.length} 个令牌</span>
-                                    <button className="btn btn-primary btn-sm" onClick={() => setTokenModalOpen(true)}>
-                                        <HiOutlinePlusCircle /> 签发令牌
-                                    </button>
-                                </div>
+                                <SectionHeader
+                                    className="mb-4"
+                                    compact
+                                    title="订阅令牌"
+                                    meta={<span className="text-sm text-muted">共 {tokens.length} 个令牌</span>}
+                                    actions={(
+                                        <button className="btn btn-primary btn-sm" onClick={() => setTokenModalOpen(true)}>
+                                            <HiOutlinePlusCircle /> 签发令牌
+                                        </button>
+                                    )}
+                                />
                                 {tokens.length === 0 ? (
                                     <EmptyState title="暂无订阅令牌" subtitle="点击上方按钮签发新令牌" />
                                 ) : (
@@ -714,8 +720,8 @@ export default function UserDetail() {
                                                         <td data-label="创建时间" className="text-sm text-muted">{formatTime(t.createdAt)}</td>
                                                         <td data-label="过期时间" className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt) : '永久'}</td>
                                                         <td data-label="最后使用" className="text-sm text-muted">{formatTime(t.lastUsedAt)}</td>
-                                                        <td data-label="操作">
-                                                            <div className="flex gap-2">
+                                                        <td data-label="操作" className="table-cell-actions">
+                                                            <div className="table-row-actions">
                                                                 <button
                                                                     className="btn btn-secondary btn-sm btn-icon"
                                                                     title="复制 Token ID"
@@ -751,10 +757,10 @@ export default function UserDetail() {
                                 ) : (
                                     <div className="timeline-list">
                                         {timeline.map((item, i) => (
-                                            <div key={item.id || i} className="timeline-item">
-                                                <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
-                                                <div className="timeline-content">
-                                                    <div className="flex items-center justify-between">
+                                                <div key={item.id || i} className="timeline-item">
+                                                    <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
+                                                    <div className="timeline-content">
+                                                    <div className="timeline-head">
                                                         <span className="font-medium">{formatTimelineTitle(item)}</span>
                                                         <span className="timeline-time">{formatTime(item.ts)}</span>
                                                     </div>

@@ -9809,13 +9809,18 @@ input[type="radio"]:focus-visible {
 }
 
 .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 44px;
   min-height: 44px;
+  padding: 0 12px;
   border-radius: 14px;
   background: rgba(7, 17, 31, 0.46);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 28px -20px rgba(2, 8, 23, 0.56);
   backdrop-filter: blur(8px);
+  line-height: 1;
 }
 
 .login-card {
@@ -9897,10 +9902,15 @@ input[type="radio"]:focus-visible {
 
 .auth-tab {
   position: relative;
-  padding: 0 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0;
   border-radius: 0;
   background: transparent;
   color: var(--text-muted);
+  line-height: 1.15;
 }
 
 .auth-tab::after {

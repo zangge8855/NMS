@@ -18,6 +18,8 @@ import {
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import ModalShell from '../UI/ModalShell.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 export default function ServerManagement() {
     const { activeServerId, panelApi, servers } = useServer();
@@ -342,22 +344,31 @@ export default function ServerManagement() {
                 eyebrow={t('pages.serverConsole.eyebrow')}
             />
             <div className="page-content page-enter">
-                <div className="card mb-6">
-                    <div className="text-sm text-muted">
-                        {isGlobalView
-                            ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
-                            : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
-                    </div>
-                </div>
+                <PageToolbar
+                    className="card mb-6 server-console-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">{isGlobalView ? '集群维护模式' : '节点维护模式'}</div>
+                            <div className="page-toolbar-subtitle">
+                                {isGlobalView
+                                    ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
+                                    : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
+                            </div>
+                        </div>
+                    )}
+                />
 
                 {lastRun && (
                     <div className="card mb-6">
-                        <div className="card-header">
-                            <span className="card-title">最近一次执行结果</span>
-                            <span className={`badge ${lastRun.failed.length === 0 ? 'badge-success' : 'badge-warning'}`}>
-                                {lastRun.success}/{lastRun.total} 成功
-                            </span>
-                        </div>
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title="最近一次执行结果"
+                            meta={(
+                                <span className={`badge ${lastRun.failed.length === 0 ? 'badge-success' : 'badge-warning'}`}>
+                                    {lastRun.success}/{lastRun.total} 成功
+                                </span>
+                            )}
+                        />
                         <div className="text-sm text-muted mb-2">{lastRun.title}</div>
                         {lastRun.failed.length > 0 && (
                             <div className="text-sm">
@@ -371,12 +382,10 @@ export default function ServerManagement() {
                     </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                <div className="server-console-grid">
                     <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">Xray 控制</span>
-                        </div>
-                        <div className="flex gap-8 mb-3" style={{ flexWrap: 'wrap' }}>
+                        <SectionHeader className="card-header section-header section-header--compact" title="Xray 控制" />
+                        <div className="server-console-action-row mb-3">
                             <button className="btn btn-danger btn-sm" onClick={handleStopXray} disabled={loading.stop}>
                                 <HiOutlineStop /> {isGlobalView ? '全部停止' : '停止'}
                             </button>
@@ -395,13 +404,16 @@ export default function ServerManagement() {
                     </div>
 
                     <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">Xray 版本</span>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
-                                <HiOutlineArrowPath /> 刷新
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-8" style={{ flexWrap: 'wrap' }}>
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title="Xray 版本"
+                            actions={(
+                                <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
+                                    <HiOutlineArrowPath /> 刷新
+                                </button>
+                            )}
+                        />
+                        <div className="server-console-select-row">
                             <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} style={{ flex: 1, minWidth: '220px' }}>
                                 {xrayVersions.length === 0 && <option value="">暂无可用版本</option>}
                                 {xrayVersions.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -413,10 +425,8 @@ export default function ServerManagement() {
                     </div>
 
                     <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">Geo 文件</span>
-                        </div>
-                        <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                        <SectionHeader className="card-header section-header section-header--compact" title="Geo 文件" />
+                        <div className="server-console-action-row">
                             <button className="btn btn-primary btn-sm" onClick={() => handleUpdateGeo()} disabled={loading['geo-all']}>
                                 <HiOutlineGlobeAlt /> {isGlobalView ? '全节点更新' : '全部更新'}
                             </button>
@@ -430,10 +440,8 @@ export default function ServerManagement() {
                     </div>
 
                     <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">数据与备份</span>
-                        </div>
-                        <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                        <SectionHeader className="card-header section-header section-header--compact" title="数据与备份" />
+                        <div className="server-console-action-row">
                             <button className="btn btn-primary btn-sm" onClick={handleBackupTelegram} disabled={loading.tgBackup}>
                                 {isGlobalView ? '全节点 Telegram 备份' : 'Telegram 备份'}
                             </button>
@@ -454,28 +462,23 @@ export default function ServerManagement() {
                     </div>
 
                     {!isGlobalView && (
-                        <div className="card" style={{ gridColumn: '1 / -1' }}>
-                            <div className="card-header">
-                                <span className="card-title">节点工具</span>
-                                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
-                                    <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
-                                </button>
-                            </div>
+                        <div className="card server-console-span-full">
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="节点工具"
+                                actions={(
+                                    <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
+                                        <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
+                                    </button>
+                                )}
+                            />
                             {toolEntries.length === 0 ? (
                                 <div className="text-sm text-muted">当前节点未暴露可执行工具接口。</div>
                             ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                                <div className="server-console-tool-grid">
                                     {toolEntries.map((tool) => (
-                                        <div
-                                            key={tool.key}
-                                            style={{
-                                                border: '1px solid var(--border-color)',
-                                                borderRadius: 'var(--radius-md)',
-                                                padding: '12px',
-                                                background: 'var(--surface-soft)',
-                                            }}
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
+                                        <div key={tool.key} className="server-console-tool-card">
+                                            <div className="server-console-tool-head">
                                                 <strong>{tool.label || tool.key}</strong>
                                                 <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
                                                     {tool.available === false ? '不可用' : '可执行'}
@@ -487,7 +490,7 @@ export default function ServerManagement() {
                                                     {toolResults[tool.key]}
                                                 </pre>
                                             )}
-                                            <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
+                                            <div className="server-console-action-row">
                                                 <button
                                                     className="btn btn-primary btn-sm"
                                                     onClick={() => handleRunTool(tool)}
@@ -510,22 +513,15 @@ export default function ServerManagement() {
                     )}
 
                     {!isGlobalView && guidedModules.length > 0 && (
-                        <div className="card" style={{ gridColumn: '1 / -1' }}>
-                            <div className="card-header">
-                                <span className="card-title">官方能力引导</span>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                        <div className="card server-console-span-full">
+                            <SectionHeader
+                                className="card-header section-header section-header--compact"
+                                title="官方能力引导"
+                            />
+                            <div className="server-console-guide-grid">
                                 {guidedModules.map((module) => (
-                                    <div
-                                        key={module.key}
-                                        style={{
-                                            border: '1px solid var(--border-color)',
-                                            borderRadius: 'var(--radius-md)',
-                                            padding: '12px',
-                                            background: 'var(--surface-soft)',
-                                        }}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
+                                    <div key={module.key} className="server-console-tool-card">
+                                        <div className="server-console-tool-head">
                                             <strong>{module.label}</strong>
                                             <span className="badge badge-neutral">{module.uiActionLabel || '官方文档'}</span>
                                         </div>

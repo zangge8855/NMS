@@ -637,6 +637,7 @@ export default function Dashboard() {
                 <div className="page-content page-enter">
                     <PageToolbar
                         className="dashboard-toolbar"
+                        compact
                         main={(
                             <>
                                 <div className="page-toolbar-copy dashboard-toolbar-copy">
@@ -651,7 +652,7 @@ export default function Dashboard() {
                                 onClick={toggleAutoRefresh}
                                 title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                             >
-                                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
+                                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
                                 {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                             </button>
                         )}
@@ -789,6 +790,7 @@ export default function Dashboard() {
             <div className="page-content page-enter">
                 <PageToolbar
                     className="dashboard-toolbar"
+                    compact
                     main={(
                         <>
                             <div className="page-toolbar-copy dashboard-toolbar-copy">
@@ -803,7 +805,7 @@ export default function Dashboard() {
                             onClick={toggleAutoRefresh}
                             title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                         >
-                            <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
+                            <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
                             {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         </button>
                     )}
