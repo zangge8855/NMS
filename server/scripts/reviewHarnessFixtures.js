@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import os from 'os';
 
 export const DEFAULT_REVIEW_DATA_DIR = '/tmp/nms-review-harness';
 
@@ -10,7 +11,20 @@ export const REVIEW_PANEL_PORTS = Object.freeze({
     down: 20539,
 });
 
-const REVIEW_CREDENTIAL_SEED = String(process.env.REVIEW_CREDENTIAL_SEED || 'nms-review-fixture').trim() || 'nms-review-fixture';
+function getDefaultReviewCredentialSeed() {
+    const machineScopedSeed = [
+        os.hostname(),
+        process.env.USER || process.env.LOGNAME || 'unknown-user',
+        import.meta.url,
+    ].join(':');
+
+    return crypto.createHash('sha256').update(machineScopedSeed).digest('hex').slice(0, 32);
+}
+
+const DEFAULT_REVIEW_CREDENTIAL_SEED = getDefaultReviewCredentialSeed();
+const REVIEW_CREDENTIAL_SEED = String(
+    process.env.REVIEW_CREDENTIAL_SEED || DEFAULT_REVIEW_CREDENTIAL_SEED
+).trim() || DEFAULT_REVIEW_CREDENTIAL_SEED;
 
 function deriveFixtureHex(label, size = 32) {
     return crypto

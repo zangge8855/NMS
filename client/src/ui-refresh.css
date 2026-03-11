@@ -1406,7 +1406,11 @@ body::before {
 }
 
 .servers-toolbar,
-.inbounds-toolbar {
+.inbounds-toolbar,
+.users-toolbar,
+.audit-filter-card,
+.audit-traffic-toolbar,
+.settings-toolbar {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   background: rgba(17, 17, 19, 0.8);
@@ -1415,9 +1419,21 @@ body::before {
 }
 
 .servers-toolbar-actions,
-.inbounds-toolbar-actions {
+.inbounds-toolbar-actions,
+.users-toolbar-actions,
+.settings-toolbar-actions {
   align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.servers-toolbar,
+.inbounds-toolbar,
+.users-toolbar,
+.audit-traffic-toolbar,
+.settings-toolbar {
+  gap: 12px 16px;
+  padding: 14px 16px;
 }
 
 .servers-selection-bar,
@@ -1430,11 +1446,11 @@ body::before {
 }
 
 .servers-filter-card {
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .servers-filter-bar {
-  row-gap: 12px;
+  row-gap: 10px;
 }
 
 .servers-filter-search {
@@ -1521,9 +1537,11 @@ body::before {
   min-height: 38px;
 }
 
-.inbounds-toolbar-main {
+.inbounds-toolbar-main,
+.users-toolbar-main {
   min-width: 0;
   flex-wrap: wrap;
+  row-gap: 10px;
 }
 
 .inbounds-toolbar-copy {
@@ -1588,11 +1606,6 @@ body::before {
 .audit-traffic-toolbar,
 .settings-toolbar {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  background: rgba(17, 17, 19, 0.8);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(12px);
 }
 
 .users-toolbar::before,
@@ -1605,10 +1618,6 @@ body::before {
   height: 1px;
   background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent 62%);
   pointer-events: none;
-}
-
-.users-toolbar {
-  padding: 18px 20px;
 }
 
 .users-toolbar-main,
@@ -1626,14 +1635,25 @@ body::before {
   justify-content: flex-end;
 }
 
+.users-toolbar .account-search-shell {
+  flex: 1 1 280px;
+}
+
 .users-toolbar-summary {
-  padding: 0 4px 0 10px;
+  padding: 0 2px 0 8px;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
 .users-filter-select {
   min-width: 124px;
+}
+
+.users-toolbar :is(.form-input, .form-select),
+.inbounds-toolbar .form-select,
+.audit-filter-card :is(.form-input, .form-select),
+.audit-traffic-toolbar .form-select {
+  min-height: 40px;
 }
 
 .users-bulk-toolbar {
@@ -1697,13 +1717,8 @@ body::before {
   box-shadow: none;
 }
 
-.audit-filter-card,
-.audit-traffic-toolbar {
-  padding: 16px 18px;
-}
-
 .audit-filter-bar {
-  row-gap: 12px;
+  row-gap: 10px;
 }
 
 .audit-pagination {
@@ -1748,12 +1763,8 @@ body::before {
   padding-top: 22px;
 }
 
-.settings-toolbar {
-  padding: 18px 20px;
-}
-
 .settings-toolbar-copy {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 14px;
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.03);
@@ -2240,7 +2251,8 @@ body::before {
     flex-wrap: wrap;
   }
 
-  .users-toolbar-main {
+  .users-toolbar-main,
+  .inbounds-toolbar-main {
     width: 100%;
   }
 
@@ -2264,24 +2276,22 @@ body::before {
 
 @media (max-width: 640px) {
   .header {
-    min-height: 72px;
+    min-height: 68px;
     padding-top: 12px;
     padding-bottom: 12px;
     padding-right: 16px;
     padding-left: 64px;
-    gap: 12px;
+    gap: 10px;
   }
 
   .header-actions {
-    gap: 6px;
-    max-width: 58vw;
+    gap: 8px;
+    max-width: none;
+    margin-left: 8px;
   }
 
   .header-search {
-    min-width: 0;
-    width: 132px;
-    flex-basis: 132px;
-    padding: 6px 10px;
+    display: none;
   }
 
   .header-search-kbd {
@@ -2289,7 +2299,7 @@ body::before {
   }
 
   .header-title {
-    font-size: 21px;
+    font-size: 22px;
   }
 
   .header-eyebrow,
@@ -2298,8 +2308,34 @@ body::before {
     display: none;
   }
 
+  .header-left {
+    gap: 12px;
+  }
+
+  .header-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-title-group {
+    max-width: 100%;
+  }
+
   .theme-label {
     display: none;
+  }
+
+  .users-toolbar,
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .audit-filter-card,
+  .audit-traffic-toolbar,
+  .settings-toolbar {
+    padding: 12px 14px;
+  }
+
+  .servers-filter-card {
+    padding: 12px 14px;
   }
 
   .dashboard-toolbar,

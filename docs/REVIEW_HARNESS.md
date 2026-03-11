@@ -32,7 +32,7 @@ The default review data directory is `/tmp/nms-review-harness`.
 
 ## Login credentials
 
-The repo no longer commits fixed demo passwords.
+The repo no longer commits fixed demo passwords. When `REVIEW_CREDENTIAL_SEED` is unset, the harness derives machine-scoped local credentials instead of using a repo-fixed seed.
 
 Run `npm run review:seed` to print the active local credentials in the command output summary. If you want stable custom credentials, set the same values before running both `review:seed` and `review:fake-panel`:
 
