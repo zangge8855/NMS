@@ -122,7 +122,7 @@ describe('Subscriptions', () => {
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
                             subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
-                            subscriptionUrlMihomo: 'https://sub.example.com/base?format=mihomo',
+                            subscriptionUrlSingbox: 'sing-box://import-remote-profile?url=https://sub.example.com/base?format=raw',
                         },
                     },
                 });
@@ -134,11 +134,11 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Clash / Verge' }));
+        await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Mihomo Party' }));
-        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=mihomo')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'sing-box' }));
+        expect(await screen.findByDisplayValue('sing-box://import-remote-profile?url=https://sub.example.com/base?format=raw')).toBeInTheDocument();
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');

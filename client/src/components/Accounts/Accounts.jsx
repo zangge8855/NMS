@@ -152,7 +152,7 @@ export default function Accounts({ embedded = false }) {
         const available = Array.isArray(provisionResult.bundle?.availableProfiles)
             ? provisionResult.bundle.availableProfiles
             : [];
-        const preferredKeys = new Set(['v2rayn', 'clash', 'mihomo', 'singbox', 'raw']);
+        const preferredKeys = new Set(['v2rayn', 'clash', 'singbox', 'raw']);
         return available.filter((item) => preferredKeys.has(item.key));
     }, [provisionResult]);
 

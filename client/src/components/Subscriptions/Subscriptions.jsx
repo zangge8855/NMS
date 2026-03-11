@@ -37,14 +37,6 @@ function renderTokenStatus(status) {
     return <span className="badge badge-neutral">{status || '未知'}</span>;
 }
 
-function getAliasProfileUrl(result, profileKey) {
-    if (!result) return '';
-    if (profileKey === 'clash') return result.subscriptionAliasUrlClash || '';
-    if (profileKey === 'mihomo') return result.subscriptionAliasUrlMihomo || '';
-    if (profileKey === 'raw') return result.subscriptionAliasUrlRaw || '';
-    return result.subscriptionAliasUrl || '';
-}
-
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
@@ -74,10 +66,6 @@ export default function Subscriptions() {
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
     const activeProfile = useMemo(
         () => findSubscriptionProfile(result?.bundle, profileKey),
-        [result, profileKey]
-    );
-    const activeAliasUrl = useMemo(
-        () => getAliasProfileUrl(result, profileKey),
         [result, profileKey]
     );
 
@@ -155,11 +143,6 @@ export default function Subscriptions() {
                 scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
                 serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
                 token: payload.token || null,
-                subscriptionAliasPath: payload.subscriptionAliasPath || '',
-                subscriptionAliasUrl: payload.subscriptionAliasUrl || '',
-                subscriptionAliasUrlRaw: payload.subscriptionAliasUrlRaw || '',
-                subscriptionAliasUrlClash: payload.subscriptionAliasUrlClash || '',
-                subscriptionAliasUrlMihomo: payload.subscriptionAliasUrlMihomo || '',
             });
             if (bundle.defaultProfileKey) {
                 setProfileKey(bundle.defaultProfileKey);
@@ -251,27 +234,12 @@ export default function Subscriptions() {
 
     return (
         <>
-            <Header title={t('pages.subscriptions.title')} showContext={isAdmin} />
+            <Header title={t('pages.subscriptions.title')} />
             <div className="page-content page-enter">
                 {isAdmin && (
-                <div className="card mb-8">
-                    <div className="card-header">
-                        <span className="card-title">节点合并订阅（自动生成并持久保留）</span>
-                        {isAdmin && normalizedEmail && (
-                            <Link className="btn btn-secondary btn-sm" to={`/clients?q=${encodeURIComponent(normalizedEmail)}`}>
-                                用户管理
-                            </Link>
-                        )}
-                    </div>
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '12px',
-                            alignItems: 'end',
-                        }}
-                    >
-                        <div className="form-group" style={{ margin: 0 }}>
+                <div className="card mb-8 subscriptions-toolbar">
+                    <div className="subscriptions-toolbar-main">
+                        <div className="form-group subscriptions-toolbar-field">
                             <label className="form-label">用户邮箱</label>
                             <input
                                 type="email"
@@ -287,41 +255,37 @@ export default function Subscriptions() {
                                     <option key={email} value={email} />
                                 ))}
                             </datalist>
-                            {isUserOnly ? (
-                                <div className="text-xs text-muted mt-1">
-                                    {defaultIdentity
-                                        ? '普通用户仅可查看管理员分配给自己的订阅连接'
-                                        : '尚未绑定订阅邮箱，请联系管理员分配后再查看'}
-                                </div>
-                            ) : usersAccessDenied ? (
-                                <div className="text-xs text-muted mt-1">当前角色无全量用户列表权限，请手动输入邮箱</div>
-                            ) : (
-                                <div className="text-xs text-muted mt-1">已加载 {users.length} 个用户，可输入或选择</div>
-                            )}
                         </div>
-                        {isAdmin && (
-                            <div className="form-group" style={{ margin: 0 }}>
-                                <label className="form-label">订阅范围</label>
-                                <select
-                                    className="form-select"
-                                    value={selectedServerId}
-                                    onChange={(e) => setSelectedServerId(e.target.value)}
-                                >
-                                    <option value="all">全部节点</option>
-                                    {servers.map((server) => (
-                                        <option key={server.id} value={server.id}>{server.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
+                            <label className="form-label">订阅范围</label>
+                            <select
+                                className="form-select"
+                                value={selectedServerId}
+                                onChange={(e) => setSelectedServerId(e.target.value)}
+                            >
+                                <option value="all">全部节点</option>
+                                {servers.map((server) => (
+                                    <option key={server.id} value={server.id}>{server.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="subscriptions-toolbar-actions">
+                        {normalizedEmail && (
+                            <Link className="btn btn-secondary" to={`/clients?q=${encodeURIComponent(normalizedEmail)}`}>
+                                用户管理
+                            </Link>
                         )}
-                        {isAdmin && (
-                            <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading || !isAdmin}>
+                        <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
                                 {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新用户列表</>}
-                            </button>
-                        )}
+                        </button>
                         <button className="btn btn-primary" onClick={loadSubscription} disabled={loading || !normalizedEmail}>
                             {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新加载</>}
                         </button>
+                    </div>
+                    <div className="subscriptions-toolbar-status text-xs text-muted">
+                        {usersAccessDenied ? '当前角色无全量用户列表权限，请手动输入邮箱'
+                            : `已加载 ${users.length} 个用户，可直接搜索或选择`}
                     </div>
                 </div>
                 )}
@@ -364,19 +328,12 @@ export default function Subscriptions() {
                                         匹配 {result.matchedClientsActive}/{result.matchedClientsRaw}
                                     </div>
                                 </div>
-                                {result.subscriptionAliasPath && (
-                                    <div className="card">
-                                        <div className="text-sm text-muted">兼容迁移路径</div>
-                                        <div style={{ fontSize: '18px', fontWeight: 700 }}>{result.subscriptionAliasPath}</div>
-                                        <div className="text-sm text-muted">旧系统客户端可继续使用这条路径访问</div>
-                                    </div>
-                                )}
                             </div>
                         )}
 
                         <div className="card mb-8">
                             <div className="card-header">
-                                <span className="card-title">持久订阅地址（多客户端）</span>
+                                <span className="card-title">持久订阅地址</span>
                             </div>
                             <div
                                 className="grid gap-2 mb-3"
@@ -395,7 +352,7 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                常见客户端专用订阅地址已内置，Clash / Mihomo 会直接使用本机生成的配置地址。
+                                常见客户端专用订阅地址已内置，Clash / Mihomo 共用同一份 YAML 配置。
                             </div>
                             <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '10px' }}>
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
@@ -411,21 +368,6 @@ export default function Subscriptions() {
                                     <HiOutlineQrCode /> QR
                                 </button>
                             </div>
-                            {activeAliasUrl && (
-                                <>
-                                    <div className="text-xs text-muted mb-2 mt-3">兼容迁移地址</div>
-                                    <div className="subscription-link-grid subscription-link-grid-migration" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '10px' }}>
-                                        <input className="form-input font-mono text-xs" value={activeAliasUrl} readOnly />
-                                        <button
-                                            className="btn btn-secondary"
-                                            onClick={() => copyToClipboard(activeAliasUrl).then(() => toast.success('兼容地址已复制'))}
-                                            disabled={!result.subscriptionActive}
-                                        >
-                                            <HiOutlineClipboard /> 复制迁移地址
-                                        </button>
-                                    </div>
-                                </>
-                            )}
                             <SubscriptionClientLinks bundle={result.bundle} />
                         </div>
 

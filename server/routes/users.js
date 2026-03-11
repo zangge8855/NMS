@@ -65,7 +65,6 @@ router.get('/:id/detail', (req, res) => {
         username: user.username,
         email: normalizeEmail(user.email),
         subscriptionEmail,
-        subscriptionAliasPath: String(user.subscriptionAliasPath || '').trim().toLowerCase(),
         emailVerified: !!user.emailVerified,
         role: user.role,
         enabled: user.enabled !== false,

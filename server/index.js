@@ -9,7 +9,7 @@ import { authMiddleware, adminOnly } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import proxyRoutes from './routes/proxy.js';
-import subscriptionRoutes, { handleSubscriptionAliasRequest } from './routes/subscriptions.js';
+import subscriptionRoutes from './routes/subscriptions.js';
 import batchRoutes from './routes/batch.js';
 import capabilitiesRoutes from './routes/capabilities.js';
 import protocolSchemasRoutes from './routes/protocolSchemas.js';
@@ -52,8 +52,7 @@ const apiLimiter = rateLimit({
     message: { success: false, msg: '请求过于频繁，请稍后再试' },
     skip: (req) => {
         const path = String(req.path || '');
-        return path.startsWith('/subscriptions/sub/')
-            || path.startsWith('/subscriptions/public/')
+        return path.startsWith('/subscriptions/public/')
             || path.startsWith('/ws/ticket')
             || path.startsWith('/auth/check');
     },
@@ -90,10 +89,6 @@ app.use('/api', (req, res) => {
         success: false,
         msg: 'API route not found',
     });
-});
-
-app.use((req, res, next) => {
-    Promise.resolve(handleSubscriptionAliasRequest(req, res, next)).catch(next);
 });
 
 // Serve React build in production (or when explicitly enabled)

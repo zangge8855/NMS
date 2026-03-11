@@ -19,7 +19,6 @@ function buildSessionUser(user, fallback = {}) {
         role: String(user?.role || fallback.role || 'user').trim(),
         email: user?.email || '',
         subscriptionEmail: resolveUserSubscriptionEmail(user),
-        subscriptionAliasPath: String(user?.subscriptionAliasPath || fallback.subscriptionAliasPath || '').trim().toLowerCase(),
     };
 }
 

@@ -4,7 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineSignal, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineCloud, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getSearchableNavItems } from './navConfig.js';
 
@@ -25,8 +25,8 @@ function getShortcutLabel() {
     return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 }
 
-export default function Header({ title, subtitle = '', icon, children, showContext = true }) {
-    const { activeServer, activeServerId } = useServer();
+export default function Header({ title, subtitle = '', icon, children }) {
+    const { activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
     const { locale, toggleLocale, t } = useI18n();
@@ -48,13 +48,6 @@ export default function Header({ title, subtitle = '', icon, children, showConte
         auto: t('shell.themeAuto'),
     }), [t]);
 
-    const scopeLabel = activeServer
-        ? { icon: HiOutlineSignal, title: t('shell.scopeServerTitle'), value: activeServer.name }
-        : activeServerId === 'global'
-            ? { icon: HiOutlineCloud, title: t('shell.scopeGlobalTitle'), value: t('shell.scopeGlobalValue') }
-            : null;
-
-    const ScopeIcon = scopeLabel?.icon;
     const searchableItems = useMemo(
         () => getSearchableNavItems({ isAdmin, isGlobalView, locale }),
         [isAdmin, isGlobalView, locale]
@@ -219,16 +212,6 @@ export default function Header({ title, subtitle = '', icon, children, showConte
                         </div>
                     )}
                 </div>
-                {showContext && scopeLabel && (
-                    <div className="header-context">
-                        <span className="system-health-dot" data-status="healthy" />
-                        {ScopeIcon && <ScopeIcon style={{ fontSize: '14px' }} />}
-                        <div className="header-context-copy">
-                            <span className="header-context-label">{scopeLabel.title}</span>
-                            <strong>{scopeLabel.value}</strong>
-                        </div>
-                    </div>
-                )}
                 {children}
                 <button
                     type="button"
@@ -248,7 +231,6 @@ export default function Header({ title, subtitle = '', icon, children, showConte
                     aria-label={themeLabels[mode]}
                 >
                     <ThemeIcon />
-                    <span className="theme-label">{themeLabels[mode]}</span>
                 </button>
             </div>
         </header>

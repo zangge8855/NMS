@@ -1704,6 +1704,7 @@ body::before {
 }
 
 .users-toolbar,
+.subscriptions-toolbar,
 .audit-filter-card,
 .audit-traffic-toolbar,
 .settings-toolbar {
@@ -1711,6 +1712,7 @@ body::before {
 }
 
 .users-toolbar::before,
+.subscriptions-toolbar::before,
 .audit-filter-card::before,
 .audit-traffic-toolbar::before,
 .settings-toolbar::before {
@@ -1726,6 +1728,46 @@ body::before {
 .users-toolbar-actions {
   align-items: center;
   flex-wrap: wrap;
+}
+
+.subscriptions-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px 16px;
+  flex-wrap: wrap;
+}
+
+.subscriptions-toolbar-main {
+  min-width: 0;
+  flex: 1 1 560px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.subscriptions-toolbar-field {
+  margin: 0;
+  flex: 1 1 320px;
+  min-width: min(320px, 100%);
+}
+
+.subscriptions-toolbar-field-sm {
+  flex: 0 0 220px;
+  min-width: 220px;
+}
+
+.subscriptions-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subscriptions-toolbar-status {
+  width: 100%;
+  padding-top: 2px;
 }
 
 .users-toolbar-main {
@@ -2492,6 +2534,7 @@ body::before {
   .servers-toolbar,
   .inbounds-toolbar,
   .users-toolbar,
+  .subscriptions-toolbar,
   .audit-traffic-toolbar,
   .settings-toolbar {
     flex-direction: column;
@@ -2501,6 +2544,7 @@ body::before {
   .servers-toolbar-actions,
   .inbounds-toolbar-actions,
   .users-toolbar-actions,
+  .subscriptions-toolbar-actions,
   .settings-toolbar-actions {
     width: 100%;
     justify-content: flex-start;
@@ -2508,7 +2552,8 @@ body::before {
   }
 
   .users-toolbar-main,
-  .inbounds-toolbar-main {
+  .inbounds-toolbar-main,
+  .subscriptions-toolbar-main {
     width: 100%;
   }
 
@@ -2601,10 +2646,17 @@ body::before {
   .users-toolbar,
   .servers-toolbar,
   .inbounds-toolbar,
+  .subscriptions-toolbar,
   .audit-filter-card,
   .audit-traffic-toolbar,
   .settings-toolbar {
     padding: 12px 14px;
+  }
+
+  .subscriptions-toolbar-field,
+  .subscriptions-toolbar-field-sm {
+    min-width: 100%;
+    flex-basis: 100%;
   }
 
   .servers-filter-card {

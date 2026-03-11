@@ -4,20 +4,19 @@ import {
 } from './subscriptionProfiles.js';
 
 describe('subscription profile bundle', () => {
-    it('builds built-in Clash and Mihomo subscription URLs from the merged URL', () => {
+    it('builds a unified Clash and Mihomo subscription URL from the merged URL', () => {
         const bundle = buildSubscriptionProfileBundle({
             subscriptionUrl: 'https://sub.example.com/base',
             subscriptionUrlRaw: 'https://sub.example.com/base?format=raw',
-            subscriptionUrlReconstructedRaw: 'https://sub.example.com/base?mode=reconstructed&format=raw',
         });
 
         expect(bundle.clashUrl).toBe('https://sub.example.com/base?format=clash');
-        expect(bundle.mihomoUrl).toBe('https://sub.example.com/base?format=mihomo');
+        expect(bundle.mihomoUrl).toBe('https://sub.example.com/base?format=clash');
         expect(bundle.singboxUrl).toContain('sing-box://import-remote-profile');
-        expect(findSubscriptionProfile(bundle, 'mihomo')?.label).toBe('Mihomo Party');
+        expect(findSubscriptionProfile(bundle, 'mihomo')?.label).toBe('Clash / Mihomo');
     });
 
-    it('prefers explicit client-specific URLs when they are present', () => {
+    it('prefers the explicit unified YAML URL when it is present', () => {
         const bundle = buildSubscriptionProfileBundle({
             subscriptionUrl: 'https://sub.example.com/base',
             subscriptionUrlClash: 'https://sub.example.com/clash.yaml',
@@ -26,7 +25,7 @@ describe('subscription profile bundle', () => {
         });
 
         expect(bundle.clashUrl).toBe('https://sub.example.com/clash.yaml');
-        expect(bundle.mihomoUrl).toBe('https://sub.example.com/mihomo.yaml');
+        expect(bundle.mihomoUrl).toBe('https://sub.example.com/clash.yaml');
         expect(bundle.singboxUrl).toBe('sing-box://import-remote-profile?url=https://sub.example.com/raw');
     });
 });

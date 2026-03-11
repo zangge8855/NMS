@@ -31,9 +31,16 @@ function buildCsvCell(value) {
     return `"${String(value || '').replace(/"/g, '""')}"`;
 }
 
+function stripSubscriptionAliasPath(user) {
+    if (!user || typeof user !== 'object') return user;
+    const next = { ...user };
+    delete next.subscriptionAliasPath;
+    return next;
+}
+
 function listUsers(deps = {}) {
     const userRepo = deps.userRepository || userRepository;
-    return userRepo.list();
+    return userRepo.list().map((item) => stripSubscriptionAliasPath(item));
 }
 
 function createManagedUser(payload = {}, deps = {}) {
@@ -45,9 +52,6 @@ function createManagedUser(payload = {}, deps = {}) {
     const subscriptionEmail = Object.prototype.hasOwnProperty.call(payload || {}, 'subscriptionEmail')
         ? normalizeEmailInput(payload?.subscriptionEmail)
         : email;
-    const subscriptionAliasPath = Object.prototype.hasOwnProperty.call(payload || {}, 'subscriptionAliasPath')
-        ? payload?.subscriptionAliasPath
-        : '';
 
     if (email && !isValidEmail(email)) {
         throw createHttpError(400, '邮箱格式不正确');
@@ -67,19 +71,17 @@ function createManagedUser(payload = {}, deps = {}) {
         role,
         email,
         subscriptionEmail,
-        subscriptionAliasPath,
         emailVerified: true,
         enabled: true,
     });
 
     return {
-        user,
+        user: stripSubscriptionAliasPath(user),
         audit: {
             targetUser: username,
             role,
             email,
             subscriptionEmail: user.subscriptionEmail || '',
-            subscriptionAliasPath: user.subscriptionAliasPath || '',
         },
     };
 }
@@ -117,13 +119,12 @@ function bulkSetUsersEnabled(payload = {}, deps = {}) {
 
 function buildUsersCsv(deps = {}) {
     const users = listUsers(deps);
-    const header = 'ID,用户名,邮箱,订阅邮箱,兼容订阅路径,角色,状态,邮箱已验证,创建时间,最后登录';
+    const header = 'ID,用户名,邮箱,订阅邮箱,角色,状态,邮箱已验证,创建时间,最后登录';
     const rows = users.map((user) => [
         user.id,
         buildCsvCell(user.username),
         buildCsvCell(user.email),
         buildCsvCell(user.subscriptionEmail),
-        buildCsvCell(user.subscriptionAliasPath),
         user.role,
         user.enabled ? '启用' : '停用',
         user.emailVerified ? '是' : '否',
@@ -155,10 +156,6 @@ function updateManagedUser(id, payload = {}, deps = {}) {
         nextData.subscriptionEmail = subscriptionEmail;
     }
 
-    if (Object.prototype.hasOwnProperty.call(payload, 'subscriptionAliasPath')) {
-        nextData.subscriptionAliasPath = payload?.subscriptionAliasPath;
-    }
-
     if (password) {
         const passwordCheck = checkAccountPassword(password);
         if (!passwordCheck.valid) {
@@ -171,7 +168,7 @@ function updateManagedUser(id, payload = {}, deps = {}) {
         throw createHttpError(404, '用户不存在');
     }
 
-    return { user };
+    return { user: stripSubscriptionAliasPath(user) };
 }
 
 function updateUserSubscriptionBinding(id, payload = {}, deps = {}) {

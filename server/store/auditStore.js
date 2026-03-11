@@ -336,8 +336,7 @@ class AuditStore {
         if (ip) {
             rows = rows.filter((item) => {
                 const candidateIp = String(item.clientIp || item.ip || '');
-                const candidateProxyIp = String(item.proxyIp || '');
-                return candidateIp.includes(ip) || candidateProxyIp.includes(ip);
+                return candidateIp.includes(ip);
             });
         }
         if (serverId) {

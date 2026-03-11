@@ -544,11 +544,6 @@ export default function UserDetail() {
                                         <HiOutlineEnvelope /> 订阅邮箱: {user.subscriptionEmail}
                                     </div>
                                 )}
-                                {user.subscriptionAliasPath && (
-                                    <div className="user-profile-meta-item">
-                                        <HiOutlineGlobeAlt /> 兼容路径: {user.subscriptionAliasPath}
-                                    </div>
-                                )}
                             </div>
                         </div>
                         <div className="user-profile-actions">

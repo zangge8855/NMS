@@ -49,19 +49,17 @@ describe('subscription response formats', () => {
 });
 
 describe('subscription url generation', () => {
-    it('builds token and alias subscription variants together', () => {
+    it('builds core subscription variants from the token url', () => {
         const urls = buildSubscriptionUrls(
             'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
             'auto',
-            '',
-            { aliasBase: 'https://new.example.com/sub/legacy-user-a' }
+            ''
         );
 
         assert.equal(urls.subscriptionUrl, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value');
-        assert.equal(urls.subscriptionAliasUrl, 'https://new.example.com/sub/legacy-user-a');
-        assert.equal(urls.subscriptionAliasUrlRaw, 'https://new.example.com/sub/legacy-user-a?format=raw');
-        assert.equal(urls.subscriptionAliasUrlClash, 'https://new.example.com/sub/legacy-user-a?format=clash');
-        assert.equal(urls.subscriptionAliasUrlMihomo, 'https://new.example.com/sub/legacy-user-a?format=mihomo');
+        assert.equal(urls.subscriptionUrlRaw, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw');
+        assert.equal(urls.subscriptionUrlClash, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=clash');
+        assert.equal(urls.subscriptionUrlMihomo, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=clash');
     });
 });
 
@@ -106,6 +104,8 @@ describe('mihomo config generation', () => {
         assert.match(yaml, /private-domain:/);
         assert.match(yaml, /cn-domain:/);
         assert.match(yaml, /format: mrs/);
+        assert.match(yaml, /global-client-fingerprint: chrome/);
+        assert.match(yaml, /store-selected: true/);
         assert.match(yaml, /name: GLOBAL/);
         assert.match(yaml, /name: TELEGRAM/);
         assert.match(yaml, /name: DOMESTIC/);

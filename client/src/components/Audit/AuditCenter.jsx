@@ -602,8 +602,7 @@ export default function AuditCenter() {
                                     <col style={{ width: '160px' }} />
                                     <col style={{ width: '180px' }} />
                                     <col style={{ width: '80px' }} />
-                                    <col style={{ width: '140px' }} />
-                                    <col style={{ width: '140px' }} />
+                                    <col style={{ width: '180px' }} />
                                     <col style={{ width: '120px' }} />
                                     <col />
                                 </colgroup>
@@ -613,16 +612,15 @@ export default function AuditCenter() {
                                         <th>邮箱</th>
                                         <th>状态</th>
                                         <th>真实 IP</th>
-                                        <th>代理 IP</th>
                                         <th>所属地</th>
                                         <th>UA</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {accessLoading ? (
-                                        <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
+                                        <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
                                     ) : accessData.items.length === 0 ? (
-                                        <tr><td colSpan={7}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
+                                        <tr><td colSpan={6}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
                                     ) : accessData.items.map((item) => (
                                         <tr key={item.id}>
                                             <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
@@ -633,9 +631,6 @@ export default function AuditCenter() {
                                                     <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
                                                     {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
                                                 </div>
-                                            </td>
-                                            <td data-label="代理 IP" className="text-xs text-muted" style={{ wordBreak: 'break-all' }}>
-                                                <span className="font-mono">{item.proxyIp || '-'}</span>
                                             </td>
                                             <td data-label="所属地" className="text-xs">{item.cfCountry || item.ipLocation || '-'}</td>
                                             <td data-label="UA" className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>

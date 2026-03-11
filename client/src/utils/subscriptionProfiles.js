@@ -26,41 +26,32 @@ const TOOL_SITES = [
     { key: 'clash-verge', label: 'Clash Verge Rev', url: 'https://www.clashverge.dev/' },
     { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
     { key: 'singbox', label: 'sing-box', url: 'https://sing-box.sagernet.org/clients/' },
-    { key: 'hiddify', label: 'Hiddify', url: 'https://hiddify.com/app/' },
 ];
 
 export function buildSubscriptionProfileBundle(payload = {}) {
     const mergedUrl = normalizeUrl(payload.subscriptionUrl) || normalizeUrl(payload.legacySubscriptionUrl);
     const rawUrl = normalizeUrl(payload.subscriptionUrlRaw) || appendQuery(mergedUrl, { format: 'raw' });
-    const nativeUrl = normalizeUrl(payload.subscriptionUrlNative) || appendQuery(mergedUrl, { mode: 'native' });
-    const reconstructedUrl = normalizeUrl(payload.subscriptionUrlReconstructed) || appendQuery(mergedUrl, { mode: 'reconstructed' });
-    const reconstructedRawUrl = normalizeUrl(payload.subscriptionUrlReconstructedRaw)
-        || appendQuery(reconstructedUrl || mergedUrl, { format: 'raw' });
-    const importSourceUrl = reconstructedRawUrl || rawUrl || mergedUrl;
+    const importSourceUrl = rawUrl || mergedUrl;
 
     const v2raynUrl = normalizeUrl(payload.subscriptionUrlV2rayn) || mergedUrl;
-    const clashUrl = normalizeUrl(payload.subscriptionUrlClash) || appendQuery(mergedUrl, { format: 'clash' });
-    const mihomoUrl = normalizeUrl(payload.subscriptionUrlMihomo) || appendQuery(mergedUrl, { format: 'mihomo' });
+    const clashUrl = normalizeUrl(payload.subscriptionUrlClash)
+        || normalizeUrl(payload.subscriptionUrlMihomo)
+        || appendQuery(mergedUrl, { format: 'clash' });
+    const mihomoUrl = clashUrl;
     const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox) || buildSingboxImportUrl(importSourceUrl);
 
     const profiles = [
         {
             key: 'v2rayn',
-            label: 'v2rayN / v2rayNG',
+            label: '通用链接',
             url: v2raynUrl,
-            hint: '通用订阅地址',
+            hint: '适用于 v2rayN / v2rayNG / Shadowrocket 等常见 URI 订阅客户端',
         },
         {
             key: 'clash',
-            label: 'Clash / Verge',
+            label: 'Clash / Mihomo',
             url: clashUrl,
-            hint: 'Clash / Mihomo YAML 配置地址',
-        },
-        {
-            key: 'mihomo',
-            label: 'Mihomo Party',
-            url: mihomoUrl,
-            hint: 'Mihomo Party YAML 配置地址',
+            hint: '通用 YAML 配置，适用于 Clash Verge Rev / Mihomo Party',
         },
         {
             key: 'singbox',
@@ -74,18 +65,6 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             url: rawUrl,
             hint: '原始 URI 列表',
         },
-        {
-            key: 'native',
-            label: 'Native',
-            url: nativeUrl,
-            hint: '优先使用节点原生订阅',
-        },
-        {
-            key: 'reconstructed',
-            label: 'Reconstructed',
-            url: reconstructedUrl,
-            hint: '由 NMS 重建链接',
-        },
     ];
 
     const availableProfiles = profiles.filter((item) => item.url);
@@ -94,9 +73,6 @@ export function buildSubscriptionProfileBundle(payload = {}) {
     return {
         mergedUrl,
         rawUrl,
-        nativeUrl,
-        reconstructedUrl,
-        reconstructedRawUrl,
         v2raynUrl,
         clashUrl,
         mihomoUrl,
@@ -110,6 +86,6 @@ export function buildSubscriptionProfileBundle(payload = {}) {
 
 export function findSubscriptionProfile(bundle, key) {
     const profiles = Array.isArray(bundle?.profiles) ? bundle.profiles : [];
-    const normalizedKey = String(key || '').trim();
+    const normalizedKey = String(key || '').trim() === 'mihomo' ? 'clash' : String(key || '').trim();
     return profiles.find((item) => item.key === normalizedKey) || profiles.find((item) => item.url) || null;
 }
