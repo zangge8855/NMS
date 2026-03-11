@@ -4,7 +4,8 @@ import crypto from 'crypto';
 import config from '../config.js';
 import systemSettingsStore from './systemSettingsStore.js';
 import userStore from './userStore.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 
 const AUDIT_EVENTS_FILE = path.join(config.dataDir, 'audit_events.json');
@@ -38,8 +39,7 @@ function loadArray(file) {
 }
 
 function saveArray(file, data) {
-    if (!shouldWriteFile()) return;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    saveObjectAtomic(file, data);
 }
 
 function normalizeDateInput(value, fallback = null) {

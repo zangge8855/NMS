@@ -63,12 +63,14 @@ export default function NotificationBell() {
         const top = openUpward
             ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
             : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+        const originX = clamp(anchorRect.right - left - (anchorRect.width / 2), 24, width - 24);
 
         return {
             top: `${top}px`,
             left: `${left}px`,
             width: `${width}px`,
             maxHeight: `${maxHeight}px`,
+            transformOrigin: `${originX}px ${openUpward ? '100%' : '0%'}`,
         };
     }, []);
 

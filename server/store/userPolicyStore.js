@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const USER_POLICY_FILE = path.join(config.dataDir, 'user_policies.json');
 const ALLOWED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
@@ -91,9 +92,7 @@ class UserPolicyStore {
     }
 
     _save() {
-        if (shouldWriteFile()) {
-            fs.writeFileSync(USER_POLICY_FILE, JSON.stringify(this.policies, null, 2), 'utf8');
-        }
+        saveObjectAtomic(USER_POLICY_FILE, this.policies);
         mirrorStoreSnapshot('user_policies', this.exportState());
     }
 

@@ -32,7 +32,14 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-export default function Header({ title, subtitle = '', icon, children, showSubtitle = false }) {
+export default function Header({
+    title,
+    subtitle = '',
+    icon,
+    children,
+    showSubtitle = false,
+    allowTitleWrap = false,
+}) {
     const { activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
@@ -178,12 +185,14 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
         const top = openUpward
             ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
             : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+        const originX = clamp(anchorRect.right - left - 18, 24, width - 24);
 
         return {
             top: `${top}px`,
             left: `${left}px`,
             width: `${width}px`,
             maxHeight: `${maxHeight}px`,
+            transformOrigin: `${originX}px ${openUpward ? '100%' : '0%'}`,
         };
     }, []);
 
@@ -245,7 +254,7 @@ export default function Header({ title, subtitle = '', icon, children, showSubti
             <div className="header-left">
                 {icon && <span className="header-icon">{icon}</span>}
                 <div className="header-title-group">
-                    <h1 className="header-title">{title}</h1>
+                    <h1 className={`header-title${allowTitleWrap ? ' header-title--wrap' : ''}`}>{title}</h1>
                     {showSubtitle && subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
                 </div>
             </div>

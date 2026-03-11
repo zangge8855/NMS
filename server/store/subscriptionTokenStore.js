@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const TOKENS_FILE = path.join(config.dataDir, 'subscription_tokens.json');
 const TOKEN_ENC_PREFIX = 'subtok:v1';
@@ -87,9 +88,7 @@ class SubscriptionTokenStore {
     }
 
     _save() {
-        if (shouldWriteFile()) {
-            fs.writeFileSync(TOKENS_FILE, JSON.stringify(this.tokens, null, 2), 'utf8');
-        }
+        saveObjectAtomic(TOKENS_FILE, this.tokens);
         mirrorStoreSnapshot('subscription_tokens', this.exportState());
     }
 

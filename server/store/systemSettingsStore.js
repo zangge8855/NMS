@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const SETTINGS_FILE = path.join(config.dataDir, 'system_settings.json');
 
@@ -106,29 +107,6 @@ function loadObject(file) {
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     } catch {
         return {};
-    }
-}
-
-function saveObjectAtomic(file, data) {
-    const content = JSON.stringify(data, null, 2);
-    const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
-    if (!shouldWriteFile()) return;
-    try {
-        fs.writeFileSync(tempFile, content, 'utf8');
-        fs.renameSync(tempFile, file);
-        return;
-    } catch {
-        // Fallback: renameSync may fail on Windows due to file locks;
-        // fall back to direct write.
-        fs.writeFileSync(file, content, 'utf8');
-    } finally {
-        if (fs.existsSync(tempFile)) {
-            try {
-                fs.rmSync(tempFile, { force: true });
-            } catch {
-                // Best-effort cleanup.
-            }
-        }
     }
 }
 

@@ -1,6 +1,5 @@
 import React from 'react';
-import { fireEvent } from '@testing-library/react';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -179,7 +178,7 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('shows visual sequence numbers in global view and hides drag handles', async () => {
+    it('shows visual sequence numbers in global view and hides reorder controls', async () => {
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
@@ -190,7 +189,7 @@ describe('Inbounds', () => {
 
         expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
         expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
-        expect(within(mainRow).queryByLabelText(/拖拽调整/)).not.toBeInTheDocument();
+        expect(within(mainRow).queryByLabelText(/上移 .* 的序号|下移 .* 的序号/)).not.toBeInTheDocument();
     });
 
     it('allows row expansion even when batch selection is active', async () => {
@@ -207,41 +206,35 @@ describe('Inbounds', () => {
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
     });
 
-    it('shows drag handles only for a selected node and persists drag-drop ordering', async () => {
+    it('shows sequence controls only for a selected node and persists ordering changes', async () => {
         const user = userEvent.setup();
         renderWithRouter(<Inbounds />);
 
         await user.selectOptions(screen.getByRole('combobox'), 'server-a');
 
-        const sourceHandle = await screen.findByLabelText('拖拽调整 Main Inbound:443 的顺序');
+        const moveDownButton = await screen.findByLabelText('下移 Main Inbound:443 的序号');
+        const moveUpButton = screen.getByLabelText('上移 Backup Inbound:8443 的序号');
         const backupInbound = await screen.findByText('Backup Inbound');
+        const mainInbound = await screen.findByText('Main Inbound');
         const backupRow = backupInbound.closest('tr');
+        const mainRow = mainInbound.closest('tr');
         if (!backupRow) throw new Error('Missing backup row');
+        if (!mainRow) throw new Error('Missing main row');
 
-        const dataTransfer = {
-            data: {},
-            effectAllowed: 'move',
-            dropEffect: 'move',
-            setData(type, value) {
-                this.data[type] = value;
-            },
-            getData(type) {
-                return this.data[type] || '';
-            },
-        };
+        expect(moveUpButton).toBeEnabled();
 
-        await act(async () => {
-            fireEvent.dragStart(sourceHandle, { dataTransfer });
-            fireEvent.dragEnter(backupRow, { dataTransfer });
-            fireEvent.dragOver(backupRow, { dataTransfer });
-            fireEvent.drop(backupRow, { dataTransfer });
-        });
+        await user.click(moveDownButton);
 
         await waitFor(() => {
             expect(api.put).toHaveBeenCalledWith('/system/inbounds/order', {
                 serverId: 'server-a',
                 inboundIds: ['2', '1'],
             });
+        });
+
+        await waitFor(() => {
+            expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
+            expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
         });
     });
 

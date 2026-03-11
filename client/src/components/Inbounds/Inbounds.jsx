@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
     HiChevronRight,
-    HiOutlineBars3,
+    HiOutlineChevronDown,
+    HiOutlineChevronUp,
     HiOutlinePlusCircle,
     HiOutlineTrash,
     HiOutlinePencilSquare,
@@ -26,7 +27,7 @@ import {
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
-    reorderInboundsWithinServer,
+    moveInboundWithinServerToPosition,
     sortInboundsByOrder,
 } from '../../utils/inboundOrder.js';
 import {
@@ -123,8 +124,6 @@ export default function Inbounds() {
     const [filterServerId, setFilterServerId] = useState('all');
     const [inboundOrder, setInboundOrder] = useState({});
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
-    const [draggingInboundKey, setDraggingInboundKey] = useState('');
-    const [dropTargetInboundKey, setDropTargetInboundKey] = useState('');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -265,8 +264,6 @@ export default function Inbounds() {
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
         setSelectedKeys(new Set());
-        setDraggingInboundKey('');
-        setDropTargetInboundKey('');
     }, [filterServerId]);
 
     // Batch Actions
@@ -466,64 +463,9 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
-    const handleInboundDragStart = (event, inbound) => {
+    const handleMoveInbound = async (inbound, position) => {
         if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
-        const sourceKey = String(inbound?.uiKey || '').trim();
-        if (!sourceKey) return;
-        setDraggingInboundKey(sourceKey);
-        setDropTargetInboundKey(sourceKey);
-        if (event.dataTransfer) {
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', sourceKey);
-        }
-    };
-
-    const resolveDraggedInboundKey = (event) => {
-        const transferredKey = String(event?.dataTransfer?.getData('text/plain') || '').trim();
-        return transferredKey || draggingInboundKey;
-    };
-
-    const handleInboundDragEnter = (event, inbound) => {
-        if (filterServerId === 'all') return;
-        const sourceKey = resolveDraggedInboundKey(event);
-        const targetKey = String(inbound?.uiKey || '').trim();
-        if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-        if (String(inbound?.serverId || '').trim() !== String(filterServerId || '').trim()) return;
-        event.preventDefault();
-        setDropTargetInboundKey(targetKey);
-    };
-
-    const handleInboundDragOver = (event, inbound) => {
-        if (filterServerId === 'all') return;
-        const sourceKey = resolveDraggedInboundKey(event);
-        const targetKey = String(inbound?.uiKey || '').trim();
-        if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-        if (String(inbound?.serverId || '').trim() !== String(filterServerId || '').trim()) return;
-        event.preventDefault();
-        if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = 'move';
-        }
-        if (dropTargetInboundKey !== targetKey) {
-            setDropTargetInboundKey(targetKey);
-        }
-    };
-
-    const clearInboundDragState = () => {
-        setDraggingInboundKey('');
-        setDropTargetInboundKey('');
-    };
-
-    const handleInboundDrop = async (event, inbound) => {
-        if (filterServerId === 'all') return;
-        const sourceKey = resolveDraggedInboundKey(event);
-        const targetKey = String(inbound?.uiKey || '').trim();
-        if (!sourceKey || !targetKey || sourceKey === targetKey) {
-            clearInboundDragState();
-            return;
-        }
-        event.preventDefault();
-        const next = reorderInboundsWithinServer(inbounds, sourceKey, targetKey);
-        clearInboundDragState();
+        const next = moveInboundWithinServerToPosition(inbounds, inbound?.uiKey, position);
         if (!next.changed) return;
         setInbounds(next.items);
         await persistInboundOrder(next.serverId, next.inboundIds);
@@ -929,9 +871,11 @@ export default function Inbounds() {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
-                                    const canDragOrder = filterServerId !== 'all';
-                                    const isDragging = draggingInboundKey === ib.uiKey;
-                                    const isDropTarget = dropTargetInboundKey === ib.uiKey && draggingInboundKey !== ib.uiKey;
+                                    const canAdjustOrder = filterServerId !== 'all';
+                                    const isSavingOrder = savingOrderServerId === ib.serverId;
+                                    const canMoveUp = canAdjustOrder && index > 0 && !isSavingOrder;
+                                    const canMoveDown = canAdjustOrder && index < filteredInbounds.length - 1 && !isSavingOrder;
+                                    const inboundLabel = `${ib.remark || ib.protocol}:${ib.port}`;
                                     const selectableClientKeys = clients
                                         .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
                                         .filter(Boolean);
@@ -940,12 +884,8 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row${isSelected ? ' inbounds-row-selected' : ''}${isDragging ? ' inbounds-row-dragging' : ''}${isDropTarget ? ' inbounds-row-drop-target' : ''}`}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
-                                                onDragEnter={(event) => handleInboundDragEnter(event, ib)}
-                                                onDragOver={(event) => handleInboundDragOver(event, ib)}
-                                                onDrop={(event) => handleInboundDrop(event, ib)}
-                                                onDragEnd={clearInboundDragState}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
                                                     <input
@@ -963,23 +903,33 @@ export default function Inbounds() {
                                                 <td data-label="序号" onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
                                                     <div className="inbounds-sequence-cell">
                                                         <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
-                                                        {canDragOrder && (
-                                                            <span
-                                                                className={`inbounds-drag-handle${savingOrderServerId === ib.serverId ? ' is-disabled' : ''}`}
-                                                                role="button"
-                                                                tabIndex={savingOrderServerId === ib.serverId ? -1 : 0}
-                                                                aria-label={`拖拽调整 ${ib.remark || ib.protocol}:${ib.port} 的顺序`}
-                                                                draggable={savingOrderServerId !== ib.serverId}
-                                                                onClick={(event) => event.stopPropagation()}
-                                                                onKeyDown={(event) => {
-                                                                    if (event.key === 'Enter' || event.key === ' ') {
-                                                                        event.preventDefault();
-                                                                    }
-                                                                }}
-                                                                onDragStart={(event) => handleInboundDragStart(event, ib)}
-                                                            >
-                                                                <HiOutlineBars3 />
-                                                            </span>
+                                                        {canAdjustOrder && (
+                                                            <div className="inbounds-sequence-actions" aria-label={`调整 ${inboundLabel} 的序号`}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="inbounds-sequence-btn"
+                                                                    aria-label={`上移 ${inboundLabel} 的序号`}
+                                                                    disabled={!canMoveUp}
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handleMoveInbound(ib, index - 1);
+                                                                    }}
+                                                                >
+                                                                    <HiOutlineChevronUp />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="inbounds-sequence-btn"
+                                                                    aria-label={`下移 ${inboundLabel} 的序号`}
+                                                                    disabled={!canMoveDown}
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handleMoveInbound(ib, index + 1);
+                                                                    }}
+                                                                >
+                                                                    <HiOutlineChevronDown />
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </td>

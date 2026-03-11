@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const OVERRIDE_FILE = path.join(config.dataDir, 'client_entitlement_overrides.json');
 
@@ -74,9 +75,7 @@ class ClientEntitlementOverrideStore {
     }
 
     _save() {
-        if (shouldWriteFile()) {
-            fs.writeFileSync(OVERRIDE_FILE, JSON.stringify(this.records, null, 2), 'utf8');
-        }
+        saveObjectAtomic(OVERRIDE_FILE, this.records);
         mirrorStoreSnapshot('client_entitlement_overrides', this.exportState());
     }
 

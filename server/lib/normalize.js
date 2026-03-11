@@ -27,3 +27,7 @@ export function parseJsonObjectLike(value, fallback = {}) {
         return fallback;
     }
 }
+
+export function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+}

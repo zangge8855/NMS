@@ -58,4 +58,10 @@ describe('Header', () => {
         expect(screen.getByRole('heading', { name: '订阅中心' })).toBeInTheDocument();
         expect(container.querySelector('.header-context')).toBeNull();
     });
+
+    it('supports wrapped titles for detail pages with long names', () => {
+        renderWithRouter(<Header title="服务器 · 华东核心节点-A-超长名称" allowTitleWrap />);
+
+        expect(screen.getByRole('heading', { name: '服务器 · 华东核心节点-A-超长名称' })).toHaveClass('header-title--wrap');
+    });
 });

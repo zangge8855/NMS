@@ -2672,30 +2672,41 @@ input[type="radio"]:focus {
   --shadow-glow-primary: 0 8px 24px -6px rgba(15, 23, 42, 0.08);
 }
 
+.header,
+.sidebar,
+.modal-overlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .glass-panel,
 .card,
-.modal-overlay,
+.table-container,
 .modal,
 .login-card,
-.sidebar,
+.dashboard-stat-card,
+.node-health-tile,
 .logs-toolbar,
 .logs-viewer-card .card-header {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.glass-panel {
-  background: var(--surface-panel-soft);
-}
-
-.card {
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-md);
+.glass-panel,
+.card,
+.table-container,
+.dashboard-stat-card,
+.node-health-tile {
+  background: var(--surface-card-bg);
+  border-color: var(--surface-card-border);
+  box-shadow: var(--surface-card-shadow);
 }
 
 .card:hover,
-.page-content > .card:hover {
-  box-shadow: var(--shadow-lg);
+.page-content > .card:hover,
+.dashboard-stat-card:hover,
+.dashboard-stat-card.clickable:hover {
+  box-shadow: var(--surface-card-shadow-hover);
 }
 
 [data-theme="light"] .card,
@@ -2728,7 +2739,7 @@ input[type="radio"]:focus {
 .node-health-tile:hover,
 .server-card:hover,
 .hover-lift:hover {
-  transform: none !important;
+  transform: translateZ(0);
 }
 
 .form-input:focus,
@@ -5109,6 +5120,13 @@ body::before {
   text-overflow: ellipsis;
 }
 
+.header-title--wrap {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
 .header-subtitle {
   max-width: 62ch;
   font-size: 13px;
@@ -5736,9 +5754,9 @@ body::before {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   padding: 18px;
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(12px);
+  background: var(--surface-card-bg);
+  box-shadow: var(--surface-card-shadow);
+  backdrop-filter: none;
 }
 
 .node-health-tile::before {
@@ -6167,10 +6185,11 @@ body::before {
   text-overflow: ellipsis;
 }
 
-.inbounds-sort-controls {
+.inbounds-sequence-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
 }
 
 .inbounds-row:hover td {
@@ -6200,10 +6219,33 @@ body::before {
   padding-right: 10px;
 }
 
-.inbounds-drag-handle.is-disabled {
-  opacity: 0.45;
+.inbounds-sequence-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.inbounds-sequence-btn:hover:not(:disabled) {
+  background: var(--surface-elevated);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.inbounds-sequence-btn:active:not(:disabled) {
+  transform: scale(0.96) translateZ(0);
+}
+
+.inbounds-sequence-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-  pointer-events: none;
 }
 
 .inbounds-status-cell {
@@ -8562,7 +8604,7 @@ input[type="radio"]:focus-visible {
 .node-health-tile:hover,
 .server-card:hover,
 .hover-lift:hover {
-  transform: none !important;
+  transform: translateZ(0);
 }
 
 .form-input:focus,
@@ -8779,19 +8821,27 @@ input[type="radio"]:focus-visible {
 }
 
 @keyframes nms-skeleton-pulse {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.05; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -20% 0;
+  }
 }
 
 .skeleton {
   background: linear-gradient(
     110deg,
-    rgba(145, 161, 181, 0.05) 0%,
-    rgba(145, 161, 181, 0.1) 40%,
-    rgba(145, 161, 181, 0.05) 60%,
-    rgba(145, 161, 181, 0.1) 100%
+    rgba(145, 161, 181, 0.04) 0%,
+    rgba(145, 161, 181, 0.08) 35%,
+    rgba(145, 161, 181, 0.12) 50%,
+    rgba(145, 161, 181, 0.08) 65%,
+    rgba(145, 161, 181, 0.04) 100%
   );
-  animation: nms-skeleton-pulse 2.2s ease-in-out infinite;
+  background-size: 220% 100%;
+  will-change: background-position;
+  animation: nms-skeleton-pulse 2.8s linear infinite;
 }
 
 .skeleton-table-head,
@@ -9289,7 +9339,7 @@ input[type="radio"]:focus-visible {
 .node-health-tile:hover,
 .node-health-tile:focus-visible,
 .node-health-tile:active {
-  transform: none !important;
+  transform: translateZ(0);
   box-shadow: var(--shadow-md) !important;
 }
 
@@ -9527,8 +9577,8 @@ input[type="radio"]:focus-visible {
 }
 
 [data-theme="light"] {
-  --text-secondary: #46576b;
-  --text-muted: #5f6f82;
+  --text-secondary: #324255;
+  --text-muted: #526274;
 }
 
 [data-theme="light"] .glass-panel,
@@ -9540,9 +9590,9 @@ input[type="radio"]:focus-visible {
 [data-theme="light"] .server-dropdown-menu,
 [data-theme="light"] .tooltip,
 [data-theme="light"] .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(15, 23, 42, 0.08) !important;
-  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.08) !important;
+  background: var(--surface-card-bg) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+  box-shadow: 0 4px 6px -1px rgba(226, 232, 240, 0.4), 0 2px 4px -1px rgba(226, 232, 240, 0.2) !important;
   color: var(--text-primary) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -9551,9 +9601,9 @@ input[type="radio"]:focus-visible {
 [data-theme="light"] .settings-mini-card,
 [data-theme="light"] .mini-card,
 [data-theme="light"] .stat-mini-card {
-  background: rgba(248, 250, 252, 0.95) !important;
-  border-color: rgba(15, 23, 42, 0.06) !important;
-  box-shadow: none !important;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+  box-shadow: 0 4px 6px -1px rgba(226, 232, 240, 0.32), 0 2px 4px -1px rgba(226, 232, 240, 0.16) !important;
 }
 
 [data-theme="light"] .text-muted,
@@ -9728,51 +9778,6 @@ input[type="radio"]:focus-visible {
   font-weight: 600;
 }
 
-.inbounds-sort-controls .btn {
-  cursor: grab;
-}
-
-.inbounds-sort-controls .btn:active {
-  cursor: grabbing;
-}
-
-.inbounds-drag-handle {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: grab;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-}
-
-.inbounds-drag-handle:hover {
-  background: var(--surface-soft);
-  border-color: var(--border-color);
-  color: var(--text-primary);
-}
-
-.inbounds-drag-handle:active {
-  cursor: grabbing;
-}
-
-.inbounds-row-dragging td {
-  opacity: 0.66;
-}
-
-.inbounds-row-drop-target td {
-  background: rgba(99, 102, 241, 0.06) !important;
-}
-
-.inbounds-row-drop-target td:first-child {
-  box-shadow: inset 3px 0 0 var(--accent-primary);
-}
-
 .login-page {
   position: relative;
   display: flex;
@@ -9829,7 +9834,7 @@ input[type="radio"]:focus-visible {
   background: rgba(12, 18, 32, 0.94);
   border: 1px solid rgba(148, 163, 184, 0.16);
   box-shadow: 0 22px 60px -34px rgba(2, 8, 23, 0.7);
-  backdrop-filter: blur(8px);
+  backdrop-filter: none;
 }
 
 .login-card-border {
@@ -10240,7 +10245,8 @@ input[type="radio"]:focus-visible {
 .btn-icon,
 .theme-toggle-btn,
 .modal-close,
-.tab {
+.tab,
+.nav-item {
   backface-visibility: hidden;
   transform: translateZ(0);
 }
@@ -10249,14 +10255,16 @@ input[type="radio"]:focus-visible {
 .btn-icon:active:not(:disabled),
 .theme-toggle-btn:active:not(:disabled),
 .tab:active:not(:disabled),
-.modal-close:active:not(:disabled) {
-  transform: translateZ(0) !important;
+.modal-close:active:not(:disabled),
+.nav-item:active:not(:disabled) {
+  transform: scale(0.96) translateZ(0);
 }
 
 :is(
   .btn,
   .btn-icon,
   .tab,
+  .nav-item,
   .form-input,
   .form-select,
   .form-textarea,
@@ -10269,28 +10277,28 @@ input[type="radio"]:focus-visible {
   input[type="checkbox"],
   input[type="radio"]
 ):focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.28) !important;
-  outline-offset: 2px !important;
-  box-shadow: none !important;
+  outline: none;
+  border-color: var(--focus-ring-border);
+  box-shadow: var(--focus-ring-shadow);
 }
 
 [data-theme="light"] {
-  --text-secondary: #314156;
-  --text-muted: #595959;
+  --text-secondary: #324255;
+  --text-muted: #526274;
 }
 
-[data-theme="light"] :is(.modal, .server-dropdown-menu, .header-search-results) {
-  background: rgba(255, 255, 255, 0.985) !important;
-  border-color: rgba(15, 23, 42, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+[data-theme="light"] :is(.modal, .server-dropdown-menu, .header-search-results, .notification-dropdown) {
+  background: var(--floating-panel-bg) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+  box-shadow: 0 12px 30px -18px rgba(148, 163, 184, 0.42), 0 4px 10px -4px rgba(226, 232, 240, 0.4) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="light"] :is(.card .card, .modal .card, .settings-mini-card, .settings-table-shell, .audit-nested-table-shell) {
-  box-shadow: none !important;
-  background: #f4f7fb !important;
-  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 6px -1px rgba(226, 232, 240, 0.24), 0 2px 4px -1px rgba(226, 232, 240, 0.14) !important;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
 }
 
 .log-pane,

@@ -4,12 +4,9 @@ import userPolicyStore from '../store/userPolicyStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
+import { normalizeEmail } from '../lib/normalize.js';
 
 const router = Router();
-
-function normalizeEmail(value) {
-    return String(value || '').trim().toLowerCase();
-}
 
 function collectUserEmails(user) {
     return Array.from(new Set([
@@ -77,7 +74,7 @@ router.get('/:id/detail', (req, res) => {
     if (subscriptionEmail) {
         try {
             policy = userPolicyStore.get(subscriptionEmail);
-        } catch { /* ignore */ }
+        } catch (e) { console.error(`[Users Route] Failed to get policy for ${subscriptionEmail}:`, e.message); }
     }
 
     // Recent audit events
@@ -97,7 +94,7 @@ router.get('/:id/detail', (req, res) => {
             auditQueries,
             50
         );
-    } catch { /* ignore */ }
+    } catch (e) { console.error(`[Users Route] Failed to query audit events:`, e.message); }
 
     // Subscription access logs
     let subscriptionAccess = { items: [], total: 0 };
@@ -107,7 +104,7 @@ router.get('/:id/detail', (req, res) => {
                 email: subscriptionEmail,
                 pageSize: 50,
             });
-        } catch { /* ignore */ }
+        } catch (e) { console.error(`[Users Route] Failed to query subscription access for ${subscriptionEmail}:`, e.message); }
     }
 
     // Subscription tokens
@@ -115,7 +112,7 @@ router.get('/:id/detail', (req, res) => {
     if (subscriptionEmail) {
         try {
             tokens = subscriptionTokenStore.listByEmail(subscriptionEmail);
-        } catch { /* ignore */ }
+        } catch (e) { console.error(`[Users Route] Failed to list tokens for ${subscriptionEmail}:`, e.message); }
     }
 
     return res.json({

@@ -12,7 +12,7 @@ const BODY_MODAL_RIGHT_KEY = 'nmsModalRight';
 const BODY_MODAL_TOUCH_ACTION_KEY = 'nmsModalTouchAction';
 const BODY_MODAL_SCROLL_Y_KEY = 'nmsModalScrollY';
 const APP_ROOT_MODAL_INERT_COUNT_KEY = 'nmsModalInertCount';
-const MODAL_EXIT_DURATION_MS = 180;
+const MODAL_EXIT_DURATION_MS = 240;
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',
@@ -50,18 +50,10 @@ function lockBodyScroll() {
     if (typeof document === 'undefined') return () => {};
     const { body } = document;
     const currentCount = Number(body.dataset[BODY_MODAL_COUNT_KEY] || '0');
-    const scrollY = window.scrollY || window.pageYOffset || 0;
 
     if (currentCount === 0) {
         body.dataset[BODY_MODAL_OVERFLOW_KEY] = body.style.overflow || '';
         body.dataset[BODY_MODAL_PADDING_KEY] = body.style.paddingRight || '';
-        body.dataset[BODY_MODAL_POSITION_KEY] = body.style.position || '';
-        body.dataset[BODY_MODAL_TOP_KEY] = body.style.top || '';
-        body.dataset[BODY_MODAL_WIDTH_KEY] = body.style.width || '';
-        body.dataset[BODY_MODAL_LEFT_KEY] = body.style.left || '';
-        body.dataset[BODY_MODAL_RIGHT_KEY] = body.style.right || '';
-        body.dataset[BODY_MODAL_TOUCH_ACTION_KEY] = body.style.touchAction || '';
-        body.dataset[BODY_MODAL_SCROLL_Y_KEY] = String(scrollY);
 
         const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
         const computedPaddingRight = Number.parseFloat(window.getComputedStyle(body).paddingRight || '0') || 0;
@@ -70,15 +62,6 @@ function lockBodyScroll() {
         }
 
         body.style.overflow = 'hidden';
-        body.style.touchAction = 'none';
-
-        if (isIosLike()) {
-            body.style.position = 'fixed';
-            body.style.top = `-${scrollY}px`;
-            body.style.left = '0';
-            body.style.right = '0';
-            body.style.width = '100%';
-        }
     }
 
     body.dataset[BODY_MODAL_COUNT_KEY] = String(currentCount + 1);
@@ -88,26 +71,10 @@ function lockBodyScroll() {
         if (nextCount === 0) {
             body.style.overflow = body.dataset[BODY_MODAL_OVERFLOW_KEY] || '';
             body.style.paddingRight = body.dataset[BODY_MODAL_PADDING_KEY] || '';
-            body.style.position = body.dataset[BODY_MODAL_POSITION_KEY] || '';
-            body.style.top = body.dataset[BODY_MODAL_TOP_KEY] || '';
-            body.style.width = body.dataset[BODY_MODAL_WIDTH_KEY] || '';
-            body.style.left = body.dataset[BODY_MODAL_LEFT_KEY] || '';
-            body.style.right = body.dataset[BODY_MODAL_RIGHT_KEY] || '';
-            body.style.touchAction = body.dataset[BODY_MODAL_TOUCH_ACTION_KEY] || '';
-            if (isIosLike()) {
-                const restoreScrollY = Number.parseInt(body.dataset[BODY_MODAL_SCROLL_Y_KEY] || '0', 10);
-                window.scrollTo(0, Number.isFinite(restoreScrollY) ? restoreScrollY : 0);
-            }
+            
             delete body.dataset[BODY_MODAL_COUNT_KEY];
             delete body.dataset[BODY_MODAL_OVERFLOW_KEY];
             delete body.dataset[BODY_MODAL_PADDING_KEY];
-            delete body.dataset[BODY_MODAL_POSITION_KEY];
-            delete body.dataset[BODY_MODAL_TOP_KEY];
-            delete body.dataset[BODY_MODAL_WIDTH_KEY];
-            delete body.dataset[BODY_MODAL_LEFT_KEY];
-            delete body.dataset[BODY_MODAL_RIGHT_KEY];
-            delete body.dataset[BODY_MODAL_TOUCH_ACTION_KEY];
-            delete body.dataset[BODY_MODAL_SCROLL_Y_KEY];
             return;
         }
         body.dataset[BODY_MODAL_COUNT_KEY] = String(nextCount);
@@ -147,14 +114,6 @@ function isolateAppRoot() {
         }
         appRoot.dataset[APP_ROOT_MODAL_INERT_COUNT_KEY] = String(nextCount);
     };
-}
-
-function isIosLike() {
-    if (typeof navigator === 'undefined') return false;
-    const ua = navigator.userAgent || '';
-    const platform = navigator.platform || '';
-    return /iPad|iPhone|iPod/.test(ua)
-        || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 export default function ModalShell({

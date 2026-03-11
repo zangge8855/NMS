@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const SERVERS_FILE = path.join(config.dataDir, 'servers.json');
 const PASSWORD_ENC_PREFIX = 'enc:v1';
@@ -61,9 +62,7 @@ class ServerStore {
     }
 
     _save() {
-        if (shouldWriteFile()) {
-            fs.writeFileSync(SERVERS_FILE, JSON.stringify(this.servers, null, 2), 'utf-8');
-        }
+        saveObjectAtomic(SERVERS_FILE, this.servers);
         mirrorStoreSnapshot('servers', this.exportState());
     }
 

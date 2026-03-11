@@ -48,12 +48,12 @@ function ProtectedLayout() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(
-        typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
+        typeof window !== 'undefined' ? window.innerWidth <= 768 : false
     );
 
     useEffect(() => {
         const handleResize = () => {
-            const mobile = window.innerWidth <= 1024;
+            const mobile = window.innerWidth <= 768;
             setIsMobile(mobile);
             if (!mobile) {
                 setSidebarOpen(false);

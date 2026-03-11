@@ -3,7 +3,8 @@ import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
 import systemSettingsStore from './systemSettingsStore.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const JOBS_FILE = path.join(config.dataDir, 'jobs.json');
 const REDACTED_KEYS = new Set([
@@ -37,14 +38,7 @@ function loadArray(file) {
 }
 
 function saveArrayAtomic(file, data) {
-    const tempFile = `${file}.tmp`;
-    if (shouldWriteFile()) {
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf8');
-        if (fs.existsSync(file)) {
-            fs.rmSync(file, { force: true });
-        }
-        fs.renameSync(tempFile, file);
-    }
+    saveObjectAtomic(file, data);
 }
 
 function toPositiveInt(value, fallback) {

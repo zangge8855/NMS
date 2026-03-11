@@ -5,7 +5,8 @@ import config from '../config.js';
 import serverStore from './serverStore.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const TRAFFIC_SAMPLES_FILE = path.join(config.dataDir, 'traffic_samples.json');
 const TRAFFIC_COUNTERS_FILE = path.join(config.dataDir, 'traffic_counters.json');
@@ -39,8 +40,7 @@ function loadObject(file, fallback = {}) {
 }
 
 function saveJson(file, data) {
-    if (!shouldWriteFile()) return;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    saveObjectAtomic(file, data);
 }
 
 function toPositiveInt(value, fallback) {

@@ -4,7 +4,8 @@ import crypto from 'crypto';
 import config from '../config.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { validateSubscriptionAliasPath } from '../lib/subscriptionAlias.js';
-import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
+import { saveObjectAtomic } from './fileUtils.js';
 
 const USERS_FILE = path.join(config.dataDir, 'users.json');
 
@@ -108,9 +109,7 @@ class UserStore {
     }
 
     _save() {
-        if (shouldWriteFile()) {
-            fs.writeFileSync(USERS_FILE, JSON.stringify(this.users, null, 2), 'utf-8');
-        }
+        saveObjectAtomic(USERS_FILE, this.users);
         mirrorStoreSnapshot('users', this.exportState());
     }
 

@@ -102,12 +102,16 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         const top = openUpward
             ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
             : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+        const originX = collapsed
+            ? 22
+            : clamp((anchorRect.left + (anchorRect.width / 2)) - left, 28, width - 28);
 
         return {
             top: `${top}px`,
             left: `${left}px`,
             width: `${width}px`,
             maxHeight: `${maxHeight}px`,
+            transformOrigin: `${originX}px ${openUpward ? '100%' : '0%'}`,
         };
     }, [collapsed]);
 

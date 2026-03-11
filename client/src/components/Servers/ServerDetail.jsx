@@ -355,6 +355,7 @@ export default function ServerDetail() {
                 title={t('pages.serverDetail.titleWithName', { name: server.name })}
                 subtitle={t('pages.serverDetail.subtitle')}
                 eyebrow={t('pages.serverDetail.eyebrow')}
+                allowTitleWrap
             />
             <div className="page-content page-enter">
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
