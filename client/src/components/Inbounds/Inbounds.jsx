@@ -18,6 +18,8 @@ import {
     HiOutlineServer,
     HiOutlineSignal,
     HiOutlineBars3,
+    HiOutlineChevronUp,
+    HiOutlineChevronDown,
     HiOutlineCheck,
     HiOutlineClipboard,
     HiOutlineXMark,
@@ -65,6 +67,60 @@ function maskSensitiveValue(value) {
         return `${text.slice(0, 2)}***${text.slice(-2)}`;
     }
     return `${text.slice(0, 6)}...${text.slice(-4)}`;
+}
+
+function summarizeInboundUsers(clients = [], maxVisible = 2) {
+    const labels = [];
+    const seen = new Set();
+
+    clients.forEach((client) => {
+        const label = String(client?.email || getClientIdentifier(client, client?.protocol) || '').trim();
+        if (!label) return;
+        const normalized = label.toLowerCase();
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        labels.push(label);
+    });
+
+    return {
+        visible: labels.slice(0, maxVisible),
+        hiddenCount: Math.max(0, labels.length - maxVisible),
+    };
+}
+
+function normalizeOnlineEntry(entry) {
+    if (typeof entry === 'string') {
+        return [String(entry).trim().toLowerCase()].filter(Boolean);
+    }
+    if (!entry || typeof entry !== 'object') return [];
+
+    return [
+        entry.email,
+        entry.user,
+        entry.username,
+        entry.clientEmail,
+        entry.client,
+        entry.remark,
+        entry.id,
+        entry.password,
+    ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+}
+
+function buildClientOnlineKeys(client, protocol) {
+    const keys = new Set();
+    const email = String(client?.email || '').trim().toLowerCase();
+    const identifier = String(getClientIdentifier(client, protocol) || '').trim().toLowerCase();
+    const id = String(client?.id || '').trim().toLowerCase();
+    const password = String(client?.password || '').trim().toLowerCase();
+
+    if (email) keys.add(email);
+    if (identifier) keys.add(identifier);
+    if (id) keys.add(id);
+    if (password) keys.add(password);
+
+    return Array.from(keys);
 }
 
 export default function Inbounds() {
@@ -129,14 +185,45 @@ export default function Inbounds() {
 
         await Promise.all(servers.map(async (server) => {
             try {
-                const res = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
-                if (res.data?.obj) {
-                    const serverInbounds = res.data.obj.map(ib => ({
+                const [inboundsRes, onlinesRes] = await Promise.all([
+                    api.get(`/panel/${server.id}/panel/api/inbounds/list`),
+                    api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
+                ]);
+
+                const onlineEntries = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
+                const onlineCounter = new Map();
+                onlineEntries.forEach((entry) => {
+                    normalizeOnlineEntry(entry).forEach((key) => {
+                        onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+                    });
+                });
+
+                if (inboundsRes.data?.obj) {
+                    const serverInbounds = inboundsRes.data.obj.map((ib) => {
+                        const inboundClients = mergeInboundClientStats(ib);
+                        let onlineSessionCount = 0;
+                        let onlineUserCount = 0;
+
+                        inboundClients.forEach((client) => {
+                            const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
+                                return total + (onlineCounter.get(key) || 0);
+                            }, 0);
+                            if (matchedSessions > 0) {
+                                onlineUserCount += 1;
+                                onlineSessionCount += matchedSessions;
+                            }
+                        });
+
+                        return {
                         ...ib,
                         serverId: server.id,
                         serverName: server.name,
-                        uiKey: `${server.id}-${ib.id}`
-                    }));
+                        uiKey: `${server.id}-${ib.id}`,
+                        onlineSessionCount,
+                        onlineUserCount,
+                        hasOnlineUsers: onlineSessionCount > 0,
+                    };
+                    });
                     allResults.push(...serverInbounds);
                 }
             } catch (err) {
@@ -372,6 +459,25 @@ export default function Inbounds() {
             [next.serverId]: next.inboundIds,
         };
         setInboundOrder(nextOrder);
+        setInbounds(next.items);
+        await persistInboundOrder(next.serverId, next.inboundIds);
+    };
+
+    const moveInboundByStep = async (targetKey, direction) => {
+        const target = inbounds.find((item) => item.uiKey === targetKey);
+        if (!target) return;
+
+        const siblings = inbounds.filter((item) => item.serverId === target.serverId);
+        const currentIndex = siblings.findIndex((item) => item.uiKey === targetKey);
+        if (currentIndex < 0) return;
+
+        const offset = direction === 'up' ? -1 : 1;
+        const nextIndex = currentIndex + offset;
+        if (nextIndex < 0 || nextIndex >= siblings.length) return;
+
+        const next = reorderInboundsWithinServer(inbounds, targetKey, siblings[nextIndex].uiKey);
+        if (!next.changed) return;
+
         setInbounds(next.items);
         await persistInboundOrder(next.serverId, next.inboundIds);
     };
@@ -640,7 +746,7 @@ export default function Inbounds() {
                                 <th>备注</th>
                                 <th>协议</th>
                                 <th>监听:端口</th>
-                                <th>使用情况</th>
+                                <th>用户数</th>
                                 <th>流量 (上/下)</th>
                                 <th>状态</th>
                                 <th>操作</th>
@@ -667,7 +773,11 @@ export default function Inbounds() {
                             ) : (
                                 filteredInbounds.map((ib) => {
                                     const clients = parseClients(ib);
-                                    const hasAssignedClients = clients.length > 0;
+                                    const usageSummary = summarizeInboundUsers(clients);
+                                    const siblingInbounds = filteredInbounds.filter((item) => item.serverId === ib.serverId);
+                                    const siblingIndex = siblingInbounds.findIndex((item) => item.uiKey === ib.uiKey);
+                                    const canMoveUp = siblingIndex > 0;
+                                    const canMoveDown = siblingIndex >= 0 && siblingIndex < siblingInbounds.length - 1;
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
                                     return (
@@ -697,19 +807,47 @@ export default function Inbounds() {
                                                     />
                                                 </td>
                                                 <td data-label="排序" onClick={(e) => e.stopPropagation()}>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-ghost btn-sm btn-icon"
-                                                        draggable
-                                                        title="拖拽排序"
-                                                        onDragStart={(e) => {
-                                                            e.stopPropagation();
-                                                            setDraggingKey(ib.uiKey);
-                                                        }}
-                                                        onDragEnd={() => setDraggingKey('')}
-                                                    >
-                                                        <HiOutlineBars3 />
-                                                    </button>
+                                                    <div className="inbounds-sort-controls">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-ghost btn-sm btn-icon"
+                                                            title="拖拽排序"
+                                                            draggable
+                                                            onDragStart={(e) => {
+                                                                e.stopPropagation();
+                                                                setDraggingKey(ib.uiKey);
+                                                            }}
+                                                            onDragEnd={() => setDraggingKey('')}
+                                                        >
+                                                            <HiOutlineBars3 />
+                                                        </button>
+                                                        <div className="inbounds-sort-stepper">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-ghost btn-sm btn-icon"
+                                                                title="上移"
+                                                                disabled={!canMoveUp || savingOrderServerId === ib.serverId}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    moveInboundByStep(ib.uiKey, 'up');
+                                                                }}
+                                                            >
+                                                                <HiOutlineChevronUp />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-ghost btn-sm btn-icon"
+                                                                title="下移"
+                                                                disabled={!canMoveDown || savingOrderServerId === ib.serverId}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    moveInboundByStep(ib.uiKey, 'down');
+                                                                }}
+                                                            >
+                                                                <HiOutlineChevronDown />
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
                                                     <td data-label="节点">
@@ -721,12 +859,25 @@ export default function Inbounds() {
                                                 <td data-label="备注" className="font-medium text-white">{ib.remark || '-'}</td>
                                                 <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="使用情况">
+                                                <td data-label="用户数">
                                                     <div className="inbounds-usage-cell">
-                                                        <span className="cell-mono-right">{clients.length}</span>
-                                                        <span className={`badge ${hasAssignedClients ? 'badge-success' : 'badge-neutral'}`}>
-                                                            {hasAssignedClients ? '有人使用' : '暂无用户'}
-                                                        </span>
+                                                        <div className="inbounds-usage-head">
+                                                            <span className="cell-mono-right">{clients.length}</span>
+                                                        </div>
+                                                        {usageSummary.visible.length > 0 && (
+                                                            <div className="inbounds-usage-users">
+                                                                {usageSummary.visible.map((label) => (
+                                                                    <span key={`${ib.uiKey}-${label}`} className="inbounds-usage-user" title={label}>
+                                                                        {label}
+                                                                    </span>
+                                                                ))}
+                                                                {usageSummary.hiddenCount > 0 && (
+                                                                    <span className="inbounds-usage-user inbounds-usage-more">
+                                                                        +{usageSummary.hiddenCount}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td data-label="流量" className="text-sm">
@@ -735,9 +886,20 @@ export default function Inbounds() {
                                                     <span className="text-info">↓{formatBytes(ib.down)}</span>
                                                 </td>
                                                 <td data-label="状态">
-                                                    <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
-                                                        {ib.enable ? '启用' : '禁用'}
-                                                    </span>
+                                                    <div className="inbounds-status-cell">
+                                                        <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
+                                                            {ib.enable ? '启用' : '禁用'}
+                                                        </span>
+                                                        {ib.hasOnlineUsers && (
+                                                            <span
+                                                                className="inbounds-online-indicator"
+                                                                title={`当前 ${ib.onlineUserCount || 0} 位用户 / ${ib.onlineSessionCount || 0} 个会话在线`}
+                                                            >
+                                                                <span className="inbounds-online-dot" aria-hidden="true" />
+                                                                在线
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td data-label="" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">

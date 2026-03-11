@@ -20,7 +20,6 @@ const Tools = lazy(() => import('./components/Tools/Tools.jsx'));
 const Servers = lazy(() => import('./components/Servers/Servers.jsx'));
 const ServerDetail = lazy(() => import('./components/Servers/ServerDetail.jsx'));
 const Capabilities = lazy(() => import('./components/Capabilities/Capabilities.jsx'));
-const Tasks = lazy(() => import('./components/Tasks/Tasks.jsx'));
 const AuditCenter = lazy(() => import('./components/Audit/AuditCenter.jsx'));
 const SystemSettings = lazy(() => import('./components/System/SystemSettings.jsx'));
 
@@ -102,7 +101,7 @@ function ProtectedLayout() {
                         <Route path="/server" element={isAdmin ? <LazyPage><ServerManagement /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/tasks" element={isAdmin ? <LazyPage><Tasks /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/tasks" element={isAdmin ? <Navigate to="/audit?tab=tasks" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />

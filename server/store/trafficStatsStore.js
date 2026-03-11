@@ -202,7 +202,7 @@ class TrafficStatsStore {
         saveJson(TRAFFIC_SAMPLES_FILE, this.samples);
         saveJson(TRAFFIC_COUNTERS_FILE, this.counters);
         saveJson(TRAFFIC_META_FILE, this.meta);
-        mirrorStoreSnapshot('traffic', this.exportState(), { redact: true });
+        mirrorStoreSnapshot('traffic', this.exportState(), { redact: false });
     }
 
     _prune() {

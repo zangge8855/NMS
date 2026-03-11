@@ -2,7 +2,7 @@ import net from 'node:net';
 import config from '../config.js';
 
 const DEFAULT_PROVIDER = 'ipip_myip';
-const DEFAULT_ENDPOINT = 'http://myip.ipip.net';
+const DEFAULT_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const DEFAULT_TIMEOUT_MS = 3000;
 const DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60;
 const LOCAL_IP_LABEL = '内网/本地';
@@ -128,11 +128,12 @@ function buildProviderUrl(provider, endpointTemplate, ip) {
     }
 
     if (normalizedProvider === 'ipip_myip') {
-        const template = String(endpointTemplate || 'http://myip.ipip.net').trim();
+        const template = String(endpointTemplate || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT;
         if (template.includes('{ip}')) {
             return template.replaceAll('{ip}', encodeURIComponent(ip));
         }
-        return template;
+        if (/[\?&]ip=/.test(template)) return template;
+        return `${template}${template.includes('?') ? '&' : '?'}ip=${encodeURIComponent(ip)}`;
     }
 
     return '';

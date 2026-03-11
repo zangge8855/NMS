@@ -230,8 +230,8 @@ class SystemSettingsStore {
                 enabled: true,
                 provider: GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
                     ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
-                    : 'ip_api',
-                endpoint: String(config.audit?.ipGeo?.endpoint || 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN').trim() || 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN',
+                    : 'ipip_myip',
+                endpoint: String(config.audit?.ipGeo?.endpoint || 'http://myip.ipip.net/?ip={ip}').trim() || 'http://myip.ipip.net/?ip={ip}',
                 timeoutMs: Math.max(200, Number(config.audit?.ipGeo?.timeoutMs || 3000)),
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
             },

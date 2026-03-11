@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     HiOutlineArrowPath,
     HiOutlineEye,
@@ -61,8 +62,21 @@ function trendLabel(value, granularity) {
 
 export default function AuditCenter() {
     const { t } = useI18n();
-    const [tab, setTab] = useState('events');
+    const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
+    const validTabs = new Set(['events', 'traffic', 'subscriptions', 'tasks', 'logs']);
+    const tab = validTabs.has(searchParams.get('tab')) ? searchParams.get('tab') : 'events';
+
+    const setTab = (nextTab) => {
+        const normalized = validTabs.has(nextTab) ? nextTab : 'events';
+        const next = new URLSearchParams(searchParams);
+        if (normalized === 'events') {
+            next.delete('tab');
+        } else {
+            next.set('tab', normalized);
+        }
+        setSearchParams(next, { replace: true });
+    };
 
     const [eventsLoading, setEventsLoading] = useState(false);
     const [eventsData, setEventsData] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
@@ -290,7 +304,7 @@ export default function AuditCenter() {
                         订阅访问
                     </button>
                     <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
-                        任务日志
+                        操作历史
                     </button>
                     <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
                         3x-ui 日志

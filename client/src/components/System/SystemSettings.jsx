@@ -51,7 +51,7 @@ function buildDraft(source = null) {
         auditIpGeo: {
             enabled: settings.auditIpGeo?.enabled === true,
             provider: toText(settings.auditIpGeo?.provider, 'ipip_myip'),
-            endpoint: toText(settings.auditIpGeo?.endpoint, 'http://myip.ipip.net'),
+            endpoint: toText(settings.auditIpGeo?.endpoint, 'http://myip.ipip.net/?ip={ip}'),
             timeoutMs: toInt(settings.auditIpGeo?.timeoutMs, 1500),
             cacheTtlSeconds: toInt(settings.auditIpGeo?.cacheTtlSeconds, 21600),
         },

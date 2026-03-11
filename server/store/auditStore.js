@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
 import systemSettingsStore from './systemSettingsStore.js';
+import userStore from './userStore.js';
 import { mirrorStoreSnapshot, shouldWriteFile } from './dbMirror.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 
@@ -84,6 +85,33 @@ function deriveOutcome(eventType, provided) {
     return 'success';
 }
 
+function hashMaskedEmailCandidate(text) {
+    return crypto.createHash('sha256').update(String(text || '').trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+function resolveMaskedEmail(email) {
+    const value = String(email || '').trim().toLowerCase();
+    if (!value.endsWith('@masked.local')) return value;
+    const hash = value.slice(0, value.indexOf('@masked.local'));
+    if (!hash) return value;
+
+    const candidates = new Set();
+    userStore.getAll().forEach((user) => {
+        const emailValue = String(user?.email || '').trim().toLowerCase();
+        const subscriptionEmail = String(user?.subscriptionEmail || '').trim().toLowerCase();
+        if (emailValue) candidates.add(emailValue);
+        if (subscriptionEmail) candidates.add(subscriptionEmail);
+    });
+
+    for (const candidate of candidates) {
+        if (hashMaskedEmailCandidate(candidate) === hash) {
+            return candidate;
+        }
+    }
+
+    return value;
+}
+
 class AuditStore {
     constructor() {
         ensureDataDir();
@@ -102,7 +130,7 @@ class AuditStore {
     }
 
     _mirrorSnapshot() {
-        mirrorStoreSnapshot('audit', this.exportState(), { redact: true });
+        mirrorStoreSnapshot('audit', this.exportState(), { redact: false });
     }
 
     _pruneExpired() {
@@ -325,7 +353,7 @@ class AuditStore {
             rows = rows.filter((item) => new Date(item.ts).getTime() <= toTs);
         }
         if (email) {
-            rows = rows.filter((item) => String(item.email || '').toLowerCase().includes(email));
+            rows = rows.filter((item) => resolveMaskedEmail(item.email).includes(email));
         }
         if (tokenId) {
             rows = rows.filter((item) => String(item.tokenId || '').includes(tokenId));
@@ -369,7 +397,10 @@ class AuditStore {
 
         const total = rows.length;
         const start = (page - 1) * pageSize;
-        const items = rows.slice(start, start + pageSize);
+        const items = rows.slice(start, start + pageSize).map((item) => ({
+            ...item,
+            email: resolveMaskedEmail(item.email),
+        }));
 
         return {
             total,
@@ -389,7 +420,7 @@ class AuditStore {
         const { rows, fromIso, toIso } = this._filterSubscriptionAccess(filters);
         const total = rows.length;
         const uniqueTokens = new Set(rows.map((item) => String(item.tokenId || '').trim()).filter(Boolean)).size;
-        const uniqueUsers = new Set(rows.map((item) => String(item.email || '').trim().toLowerCase()).filter(Boolean)).size;
+        const uniqueUsers = new Set(rows.map((item) => resolveMaskedEmail(item.email)).filter(Boolean)).size;
         const ipCounter = rows.reduce((acc, item) => {
             const key = String(item.clientIp || item.ip || 'unknown').trim() || 'unknown';
             acc[key] = (acc[key] || 0) + 1;

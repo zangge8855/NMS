@@ -82,6 +82,12 @@ export default function Tasks({ embedded = false }) {
         })
     ), [tasks, typeFilter, actionFilter, serverFilter, failedOnlyFilter]);
 
+    const shellClassName = embedded ? '' : 'page-content page-enter';
+    const headClassName = embedded ? 'flex items-center justify-between mb-6 audit-traffic-toolbar' : 'page-section-head tasks-page-head mb-8';
+    const filterCardClassName = embedded ? 'card mb-8 p-3 audit-filter-card audit-filter-card-tasks' : 'card mb-8 tasks-filter-card';
+    const tableShellClassName = embedded ? 'table-container glass-panel mb-8 audit-table-shell audit-tasks-table-shell' : 'table-container tasks-table-shell';
+    const paginationClassName = embedded ? 'flex items-center justify-between audit-pagination' : 'flex items-center justify-between audit-pagination';
+
     const handleView = async (id) => {
         try {
             const res = await api.get(`/jobs/${id}`);
@@ -148,13 +154,13 @@ export default function Tasks({ embedded = false }) {
     return (
         <>
             {!embedded && <Header title={t('pages.tasks.title')} />}
-            <div className={embedded ? '' : 'page-content page-enter'}>
-                <div className="page-section-head tasks-page-head mb-8">
+            <div className={shellClassName}>
+                <div className={headClassName}>
                     <div className="tasks-page-copy">
                         <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
-                            {embedded ? '任务日志' : '批量任务历史'}
+                            {embedded ? '操作历史' : '批量任务历史'}
                         </h2>
-                        <p className="text-sm text-muted mt-1">记录批量用户/入站操作的执行结果</p>
+                        <p className="text-sm text-muted mt-1">{embedded ? '记录批量用户、入站与重试操作的执行结果' : '记录批量用户/入站操作的执行结果'}</p>
                     </div>
                     <div className="flex gap-2 tasks-page-actions">
                         <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
@@ -166,8 +172,8 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 </div>
 
-                <div className="card mb-8 tasks-filter-card" style={{ padding: '12px' }}>
-                        <div className="flex items-center gap-3 tasks-filter-row" style={{ flexWrap: 'wrap' }}>
+                <div className={filterCardClassName} style={{ padding: '12px' }}>
+                    <div className="flex items-center gap-3 tasks-filter-row audit-filter-bar" style={{ flexWrap: 'wrap' }}>
                         <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ width: '140px' }}>
                             <option value="all">全部类型</option>
                             {typeOptions.map((x) => <option key={x} value={x}>{x}</option>)}
@@ -200,7 +206,7 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 </div>
 
-                <div className="table-container tasks-table-shell">
+                <div className={tableShellClassName}>
                     <table className="table">
                         <thead>
                             <tr>
@@ -263,6 +269,10 @@ export default function Tasks({ embedded = false }) {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                <div className={paginationClassName}>
+                    <div className="text-sm text-muted">最近保留 {filteredTasks.length} 条</div>
                 </div>
             </div>
 

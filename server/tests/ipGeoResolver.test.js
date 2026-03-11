@@ -69,7 +69,7 @@ describe('ip geo resolver runtime behavior', () => {
         assert.equal(result, '');
     });
 
-    it('uses ipip endpoint as-is when no {ip} template is provided', async () => {
+    it('appends ip query to ipip endpoint when no {ip} template is provided', async () => {
         let capturedUrl = '';
         const resolver = createIpGeoResolver({
             enabled: true,
@@ -80,7 +80,7 @@ describe('ip geo resolver runtime behavior', () => {
             },
         });
         const result = await resolver.lookup('8.8.8.8');
-        assert.equal(capturedUrl, 'http://myip.ipip.net');
+        assert.equal(capturedUrl, 'http://myip.ipip.net?ip=8.8.8.8');
         assert.equal(result, '美国');
     });
 
@@ -96,5 +96,19 @@ describe('ip geo resolver runtime behavior', () => {
         });
         await resolver.lookup('8.8.8.8');
         assert.equal(capturedUrl, 'http://myip.ipip.net/?ip=8.8.8.8');
+    });
+
+    it('keeps explicit ip query endpoint untouched', async () => {
+        let capturedUrl = '';
+        const resolver = createIpGeoResolver({
+            enabled: true,
+            endpoint: 'http://myip.ipip.net/?ip=1.1.1.1',
+            fetcher: async ({ url }) => {
+                capturedUrl = url;
+                return '当前 IP：1.1.1.1 来自于：澳大利亚';
+            },
+        });
+        await resolver.lookup('8.8.8.8');
+        assert.equal(capturedUrl, 'http://myip.ipip.net/?ip=1.1.1.1');
     });
 });

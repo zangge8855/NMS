@@ -7,7 +7,6 @@ import {
     HiOutlineLink,
     HiOutlineSignal,
     HiOutlineShieldCheck,
-    HiOutlineClipboardDocumentList,
 } from 'react-icons/hi2';
 
 function localize(copy, locale = 'zh-CN') {
@@ -37,8 +36,7 @@ export const navSections = [
     {
         title: { 'zh-CN': '运维', 'en-US': 'Operate' },
         items: [
-            { path: '/audit', icon: HiOutlineShieldCheck, label: { 'zh-CN': '审计中心', 'en-US': 'Audit' }, supportsGlobal: true, keywords: ['审计', '日志', '安全', 'audit'] },
-            { path: '/tasks', icon: HiOutlineClipboardDocumentList, label: { 'zh-CN': '任务中心', 'en-US': 'Tasks' }, supportsGlobal: true, keywords: ['任务', '批量', 'jobs', 'tasks'] },
+            { path: '/audit', icon: HiOutlineShieldCheck, label: { 'zh-CN': '审计中心', 'en-US': 'Audit' }, supportsGlobal: true, keywords: ['审计', '日志', '安全', 'audit', '任务', '批量', 'jobs', 'tasks', '操作历史'] },
             { path: '/settings', icon: HiOutlineCog6Tooth, label: { 'zh-CN': '系统设置', 'en-US': 'Settings' }, supportsGlobal: true, adminOnly: true, keywords: ['设置', 'system', 'settings'] },
         ],
     },

@@ -309,6 +309,16 @@ export default function UsersHub() {
                 return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
             });
     }, [users, clientsMap, onlineMap, searchTerm, statusFilter]);
+    const selectedUsers = useMemo(
+        () => enrichedUsers.filter((user) => selectedIds.has(user.id)),
+        [enrichedUsers, selectedIds]
+    );
+    const bulkToggleEnable = selectedUsers.length > 0
+        ? !selectedUsers.every((user) => user.enabled !== false)
+        : true;
+    const bulkToggleLabel = bulkToggleEnable ? '启用选中' : '禁用选中';
+    const bulkToggleIcon = bulkToggleEnable ? <HiOutlinePlayCircle /> : <HiOutlineNoSymbol />;
+    const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
 
     // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
@@ -902,11 +912,8 @@ export default function UsersHub() {
                 {selectedIds.size > 0 && (
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
                         <span className="bulk-toolbar-count">已选 {selectedIds.size} 个用户</span>
-                        <button className="btn btn-success btn-sm" onClick={() => handleBulkSetEnabled(true)} disabled={bulkLoading}>
-                            <HiOutlinePlayCircle /> 批量启用
-                        </button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleBulkSetEnabled(false)} disabled={bulkLoading}>
-                            <HiOutlineNoSymbol /> 批量停用
+                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
+                            {bulkToggleIcon} {bulkToggleLabel}
                         </button>
                         <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
                             取消选择
@@ -1004,10 +1011,10 @@ export default function UsersHub() {
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon"
-                                                            title="停用"
-                                                            onClick={() => handleSetEnabled(user, false)}
+                                                            title={user.enabled !== false ? '停用' : '启用'}
+                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
-                                                            <HiOutlineNoSymbol />
+                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon"
@@ -1038,10 +1045,10 @@ export default function UsersHub() {
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon"
-                                                            title="停用"
-                                                            onClick={() => handleSetEnabled(user, false)}
+                                                            title={user.enabled !== false ? '停用' : '启用'}
+                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
-                                                            <HiOutlineNoSymbol />
+                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon"
@@ -1058,10 +1065,10 @@ export default function UsersHub() {
                                                     <>
                                                         <button
                                                             className="btn btn-success btn-sm"
-                                                            title="启用"
-                                                            onClick={() => handleSetEnabled(user, true)}
+                                                            title={user.enabled !== false ? '停用' : '启用'}
+                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
-                                                            <HiOutlinePlayCircle /> 启用
+                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />} {user.enabled !== false ? '停用' : '启用'}
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon"
