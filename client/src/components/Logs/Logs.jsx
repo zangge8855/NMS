@@ -16,21 +16,6 @@ import {
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
-const LOG_LEVELS = [
-    { value: '', label: '全部级别' },
-    { value: 'debug', label: 'Debug', color: '#6b7280' },
-    { value: 'info', label: 'Info', color: '#3b82f6' },
-    { value: 'warning', label: 'Warning', color: '#f59e0b' },
-    { value: 'error', label: 'Error', color: '#ef4444' },
-    { value: 'none', label: 'None', color: '#8b5cf6' },
-];
-
-const LOG_SOURCES = [
-    { value: 'panel', label: 'Panel 日志' },
-    { value: 'xray', label: 'Xray 日志' },
-    { value: 'system', label: '系统日志' },
-];
-
 function getSummaryToneMeta(tone) {
     if (tone === 'danger') {
         return {
@@ -148,6 +133,19 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const { t } = useI18n();
     const isGlobal = activeServerId === 'global';
     const lockedSourceMode = ['auto', 'panel', 'system', 'xray'].includes(sourceMode) ? sourceMode : 'auto';
+    const logLevels = useMemo(() => ([
+        { value: '', label: t('pages.logs.levelAll') },
+        { value: 'debug', label: t('pages.logs.levelDebug') },
+        { value: 'info', label: t('pages.logs.levelInfo') },
+        { value: 'warning', label: t('pages.logs.levelWarning') },
+        { value: 'error', label: t('pages.logs.levelError') },
+        { value: 'none', label: t('pages.logs.levelNone') },
+    ]), [t]);
+    const logSources = useMemo(() => ([
+        { value: 'panel', label: t('pages.logs.sourcePanel') },
+        { value: 'xray', label: t('pages.logs.sourceXray') },
+        { value: 'system', label: t('pages.logs.sourceSystem') },
+    ]), [t]);
 
     // State
     const [logs, setLogs] = useState([]);
@@ -174,9 +172,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const resolvedSource = lockedSourceMode === 'auto'
         ? selectedSource
         : lockedSourceMode;
-    const activeSourceMeta = LOG_SOURCES.find((item) => item.value === resolvedSource) || LOG_SOURCES[0];
+    const activeSourceMeta = logSources.find((item) => item.value === resolvedSource) || logSources[0];
+    const activeLevelMeta = logLevels.find((item) => item.value === levelFilter) || null;
     const sourceLabel = String(displayLabel || '').trim() || (
-        activeSourceMeta.label || 'Panel 日志'
+        activeSourceMeta.label || t('pages.logs.sourcePanel')
     );
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
 
@@ -195,27 +194,27 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             if (payload.supported === false || payload.warning) {
                 setFetchSummary({
                     tone: payload.supported === false ? 'warning' : 'info',
-                    message: payload.warning || `${sourceLabel}当前节点不支持`,
+                    message: payload.warning || t('pages.logs.sourceUnsupported', { source: sourceLabel }),
                 });
             }
         } catch (err) {
             const message = err.response?.data?.msg || err.message;
-            toast.error('获取日志失败: ' + message);
+            toast.error(t('pages.logs.fetchFailed', { message }));
             setFetchSummary({
                 tone: 'danger',
-                message: `${sourceLabel}加载失败：${message}`,
+                message: t('pages.logs.loadFailed', { source: sourceLabel, message }),
             });
             setLogs([]);
         }
         setLoading(false);
-    }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel]);
+    }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t]);
 
     const fetchGlobalLogs = useCallback(async () => {
         if (!isGlobal || selectedServerIds.length === 0) {
             setLogs([]);
             setFetchSummary({
                 tone: 'info',
-                message: '请至少选择一个节点后再查看聚合日志',
+                message: t('pages.logs.selectNodeHint'),
             });
             return;
         }
@@ -261,21 +260,28 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             if (failedServers.length > 0) {
                 setFetchSummary({
                     tone: 'warning',
-                    message: `部分节点 ${sourceLabel}加载失败（${failedServers.length}/${targetServers.length}）`,
+                    message: t('pages.logs.partialFailed', {
+                        source: sourceLabel,
+                        failed: failedServers.length,
+                        total: targetServers.length,
+                    }),
                 });
             } else {
                 setFetchSummary(null);
             }
         } catch (err) {
-            toast.error('获取全局日志失败: ' + (err.message || '未知错误'));
+            toast.error(t('pages.logs.globalFetchFailed', { message: err.message || t('pages.logs.unknownError') }));
             setFetchSummary({
                 tone: 'danger',
-                message: `聚合${sourceLabel}加载失败：${err.message || '未知错误'}`,
+                message: t('pages.logs.globalLoadFailed', {
+                    source: sourceLabel,
+                    message: err.message || t('pages.logs.unknownError'),
+                }),
             });
             setLogs([]);
         }
         setLoading(false);
-    }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel]);
+    }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel, t]);
 
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
 
@@ -309,8 +315,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             isGlobal ? `[${e.serverName}] ${e.line}` : e.line
         ).join('\n');
         navigator.clipboard.writeText(text).then(
-            () => toast.success('已复制到剪贴板'),
-            () => toast.error('复制失败')
+            () => toast.success(t('pages.logs.copySuccess')),
+            () => toast.error(t('pages.logs.copyError'))
         );
     };
 
@@ -318,7 +324,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         setLogs([]);
         setFetchSummary({
             tone: 'info',
-            message: '日志视图已清空，可点击刷新重新获取最新内容',
+            message: t('pages.logs.viewerCleared'),
         });
     };
 
@@ -350,7 +356,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 value={levelFilter}
                                 onChange={e => setLevelFilter(e.target.value)}
                             >
-                                {LOG_LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                                {logLevels.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                             </select>
 
                             <select
@@ -358,10 +364,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 value={count}
                                 onChange={e => setCount(Number(e.target.value))}
                             >
-                                <option value={50}>50 行</option>
-                                <option value={100}>100 行</option>
-                                <option value={200}>200 行</option>
-                                <option value={500}>500 行</option>
+                                <option value={50}>{t('pages.logs.lineOption', { count: 50 })}</option>
+                                <option value={100}>{t('pages.logs.lineOption', { count: 100 })}</option>
+                                <option value={200}>{t('pages.logs.lineOption', { count: 200 })}</option>
+                                <option value={500}>{t('pages.logs.lineOption', { count: 500 })}</option>
                             </select>
 
                             {lockedSourceMode === 'auto' && (
@@ -370,7 +376,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     value={selectedSource}
                                     onChange={(e) => setSelectedSource(e.target.value)}
                                 >
-                                    {LOG_SOURCES.map((item) => (
+                                    {logSources.map((item) => (
                                         <option key={item.value} value={item.value}>{item.label}</option>
                                     ))}
                                 </select>
@@ -378,7 +384,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                             <input
                                 className="form-input w-200"
-                                placeholder="关键词过滤..."
+                                placeholder={t('pages.logs.keywordPlaceholder')}
                                 value={keywords}
                                 onChange={e => setKeywords(e.target.value)}
                             />
@@ -388,27 +394,27 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             <button
                                 className="btn btn-ghost btn-sm"
                                 onClick={() => setAutoScrollEnabled((value) => !value)}
-                                title={autoScrollEnabled ? '暂停自动滚动到底部' : '恢复自动滚动到底部'}
+                                title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
                             >
                                 {autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
-                                {autoScrollEnabled ? '暂停滚动' : '恢复滚动'}
+                                {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
                             </button>
                             <button
                                 className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
                                 onClick={() => setWrapLines((value) => !value)}
-                                title={wrapLines ? '关闭自动换行' : '开启自动换行'}
+                                title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
                             >
-                                {wrapLines ? '自动换行' : '单行滚动'}
+                                {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
                             </button>
-                            <button className="btn btn-ghost btn-sm" onClick={clearViewer} title="清空当前视图">
-                                <HiOutlineTrash /> 清空视图
+                            <button className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                <HiOutlineTrash /> {t('pages.logs.clearView')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={copyLogs} title="复制日志">
-                                <HiOutlineClipboardDocument /> 复制
+                            <button className="btn btn-secondary btn-sm" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
+                                <HiOutlineClipboardDocument /> {t('pages.logs.copy')}
                             </button>
                             <button className="btn btn-primary btn-sm" onClick={fetchLogs} disabled={loading}>
                                 <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
-                                {loading ? '加载中...' : '刷新'}
+                                {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
                             </button>
                         </div>
                     </div>
@@ -420,12 +426,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         <div className="card-header card-header-flat-tight">
                             <div className="flex items-center gap-8">
                                 <HiOutlineServerStack className="text-muted" />
-                                <span className="card-title text-sm">节点选择</span>
-                                <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>全选</button>
-                                <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>清空</button>
+                                <span className="card-title text-sm">{t('pages.logs.serverSelection')}</span>
+                                <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
                             </div>
                             <span className="text-sm text-muted">
-                                已选 {selectedServerIds.length} / {servers.length}
+                                {t('pages.logs.selectedServers', { selected: selectedServerIds.length, total: servers.length })}
                             </span>
                         </div>
                         <div className="log-server-chips">
@@ -461,17 +467,17 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                 {/* Log Viewer */}
                 <div className="card flex-1 logs-viewer-card">
-                    <div className="card-header">
-                        <div className="flex items-center gap-8">
-                            <HiOutlineDocumentText className="text-muted" />
-                            <span className="card-title">{sourceLabel}</span>
-                            <span className="badge badge-neutral">{activeSourceMeta.label}</span>
-                            {levelFilter && <span className="badge badge-info">级别 {levelFilter}</span>}
+                        <div className="card-header">
+                            <div className="flex items-center gap-8">
+                                <HiOutlineDocumentText className="text-muted" />
+                                <span className="card-title">{sourceLabel}</span>
+                                <span className="badge badge-neutral">{activeSourceMeta.label}</span>
+                            {levelFilter && activeLevelMeta && <span className="badge badge-info">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</span>}
                         </div>
                         <div className="logs-viewer-meta">
-                            <span className="text-sm text-muted">{filteredLogs.length} 行</span>
+                            <span className="text-sm text-muted">{t('pages.logs.lineCount', { count: filteredLogs.length })}</span>
                             <span className={`logs-scroll-chip ${autoScrollEnabled ? 'is-live' : 'is-paused'}`}>
-                                {autoScrollEnabled ? '自动滚动' : '已暂停'}
+                                {autoScrollEnabled ? t('pages.logs.autoScroll') : t('pages.logs.paused')}
                             </span>
                         </div>
                     </div>
@@ -482,13 +488,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         {loading && filteredLogs.length === 0 ? (
                             <div className="empty-state empty-state-medium">
                                 <span className="spinner spinner-20" />
-                                <div className="empty-state-text mt-3">正在加载日志...</div>
+                                <div className="empty-state-text mt-3">{t('pages.logs.loadingLogs')}</div>
                             </div>
                         ) : filteredLogs.length === 0 ? (
                             <div className="empty-state empty-state-medium">
                                 <div className="empty-state-icon"><HiOutlineDocumentText /></div>
-                                <div className="empty-state-text">暂无日志</div>
-                                <div className="empty-state-sub">点击刷新按钮获取最新日志</div>
+                                <div className="empty-state-text">{t('pages.logs.empty')}</div>
+                                <div className="empty-state-sub">{t('pages.logs.emptySubtitle')}</div>
                             </div>
                         ) : (
                             filteredLogs.map((entry, index) => (

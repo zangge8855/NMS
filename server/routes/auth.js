@@ -48,6 +48,7 @@ const LOGIN_RATE_WINDOW_MINUTES = Math.max(1, Math.round(LOGIN_RATE_WINDOW / 60_
 const LOGIN_RATE_MAX = config.nodeEnv === 'development' ? 300 : 20;
 const LOGIN_RATE_MAP_LIMIT = 10000;
 const loginAttempts = new Map(); // `${ip}|${username}` -> { count, firstAttempt, blockedUntil }
+const PASSWORD_SELF_SERVICE_DISABLED_MESSAGE = '密码由管理员统一维护，请联系管理员重置';
 
 startCleanupInterval(() => {
     const now = Date.now();
@@ -61,6 +62,13 @@ startCleanupInterval(() => {
 function normalizeRateUsername(username) {
     const normalized = String(username || '').trim().toLowerCase();
     return normalized || '*';
+}
+
+function rejectPasswordSelfService(res) {
+    return res.status(403).json({
+        success: false,
+        msg: PASSWORD_SELF_SERVICE_DISABLED_MESSAGE,
+    });
 }
 
 function buildLoginRateKey(ip, username = '') {
@@ -389,6 +397,7 @@ router.post('/resend-code', async (req, res) => {
  * POST /api/auth/forgot-password — 发送密码重置验证码
  */
 router.post('/forgot-password', async (req, res) => {
+    return rejectPasswordSelfService(res);
     const clientIp = resolveClientIp(req);
     if (!checkResetRate(clientIp)) {
         appendSecurityAudit('password_reset_request_rate_limited', req, { ip: clientIp });
@@ -428,6 +437,7 @@ router.post('/forgot-password', async (req, res) => {
  * POST /api/auth/reset-password — 使用邮箱验证码重置密码
  */
 router.post('/reset-password', (req, res) => {
+    return rejectPasswordSelfService(res);
     try {
         const result = resetPasswordWithCode(req.body);
         appendSecurityAudit('password_reset_completed', req, {
@@ -657,6 +667,7 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
  * PUT /api/auth/change-password — 修改自己的密码
  */
 router.put('/change-password', authMiddleware, (req, res) => {
+    return rejectPasswordSelfService(res);
     try {
         const result = changeOwnPassword(req.body, req.user);
         appendSecurityAudit('password_changed', req, buildUserAuditDetails(result.user, {

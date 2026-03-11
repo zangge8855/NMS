@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
-import { formatBytes, formatUptime } from '../../utils/format.js';
+import { formatBytes } from '../../utils/format.js';
 import useWebSocket from '../../hooks/useWebSocket.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import {
@@ -16,12 +16,14 @@ import {
     HiOutlineServerStack,
     HiOutlineCloud,
     HiOutlineBolt,
+    HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -36,7 +38,7 @@ const DASHBOARD_ACCENT = {
 
 function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
-    const animatedValue = useAnimatedCounter(card.animateValue || 0);
+    const animatedValue = useAnimatedCounter(card.animateValue ?? 0);
     const handleKeyDown = (event) => {
         if (!clickable) return;
         if (event.key === 'Enter' || event.key === ' ') {
@@ -66,9 +68,14 @@ function StatCard({ card, loading }) {
             <div className="dashboard-stat-card-body">
                 <div className="card-value dashboard-stat-card-value">
                     {loading ? (
-                        <div className="skeleton w-24 h-8 mt-1" />
+                        <div
+                            className="skeleton dashboard-stat-card-skeleton mt-1"
+                            style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
+                        />
                     ) : card.animateValue !== undefined ? (
-                        `${animatedValue}${card.animateSuffix || ''}`
+                        card.renderAnimatedValue
+                            ? card.renderAnimatedValue(animatedValue)
+                            : `${animatedValue}${card.animateSuffix || ''}`
                     ) : (
                         card.value
                     )}
@@ -77,6 +84,11 @@ function StatCard({ card, loading }) {
                     <div className="dashboard-stat-card-subtitle">
                         {card.sub}
                     </div>
+                )}
+                {clickable && (
+                    <span className="dashboard-stat-card-hint" aria-hidden="true">
+                        <HiOutlineArrowRight />
+                    </span>
                 )}
             </div>
         </div>
@@ -152,6 +164,30 @@ function pushServerTrendSamples(previous, serverMap) {
     return next;
 }
 
+function formatLocalizedUptime(seconds, locale) {
+    const totalSeconds = Number(seconds || 0);
+    if (!totalSeconds) return locale === 'en-US' ? '0s' : '0秒';
+
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const parts = [];
+
+    if (locale === 'en-US') {
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (parts.length === 0) parts.push(`${totalSeconds}s`);
+        return parts.join(' ');
+    }
+
+    if (days > 0) parts.push(`${days}天`);
+    if (hours > 0) parts.push(`${hours}时`);
+    if (minutes > 0) parts.push(`${minutes}分`);
+    if (parts.length === 0) parts.push(`${totalSeconds}秒`);
+    return parts.join(' ');
+}
+
 // ── WebSocket URL builder ────────────────────────────────
 function getWsUrl(ticket) {
     if (!ticket) return null;
@@ -162,11 +198,12 @@ function getWsUrl(ticket) {
 
 // ── Connection Status Indicator ──────────────────────────
 function WsStatusDot({ status }) {
+    const { t } = useI18n();
     const labels = {
-        connected: '实时连接',
-        connecting: '连接中...',
-        reconnecting: '重连中...',
-        disconnected: '已断开',
+        connected: t('pages.dashboardCommon.wsConnected'),
+        connecting: t('pages.dashboardCommon.wsConnecting'),
+        reconnecting: t('pages.dashboardCommon.wsReconnecting'),
+        disconnected: t('pages.dashboardCommon.wsDisconnected'),
     };
     const currentStatus = status || 'disconnected';
     const label = labels[currentStatus] || '未知';
@@ -190,7 +227,7 @@ function WsStatusDot({ status }) {
 export default function Dashboard() {
     const { activeServerId, panelApi, activeServer, servers } = useServer();
     const { token } = useAuth();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const navigate = useNavigate();
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
@@ -433,6 +470,7 @@ export default function Dashboard() {
     const refresh = () => activeServerId === 'global' ? fetchGlobalData() : fetchSingleData();
     const onlineUserRows = useMemo(() => summarizeOnlineUsers(onlineUsers), [onlineUsers]);
     const globalOnlineUserRows = useMemo(() => summarizeOnlineUsers(globalOnlineUsers), [globalOnlineUsers]);
+    const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
 
     // Empty State
     if (!activeServerId && servers.length === 0 && activeServerId !== 'global') {
@@ -444,11 +482,16 @@ export default function Dashboard() {
                 />
                 
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineServerStack style={{ fontSize: '48px' }} /></div>
-                        <div className="empty-state-text">请先添加并选择一台服务器</div>
-                        <div className="empty-state-sub">在左侧导航的"服务器管理"中添加您的 3x-ui 面板</div>
-                    </div>
+                    <EmptyState
+                        title={t('pages.dashboardEmpty.bodyTitle')}
+                        subtitle={t('pages.dashboardEmpty.bodySubtitle')}
+                        icon={<HiOutlineServerStack style={{ fontSize: '48px' }} />}
+                        action={(
+                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+                                {t('pages.dashboardEmpty.action')}
+                            </button>
+                        )}
+                    />
                 </div>
             </>
         );
@@ -458,30 +501,39 @@ export default function Dashboard() {
     if (activeServerId === 'global') {
         const globalCards = [
             {
-                icon: HiOutlineServerStack, label: '节点状态',
+                icon: HiOutlineServerStack, label: t('pages.dashboardGlobal.cards.nodeStatus'),
                 value: `${globalStats.onlineServers} / ${globalStats.serverCount}`,
-                sub: '在线 / 总计', ...DASHBOARD_ACCENT.primary,
+                sub: t('pages.dashboardCommon.onlineTotal'), ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/servers'),
+                skeletonWidth: '9rem',
             },
             {
-                icon: HiOutlineUsers, label: '总在线用户',
-                value: String(globalStats.totalOnline),
-                sub: showOnlineDetail ? '点击收起明细' : '点击查看明细',
+                icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
+                animateValue: globalStats.totalOnline,
+                renderAnimatedValue: (value) => String(value),
+                sub: showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail'),
                 onClick: () => setShowOnlineDetail((v) => !v),
                 ...DASHBOARD_ACCENT.info,
+                skeletonWidth: '6rem',
             },
             {
-                icon: HiOutlineSignal, label: '总入站规则',
+                icon: HiOutlineSignal, label: t('pages.dashboardGlobal.cards.totalInbounds'),
                 value: `${globalStats.activeInbounds} / ${globalStats.totalInbounds}`,
-                sub: '启用 / 总计', ...DASHBOARD_ACCENT.warning,
+                sub: t('pages.dashboardCommon.enabledTotal'), ...DASHBOARD_ACCENT.warning,
                 onClick: () => navigate('/inbounds'),
+                skeletonWidth: '8rem',
             },
             {
-                icon: HiOutlineArrowsUpDown, label: '集群总流量',
-                value: formatBytes(globalStats.totalUp + globalStats.totalDown),
-                sub: `↑ ${formatBytes(globalStats.totalUp)}  ↓ ${formatBytes(globalStats.totalDown)}`,
+                icon: HiOutlineArrowsUpDown, label: t('pages.dashboardGlobal.cards.clusterTraffic'),
+                animateValue: globalStats.totalUp + globalStats.totalDown,
+                renderAnimatedValue: (value) => formatBytes(value),
+                sub: t('pages.dashboardCommon.trafficSplit', {
+                    up: formatBytes(globalStats.totalUp),
+                    down: formatBytes(globalStats.totalDown),
+                }),
                 ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/audit'),
+                skeletonWidth: '8.5rem',
             },
         ];
 
@@ -497,22 +549,22 @@ export default function Dashboard() {
                     <div className="dashboard-toolbar">
                         <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                             <div>
-                                <div className="dashboard-section-title">全局状态</div>
-                                <div className="dashboard-section-subtitle">统一查看节点可用性、会话与容量变化</div>
+                                <div className="dashboard-section-title">{t('pages.dashboardGlobal.toolbarTitle')}</div>
+                                <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.toolbarSubtitle')}</div>
                             </div>
                             <WsStatusDot status={wsStatus} />
                         </div>
                         <div className="dashboard-toolbar-group dashboard-toolbar-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
-                                <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
+                            <button className="btn btn-secondary btn-sm" onClick={refresh} title={t('pages.dashboardCommon.refresh')}>
+                                <HiOutlineArrowPath style={{ fontSize: '14px' }} /> {t('pages.dashboardCommon.refresh')}
                             </button>
                             <button
                                 className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                                 onClick={() => setAutoRefresh(p => !p)}
-                                title={autoRefresh ? '关闭自动刷新 (30s)' : '开启自动刷新 (30s)'}
+                                title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                             >
                                 <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
-                                {autoRefresh ? '自动 ON' : '自动 OFF'}
+                                {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                             </button>
                         </div>
                     </div>
@@ -527,31 +579,38 @@ export default function Dashboard() {
                         <div className="card mb-6">
                             <div className="dashboard-section-head">
                                 <div>
-                                    <div className="dashboard-section-title">在线用户明细</div>
-                                    <div className="dashboard-section-subtitle">按账号聚合，减少多会话噪音</div>
+                                    <div className="dashboard-section-title">{t('pages.dashboardGlobal.onlineDetailTitle')}</div>
+                                    <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.onlineDetailSubtitle')}</div>
                                 </div>
                                 <span className="text-sm text-muted">
-                                    {globalOnlineUserRows.length} 用户 / {globalOnlineUsers.length} 会话
+                                    {t('pages.dashboardCommon.userSessionSummary', {
+                                        users: globalOnlineUserRows.length,
+                                        sessions: globalOnlineUsers.length,
+                                    })}
                                 </span>
                             </div>
                             {globalOnlineUserRows.length === 0 ? (
                                 <div className="empty-state empty-state-compact">
-                                    <div className="empty-state-text">当前没有在线用户</div>
+                                    <div className="empty-state-text">{t('pages.dashboardCommon.onlineEmpty')}</div>
                                 </div>
                             ) : (
-                                <div className="table-container table-scroll table-scroll-lg">
+                                <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
                                     <table className="table">
                                         <thead>
-                                            <tr><th>邮箱 / 标识</th><th>在线节点</th><th>会话数</th></tr>
+                                            <tr>
+                                                <th>{t('pages.dashboardCommon.userIdentifier')}</th>
+                                                <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
+                                                <th className="text-right">{t('pages.dashboardCommon.sessions')}</th>
+                                            </tr>
                                         </thead>
                                         <tbody>
                                             {globalOnlineUserRows.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
                                                 <tr key={`global-online-${row.email}`}>
-                                                    <td data-label="邮箱 / 标识" className="text-white font-medium">{row.email}</td>
-                                                    <td data-label="在线节点">
+                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.email}</td>
+                                                    <td data-label={t('pages.dashboardGlobal.onlineNodes')}>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {row.servers.length === 0 ? (
-                                                                <span className="badge badge-neutral">未知节点</span>
+                                                                <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
                                                             ) : (
                                                                 row.servers.slice(0, 4).map((sn) => (
                                                                     <span key={`${row.email}-${sn}`} className="badge badge-info">{sn}</span>
@@ -560,11 +619,11 @@ export default function Dashboard() {
                                                             {row.servers.length > 4 && <span className="badge badge-neutral">+{row.servers.length - 4}</span>}
                                                         </div>
                                                     </td>
-                                                    <td data-label="会话数"><span className="badge badge-success">{row.sessions}</span></td>
+                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
                                                 </tr>
                                             ))}
                                             {globalOnlineUserRows.length > MAX_GLOBAL_ONLINE_ROWS && (
-                                                <tr><td colSpan={3} className="table-note">仅展示前 {MAX_GLOBAL_ONLINE_ROWS} 条</td></tr>
+                                                <tr><td colSpan={3} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -577,10 +636,10 @@ export default function Dashboard() {
                     <div className="mb-6">
                         <div className="dashboard-section-head">
                             <div>
-                                <div className="dashboard-section-title">节点健康状态</div>
-                                <div className="dashboard-section-subtitle">快速识别离线、高负载和容量异常节点</div>
+                                <div className="dashboard-section-title">{t('pages.dashboardGlobal.nodeHealthTitle')}</div>
+                                <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.nodeHealthSubtitle')}</div>
                             </div>
-                            <span className="text-sm text-muted">{servers.length} 个节点</span>
+                            <span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>
                         </div>
                         <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
                     </div>
@@ -595,12 +654,29 @@ export default function Dashboard() {
     const activeInbounds = inbounds.filter(i => i.enable).length;
 
     const statCards = [
-        { icon: HiOutlineCpuChip, label: 'CPU 使用率', value: status ? `${status.cpu.toFixed(1)}%` : '--', ...DASHBOARD_ACCENT.primary },
-        { icon: HiOutlineCircleStack, label: '内存使用', value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary },
-        { icon: HiOutlineClock, label: '运行时间', value: status ? formatUptime(status.uptime) : '--', ...DASHBOARD_ACCENT.success },
-        { icon: HiOutlineArrowsUpDown, label: '总流量', value: formatBytes(totalUp + totalDown), sub: `↑ ${formatBytes(totalUp)}  ↓ ${formatBytes(totalDown)}`, ...DASHBOARD_ACCENT.primary },
-        { icon: HiOutlineSignal, label: '入站', value: `${activeInbounds} / ${inbounds.length}`, sub: '启用 / 总计', ...DASHBOARD_ACCENT.warning, onClick: () => navigate('/inbounds') },
-        { icon: HiOutlineUsers, label: '在线用户', value: String(onlineCount), sub: showOnlineDetail ? '点击收起明细' : '点击查看明细', onClick: () => setShowOnlineDetail((v) => !v), ...DASHBOARD_ACCENT.info },
+        { icon: HiOutlineCpuChip, label: t('pages.dashboardNode.cards.cpuUsage'), value: status ? `${status.cpu.toFixed(1)}%` : '--', ...DASHBOARD_ACCENT.primary, skeletonWidth: '5.5rem' },
+        { icon: HiOutlineCircleStack, label: t('pages.dashboardNode.cards.memoryUsage'), value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary, skeletonWidth: '7rem' },
+        { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatLocalizedUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
+        {
+            icon: HiOutlineArrowsUpDown,
+            label: t('pages.dashboardNode.cards.totalTraffic'),
+            animateValue: totalUp + totalDown,
+            renderAnimatedValue: (value) => formatBytes(value),
+            sub: t('pages.dashboardCommon.trafficSplit', { up: formatBytes(totalUp), down: formatBytes(totalDown) }),
+            ...DASHBOARD_ACCENT.primary,
+            skeletonWidth: '8rem',
+        },
+        { icon: HiOutlineSignal, label: t('pages.dashboardNode.cards.inbounds'), value: `${activeInbounds} / ${inbounds.length}`, sub: t('pages.dashboardCommon.enabledTotal'), ...DASHBOARD_ACCENT.warning, onClick: () => navigate('/inbounds'), skeletonWidth: '6.5rem' },
+        {
+            icon: HiOutlineUsers,
+            label: t('pages.dashboardNode.cards.onlineUsers'),
+            animateValue: onlineCount,
+            renderAnimatedValue: (value) => String(value),
+            sub: showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail'),
+            onClick: () => setShowOnlineDetail((v) => !v),
+            ...DASHBOARD_ACCENT.info,
+            skeletonWidth: '5.5rem',
+        },
     ];
 
     return (
@@ -616,22 +692,22 @@ export default function Dashboard() {
                 <div className="dashboard-toolbar">
                     <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                         <div>
-                            <div className="dashboard-section-title">{activeServer?.name || '当前节点'}</div>
-                            <div className="dashboard-section-subtitle">资源状态、入站容量与活跃会话</div>
+                            <div className="dashboard-section-title">{activeServer?.name || t('pages.dashboardNode.currentNodeFallback')}</div>
+                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.toolbarSubtitle')}</div>
                         </div>
                         <WsStatusDot status={wsStatus} />
                     </div>
                     <div className="dashboard-toolbar-group dashboard-toolbar-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={refresh} title="手动刷新">
-                            <HiOutlineArrowPath style={{ fontSize: '14px' }} /> 刷新
+                        <button className="btn btn-secondary btn-sm" onClick={refresh} title={t('pages.dashboardCommon.refresh')}>
+                            <HiOutlineArrowPath style={{ fontSize: '14px' }} /> {t('pages.dashboardCommon.refresh')}
                         </button>
                         <button
                             className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                             onClick={() => setAutoRefresh(p => !p)}
-                            title={autoRefresh ? '关闭自动刷新 (30s)' : '开启自动刷新 (30s)'}
+                            title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                         >
                             <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
-                            {autoRefresh ? '自动 ON' : '自动 OFF'}
+                            {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         </button>
                     </div>
                 </div>
@@ -646,28 +722,28 @@ export default function Dashboard() {
                     <div className="card mb-6">
                         <div className="dashboard-section-head">
                             <div>
-                                <div className="dashboard-section-title">在线用户明细</div>
-                                <div className="dashboard-section-subtitle">按邮箱归并显示当前节点会话</div>
+                                <div className="dashboard-section-title">{t('pages.dashboardNode.onlineDetailTitle')}</div>
+                                <div className="dashboard-section-subtitle">{t('pages.dashboardNode.onlineDetailSubtitle')}</div>
                             </div>
-                            <span className="text-sm text-muted">{onlineUserRows.length} 用户 / {onlineUsers.length} 会话</span>
+                            <span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUserRows.length, sessions: onlineUsers.length })}</span>
                         </div>
                         {onlineUserRows.length === 0 ? (
                             <div className="empty-state empty-state-compact">
-                                <div className="empty-state-text">当前没有在线用户</div>
+                                <div className="empty-state-text">{t('pages.dashboardCommon.onlineEmpty')}</div>
                             </div>
                         ) : (
-                            <div className="table-container table-scroll table-scroll-md">
+                            <div className="table-container table-scroll table-scroll-md overflow-x-auto">
                                 <table className="table">
-                                    <thead><tr><th>邮箱 / 标识</th><th>会话数</th></tr></thead>
+                                    <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
                                     <tbody>
                                         {onlineUserRows.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
                                             <tr key={`single-online-${row.email}`}>
-                                                <td data-label="邮箱 / 标识" className="text-white font-medium">{row.email}</td>
-                                                <td data-label="会话数"><span className="badge badge-success">{row.sessions}</span></td>
+                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.email}</td>
+                                                <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
                                             </tr>
                                         ))}
                                         {onlineUserRows.length > MAX_SINGLE_ONLINE_ROWS && (
-                                            <tr><td colSpan={2} className="table-note">仅展示前 {MAX_SINGLE_ONLINE_ROWS} 条</td></tr>
+                                            <tr><td colSpan={2} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -680,33 +756,40 @@ export default function Dashboard() {
                 <div className="card mb-6">
                     <div className="dashboard-section-head">
                         <div>
-                            <div className="dashboard-section-title">入站概览</div>
-                            <div className="dashboard-section-subtitle">聚焦前 10 条入站规则的协议、状态和流量</div>
+                            <div className="dashboard-section-title">{t('pages.dashboardNode.inboundsTitle')}</div>
+                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.inboundsSubtitle')}</div>
                         </div>
-                        <span className="text-sm text-muted">{inbounds.length} 条入站规则</span>
+                        <span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>
                     </div>
-                    <div className="table-container border-none">
+                    <div className="table-container border-none overflow-x-auto">
                         <table className="table">
                             <thead>
-                                <tr><th>备注</th><th>协议</th><th>端口</th><th>状态</th><th>上行</th><th>下行</th></tr>
+                                <tr>
+                                    <th>{t('pages.dashboardNode.tableRemark')}</th>
+                                    <th>{t('pages.dashboardNode.tableProtocol')}</th>
+                                    <th className="text-right">{t('pages.dashboardNode.tablePort')}</th>
+                                    <th className="text-center">{t('pages.dashboardNode.tableStatus')}</th>
+                                    <th className="text-right">{t('pages.dashboardNode.tableUp')}</th>
+                                    <th className="text-right">{t('pages.dashboardNode.tableDown')}</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {inbounds.length === 0 ? (
-                                    <tr><td colSpan={6} className="table-empty">暂无数据</td></tr>
+                                    <tr><td colSpan={6} className="table-empty">{t('pages.dashboardNode.inboundsEmpty')}</td></tr>
                                 ) : (
                                     inbounds.slice(0, 10).map((ib) => (
                                         <tr key={ib.id}>
-                                            <td data-label="备注" className="font-medium text-white">{ib.remark || '-'}</td>
-                                            <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
-                                            <td data-label="端口">{ib.port}</td>
-                                            <td data-label="状态">
-                                                <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>{ib.enable ? '启用' : '禁用'}</span>
+                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-white truncate max-w-[200px]">{ib.remark || '-'}</td>
+                                            <td data-label={t('pages.dashboardNode.tableProtocol')}><span className="badge badge-info">{ib.protocol}</span></td>
+                                            <td data-label={t('pages.dashboardNode.tablePort')} className="text-right font-mono">{ib.port}</td>
+                                            <td data-label={t('pages.dashboardNode.tableStatus')} className="text-center">
+                                                <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>{ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}</span>
                                             </td>
-                                            <td data-label="上行">
-                                                {loading ? <div className="skeleton w-12 h-4" /> : formatBytes(ib.up)}
+                                            <td data-label={t('pages.dashboardNode.tableUp')} className="text-right font-mono">
+                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.up)}
                                             </td>
-                                            <td data-label="下行">
-                                                {loading ? <div className="skeleton w-12 h-4" /> : formatBytes(ib.down)}
+                                            <td data-label={t('pages.dashboardNode.tableDown')} className="text-right font-mono">
+                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.down)}
                                             </td>
                                         </tr>
                                     ))
@@ -720,8 +803,8 @@ export default function Dashboard() {
                 <div className="card mb-6">
                     <div className="dashboard-section-head">
                         <div>
-                            <div className="dashboard-section-title">CPU 使用率趋势</div>
-                            <div className="dashboard-section-subtitle">最近 30 个采样点的 CPU 变化</div>
+                            <div className="dashboard-section-title">{t('pages.dashboardNode.cpuChartTitle')}</div>
+                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.cpuChartSubtitle')}</div>
                         </div>
                     </div>
                     <div className="w-full dashboard-chart py-5">
@@ -738,12 +821,32 @@ export default function Dashboard() {
                                             <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                                    <XAxis dataKey="time" hide />
-                                    <YAxis domain={[0, 100]} hide />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid-color)" vertical={false} />
+                                    <XAxis
+                                        dataKey="time"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        minTickGap={24}
+                                        tickMargin={10}
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        tickFormatter={(value) => {
+                                            if (value === 0) return t('pages.dashboardNode.cpuChartStartTick');
+                                            if (value === cpuChartEndTick) return t('pages.dashboardNode.cpuChartEndTick');
+                                            return '';
+                                        }}
+                                    />
+                                    <YAxis
+                                        domain={[0, 100]}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickCount={3}
+                                        width={34}
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        tickFormatter={(value) => `${value}%`}
+                                    />
                                     <Tooltip
                                         contentStyle={{
-                                            background: 'var(--bg-card)',
+                                            background: 'var(--surface-overlay)',
                                             backdropFilter: 'blur(12px)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: '12px',
@@ -752,7 +855,7 @@ export default function Dashboard() {
                                             boxShadow: 'var(--shadow-lg)'
                                         }}
                                         itemStyle={{ color: 'var(--accent-primary-hover)' }}
-                                        formatter={(v) => [`${v.toFixed(1)}%`, 'CPU']}
+                                        formatter={(v) => [`${v.toFixed(1)}%`, t('pages.dashboardNode.cpuTooltipLabel')]}
                                         cursor={{ stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 2 }}
                                     />
                                     <Area type="monotone" dataKey="cpu" stroke="var(--accent-primary)" strokeWidth={2} fill="url(#cpuGradient)" animationDuration={1500} />

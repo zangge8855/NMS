@@ -74,6 +74,43 @@ function formatExpiryLabel(expiryValues) {
     return new Date(earliest).toLocaleDateString('zh-CN');
 }
 
+function normalizeOnlineEmail(item) {
+    if (typeof item === 'string') {
+        return normalizeEmail(item);
+    }
+    if (item && typeof item === 'object') {
+        return normalizeEmail(
+            item.email || item.user || item.username || item.clientEmail || item.client || item.remark || ''
+        );
+    }
+    return '';
+}
+
+function getOnlineStatus(clientCount, sessions) {
+    if (Number(sessions || 0) > 0) {
+        return {
+            key: 'online',
+            label: '在线',
+            badge: 'badge-success',
+            detail: `${sessions} 会话`,
+        };
+    }
+    if (Number(clientCount || 0) > 0) {
+        return {
+            key: 'offline',
+            label: '离线',
+            badge: 'badge-neutral',
+            detail: '',
+        };
+    }
+    return {
+        key: 'unassigned',
+        label: '未接入',
+        badge: 'badge-neutral',
+        detail: '',
+    };
+}
+
 function normalizeAliasInput(value) {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -110,6 +147,7 @@ export default function UsersHub() {
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
+    const [onlineMap, setOnlineMap] = useState(new Map());
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
@@ -181,7 +219,10 @@ export default function UsersHub() {
             const [usersRes, ...serverResults] = await Promise.all([
                 api.get('/auth/users'),
                 ...servers.map((s) =>
-                    api.get(`/panel/${s.id}/panel/api/inbounds/list`).catch(() => ({ data: { obj: [] } }))
+                    Promise.all([
+                        api.get(`/panel/${s.id}/panel/api/inbounds/list`).catch(() => ({ data: { obj: [] } })),
+                        api.post(`/panel/${s.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
+                    ])
                 ),
             ]);
             const userList = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
@@ -189,11 +230,21 @@ export default function UsersHub() {
 
             // Build email → client data map + collect inbound info
             const emailMap = new Map();
+            const onlineEmailMap = new Map();
             const expiryRef = [];
             const inboundList = [];
-            serverResults.forEach((res, idx) => {
+            serverResults.forEach((result, idx) => {
                 const server = servers[idx];
-                const inbounds = res.data?.obj || [];
+                const [inboundsRes, onlinesRes] = Array.isArray(result) ? result : [{ data: { obj: [] } }, { data: { obj: [] } }];
+                const inbounds = inboundsRes.data?.obj || [];
+                const onlines = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
+
+                onlines.forEach((entry) => {
+                    const email = normalizeOnlineEmail(entry);
+                    if (!email) return;
+                    onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
+                });
+
                 inbounds.forEach((ib) => {
                     const protocol = String(ib.protocol || '').toLowerCase();
                     if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
@@ -247,6 +298,7 @@ export default function UsersHub() {
                 });
             });
             setClientsMap(emailMap);
+            setOnlineMap(onlineEmailMap);
             setInboundExpiries(expiryRef);
             setAllInbounds(inboundList);
         } catch (err) {
@@ -267,13 +319,15 @@ export default function UsersHub() {
                 const subEmail = normalizeEmail(user.subscriptionEmail);
                 const loginEmail = normalizeEmail(user.email);
                 const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, expiryValues: [] };
+                const onlineSessions = onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0;
                 const status = getUserStatus(user, clientData.count);
-                return { ...user, clientData, status };
+                const onlineStatus = getOnlineStatus(clientData.count, onlineSessions);
+                return { ...user, clientData, status, onlineSessions, onlineStatus };
             })
             .filter((user) => {
                 if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
                 if (!search) return true;
-                return [user.username, user.email, user.subscriptionEmail, user.status.label]
+                return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label]
                     .some((v) => String(v || '').toLowerCase().includes(search));
             })
             .sort((a, b) => {
@@ -284,7 +338,7 @@ export default function UsersHub() {
                 if (aOrder !== bOrder) return aOrder - bOrder;
                 return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
             });
-    }, [users, clientsMap, searchTerm, statusFilter]);
+    }, [users, clientsMap, onlineMap, searchTerm, statusFilter]);
 
     // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
@@ -895,6 +949,7 @@ export default function UsersHub() {
                                 <th>用户名</th>
                                 <th>邮箱</th>
                                 <th>状态</th>
+                                <th>在线状态</th>
                                 <th>节点数</th>
                                 <th>已用流量</th>
                                 <th>到期时间</th>
@@ -903,9 +958,9 @@ export default function UsersHub() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={8}><SkeletonTable rows={8} cols={8} /></td></tr>
+                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} /></td></tr>
                             ) : enrichedUsers.length === 0 ? (
-                                <tr><td colSpan={8}>
+                                <tr><td colSpan={9}>
                                     <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
                                 </td></tr>
                             ) : (
@@ -916,6 +971,12 @@ export default function UsersHub() {
                                         <td data-label="邮箱" className="text-sm text-muted">{user.email || user.subscriptionEmail || '-'}</td>
                                         <td data-label="状态">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                        </td>
+                                        <td data-label="在线状态">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                                                {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
+                                            </div>
                                         </td>
                                         <td data-label="节点数">{user.clientData.count || '-'}</td>
                                         <td data-label="已用流量">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>

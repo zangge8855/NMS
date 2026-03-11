@@ -10,6 +10,7 @@ const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
 const MODE_VERIFY = 'verify';
 const MODE_FORGOT = 'forgot';
+const SELF_SERVICE_PASSWORD_RESET_ENABLED = false;
 
 export default function Login() {
     const [mode, setMode] = useState(MODE_LOGIN);
@@ -176,6 +177,7 @@ export default function Login() {
 
     // ── Forgot Password ───────────────────────────────────
     const handleSendResetCode = async () => {
+        if (!SELF_SERVICE_PASSWORD_RESET_ENABLED) return;
         if (resetCooldown > 0) return;
         setError('');
         setSuccess('');
@@ -200,6 +202,7 @@ export default function Login() {
 
     const handleResetPassword = async (e) => {
         e.preventDefault();
+        if (!SELF_SERVICE_PASSWORD_RESET_ENABLED) return;
         setError('');
         setSuccess('');
 
@@ -241,7 +244,7 @@ export default function Login() {
     };
 
     const switchMode = (newMode) => {
-        setMode(newMode);
+        setMode(newMode === MODE_FORGOT && !SELF_SERVICE_PASSWORD_RESET_ENABLED ? MODE_LOGIN : newMode);
         setError('');
         setSuccess('');
     };
@@ -252,7 +255,9 @@ export default function Login() {
             ? t('pages.login.registerTitle')
             : mode === MODE_VERIFY
                 ? t('pages.login.verifyTitle')
-                : t('pages.login.forgotTitle');
+                : SELF_SERVICE_PASSWORD_RESET_ENABLED
+                    ? t('pages.login.forgotTitle')
+                    : t('pages.login.title');
 
     // ── Render ───────────────────────────────────────────────
     return (
@@ -286,6 +291,13 @@ export default function Login() {
                 <div className="login-card-column">
                     <div className="login-card">
                         <div className="login-card-border" />
+                        <div className="login-brand-row">
+                            <img src="/nms-logo.png" alt="NMS" className="login-brand-mark" />
+                            <div className="login-brand-copy">
+                                <span className="login-brand-name">NMS</span>
+                                <span className="login-brand-subtitle">{t('shell.brandSubtitle')}</span>
+                            </div>
+                        </div>
                         <div className="login-form-heading">
                             <h1>{modeTitle}</h1>
                         </div>
@@ -344,19 +356,7 @@ export default function Login() {
                                     </div>
                                 </div>
                                 <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => {
-                                            setResetEmail('');
-                                            setResetCode('');
-                                            setResetPassword('');
-                                            setResetConfirm('');
-                                            switchMode(MODE_FORGOT);
-                                        }}
-                                    >
-                                        {t('pages.login.toForgot')}
-                                    </button>
+                                    <span className="text-muted text-sm">{t('pages.login.passwordManagedByAdmin')}</span>
                                 </div>
                                 <button
                                     type="submit"
@@ -492,7 +492,7 @@ export default function Login() {
                             </form>
                         )}
 
-                        {mode === MODE_FORGOT && (
+                        {SELF_SERVICE_PASSWORD_RESET_ENABLED && mode === MODE_FORGOT && (
                             <form onSubmit={handleResetPassword} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />

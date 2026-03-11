@@ -25,7 +25,7 @@ function getShortcutLabel() {
     return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 }
 
-export default function Header({ title, subtitle = '', eyebrow = '', icon, children, showContext = true }) {
+export default function Header({ title, subtitle = '', icon, children, showContext = true }) {
     const { activeServer, activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
@@ -162,7 +162,6 @@ export default function Header({ title, subtitle = '', eyebrow = '', icon, child
             <div className="header-left">
                 {icon && <span className="header-icon">{icon}</span>}
                 <div className="header-title-group">
-                    {eyebrow ? <span className="header-eyebrow">{eyebrow}</span> : null}
                     <h1 className="header-title">{title}</h1>
                     {subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
                 </div>

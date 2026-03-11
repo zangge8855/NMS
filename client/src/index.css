@@ -10,10 +10,15 @@
   --bg-tertiary: #121212;
 
   /* Surface tokens */
-  --bg-card: rgba(10, 10, 10, 0.6);
-  --bg-card-hover: rgba(18, 18, 18, 0.8);
+  --bg-card: rgba(18, 18, 20, 0.95);
+  --bg-card-hover: rgba(24, 24, 27, 0.98);
   --bg-glass: rgba(255, 255, 255, 0.02);
   --bg-input: rgba(18, 18, 18, 0.8);
+  --surface-panel: rgba(18, 18, 20, 0.95);
+  --surface-panel-hover: rgba(24, 24, 27, 0.98);
+  --surface-panel-soft: rgba(18, 18, 20, 0.92);
+  --surface-overlay: rgba(14, 14, 16, 0.98);
+  --chart-grid-color: rgba(255, 255, 255, 0.08);
 
   /* Border — fine, sharp neutral */
   --border-color: rgba(255, 255, 255, 0.06);
@@ -65,7 +70,7 @@
   --gradient-primary: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
   --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(18, 18, 18, 0.4) 0%, rgba(10, 10, 10, 0.6) 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(20, 20, 22, 0.98) 0%, rgba(16, 16, 18, 0.95) 100%);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);

@@ -64,7 +64,9 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     return (
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''} `}>
             <div className="sidebar-logo">
-                <div className="sidebar-logo-icon sidebar-logo-icon-custom">N</div>
+                <div className="sidebar-logo-icon sidebar-logo-icon-custom">
+                    <img src="/nms-logo.png" alt="NMS" className="sidebar-logo-image" />
+                </div>
                 <div className="sidebar-logo-copy">
                     <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
                     <span className="sidebar-logo-subtitle">{t('shell.brandSubtitle')}</span>

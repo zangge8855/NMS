@@ -8,18 +8,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBytes } from '../../utils/format.js';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import {
     HiOutlineServerStack,
     HiOutlineSignal,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 
-function getNodeColor(serverData) {
-    if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: '离线' };
+function getNodeColor(serverData, t) {
+    if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusOffline') };
     const cpu = serverData.status?.cpu ?? 0;
-    if (cpu > 85) return { tone: 'danger', dot: 'var(--accent-danger)', label: '高负载' };
-    if (cpu > 70) return { tone: 'warning', dot: 'var(--accent-warning)', label: '负载较高' };
-    return { tone: 'success', dot: 'var(--accent-success)', label: '正常' };
+    if (cpu > 85) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusHighLoad') };
+    if (cpu > 70) return { tone: 'warning', dot: 'var(--accent-warning)', label: t('pages.nodeHealth.statusElevated') };
+    return { tone: 'success', dot: 'var(--accent-success)', label: t('pages.nodeHealth.statusHealthy') };
 }
 
 function buildSparkline(points, width = 132, height = 34, padding = 3) {
@@ -52,7 +53,8 @@ function buildSparkline(points, width = 132, height = 34, padding = 3) {
 
 function NodeTile({ server, serverData, trend = [] }) {
     const navigate = useNavigate();
-    const color = getNodeColor(serverData);
+    const { t } = useI18n();
+    const color = getNodeColor(serverData, t);
     const isOnline = serverData?.online;
     const cpu = serverData?.status?.cpu ?? 0;
     const mem = serverData?.status?.mem;
@@ -95,25 +97,25 @@ function NodeTile({ server, serverData, trend = [] }) {
             {isOnline ? (
                 <div className="node-health-tile-meta">
                     <div>
-                        <div>CPU</div>
+                        <div>{t('pages.nodeHealth.cpu')}</div>
                         <div className="node-health-tile-value" style={{ color: cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
                             {cpu.toFixed(1)}%
                         </div>
                     </div>
                     <div>
-                        <div>内存</div>
+                        <div>{t('pages.nodeHealth.memory')}</div>
                         <div className="node-health-tile-value" style={{ color: memPercent > 80 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
                             {memPercent.toFixed(1)}%
                         </div>
                     </div>
                     <div>
-                        <div>在线</div>
+                        <div>{t('pages.nodeHealth.onlineUsers')}</div>
                         <div className="node-health-tile-value">
                             {serverData?.onlineCount ?? 0}
                         </div>
                     </div>
                     <div>
-                        <div>流量</div>
+                        <div>{t('pages.nodeHealth.traffic')}</div>
                         <div className="node-health-tile-value">
                             {formatBytes(traffic)}
                         </div>
@@ -121,14 +123,14 @@ function NodeTile({ server, serverData, trend = [] }) {
                 </div>
             ) : (
                 <div className="node-health-tile-message">
-                    {serverData?.error || '无法连接'}
+                    {serverData?.error || t('pages.nodeHealth.unreachable')}
                 </div>
             )}
 
             {sparkline && (
                 <div className="node-health-sparkline-shell" aria-hidden="true">
                     <div className="node-health-sparkline-copy">
-                        <span>近几次 CPU 采样</span>
+                        <span>{t('pages.nodeHealth.cpuSamples')}</span>
                         <strong>{sparkline.lastValue.toFixed(1)}%</strong>
                     </div>
                     <svg
@@ -174,11 +176,13 @@ function SkeletonTile() {
 }
 
 export default function NodeHealthGrid({ servers, serverStatuses, trendHistory = {} }) {
+    const { t } = useI18n();
+
     if (!servers || servers.length === 0) {
         return (
             <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
                 <HiOutlineServerStack style={{ fontSize: '32px', color: 'var(--text-muted)', marginBottom: '8px' }} />
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>暂无节点</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('pages.nodeHealth.empty')}</div>
             </div>
         );
     }
