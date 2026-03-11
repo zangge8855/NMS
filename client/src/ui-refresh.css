@@ -575,11 +575,12 @@ body::before {
   backdrop-filter: blur(16px);
   box-shadow: none;
   gap: 18px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .header-left {
   gap: 16px;
+  min-width: 0;
 }
 
 .header-icon {
@@ -589,10 +590,12 @@ body::before {
   border-color: rgba(99, 102, 241, 0.18);
   background: rgba(99, 102, 241, 0.1);
   color: var(--accent-primary);
+  flex-shrink: 0;
 }
 
 .header-title-group {
   gap: 4px;
+  min-width: 0;
 }
 
 .header-eyebrow {
@@ -603,11 +606,17 @@ body::before {
 .header-title {
   font-size: 28px;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-subtitle {
   max-width: 60ch;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
@@ -615,7 +624,8 @@ body::before {
   align-items: center;
   gap: 10px;
   margin-left: auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .header-context {
@@ -2124,9 +2134,9 @@ body::before {
   }
 
   .header-actions {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .page-content {
@@ -2186,6 +2196,21 @@ body::before {
   .header {
     padding-right: 16px;
     padding-left: 64px;
+    gap: 12px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-search {
+    min-width: 0;
+    width: 140px;
+    padding: 6px 10px;
+  }
+
+  .header-search-kbd {
+    display: none;
   }
 
   .header-title {
