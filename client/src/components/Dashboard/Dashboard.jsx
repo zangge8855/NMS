@@ -540,6 +540,15 @@ export default function Dashboard() {
     }, [activeServerId, fetchSingleData, fetchGlobalData, autoRefresh, wsStatus]);
 
     const refresh = () => activeServerId === 'global' ? fetchGlobalData() : fetchSingleData();
+    const toggleAutoRefresh = () => {
+        setAutoRefresh((previous) => {
+            const next = !previous;
+            if (next) {
+                refresh();
+            }
+            return next;
+        });
+    };
     const onlineUserRows = useMemo(() => summarizeOnlineUsers(onlineUsers), [onlineUsers]);
     const globalOnlineUserRows = useMemo(() => summarizeOnlineUsers(globalOnlineUsers), [globalOnlineUsers]);
     const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
@@ -632,12 +641,9 @@ export default function Dashboard() {
                             <WsStatusDot status={wsStatus} />
                         </div>
                         <div className="dashboard-toolbar-group dashboard-toolbar-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={refresh} title={t('pages.dashboardCommon.refresh')}>
-                                <HiOutlineArrowPath style={{ fontSize: '14px' }} /> {t('pages.dashboardCommon.refresh')}
-                            </button>
                             <button
                                 className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                                onClick={() => setAutoRefresh(p => !p)}
+                                onClick={toggleAutoRefresh}
                                 title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                             >
                                 <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />
@@ -782,12 +788,9 @@ export default function Dashboard() {
                         <WsStatusDot status={wsStatus} />
                     </div>
                     <div className="dashboard-toolbar-group dashboard-toolbar-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={refresh} title={t('pages.dashboardCommon.refresh')}>
-                            <HiOutlineArrowPath style={{ fontSize: '14px' }} /> {t('pages.dashboardCommon.refresh')}
-                        </button>
                         <button
                             className={`btn btn-sm ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setAutoRefresh(p => !p)}
+                            onClick={toggleAutoRefresh}
                             title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                         >
                             <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '14px' }} />

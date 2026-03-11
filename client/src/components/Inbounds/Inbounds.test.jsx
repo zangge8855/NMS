@@ -175,15 +175,18 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('shows numeric order inputs instead of drag sort controls', async () => {
+    it('shows numeric order inputs with ascending default sequence values', async () => {
         renderWithRouter(<Inbounds />);
 
-        const inboundName = await screen.findByText('Main Inbound');
-        const summaryRow = inboundName.closest('tr');
-        if (!summaryRow) throw new Error('Missing inbound summary row');
+        const mainInbound = await screen.findByText('Main Inbound');
+        const backupInbound = await screen.findByText('Backup Inbound');
+        const mainRow = mainInbound.closest('tr');
+        const backupRow = backupInbound.closest('tr');
+        if (!mainRow || !backupRow) throw new Error('Missing inbound summary row');
 
-        expect(within(summaryRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ })).toBeInTheDocument();
-        expect(within(summaryRow).queryByRole('button', { name: '拖拽排序' })).not.toBeInTheDocument();
+        expect(within(mainRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ })).toHaveValue(1);
+        expect(within(backupRow).getByRole('spinbutton', { name: /设置 Backup Inbound.*排序序号/ })).toHaveValue(2);
+        expect(within(mainRow).queryByRole('button', { name: '拖拽排序' })).not.toBeInTheDocument();
     });
 
     it('reorders inbounds by sequence input and persists the new order', async () => {

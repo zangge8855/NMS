@@ -2243,7 +2243,7 @@ input[type="radio"]:focus {
   .sidebar {
     width: var(--sidebar-width);
     transform: translateX(-100%);
-    z-index: 110;
+    z-index: calc(var(--z-backdrop) + 1);
   }
 
   .sidebar.collapsed {
@@ -10087,6 +10087,22 @@ input[type="radio"]:focus-visible {
   font-weight: 600;
   color: var(--text-primary);
   opacity: 0.9;
+}
+
+@media (min-width: 1025px) {
+  .sidebar-toggle {
+    display: inline-flex;
+    top: 88px;
+    right: -16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    box-shadow: 0 10px 24px -16px rgba(2, 8, 23, 0.55);
+    z-index: calc(var(--z-drawer) + 2);
+  }
 }
 
 @media (max-width: 640px) {

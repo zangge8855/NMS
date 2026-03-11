@@ -224,7 +224,27 @@ export default function Inbounds() {
             }
         }));
 
-        setInbounds(sortInboundsByOrder(allResults, orderMap));
+        const sortedItems = sortInboundsByOrder(allResults, orderMap);
+        const nextOrderMap = { ...orderMap };
+        let seededOrder = false;
+
+        sortedItems.forEach((item) => {
+            const serverId = String(item?.serverId || '').trim();
+            const inboundId = String(item?.id || '').trim();
+            if (!serverId || !inboundId) return;
+            if (!Array.isArray(nextOrderMap[serverId])) {
+                nextOrderMap[serverId] = [];
+            }
+            if (!nextOrderMap[serverId].includes(inboundId)) {
+                nextOrderMap[serverId].push(inboundId);
+                seededOrder = true;
+            }
+        });
+
+        if (seededOrder) {
+            setInboundOrder(nextOrderMap);
+        }
+        setInbounds(sortInboundsByOrder(allResults, nextOrderMap));
         setLoading(false);
     };
 
@@ -440,12 +460,16 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
-    const getInboundOrderPosition = (uiKey) => {
-        const currentIndex = inbounds.findIndex((item) => item?.uiKey === uiKey);
-        if (currentIndex < 0) return 1;
-        const target = inbounds[currentIndex];
-        const group = inbounds.filter((item) => String(item?.serverId || '').trim() === String(target?.serverId || '').trim());
-        const position = group.findIndex((item) => item?.uiKey === uiKey);
+    const getInboundOrderPosition = (inbound) => {
+        const serverId = String(inbound?.serverId || '').trim();
+        const inboundId = String(inbound?.id || '').trim();
+        const persistedOrder = Array.isArray(inboundOrder[serverId]) ? inboundOrder[serverId] : [];
+        const fallbackOrder = inbounds
+            .filter((item) => String(item?.serverId || '').trim() === serverId)
+            .map((item) => String(item?.id || '').trim())
+            .filter(Boolean);
+        const currentOrder = persistedOrder.length > 0 ? persistedOrder : fallbackOrder;
+        const position = currentOrder.findIndex((item) => item === inboundId);
         return position >= 0 ? position + 1 : 1;
     };
 
@@ -884,7 +908,7 @@ export default function Inbounds() {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
-                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(getInboundOrderPosition(ib.uiKey));
+                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(getInboundOrderPosition(ib));
                                     const selectableClientKeys = clients
                                         .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
                                         .filter(Boolean);
