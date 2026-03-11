@@ -167,7 +167,7 @@ export default function Tasks({ embedded = false }) {
                 </div>
 
                 <div className="card mb-8 tasks-filter-card" style={{ padding: '12px' }}>
-                    <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+                        <div className="flex items-center gap-3 tasks-filter-row" style={{ flexWrap: 'wrap' }}>
                         <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ width: '140px' }}>
                             <option value="all">全部类型</option>
                             {typeOptions.map((x) => <option key={x} value={x}>{x}</option>)}
@@ -194,7 +194,7 @@ export default function Tasks({ embedded = false }) {
                             <option value="error">重试策略: 按错误分组</option>
                             <option value="server_error">重试策略: 节点+错误分组</option>
                         </select>
-                        <div className="text-sm text-muted" style={{ marginLeft: 'auto' }}>
+                        <div className="text-sm text-muted tasks-filter-meta" style={{ marginLeft: 'auto' }}>
                             共 {filteredTasks.length} 条
                         </div>
                     </div>
@@ -229,9 +229,9 @@ export default function Tasks({ embedded = false }) {
                             ) : (
                                 filteredTasks.map((task) => (
                                     <tr key={task.id}>
-                                        <td>{new Date(task.createdAt).toLocaleString('zh-CN')}</td>
-                                        <td>{formatAction(task.type, task.action)}</td>
-                                        <td className="text-sm text-muted">
+                                        <td data-label="时间">{new Date(task.createdAt).toLocaleString('zh-CN')}</td>
+                                        <td data-label="类型 / 动作">{formatAction(task.type, task.action)}</td>
+                                        <td data-label="节点" className="text-sm text-muted">
                                             {(() => {
                                                 const servers = getTaskServers(task);
                                                 if (servers.length === 0) return '-';
@@ -240,10 +240,10 @@ export default function Tasks({ embedded = false }) {
                                                 return `${head} +${servers.length - 2}`;
                                             })()}
                                         </td>
-                                        <td>{task.summary?.total ?? '-'}</td>
-                                        <td>{task.summary?.success ?? '-'}</td>
-                                        <td>{task.summary?.failed ?? '-'}</td>
-                                        <td className="flex gap-2">
+                                        <td data-label="总计">{task.summary?.total ?? '-'}</td>
+                                        <td data-label="成功">{task.summary?.success ?? '-'}</td>
+                                        <td data-label="失败">{task.summary?.failed ?? '-'}</td>
+                                        <td data-label="操作" className="flex gap-2 tasks-row-actions">
                                             <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleView(task.id)} title="查看详情">
                                                 <HiOutlineEye />
                                             </button>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
@@ -73,5 +74,38 @@ describe('Logs', () => {
 
         expect(await screen.findByText('请至少选择一个节点后再查看聚合日志')).toBeInTheDocument();
         expect(api.get).not.toHaveBeenCalled();
+    });
+
+    it('filters log lines by level in single-server mode', async () => {
+        const user = userEvent.setup();
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    lines: [
+                        '2026-03-09T00:00:00Z [info] service started',
+                        '2026-03-09T00:00:01Z [error] upstream failed',
+                    ],
+                    supported: true,
+                },
+            },
+        });
+
+        renderWithRouter(<Logs embedded />);
+
+        expect(await screen.findByText(/service started/)).toBeInTheDocument();
+        expect(screen.getByText(/upstream failed/)).toBeInTheDocument();
+
+        await user.selectOptions(screen.getByDisplayValue('全部级别'), 'error');
+
+        await waitFor(() => {
+            expect(screen.queryByText(/service started/)).not.toBeInTheDocument();
+            expect(screen.getByText(/upstream failed/)).toBeInTheDocument();
+        });
     });
 });

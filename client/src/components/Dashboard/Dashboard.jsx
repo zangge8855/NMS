@@ -26,6 +26,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
+const MAX_NODE_TREND_POINTS = 12;
 const DASHBOARD_ACCENT = {
     primary: { tone: 'primary' },
     info: { tone: 'info' },
@@ -127,6 +128,30 @@ function summarizeOnlineUsers(users) {
         .sort((a, b) => (b.sessions !== a.sessions ? b.sessions - a.sessions : a.email.localeCompare(b.email)));
 }
 
+function pushServerTrendSamples(previous, serverMap) {
+    const next = {};
+    for (const [serverId, serverData] of Object.entries(serverMap || {})) {
+        const current = Array.isArray(previous?.[serverId]) ? previous[serverId] : [];
+        const mem = serverData?.status?.mem;
+        const memPercent = mem?.total ? Math.max(0, Math.min(100, (Number(mem.current || 0) / Number(mem.total || 1)) * 100)) : 0;
+        const sample = {
+            ts: Date.now(),
+            cpu: Math.max(0, Math.min(100, Number(serverData?.status?.cpu || 0))),
+            mem: memPercent,
+            online: serverData?.online !== false,
+        };
+        const last = current[current.length - 1];
+        const merged = last
+            && last.cpu === sample.cpu
+            && last.mem === sample.mem
+            && last.online === sample.online
+            ? [...current.slice(0, -1), { ...last, ts: sample.ts }]
+            : [...current, sample];
+        next[serverId] = merged.slice(-MAX_NODE_TREND_POINTS);
+    }
+    return next;
+}
+
 // ── WebSocket URL builder ────────────────────────────────
 function getWsUrl(ticket) {
     if (!ticket) return null;
@@ -184,6 +209,7 @@ export default function Dashboard() {
         serverCount: 0, onlineServers: 0,
     });
     const [serverStatuses, setServerStatuses] = useState({});
+    const [serverTrendHistory, setServerTrendHistory] = useState({});
     const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]);
 
     // Shared State
@@ -277,6 +303,7 @@ export default function Dashboard() {
             : derivedTotalDown;
 
         setServerStatuses(statusMap);
+        setServerTrendHistory((previous) => pushServerTrendSamples(previous, statusMap));
         setGlobalOnlineUsers(clusterOnlines);
         setGlobalStats({
             totalUp,
@@ -370,6 +397,7 @@ export default function Dashboard() {
             }));
 
             setServerStatuses(results);
+            setServerTrendHistory((previous) => pushServerTrendSamples(previous, results));
             setGlobalStats(stats);
             setGlobalOnlineUsers(clusterOnlines);
         } catch (err) {
@@ -554,7 +582,7 @@ export default function Dashboard() {
                             </div>
                             <span className="text-sm text-muted">{servers.length} 个节点</span>
                         </div>
-                        <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} />
+                        <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
                     </div>
                 </div>
             </>

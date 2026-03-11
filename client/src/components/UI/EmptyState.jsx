@@ -17,10 +17,12 @@ function EmptyIcon() {
 export default function EmptyState({ title = '暂无数据', subtitle, action, icon }) {
     return (
         <div className="empty-state">
-            {icon || <EmptyIcon />}
-            <h3 className="empty-state-text">{title}</h3>
-            {subtitle && <p className="text-muted text-sm">{subtitle}</p>}
-            {action && <div className="mt-4">{action}</div>}
+            <div className="empty-state-icon">
+                {icon || <EmptyIcon />}
+            </div>
+            <h3 className="empty-state-title">{title}</h3>
+            {subtitle && <p className="empty-state-sub">{subtitle}</p>}
+            {action && <div className="empty-state-action mt-4">{action}</div>}
         </div>
     );
 }

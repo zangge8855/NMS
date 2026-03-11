@@ -22,7 +22,35 @@ function getNodeColor(serverData) {
     return { tone: 'success', dot: 'var(--accent-success)', label: '正常' };
 }
 
-function NodeTile({ server, serverData }) {
+function buildSparkline(points, width = 132, height = 34, padding = 3) {
+    const values = (Array.isArray(points) ? points : [])
+        .map((item) => Math.max(0, Math.min(100, Number(item?.cpu || 0))));
+    if (values.length === 0) return null;
+
+    const drawableWidth = Math.max(1, width - (padding * 2));
+    const drawableHeight = Math.max(1, height - (padding * 2));
+    const step = values.length === 1 ? 0 : drawableWidth / (values.length - 1);
+    const coords = values.map((value, index) => ({
+        x: padding + (step * index),
+        y: padding + (((100 - value) / 100) * drawableHeight),
+    }));
+
+    const path = coords
+        .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+        .join(' ');
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    const fill = `${path} L ${last.x.toFixed(2)} ${(height - padding).toFixed(2)} L ${first.x.toFixed(2)} ${(height - padding).toFixed(2)} Z`;
+
+    return {
+        path,
+        fill,
+        last,
+        lastValue: values[values.length - 1],
+    };
+}
+
+function NodeTile({ server, serverData, trend = [] }) {
     const navigate = useNavigate();
     const color = getNodeColor(serverData);
     const isOnline = serverData?.online;
@@ -31,6 +59,7 @@ function NodeTile({ server, serverData }) {
     const memPercent = mem ? ((mem.current / mem.total) * 100) : 0;
     const traffic = (serverData?.up || 0) + (serverData?.down || 0);
     const statusLabel = `${server.name} — ${color.label}`;
+    const sparkline = buildSparkline(trend);
     const handleOpen = () => navigate('/server');
     const handleKeyDown = (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -95,6 +124,29 @@ function NodeTile({ server, serverData }) {
                     {serverData?.error || '无法连接'}
                 </div>
             )}
+
+            {sparkline && (
+                <div className="node-health-sparkline-shell" aria-hidden="true">
+                    <div className="node-health-sparkline-copy">
+                        <span>近几次 CPU 采样</span>
+                        <strong>{sparkline.lastValue.toFixed(1)}%</strong>
+                    </div>
+                    <svg
+                        className="node-health-sparkline"
+                        viewBox="0 0 132 34"
+                        preserveAspectRatio="none"
+                    >
+                        <path className="node-health-sparkline-fill" d={sparkline.fill} />
+                        <path className="node-health-sparkline-path" d={sparkline.path} />
+                        <circle
+                            className="node-health-sparkline-dot"
+                            cx={sparkline.last.x}
+                            cy={sparkline.last.y}
+                            r="2.6"
+                        />
+                    </svg>
+                </div>
+            )}
         </div>
     );
 }
@@ -121,7 +173,7 @@ function SkeletonTile() {
     );
 }
 
-export default function NodeHealthGrid({ servers, serverStatuses }) {
+export default function NodeHealthGrid({ servers, serverStatuses, trendHistory = {} }) {
     if (!servers || servers.length === 0) {
         return (
             <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
@@ -141,6 +193,7 @@ export default function NodeHealthGrid({ servers, serverStatuses }) {
                         key={server.id}
                         server={server}
                         serverData={serverStatuses?.[server.id]}
+                        trend={trendHistory?.[server.id] || []}
                     />
                 ) : (
                     <SkeletonTile key={server.id} />

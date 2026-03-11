@@ -648,13 +648,13 @@ export default function UserDetail() {
                                                         : (clientIpUnsupported ? supportState.reason : '查看该用户在当前节点上的代理访问 IP');
                                                     return (
                                                     <tr key={i}>
-                                                        <td>{c.serverName}</td>
-                                                        <td>{c.inboundRemark || c.inboundId}</td>
-                                                        <td><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td>{formatBytes((c.up || 0) + (c.down || 0))}</td>
-                                                        <td>{c.expiryTime > 0 ? new Date(c.expiryTime).toLocaleDateString('zh-CN') : '永久'}</td>
-                                                        <td><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
-                                                        <td>
+                                                        <td data-label="服务器">{c.serverName}</td>
+                                                        <td data-label="入站">{c.inboundRemark || c.inboundId}</td>
+                                                        <td data-label="协议"><span className="badge badge-neutral">{c.protocol}</span></td>
+                                                        <td data-label="流量">{formatBytes((c.up || 0) + (c.down || 0))}</td>
+                                                        <td data-label="到期时间">{c.expiryTime > 0 ? new Date(c.expiryTime).toLocaleDateString('zh-CN') : '永久'}</td>
+                                                        <td data-label="状态"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
+                                                        <td data-label="操作">
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm"
@@ -702,16 +702,16 @@ export default function UserDetail() {
                                             <tbody>
                                                 {tokens.map(t => (
                                                     <tr key={t.id}>
-                                                        <td className="font-medium">{t.name || t.publicTokenId?.slice(0, 8) || '-'}</td>
-                                                        <td>
+                                                        <td data-label="名称" className="font-medium">{t.name || t.publicTokenId?.slice(0, 8) || '-'}</td>
+                                                        <td data-label="状态">
                                                             <span className={`badge ${t.status === 'active' ? 'badge-success' : t.status === 'revoked' ? 'badge-danger' : 'badge-warning'}`}>
                                                                 {t.status === 'active' ? '有效' : t.status === 'revoked' ? '已撤销' : '已过期'}
                                                             </span>
                                                         </td>
-                                                        <td className="text-sm text-muted">{formatTime(t.createdAt)}</td>
-                                                        <td className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt) : '永久'}</td>
-                                                        <td className="text-sm text-muted">{formatTime(t.lastUsedAt)}</td>
-                                                        <td>
+                                                        <td data-label="创建时间" className="text-sm text-muted">{formatTime(t.createdAt)}</td>
+                                                        <td data-label="过期时间" className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt) : '永久'}</td>
+                                                        <td data-label="最后使用" className="text-sm text-muted">{formatTime(t.lastUsedAt)}</td>
+                                                        <td data-label="操作">
                                                             <div className="flex gap-2">
                                                                 <button
                                                                     className="btn btn-secondary btn-sm btn-icon"

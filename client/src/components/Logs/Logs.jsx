@@ -8,7 +8,10 @@ import {
     HiOutlineDocumentText,
     HiOutlineFunnel,
     HiOutlineClipboardDocument,
+    HiOutlinePauseCircle,
+    HiOutlinePlayCircle,
     HiOutlineServerStack,
+    HiOutlineTrash,
     HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
@@ -62,29 +65,62 @@ function getSummaryToneMeta(tone) {
     };
 }
 
-function levelColor(line) {
+function detectLogLevel(line) {
     const lower = line.toLowerCase();
-    if (lower.includes('[error]') || lower.includes('error:') || lower.includes('level=error'))
-        return 'var(--accent-danger)';
-    if (lower.includes('[warning]') || lower.includes('warn:') || lower.includes('level=warning'))
-        return 'var(--accent-warning)';
-    if (lower.includes('[info]') || lower.includes('level=info'))
-        return 'var(--accent-info)';
-    if (lower.includes('[debug]') || lower.includes('level=debug'))
-        return 'var(--text-muted)';
+    if (lower.includes('[error]') || lower.includes('error:') || lower.includes('level=error')) return 'error';
+    if (lower.includes('[warning]') || lower.includes('warn:') || lower.includes('level=warning')) return 'warning';
+    if (lower.includes('[info]') || lower.includes('level=info')) return 'info';
+    if (lower.includes('[debug]') || lower.includes('level=debug')) return 'debug';
+    return 'none';
+}
+
+function levelColor(line) {
+    const level = detectLogLevel(line);
+    if (level === 'error') return 'var(--accent-danger)';
+    if (level === 'warning') return 'var(--accent-warning)';
+    if (level === 'info') return 'var(--accent-info)';
+    if (level === 'debug') return 'var(--text-muted)';
     return 'var(--text-secondary)';
 }
 
-function LogLine({ line, showServer, serverName }) {
+function lineMatchesLevel(line, level) {
+    if (!level) return true;
+    return detectLogLevel(line) === level;
+}
+
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderHighlightedLine(line, keyword) {
+    const text = String(line || '');
+    const query = String(keyword || '').trim();
+    if (!query) return text;
+    const matcher = new RegExp(`(${escapeRegExp(query)})`, 'ig');
+    const parts = text.split(matcher);
+    return parts.map((part, index) => (
+        part.toLowerCase() === query.toLowerCase()
+            ? <mark key={`${part}-${index}`} className="log-mark">{part}</mark>
+            : <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+    ));
+}
+
+function LogLine({ line, showServer, serverName, highlight, index }) {
     const color = levelColor(line);
+    const level = detectLogLevel(line);
     return (
-        <div className="log-line log-line-dynamic" style={{ '--log-line-color': color }}>
+        <div
+            className={`log-line log-line-dynamic ${showServer && serverName ? 'has-server' : 'no-server'}`}
+            style={{ '--log-line-color': color }}
+            data-level={level}
+        >
+            <span className="log-line-index">{String(index + 1).padStart(3, '0')}</span>
             {showServer && serverName && (
                 <span className="badge badge-info badge-tiny">
                     {serverName}
                 </span>
             )}
-            <span>{line}</span>
+            <span className="log-line-content">{renderHighlightedLine(line, highlight)}</span>
         </div>
     );
 }
@@ -121,6 +157,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const [selectedSource, setSelectedSource] = useState('panel');
     const [count, setCount] = useState(100);
     const [fetchSummary, setFetchSummary] = useState(null);
+    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+    const [wrapLines, setWrapLines] = useState(true);
 
     // Global mode: server selection
     const [selectedServerIds, setSelectedServerIds] = useState([]);
@@ -247,10 +285,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
     // Auto-scroll to bottom
     useEffect(() => {
-        if (logContainerRef.current) {
+        if (autoScrollEnabled && logContainerRef.current) {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
-    }, [logs]);
+    }, [autoScrollEnabled, logs]);
 
     // ── Filter ───────────────────────────────────────────
     const filteredLogs = useMemo(() => {
@@ -259,8 +297,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             const kw = keywords.toLowerCase();
             result = result.filter(entry => entry.line.toLowerCase().includes(kw));
         }
+        if (levelFilter) {
+            result = result.filter((entry) => lineMatchesLevel(entry.line, levelFilter));
+        }
         return result;
-    }, [logs, keywords]);
+    }, [keywords, levelFilter, logs]);
 
     // ── Copy ─────────────────────────────────────────────
     const copyLogs = () => {
@@ -271,6 +312,14 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             () => toast.success('已复制到剪贴板'),
             () => toast.error('复制失败')
         );
+    };
+
+    const clearViewer = () => {
+        setLogs([]);
+        setFetchSummary({
+            tone: 'info',
+            message: '日志视图已清空，可点击刷新重新获取最新内容',
+        });
     };
 
     // ── Toggle server selection ──────────────────────────
@@ -336,6 +385,24 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         </div>
 
                         <div className="flex items-center gap-8 logs-toolbar-actions">
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setAutoScrollEnabled((value) => !value)}
+                                title={autoScrollEnabled ? '暂停自动滚动到底部' : '恢复自动滚动到底部'}
+                            >
+                                {autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+                                {autoScrollEnabled ? '暂停滚动' : '恢复滚动'}
+                            </button>
+                            <button
+                                className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                onClick={() => setWrapLines((value) => !value)}
+                                title={wrapLines ? '关闭自动换行' : '开启自动换行'}
+                            >
+                                {wrapLines ? '自动换行' : '单行滚动'}
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={clearViewer} title="清空当前视图">
+                                <HiOutlineTrash /> 清空视图
+                            </button>
                             <button className="btn btn-secondary btn-sm" onClick={copyLogs} title="复制日志">
                                 <HiOutlineClipboardDocument /> 复制
                             </button>
@@ -399,12 +466,18 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             <HiOutlineDocumentText className="text-muted" />
                             <span className="card-title">{sourceLabel}</span>
                             <span className="badge badge-neutral">{activeSourceMeta.label}</span>
+                            {levelFilter && <span className="badge badge-info">级别 {levelFilter}</span>}
                         </div>
-                        <span className="text-sm text-muted">{filteredLogs.length} 行</span>
+                        <div className="logs-viewer-meta">
+                            <span className="text-sm text-muted">{filteredLogs.length} 行</span>
+                            <span className={`logs-scroll-chip ${autoScrollEnabled ? 'is-live' : 'is-paused'}`}>
+                                {autoScrollEnabled ? '自动滚动' : '已暂停'}
+                            </span>
+                        </div>
                     </div>
                     <div
                         ref={logContainerRef}
-                        className="log-container log-pane"
+                        className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
                     >
                         {loading && filteredLogs.length === 0 ? (
                             <div className="empty-state empty-state-medium">
@@ -424,6 +497,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     line={entry.line}
                                     showServer={isGlobal}
                                     serverName={entry.serverName}
+                                    highlight={keywords}
+                                    index={index}
                                 />
                             ))
                         )}

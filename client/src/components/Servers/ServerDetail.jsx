@@ -476,12 +476,12 @@ export default function ServerDetail() {
                                                     } catch {}
                                                     return (
                                                         <tr key={ib.id}>
-                                                            <td className="font-medium">{ib.remark || '-'}</td>
-                                                            <td><span className="badge badge-neutral">{ib.protocol}</span></td>
-                                                            <td>{ib.port}</td>
-                                                            <td>{clients}</td>
-                                                            <td>{formatBytes((ib.up || 0) + (ib.down || 0))}</td>
-                                                            <td><span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>{ib.enable !== false ? '启用' : '禁用'}</span></td>
+                                                            <td data-label="备注" className="font-medium">{ib.remark || '-'}</td>
+                                                            <td data-label="协议"><span className="badge badge-neutral">{ib.protocol}</span></td>
+                                                            <td data-label="端口">{ib.port}</td>
+                                                            <td data-label="客户端数">{clients}</td>
+                                                            <td data-label="流量">{formatBytes((ib.up || 0) + (ib.down || 0))}</td>
+                                                            <td data-label="状态"><span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>{ib.enable !== false ? '启用' : '禁用'}</span></td>
                                                         </tr>
                                                     );
                                                 })}
@@ -513,10 +513,10 @@ export default function ServerDetail() {
                                             <tbody>
                                                 {onlineUsers.map((item, i) => (
                                                     <tr key={item.email}>
-                                                        <td>{i + 1}</td>
-                                                        <td className="font-mono">{item.email}</td>
-                                                        <td>{item.sessions}</td>
-                                                        <td>
+                                                        <td data-label="序号">{i + 1}</td>
+                                                        <td data-label="用户标识" className="font-mono">{item.email}</td>
+                                                        <td data-label="会话数">{item.sessions}</td>
+                                                        <td data-label="操作">
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm"
