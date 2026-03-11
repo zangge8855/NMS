@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -28,9 +29,12 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     const { unreadCount } = useNotifications();
     const [showServerMenu, setShowServerMenu] = useState(false);
     const [serverSearch, setServerSearch] = useState('');
+    const [dropdownStyle, setDropdownStyle] = useState(null);
     const location = useLocation();
     const navigate = useNavigate();
     const serverSelectorRef = useRef(null);
+    const serverDropdownRef = useRef(null);
+    const serverTriggerRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
@@ -53,13 +57,122 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
     useEffect(() => {
         if (!showServerMenu) return;
         const handleClickOutside = (e) => {
-            if (serverSelectorRef.current && !serverSelectorRef.current.contains(e.target)) {
+            const clickedInsideSelector = serverSelectorRef.current?.contains(e.target);
+            const clickedInsideDropdown = serverDropdownRef.current?.contains(e.target);
+            if (!clickedInsideSelector && !clickedInsideDropdown) {
                 setShowServerMenu(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showServerMenu]);
+
+    useEffect(() => {
+        if (!showServerMenu) {
+            setDropdownStyle(null);
+            return undefined;
+        }
+
+        let animationFrame = 0;
+        const syncDropdownPosition = () => {
+            const trigger = serverTriggerRef.current;
+            const dropdown = serverDropdownRef.current;
+            if (!trigger) return;
+
+            const rect = trigger.getBoundingClientRect();
+            const viewportPadding = 12;
+            const gap = 8;
+            const desiredWidth = collapsed ? 280 : Math.max(rect.width, 280);
+            const width = Math.min(desiredWidth, window.innerWidth - (viewportPadding * 2));
+            const left = collapsed
+                ? Math.min(rect.right + gap, window.innerWidth - width - viewportPadding)
+                : Math.min(Math.max(rect.left, viewportPadding), window.innerWidth - width - viewportPadding);
+
+            const measuredHeight = dropdown?.offsetHeight || 320;
+            const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+            const spaceAbove = rect.top - viewportPadding - gap;
+            const openUpward = spaceBelow < Math.min(280, measuredHeight) && spaceAbove > spaceBelow;
+            const maxHeight = Math.max(160, openUpward ? spaceAbove : spaceBelow);
+            const top = openUpward
+                ? Math.max(viewportPadding, rect.top - Math.min(measuredHeight, maxHeight) - gap)
+                : Math.min(rect.bottom + gap, window.innerHeight - Math.min(measuredHeight, maxHeight) - viewportPadding);
+
+            setDropdownStyle({
+                position: 'fixed',
+                top: `${top}px`,
+                left: `${left}px`,
+                width: `${width}px`,
+                maxHeight: `${maxHeight}px`,
+            });
+        };
+
+        const scheduleSync = () => {
+            window.cancelAnimationFrame(animationFrame);
+            animationFrame = window.requestAnimationFrame(syncDropdownPosition);
+        };
+
+        scheduleSync();
+        window.addEventListener('resize', scheduleSync);
+        window.addEventListener('scroll', scheduleSync, true);
+        return () => {
+            window.cancelAnimationFrame(animationFrame);
+            window.removeEventListener('resize', scheduleSync);
+            window.removeEventListener('scroll', scheduleSync, true);
+        };
+    }, [collapsed, serverSearch, showServerMenu, servers.length]);
+
+    const serverMenu = showServerMenu && (servers.length > 0 || activeServerId === 'global') && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                ref={serverDropdownRef}
+                className="server-dropdown-menu"
+                style={dropdownStyle || undefined}
+            >
+                {servers.length >= 4 && (
+                    <input
+                        type="text"
+                        className="server-search-input"
+                        placeholder={t('shell.searchServersPlaceholder')}
+                        value={serverSearch}
+                        onChange={(e) => setServerSearch(e.target.value)}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                )}
+                <div
+                    onClick={() => { selectServer('global'); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
+                    className={`server-dropdown-item ${activeServerId === 'global' ? 'active' : ''}`}
+                >
+                    <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
+                    <div>
+                        <div className="font-medium">{t('shell.scopeGlobalValue')}</div>
+                    </div>
+                </div>
+
+                {servers
+                    .filter((s) => {
+                        if (!serverSearch.trim()) return true;
+                        const q = serverSearch.trim().toLowerCase();
+                        return (s.name || '').toLowerCase().includes(q) || (s.url || '').toLowerCase().includes(q);
+                    })
+                    .map((s) => (
+                        <div
+                            key={s.id}
+                            onClick={() => { selectServer(s.id); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
+                            className={`server-dropdown-item ${s.id === activeServerId ? 'active' : ''}`}
+                        >
+                            <span className="server-dropdown-item-dot" />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="font-medium">{s.name}</div>
+                                <div className="text-muted text-xs">{s.url}</div>
+                            </div>
+                            <span className="server-health-dot" data-health={s.health || 'unknown'} />
+                        </div>
+                    ))}
+            </div>,
+            document.body
+        )
+        : null;
 
     return (
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''} `}>
@@ -154,6 +267,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (
                     <button
+                        ref={serverTriggerRef}
                         type="button"
                         className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
                         onClick={() => setShowServerMenu(!showServerMenu)}
@@ -167,6 +281,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                     </button>
                 ) : activeServer ? (
                     <button
+                        ref={serverTriggerRef}
                         type="button"
                         className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
                         onClick={() => setShowServerMenu(!showServerMenu)}
@@ -180,7 +295,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                         <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
                     </button>
                 ) : (
-                    <button type="button" className="server-selector-btn" onClick={() => setShowServerMenu(!showServerMenu)} aria-expanded={showServerMenu}>
+                    <button ref={serverTriggerRef} type="button" className="server-selector-btn" onClick={() => setShowServerMenu(!showServerMenu)} aria-expanded={showServerMenu}>
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
                             <div className="server-name text-glow">{t('shell.selectServer')}</div>
@@ -189,53 +304,9 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                     </button>
                 )}
 
-                {showServerMenu && (servers.length > 0 || activeServerId === 'global') && (
-                    <div className="server-dropdown-menu">
-                        {servers.length >= 4 && (
-                            <input
-                                type="text"
-                                className="server-search-input"
-                                placeholder={t('shell.searchServersPlaceholder')}
-                                value={serverSearch}
-                                onChange={(e) => setServerSearch(e.target.value)}
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        )}
-                        <div
-                            onClick={() => { selectServer('global'); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
-                            className={`server-dropdown-item ${activeServerId === 'global' ? 'active' : ''}`}
-                        >
-                            <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
-                            <div>
-                                <div className="font-medium">{t('shell.scopeGlobalValue')}</div>
-                            </div>
-                        </div>
-
-                        {servers
-                            .filter(s => {
-                                if (!serverSearch.trim()) return true;
-                                const q = serverSearch.trim().toLowerCase();
-                                return (s.name || '').toLowerCase().includes(q) || (s.url || '').toLowerCase().includes(q);
-                            })
-                            .map(s => (
-                            <div
-                                key={s.id}
-                                onClick={() => { selectServer(s.id); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
-                                className={`server-dropdown-item ${s.id === activeServerId ? 'active' : ''}`}
-                            >
-                                <span className="server-dropdown-item-dot" />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div className="font-medium">{s.name}</div>
-                                    <div className="text-muted text-xs">{s.url}</div>
-                                </div>
-                                <span className="server-health-dot" data-health={s.health || 'unknown'} />
-                            </div>
-                        ))}
-                    </div>
-                )}
                 </div>
             )}
+            {serverMenu}
         </aside>
     );
 }

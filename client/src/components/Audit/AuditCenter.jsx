@@ -73,6 +73,58 @@ const AUDIT_EVENT_LABELS = {
     subscription_public_denied: '订阅访问被拒绝',
 };
 
+const CARRIER_ALIASES = [
+    { canonical: '中国电信', variants: ['中国电信', '电信'] },
+    { canonical: '中国联通', variants: ['中国联通', '联通'] },
+    { canonical: '中国移动', variants: ['中国移动', '移动'] },
+    { canonical: '中国广电', variants: ['中国广电', '广电'] },
+    { canonical: '中国教育网', variants: ['中国教育网', '教育网', 'CERNET'] },
+    { canonical: '长城宽带', variants: ['长城宽带', '长宽'] },
+];
+
+function normalizeCarrierLabel(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const matched = CARRIER_ALIASES.find((item) => item.variants.some((variant) => text.includes(variant)));
+    return matched?.canonical || text;
+}
+
+function stripCarrierFromLocation(location, carrier) {
+    const text = String(location || '').trim();
+    const normalizedCarrier = normalizeCarrierLabel(carrier);
+    if (!text || !normalizedCarrier) return text;
+
+    const matched = CARRIER_ALIASES.find((item) => item.canonical === normalizedCarrier);
+    const variants = matched?.variants || [normalizedCarrier];
+
+    return variants.reduce((result, variant) => result.replaceAll(variant, ' '), text)
+        .replace(/[|/]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/^[,，\-\s]+|[,，\-\s]+$/g, '')
+        .trim();
+}
+
+function resolveAccessGeoDisplay(item) {
+    const rawLocation = String(item?.ipLocation || item?.cfCountry || '').trim();
+    const carrier = normalizeCarrierLabel(item?.ipCarrier || '');
+
+    if (!rawLocation) {
+        return { location: carrier || '-', carrier: '' };
+    }
+    if (!carrier) {
+        return { location: rawLocation, carrier: '' };
+    }
+
+    const strippedLocation = stripCarrierFromLocation(rawLocation, carrier);
+    if (!strippedLocation) {
+        return { location: rawLocation, carrier: '' };
+    }
+    if (strippedLocation !== rawLocation) {
+        return { location: strippedLocation, carrier };
+    }
+    return { location: rawLocation, carrier };
+}
+
 function formatAuditEventLabel(item) {
     return AUDIT_EVENT_LABELS[String(item?.eventType || '').trim()] || item?.eventType || '-';
 }
@@ -407,13 +459,13 @@ export default function AuditCenter() {
                                     ) : (
                                         eventsData.items.map((item) => (
                                             <tr key={item.id}>
-                                                <td>{formatDateTime(item.ts)}</td>
-                                                <td>{formatAuditEventLabel(item)}</td>
-                                                <td><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
-                                                <td>{item.actor || '-'}</td>
-                                                <td>{item.serverId || '-'}</td>
-                                                <td>{resolveAuditTarget(item)}</td>
-                                                <td>
+                                                <td data-label="时间">{formatDateTime(item.ts)}</td>
+                                                <td data-label="事件">{formatAuditEventLabel(item)}</td>
+                                                <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
+                                                <td data-label="操作者">{item.actor || '-'}</td>
+                                                <td data-label="节点">{item.serverId || '-'}</td>
+                                                <td data-label="用户">{resolveAuditTarget(item)}</td>
+                                                <td data-label="操作">
                                                     <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
                                                         <HiOutlineEye />
                                                     </button>
@@ -557,8 +609,8 @@ export default function AuditCenter() {
                                                 <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
                                             ) : topUsers.map((item) => (
                                                 <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
-                                                    <td>{item.email}</td>
-                                                    <td>{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label="用户">{item.email}</td>
+                                                    <td data-label="流量">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -575,8 +627,8 @@ export default function AuditCenter() {
                                                 <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
                                             ) : topServers.map((item) => (
                                                 <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
-                                                    <td>{item.serverName}</td>
-                                                    <td>{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label="节点">{item.serverName}</td>
+                                                    <td data-label="流量">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -664,7 +716,9 @@ export default function AuditCenter() {
                                         <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
                                     ) : accessData.items.length === 0 ? (
                                         <tr><td colSpan={6}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
-                                    ) : accessData.items.map((item) => (
+                                    ) : accessData.items.map((item) => {
+                                        const geoDisplay = resolveAccessGeoDisplay(item);
+                                        return (
                                         <tr key={item.id}>
                                             <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
                                             <td data-label="用户">
@@ -684,13 +738,14 @@ export default function AuditCenter() {
                                             </td>
                                             <td data-label="归属地 / 运营商" className="text-xs">
                                                 <div className="audit-access-location">
-                                                    <span>{item.ipLocation || item.cfCountry || '-'}</span>
-                                                    {item.ipCarrier && <span className="audit-access-carrier">{item.ipCarrier}</span>}
+                                                    <span>{geoDisplay.location}</span>
+                                                    {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
                                                 </div>
                                             </td>
                                             <td data-label="UA" className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

@@ -29,6 +29,13 @@ describe('ip geo resolver helpers', () => {
 });
 
 describe('ip geo resolver runtime behavior', () => {
+    it('defaults to ip-api provider and city-level endpoint', () => {
+        const resolver = createIpGeoResolver();
+        const meta = resolver.metadata();
+        assert.equal(meta.provider, 'ip_api');
+        assert.equal(meta.endpoint, 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN');
+    });
+
     it('skips external lookup for private ip', async () => {
         let called = 0;
         const resolver = createIpGeoResolver({
@@ -47,6 +54,7 @@ describe('ip geo resolver runtime behavior', () => {
         let called = 0;
         const resolver = createIpGeoResolver({
             enabled: true,
+            provider: 'ipip_myip',
             cacheTtlSeconds: 3600,
             fetcher: async () => {
                 called += 1;
@@ -73,6 +81,7 @@ describe('ip geo resolver runtime behavior', () => {
         let capturedUrl = '';
         const resolver = createIpGeoResolver({
             enabled: true,
+            provider: 'ipip_myip',
             endpoint: 'http://myip.ipip.net',
             fetcher: async ({ url }) => {
                 capturedUrl = url;
@@ -88,6 +97,7 @@ describe('ip geo resolver runtime behavior', () => {
         let capturedUrl = '';
         const resolver = createIpGeoResolver({
             enabled: true,
+            provider: 'ipip_myip',
             endpoint: 'http://myip.ipip.net/?ip={ip}',
             fetcher: async ({ url }) => {
                 capturedUrl = url;
@@ -102,6 +112,7 @@ describe('ip geo resolver runtime behavior', () => {
         let capturedUrl = '';
         const resolver = createIpGeoResolver({
             enabled: true,
+            provider: 'ipip_myip',
             endpoint: 'http://myip.ipip.net/?ip=1.1.1.1',
             fetcher: async ({ url }) => {
                 capturedUrl = url;

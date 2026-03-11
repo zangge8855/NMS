@@ -36,6 +36,14 @@ const ALLOWED_KEYS = {
 };
 
 const GEO_PROVIDERS = new Set(['ip_api', 'ipip_myip']);
+const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
+const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
+const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
+    ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
+    : 'ip_api';
+const MODERN_AUDIT_IP_GEO_ENDPOINT = String(
+    config.audit?.ipGeo?.endpoint || 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN'
+).trim() || 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
 
 function normalizeId(value) {
     return String(value || '').trim();
@@ -191,6 +199,11 @@ function mergeSection(base, patch) {
     return next;
 }
 
+function shouldUpgradeLegacyAuditIpGeo(provider, endpoint) {
+    return String(provider || '').trim().toLowerCase() === LEGACY_AUDIT_IP_GEO_PROVIDER
+        && String(endpoint || '').trim() === LEGACY_AUDIT_IP_GEO_ENDPOINT;
+}
+
 class SystemSettingsStore {
     constructor() {
         ensureDataDir();
@@ -228,10 +241,8 @@ class SystemSettingsStore {
             },
             auditIpGeo: {
                 enabled: true,
-                provider: GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
-                    ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
-                    : 'ipip_myip',
-                endpoint: String(config.audit?.ipGeo?.endpoint || 'http://myip.ipip.net/?ip={ip}').trim() || 'http://myip.ipip.net/?ip={ip}',
+                provider: MODERN_AUDIT_IP_GEO_PROVIDER,
+                endpoint: MODERN_AUDIT_IP_GEO_ENDPOINT,
                 timeoutMs: Math.max(200, Number(config.audit?.ipGeo?.timeoutMs || 3000)),
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
             },
@@ -283,11 +294,16 @@ class SystemSettingsStore {
     }
 
     _normalizeAuditIpGeo(input = {}, fallback) {
-        const provider = String(input.provider || '').trim().toLowerCase();
+        let provider = String(input.provider || '').trim().toLowerCase();
+        let endpoint = normalizeHttpTemplateUrl(input.endpoint, fallback.endpoint);
+        if (shouldUpgradeLegacyAuditIpGeo(provider, endpoint)) {
+            provider = MODERN_AUDIT_IP_GEO_PROVIDER;
+            endpoint = MODERN_AUDIT_IP_GEO_ENDPOINT;
+        }
         return {
             enabled: normalizeBoolean(input.enabled, fallback.enabled),
             provider: GEO_PROVIDERS.has(provider) ? provider : fallback.provider,
-            endpoint: normalizeHttpTemplateUrl(input.endpoint, fallback.endpoint),
+            endpoint,
             timeoutMs: normalizeInt(input.timeoutMs, fallback.timeoutMs, { min: 200, max: 10000 }),
             cacheTtlSeconds: normalizeInt(input.cacheTtlSeconds, fallback.cacheTtlSeconds, { min: 30, max: 604800 }),
         };

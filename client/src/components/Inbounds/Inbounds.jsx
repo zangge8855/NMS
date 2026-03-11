@@ -58,6 +58,10 @@ function buildClientActionKey(serverId, inboundId, clientIdentifier) {
     return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
 }
 
+function buildInboundClientSelectionKey(serverId, inboundId, clientIdentifier) {
+    return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
+}
+
 function maskSensitiveValue(value) {
     const text = String(value || '').trim();
     if (!text) return '-';
@@ -116,6 +120,7 @@ export default function Inbounds() {
     const [filterServerId, setFilterServerId] = useState('all');
     const [inboundOrder, setInboundOrder] = useState({});
     const [draggingKey, setDraggingKey] = useState('');
+    const [dragOverKey, setDragOverKey] = useState('');
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
 
     // Batch Selection State
@@ -134,6 +139,7 @@ export default function Inbounds() {
     const [entitlementSaving, setEntitlementSaving] = useState(false);
     const [overrideKeySet, setOverrideKeySet] = useState(new Set());
     const [clientActionKey, setClientActionKey] = useState('');
+    const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
 
     const fetchAllInbounds = async () => {
         if (servers.length === 0) {
@@ -143,6 +149,7 @@ export default function Inbounds() {
         setLoading(true);
         const allResults = [];
         setSelectedKeys(new Set());
+        setSelectedClientKeys(new Set());
         let orderMap = inboundOrder;
 
         try {
@@ -437,6 +444,7 @@ export default function Inbounds() {
     const handleDropInbound = async (event, targetKey) => {
         const draggedKey = draggingKey || event.dataTransfer?.getData('text/plain') || '';
         setDraggingKey('');
+        setDragOverKey('');
         const next = reorderInboundsWithinServer(inbounds, draggedKey, targetKey);
         if (!next.changed) return;
 
@@ -447,6 +455,43 @@ export default function Inbounds() {
         setInboundOrder(nextOrder);
         setInbounds(next.items);
         await persistInboundOrder(next.serverId, next.inboundIds);
+    };
+
+    const handleDragStartInbound = (event, uiKey) => {
+        event.stopPropagation();
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.dropEffect = 'move';
+            event.dataTransfer.setData('text/plain', uiKey);
+        }
+        setDraggingKey(uiKey);
+        setDragOverKey('');
+    };
+
+    const handleDragOverInbound = (event, targetKey) => {
+        if (!draggingKey || draggingKey === targetKey) return;
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+        setDragOverKey((prev) => (prev === targetKey ? prev : targetKey));
+    };
+
+    const handleDragEnterInbound = (event, targetKey) => {
+        if (!draggingKey || draggingKey === targetKey) return;
+        event.preventDefault();
+        setDragOverKey(targetKey);
+    };
+
+    const handleDragLeaveInbound = (event, targetKey) => {
+        const nextTarget = event.relatedTarget;
+        if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+        setDragOverKey((prev) => (prev === targetKey ? '' : prev));
+    };
+
+    const handleDragEndInbound = () => {
+        setDraggingKey('');
+        setDragOverKey('');
     };
 
     const parseClients = (ib) => {
@@ -503,6 +548,101 @@ export default function Inbounds() {
         } catch (err) {
             console.error(err);
             toast.error(err.response?.data?.msg || err.message || '删除失败');
+        }
+    };
+
+    const toggleClientSelect = (selectionKey) => {
+        if (!selectionKey) return;
+        setSelectedClientKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(selectionKey)) next.delete(selectionKey);
+            else next.add(selectionKey);
+            return next;
+        });
+    };
+
+    const clearInboundClientSelection = (inbound, clients = []) => {
+        const keys = new Set(
+            (Array.isArray(clients) ? clients : [])
+                .map((client) => buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol)))
+                .filter(Boolean)
+        );
+        if (keys.size === 0) return;
+        setSelectedClientKeys((prev) => {
+            const next = new Set(prev);
+            keys.forEach((key) => next.delete(key));
+            return next;
+        });
+    };
+
+    const toggleSelectAllInboundClients = (inbound, clients = []) => {
+        const keys = (Array.isArray(clients) ? clients : [])
+            .map((client) => buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol)))
+            .filter(Boolean);
+        if (keys.length === 0) return;
+
+        setSelectedClientKeys((prev) => {
+            const next = new Set(prev);
+            const allSelected = keys.every((key) => next.has(key));
+            if (allSelected) {
+                keys.forEach((key) => next.delete(key));
+            } else {
+                keys.forEach((key) => next.add(key));
+            }
+            return next;
+        });
+    };
+
+    const handleBulkDeleteInboundClients = async (inbound, clients = []) => {
+        const selectedClients = (Array.isArray(clients) ? clients : []).filter((client) => {
+            const key = buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol));
+            return key && selectedClientKeys.has(key);
+        });
+
+        if (selectedClients.length === 0) {
+            toast.error('请先选择要删除的用户');
+            return;
+        }
+
+        const ok = await confirmAction({
+            title: '批量删除入站用户',
+            message: `确定删除选中的 ${selectedClients.length} 位用户吗？`,
+            details: `${inbound?.serverName || '-'} / ${inbound?.remark || inbound?.protocol || '-'}:${inbound?.port || '-'}`,
+            confirmText: '确认删除',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        const targets = selectedClients.map((client) => ({
+            serverId: inbound.serverId,
+            serverName: inbound.serverName,
+            inboundId: inbound.id,
+            email: client.email || '',
+            clientIdentifier: getClientIdentifier(client, inbound.protocol),
+            id: client.id || '',
+            password: client.password || '',
+        }));
+
+        try {
+            const payload = await attachBatchRiskToken({
+                action: 'delete',
+                targets,
+            }, {
+                type: 'clients',
+                action: 'delete',
+                targetCount: targets.length,
+            });
+            const res = await api.post('/batch/clients', payload);
+            const output = res.data?.obj;
+            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
+            setBatchResultTitle('批量删除入站用户结果');
+            setBatchResultData(output || null);
+            toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
+            clearInboundClientSelection(inbound, selectedClients);
+            fetchAllInbounds();
+        } catch (err) {
+            console.error(err);
+            toast.error(err.response?.data?.msg || err.message || '批量删除失败');
         }
     };
 
@@ -751,10 +891,16 @@ export default function Inbounds() {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
+                                    const isDropTarget = dragOverKey === ib.uiKey && draggingKey && draggingKey !== ib.uiKey;
+                                    const selectableClientKeys = clients
+                                        .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
+                                        .filter(Boolean);
+                                    const selectedClientCount = selectableClientKeys.filter((key) => selectedClientKeys.has(key)).length;
+                                    const allInboundClientsSelected = selectableClientKeys.length > 0 && selectedClientCount === selectableClientKeys.length;
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}`}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}${draggingKey === ib.uiKey ? ' inbounds-row-dragging' : ''}${isDropTarget ? ' inbounds-row-drop-target' : ''}`}
                                                 onClick={() => {
                                                     if (isBatchSelecting) {
                                                         toggleSelect(ib.uiKey);
@@ -762,7 +908,9 @@ export default function Inbounds() {
                                                     }
                                                     setExpandedId(isExpanded ? null : ib.uiKey);
                                                 }}
-                                                onDragOver={(e) => e.preventDefault()}
+                                                onDragEnter={(e) => handleDragEnterInbound(e, ib.uiKey)}
+                                                onDragOver={(e) => handleDragOverInbound(e, ib.uiKey)}
+                                                onDragLeave={(e) => handleDragLeaveInbound(e, ib.uiKey)}
                                                 onDrop={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
@@ -779,21 +927,24 @@ export default function Inbounds() {
                                                 </td>
                                                 <td data-label="排序" onClick={(e) => e.stopPropagation()}>
                                                     <div className="inbounds-sort-controls">
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-ghost btn-sm btn-icon"
+                                                        <div
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            aria-label="拖拽排序"
+                                                            aria-grabbed={draggingKey === ib.uiKey}
+                                                            className="inbounds-drag-handle"
                                                             title="拖拽排序"
                                                             draggable
-                                                            onDragStart={(e) => {
-                                                                e.stopPropagation();
-                                                                e.dataTransfer.effectAllowed = 'move';
-                                                                e.dataTransfer.setData('text/plain', ib.uiKey);
-                                                                setDraggingKey(ib.uiKey);
+                                                            onDragStart={(e) => handleDragStartInbound(e, ib.uiKey)}
+                                                            onDragEnd={handleDragEndInbound}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                                    e.preventDefault();
+                                                                }
                                                             }}
-                                                            onDragEnd={() => setDraggingKey('')}
                                                         >
                                                             <HiOutlineBars3 />
-                                                        </button>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
@@ -861,12 +1012,47 @@ export default function Inbounds() {
                                                 <tr>
                                                     <td colSpan={tableColSpan} className="p-0 bg-black/20 inbounds-clients-cell">
                                                         <div className="p-4 inbounds-clients-panel">
-                                                            <div className="text-xs font-bold text-muted mb-2 uppercase tracking-wider inbounds-clients-label">
-                                                                用户列表 ({clients.length})
+                                                            <div className="inbounds-clients-toolbar">
+                                                                <div className="text-xs font-bold text-muted uppercase tracking-wider inbounds-clients-label">
+                                                                    用户列表 ({clients.length})
+                                                                </div>
+                                                                {selectedClientCount > 0 && (
+                                                                    <div className="inbounds-clients-selection-bar">
+                                                                        <span className="text-xs font-semibold text-primary">已选 {selectedClientCount} 位用户</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-danger btn-sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleBulkDeleteInboundClients(ib, clients);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineTrash /> 批量删除
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-secondary btn-sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                clearInboundClientSelection(ib, clients);
+                                                                            }}
+                                                                        >
+                                                                            取消选择
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
+                                                                        <th className="cell-checkbox">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={allInboundClientsSelected}
+                                                                                onChange={() => toggleSelectAllInboundClients(ib, clients)}
+                                                                                className="cursor-pointer"
+                                                                            />
+                                                                        </th>
                                                                         <th>Email</th>
                                                                         <th>ID/密码（脱敏）</th>
                                                                         <th>已用流量</th>
@@ -895,9 +1081,19 @@ export default function Inbounds() {
                                                                         const maskedCredential = maskSensitiveValue(rawCredential);
                                                                         const toggleLabel = cl.enable !== false ? '禁用' : '启用';
                                                                         const toggleTitle = cl.enable !== false ? '禁用该用户' : '启用该用户';
+                                                                        const selectionKey = buildInboundClientSelectionKey(ib.serverId, ib.id, clientIdentifier);
+                                                                        const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
                                                                         return (
                                                                         <tr key={idx}>
-                                                                            <td>
+                                                                            <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isClientSelected}
+                                                                                    onChange={() => toggleClientSelect(selectionKey)}
+                                                                                    className="cursor-pointer"
+                                                                                />
+                                                                            </td>
+                                                                            <td data-label="用户">
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
@@ -905,7 +1101,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="cell-mono">
+                                                                            <td data-label="ID / 密码" className="cell-mono">
                                                                                 <div className="inbounds-client-id-row">
                                                                                     <span className="inbounds-client-id-text">
                                                                                         {maskedCredential}
@@ -927,7 +1123,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td>
+                                                                            <td data-label="已用流量">
                                                                                 <div className="inbound-client-usage">
                                                                                     <div className="inbound-client-usage-head">
                                                                                         <span className="font-medium">{formatBytes(usedBytes)}</span>
@@ -946,15 +1142,15 @@ export default function Inbounds() {
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
-                                                                            <td>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td>{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td>
+                                                                            <td data-label="总量">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td data-label="IP 限制">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
+                                                                            <td data-label="上 / 下行">
                                                                                 <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                 <span className="text-muted mx-1">/</span>
                                                                                 <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                             </td>
-                                                                            <td>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
-                                                                            <td>
+                                                                            <td data-label="到期时间">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
+                                                                            <td data-label="状态">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
                                                                                         {cl.enable !== false ? '启用' : '禁用'}
@@ -968,7 +1164,7 @@ export default function Inbounds() {
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td>
+                                                                            <td data-label="操作">
                                                                                 <div className="inbounds-client-actions">
                                                                                     <button
                                                                                         type="button"

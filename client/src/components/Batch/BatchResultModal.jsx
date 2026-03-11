@@ -61,16 +61,16 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                                 ) : (
                                     results.map((item, idx) => (
                                         <tr key={`${idx}-${item.serverId || 'x'}-${item.inboundId || 'x'}`}>
-                                            <td>
+                                            <td data-label="结果">
                                                 <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                     {item.success ? '成功' : '失败'}
                                                 </span>
                                             </td>
-                                            <td>{labelByAction(item.action)}</td>
-                                            <td>{item.serverName || item.serverId || '-'}</td>
-                                            <td>{item.inboundId || '-'}</td>
-                                            <td>{item.email || item.remark || item.clientIdentifier || '-'}</td>
-                                            <td style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
+                                            <td data-label="操作">{labelByAction(item.action)}</td>
+                                            <td data-label="节点">{item.serverName || item.serverId || '-'}</td>
+                                            <td data-label="入站">{item.inboundId || '-'}</td>
+                                            <td data-label="对象">{item.email || item.remark || item.clientIdentifier || '-'}</td>
+                                            <td data-label="消息" style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
                                                 {item.msg || '-'}
                                             </td>
                                         </tr>

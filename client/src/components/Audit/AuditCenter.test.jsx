@@ -81,6 +81,8 @@ describe('AuditCenter', () => {
                                 clientIp: '203.0.113.9',
                                 proxyIp: '172.16.0.10',
                                 ipSource: 'x-forwarded-for',
+                                ipLocation: '中国 广东 广州 电信',
+                                ipCarrier: '中国电信',
                                 cfCountry: 'US',
                                 userAgent: 'Clash.Meta',
                             }],
@@ -113,6 +115,8 @@ describe('AuditCenter', () => {
         expect(screen.getByRole('columnheader', { name: '用户' })).toBeInTheDocument();
         expect(screen.getByText('alice')).toBeInTheDocument();
         expect(screen.getByText('203.0.113.9')).toBeInTheDocument();
+        expect(screen.getByText('中国 广东 广州')).toBeInTheDocument();
+        expect(screen.getAllByText('中国电信')).toHaveLength(1);
         expect(screen.queryByText('172.16.0.10')).not.toBeInTheDocument();
     });
 });

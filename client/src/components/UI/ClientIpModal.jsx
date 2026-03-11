@@ -81,10 +81,10 @@ export default function ClientIpModal({
                                 <tbody>
                                     {items.map((item) => (
                                         <tr key={item.ip}>
-                                            <td className="font-mono" style={{ wordBreak: 'break-all' }}>{item.ip}</td>
-                                            <td>{item.count > 0 ? item.count : '-'}</td>
-                                            <td>{formatDateTime(item.lastSeen)}</td>
-                                            <td className="text-xs text-muted">
+                                            <td data-label="IP" className="font-mono" style={{ wordBreak: 'break-all' }}>{item.ip}</td>
+                                            <td data-label="次数">{item.count > 0 ? item.count : '-'}</td>
+                                            <td data-label="最近时间">{formatDateTime(item.lastSeen)}</td>
+                                            <td data-label="备注" className="text-xs text-muted">
                                                 {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
                                             </td>
                                         </tr>

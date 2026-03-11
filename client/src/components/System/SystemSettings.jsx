@@ -34,6 +34,8 @@ function toText(value, fallback = '') {
 
 function buildDraft(source = null) {
     const settings = source || {};
+    const defaultAuditIpGeoProvider = 'ip_api';
+    const defaultAuditIpGeoEndpoint = 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
     return {
         security: {
             requireHighRiskConfirmation: Boolean(settings.security?.requireHighRiskConfirmation),
@@ -57,8 +59,8 @@ function buildDraft(source = null) {
         },
         auditIpGeo: {
             enabled: settings.auditIpGeo?.enabled === true,
-            provider: toText(settings.auditIpGeo?.provider, 'ipip_myip'),
-            endpoint: toText(settings.auditIpGeo?.endpoint, 'http://myip.ipip.net/?ip={ip}'),
+            provider: toText(settings.auditIpGeo?.provider, defaultAuditIpGeoProvider),
+            endpoint: toText(settings.auditIpGeo?.endpoint, defaultAuditIpGeoEndpoint),
             timeoutMs: toInt(settings.auditIpGeo?.timeoutMs, 1500),
             cacheTtlSeconds: toInt(settings.auditIpGeo?.cacheTtlSeconds, 21600),
         },
@@ -1037,9 +1039,9 @@ export default function SystemSettings() {
                                             ) : (
                                                 (dbStatus.snapshots || []).map((item) => (
                                                     <tr key={item.store_key}>
-                                                        <td>{item.store_key}</td>
-                                                        <td>{item.payload_size || 0}</td>
-                                                        <td>{item.updated_at ? new Date(item.updated_at).toLocaleString('zh-CN') : '-'}</td>
+                                                        <td data-label="Store">{item.store_key}</td>
+                                                        <td data-label="大小">{item.payload_size || 0}</td>
+                                                        <td data-label="更新时间">{item.updated_at ? new Date(item.updated_at).toLocaleString('zh-CN') : '-'}</td>
                                                     </tr>
                                                 ))
                                             )}

@@ -2163,10 +2163,11 @@ input[type="radio"]:focus {
 
 .sidebar-logo-copy {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
-  gap: 2px;
+  gap: 8px;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .sidebar-logo-subtitle {
@@ -2175,8 +2176,8 @@ input[type="radio"]:focus {
   letter-spacing: 0.04em;
   line-height: 1.25;
   text-transform: none;
-  white-space: normal;
-  max-width: 20ch;
+  white-space: nowrap;
+  max-width: none;
 }
 
 .sidebar-logo-text-gradient {
@@ -6169,13 +6170,29 @@ body::before {
   overflow-x: auto;
 }
 
-.inbounds-clients-label {
+.inbounds-clients-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
+}
+
+.inbounds-clients-label {
   letter-spacing: 0.16em;
 }
 
+.inbounds-clients-selection-bar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .inbounds-clients-table {
-  min-width: 960px;
+  min-width: 1024px;
 }
 
 .inbounds-clients-table th {
@@ -6221,6 +6238,22 @@ body::before {
 .inbounds-client-actions .btn {
   min-height: 32px;
   white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .inbounds-clients-toolbar,
+  .inbounds-clients-selection-bar {
+    align-items: stretch;
+  }
+
+  .inbounds-clients-selection-bar {
+    width: 100%;
+  }
+
+  .inbounds-clients-selection-bar .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
 }
 
 .inbounds-client-limit-btn {
@@ -9592,6 +9625,42 @@ input[type="radio"]:focus-visible {
   cursor: grabbing;
 }
 
+.inbounds-drag-handle {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: grab;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.inbounds-drag-handle:hover {
+  background: var(--surface-soft);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.inbounds-drag-handle:active {
+  cursor: grabbing;
+}
+
+.inbounds-row-dragging td {
+  opacity: 0.66;
+}
+
+.inbounds-row-drop-target td {
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+.inbounds-row-drop-target td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
 .login-page {
   position: relative;
   display: flex;
@@ -9653,14 +9722,14 @@ input[type="radio"]:focus-visible {
 
 .login-brand-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  text-align: center;
+  text-align: left;
 }
 
 .login-brand-mark {
@@ -9671,9 +9740,11 @@ input[type="radio"]:focus-visible {
 }
 
 .login-brand-copy {
-  align-items: center;
-  gap: 3px;
-  text-align: center;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  flex-wrap: nowrap;
 }
 
 .login-brand-name {
@@ -9684,6 +9755,7 @@ input[type="radio"]:focus-visible {
 .login-brand-subtitle {
   font-size: 12px;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .login-form-heading {
@@ -9903,5 +9975,231 @@ input[type="radio"]:focus-visible {
 
   .verify-code-send-btn {
     width: 100%;
+  }
+}
+
+/* ============================================
+   Shared UI Polish — Final Overrides
+   ============================================ */
+
+.modal-sentinel {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal-overlay {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal {
+  overflow: visible;
+}
+
+.modal-body {
+  overflow-y: auto;
+  overflow-x: visible;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-body > * {
+  min-width: 0;
+}
+
+.sidebar-logo-copy {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.sidebar-logo-text,
+.sidebar-logo-subtitle {
+  white-space: nowrap;
+}
+
+.server-dropdown-menu {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  z-index: var(--z-popover);
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.btn,
+.btn-icon,
+.theme-toggle-btn,
+.modal-close,
+.tab {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.btn:active:not(:disabled),
+.btn-icon:active:not(:disabled),
+.theme-toggle-btn:active:not(:disabled),
+.tab:active:not(:disabled),
+.modal-close:active:not(:disabled) {
+  transform: translateZ(0) !important;
+}
+
+:is(
+  .btn,
+  .btn-icon,
+  .tab,
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .modal-close,
+  .theme-toggle-btn,
+  .server-selector-btn,
+  .server-search-input,
+  .verify-code-input,
+  .verify-code-send-btn,
+  input[type="checkbox"],
+  input[type="radio"]
+):focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.28) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] {
+  --text-secondary: #314156;
+  --text-muted: #595959;
+}
+
+[data-theme="light"] :is(.modal, .server-dropdown-menu, .header-search-results) {
+  background: rgba(255, 255, 255, 0.985) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="light"] :is(.card .card, .modal .card, .settings-mini-card, .settings-table-shell, .audit-nested-table-shell) {
+  box-shadow: none !important;
+  background: #f4f7fb !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.log-pane,
+[data-theme="light"] .log-pane {
+  background: #050505 !important;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+[data-theme="light"] .log-line {
+  color: rgba(229, 231, 235, 0.9);
+}
+
+[data-theme="light"] .log-line:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="light"] .log-line[data-level="error"] {
+  color: #fca5a5;
+}
+
+[data-theme="light"] .log-line[data-level="warning"] {
+  color: #fbbf24;
+}
+
+[data-theme="light"] .log-mark {
+  background: rgba(250, 204, 21, 0.22);
+  color: #fef08a;
+}
+
+.table td {
+  min-width: 0;
+}
+
+.table td > :is(div, span, a, button, code, p) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.table td .font-mono,
+.table td code {
+  font-variant-numeric: tabular-nums;
+}
+
+.login-bg-glow {
+  opacity: 0.04 !important;
+  filter: blur(88px) !important;
+}
+
+@media (max-width: 768px) {
+  .btn-sm,
+  .btn-icon,
+  .theme-toggle-btn,
+  .modal-close {
+    min-height: 44px;
+  }
+
+  .btn-icon,
+  .theme-toggle-btn,
+  .modal-close {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .checkbox-14,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  .table td.mobile-checkbox-cell {
+    position: static;
+    top: auto;
+    right: auto;
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    justify-content: flex-end;
+  }
+
+  .table td.mobile-checkbox-cell::before {
+    display: none;
+  }
+
+  .mobile-batch-bar {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .login-bg-glow,
+  .spinning,
+  .spinner,
+  .skeleton,
+  .server-chevron,
+  .ws-status-chip[data-status="connected"] .ws-status-icon {
+    animation: none !important;
   }
 }
