@@ -256,6 +256,11 @@ router.post('/login', (req, res) => {
         return res.status(401).json({ success: false, msg: '用户名或密码错误' });
     }
 
+    req.user = {
+        userId: result.audit?.userId || '',
+        username: result.audit?.username || result.user?.username || username || '',
+        role: result.audit?.role || result.user?.role || 'user',
+    };
     appendSecurityAudit('login_success', req, { ip: clientIp, ...result.audit });
     clearLoginRate(clientIp, result.audit.username);
     res.json({

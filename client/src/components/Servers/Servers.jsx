@@ -4,6 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -557,11 +558,11 @@ export default function Servers() {
 
                 {/* Server Cards */}
                 {servers.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineServerStack /></div>
-                        <div className="empty-state-text">暂无服务器</div>
-                        <div className="empty-state-sub">点击上方按钮添加您的第一台 3x-ui 面板</div>
-                    </div>
+                    <EmptyState
+                        title="暂无服务器"
+                        subtitle="点击下方按钮添加您的第一台 3x-ui 面板"
+                        action={<button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><HiOutlinePlusCircle /> 新增服务器</button>}
+                    />
                 ) : filteredServers.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineServerStack /></div>
@@ -820,12 +821,12 @@ export default function Servers() {
                                                     <tbody>
                                                         {(batchResult.results || []).map((item) => (
                                                             <tr key={`batch-add-${item.line}-${item.url || item.name || ''}`}>
-                                                                <td data-label="行号">{item.line || '-'}</td>
+                                                                <td data-label="行号" className="cell-mono-right">{item.line || '-'}</td>
                                                                 <td data-label="名称">{item.name || '-'}</td>
-                                                                <td data-label="地址" className="table-word-220">
+                                                                <td data-label="地址" className="table-word-220 cell-mono">
                                                                     {item.url || '-'}
                                                                 </td>
-                                                                <td data-label="Path">{item.basePath || '-'}</td>
+                                                                <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
                                                                 <td data-label="状态">
                                                                     <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                                         {item.success ? '成功' : '失败'}

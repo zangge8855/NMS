@@ -910,16 +910,20 @@ export default function UsersHub() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} /></td></tr>
+                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 1.1fr 1.3fr 120px 170px 90px 120px 140px 132px" /></td></tr>
                             ) : enrichedUsers.length === 0 ? (
                                 <tr><td colSpan={9}>
                                     <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
                                 </td></tr>
                             ) : (
                                 enrichedUsers.map((user) => (
-                                    <tr key={user.id} className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}`}>
-                                        <td><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
-                                        <td data-label="用户名" className="font-medium table-cell-link" onClick={() => navigate(`/clients/${user.id}`)}>{user.username}</td>
+                                    <tr
+                                        key={user.id}
+                                        className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
+                                        onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
+                                    >
+                                        <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                        <td data-label="用户名" className="font-medium table-cell-link" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>{user.username}</td>
                                         <td data-label="邮箱" className="text-sm text-muted">{user.email || user.subscriptionEmail || '-'}</td>
                                         <td data-label="状态">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
@@ -930,9 +934,9 @@ export default function UsersHub() {
                                                 {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                             </div>
                                         </td>
-                                        <td data-label="节点数">{user.clientData.count || '-'}</td>
-                                        <td data-label="已用流量">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
-                                        <td data-label="到期时间">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
+                                        <td data-label="节点数" className="cell-mono-right">{user.clientData.count || '-'}</td>
+                                        <td data-label="已用流量" className="cell-mono-right">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
+                                        <td data-label="到期时间" className="cell-mono">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
                                         <td data-label="" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">
                                                 <button className="btn btn-secondary btn-sm btn-icon" title="详情" onClick={() => navigate(`/clients/${user.id}`)}>

@@ -49,4 +49,30 @@ describe('panelLogsService', () => {
         assert.equal(result.warning, '当前 3x-ui 版本不支持 Xray 日志接口');
         assert.deepEqual(result.lines, []);
     });
+
+    it('falls back to the legacy panel log endpoint when the preferred endpoint returns no lines', async () => {
+        const calls = [];
+        const client = {
+            async get(url) {
+                calls.push(['get', url]);
+                return { data: { obj: { lines: [] } } };
+            },
+            async post(url, body) {
+                calls.push(['post', url, body]);
+                return { data: { obj: 'legacy-line-a\nlegacy-line-b' } };
+            },
+        };
+
+        const result = await fetchServerLogPayload('srv-1', { source: 'panel', count: 20 }, {
+            serverRepository: { getById: () => ({ id: 'srv-1', name: 'srv-1' }) },
+            getAuthenticatedPanelClient: async () => client,
+        });
+
+        assert.equal(result.supported, true);
+        assert.equal(result.warning, '当前节点回退旧版日志接口返回');
+        assert.equal(result.sourcePath, '/panel/api/server/log');
+        assert.deepEqual(result.lines, ['legacy-line-a', 'legacy-line-b']);
+        assert.deepEqual(calls[0], ['get', '/panel/api/server/logs/20']);
+        assert.deepEqual(calls[1], ['post', '/panel/api/server/log', 'count=20']);
+    });
 });

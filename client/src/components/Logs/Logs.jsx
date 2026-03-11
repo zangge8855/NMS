@@ -13,6 +13,8 @@ import {
     HiOutlineServerStack,
     HiOutlineTrash,
     HiOutlineExclamationTriangle,
+    HiOutlineArrowsPointingOut,
+    HiOutlineArrowsPointingIn,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
@@ -157,6 +159,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const [fetchSummary, setFetchSummary] = useState(null);
     const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
     const [wrapLines, setWrapLines] = useState(true);
+    const [immersiveMode, setImmersiveMode] = useState(false);
 
     // Global mode: server selection
     const [selectedServerIds, setSelectedServerIds] = useState([]);
@@ -344,7 +347,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     return (
         <>
             {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}` : sourceLabel} />}
-            <div className={embedded ? '' : 'page-content page-enter'}>
+            <div className={`${embedded ? '' : 'page-content page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
                 <div className="card mb-4 logs-toolbar">
                     <div className="card-header card-header-flat">
@@ -405,6 +408,14 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
                             >
                                 {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
+                            </button>
+                            <button
+                                className={`btn btn-sm ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                onClick={() => setImmersiveMode((value) => !value)}
+                                title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
+                            >
+                                {immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
+                                {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
                             </button>
                             <button className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                 <HiOutlineTrash /> {t('pages.logs.clearView')}

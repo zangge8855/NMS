@@ -355,9 +355,6 @@ export default function Login() {
                                         />
                                     </div>
                                 </div>
-                                <div className="verify-actions">
-                                    <span className="text-muted text-sm">{t('pages.login.passwordManagedByAdmin')}</span>
-                                </div>
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"

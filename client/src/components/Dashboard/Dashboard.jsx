@@ -36,6 +36,42 @@ const DASHBOARD_ACCENT = {
     success: { tone: 'success' },
 };
 
+function buildSparklinePath(points = [], width = 180, height = 38, domain = null) {
+    const values = points
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+    if (values.length < 2) return null;
+
+    const min = Array.isArray(domain) && Number.isFinite(domain[0]) ? domain[0] : Math.min(...values);
+    const max = Array.isArray(domain) && Number.isFinite(domain[1]) ? domain[1] : Math.max(...values);
+    const range = Math.max(1, max - min);
+    const step = width / Math.max(1, values.length - 1);
+    const coordinates = values.map((value, index) => {
+        const x = index * step;
+        const y = height - (((value - min) / range) * height);
+        return `${x},${Math.max(0, Math.min(height, y))}`;
+    });
+
+    return {
+        polyline: coordinates.join(' '),
+        last: coordinates[coordinates.length - 1]?.split(',').map(Number) || [0, height],
+    };
+}
+
+function StatSparkline({ points = [], domain = null }) {
+    const path = buildSparklinePath(points, 180, 38, domain);
+    if (!path) return null;
+
+    return (
+        <div className="dashboard-stat-card-sparkline" aria-hidden="true">
+            <svg viewBox="0 0 180 38" preserveAspectRatio="none">
+                <polyline className="dashboard-stat-card-sparkline-line" points={path.polyline} />
+                <circle className="dashboard-stat-card-sparkline-end" cx={path.last[0]} cy={path.last[1]} r="2.8" />
+            </svg>
+        </div>
+    );
+}
+
 function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue ?? 0);
@@ -61,9 +97,6 @@ function StatCard({ card, loading }) {
                     <span className="dashboard-stat-card-label">{card.label}</span>
                     {card.kicker && <span className="dashboard-stat-card-kicker">{card.kicker}</span>}
                 </div>
-                <div className="card-icon dashboard-stat-card-icon">
-                    <card.icon />
-                </div>
             </div>
             <div className="dashboard-stat-card-body">
                 <div className="card-value dashboard-stat-card-value">
@@ -80,6 +113,9 @@ function StatCard({ card, loading }) {
                         card.value
                     )}
                 </div>
+                {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
+                    <StatSparkline points={card.sparkline} domain={card.sparklineDomain} />
+                )}
                 {card.sub && (
                     <div className="dashboard-stat-card-subtitle">
                         {card.sub}
@@ -90,6 +126,9 @@ function StatCard({ card, loading }) {
                         <HiOutlineArrowRight />
                     </span>
                 )}
+            </div>
+            <div className="card-icon dashboard-stat-card-icon" aria-hidden="true">
+                <card.icon />
             </div>
         </div>
     );
@@ -162,6 +201,27 @@ function pushServerTrendSamples(previous, serverMap) {
         next[serverId] = merged.slice(-MAX_NODE_TREND_POINTS);
     }
     return next;
+}
+
+function buildClusterTrend(historyMap, selector) {
+    const histories = Object.values(historyMap || {})
+        .filter((value) => Array.isArray(value) && value.length > 0);
+    if (histories.length === 0) return [];
+
+    const maxLength = Math.max(...histories.map((items) => items.length));
+    const points = [];
+
+    for (let index = 0; index < maxLength; index += 1) {
+        const values = histories
+            .map((items) => items[items.length - maxLength + index] || null)
+            .filter(Boolean)
+            .map((item) => selector(item))
+            .filter((value) => Number.isFinite(value));
+        if (values.length === 0) continue;
+        points.push(values.reduce((sum, value) => sum + value, 0) / values.length);
+    }
+
+    return points;
 }
 
 function formatLocalizedUptime(seconds, locale) {
@@ -253,6 +313,18 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [showOnlineDetail, setShowOnlineDetail] = useState(false);
+    const singleServerCpuSparkline = useMemo(
+        () => cpuHistory.map((item) => Number(item?.cpu)).filter((value) => Number.isFinite(value)),
+        [cpuHistory]
+    );
+    const clusterCpuSparkline = useMemo(
+        () => buildClusterTrend(serverTrendHistory, (item) => Number(item?.cpu)),
+        [serverTrendHistory]
+    );
+    const clusterOnlineSparkline = useMemo(
+        () => buildClusterTrend(serverTrendHistory, (item) => (item?.online === false ? 0 : 1)),
+        [serverTrendHistory]
+    );
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!token) {
@@ -506,6 +578,8 @@ export default function Dashboard() {
                 sub: t('pages.dashboardCommon.onlineTotal'), ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/servers'),
                 skeletonWidth: '9rem',
+                sparkline: clusterOnlineSparkline,
+                sparklineDomain: [0, 1],
             },
             {
                 icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
@@ -515,6 +589,8 @@ export default function Dashboard() {
                 onClick: () => setShowOnlineDetail((v) => !v),
                 ...DASHBOARD_ACCENT.info,
                 skeletonWidth: '6rem',
+                sparkline: clusterOnlineSparkline,
+                sparklineDomain: [0, 1],
             },
             {
                 icon: HiOutlineSignal, label: t('pages.dashboardGlobal.cards.totalInbounds'),
@@ -534,6 +610,8 @@ export default function Dashboard() {
                 ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/audit'),
                 skeletonWidth: '8.5rem',
+                sparkline: clusterCpuSparkline,
+                sparklineDomain: [0, 100],
             },
         ];
 
@@ -654,7 +732,15 @@ export default function Dashboard() {
     const activeInbounds = inbounds.filter(i => i.enable).length;
 
     const statCards = [
-        { icon: HiOutlineCpuChip, label: t('pages.dashboardNode.cards.cpuUsage'), value: status ? `${status.cpu.toFixed(1)}%` : '--', ...DASHBOARD_ACCENT.primary, skeletonWidth: '5.5rem' },
+        {
+            icon: HiOutlineCpuChip,
+            label: t('pages.dashboardNode.cards.cpuUsage'),
+            value: status ? `${status.cpu.toFixed(1)}%` : '--',
+            ...DASHBOARD_ACCENT.primary,
+            skeletonWidth: '5.5rem',
+            sparkline: singleServerCpuSparkline,
+            sparklineDomain: [0, 100],
+        },
         { icon: HiOutlineCircleStack, label: t('pages.dashboardNode.cards.memoryUsage'), value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary, skeletonWidth: '7rem' },
         { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatLocalizedUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
         {
@@ -847,16 +933,18 @@ export default function Dashboard() {
                                     <Tooltip
                                         contentStyle={{
                                             background: 'var(--surface-overlay)',
-                                            backdropFilter: 'blur(12px)',
+                                            backdropFilter: 'blur(8px)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: '12px',
                                             fontSize: '12px',
                                             color: 'var(--text-primary)',
                                             boxShadow: 'var(--shadow-lg)'
                                         }}
+                                        labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}
                                         itemStyle={{ color: 'var(--accent-primary-hover)' }}
+                                        labelFormatter={(value) => `${t('pages.dashboardNode.cpuTooltipLabel')} · ${value}`}
                                         formatter={(v) => [`${v.toFixed(1)}%`, t('pages.dashboardNode.cpuTooltipLabel')]}
-                                        cursor={{ stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 2 }}
+                                        cursor={{ stroke: 'var(--chart-grid-color)', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                                     />
                                     <Area type="monotone" dataKey="cpu" stroke="var(--accent-primary)" strokeWidth={2} fill="url(#cpuGradient)" animationDuration={1500} />
                                 </AreaChart>

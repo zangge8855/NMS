@@ -659,7 +659,7 @@ export default function AuditCenter() {
 
                 {tab === 'logs' && (
                     <Suspense fallback={<div className="flex items-center justify-center" style={{ padding: '64px 0' }}><span className="spinner" /></div>}>
-                        <Logs embedded sourceMode="auto" displayLabel="3x-ui 日志" />
+                        <Logs embedded sourceMode="panel" displayLabel="3x-ui 日志" />
                     </Suspense>
                 )}
             </div>

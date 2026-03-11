@@ -167,9 +167,7 @@ function sanitizeNodeLabel(value) {
 function buildSafeTag(inbound) {
     const remark = sanitizeNodeLabel(inbound?.remark);
     const protocol = String(inbound?.protocol || 'node').trim().toUpperCase() || 'NODE';
-    const port = String(inbound?.port || '').trim();
-    const base = remark || protocol;
-    return port ? `${base}-${port}` : base;
+    return remark || protocol;
 }
 
 function getTag(_server, inbound, _email) {

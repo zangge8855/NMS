@@ -70,11 +70,29 @@ async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
     if (source === 'panel') {
         try {
             const preferred = await client.get(`/panel/api/server/logs/${count}`);
+            const preferredLines = extractLogLines(preferred);
+            if (preferredLines.length === 0) {
+                try {
+                    const legacyLines = await fetchLegacyLogLines(client, 'panel', count);
+                    if (legacyLines.length > 0) {
+                        return {
+                            serverId,
+                            source,
+                            supported: true,
+                            lines: legacyLines,
+                            warning: '当前节点回退旧版日志接口返回',
+                            sourcePath: '/panel/api/server/log',
+                        };
+                    }
+                } catch {
+                    // Ignore legacy fallback errors when the preferred endpoint is reachable.
+                }
+            }
             return {
                 serverId,
                 source,
                 supported: true,
-                lines: extractLogLines(preferred),
+                lines: preferredLines,
                 warning: '',
                 sourcePath: `/panel/api/server/logs/${count}`,
             };

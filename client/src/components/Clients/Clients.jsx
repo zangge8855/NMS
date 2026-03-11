@@ -693,8 +693,12 @@ export default function Clients() {
                                         : (client.statusType === 'disabled' ? 'badge-danger' : 'badge-neutral');
 
                                     return (
-                                        <tr key={client.uiKey} className={isSelected ? 'bg-white/5' : ''}>
-                                            <td data-label="" className="text-center mobile-checkbox-cell">
+                                        <tr
+                                            key={client.uiKey}
+                                            className={`${isSelected ? 'bg-white/5' : ''}${selectedVisibleCount > 0 ? ' table-row-selectable' : ''}`}
+                                            onClick={selectedVisibleCount > 0 ? () => toggleSelect(client.uiKey) : undefined}
+                                        >
+                                            <td data-label="" className="text-center mobile-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
@@ -720,8 +724,8 @@ export default function Clients() {
                                             <td data-label="入站" className="text-sm text-muted" title={client.inboundPreview}>
                                                 {client.inboundCount} 入站
                                             </td>
-                                            <td data-label="已用流量">{formatBytes(client.totalUsed)}</td>
-                                            <td data-label="到期时间">{formatExpiryLabel(client.expiryValues)}</td>
+                                            <td data-label="已用流量" className="cell-mono-right">{formatBytes(client.totalUsed)}</td>
+                                            <td data-label="到期时间" className="cell-mono">{formatExpiryLabel(client.expiryValues)}</td>
                                             <td data-label="" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex gap-2">
                                                     <button

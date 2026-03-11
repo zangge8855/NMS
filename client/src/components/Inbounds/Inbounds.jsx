@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
@@ -38,6 +39,7 @@ import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -58,6 +60,7 @@ function buildClientActionKey(serverId, inboundId, clientIdentifier) {
 export default function Inbounds() {
     const { servers } = useServer();
     const { t } = useI18n();
+    const navigate = useNavigate();
     const confirmAction = useConfirm();
 
     const [inbounds, setInbounds] = useState([]);
@@ -523,6 +526,7 @@ export default function Inbounds() {
     const selectedVisibleInbounds = filteredInbounds.filter(i => selectedKeys.has(i.uiKey));
     const selectedVisibleCount = selectedVisibleInbounds.length;
     const tableColSpan = filterServerId === 'all' ? 10 : 9;
+    const isBatchSelecting = selectedVisibleCount > 0;
 
     if (servers.length === 0) {
         return (
@@ -533,10 +537,12 @@ export default function Inbounds() {
                     eyebrow={t('pages.inbounds.eyebrow')}
                 />
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineSignal style={{ fontSize: '48px' }} /></div>
-                        <div className="empty-state-text">请先在「服务器管理」添加节点</div>
-                    </div>
+                    <EmptyState
+                        title="请先在「服务器管理」添加节点"
+                        subtitle="接入至少一台 3x-ui 节点后，再统一维护入站和客户端。"
+                        icon={<HiOutlineSignal style={{ fontSize: '48px' }} />}
+                        action={<button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}><HiOutlineServer /> 前往服务器管理</button>}
+                    />
                 </div>
             </>
         );
@@ -652,8 +658,14 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}`}
-                                                onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}`}
+                                                onClick={() => {
+                                                    if (isBatchSelecting) {
+                                                        toggleSelect(ib.uiKey);
+                                                        return;
+                                                    }
+                                                    setExpandedId(isExpanded ? null : ib.uiKey);
+                                                }}
                                                 onDragOver={(e) => e.preventDefault()}
                                                 onDrop={(e) => {
                                                     e.preventDefault();
@@ -693,8 +705,8 @@ export default function Inbounds() {
                                                 )}
                                                 <td data-label="备注" className="font-medium text-white">{ib.remark || '-'}</td>
                                                 <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
-                                                <td data-label="端口" className="font-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="用户数">{clients.length}</td>
+                                                <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
+                                                <td data-label="用户数" className="cell-mono-right">{clients.length}</td>
                                                 <td data-label="流量" className="text-sm">
                                                     <span className="text-success">↑{formatBytes(ib.up)}</span>
                                                     <span className="text-muted mx-1">/</span>

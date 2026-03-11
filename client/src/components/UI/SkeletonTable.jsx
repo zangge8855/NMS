@@ -7,11 +7,14 @@ function widthForCell(columnIndex, rowIndex = 0, type = 'body') {
     return `${base + (seed % variance)}%`;
 }
 
-export default function SkeletonTable({ rows = 5, cols = 4 }) {
+export default function SkeletonTable({ rows = 5, cols = 4, colTemplate = '' }) {
     return (
         <div
             className="skeleton-table"
-            style={{ '--skeleton-cols': cols }}
+            style={{
+                '--skeleton-cols': cols,
+                ...(colTemplate ? { '--skeleton-template': colTemplate } : {}),
+            }}
             role="presentation"
             aria-hidden="true"
         >
