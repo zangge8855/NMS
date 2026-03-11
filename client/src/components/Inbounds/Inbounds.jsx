@@ -441,8 +441,12 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
+    const resolveDraggedInboundKey = (event) => {
+        return draggingKey || event?.dataTransfer?.getData('text/plain') || '';
+    };
+
     const handleDropInbound = async (event, targetKey) => {
-        const draggedKey = draggingKey || event.dataTransfer?.getData('text/plain') || '';
+        const draggedKey = resolveDraggedInboundKey(event);
         setDraggingKey('');
         setDragOverKey('');
         const next = reorderInboundsWithinServer(inbounds, draggedKey, targetKey);
@@ -469,17 +473,25 @@ export default function Inbounds() {
     };
 
     const handleDragOverInbound = (event, targetKey) => {
-        if (!draggingKey || draggingKey === targetKey) return;
+        const activeDraggedKey = resolveDraggedInboundKey(event);
+        if (!activeDraggedKey || activeDraggedKey === targetKey) return;
         event.preventDefault();
         if (event.dataTransfer) {
             event.dataTransfer.dropEffect = 'move';
+        }
+        if (activeDraggedKey !== draggingKey) {
+            setDraggingKey(activeDraggedKey);
         }
         setDragOverKey((prev) => (prev === targetKey ? prev : targetKey));
     };
 
     const handleDragEnterInbound = (event, targetKey) => {
-        if (!draggingKey || draggingKey === targetKey) return;
+        const activeDraggedKey = resolveDraggedInboundKey(event);
+        if (!activeDraggedKey || activeDraggedKey === targetKey) return;
         event.preventDefault();
+        if (activeDraggedKey !== draggingKey) {
+            setDraggingKey(activeDraggedKey);
+        }
         setDragOverKey(targetKey);
     };
 
