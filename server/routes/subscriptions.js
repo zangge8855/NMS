@@ -22,6 +22,7 @@ import {
     summarizeSubscriptionAccess,
 } from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import { rotateManagedSubscriptionCredentials } from '../services/subscriptionSyncService.js';
 
 const router = Router();
 
@@ -2147,7 +2148,7 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
     }
 });
 
-router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, (req, res) => {
+router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, async (req, res) => {
     try {
         const serverId = normalizeServerId(req.body?.serverId);
         const scopeName = buildScopeTokenName(serverId);
@@ -2160,6 +2161,17 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, (req, res) 
                 return buildSubscriptionUrls(publicBase, 'auto', serverId);
             },
         });
+        const basePolicy = userPolicyStore.get(issued.email);
+        const rotationPolicy = serverId
+            ? {
+                ...basePolicy,
+                serverScopeMode: 'selected',
+                allowedServerIds: [serverId],
+            }
+            : basePolicy;
+        const credentialRotation = await rotateManagedSubscriptionCredentials(issued.email, rotationPolicy, {
+            serverId,
+        });
 
         appendSecurityAudit('subscription_link_reset', req, {
             email: issued.email,
@@ -2167,6 +2179,9 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, (req, res) 
             serverId: serverId || '',
             revoked: issued.revokedCount,
             tokenId: issued.tokenId,
+            rotatedClients: credentialRotation.updated,
+            createdClients: credentialRotation.created,
+            failedClients: credentialRotation.failed,
         });
 
         return res.json({
@@ -2179,6 +2194,13 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, (req, res) 
                 tokenId: issued.tokenId,
                 token: issued.token,
                 metadata: issued.metadata,
+                credentialRotation: {
+                    total: credentialRotation.total,
+                    created: credentialRotation.created,
+                    updated: credentialRotation.updated,
+                    skipped: credentialRotation.skipped,
+                    failed: credentialRotation.failed,
+                },
                 ...issued.urls,
             },
         });

@@ -396,24 +396,35 @@ export default function SystemSettings() {
         setBackupLoading(false);
     };
 
-    const inspectBackup = async () => {
+    const inspectBackupFile = async (options = {}) => {
         if (!isAdmin || !backupFile) {
             toast.error('请先选择备份文件');
-            return;
+            return null;
         }
-        setBackupInspectLoading(true);
         try {
             const formData = new FormData();
             formData.append('file', backupFile);
             const res = await api.post('/system/backup/inspect', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            setBackupInspection(res.data?.obj || null);
-            toast.success('备份文件校验通过');
+            const inspection = res.data?.obj || null;
+            setBackupInspection(inspection);
+            if (options.silentSuccess !== true) {
+                toast.success('备份文件校验通过');
+            }
+            return inspection;
         } catch (error) {
             setBackupInspection(null);
-            toast.error(error.response?.data?.msg || error.message || '备份文件校验失败');
+            if (options.silentError !== true) {
+                toast.error(error.response?.data?.msg || error.message || '备份文件校验失败');
+            }
+            return null;
         }
+    };
+
+    const inspectBackup = async () => {
+        setBackupInspectLoading(true);
+        await inspectBackupFile();
         setBackupInspectLoading(false);
     };
 
@@ -423,7 +434,16 @@ export default function SystemSettings() {
             return;
         }
 
-        const inspection = backupInspection || null;
+        let inspection = backupInspection || null;
+        if (!inspection) {
+            setBackupInspectLoading(true);
+            inspection = await inspectBackupFile({ silentSuccess: true, silentError: true });
+            setBackupInspectLoading(false);
+            if (!inspection) {
+                toast.error('备份文件校验失败，无法恢复');
+                return;
+            }
+        }
         const restoreKeys = inspection?.restorableKeys || [];
         const ok = await confirmAction({
             title: '恢复系统备份',
@@ -715,7 +735,7 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="card p-3 settings-mini-card settings-backup-action-card">
                                     <div className="text-sm font-medium">恢复已有备份</div>
-                                    <div className="text-xs text-muted mt-1">先上传并校验备份包，再决定是否恢复，避免误覆盖当前系统数据。</div>
+                                    <div className="text-xs text-muted mt-1">上传备份包后可先预览校验，也可以直接点击恢复备份，系统会在恢复前自动校验。</div>
                                     <div className="form-group mb-0 mt-3">
                                         <label className="form-label">恢复备份文件</label>
                                         <input
@@ -733,6 +753,9 @@ export default function SystemSettings() {
                                     <div className="settings-backup-action-footer">
                                         <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
                                             {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
+                                        </button>
+                                        <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                                            {backupRestoreLoading ? <span className="spinner" /> : '恢复备份'}
                                         </button>
                                     </div>
                                 </div>
@@ -768,7 +791,7 @@ export default function SystemSettings() {
                                             {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
                                         </button>
                                         <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
-                                            {backupRestoreLoading ? <span className="spinner" /> : '恢复该备份'}
+                                            {backupRestoreLoading ? <span className="spinner" /> : '确认恢复备份'}
                                         </button>
                                     </div>
                                 </div>

@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import {
     CLIENT_PROTOCOLS as DEPLOY_CLIENT_PROTOCOLS,
+    PASSWORD_PROTOCOLS,
+    UUID_PROTOCOLS,
     applyEntitlementToClient,
     buildManagedClientData,
     normalizeNonNegativeInt,
@@ -23,8 +25,43 @@ function buildScopeTokenName(serverId = '') {
     return `auto-persistent:${serverId || 'all'}`;
 }
 
-function buildStableSubId(email) {
-    return crypto.createHash('sha256').update(normalizeEmailInput(email)).digest('hex').slice(0, 16);
+function buildRandomSubId() {
+    return crypto.randomBytes(8).toString('hex');
+}
+
+function createSharedCredentials() {
+    return {
+        uuid: crypto.randomUUID(),
+        password: crypto.randomBytes(16).toString('hex'),
+        subId: buildRandomSubId(),
+    };
+}
+
+function applyManagedCredentialsToClient(clientRecord, {
+    email,
+    protocol,
+    inbound,
+    sharedCredentials,
+    entitlement,
+    resolveFlow,
+}) {
+    const normalizedProtocol = String(protocol || '').toLowerCase();
+    const payload = applyEntitlementToClient({
+        ...clientRecord,
+        email,
+        enable: true,
+        id: String(sharedCredentials.uuid || '').trim() || String(clientRecord?.id || '').trim(),
+        subId: String(sharedCredentials.subId || '').trim() || String(clientRecord?.subId || '').trim(),
+    }, entitlement);
+
+    if (UUID_PROTOCOLS.has(normalizedProtocol)) {
+        payload.flow = resolveFlow(normalizedProtocol, inbound);
+    }
+    if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
+        payload.password = String(sharedCredentials.password || '').trim() || String(clientRecord?.password || '').trim();
+    }
+
+    return payload;
 }
 
 function resolveDeployFlow(protocol, inbound) {
@@ -95,6 +132,8 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const servers = deps.serverRepository || serverRepository;
     const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
     const listInbounds = deps.listPanelInbounds || listPanelInbounds;
+    const addClient = deps.postAddClient || postAddClient;
+    const updateClient = deps.postUpdateClient || postUpdateClient;
 
     const result = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
@@ -123,12 +162,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
         ? new Set(options.allowedInboundKeys)
         : null;
 
-    const sharedCredentials = {
-        uuid: crypto.randomUUID(),
-        password: crypto.randomBytes(16).toString('hex'),
-        subId: buildStableSubId(email),
-    };
+    const sharedCredentials = options.sharedCredentials || createSharedCredentials();
     const baseEntitlement = resolvePolicyEntitlement(policy, options);
+    const forceCredentialRotation = options.forceCredentialRotation === true;
 
     for (const server of targetServers) {
         let panelContext;
@@ -166,13 +202,27 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
                     const override = overrideRepository.get(server.id, inbound.id, clientIdentifier);
                     const targetEntitlement = override || baseEntitlement;
-                    const updatedClient = applyEntitlementToClient(match, targetEntitlement);
+                    const updatedClient = forceCredentialRotation
+                        ? applyManagedCredentialsToClient(match, {
+                            email,
+                            protocol,
+                            inbound,
+                            sharedCredentials,
+                            entitlement: targetEntitlement,
+                            resolveFlow: resolveDeployFlow,
+                        })
+                        : applyEntitlementToClient(match, targetEntitlement);
 
                     const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
                         && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
                         && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0);
+                    const isSameCredentials = !forceCredentialRotation || (
+                        String(updatedClient.id || '') === String(match.id || '')
+                        && String(updatedClient.password || '') === String(match.password || '')
+                        && String(updatedClient.subId || '') === String(match.subId || '')
+                    );
 
-                    if (isSameEntitlement) {
+                    if (isSameEntitlement && isSameCredentials) {
                         result.skipped += 1;
                         result.details.push({
                             serverId: server.id,
@@ -186,7 +236,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                         continue;
                     }
 
-                    await postUpdateClient(client, inbound.id, clientIdentifier, updatedClient);
+                    await updateClient(client, inbound.id, clientIdentifier, updatedClient);
                     result.updated += 1;
                     result.details.push({
                         serverId: server.id,
@@ -194,7 +244,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                         inboundId: inbound.id,
                         inboundRemark: inbound.remark || '',
                         protocol,
-                        status: override ? 'override-updated' : 'updated',
+                        status: forceCredentialRotation
+                            ? (override ? 'override-credentials-rotated' : 'credentials-rotated')
+                            : (override ? 'override-updated' : 'updated'),
                     });
                     continue;
                 }
@@ -208,7 +260,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     resolveFlow: resolveDeployFlow,
                 });
 
-                await postAddClient(client, inbound.id, clientData);
+                await addClient(client, inbound.id, clientData);
                 result.created += 1;
                 result.details.push({
                     serverId: server.id,
@@ -234,6 +286,33 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     }
 
     return result;
+}
+
+async function rotateManagedSubscriptionCredentials(subscriptionEmail, policy = {}, options = {}, deps = {}) {
+    const normalizedEmail = normalizeEmailInput(subscriptionEmail);
+    if (!normalizedEmail) {
+        return {
+            total: 0,
+            created: 0,
+            updated: 0,
+            skipped: 0,
+            failed: 0,
+            details: [],
+            sharedCredentials: null,
+        };
+    }
+
+    const sharedCredentials = options.sharedCredentials || createSharedCredentials();
+    const deployment = await autoDeployClients(normalizedEmail, policy, {
+        ...options,
+        sharedCredentials,
+        forceCredentialRotation: true,
+    }, deps);
+
+    return {
+        ...deployment,
+        sharedCredentials,
+    };
 }
 
 async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
@@ -398,6 +477,8 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
 export {
     autoDeployClients,
     autoRemoveClients,
+    createSharedCredentials,
     ensurePersistentSubscriptionToken,
     provisionSubscriptionForUser,
+    rotateManagedSubscriptionCredentials,
 };
