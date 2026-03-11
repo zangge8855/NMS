@@ -133,6 +133,9 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect((await screen.findAllByRole('link', { name: '快捷导入' })).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();

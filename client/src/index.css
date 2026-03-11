@@ -1892,12 +1892,14 @@ input[type="radio"]:focus {
   padding: 14px;
   border-radius: 12px;
   width: fit-content;
+  margin-inline: auto;
 }
 
 .qr-surface-lg {
   padding: 16px;
   border-radius: var(--radius-xl);
   display: inline-block;
+  margin-inline: auto;
 }
 
 .section-title {
@@ -5798,6 +5800,8 @@ body::before {
 .login-card-column {
   display: flex;
   align-items: stretch;
+  width: 100%;
+  justify-content: center;
 }
 
 .login-card {
@@ -6103,19 +6107,7 @@ body::before {
 .inbounds-sort-controls {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-.inbounds-sort-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.inbounds-sort-stepper .btn {
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
+  justify-content: center;
 }
 
 .inbounds-row:hover td {
@@ -7000,10 +6992,6 @@ body::before {
 
 [data-theme="light"] .inbounds-row-selected td {
   background: rgba(99, 102, 241, 0.07);
-}
-
-[data-theme="light"] .inbounds-sort-stepper .btn:disabled {
-  background: rgba(15, 23, 42, 0.03) !important;
 }
 
 [data-theme="light"] .inbounds-client-limit-btn {
@@ -8908,6 +8896,65 @@ input[type="radio"]:focus-visible {
   min-width: 0;
 }
 
+.subscription-client-links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.subscription-client-links-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subscription-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.subscription-quick-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+}
+
+.subscription-quick-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subscription-quick-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscription-quick-card-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.subscription-quick-card-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-quick-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .settings-backup-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -9537,26 +9584,12 @@ input[type="radio"]:focus-visible {
   font-weight: 600;
 }
 
-.inbounds-sort-controls {
-  gap: 8px;
+.inbounds-sort-controls .btn {
+  cursor: grab;
 }
 
-.inbounds-sort-stepper {
-  gap: 6px;
-}
-
-.inbounds-sort-stepper .inbounds-sort-step {
-  width: auto;
-  height: 30px;
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 10px;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.inbounds-sort-stepper .inbounds-sort-step span {
-  line-height: 1;
+.inbounds-sort-controls .btn:active {
+  cursor: grabbing;
 }
 
 .login-page {
@@ -9580,6 +9613,7 @@ input[type="radio"]:focus-visible {
 .login-shell {
   width: min(424px, 100%);
   gap: 0;
+  align-items: center;
 }
 
 .login-top-actions {
@@ -9618,10 +9652,15 @@ input[type="radio"]:focus-visible {
 }
 
 .login-brand-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  text-align: center;
 }
 
 .login-brand-mark {
@@ -9632,7 +9671,9 @@ input[type="radio"]:focus-visible {
 }
 
 .login-brand-copy {
+  align-items: center;
   gap: 3px;
+  text-align: center;
 }
 
 .login-brand-name {
@@ -9647,6 +9688,10 @@ input[type="radio"]:focus-visible {
 
 .login-form-heading {
   margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .login-form-heading h1 {
@@ -9663,6 +9708,7 @@ input[type="radio"]:focus-visible {
   background: transparent;
   border: none;
   border-radius: 0;
+  text-align: center;
 }
 
 .auth-tab {
@@ -9751,6 +9797,10 @@ input[type="radio"]:focus-visible {
 
 .verify-header {
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .verify-icon {
@@ -9771,6 +9821,7 @@ input[type="radio"]:focus-visible {
   border-radius: 14px;
   border-width: 1px;
   box-shadow: none;
+  text-align: center;
 }
 
 .success-alert {

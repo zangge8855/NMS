@@ -58,6 +58,14 @@ function timelineOutcomeClass(outcome) {
     return '';
 }
 
+function normalizeAccessOutcome(status) {
+    const value = String(status || '').trim().toLowerCase();
+    if (value === 'success' || value === 'ok') return 'success';
+    if (value === 'expired') return 'expired';
+    if (value === 'revoked') return 'revoked';
+    return 'failed';
+}
+
 const AUDIT_EVENT_LABELS = {
     login_success: '登录成功',
     login_failed: '登录失败',
@@ -84,7 +92,7 @@ function formatTimelineTitle(item) {
 
 function formatOutcomeLabel(item) {
     if (item.type === 'access') {
-        if (item.accessStatus === 'ok') return '成功';
+        if (item.accessStatus === 'success' || item.accessStatus === 'ok') return '成功';
         if (item.accessStatus === 'expired') return '已过期';
         if (item.accessStatus === 'revoked') return '已撤销';
         return '失败';
@@ -267,7 +275,7 @@ export default function UserDetail() {
                 type: 'access',
                 eventKey: 'subscription_access',
                 accessStatus: e.status,
-                outcome: e.status === 'ok' ? 'success' : 'failed',
+                outcome: normalizeAccessOutcome(e.status),
                 reason: e.reason || '',
                 ip: e.clientIp || e.ip,
                 tokenId: e.tokenId || '',

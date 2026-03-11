@@ -13,6 +13,9 @@ describe('subscription profile bundle', () => {
         expect(bundle.clashUrl).toBe('https://sub.example.com/base?format=clash');
         expect(bundle.mihomoUrl).toBe('https://sub.example.com/base?format=clash');
         expect(bundle.singboxUrl).toContain('sing-box://import-remote-profile');
+        expect(bundle.importActions.find((item) => item.key === 'shadowrocket')?.href).toContain('shadowrocket://add/');
+        expect(bundle.importActions.find((item) => item.key === 'stash')?.href).toContain('stash://install-config');
+        expect(bundle.importActions.find((item) => item.key === 'surge')?.href).toContain('surge:///install-config');
         expect(findSubscriptionProfile(bundle, 'mihomo')?.label).toBe('Clash / Mihomo');
     });
 

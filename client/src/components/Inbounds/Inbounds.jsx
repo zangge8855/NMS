@@ -18,8 +18,6 @@ import {
     HiOutlineServer,
     HiOutlineSignal,
     HiOutlineBars3,
-    HiOutlineChevronUp,
-    HiOutlineChevronDown,
     HiOutlineCheck,
     HiOutlineClipboard,
     HiOutlineXMark,
@@ -436,8 +434,8 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
-    const handleDropInbound = async (targetKey) => {
-        const draggedKey = draggingKey;
+    const handleDropInbound = async (event, targetKey) => {
+        const draggedKey = draggingKey || event.dataTransfer?.getData('text/plain') || '';
         setDraggingKey('');
         const next = reorderInboundsWithinServer(inbounds, draggedKey, targetKey);
         if (!next.changed) return;
@@ -447,25 +445,6 @@ export default function Inbounds() {
             [next.serverId]: next.inboundIds,
         };
         setInboundOrder(nextOrder);
-        setInbounds(next.items);
-        await persistInboundOrder(next.serverId, next.inboundIds);
-    };
-
-    const moveInboundByStep = async (targetKey, direction) => {
-        const target = inbounds.find((item) => item.uiKey === targetKey);
-        if (!target) return;
-
-        const siblings = inbounds.filter((item) => item.serverId === target.serverId);
-        const currentIndex = siblings.findIndex((item) => item.uiKey === targetKey);
-        if (currentIndex < 0) return;
-
-        const offset = direction === 'up' ? -1 : 1;
-        const nextIndex = currentIndex + offset;
-        if (nextIndex < 0 || nextIndex >= siblings.length) return;
-
-        const next = reorderInboundsWithinServer(inbounds, targetKey, siblings[nextIndex].uiKey);
-        if (!next.changed) return;
-
         setInbounds(next.items);
         await persistInboundOrder(next.serverId, next.inboundIds);
     };
@@ -770,10 +749,6 @@ export default function Inbounds() {
                             ) : (
                                 filteredInbounds.map((ib) => {
                                     const clients = parseClients(ib);
-                                    const siblingInbounds = filteredInbounds.filter((item) => item.serverId === ib.serverId);
-                                    const siblingIndex = siblingInbounds.findIndex((item) => item.uiKey === ib.uiKey);
-                                    const canMoveUp = siblingIndex > 0;
-                                    const canMoveDown = siblingIndex >= 0 && siblingIndex < siblingInbounds.length - 1;
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
                                     return (
@@ -791,7 +766,7 @@ export default function Inbounds() {
                                                 onDrop={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    handleDropInbound(ib.uiKey);
+                                                    handleDropInbound(e, ib.uiKey);
                                                 }}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
@@ -811,40 +786,14 @@ export default function Inbounds() {
                                                             draggable
                                                             onDragStart={(e) => {
                                                                 e.stopPropagation();
+                                                                e.dataTransfer.effectAllowed = 'move';
+                                                                e.dataTransfer.setData('text/plain', ib.uiKey);
                                                                 setDraggingKey(ib.uiKey);
                                                             }}
                                                             onDragEnd={() => setDraggingKey('')}
                                                         >
                                                             <HiOutlineBars3 />
                                                         </button>
-                                                        <div className="inbounds-sort-stepper">
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-ghost btn-sm inbounds-sort-step"
-                                                                title="上移"
-                                                                disabled={!canMoveUp || savingOrderServerId === ib.serverId}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    moveInboundByStep(ib.uiKey, 'up');
-                                                                }}
-                                                            >
-                                                                <HiOutlineChevronUp />
-                                                                <span>上移</span>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-ghost btn-sm inbounds-sort-step"
-                                                                title="下移"
-                                                                disabled={!canMoveDown || savingOrderServerId === ib.serverId}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    moveInboundByStep(ib.uiKey, 'down');
-                                                                }}
-                                                            >
-                                                                <HiOutlineChevronDown />
-                                                                <span>下移</span>
-                                                            </button>
-                                                        </div>
                                                     </div>
                                                 </td>
                                                 {filterServerId === 'all' && (

@@ -131,4 +131,16 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByText('离线')).toBeInTheDocument();
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
+
+    it('keeps only the drag handle for sorting and removes step move buttons', async () => {
+        renderWithRouter(<Inbounds />);
+
+        const inboundName = await screen.findByText('Main Inbound');
+        const summaryRow = inboundName.closest('tr');
+        if (!summaryRow) throw new Error('Missing inbound summary row');
+
+        expect(within(summaryRow).getByRole('button', { name: '拖拽排序' })).toBeInTheDocument();
+        expect(within(summaryRow).queryByRole('button', { name: '上移' })).not.toBeInTheDocument();
+        expect(within(summaryRow).queryByRole('button', { name: '下移' })).not.toBeInTheDocument();
+    });
 });
