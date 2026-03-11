@@ -10092,8 +10092,8 @@ input[type="radio"]:focus-visible {
 @media (min-width: 1025px) {
   .sidebar-toggle {
     display: inline-flex;
-    top: 88px;
-    right: -16px;
+    top: 20px;
+    right: 12px;
     width: 32px;
     height: 32px;
     border-radius: 12px;
