@@ -1,197 +1,181 @@
-# NMS 开发环境数据库接入指南
-
-> 更新时间：2026-03-09
+# Database Integration For Development
 
 ## 中文
 
-### 1. 目标
+### 目标
 
-在不改变现有 API 的前提下，为后端 Store 增加 PostgreSQL 持久化能力，并继续支持三种运行模式：
+本说明用于本地开发和迁移演练。NMS 默认使用文件存储，不要求数据库；当你需要验证 PostgreSQL schema、双写迁移或生产前演练时，再开启数据库相关配置。
 
-- `STORE_READ_MODE=file|db`
-- `STORE_WRITE_MODE=file|dual|db`
+### 前置条件
 
-默认仍是文件模式，便于平滑迁移和低风险回滚。
+- 已安装 PostgreSQL 14+
+- 已准备好独立的开发数据库
+- 已在 `server/` 安装依赖
 
-### 2. 配置项
+### 最小配置
 
-参考 `.env.example` 中 DB 段落：
+将下面的变量写入 `.env`：
 
-- `DB_ENABLED`
-- `DB_URL`
-- `DB_SCHEMA`
-- `DB_POOL_MAX`
-- `DB_SSL_MODE`
-- `DB_MIGRATION_AUTO`
-- `STORE_READ_MODE`
-- `STORE_WRITE_MODE`
-- `DB_BACKFILL_REDACT`
-- `DB_BACKFILL_DRY_RUN`
-- `DB_PRIVACY_MODE`
-
-### 3. 相关系统接口
-
-- `GET /api/system/db/status`  
-  查看 DB 状态、运行模式、快照和默认回填参数
-- `POST /api/system/db/backfill`  
-  默认以任务模式执行回填，支持同步兼容模式
-- `POST /api/system/db/switch`  
-  切换 `read/write` 运行模式
-- `GET /api/system/tasks`
-- `GET /api/system/tasks/:taskId`
-- `DELETE /api/system/tasks/:taskId`
-- `GET /api/system/monitor/status`  
-  同时包含 DB 告警统计与通知未读数
-- `GET /api/system/notifications`
-- `POST /api/system/notifications/read`
-
-### 4. 回填方式
-
-接口回填默认推荐异步模式：
-
-- 立即返回 `taskId`
-- 后台逐个 store 执行
-- 可查看进度
-- 可取消未完成任务
-
-仍保留同步模式作为兼容路径。
-
-后端目录也可继续执行脚本方式：
-
-```bash
-npm run db:backfill -- --dry-run --redact
-npm run db:backfill -- --no-dry-run --redact
-npm run db:backfill -- --no-dry-run --keys=users,servers
+```env
+DB_ENABLED=true
+DB_URL=postgres://postgres:postgres@127.0.0.1:5432/nms_dev
+DB_SCHEMA=nms_dev
+DB_MIGRATION_AUTO=true
+STORE_READ_MODE=file
+STORE_WRITE_MODE=dual
+DB_BACKFILL_REDACT=true
+DB_BACKFILL_DRY_RUN=true
 ```
 
-### 5. 告警与通知
+建议先用 `dual` 模式做迁移演练：
 
-当前已增加 DB 写入失败告警能力：
+- 读：仍然从文件读取
+- 写：同时写入文件和 PostgreSQL
+- 好处：即使 DB schema 有问题，也不会破坏现有文件数据
 
-- 滑动时间窗口失败计数
-- 连续失败次数检测
-- 通知中心推送
+### 推荐工作流
 
-系统设置里的“监控状态”会汇总：
+1. 保持一份可回滚的 `data/` 目录备份
+2. 启动服务，让自动建表完成 schema 初始化
+3. 在 `dual` 模式下完成基础功能联调
+4. 运行回填命令检查历史数据同步情况
+5. 确认数据一致后，再切换到 `STORE_READ_MODE=db`
 
-- `failuresInWindow`
-- `consecutiveFailures`
-- `lastSuccessAt`
-- 通知中心未读数量
+### 回填命令
 
-### 6. 隐私保护策略（开发环境）
+```bash
+cd server
+npm run db:backfill
+```
 
-- 审计快照与流量快照写入 DB 时默认支持脱敏，包含哈希化的 `email/ip/userAgent`
-- 敏感字段（`password/token/secret/cookie`）不进入普通日志
-- 建议仅连接开发库，不直连生产库
-- 回填默认使用 `dry-run + redact`
+常用组合：
 
-### 7. 启动行为
+- 演练模式：`DB_BACKFILL_DRY_RUN=true`
+- 实际执行：`DB_BACKFILL_DRY_RUN=false`
+- 脱敏迁移：`DB_BACKFILL_REDACT=true`
 
-`server/index.js` 启动时会：
+### 模式说明
 
-1. 初始化 DB 连接并确保 schema / table
-2. 加载运行模式（`read/write`）
-3. 当 `read=db` 时尝试从 DB 快照回填内存 Store
-4. 当 `write=dual|db` 时进行一次基线同步
-5. 在运行期持续把 DB 写入失败统计接入告警与通知
+| 变量 | 推荐值 | 说明 |
+| --- | --- | --- |
+| `DB_ENABLED` | `true` | 启用数据库能力 |
+| `STORE_READ_MODE` | `file` -> `db` | 先文件读，确认稳定后切到 DB |
+| `STORE_WRITE_MODE` | `dual` | 迁移阶段推荐 |
+| `DB_PRIVACY_MODE` | `strict` | 开发环境建议严格脱敏 |
 
----
+### 验证项
 
-# NMS Development Database Integration Guide
+- 管理员登录正常
+- 节点列表、用户列表、订阅列表数据一致
+- 审计与流量页面可正常翻页
+- 新增、编辑、删除操作在 DB 中有对应结果
+- 服务重启后数据仍可正确恢复
 
-> Updated: 2026-03-09
+### 常见问题
+
+#### 自动建表失败
+
+- 检查 `DB_URL` 是否可达
+- 检查数据库用户是否有 schema 创建权限
+- 检查 `DB_SCHEMA` 是否与现有对象冲突
+
+#### 双写成功但读不到数据
+
+- 确认当前仍在 `STORE_READ_MODE=file`
+- 切换到 `db` 之前先执行回填或完成一次全量同步
+
+#### 开发环境不想暴露敏感数据
+
+- 保持 `DB_BACKFILL_REDACT=true`
+- 保持 `DB_PRIVACY_MODE=strict`
+- 不要把生产库快照直接导入本地开发库
 
 ## English
 
-### 1. Goal
+### Goal
 
-Add PostgreSQL persistence to backend stores without changing existing APIs, while keeping the current runtime modes:
+This guide is for local development and migration rehearsal. NMS works without a database by default. Enable PostgreSQL only when you need to test schema bootstrap, dual-write migration, or production-like storage behavior.
 
-- `STORE_READ_MODE=file|db`
-- `STORE_WRITE_MODE=file|dual|db`
+### Prerequisites
 
-File mode remains the default for safer rollout and rollback.
+- PostgreSQL 14+
+- A dedicated development database
+- Installed dependencies under `server/`
 
-### 2. Configuration
+### Minimum configuration
 
-See the DB section in `.env.example`:
+Add the following variables to `.env`:
 
-- `DB_ENABLED`
-- `DB_URL`
-- `DB_SCHEMA`
-- `DB_POOL_MAX`
-- `DB_SSL_MODE`
-- `DB_MIGRATION_AUTO`
-- `STORE_READ_MODE`
-- `STORE_WRITE_MODE`
-- `DB_BACKFILL_REDACT`
-- `DB_BACKFILL_DRY_RUN`
-- `DB_PRIVACY_MODE`
-
-### 3. Related System APIs
-
-- `GET /api/system/db/status`  
-  Inspect DB readiness, runtime modes, snapshots, and default backfill flags
-- `POST /api/system/db/backfill`  
-  Task-based by default, with synchronous compatibility mode
-- `POST /api/system/db/switch`  
-  Switch `read/write` runtime modes
-- `GET /api/system/tasks`
-- `GET /api/system/tasks/:taskId`
-- `DELETE /api/system/tasks/:taskId`
-- `GET /api/system/monitor/status`  
-  Includes DB alert statistics and unread notification count
-- `GET /api/system/notifications`
-- `POST /api/system/notifications/read`
-
-### 4. Backfill Strategy
-
-The API path now prefers async task-based backfill:
-
-- returns a `taskId` immediately
-- processes stores in the background
-- exposes progress
-- allows cancellation before completion
-
-The synchronous mode is still kept for compatibility.
-
-You can still run the script path from the backend directory:
-
-```bash
-npm run db:backfill -- --dry-run --redact
-npm run db:backfill -- --no-dry-run --redact
-npm run db:backfill -- --no-dry-run --keys=users,servers
+```env
+DB_ENABLED=true
+DB_URL=postgres://postgres:postgres@127.0.0.1:5432/nms_dev
+DB_SCHEMA=nms_dev
+DB_MIGRATION_AUTO=true
+STORE_READ_MODE=file
+STORE_WRITE_MODE=dual
+DB_BACKFILL_REDACT=true
+DB_BACKFILL_DRY_RUN=true
 ```
 
-### 5. Alerts and Notifications
+Start with `dual` mode:
 
-DB write failure alerting is now built in:
+- Reads still come from files
+- Writes go to both files and PostgreSQL
+- This gives you a safe migration path without depending on the new schema immediately
 
-- sliding window failure counting
-- consecutive failure detection
-- notification center integration
+### Recommended workflow
 
-System Settings monitoring status summarizes:
+1. Keep a restorable backup of `data/`
+2. Start the server and let automatic schema bootstrap finish
+3. Exercise the application in `dual` mode
+4. Run the backfill command to inspect historical sync results
+5. Switch `STORE_READ_MODE` to `db` only after data consistency is confirmed
 
-- `failuresInWindow`
-- `consecutiveFailures`
-- `lastSuccessAt`
-- unread notification count
+### Backfill command
 
-### 6. Privacy Policy in Development
+```bash
+cd server
+npm run db:backfill
+```
 
-- Audit and traffic snapshots support redaction by default, including hashed `email/ip/userAgent`
-- Sensitive fields such as `password/token/secret/cookie` must not enter normal logs
-- Use a development database only; do not connect directly to production
-- Backfill should default to `dry-run + redact`
+Useful combinations:
 
-### 7. Startup Behavior
+- rehearsal: `DB_BACKFILL_DRY_RUN=true`
+- actual execution: `DB_BACKFILL_DRY_RUN=false`
+- privacy-preserving migration: `DB_BACKFILL_REDACT=true`
 
-On startup, `server/index.js` will:
+### Mode summary
 
-1. initialize the DB connection and ensure schema / table creation
-2. load the configured read/write mode
-3. rehydrate in-memory stores from DB snapshots when `read=db`
-4. run a baseline sync when `write=dual|db`
-5. keep DB write failures connected to alerting and notifications during runtime
+| Variable | Suggested value | Meaning |
+| --- | --- | --- |
+| `DB_ENABLED` | `true` | turn on database support |
+| `STORE_READ_MODE` | `file` -> `db` | move reads after validation |
+| `STORE_WRITE_MODE` | `dual` | recommended during migration |
+| `DB_PRIVACY_MODE` | `strict` | good default for development |
+
+### Validation checklist
+
+- Admin login works
+- Servers, users, and subscriptions render the expected records
+- Audit and traffic pages paginate correctly
+- Create, update, and delete operations appear in PostgreSQL
+- Restarting the service preserves data integrity
+
+### Common issues
+
+#### Schema bootstrap fails
+
+- Check that `DB_URL` is reachable
+- Verify schema creation privileges for the database user
+- Ensure `DB_SCHEMA` does not collide with an existing layout
+
+#### Dual-write works but reads do not change
+
+- Confirm that `STORE_READ_MODE` is still `file`
+- Perform backfill or a full sync before switching reads to `db`
+
+#### Avoiding sensitive data in development
+
+- Keep `DB_BACKFILL_REDACT=true`
+- Keep `DB_PRIVACY_MODE=strict`
+- Do not import production snapshots directly into a local development database

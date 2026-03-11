@@ -1,256 +1,161 @@
-# NMS 架构总览
-
-> 更新时间：2026-03-10
+# Architecture Overview
 
 ## 中文
 
-### 1. 目标
+### 系统组成
 
-这一版 NMS 的目标不是重写整个系统，而是在不改变对外 API、页面入口和部署方式的前提下，把后端内部结构收口成更稳定的形态，便于继续迭代 3x-ui 管理、订阅、审计和系统运维功能。
+NMS 由三层组成：
 
-### 2. 当前分层
+- 前端：`client/` 下的 React + Vite 单页应用，负责 Dashboard、Servers、Inbounds、Clients、Subscriptions、Audit、System Settings 等页面
+- 后端：`server/index.js` 启动的 Express 应用，提供 REST API、WebSocket ticket、静态资源托管与统一错误处理
+- 数据层：默认使用 `data/` 下的文件存储，可按配置切换到 PostgreSQL 或文件 / 数据库双写模式
 
-后端主干已经整理为：
+### 请求流
 
-- `routes/`
-  负责请求解析、权限校验、参数初步校验、HTTP 状态映射
-- `services/`
-  负责业务编排和跨模块逻辑
-- `repositories/`
-  负责统一访问 store / DB 镜像层
-- `panel gateway / panel client`
-  负责访问 3x-ui 节点 API
-- `store/`
-  负责当前文件存储与运行时内存态
+1. 浏览器访问前端页面或已构建的静态资源
+2. 前端通过 `/api/*` 调用后端接口
+3. 后端经过认证、中间件、路由、服务层与存储层处理请求
+4. 需要实时刷新的页面通过 WebSocket ticket 建立安全连接
+5. 涉及节点数据时，由服务层调用面板网关或面板客户端转发请求
 
-### 3. 关键服务
+### 后端分层
 
-- `emailAuthService`
-  负责注册、邮箱验证、重发验证码、找回密码、验证码重置密码
-- `authSessionService`
-  负责登录、会话相关认证流程
-- `userAdminService`
-  负责管理员视角下的用户账号操作
-- `subscriptionSyncService`
-  负责开通订阅、策略同步、客户端 entitlement 下发
-- `subscriptionAuditService`
-  负责订阅访问审计聚合与 IP 归属地整合
-- `panelLogsService`
-  负责统一 3x-ui `panel/xray/system` 日志查询兼容层
-- `clientEntitlementService`
-  负责单实例单独限定与恢复跟随统一策略
+- `routes/`: HTTP 接口入口，负责参数校验、权限边界与响应格式
+- `services/`: 业务编排，例如订阅同步、邮件验证码、用户管理、日志聚合
+- `repositories/` / `store/`: 数据访问层，适配文件模式与数据库模式
+- `lib/`: 通用能力，如健康检查、审计、告警、协议目录、邮件发送
+- `db/`: PostgreSQL 启动、schema 与运行模式管理
 
-### 4. 数据与持久化
+### 关键模块
 
-- 默认仍支持文件模式
-- PostgreSQL 仍以兼容模式存在，用于快照、镜像和运行模式切换
-- 业务层不再直接依赖具体 store，而是通过 repository 访问
-- 当前仍保持：
-  `STORE_READ_MODE=file|db`
-  `STORE_WRITE_MODE=file|dual|db`
+- 认证与安全：`auth`, `middleware/auth.js`, `services/authSessionService.js`
+- 节点与面板：`routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
+- 用户与客户端：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
+- 订阅中心：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
+- 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
+- 系统设置：`routes/system.js`, `repositories/systemSettingsRepository.js`
 
-### 5. 当前新增的系统运维能力
+### 存储模式
 
-- SMTP 诊断
-  `GET /api/system/email/status`
-- 系统备份导出
-  `GET /api/system/backup/status`
-  `GET /api/system/backup/export`
-- 节点健康巡检
-  `GET /api/system/monitor/status`
-  `POST /api/system/monitor/run`
-- DB 回填任务化
-  `POST /api/system/db/backfill`
-  `GET /api/system/tasks`
-  `GET /api/system/tasks/:taskId`
-  `DELETE /api/system/tasks/:taskId`
-- 通知中心
-  `GET /api/system/notifications`
-  `POST /api/system/notifications/read`
+| 模式 | 读取 | 写入 | 适用场景 |
+| --- | --- | --- | --- |
+| `file` | 文件 | 文件 | 默认开发与轻量部署 |
+| `dual` | 文件 | 文件 + PostgreSQL | 迁移与灰度阶段 |
+| `db` | PostgreSQL | PostgreSQL | 稳定生产环境 |
 
-### 5.1 近期稳定性收口
+相关环境变量：
 
-- 入站 `settings` / `streamSettings` 统一接受“对象”或“JSON 字符串”两种输入形态
-- 前后端都不再假设 3x-ui 面板一定返回字符串化 JSON，避免客户端数量统计、订阅构造和流量聚合被误判为空
-- 生产环境下如果启用了前端静态托管但缺少 `client/dist/index.html`，服务端会对 SPA 路由返回明确 `503`，而不是抛出 `sendFile` 文件错误
+- `DB_ENABLED`
+- `DB_URL`
+- `STORE_READ_MODE`
+- `STORE_WRITE_MODE`
+- `DB_MIGRATION_AUTO`
+- `DB_BACKFILL_REDACT`
 
-### 6. 用户限额与策略模型
+### 前端信息架构
 
-统一策略层：
+- Layout：Sidebar + Header + Content
+- 监控：Dashboard
+- 管理：Inbounds、Clients、Subscriptions、Node Console、3x-ui Capabilities、Node Tools
+- 运维：Audit、Settings
+- 系统入口：Servers
 
-- `limitIp`
-- `trafficLimitBytes`
-- `expiryTime`
+### 安全边界
 
-单实例覆盖层：
+- 管理接口统一经过 `authMiddleware` 与 `adminOnly`
+- 订阅公开访问通过 token 校验，不复用管理员会话
+- 生产环境会强制检查弱口令、弱用户名与弱密钥
+- 面板凭据加密使用 `CREDENTIALS_SECRET`
+- 反向代理场景启用了可信代理设置，便于审计真实来源 IP
 
-- `PUT /api/clients/entitlement`
-- `GET /api/clients/entitlement-overrides`
+### 实时与后台任务
 
-设计原则：
+- WebSocket 用于受控实时能力，连接前先通过 ticket 授权
+- `serverHealthMonitor` 在后台持续采样节点状态
+- 批量任务与日志、流量统计都具有独立保留策略
 
-- 大多数用户跟随统一策略
-- 个别入站里的客户端可以单独限定
-- 单独限定优先于统一策略
-- 可以一键恢复跟随统一策略
+### 推荐扩展方式
 
-### 7. 审计与真实 IP
-
-订阅访问审计当前会记录：
-
-- `clientIp`
-- `proxyIp`
-- `ipSource`
-- `cfCountry`
-
-在 Cloudflare 或其他反代场景下，NMS 会优先使用可信代理头解析真实访客 IP，而不是直接把边缘代理地址当成用户 IP。
-
-### 8. 与 3x-ui 的边界
-
-NMS 通过官方 API 能稳定做的事情：
-
-- 登录节点
-- 读取状态、版本、配置、DB 导出
-- 管理入站和客户端
-- 触发 Telegram 备份
-- 读取已支持的日志接口
-
-当前明确保守处理的边界：
-
-- Telegram Bot 配置仍在 3x-ui 面板里管理
-- 某些节点可能不支持 `panel logs` 或 `xray logs`
-- NMS 不直接通过未文档化接口改 3x-ui 私有设置
-
-### 9. 当前阶段不做的事
-
-- 不把 PostgreSQL 立刻升级为唯一主存储
-- 不引入 Go 或其他后端语言
-- 不因为架构调整而修改既有 API 路径和响应结构
-- 不通过 SSH 默认修改高风险节点配置
-
----
-
-# NMS Architecture Overview
-
-> Updated: 2026-03-10
+- 新增接口时，优先补充 route -> service -> repository 的完整链路
+- 存储逻辑不要直接写死在 route 中，统一通过 store 或 repository 抽象
+- 涉及 UI 组件层级、浮层、表格和弹窗时，复用现有 Layout 与样式 token
 
 ## English
 
-### 1. Goal
+### System shape
 
-This phase does not rewrite the system. The goal is to keep public APIs, pages, and deployment unchanged while making the backend easier to extend safely.
+NMS is built from three layers:
 
-### 2. Current Layers
+- Frontend: a React + Vite SPA under `client/`, covering Dashboard, Servers, Inbounds, Clients, Subscriptions, Audit, and System Settings
+- Backend: an Express app started by `server/index.js`, exposing REST APIs, WebSocket ticket endpoints, static asset hosting, and global error handling
+- Data layer: file-backed stores under `data/` by default, with optional PostgreSQL or dual-write runtime modes
 
-The backend is now organized as:
+### Request flow
 
-- `routes/`
-  request parsing, authorization, light validation, HTTP mapping
-- `services/`
-  business orchestration and cross-module logic
-- `repositories/`
-  unified access to stores and DB mirror behavior
-- `panel gateway / panel client`
-  3x-ui node communication
-- `store/`
-  current file-backed and in-memory runtime state
+1. The browser loads the SPA or the built static assets
+2. The frontend calls backend endpoints under `/api/*`
+3. The backend processes requests through auth, middleware, routes, services, and stores
+4. Real-time pages obtain a secure WebSocket ticket before connecting
+5. Panel-related actions are forwarded through the panel gateway and panel client services
 
-### 3. Key Services
+### Backend layers
 
-- `emailAuthService`
-- `authSessionService`
-- `userAdminService`
-- `subscriptionSyncService`
-- `subscriptionAuditService`
-- `panelLogsService`
-- `clientEntitlementService`
+- `routes/`: HTTP entry points, response shape, and permission boundaries
+- `services/`: business orchestration for subscriptions, email auth, user admin, and log aggregation
+- `repositories/` / `store/`: persistence adapters for file and database modes
+- `lib/`: shared utilities such as health monitoring, auditing, alerts, protocol catalog, and mail delivery
+- `db/`: PostgreSQL bootstrap, schema management, and runtime mode control
 
-These services hold the main business logic that previously lived in route files.
+### Key modules
 
-### 4. Data and Persistence
+- Auth and security: `auth`, `middleware/auth.js`, `services/authSessionService.js`
+- Servers and panel access: `routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
+- Users and clients: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
+- Subscription center: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
+- Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
+- System settings: `routes/system.js`, `repositories/systemSettingsRepository.js`
 
-- File mode remains the default
-- PostgreSQL is still supported as a compatibility layer for snapshots and runtime mode switching
-- Business code now uses repositories instead of directly spreading store access across routes
-- Runtime modes remain:
-  `STORE_READ_MODE=file|db`
-  `STORE_WRITE_MODE=file|dual|db`
+### Storage modes
 
-### 5. Operational Features Added in the Current Architecture
+| Mode | Read path | Write path | Recommended use |
+| --- | --- | --- | --- |
+| `file` | file | file | default development and small installs |
+| `dual` | file | file + PostgreSQL | migrations and staged rollout |
+| `db` | PostgreSQL | PostgreSQL | stable production |
 
-- SMTP diagnostics
-  `GET /api/system/email/status`
-- System backup export
-  `GET /api/system/backup/status`
-  `GET /api/system/backup/export`
-- Node health monitor
-  `GET /api/system/monitor/status`
-  `POST /api/system/monitor/run`
-- Task-based DB backfill
-  `POST /api/system/db/backfill`
-  `GET /api/system/tasks`
-  `GET /api/system/tasks/:taskId`
-  `DELETE /api/system/tasks/:taskId`
-- Notification center
-  `GET /api/system/notifications`
-  `POST /api/system/notifications/read`
+Related environment variables:
 
-### 5.1 Recent Hardening Notes
+- `DB_ENABLED`
+- `DB_URL`
+- `STORE_READ_MODE`
+- `STORE_WRITE_MODE`
+- `DB_MIGRATION_AUTO`
+- `DB_BACKFILL_REDACT`
 
-- inbound `settings` and `streamSettings` now accept either plain objects or JSON strings
-- both client and server paths no longer assume that 3x-ui always returns stringified JSON, which avoids empty client counts, broken subscription rendering, and dropped traffic aggregation
-- when frontend hosting is enabled in production but `client/dist/index.html` is missing, the server now returns an explicit `503` for SPA routes instead of surfacing a raw `sendFile` file error
+### Frontend information architecture
 
-### 6. Entitlement Model
+- Layout: Sidebar + Header + Content
+- Monitor: Dashboard
+- Manage: Inbounds, Clients, Subscriptions, Node Console, 3x-ui Capabilities, Node Tools
+- Operate: Audit, Settings
+- System entry: Servers
 
-Policy-level defaults:
+### Security boundaries
 
-- `limitIp`
-- `trafficLimitBytes`
-- `expiryTime`
+- Admin routes are protected by `authMiddleware` and `adminOnly`
+- Public subscription access uses token validation, not admin sessions
+- Production mode enforces checks against weak usernames, passwords, and secrets
+- Panel credentials are encrypted with `CREDENTIALS_SECRET`
+- Trusted proxy settings allow audit logs to record the correct client IP behind reverse proxies
 
-Per-client overrides:
+### Real-time and background work
 
-- `PUT /api/clients/entitlement`
-- `GET /api/clients/entitlement-overrides`
+- WebSocket features use ticket-based authorization
+- `serverHealthMonitor` samples server health in the background
+- Batch jobs, audit records, and traffic stats each have dedicated retention controls
 
-Design rules:
+### Preferred extension pattern
 
-- most users follow a shared policy
-- exceptional inbound clients can override it
-- override values win over policy defaults
-- a client can be switched back to follow policy
-
-### 7. Audit and Real Client IP
-
-Subscription access audit now stores:
-
-- `clientIp`
-- `proxyIp`
-- `ipSource`
-- `cfCountry`
-
-Under Cloudflare or other reverse proxies, NMS prefers trusted forwarding headers instead of treating the proxy edge IP as the visitor IP.
-
-### 8. Boundary with 3x-ui
-
-Stable operations via official 3x-ui APIs include:
-
-- node login
-- status, version, config, DB export
-- inbound and client management
-- Telegram backup trigger
-- supported log endpoints
-
-Deliberately conservative boundaries:
-
-- Telegram Bot configuration still belongs to the 3x-ui panel
-- some nodes do not expose `panel logs` or `xray logs`
-- NMS does not write undocumented private 3x-ui settings through guessed APIs
-
-### 9. What This Phase Does Not Do
-
-- it does not make PostgreSQL the only primary store
-- it does not introduce Go or another backend language
-- it does not change existing API paths or response shapes
-- it does not enable risky SSH-based node mutation by default
+- For new features, keep the route -> service -> repository chain explicit
+- Avoid embedding storage writes directly inside routes
+- Reuse existing layout patterns and UI tokens for floating panels, tables, and modal behavior

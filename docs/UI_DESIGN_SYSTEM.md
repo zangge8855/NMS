@@ -1,261 +1,163 @@
-# NMS 管理端 UI 设计基线
-
-> 更新时间：2026-03-11
+# UI Design System
 
 ## 中文
 
-### 1. 目标
+### 设计目标
 
-这一版 UI 的目标不是做“监控大屏”或强赛博风，而是建立一套更稳定的企业后台视觉基线：
+NMS 的后台界面应优先满足三件事：稳定、清晰、可连续操作。界面不是营销页，重点是状态密度、风险提示、批量操作效率和低误触成本。
 
-- 深色优先，亮色跟随
-- 强调秩序、层级、留白和数据可读性
-- 把首页、导航壳层、登录页和高频管理页先收口成同一套系统
-- 完善全站的设备自适应（移动端抽屉式侧边栏与数据表格滚动）
+### 视觉基线
 
-### 2. 设计方向
+- 布局容器使用柔和分层，不使用生硬纯黑边框
+- 卡片、下拉、弹窗统一采用 `rounded-xl`、柔和阴影与浅边框
+- 按钮、输入框统一采用 `rounded-lg`
+- 明暗模式都必须使用明确且不透明的表面色
 
-当前主风格关键词：
+### 全局 token
 
-- 企业感
-- 克制
-- 精准
-- 高密度但不拥挤
+样式分散在三个文件中：
 
-避免的方向：
+- `client/src/styles/ui-tokens.css`
+- `client/src/styles/layout-polish.css`
+- `client/src/styles/interaction-polish.css`
 
-- 大面积高饱和霓虹发光
-- 紫蓝绿多强调色同时竞争
-- 过多持续动画
-- 玻璃拟态过重导致信息发灰
+统一原则：
 
-### 3. 主题策略
+- 表面层级使用浅边框 + 阴影，而不是重描边
+- Hover 使用 `transition-colors`
+- Focus 使用统一 ring
+- 浮层使用明确背景色和 `z-index`
 
-- 默认主题：`dark`
-- 保留主题切换：`dark -> light -> auto`
-- 深色版作为主设计稿，亮色版只做同质映射，不另起一套语言
-- 亮色版的 hover / focus / tab / tooltip / 次级按钮态必须使用同一套浅色 token，不能再出现悬浮后局部发黑的“深色补丁感”
-- 亮色版的 `text-secondary` / `text-muted` 不能为了“轻”而牺牲可读性；副标题、说明字、表头、筛选说明和通知时间必须保持稳定可辨
+### Layout
 
-实现位置：
+- Sidebar：支持展开、折叠和收起态 flyout
+- Header：承载全局搜索、通知和当前上下文信息
+- Content：保持稳定留白与滚动区域，不让浮层被裁切
 
-- `client/src/contexts/ThemeContext.jsx`
+### Sidebar 规范
 
-### 4. 字体策略
+- 当前激活项必须有明显背景区分与指示条
+- 菜单文字在宽度过渡期间保持 `whitespace-nowrap`
+- 收起态子菜单必须通过 Portal 或 `overflow-visible` 机制渲染
+- 手风琴展开动画应避免 `display` 动画，优先使用 `max-height` 或 grid rows 技巧
 
-- 界面字体：`IBM Plex Sans`
-- 中文回退：`Noto Sans SC`
-- 数字 / URL / 标识符：`JetBrains Mono`
+### Dropdown / Popover 规范
 
-实现位置：
+- 统一使用不透明背景色，例如 `bg-white dark:bg-slate-800`
+- 统一提升层级到 `z-50`
+- 只对 `opacity`、`transform`、`visibility` 做过渡
+- 不对 `display` 做 transition
+- 低性能设备上不要叠加多层 `backdrop-blur`
 
-- `client/index.html`
-- `client/src/index.css`
+### Modal 规范
 
-### 5. 色彩与层级
+- 遮罩使用 `bg-slate-900/50 backdrop-blur-sm`
+- 内容层使用 `rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50`
+- 进退场动画使用轻微上浮与透明度变化
+- 必须支持点击遮罩关闭和 `Esc` 关闭
 
-核心基线：
+### 表单规范
 
-- 主背景：深墨蓝
-- 表面层：深蓝灰递进
-- 强调色：钴蓝
-- 语义色：绿色 / 橙色 / 红色，仅用于状态语义
+- 所有输入框与按钮必须去掉默认浏览器蓝框
+- Focus 态统一为 `focus:outline-none focus:ring-2 focus:ring-blue-500/50`
+- Select 必须有显式背景色，避免暗色模式下闪黑块
 
-原则：
+### 表格规范
 
-- 主要靠亮度对比和边界，不靠强发光制造层级
-- 工具条、表格、主卡片、次卡片必须有清晰层次
-- 同一屏内控制强调色数量，默认只允许一个主强调
+- 表头默认吸顶
+- 行 hover 明显，但不能干扰可读性
+- 空数据时使用统一 Empty State 组件，不直接裸写“暂无数据”
+- 滚动条统一细化并适配亮 / 暗模式
 
-### 6. 布局规则
+### Empty State 规范
 
-壳层规则：
+- 使用共享 `EmptyState` 组件
+- 支持默认版、紧凑版和带表面层次版
+- 文案要说明下一步，而不只是一句“没有数据”
 
-- 桌面端侧边栏稳重、低噪音，激活态用实体底和细高亮条
-- 移动端自动收起侧边栏，提供顶部汉堡菜单呼出抽屉式侧边栏
-- 顶栏只承担上下文说明和核心操作，不堆叠装饰
-- 顶栏搜索必须是可用的页面搜索入口，而不是只显示占位文案的装饰控件；键盘快捷键统一为 `Ctrl/Cmd + K`
-- 内容区采用 `min-width: 0` 保护 Flexbox 边界，避免大表格溢出顶破全局布局
+### 可访问性
 
-页面规则：
-
-- 页面先有标题与副标题，再进入工具条
-- 工具条承担过滤、范围、主动作
-- 数据主体用表格壳或卡片壳统一收口
-
-### 7. 组件基线
-
-已重点收口的区域：
-
-- 登录页
-- 侧边栏
-- 顶栏
-- 首页仪表盘
-- 节点健康卡
-- 服务器管理
-- 入站管理
-- 用户管理
-- 审计中心
-- 系统设置
-
-统一规则：
-
-- 按钮圆角、边框、hover、focus 使用统一 token
-- 表格表头与表体边界统一
-- 批量条、筛选条、统计卡共享同一套表面层级
-- 次级卡片使用 `mini-card` 语义，不再和主卡片同权
-- 登录页使用单卡片居中布局，不再保留额外品牌展示区和营销式说明文案
-- 顶栏搜索结果面板、筛选输入框和轻量下拉菜单在深浅主题下都使用同一套表面层级与文字 token
-
-### 8. CSS 组织方式
-
-基础样式：
-
-- `client/src/index.css`
-
-原则：
-
-- 所有视觉收口统一写进 `client/src/index.css`
-- 业务组件只补稳定语义 class，不直接堆大量 inline style
-- 组件逻辑和视觉 token 尽量分离
-
-### 9. 当前验收重点
-
-建议固定检查以下视口：
-
-- `1440x900`
-- `1024x768`
-- `390x844`
-
-重点验收页面：
-
-- `/login`
-- `/`
-- `/servers`
-- `/inbounds`
-- `/clients`
-- `/audit`
-- `/settings`
-
-本轮额外关注点：
-
-- 亮色模式下仪表盘、服务器管理、审计中心、日志页的搜索框、标签页、图标按钮、次级按钮 hover / focus 是否仍出现发黑块
-- 图表 tooltip、卡片 meta 区、筛选条和表格 hover 是否与浅色主题层级一致
-- 顶栏搜索是否可输入、可键盘导航、可回车跳转，结果面板在深浅主题下都不应出现可读性下降
-- 亮色模式下副标题、说明字、表头、通知时间和搜索结果 meta 是否仍然足够清晰，而不是发灰发虚
-
-### 10. 后续迭代建议
-
-下一轮优先级：
-
-- `Tasks`
-- `Logs`
-- 各类 modal 与详情页
-- 用户详情、订阅中心的深浅主题一致性
-
----
-
-# NMS Admin UI Design Baseline
-
-> Updated: 2026-03-11
+- 交互控件要有可见焦点
+- 键盘用户必须能关闭弹窗并切换主要导航
+- 色彩对比度优先于装饰效果
 
 ## English
 
-### 1. Goal
+### Design goal
 
-This UI pass is not meant to turn NMS into a flashy dashboard. The goal is to establish a stable enterprise admin baseline:
+The NMS admin UI optimizes for stability, clarity, and uninterrupted operations. This is not a marketing site. The interface should prioritize state density, risk visibility, batch efficiency, and low error cost.
 
-- dark-first, light as a mapped variant
-- emphasis on hierarchy, rhythm, spacing, and data readability
-- unify login, shell layout, dashboard, and high-frequency admin pages first
-- complete and polished mobile responsiveness (drawer sidebar and table scroll)
+### Visual baseline
 
-### 2. Visual Direction
+- Use soft separation instead of harsh black borders
+- Cards, dropdowns, and modals share `rounded-xl`, soft shadow, and subtle borders
+- Buttons and inputs share `rounded-lg`
+- Both light and dark themes must use explicit opaque surfaces
 
-Current style keywords:
+### Global tokens
 
-- enterprise
-- restrained
-- precise
-- high-density without feeling cramped
+Styles are split across:
 
-Avoid:
+- `client/src/styles/ui-tokens.css`
+- `client/src/styles/layout-polish.css`
+- `client/src/styles/interaction-polish.css`
 
-- heavy neon glow
-- too many competing accent colors
-- constant decorative animations
-- excessive glassmorphism that reduces contrast
+Consistent rules:
 
-### 3. Theme Strategy
+- separate layers with subtle borders and shadows
+- use `transition-colors` for hover feedback
+- keep a shared focus ring
+- give floating panels explicit background color and stable z-order
 
-- default theme: `dark`
-- theme cycle remains: `dark -> light -> auto`
-- dark is the primary reference, light follows the same visual language
-- light mode hover, focus, tab, tooltip, and secondary-button states must use the same light token system instead of falling back to dark-looking overlays
-- light-mode `text-secondary` and `text-muted` must stay readable; subtitles, helper copy, table headers, filter hints, and notification timestamps should not be faded into ambiguity
+### Layout
 
-Implementation:
+- Sidebar supports expanded, collapsed, and flyout states
+- Header hosts global search, notifications, and context
+- Content keeps stable spacing and scroll regions without clipping overlays
 
-- `client/src/contexts/ThemeContext.jsx`
+### Sidebar rules
 
-### 4. Typography
+- The active item must be visually distinct and clearly indicated
+- Labels keep `whitespace-nowrap` during width animation
+- Collapsed flyouts must render through a Portal or an overflow-safe strategy
+- Accordion transitions should avoid animating `display`; prefer `max-height` or grid-row techniques
 
-- UI type: `IBM Plex Sans`
-- CJK fallback: `Noto Sans SC`
-- numeric / URL / identifier type: `JetBrains Mono`
+### Dropdown / Popover rules
 
-### 5. Color and Hierarchy
+- Use opaque surfaces such as `bg-white dark:bg-slate-800`
+- Standardize layer order at `z-50`
+- Transition only `opacity`, `transform`, and `visibility`
+- Never transition `display`
+- Avoid stacking heavy `backdrop-blur` effects on lower-end devices
 
-Core baseline:
+### Modal rules
 
-- ink / navy background
-- layered blue-gray surfaces
-- cobalt primary accent
-- semantic green / orange / red reserved for status
+- Overlay uses `bg-slate-900/50 backdrop-blur-sm`
+- The surface uses `rounded-xl shadow-lg border border-slate-200 dark:border-slate-700/50`
+- Enter and exit motion uses a slight upward float with opacity
+- Click-outside close and `Esc` close are required
 
-Rules:
+### Form rules
 
-- hierarchy comes from contrast and edges, not glow
-- toolbars, data shells, primary cards, and secondary cards must be visually distinct
-- one primary accent per screen by default
+- Remove default browser focus outlines from inputs and buttons
+- Standardize focus with `focus:outline-none focus:ring-2 focus:ring-blue-500/50`
+- Native selects need explicit backgrounds to avoid dark-mode flashing
 
-### 6. Layout Rules
+### Table rules
 
-Shell:
+- Headers should remain sticky
+- Row hover should be visible without reducing readability
+- Empty states should use the shared `EmptyState` component
+- Scrollbars should be slim and theme-aware
 
-- sidebar is quiet and stable on desktop
-- mobile auto-hides sidebar and relies on a top hamburger menu to reveal a drawer
-- header is contextual, not decorative
-- header search must be a real page-search entrypoint rather than a decorative placeholder, with `Ctrl/Cmd + K` as the shared shortcut
-- main content block leverages `min-width: 0` to prevent inner flexbox tables from overflowing the global shell
+### Empty state rules
 
-Pages:
+- Use the shared `EmptyState` component
+- Support default, compact, and surfaced variants
+- Copy should describe the next useful action, not only "no data"
 
-- title and subtitle first
-- toolbar second
-- data shell after that
+### Accessibility
 
-### 7. Implementation Notes
-
-- base styles and visual refinements both live in `client/src/index.css`
-- new visual work should prefer semantic classes plus centralized CSS instead of inline styles
-- the login page now uses a centered single-card layout without a separate brand showcase block
-- header search results, filter inputs, and lightweight dropdown surfaces should share the same text and surface tokens across dark and light themes
-
-### 8. Current Acceptance Focus
-
-Check these in both dark and light themes:
-
-- `/login`
-- `/`
-- `/servers`
-- `/audit`
-- `/logs`
-- `/settings`
-
-Additional light-theme checks:
-
-- search fields, tabs, icon buttons, and secondary buttons should not flash dark patches on hover or focus
-- tooltips, filter bars, card meta sections, and table hover layers should stay within the same light hierarchy
-- header search should accept input, support keyboard navigation, and keep its results readable in both themes
-- subtitles, helper copy, table headers, notification timestamps, and search-result meta text should remain legible instead of washing out in light mode
+- Interactive elements must keep visible focus
+- Keyboard users must be able to close modals and navigate primary layout areas
+- Color contrast has higher priority than decorative effects
