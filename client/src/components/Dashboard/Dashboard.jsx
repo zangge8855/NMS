@@ -628,7 +628,6 @@ export default function Dashboard() {
                         <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                             <div>
                                 <div className="dashboard-section-title">{t('pages.dashboardGlobal.toolbarTitle')}</div>
-                                <div className="dashboard-section-subtitle">{t('pages.dashboardGlobal.toolbarSubtitle')}</div>
                             </div>
                             <WsStatusDot status={wsStatus} />
                         </div>
@@ -779,7 +778,6 @@ export default function Dashboard() {
                     <div className="dashboard-toolbar-group dashboard-toolbar-copy">
                         <div>
                             <div className="dashboard-section-title">{activeServer?.name || t('pages.dashboardNode.currentNodeFallback')}</div>
-                            <div className="dashboard-section-subtitle">{t('pages.dashboardNode.toolbarSubtitle')}</div>
                         </div>
                         <WsStatusDot status={wsStatus} />
                     </div>

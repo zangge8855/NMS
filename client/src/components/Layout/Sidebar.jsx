@@ -162,7 +162,6 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                         <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
                         <div className="server-info">
                             <div className="server-name text-glow">{t('shell.scopeGlobalValue')}</div>
-                            <div className="server-addr text-muted">{t('shell.scopeGlobalSubtitle')}</div>
                         </div>
                         <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
                     </button>
@@ -210,7 +209,6 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
                             <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
                             <div>
                                 <div className="font-medium">{t('shell.scopeGlobalValue')}</div>
-                                <div className="text-muted text-xs">{t('shell.scopeGlobalSubtitle')}</div>
                             </div>
                         </div>
 

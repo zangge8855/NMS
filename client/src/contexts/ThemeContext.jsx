@@ -39,7 +39,9 @@ export function ThemeProvider({ children }) {
     // Apply theme to <html> element
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', resolvedTheme);
-    }, [resolvedTheme]);
+        document.documentElement.setAttribute('data-theme-mode', mode);
+        document.documentElement.style.colorScheme = resolvedTheme;
+    }, [mode, resolvedTheme]);
 
     // Listen for system theme changes when in auto mode
     useEffect(() => {

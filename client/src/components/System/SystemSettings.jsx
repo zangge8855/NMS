@@ -5,8 +5,15 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineCog6Tooth } from 'react-icons/hi2';
+import {
+    HiOutlineArrowDownTray,
+    HiOutlineArrowUpTray,
+    HiOutlineCog6Tooth,
+    HiOutlineExclamationTriangle,
+    HiOutlineXMark,
+} from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -96,6 +103,10 @@ export default function SystemSettings() {
     const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
     const [backupFile, setBackupFile] = useState(null);
     const [backupInspection, setBackupInspection] = useState(null);
+    const [backupRestoreModalOpen, setBackupRestoreModalOpen] = useState(false);
+    const [backupRestoreConfirmed, setBackupRestoreConfirmed] = useState(false);
+    const [backupUploadProgress, setBackupUploadProgress] = useState(0);
+    const [backupDragActive, setBackupDragActive] = useState(false);
     const [monitorLoading, setMonitorLoading] = useState(false);
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
@@ -396,6 +407,12 @@ export default function SystemSettings() {
         setBackupLoading(false);
     };
 
+    const setSelectedBackupFile = (file) => {
+        setBackupFile(file || null);
+        setBackupInspection(null);
+        setBackupUploadProgress(0);
+    };
+
     const inspectBackupFile = async (options = {}) => {
         if (!isAdmin || !backupFile) {
             toast.error('请先选择备份文件');
@@ -406,15 +423,23 @@ export default function SystemSettings() {
             formData.append('file', backupFile);
             const res = await api.post('/system/backup/inspect', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (event) => {
+                    const total = Number(event.total || 0);
+                    const loaded = Number(event.loaded || 0);
+                    if (loaded <= 0) return;
+                    setBackupUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 100);
+                },
             });
             const inspection = res.data?.obj || null;
             setBackupInspection(inspection);
+            setBackupUploadProgress(100);
             if (options.silentSuccess !== true) {
                 toast.success('备份文件校验通过');
             }
             return inspection;
         } catch (error) {
             setBackupInspection(null);
+            setBackupUploadProgress(0);
             if (options.silentError !== true) {
                 toast.error(error.response?.data?.msg || error.message || '备份文件校验失败');
             }
@@ -433,6 +458,10 @@ export default function SystemSettings() {
             toast.error('请先选择备份文件');
             return;
         }
+        if (!backupRestoreConfirmed) {
+            toast.error('请先确认已知晓恢复会覆盖当前数据');
+            return;
+        }
 
         let inspection = backupInspection || null;
         if (!inspection) {
@@ -445,18 +474,6 @@ export default function SystemSettings() {
             }
         }
         const restoreKeys = inspection?.restorableKeys || [];
-        const ok = await confirmAction({
-            title: '恢复系统备份',
-            message: '恢复后会立即覆盖备份中包含的同名 store，当前系统数据将被替换。',
-            details: [
-                `文件: ${backupFile.name || '-'}`,
-                inspection?.createdAt ? `备份时间: ${new Date(inspection.createdAt).toLocaleString('zh-CN')}` : '备份时间: 未知',
-                `恢复范围: ${restoreKeys.length > 0 ? restoreKeys.join(', ') : '自动识别'}`,
-            ].join('\n'),
-            confirmText: '确认恢复',
-            tone: 'danger',
-        });
-        if (!ok) return;
 
         setBackupRestoreLoading(true);
         try {
@@ -467,9 +484,16 @@ export default function SystemSettings() {
             }
             const res = await api.post('/system/backup/restore', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (event) => {
+                    const total = Number(event.total || 0);
+                    const loaded = Number(event.loaded || 0);
+                    if (loaded <= 0) return;
+                    setBackupUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 100);
+                },
             });
             const payload = res.data?.obj || null;
             setBackupInspection(payload?.inspection || inspection);
+            setBackupUploadProgress(100);
             toast.success(res.data?.msg || '备份已恢复');
             await Promise.all([
                 fetchSettings(),
@@ -478,7 +502,11 @@ export default function SystemSettings() {
                 fetchEmailStatus({ quiet: true }),
                 fetchMonitorStatus({ quiet: true }),
             ]);
+            setBackupRestoreModalOpen(false);
+            setBackupRestoreConfirmed(false);
+            setSelectedBackupFile(null);
         } catch (error) {
+            setBackupUploadProgress(0);
             toast.error(error.response?.data?.msg || error.message || '恢复备份失败');
         }
         setBackupRestoreLoading(false);
@@ -729,33 +757,24 @@ export default function SystemSettings() {
                                     <div className="text-xs text-muted mt-1">下载当前系统 store 的 gzip 快照，适合在变更前先留存一份回滚点。</div>
                                     <div className="settings-backup-action-footer">
                                         <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
-                                            {backupLoading ? <span className="spinner" /> : '导出 gzip 备份'}
+                                            {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出 gzip 备份</>}
                                         </button>
                                     </div>
                                 </div>
                                 <div className="card p-3 settings-mini-card settings-backup-action-card">
                                     <div className="text-sm font-medium">恢复已有备份</div>
-                                    <div className="text-xs text-muted mt-1">上传备份包后可先预览校验，也可以直接点击恢复备份，系统会在恢复前自动校验。</div>
-                                    <div className="form-group mb-0 mt-3">
-                                        <label className="form-label">恢复备份文件</label>
-                                        <input
-                                            className="form-input"
-                                            type="file"
-                                            accept=".gz,.json.gz,application/gzip"
-                                            onChange={(event) => {
-                                                const file = event.target.files?.[0] || null;
-                                                setBackupFile(file);
-                                                setBackupInspection(null);
-                                            }}
-                                        />
-                                        <div className="text-xs text-muted mt-1">{backupFile?.name || '请选择 NMS 导出的 gzip 备份文件'}</div>
-                                    </div>
+                                    <div className="text-xs text-muted mt-1">通过恢复向导上传并预览 `.gzip` 备份包，再执行覆盖恢复，避免在面板里直接误触高风险动作。</div>
                                     <div className="settings-backup-action-footer">
-                                        <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                            {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
-                                        </button>
-                                        <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                            {backupRestoreLoading ? <span className="spinner" /> : '恢复备份'}
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => {
+                                                setBackupRestoreModalOpen(true);
+                                                setBackupRestoreConfirmed(false);
+                                                setBackupUploadProgress(0);
+                                            }}
+                                            disabled={backupLoading || backupRestoreLoading}
+                                        >
+                                            <HiOutlineArrowUpTray /> 导入 / 恢复备份
                                         </button>
                                     </div>
                                 </div>
@@ -1032,6 +1051,122 @@ export default function SystemSettings() {
                     )}
                 </div>
             </div>
+            <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>
+                <div className="modal modal-wide settings-restore-modal" onClick={(event) => event.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">恢复系统备份</h3>
+                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)}>
+                            <HiOutlineXMark />
+                        </button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="settings-restore-warning">
+                            <HiOutlineExclamationTriangle className="settings-restore-warning-icon" />
+                            <div className="settings-restore-warning-copy">
+                                <div className="settings-restore-warning-title">恢复会覆盖当前同名 Store</div>
+                                <div className="text-sm text-muted">建议先导出一份当前系统快照，再选择备份文件进行预览校验。恢复后，备份中包含的数据会替换当前运行数据。</div>
+                            </div>
+                        </div>
+
+                        <label
+                            className={`settings-restore-dropzone${backupDragActive ? ' is-dragover' : ''}`}
+                            onDragOver={(event) => {
+                                event.preventDefault();
+                                setBackupDragActive(true);
+                            }}
+                            onDragLeave={(event) => {
+                                event.preventDefault();
+                                setBackupDragActive(false);
+                            }}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                setBackupDragActive(false);
+                                setSelectedBackupFile(event.dataTransfer?.files?.[0] || null);
+                            }}
+                        >
+                            <input
+                                type="file"
+                                accept=".gz,.json.gz,application/gzip"
+                                onChange={(event) => setSelectedBackupFile(event.target.files?.[0] || null)}
+                            />
+                            <div className="settings-restore-dropzone-title">拖拽备份文件到这里，或点击选择文件</div>
+                            <div className="settings-restore-dropzone-sub">支持 `NMS` 导出的 `.gz / .json.gz` 备份包</div>
+                            <div className="settings-restore-file">{backupFile?.name || '尚未选择文件'}</div>
+                        </label>
+
+                        {(backupInspectLoading || backupRestoreLoading || backupUploadProgress > 0) && (
+                            <div className="settings-restore-progress">
+                                <div className="settings-restore-progress-head">
+                                    <span>{backupRestoreLoading ? '恢复上传中' : '文件校验上传中'}</span>
+                                    <span>{backupUploadProgress}%</span>
+                                </div>
+                                <div className="settings-restore-progress-bar">
+                                    <span style={{ width: `${backupUploadProgress}%` }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {backupInspection && (
+                            <div className="card mini-card settings-backup-inspection">
+                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                    <div className="text-sm font-medium">备份预览</div>
+                                    <span className="badge badge-success">已校验</span>
+                                </div>
+                                <div className="settings-backup-inspection-grid">
+                                    <div className="settings-backup-inspection-item">
+                                        <div className="text-xs text-muted">备份时间</div>
+                                        <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
+                                    </div>
+                                    <div className="settings-backup-inspection-item">
+                                        <div className="text-xs text-muted">格式版本</div>
+                                        <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
+                                    </div>
+                                    <div className="settings-backup-inspection-item">
+                                        <div className="text-xs text-muted">可恢复 Store</div>
+                                        <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                    </div>
+                                </div>
+                                {(backupInspection.unsupportedKeys || []).length > 0 && (
+                                    <div className="text-sm text-muted">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
+                                )}
+                                {(backupInspection.missingKeys || []).length > 0 && (
+                                    <div className="text-sm text-muted">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
+                                )}
+                            </div>
+                        )}
+
+                        <label className="settings-restore-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={backupRestoreConfirmed}
+                                onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
+                            />
+                            我已确认本次恢复会覆盖当前同名数据，且备份文件来源可信。
+                        </label>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={() => setBackupRestoreModalOpen(false)}>
+                            取消
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={inspectBackup}
+                            disabled={!backupFile || backupInspectLoading || backupRestoreLoading}
+                        >
+                            {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={restoreBackup}
+                            disabled={!backupFile || !backupRestoreConfirmed || backupInspectLoading || backupRestoreLoading}
+                        >
+                            {backupRestoreLoading ? <span className="spinner" /> : '执行恢复'}
+                        </button>
+                    </div>
+                </div>
+            </ModalShell>
             {backfillTaskId && (
                 <TaskProgressModal
                     taskId={backfillTaskId}

@@ -954,7 +954,22 @@ export default function UsersHub() {
                                     >
                                         <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                         <td data-label="用户名" className="font-medium table-cell-link" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>{user.username}</td>
-                                        <td data-label="邮箱" className="text-sm text-muted">{user.email || user.subscriptionEmail || '-'}</td>
+                                        <td data-label="邮箱" className="text-sm">
+                                            {user.email || user.subscriptionEmail ? (
+                                                <button
+                                                    type="button"
+                                                    className="table-cell-link table-cell-link-button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/subscriptions?email=${encodeURIComponent(user.subscriptionEmail || user.email)}`);
+                                                    }}
+                                                >
+                                                    {user.email || user.subscriptionEmail}
+                                                </button>
+                                            ) : (
+                                                <span className="text-muted">-</span>
+                                            )}
+                                        </td>
                                         <td data-label="状态">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                                         </td>

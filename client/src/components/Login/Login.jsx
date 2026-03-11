@@ -266,28 +266,27 @@ export default function Login() {
             <div className="login-bg-glow two" />
             <div className="login-bg-glow three" />
 
-            <div className="login-top-actions">
-                <button
-                    type="button"
-                    className="login-locale-toggle theme-toggle-btn language-toggle-btn"
-                    onClick={toggleLocale}
-                    title={t('shell.switchLanguage')}
-                    aria-label={t('shell.switchLanguage')}
-                >
-                    <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                </button>
-                <button
-                    type="button"
-                    className="login-theme-toggle theme-toggle-btn"
-                    onClick={cycleTheme}
-                    title={themeToggleTitle}
-                    aria-label={themeToggleTitle}
-                >
-                    <ThemeIcon />
-                </button>
-            </div>
-
             <div className="login-shell">
+                <div className="login-top-actions">
+                    <button
+                        type="button"
+                        className="login-locale-toggle theme-toggle-btn language-toggle-btn"
+                        onClick={toggleLocale}
+                        title={t('shell.switchLanguage')}
+                        aria-label={t('shell.switchLanguage')}
+                    >
+                        <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="login-theme-toggle theme-toggle-btn"
+                        onClick={cycleTheme}
+                        title={themeToggleTitle}
+                        aria-label={themeToggleTitle}
+                    >
+                        <ThemeIcon />
+                    </button>
+                </div>
                 <div className="login-card-column">
                     <div className="login-card">
                         <div className="login-card-border" />

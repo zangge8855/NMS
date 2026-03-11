@@ -69,6 +69,7 @@ export default function Subscriptions() {
         () => findSubscriptionProfile(result?.bundle, profileKey),
         [result, profileKey]
     );
+    const linkedUserHref = normalizedEmail ? `/clients?q=${encodeURIComponent(normalizedEmail)}` : '';
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -291,7 +292,7 @@ export default function Subscriptions() {
                     </div>
                     <div className="subscriptions-toolbar-actions">
                         {normalizedEmail && (
-                            <Link className="btn btn-secondary" to={`/clients?q=${encodeURIComponent(normalizedEmail)}`}>
+                            <Link className="btn btn-secondary" to={linkedUserHref}>
                                 用户管理
                             </Link>
                         )}
@@ -323,22 +324,24 @@ export default function Subscriptions() {
                                 className="grid gap-4 mb-8"
                                 style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}
                             >
-                                <div className="card">
+                                <div className="card mini-card">
                                     <div className="text-sm text-muted">用户</div>
-                                    <div style={{ fontSize: '18px', fontWeight: 700 }}>{result.email}</div>
+                                    <Link className="subscription-email-link" to={linkedUserHref}>
+                                        {result.email}
+                                    </Link>
                                 </div>
-                                <div className="card">
+                                <div className="card mini-card">
                                     <div className="text-sm text-muted">状态</div>
                                     <div style={{ fontSize: '24px', fontWeight: 700 }}>
                                         {result.subscriptionActive ? '可用' : '失效'}
                                     </div>
                                     <div className="text-sm text-muted">{result.inactiveReason || '-'}</div>
                                 </div>
-                                <div className="card">
+                                <div className="card mini-card">
                                     <div className="text-sm text-muted">有效节点链接数</div>
                                     <div style={{ fontSize: '24px', fontWeight: 700 }}>{result.total}</div>
                                 </div>
-                                <div className="card">
+                                <div className="card mini-card">
                                     <div className="text-sm text-muted">过滤统计</div>
                                     <div className="text-sm text-muted">
                                         过期 {result.filteredExpired} / 禁用 {result.filteredDisabled} / 权限 {result.filteredByPolicy}

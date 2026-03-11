@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
@@ -25,7 +25,7 @@ function getShortcutLabel() {
     return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 }
 
-export default function Header({ title, subtitle = '', icon, children }) {
+export default function Header({ title, subtitle = '', icon, children, showSubtitle = false }) {
     const { activeServerId } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
@@ -37,6 +37,7 @@ export default function Header({ title, subtitle = '', icon, children }) {
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const searchRef = useRef(null);
     const inputRef = useRef(null);
+    const searchResultsId = useId();
 
     const ThemeIcon = themeIcons[mode] || HiOutlineMoon;
     const isAdmin = user?.role === 'admin';
@@ -156,7 +157,7 @@ export default function Header({ title, subtitle = '', icon, children }) {
                 {icon && <span className="header-icon">{icon}</span>}
                 <div className="header-title-group">
                     <h1 className="header-title">{title}</h1>
-                    {subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
+                    {showSubtitle && subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
                 </div>
             </div>
             <div className="header-actions">
@@ -164,6 +165,10 @@ export default function Header({ title, subtitle = '', icon, children }) {
                     className={`header-search${searchOpen ? ' is-open' : ''}`}
                     ref={searchRef}
                     onClick={openSearch}
+                    role="combobox"
+                    aria-expanded={searchOpen}
+                    aria-haspopup="listbox"
+                    aria-controls={searchResultsId}
                 >
                     <HiOutlineMagnifyingGlass className="header-search-icon" />
                     <input
@@ -178,10 +183,13 @@ export default function Header({ title, subtitle = '', icon, children }) {
                         onFocus={() => setSearchOpen(true)}
                         onKeyDown={handleSearchKeyDown}
                         aria-label={t('shell.searchAriaLabel')}
+                        aria-autocomplete="list"
+                        aria-controls={searchResultsId}
+                        aria-activedescendant={searchOpen && filteredItems[highlightedIndex] ? `${searchResultsId}-${highlightedIndex}` : undefined}
                     />
                     <kbd className="header-search-kbd">{shortcutLabel}</kbd>
                     {searchOpen && (
-                        <div className="header-search-results">
+                        <div className="header-search-results" id={searchResultsId} role="listbox">
                             {filteredItems.length === 0 ? (
                                 <div className="header-search-empty">
                                     {t('shell.searchEmpty')}
@@ -193,10 +201,13 @@ export default function Header({ title, subtitle = '', icon, children }) {
                                     return (
                                         <button
                                             key={item.path}
+                                            id={`${searchResultsId}-${index}`}
                                             type="button"
                                             className={`header-search-item${isHighlighted ? ' active' : ''}`}
                                             onMouseEnter={() => setHighlightedIndex(index)}
                                             onClick={() => handleSelect(item)}
+                                            role="option"
+                                            aria-selected={isHighlighted}
                                         >
                                             <span className="header-search-item-icon">
                                                 <ItemIcon />
