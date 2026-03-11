@@ -38,7 +38,7 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
         setShowServerMenu(false);
         setServerSearch('');
         onClose?.();
-    }, [location.pathname, onClose]);
+    }, [location.pathname]);
 
     useEffect(() => {
         if (!isGlobalView) return;
