@@ -1,6 +1,6 @@
 # NMS 部署与升级 Runbook
 
-> 更新时间：2026-03-10
+> 更新时间：2026-03-11
 
 ## 中文
 
@@ -205,7 +205,7 @@ rm -f /tmp/nms_ui_check.cjs /tmp/nms_ui_round3_check.cjs
 
 # NMS Deployment and Upgrade Runbook
 
-> Updated: 2026-03-10
+> Updated: 2026-03-11
 
 ## English
 
