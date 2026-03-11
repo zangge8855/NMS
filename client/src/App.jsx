@@ -79,8 +79,15 @@ function ProtectedLayout() {
                     <Sidebar
                         collapsed={effectiveCollapsed}
                         open={sidebarOpen}
+                        isMobile={isMobile}
                         onClose={() => setSidebarOpen(false)}
-                        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                        onToggle={() => {
+                            if (isMobile) {
+                                setSidebarOpen((current) => !current);
+                                return;
+                            }
+                            setSidebarCollapsed(!sidebarCollapsed);
+                        }}
                     />
                 </Suspense>
                 <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>

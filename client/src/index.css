@@ -266,6 +266,23 @@ a:hover {
   }
 }
 
+@keyframes online-dot-ping {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.32;
+  }
+
+  75% {
+    transform: scale(2);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1786,12 +1803,20 @@ input[type="radio"]:focus {
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
+.transition-transform {
+  transition: transform var(--transition-fast);
+}
+
 .transition-all {
   transition: all var(--transition-fast);
 }
 
 .duration-200 {
   transition-duration: 200ms;
+}
+
+.rotate-90 {
+  transform: rotate(90deg);
 }
 
 .ring-1 {
@@ -2256,6 +2281,16 @@ input[type="radio"]:focus {
 
   .sidebar-toggle {
     display: none;
+  }
+
+  .sidebar.open .sidebar-toggle {
+    display: inline-flex;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    z-index: calc(var(--z-drawer) + 2);
   }
 
   .mobile-menu-btn {
@@ -6094,8 +6129,35 @@ body::before {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.inbounds-expand-col,
+.inbounds-expand-cell {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.inbounds-expand-indicator {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
 .inbounds-row td {
   vertical-align: middle;
+}
+
+.inbounds-sequence-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inbounds-sequence-number {
+  min-width: 2ch;
+  text-align: right;
 }
 
 .inbounds-remark-cell {
@@ -6138,6 +6200,12 @@ body::before {
   padding-right: 10px;
 }
 
+.inbounds-drag-handle.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .inbounds-status-cell {
   display: inline-flex;
   align-items: center;
@@ -6159,13 +6227,34 @@ body::before {
   white-space: nowrap;
 }
 
+.inbounds-online-dot-shell,
+.inbounds-client-online-dot-shell {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inbounds-online-dot-ping,
+.inbounds-client-online-dot-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.28;
+  animation: online-dot-ping 1.8s ease-out infinite;
+}
+
 .inbounds-online-dot {
   width: 8px;
   height: 8px;
   border-radius: 999px;
   background: currentColor;
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
-  animation: ws-connected-pulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
 }
 
 .inbounds-clients-cell {
@@ -6204,8 +6293,10 @@ body::before {
   min-width: 1024px;
 }
 
-.inbounds-clients-table th {
+.inbounds-clients-table th,
+.inbounds-clients-table td {
   font-size: 10px;
+  white-space: nowrap;
 }
 
 .inbounds-client-id-row {
@@ -6226,14 +6317,14 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .inbounds-client-status-stack {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .inbounds-client-actions {
@@ -6305,11 +6396,12 @@ body::before {
   height: 8px;
   border-radius: 999px;
   background: currentColor;
+  position: relative;
+  z-index: 1;
 }
 
 .inbounds-client-online-status.is-online .inbounds-client-online-dot {
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
-  animation: ws-connected-pulse 2s ease-in-out infinite;
 }
 
 .users-order-input {
@@ -8814,6 +8906,11 @@ input[type="radio"]:focus-visible {
     height: 48px;
   }
 
+  .inbounds-expand-col,
+  .inbounds-expand-cell {
+    display: none !important;
+  }
+
   .inbounds-table-shell .table,
   .inbounds-clients-table {
     min-width: 0;
@@ -9645,6 +9742,7 @@ input[type="radio"]:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;

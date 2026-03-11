@@ -11,6 +11,8 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
+    HiChevronRight,
+    HiOutlineBars3,
     HiOutlinePlusCircle,
     HiOutlineTrash,
     HiOutlinePencilSquare,
@@ -19,11 +21,12 @@ import {
     HiOutlineSignal,
     HiOutlineCheck,
     HiOutlineClipboard,
+    HiOutlineInbox,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
-    moveInboundWithinServerToPosition,
+    reorderInboundsWithinServer,
     sortInboundsByOrder,
 } from '../../utils/inboundOrder.js';
 import {
@@ -40,6 +43,7 @@ import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -119,7 +123,8 @@ export default function Inbounds() {
     const [filterServerId, setFilterServerId] = useState('all');
     const [inboundOrder, setInboundOrder] = useState({});
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
-    const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
+    const [draggingInboundKey, setDraggingInboundKey] = useState('');
+    const [dropTargetInboundKey, setDropTargetInboundKey] = useState('');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -154,7 +159,6 @@ export default function Inbounds() {
             const orderRes = await api.get('/system/inbounds/order');
             orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
             setInboundOrder(orderMap);
-            setInboundOrderDrafts({});
         } catch (err) {
             console.error('Failed to load inbound order:', err);
         }
@@ -261,6 +265,8 @@ export default function Inbounds() {
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
         setSelectedKeys(new Set());
+        setDraggingInboundKey('');
+        setDropTargetInboundKey('');
     }, [filterServerId]);
 
     // Batch Actions
@@ -460,54 +466,66 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
-    const getInboundOrderPosition = (inbound) => {
-        const serverId = String(inbound?.serverId || '').trim();
-        const inboundId = String(inbound?.id || '').trim();
-        const persistedOrder = Array.isArray(inboundOrder[serverId]) ? inboundOrder[serverId] : [];
-        const fallbackOrder = inbounds
-            .filter((item) => String(item?.serverId || '').trim() === serverId)
-            .map((item) => String(item?.id || '').trim())
-            .filter(Boolean);
-        const currentOrder = persistedOrder.length > 0 ? persistedOrder : fallbackOrder;
-        const position = currentOrder.findIndex((item) => item === inboundId);
-        return position >= 0 ? position + 1 : 1;
+    const handleInboundDragStart = (event, inbound) => {
+        if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
+        const sourceKey = String(inbound?.uiKey || '').trim();
+        if (!sourceKey) return;
+        setDraggingInboundKey(sourceKey);
+        setDropTargetInboundKey(sourceKey);
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', sourceKey);
+        }
     };
 
-    const handleInboundOrderDraftChange = (uiKey, value) => {
-        setInboundOrderDrafts((prev) => ({
-            ...prev,
-            [uiKey]: value,
-        }));
+    const resolveDraggedInboundKey = (event) => {
+        const transferredKey = String(event?.dataTransfer?.getData('text/plain') || '').trim();
+        return transferredKey || draggingInboundKey;
     };
 
-    const handleInboundOrderCommit = async (inbound) => {
-        const uiKey = inbound?.uiKey;
-        if (!uiKey) return;
-        const rawValue = String(inboundOrderDrafts[uiKey] ?? '').trim();
-        if (!rawValue) {
-            setInboundOrderDrafts((prev) => {
-                const next = { ...prev };
-                delete next[uiKey];
-                return next;
-            });
+    const handleInboundDragEnter = (event, inbound) => {
+        if (filterServerId === 'all') return;
+        const sourceKey = resolveDraggedInboundKey(event);
+        const targetKey = String(inbound?.uiKey || '').trim();
+        if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+        if (String(inbound?.serverId || '').trim() !== String(filterServerId || '').trim()) return;
+        event.preventDefault();
+        setDropTargetInboundKey(targetKey);
+    };
+
+    const handleInboundDragOver = (event, inbound) => {
+        if (filterServerId === 'all') return;
+        const sourceKey = resolveDraggedInboundKey(event);
+        const targetKey = String(inbound?.uiKey || '').trim();
+        if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+        if (String(inbound?.serverId || '').trim() !== String(filterServerId || '').trim()) return;
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+        if (dropTargetInboundKey !== targetKey) {
+            setDropTargetInboundKey(targetKey);
+        }
+    };
+
+    const clearInboundDragState = () => {
+        setDraggingInboundKey('');
+        setDropTargetInboundKey('');
+    };
+
+    const handleInboundDrop = async (event, inbound) => {
+        if (filterServerId === 'all') return;
+        const sourceKey = resolveDraggedInboundKey(event);
+        const targetKey = String(inbound?.uiKey || '').trim();
+        if (!sourceKey || !targetKey || sourceKey === targetKey) {
+            clearInboundDragState();
             return;
         }
-
-        const nextPosition = Number.parseInt(rawValue, 10);
-        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
-            toast.error('请输入有效的排序序号');
-            return;
-        }
-
-        const next = moveInboundWithinServerToPosition(inbounds, uiKey, nextPosition - 1);
+        event.preventDefault();
+        const next = reorderInboundsWithinServer(inbounds, sourceKey, targetKey);
+        clearInboundDragState();
         if (!next.changed) return;
-
         setInbounds(next.items);
-        setInboundOrderDrafts((prev) => {
-            const nextDrafts = { ...prev };
-            delete nextDrafts[uiKey];
-            return nextDrafts;
-        });
         await persistInboundOrder(next.serverId, next.inboundIds);
     };
 
@@ -780,8 +798,7 @@ export default function Inbounds() {
     const bulkToggleLabel = bulkToggleEnable ? '启用选中' : '禁用选中';
     const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
-    const tableColSpan = filterServerId === 'all' ? 10 : 9;
-    const isBatchSelecting = selectedVisibleCount > 0;
+    const tableColSpan = filterServerId === 'all' ? 11 : 10;
 
     if (servers.length === 0) {
         return (
@@ -874,6 +891,7 @@ export default function Inbounds() {
                                         className="cursor-pointer"
                                     />
                                 </th>
+                                <th className="inbounds-expand-col" aria-hidden="true" />
                                 <th>序号</th>
                                 {filterServerId === 'all' && <th>节点</th>}
                                 <th>备注</th>
@@ -887,28 +905,34 @@ export default function Inbounds() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <tr key={`skeleton-${i}`}>
-                                        <td className="p-4"><div className="skeleton w-4 h-4 rounded" /></td>
-                                        <td className="p-4"><div className="skeleton w-6 h-5" /></td>
-                                        {filterServerId === 'all' && <td className="p-4"><div className="skeleton w-20 h-5" /></td>}
-                                        <td className="p-4"><div className="skeleton w-24 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-12 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-20 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-8 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-32 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-12 h-5" /></td>
-                                        <td className="p-4"><div className="skeleton w-16 h-8" /></td>
-                                    </tr>
-                                ))
+                                <tr>
+                                    <td colSpan={tableColSpan} className="p-4">
+                                        <SkeletonTable rows={5} cols={tableColSpan} />
+                                    </td>
+                                </tr>
                             ) : filteredInbounds.length === 0 ? (
-                                <tr><td colSpan={tableColSpan} className="text-center" style={{ padding: '32px' }}>暂无入站规则</td></tr>
+                                <tr>
+                                    <td colSpan={tableColSpan} className="p-6">
+                                        <EmptyState
+                                            icon={<HiOutlineInbox />}
+                                            title="暂无入站规则"
+                                            subtitle="当前节点下没有配置任何入站"
+                                            action={(
+                                                <button type="button" className="btn btn-primary" onClick={handleAdd}>
+                                                    <HiOutlinePlusCircle /> 添加入站
+                                                </button>
+                                            )}
+                                        />
+                                    </td>
+                                </tr>
                             ) : (
-                                filteredInbounds.map((ib) => {
+                                filteredInbounds.map((ib, index) => {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
-                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(getInboundOrderPosition(ib));
+                                    const canDragOrder = filterServerId !== 'all';
+                                    const isDragging = draggingInboundKey === ib.uiKey;
+                                    const isDropTarget = dropTargetInboundKey === ib.uiKey && draggingInboundKey !== ib.uiKey;
                                     const selectableClientKeys = clients
                                         .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
                                         .filter(Boolean);
@@ -917,14 +941,12 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}`}
-                                                onClick={() => {
-                                                    if (isBatchSelecting) {
-                                                        toggleSelect(ib.uiKey);
-                                                        return;
-                                                    }
-                                                    setExpandedId(isExpanded ? null : ib.uiKey);
-                                                }}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row${isSelected ? ' inbounds-row-selected' : ''}${isDragging ? ' inbounds-row-dragging' : ''}${isDropTarget ? ' inbounds-row-drop-target' : ''}`}
+                                                onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
+                                                onDragEnter={(event) => handleInboundDragEnter(event, ib)}
+                                                onDragOver={(event) => handleInboundDragOver(event, ib)}
+                                                onDrop={(event) => handleInboundDrop(event, ib)}
+                                                onDragEnd={clearInboundDragState}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
                                                     <input
@@ -934,35 +956,36 @@ export default function Inbounds() {
                                                         className="cursor-pointer"
                                                     />
                                                 </td>
-                                                <td data-label="序号" onClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        inputMode="numeric"
-                                                        aria-label={`设置 ${ib.remark || ib.protocol}:${ib.port} 的排序序号`}
-                                                        className="form-input form-input-sm cell-mono inbound-order-input"
-                                                        value={sequenceValue}
-                                                        onChange={(e) => handleInboundOrderDraftChange(ib.uiKey, e.target.value)}
-                                                        onBlur={() => handleInboundOrderCommit(ib)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                handleInboundOrderCommit(ib);
-                                                            }
-                                                            if (e.key === 'Escape') {
-                                                                e.preventDefault();
-                                                                setInboundOrderDrafts((prev) => {
-                                                                    const next = { ...prev };
-                                                                    delete next[ib.uiKey];
-                                                                    return next;
-                                                                });
-                                                            }
-                                                        }}
-                                                        disabled={savingOrderServerId === ib.serverId}
-                                                    />
+                                                <td className="inbounds-expand-cell" data-label="" aria-hidden="true">
+                                                    <span className={`inbounds-expand-indicator transition-transform duration-200${isExpanded ? ' rotate-90' : ''}`}>
+                                                        <HiChevronRight />
+                                                    </span>
+                                                </td>
+                                                <td data-label="序号" onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
+                                                    <div className="inbounds-sequence-cell">
+                                                        <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
+                                                        {canDragOrder && (
+                                                            <span
+                                                                className={`inbounds-drag-handle${savingOrderServerId === ib.serverId ? ' is-disabled' : ''}`}
+                                                                role="button"
+                                                                tabIndex={savingOrderServerId === ib.serverId ? -1 : 0}
+                                                                aria-label={`拖拽调整 ${ib.remark || ib.protocol}:${ib.port} 的顺序`}
+                                                                draggable={savingOrderServerId !== ib.serverId}
+                                                                onClick={(event) => event.stopPropagation()}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                    }
+                                                                }}
+                                                                onDragStart={(event) => handleInboundDragStart(event, ib)}
+                                                            >
+                                                                <HiOutlineBars3 />
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
-                                                    <td data-label="节点">
+                                                    <td data-label="节点" className="whitespace-nowrap">
                                                         <span className="badge badge-neutral flex items-center gap-1 w-fit">
                                                             <HiOutlineServer size={10} /> {ib.serverName}
                                                         </span>
@@ -975,14 +998,14 @@ export default function Inbounds() {
                                                 >
                                                     {ib.remark || '-'}
                                                 </td>
-                                                <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
-                                                <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
+                                                <td data-label="协议" className="whitespace-nowrap"><span className="badge badge-info">{ib.protocol}</span></td>
+                                                <td data-label="端口" className="cell-mono text-sm whitespace-nowrap">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label="用户数">
                                                     <span className="cell-mono-right inbounds-user-count" title={`共 ${clients.length} 位用户`}>
                                                         {clients.length}
                                                     </span>
                                                 </td>
-                                                <td data-label="流量" className="text-sm">
+                                                <td data-label="流量" className="text-sm whitespace-nowrap">
                                                     <span className="text-success">↑{formatBytes(ib.up)}</span>
                                                     <span className="text-muted mx-1">/</span>
                                                     <span className="text-info">↓{formatBytes(ib.down)}</span>
@@ -997,7 +1020,10 @@ export default function Inbounds() {
                                                                 className="inbounds-online-indicator"
                                                                 title={`当前 ${ib.onlineUserCount || 0} 位用户 / ${ib.onlineSessionCount || 0} 个会话在线`}
                                                             >
-                                                                <span className="inbounds-online-dot" aria-hidden="true" />
+                                                                <span className="inbounds-online-dot-shell" aria-hidden="true">
+                                                                    <span className="inbounds-online-dot-ping" />
+                                                                    <span className="inbounds-online-dot" />
+                                                                </span>
                                                                 在线
                                                             </span>
                                                         )}
@@ -1067,15 +1093,15 @@ export default function Inbounds() {
                                                                                 className="cursor-pointer"
                                                                             />
                                                                         </th>
-                                                                        <th>Email</th>
-                                                                        <th>ID/密码（脱敏）</th>
-                                                                        <th>已用流量</th>
-                                                                        <th>总量</th>
-                                                                        <th>IP 限制</th>
-                                                                        <th>上 / 下行</th>
-                                                                        <th>到期时间</th>
-                                                                        <th>状态</th>
-                                                                        <th>操作</th>
+                                                                        <th className="whitespace-nowrap">Email</th>
+                                                                        <th className="whitespace-nowrap">ID/密码（脱敏）</th>
+                                                                        <th className="whitespace-nowrap">已用流量</th>
+                                                                        <th className="whitespace-nowrap">总量</th>
+                                                                        <th className="whitespace-nowrap">IP 限制</th>
+                                                                        <th className="whitespace-nowrap">上 / 下行</th>
+                                                                        <th className="whitespace-nowrap">到期时间</th>
+                                                                        <th className="whitespace-nowrap">状态</th>
+                                                                        <th className="whitespace-nowrap">操作</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1107,7 +1133,7 @@ export default function Inbounds() {
                                                                                     className="cursor-pointer"
                                                                                 />
                                                                             </td>
-                                                                            <td data-label="用户">
+                                                                            <td data-label="用户" className="whitespace-nowrap">
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
@@ -1115,7 +1141,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="ID / 密码" className="cell-mono">
+                                                                            <td data-label="ID / 密码" className="cell-mono whitespace-nowrap">
                                                                                 <div className="inbounds-client-id-row">
                                                                                     <span className="inbounds-client-id-text">
                                                                                         {maskedCredential}
@@ -1137,7 +1163,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="已用流量">
+                                                                            <td data-label="已用流量" className="whitespace-nowrap">
                                                                                 <div className="inbound-client-usage">
                                                                                     <div className="inbound-client-usage-head">
                                                                                         <span className="font-medium">{formatBytes(usedBytes)}</span>
@@ -1156,15 +1182,15 @@ export default function Inbounds() {
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="总量">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td data-label="IP 限制">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td data-label="上 / 下行">
+                                                                            <td data-label="总量" className="whitespace-nowrap">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td data-label="IP 限制" className="whitespace-nowrap">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
+                                                                            <td data-label="上 / 下行" className="whitespace-nowrap">
                                                                                 <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                 <span className="text-muted mx-1">/</span>
                                                                                 <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                             </td>
-                                                                            <td data-label="到期时间">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
-                                                                            <td data-label="状态">
+                                                                            <td data-label="到期时间" className="whitespace-nowrap">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
+                                                                            <td data-label="状态" className="whitespace-nowrap">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
                                                                                         {cl.enable !== false ? '启用' : '禁用'}
@@ -1173,13 +1199,16 @@ export default function Inbounds() {
                                                                                         className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
                                                                                         title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
                                                                                     >
-                                                                                        <span className="inbounds-client-online-dot" aria-hidden="true" />
+                                                                                        <span className="inbounds-client-online-dot-shell" aria-hidden="true">
+                                                                                            <span className="inbounds-client-online-dot-ping" />
+                                                                                            <span className="inbounds-client-online-dot" />
+                                                                                        </span>
                                                                                         {cl.isOnline ? '在线' : '离线'}
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="操作">
-                                                                                <div className="inbounds-client-actions">
+                                                                            <td data-label="操作" className="whitespace-nowrap">
+                                                                                <div className="inbounds-client-actions flex gap-2">
                                                                                     <button
                                                                                         type="button"
                                                                                         className={`btn btn-sm ${cl.enable !== false ? 'btn-danger' : 'btn-success'}`}

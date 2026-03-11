@@ -49,6 +49,10 @@ vi.mock('../UI/EmptyState.jsx', () => ({
     default: ({ title }) => <div>{title}</div>,
 }));
 
+vi.mock('../UI/SkeletonTable.jsx', () => ({
+    default: () => <div data-testid="skeleton-table" />,
+}));
+
 vi.mock('react-hot-toast', () => ({
     default: {
         error: vi.fn(),
@@ -175,7 +179,7 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('shows numeric order inputs with ascending default sequence values', async () => {
+    it('shows visual sequence numbers in global view and hides drag handles', async () => {
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
@@ -184,22 +188,53 @@ describe('Inbounds', () => {
         const backupRow = backupInbound.closest('tr');
         if (!mainRow || !backupRow) throw new Error('Missing inbound summary row');
 
-        expect(within(mainRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ })).toHaveValue(1);
-        expect(within(backupRow).getByRole('spinbutton', { name: /设置 Backup Inbound.*排序序号/ })).toHaveValue(2);
-        expect(within(mainRow).queryByRole('button', { name: '拖拽排序' })).not.toBeInTheDocument();
+        expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
+        expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
+        expect(within(mainRow).queryByLabelText(/拖拽调整/)).not.toBeInTheDocument();
     });
 
-    it('reorders inbounds by sequence input and persists the new order', async () => {
+    it('allows row expansion even when batch selection is active', async () => {
+        const user = userEvent.setup();
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
-        const sourceRow = mainInbound.closest('tr');
-        if (!sourceRow) throw new Error('Missing inbound row');
+        const mainRow = mainInbound.closest('tr');
+        if (!mainRow) throw new Error('Missing inbound row');
 
-        const orderInput = within(sourceRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ });
+        await user.click(within(mainRow).getByRole('checkbox'));
+        await user.click(mainRow);
+
+        expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
+    });
+
+    it('shows drag handles only for a selected node and persists drag-drop ordering', async () => {
+        const user = userEvent.setup();
+        renderWithRouter(<Inbounds />);
+
+        await user.selectOptions(screen.getByRole('combobox'), 'server-a');
+
+        const sourceHandle = await screen.findByLabelText('拖拽调整 Main Inbound:443 的顺序');
+        const backupInbound = await screen.findByText('Backup Inbound');
+        const backupRow = backupInbound.closest('tr');
+        if (!backupRow) throw new Error('Missing backup row');
+
+        const dataTransfer = {
+            data: {},
+            effectAllowed: 'move',
+            dropEffect: 'move',
+            setData(type, value) {
+                this.data[type] = value;
+            },
+            getData(type) {
+                return this.data[type] || '';
+            },
+        };
+
         await act(async () => {
-            fireEvent.change(orderInput, { target: { value: '2' } });
-            fireEvent.blur(orderInput);
+            fireEvent.dragStart(sourceHandle, { dataTransfer });
+            fireEvent.dragEnter(backupRow, { dataTransfer });
+            fireEvent.dragOver(backupRow, { dataTransfer });
+            fireEvent.drop(backupRow, { dataTransfer });
         });
 
         await waitFor(() => {

@@ -22,7 +22,7 @@ function isUnsupportedPathInGlobal(pathname) {
     });
 }
 
-export default function Sidebar({ collapsed, open = false, onClose, onToggle }) {
+export default function Sidebar({ collapsed, open = false, isMobile = false, onClose, onToggle }) {
     const { servers, activeServer, activeServerId, selectServer } = useServer();
     const { logout, user } = useAuth();
     const { locale, t } = useI18n();
@@ -187,11 +187,13 @@ export default function Sidebar({ collapsed, open = false, onClose, onToggle }) 
             </div>
 
             <button
+                type="button"
                 className="sidebar-toggle"
                 onClick={onToggle}
-                aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
+                aria-label={isMobile ? t('shell.collapseSidebar') : (collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar'))}
+                aria-expanded={isMobile ? open : !collapsed}
             >
-                {collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />}
+                {isMobile ? <HiOutlineChevronLeft /> : (collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />)}
             </button>
 
             <nav className="sidebar-nav">
