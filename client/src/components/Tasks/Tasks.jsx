@@ -158,9 +158,9 @@ export default function Tasks({ embedded = false }) {
                 <div className={headClassName}>
                     <div className="tasks-page-copy">
                         <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
-                            {embedded ? '操作历史' : '批量任务历史'}
+                            {embedded ? '批量操作历史' : '批量任务历史'}
                         </h2>
-                        <p className="text-sm text-muted mt-1">{embedded ? '记录批量用户、入站与重试操作的执行结果' : '记录批量用户/入站操作的执行结果'}</p>
+                        <p className="text-sm text-muted mt-1">{embedded ? '与上方操作审计配套，集中查看批量任务与重试结果' : '记录批量用户/入站操作的执行结果'}</p>
                     </div>
                     <div className="flex gap-2 tasks-page-actions">
                         <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>

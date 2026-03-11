@@ -24,9 +24,12 @@ import {
 
 function StatMini({ label, value, suffix }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
+    const displayValue = value === null || value === undefined
+        ? '...'
+        : (typeof value === 'number' ? `${animated}${suffix || ''}` : `${value}${suffix || ''}`);
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value">{typeof value === 'number' ? animated : '...'}{typeof value === 'number' ? (suffix || '') : ''}</div>
+            <div className="stat-mini-value">{displayValue}</div>
             <div className="stat-mini-label">{label}</div>
         </div>
     );
@@ -399,7 +402,7 @@ export default function ServerDetail() {
                     <StatMini label="入站规则" value={showInboundStats ? activeInbounds : null} suffix={showInboundStats ? ` / ${inbounds.length}` : ''} />
                     <StatMini label="客户端数" value={showInboundStats ? clientCount : null} />
                     <StatMini label="在线用户" value={showOnlineStats ? onlineUsers.length : null} suffix={showOnlineStats && onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
-                    <StatMini label="总流量 (MB)" value={showInboundStats ? Math.round(totalTraffic / (1024 * 1024)) : null} />
+                    <StatMini label="总流量" value={showInboundStats ? formatBytes(totalTraffic) : null} />
                 </div>
                 {onlinesLoading && onlineUsers.length === 0 && (
                     <div className="text-xs text-muted mb-6">在线用户汇总加载中...</div>

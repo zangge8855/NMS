@@ -1,5 +1,6 @@
 import config from '../config.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
+import ipIspResolver from '../lib/ipIspResolver.js';
 import { createHttpError } from '../lib/httpError.js';
 import auditRepository from '../repositories/auditRepository.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
@@ -32,22 +33,33 @@ function normalizeBoolean(value, fallback = false) {
 async function enrichAccessPayloadWithGeo(payload, includeGeo = true, deps = {}) {
     const settingsRepository = deps.systemSettingsRepository || systemSettingsRepository;
     const resolver = deps.ipGeoResolver || ipGeoResolver;
+    const ispResolver = deps.ipIspResolver || ipIspResolver;
     const base = payload && typeof payload === 'object' ? payload : {};
     const items = Array.isArray(base.items) ? base.items : [];
     const topIps = Array.isArray(base.topIps) ? base.topIps : [];
 
     resolver.configure(settingsRepository.getAuditIpGeo());
     const geoEnabled = includeGeo && resolver.isEnabled();
+    const ispEnabled = includeGeo && typeof ispResolver?.isEnabled === 'function' && ispResolver.isEnabled();
+    const ipCandidates = [
+        ...items.map((item) => item?.clientIp || item?.ip),
+        ...topIps.map((item) => item?.ip),
+    ];
 
     let map = new Map();
+    let ispMap = new Map();
     if (geoEnabled) {
         try {
-            map = await resolver.lookupMany([
-                ...items.map((item) => item?.clientIp || item?.ip),
-                ...topIps.map((item) => item?.ip),
-            ]);
+            map = await resolver.lookupMany(ipCandidates);
         } catch {
             map = new Map();
+        }
+    }
+    if (ispEnabled) {
+        try {
+            ispMap = await ispResolver.lookupMany(ipCandidates);
+        } catch {
+            ispMap = new Map();
         }
     }
 
@@ -56,14 +68,20 @@ async function enrichAccessPayloadWithGeo(payload, includeGeo = true, deps = {})
         items: items.map((item) => ({
             ...item,
             ipLocation: geoEnabled ? resolver.pickFromMap(map, item?.clientIp || item?.ip) : '',
+            ipCarrier: ispEnabled ? ispResolver.pickFromMap(ispMap, item?.clientIp || item?.ip) : '',
         })),
         topIps: topIps.map((item) => ({
             ...item,
             ipLocation: geoEnabled ? resolver.pickFromMap(map, item?.ip) : '',
+            ipCarrier: ispEnabled ? ispResolver.pickFromMap(ispMap, item?.ip) : '',
         })),
         geo: {
             ...resolver.metadata(),
             enabled: geoEnabled,
+            isp: {
+                ...ispResolver.metadata(),
+                enabled: ispEnabled,
+            },
         },
     };
 }

@@ -112,6 +112,25 @@ function resolveMaskedEmail(email) {
     return value;
 }
 
+function resolveAccessUserInfo(email) {
+    const subscriptionEmail = resolveMaskedEmail(email);
+    const user = userStore.getBySubscriptionEmail(subscriptionEmail)
+        || userStore.getByEmail(subscriptionEmail)
+        || null;
+    const username = String(user?.username || '').trim();
+    const userEmail = String(user?.email || user?.subscriptionEmail || subscriptionEmail).trim().toLowerCase();
+    const userLabel = username || userEmail || subscriptionEmail;
+    const userKey = String(user?.id || '').trim() || username.toLowerCase() || userEmail || subscriptionEmail;
+
+    return {
+        subscriptionEmail,
+        userEmail,
+        username,
+        userLabel,
+        userKey,
+    };
+}
+
 class AuditStore {
     constructor() {
         ensureDataDir();
@@ -353,7 +372,15 @@ class AuditStore {
             rows = rows.filter((item) => new Date(item.ts).getTime() <= toTs);
         }
         if (email) {
-            rows = rows.filter((item) => resolveMaskedEmail(item.email).includes(email));
+            rows = rows.filter((item) => {
+                const identity = resolveAccessUserInfo(item.email);
+                return [
+                    identity.userLabel,
+                    identity.username,
+                    identity.userEmail,
+                    identity.subscriptionEmail,
+                ].some((candidate) => String(candidate || '').toLowerCase().includes(email));
+            });
         }
         if (tokenId) {
             rows = rows.filter((item) => String(item.tokenId || '').includes(tokenId));
@@ -397,10 +424,16 @@ class AuditStore {
 
         const total = rows.length;
         const start = (page - 1) * pageSize;
-        const items = rows.slice(start, start + pageSize).map((item) => ({
-            ...item,
-            email: resolveMaskedEmail(item.email),
-        }));
+        const items = rows.slice(start, start + pageSize).map((item) => {
+            const identity = resolveAccessUserInfo(item.email);
+            return {
+                ...item,
+                email: identity.subscriptionEmail,
+                username: identity.username,
+                userEmail: identity.userEmail,
+                userLabel: identity.userLabel,
+            };
+        });
 
         return {
             total,
@@ -420,7 +453,7 @@ class AuditStore {
         const { rows, fromIso, toIso } = this._filterSubscriptionAccess(filters);
         const total = rows.length;
         const uniqueTokens = new Set(rows.map((item) => String(item.tokenId || '').trim()).filter(Boolean)).size;
-        const uniqueUsers = new Set(rows.map((item) => resolveMaskedEmail(item.email)).filter(Boolean)).size;
+        const uniqueUsers = new Set(rows.map((item) => resolveAccessUserInfo(item.email).userKey).filter(Boolean)).size;
         const ipCounter = rows.reduce((acc, item) => {
             const key = String(item.clientIp || item.ip || 'unknown').trim() || 'unknown';
             acc[key] = (acc[key] || 0) + 1;

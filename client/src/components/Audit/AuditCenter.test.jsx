@@ -75,6 +75,8 @@ describe('AuditCenter', () => {
                                 id: 'access-1',
                                 ts: '2026-03-11T10:00:00.000Z',
                                 email: 'user@example.com',
+                                username: 'alice',
+                                userLabel: 'alice',
                                 status: 'success',
                                 clientIp: '203.0.113.9',
                                 proxyIp: '172.16.0.10',
@@ -108,6 +110,8 @@ describe('AuditCenter', () => {
 
         expect(await screen.findByRole('columnheader', { name: '真实 IP' })).toBeInTheDocument();
         expect(screen.queryByRole('columnheader', { name: '代理 IP' })).not.toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: '用户' })).toBeInTheDocument();
+        expect(screen.getByText('alice')).toBeInTheDocument();
         expect(screen.getByText('203.0.113.9')).toBeInTheDocument();
         expect(screen.queryByText('172.16.0.10')).not.toBeInTheDocument();
     });

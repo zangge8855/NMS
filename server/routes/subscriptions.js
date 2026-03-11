@@ -10,7 +10,6 @@ import auditStore from '../store/auditStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
-import ipGeoResolver from '../lib/ipGeoResolver.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
 import { normalizeBoolean, parseJsonObjectLike } from '../lib/normalize.js';
 import {
@@ -106,43 +105,6 @@ function shouldIncludeGeoLookup(req) {
     const raw = req?.query?.withGeo;
     if (raw === undefined || raw === null || raw === '') return true;
     return normalizeBoolean(raw, true);
-}
-
-async function enrichAccessPayloadWithGeo(payload, includeGeo = true) {
-    const base = payload && typeof payload === 'object' ? payload : {};
-    const items = Array.isArray(base.items) ? base.items : [];
-    const topIps = Array.isArray(base.topIps) ? base.topIps : [];
-
-    ipGeoResolver.configure(systemSettingsStore.getAuditIpGeo());
-    const geoEnabled = includeGeo && ipGeoResolver.isEnabled();
-
-    let map = new Map();
-    if (geoEnabled) {
-        try {
-            map = await ipGeoResolver.lookupMany([
-                ...items.map((item) => item?.clientIp || item?.ip),
-                ...topIps.map((item) => item?.ip),
-            ]);
-        } catch {
-            map = new Map();
-        }
-    }
-
-    return {
-        ...base,
-        items: items.map((item) => ({
-            ...item,
-            ipLocation: geoEnabled ? ipGeoResolver.pickFromMap(map, item?.clientIp || item?.ip) : '',
-        })),
-        topIps: topIps.map((item) => ({
-            ...item,
-            ipLocation: geoEnabled ? ipGeoResolver.pickFromMap(map, item?.ip) : '',
-        })),
-        geo: {
-            ...ipGeoResolver.metadata(),
-            enabled: geoEnabled,
-        },
-    };
 }
 
 function appendQuery(url, query = {}) {
@@ -986,93 +948,37 @@ function buildSubscriptionPayload(links) {
     return { raw, encoded };
 }
 
-const META_RULES_BASE_URL = 'https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo';
-const MIHOMO_RULE_PROVIDERS = [
-    {
-        name: 'private-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/private-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/private.mrs`,
-    },
-    {
-        name: 'icloud-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/icloud-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/icloud.mrs`,
-    },
-    {
-        name: 'apple-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/apple-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/apple.mrs`,
-    },
-    {
-        name: 'google-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/google-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/google.mrs`,
-    },
-    {
-        name: 'proxy-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/proxy-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/proxy.mrs`,
-    },
-    {
-        name: 'telegram-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/telegram-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/telegram.mrs`,
-    },
-    {
-        name: 'cn-domain',
-        behavior: 'domain',
-        format: 'mrs',
-        path: './ruleset/cn-domain.mrs',
-        url: `${META_RULES_BASE_URL}/geosite/cn.mrs`,
-    },
-    {
-        name: 'private-ip',
-        behavior: 'ipcidr',
-        format: 'mrs',
-        path: './ruleset/private-ip.mrs',
-        url: `${META_RULES_BASE_URL}/geoip/private.mrs`,
-    },
-    {
-        name: 'telegram-ip',
-        behavior: 'ipcidr',
-        format: 'mrs',
-        path: './ruleset/telegram-ip.mrs',
-        url: `${META_RULES_BASE_URL}/geoip/telegram.mrs`,
-    },
-    {
-        name: 'cn-ip',
-        behavior: 'ipcidr',
-        format: 'mrs',
-        path: './ruleset/cn-ip.mrs',
-        url: `${META_RULES_BASE_URL}/geoip/cn.mrs`,
-    },
-];
+const DUSTINWIN_GEODATA_BASE_URL = 'https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-geodata';
+
+const MIHOMO_GEOX_URL = {
+    geosite: `${DUSTINWIN_GEODATA_BASE_URL}/geosite-all.dat`,
+    geoip: `${DUSTINWIN_GEODATA_BASE_URL}/geoip-all.dat`,
+    mmdb: `${DUSTINWIN_GEODATA_BASE_URL}/Country-all.mmdb`,
+};
 
 const MIHOMO_RULES = [
     'DOMAIN,clash.razord.top,DIRECT',
     'DOMAIN,yacd.haishan.me,DIRECT',
-    'RULE-SET,private-domain,DIRECT',
-    'RULE-SET,icloud-domain,DIRECT',
-    'RULE-SET,apple-domain,DIRECT',
-    'RULE-SET,google-domain,GLOBAL',
-    'RULE-SET,telegram-domain,TELEGRAM',
-    'RULE-SET,proxy-domain,GLOBAL',
-    'RULE-SET,cn-domain,DOMESTIC',
-    'RULE-SET,private-ip,DIRECT',
-    'RULE-SET,telegram-ip,TELEGRAM',
-    'RULE-SET,cn-ip,DOMESTIC',
+    'DOMAIN,metacubex.github.io,DIRECT',
+    'GEOSITE,private,DIRECT',
+    'GEOSITE,apple-cn,DOMESTIC',
+    'GEOSITE,microsoft-cn,DOMESTIC',
+    'GEOSITE,google-cn,DOMESTIC',
+    'GEOSITE,games-cn,DOMESTIC',
+    'GEOSITE,telegram,TELEGRAM',
+    'GEOSITE,ai,AI',
+    'GEOSITE,media,MEDIA',
+    'GEOSITE,games,GAMES',
+    'GEOSITE,google,GLOBAL',
+    'GEOSITE,gfw,GLOBAL',
+    'GEOSITE,tld-proxy,GLOBAL',
+    'GEOSITE,proxy,GLOBAL',
+    'GEOSITE,cn,DOMESTIC',
+    'GEOIP,privateip,DIRECT,no-resolve',
+    'GEOIP,telegram,TELEGRAM,no-resolve',
+    'GEOIP,media,MEDIA,no-resolve',
+    'GEOIP,games,GAMES,no-resolve',
+    'GEOIP,cn,DOMESTIC,no-resolve',
     'MATCH,GLOBAL',
 ];
 
@@ -1522,28 +1428,43 @@ function buildMihomoConfigObject(links = []) {
     const selectableProxyTargets = ['AUTO', ...proxyNames, 'DIRECT'];
     const flexibleProxyTargets = ['PROXY', 'AUTO', ...proxyNames, 'DIRECT'];
 
-    const ruleProviders = {};
-    MIHOMO_RULE_PROVIDERS.forEach((provider) => {
-        ruleProviders[provider.name] = {
-            type: 'http',
-            behavior: provider.behavior,
-            format: provider.format,
-            path: provider.path,
-            url: provider.url,
-            interval: 86400,
-        };
-    });
-
     return {
         mode: 'rule',
         'log-level': 'info',
         ipv6: true,
+        'geodata-mode': true,
+        'geox-url': MIHOMO_GEOX_URL,
         'global-client-fingerprint': 'chrome',
         'unified-delay': true,
         'tcp-concurrent': true,
+        'find-process-mode': 'strict',
         profile: {
             'store-selected': true,
             'store-fake-ip': true,
+        },
+        dns: {
+            enable: true,
+            ipv6: true,
+            'respect-rules': true,
+            'enhanced-mode': 'fake-ip',
+            nameserver: [
+                'https://dns.alidns.com/dns-query',
+                'https://doh.pub/dns-query',
+                'https://1.1.1.1/dns-query',
+            ],
+            'proxy-server-nameserver': [
+                'https://1.1.1.1/dns-query',
+                'https://dns.google/dns-query',
+            ],
+            'direct-nameserver': [
+                'https://dns.alidns.com/dns-query',
+                'https://doh.pub/dns-query',
+            ],
+            'fake-ip-filter': [
+                'geosite:private',
+                'geosite:cn',
+                'geosite:fakeip-filter',
+            ],
         },
         proxies,
         'proxy-groups': [
@@ -1561,6 +1482,21 @@ function buildMihomoConfigObject(links = []) {
                 proxies: proxyNames,
             },
             {
+                name: 'AI',
+                type: 'select',
+                proxies: flexibleProxyTargets,
+            },
+            {
+                name: 'MEDIA',
+                type: 'select',
+                proxies: flexibleProxyTargets,
+            },
+            {
+                name: 'GAMES',
+                type: 'select',
+                proxies: flexibleProxyTargets,
+            },
+            {
                 name: 'GLOBAL',
                 type: 'select',
                 proxies: flexibleProxyTargets,
@@ -1576,7 +1512,6 @@ function buildMihomoConfigObject(links = []) {
                 proxies: ['DIRECT', 'PROXY', 'AUTO', ...proxyNames],
             },
         ],
-        'rule-providers': ruleProviders,
         rules: MIHOMO_RULES,
     };
 }

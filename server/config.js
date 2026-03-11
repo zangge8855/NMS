@@ -200,6 +200,11 @@ const config = {
             timeoutMs: parsePositiveInt(process.env.AUDIT_IP_GEO_TIMEOUT_MS, 3000),
             cacheTtlSeconds: parsePositiveInt(process.env.AUDIT_IP_GEO_CACHE_TTL_SECONDS, 21600),
         },
+        ipIsp: {
+            enabled: parseBoolean(process.env.AUDIT_IP_ISP_ENABLED, true),
+            timeoutMs: parsePositiveInt(process.env.AUDIT_IP_ISP_TIMEOUT_MS, 3500),
+            cacheTtlSeconds: parsePositiveInt(process.env.AUDIT_IP_ISP_CACHE_TTL_SECONDS, 86400),
+        },
     },
     traffic: {
         retentionDays: parsePositiveInt(process.env.TRAFFIC_RETENTION_DAYS, 365),

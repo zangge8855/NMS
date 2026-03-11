@@ -266,27 +266,28 @@ export default function Login() {
             <div className="login-bg-glow two" />
             <div className="login-bg-glow three" />
 
+            <div className="login-top-actions">
+                <button
+                    type="button"
+                    className="login-locale-toggle theme-toggle-btn language-toggle-btn"
+                    onClick={toggleLocale}
+                    title={t('shell.switchLanguage')}
+                    aria-label={t('shell.switchLanguage')}
+                >
+                    <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                </button>
+                <button
+                    type="button"
+                    className="login-theme-toggle theme-toggle-btn"
+                    onClick={cycleTheme}
+                    title={themeToggleTitle}
+                    aria-label={themeToggleTitle}
+                >
+                    <ThemeIcon />
+                </button>
+            </div>
+
             <div className="login-shell">
-                <div className="login-top-actions">
-                    <button
-                        type="button"
-                        className="login-locale-toggle theme-toggle-btn language-toggle-btn"
-                        onClick={toggleLocale}
-                        title={t('shell.switchLanguage')}
-                        aria-label={t('shell.switchLanguage')}
-                    >
-                        <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="login-theme-toggle theme-toggle-btn"
-                        onClick={cycleTheme}
-                        title={themeToggleTitle}
-                        aria-label={themeToggleTitle}
-                    >
-                        <ThemeIcon />
-                    </button>
-                </div>
                 <div className="login-card-column">
                     <div className="login-card">
                         <div className="login-card-border" />
@@ -302,10 +303,12 @@ export default function Login() {
                         </div>
 
                         {(mode === MODE_LOGIN || mode === MODE_REGISTER) && (
-                            <div className="auth-tabs">
+                            <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
                                 <button
                                     type="button"
                                     className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
+                                    role="tab"
+                                    aria-selected={mode === MODE_LOGIN}
                                     onClick={() => switchMode(MODE_LOGIN)}
                                 >
                                     {t('pages.login.title')}
@@ -313,6 +316,8 @@ export default function Login() {
                                 <button
                                     type="button"
                                     className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
+                                    role="tab"
+                                    aria-selected={mode === MODE_REGISTER}
                                     onClick={() => switchMode(MODE_REGISTER)}
                                 >
                                     {t('pages.login.registerTitle')}

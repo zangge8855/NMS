@@ -101,7 +101,7 @@ function ProtectedLayout() {
                         <Route path="/server" element={isAdmin ? <LazyPage><ServerManagement /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/tasks" element={isAdmin ? <Navigate to="/audit?tab=tasks" replace /> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />

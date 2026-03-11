@@ -51,11 +51,20 @@ describe('subscriptionAuditService', () => {
                 pickFromMap(map, ip) { return map.get(ip) || ''; },
                 metadata() { return { provider: 'fake' }; },
             },
+            ipIspResolver: {
+                isEnabled() { return true; },
+                async lookupMany(values) { return new Map(values.map((item) => [item, `isp:${item}`])); },
+                pickFromMap(map, ip) { return map.get(ip) || ''; },
+                metadata() { return { provider: 'isp-fake' }; },
+            },
         });
 
         assert.equal(payload.items[0].ipLocation, 'geo:203.0.113.9');
+        assert.equal(payload.items[0].ipCarrier, 'isp:203.0.113.9');
         assert.equal(payload.topIps[0].ipLocation, 'geo:203.0.113.9');
+        assert.equal(payload.topIps[0].ipCarrier, 'isp:203.0.113.9');
         assert.equal(payload.geo.enabled, true);
+        assert.equal(payload.geo.isp.enabled, true);
     });
 
     it('rejects single-token revoke when token id is missing', () => {

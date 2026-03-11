@@ -100,17 +100,22 @@ describe('mihomo config generation', () => {
         assert.match(yaml, /reality-opts:/);
         assert.match(yaml, /public-key: public-key-123/);
         assert.match(yaml, /ws-opts:/);
-        assert.match(yaml, /rule-providers:/);
-        assert.match(yaml, /private-domain:/);
-        assert.match(yaml, /cn-domain:/);
-        assert.match(yaml, /format: mrs/);
+        assert.match(yaml, /geodata-mode: true/);
+        assert.match(yaml, /geox-url:/);
+        assert.match(yaml, /geosite-all\.dat/);
+        assert.match(yaml, /geoip-all\.dat/);
+        assert.match(yaml, /GEOSITE,ai,AI/);
+        assert.match(yaml, /GEOIP,cn,DOMESTIC,no-resolve/);
+        assert.match(yaml, /fake-ip-filter:/);
         assert.match(yaml, /global-client-fingerprint: chrome/);
         assert.match(yaml, /store-selected: true/);
+        assert.match(yaml, /name: AI/);
+        assert.match(yaml, /name: MEDIA/);
+        assert.match(yaml, /name: GAMES/);
         assert.match(yaml, /name: GLOBAL/);
         assert.match(yaml, /name: TELEGRAM/);
         assert.match(yaml, /name: DOMESTIC/);
         assert.match(yaml, /MATCH,GLOBAL/);
-        assert.doesNotMatch(yaml, /\.txt/);
         assert.doesNotMatch(yaml, /unsupported\.example\.com/);
     });
 

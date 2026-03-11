@@ -60,12 +60,40 @@ function trendLabel(value, granularity) {
     });
 }
 
+const AUDIT_EVENT_LABELS = {
+    login_success: '登录成功',
+    login_failed: '登录失败',
+    login_denied_email_unverified: '登录拒绝 · 邮箱未验证',
+    login_denied_user_disabled: '登录拒绝 · 账号已停用',
+    login_rate_limited: '登录频率限制',
+    user_registered: '用户注册',
+    verification_email_sent: '发送验证邮件',
+    subscription_token_issued: '签发订阅链接',
+    subscription_token_revoked: '撤销订阅链接',
+    subscription_public_denied: '订阅访问被拒绝',
+};
+
+function formatAuditEventLabel(item) {
+    return AUDIT_EVENT_LABELS[String(item?.eventType || '').trim()] || item?.eventType || '-';
+}
+
+function resolveAuditTarget(item) {
+    return item?.targetEmail
+        || item?.details?.email
+        || item?.details?.subscriptionEmail
+        || item?.details?.username
+        || '-';
+}
+
 export default function AuditCenter() {
     const { t } = useI18n();
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
-    const validTabs = new Set(['events', 'traffic', 'subscriptions', 'tasks', 'logs']);
-    const tab = validTabs.has(searchParams.get('tab')) ? searchParams.get('tab') : 'events';
+    const validTabs = new Set(['events', 'traffic', 'subscriptions', 'logs']);
+    const requestedTab = searchParams.get('tab');
+    const tab = requestedTab === 'tasks'
+        ? 'events'
+        : (validTabs.has(requestedTab) ? requestedTab : 'events');
 
     const setTab = (nextTab) => {
         const normalized = validTabs.has(nextTab) ? nextTab : 'events';
@@ -295,16 +323,13 @@ export default function AuditCenter() {
             <div className="page-content page-enter">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
-                        操作审计
+                        操作记录
                     </button>
                     <button className={`tab ${tab === 'traffic' ? 'active' : ''}`} onClick={() => setTab('traffic')}>
                         流量统计
                     </button>
                     <button className={`tab ${tab === 'subscriptions' ? 'active' : ''}`} onClick={() => setTab('subscriptions')}>
                         订阅访问
-                    </button>
-                    <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
-                        操作历史
                     </button>
                     <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
                         3x-ui 日志
@@ -339,7 +364,7 @@ export default function AuditCenter() {
                                 </select>
                                 <input
                                     className="form-input w-180"
-                                    placeholder="用户邮箱"
+                                    placeholder="用户 / 邮箱"
                                     value={eventFilters.targetEmail}
                                     onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
                                 />
@@ -383,11 +408,11 @@ export default function AuditCenter() {
                                         eventsData.items.map((item) => (
                                             <tr key={item.id}>
                                                 <td>{formatDateTime(item.ts)}</td>
-                                                <td>{item.eventType}</td>
+                                                <td>{formatAuditEventLabel(item)}</td>
                                                 <td><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
                                                 <td>{item.actor || '-'}</td>
                                                 <td>{item.serverId || '-'}</td>
-                                                <td>{item.targetEmail || '-'}</td>
+                                                <td>{resolveAuditTarget(item)}</td>
                                                 <td>
                                                     <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
                                                         <HiOutlineEye />
@@ -409,6 +434,10 @@ export default function AuditCenter() {
                                 </span>
                                 <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>下一页</button>
                             </div>
+                        </div>
+
+                        <div className="audit-operations-history mt-8">
+                            <Tasks embedded />
                         </div>
                     </>
                 )}
@@ -564,7 +593,7 @@ export default function AuditCenter() {
                             <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
                                 <input
                                     className="form-input w-220"
-                                    placeholder="邮箱过滤"
+                                    placeholder="用户 / 邮箱过滤"
                                     value={accessFilters.email}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
                                 />
@@ -611,9 +640,9 @@ export default function AuditCenter() {
                         </div>
 
                         <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
-                            <table className="table" style={{ minWidth: '1080px', tableLayout: 'fixed' }}>
+                            <table className="table" style={{ minWidth: '1160px' }}>
                                 <colgroup>
-                                    <col style={{ width: '160px' }} />
+                                    <col style={{ width: '220px' }} />
                                     <col style={{ width: '180px' }} />
                                     <col style={{ width: '80px' }} />
                                     <col style={{ width: '180px' }} />
@@ -623,10 +652,10 @@ export default function AuditCenter() {
                                 <thead>
                                     <tr>
                                         <th>时间</th>
-                                        <th>邮箱</th>
+                                        <th>用户</th>
                                         <th>状态</th>
                                         <th>真实 IP</th>
-                                        <th>所属地</th>
+                                        <th>归属地 / 运营商</th>
                                         <th>UA</th>
                                     </tr>
                                 </thead>
@@ -638,7 +667,14 @@ export default function AuditCenter() {
                                     ) : accessData.items.map((item) => (
                                         <tr key={item.id}>
                                             <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
-                                            <td data-label="邮箱" style={{ wordBreak: 'break-all' }}>{item.email || '-'}</td>
+                                            <td data-label="用户">
+                                                <div className="audit-access-user">
+                                                    <span className="audit-access-user-label">{item.userLabel || item.username || item.email || '-'}</span>
+                                                    {item.email && item.email !== (item.userLabel || '') && (
+                                                        <span className="audit-access-user-meta">{item.email}</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td data-label="状态"><span className={`badge ${statusBadgeClass(item.status)}`}>{item.status}</span></td>
                                             <td data-label="真实 IP" style={{ wordBreak: 'break-all' }}>
                                                 <div className="flex flex-col gap-1">
@@ -646,7 +682,12 @@ export default function AuditCenter() {
                                                     {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
                                                 </div>
                                             </td>
-                                            <td data-label="所属地" className="text-xs">{item.cfCountry || item.ipLocation || '-'}</td>
+                                            <td data-label="归属地 / 运营商" className="text-xs">
+                                                <div className="audit-access-location">
+                                                    <span>{item.ipLocation || item.cfCountry || '-'}</span>
+                                                    {item.ipCarrier && <span className="audit-access-carrier">{item.ipCarrier}</span>}
+                                                </div>
+                                            </td>
                                             <td data-label="UA" className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
                                         </tr>
                                     ))}
@@ -665,10 +706,6 @@ export default function AuditCenter() {
                             </div>
                         </div>
                     </>
-                )}
-
-                {tab === 'tasks' && (
-                    <Tasks embedded />
                 )}
 
                 {tab === 'logs' && (
@@ -696,7 +733,7 @@ export default function AuditCenter() {
                             }}>
                                 <div>
                                     <span style={{ color: 'var(--text-muted)' }}>事件类型: </span>
-                                    <span style={{ fontWeight: 600 }}>{selectedEvent.eventType}</span>
+                                    <span style={{ fontWeight: 600 }}>{formatAuditEventLabel(selectedEvent)}</span>
                                 </div>
                                 <div>
                                     <span style={{ color: 'var(--text-muted)' }}>时间: </span>
@@ -731,10 +768,10 @@ export default function AuditCenter() {
                                         <span>{selectedEvent.serverId}</span>
                                     </div>
                                 )}
-                                {selectedEvent.targetEmail && (
+                                {resolveAuditTarget(selectedEvent) !== '-' && (
                                     <div>
                                         <span style={{ color: 'var(--text-muted)' }}>目标用户: </span>
-                                        <span>{selectedEvent.targetEmail}</span>
+                                        <span>{resolveAuditTarget(selectedEvent)}</span>
                                     </div>
                                 )}
                             </div>

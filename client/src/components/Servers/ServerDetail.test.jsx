@@ -139,7 +139,7 @@ describe('ServerDetail', () => {
         const inboundCard = screen.getByText('入站规则').closest('.stat-mini-card');
         const clientsCard = screen.getByText('客户端数').closest('.stat-mini-card');
         const onlineCard = screen.getAllByText('在线用户')[0].closest('.stat-mini-card');
-        const trafficCard = screen.getByText('总流量 (MB)').closest('.stat-mini-card');
+        const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');
 
         expect(inboundCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
         expect(clientsCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
@@ -161,7 +161,7 @@ describe('ServerDetail', () => {
             expect(inboundCard?.querySelector('.stat-mini-value')?.textContent).toBe('0 / 0');
             expect(clientsCard?.querySelector('.stat-mini-value')?.textContent).toBe('0');
             expect(onlineCard?.querySelector('.stat-mini-value')?.textContent).toBe('0');
-            expect(trafficCard?.querySelector('.stat-mini-value')?.textContent).toBe('0');
+            expect(trafficCard?.querySelector('.stat-mini-value')?.textContent).toBe('0 B');
         });
     });
 });

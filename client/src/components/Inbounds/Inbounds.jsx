@@ -820,7 +820,7 @@ export default function Inbounds() {
                                                         <div className="inbounds-sort-stepper">
                                                             <button
                                                                 type="button"
-                                                                className="btn btn-ghost btn-sm btn-icon"
+                                                                className="btn btn-ghost btn-sm inbounds-sort-step"
                                                                 title="上移"
                                                                 disabled={!canMoveUp || savingOrderServerId === ib.serverId}
                                                                 onClick={(e) => {
@@ -829,10 +829,11 @@ export default function Inbounds() {
                                                                 }}
                                                             >
                                                                 <HiOutlineChevronUp />
+                                                                <span>上移</span>
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                className="btn btn-ghost btn-sm btn-icon"
+                                                                className="btn btn-ghost btn-sm inbounds-sort-step"
                                                                 title="下移"
                                                                 disabled={!canMoveDown || savingOrderServerId === ib.serverId}
                                                                 onClick={(e) => {
@@ -841,6 +842,7 @@ export default function Inbounds() {
                                                                 }}
                                                             >
                                                                 <HiOutlineChevronDown />
+                                                                <span>下移</span>
                                                             </button>
                                                         </div>
                                                     </div>
@@ -852,7 +854,13 @@ export default function Inbounds() {
                                                         </span>
                                                     </td>
                                                 )}
-                                                <td data-label="备注" className="font-medium text-white">{ib.remark || '-'}</td>
+                                                <td
+                                                    data-label="备注"
+                                                    className="font-medium text-white inbounds-remark-cell"
+                                                    title={ib.remark || '-'}
+                                                >
+                                                    {ib.remark || '-'}
+                                                </td>
                                                 <td data-label="协议"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label="用户数">
@@ -941,10 +949,10 @@ export default function Inbounds() {
                                                                         return (
                                                                         <tr key={idx}>
                                                                             <td>
-                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
-                                                                                        <span className="badge badge-warning">单独限定</span>
+                                                                                        <span className="badge badge-warning">已限定</span>
                                                                                     )}
                                                                                 </div>
                                                                             </td>
@@ -1012,7 +1020,7 @@ export default function Inbounds() {
                                                                                 </div>
                                                                             </td>
                                                                             <td>
-                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                <div className="inbounds-client-actions">
                                                                                     <button
                                                                                         type="button"
                                                                                         className={`btn btn-sm ${cl.enable !== false ? 'btn-danger' : 'btn-success'}`}
@@ -1030,15 +1038,15 @@ export default function Inbounds() {
                                                                                     </button>
                                                                                     <button
                                                                                         type="button"
-                                                                                        className="btn btn-secondary btn-sm"
-                                                                                        title={hasOverride ? '已单独限定，点击修改' : '单独限定'}
+                                                                                        className={`btn btn-ghost btn-sm inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
+                                                                                        title={hasOverride ? '已设置单独限定，点击修改' : '设置单独限定'}
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
                                                                                             openEntitlementModal(ib, cl);
                                                                                         }}
                                                                                     >
-                                                                                        {hasOverride ? '查看限定' : '单独限定'}
+                                                                                        {hasOverride ? '修改限定' : '限定策略'}
                                                                                     </button>
                                                                                     <button
                                                                                         type="button"
