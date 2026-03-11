@@ -2264,7 +2264,7 @@ input[type="radio"]:focus {
   background: rgba(99, 102, 241, 0.14);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .sidebar {
     width: var(--sidebar-width);
     transform: translateX(-100%);
@@ -3141,7 +3141,7 @@ input[type="radio"]:focus-visible {
 .dashboard-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -5556,7 +5556,7 @@ body::before {
 }
 
 .dashboard-toolbar-actions {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .dashboard-section-head {
@@ -7280,7 +7280,7 @@ body::before {
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .header {
     min-height: 80px;
     padding: 14px 20px 12px 72px;
@@ -8484,7 +8484,7 @@ input[type="radio"]:focus-visible {
   border-top-color: rgba(15, 23, 42, 0.08);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .logs-toolbar {
     top: 82px;
   }
@@ -8928,7 +8928,7 @@ input[type="radio"]:focus-visible {
   min-width: 0;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .logs-toolbar {
     top: 82px;
   }
@@ -10202,7 +10202,7 @@ input[type="radio"]:focus-visible {
   opacity: 0.9;
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 769px) {
   .sidebar-toggle {
     display: inline-flex;
     top: 20px;

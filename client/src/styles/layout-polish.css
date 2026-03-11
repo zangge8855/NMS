@@ -64,7 +64,7 @@
 .page-toolbar {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   flex-wrap: wrap;
   padding: 16px 18px;
@@ -88,7 +88,7 @@
 }
 
 .page-toolbar-main {
-  flex: 1 1 520px;
+  flex: 0 1 auto;
 }
 
 .page-toolbar-main > * {
@@ -96,8 +96,8 @@
 }
 
 .page-toolbar-actions {
-  margin-left: auto;
-  justify-content: flex-end;
+  margin-left: 0;
+  justify-content: flex-start;
 }
 
 .page-toolbar-meta {
@@ -432,7 +432,7 @@
 .settings-toolbar {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 16px 18px;
 }
@@ -464,11 +464,11 @@
 }
 
 .users-toolbar-main {
-  flex: 1 1 520px;
+  flex: 0 1 auto;
 }
 
 .subscriptions-toolbar-main {
-  flex: 1 1 560px;
+  flex: 0 1 auto;
   align-items: flex-end;
 }
 
@@ -478,8 +478,8 @@
 .subscriptions-toolbar-actions,
 .audit-traffic-toolbar-actions,
 .settings-toolbar-actions {
-  margin-left: auto;
-  justify-content: flex-end;
+  margin-left: 0;
+  justify-content: flex-start;
 }
 
 .users-toolbar-actions {
@@ -545,7 +545,7 @@
   white-space: nowrap;
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 769px) {
   .dashboard-toolbar.page-toolbar {
     justify-content: flex-start;
     gap: 12px;
@@ -575,7 +575,7 @@
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .page-toolbar,
   .page-toolbar--stack-tablet,
   .section-header,
