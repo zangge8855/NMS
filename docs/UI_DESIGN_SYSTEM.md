@@ -1,6 +1,6 @@
 # NMS 管理端 UI 设计基线
 
-> 更新时间：2026-03-10
+> 更新时间：2026-03-11
 
 ## 中文
 
@@ -11,6 +11,7 @@
 - 深色优先，亮色跟随
 - 强调秩序、层级、留白和数据可读性
 - 把首页、导航壳层、登录页和高频管理页先收口成同一套系统
+- 完善全站的设备自适应（移动端抽屉式侧边栏与数据表格滚动）
 
 ### 2. 设计方向
 
@@ -71,9 +72,11 @@
 
 壳层规则：
 
-- 侧边栏稳重、低噪音，激活态用实体底和细高亮条
+- 桌面端侧边栏稳重、低噪音，激活态用实体底和细高亮条
+- 移动端自动收起侧边栏，提供顶部汉堡菜单呼出抽屉式侧边栏
 - 顶栏只承担上下文说明和核心操作，不堆叠装饰
 - 顶栏搜索必须是可用的页面搜索入口，而不是只显示占位文案的装饰控件；键盘快捷键统一为 `Ctrl/Cmd + K`
+- 内容区采用 `min-width: 0` 保护 Flexbox 边界，避免大表格溢出顶破全局布局
 
 页面规则：
 
@@ -159,7 +162,7 @@
 
 # NMS Admin UI Design Baseline
 
-> Updated: 2026-03-10
+> Updated: 2026-03-11
 
 ## English
 
@@ -170,6 +173,7 @@ This UI pass is not meant to turn NMS into a flashy dashboard. The goal is to es
 - dark-first, light as a mapped variant
 - emphasis on hierarchy, rhythm, spacing, and data readability
 - unify login, shell layout, dashboard, and high-frequency admin pages first
+- complete and polished mobile responsiveness (drawer sidebar and table scroll)
 
 ### 2. Visual Direction
 
@@ -224,9 +228,11 @@ Rules:
 
 Shell:
 
-- sidebar is quiet and stable
+- sidebar is quiet and stable on desktop
+- mobile auto-hides sidebar and relies on a top hamburger menu to reveal a drawer
 - header is contextual, not decorative
 - header search must be a real page-search entrypoint rather than a decorative placeholder, with `Ctrl/Cmd + K` as the shared shortcut
+- main content block leverages `min-width: 0` to prevent inner flexbox tables from overflowing the global shell
 
 Pages:
 

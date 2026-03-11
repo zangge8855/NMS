@@ -13,7 +13,7 @@ NMS is a centralized management panel for multiple 3x-ui nodes. It keeps user li
 - Audit coverage: operation audit, subscription access logs, traffic trends, centralized 3x-ui log view
 - Real visitor IP extraction under reverse proxy and Cloudflare
 - Admin operations: SMTP diagnostics, system backup export, DB mode controls, node health monitoring, notification center
-- Admin shell polish: working global page search in the top header with `Ctrl/Cmd + K`, plus improved light-theme readability and interaction consistency
+- Admin shell polish: working global page search in the top header with `Ctrl/Cmd + K`, fully responsive mobile layout with drawer sidebar, plus improved light-theme readability and interaction consistency
 - Security baseline: JWT auth, credential encryption, password policy, rate limiting, SSRF protection
 
 ### Architecture
@@ -167,7 +167,7 @@ More configuration details: `.env.example`
 - 审计能力：操作审计、订阅访问日志、流量趋势、集中 3x-ui 日志查看
 - 在反代和 Cloudflare 场景下记录真实访客 IP
 - 管理端增强：SMTP 诊断、系统备份导出、DB 模式切换、节点健康巡检、通知中心
-- 管理端壳层增强：顶部全局页面搜索已可用，支持 `Ctrl/Cmd + K`，并补齐了浅色主题下的可读性与交互一致性
+- 管理端壳层增强：顶部全局页面搜索已可用，支持 `Ctrl/Cmd + K`，实现全站移动端自适应与抽屉式侧边栏，并补齐了浅色主题下的可读性与交互一致性
 - 安全基线：JWT、凭据加密、密码策略、限流、SSRF 防护
 
 ### 架构说明

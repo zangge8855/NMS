@@ -1,7 +1,7 @@
 # NMS 功能与 UI 审计报告
 
 > 统计基线：`/root/NMS` 当前代码仓库（不含外部部署差异）  
-> 统计时间：2026-03-09
+> 统计时间：2026-03-11
 
 ## 中文
 
@@ -246,7 +246,7 @@ NMS 当前已经是一个面向多节点 3x-ui 的统一管理面板，而不是
 # NMS Feature and UI Audit Report
 
 > Baseline: current `/root/NMS` repository, excluding deployment-specific differences  
-> Audit date: 2026-03-09
+> Audit date: 2026-03-11
 
 ## English
 
