@@ -6129,6 +6129,15 @@ body::before {
   justify-content: flex-end;
 }
 
+.inbound-order-input,
+.users-order-input {
+  width: 72px;
+  min-width: 72px;
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
 .inbounds-status-cell {
   display: inline-flex;
   align-items: center;
@@ -6301,6 +6310,11 @@ body::before {
 .inbounds-client-online-status.is-online .inbounds-client-online-dot {
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
   animation: ws-connected-pulse 2s ease-in-out infinite;
+}
+
+.users-order-input {
+  width: 76px;
+  min-width: 76px;
 }
 
 .users-toolbar,
@@ -10019,11 +10033,72 @@ input[type="radio"]:focus-visible {
 .sidebar-logo-copy {
   min-width: 0;
   flex-wrap: nowrap;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .sidebar-logo-text,
 .sidebar-logo-subtitle {
   white-space: nowrap;
+  font-size: 17px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.sidebar-logo-text {
+  font-weight: 700;
+}
+
+.sidebar-logo-subtitle {
+  font-weight: 600;
+  max-width: none;
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+
+.login-brand-row {
+  align-items: center;
+  justify-content: center;
+}
+
+.login-brand-copy {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.login-brand-name,
+.login-brand-subtitle {
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.login-brand-name {
+  font-weight: 700;
+}
+
+.login-brand-subtitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .sidebar-logo-text,
+  .sidebar-logo-subtitle {
+    font-size: 16px;
+  }
+
+  .login-brand-name,
+  .login-brand-subtitle {
+    font-size: 18px;
+  }
 }
 
 .server-dropdown-menu {

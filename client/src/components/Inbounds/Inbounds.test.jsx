@@ -175,41 +175,28 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('keeps only the drag handle for sorting and removes step move buttons', async () => {
+    it('shows numeric order inputs instead of drag sort controls', async () => {
         renderWithRouter(<Inbounds />);
 
         const inboundName = await screen.findByText('Main Inbound');
         const summaryRow = inboundName.closest('tr');
         if (!summaryRow) throw new Error('Missing inbound summary row');
 
-        expect(within(summaryRow).getByRole('button', { name: '拖拽排序' })).toBeInTheDocument();
-        expect(within(summaryRow).queryByRole('button', { name: '上移' })).not.toBeInTheDocument();
-        expect(within(summaryRow).queryByRole('button', { name: '下移' })).not.toBeInTheDocument();
+        expect(within(summaryRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ })).toBeInTheDocument();
+        expect(within(summaryRow).queryByRole('button', { name: '拖拽排序' })).not.toBeInTheDocument();
     });
 
-    it('reorders inbounds by dragging the handle and persists the new order', async () => {
+    it('reorders inbounds by sequence input and persists the new order', async () => {
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
-        const backupInbound = await screen.findByText('Backup Inbound');
         const sourceRow = mainInbound.closest('tr');
-        const targetRow = backupInbound.closest('tr');
-        if (!sourceRow || !targetRow) throw new Error('Missing inbound rows');
+        if (!sourceRow) throw new Error('Missing inbound row');
 
-        const dataTransfer = {
-            effectAllowed: 'move',
-            dropEffect: 'move',
-            setData: vi.fn(),
-            getData: vi.fn(() => 'server-a-1'),
-        };
-
-        const handle = within(sourceRow).getByLabelText('拖拽排序');
+        const orderInput = within(sourceRow).getByRole('spinbutton', { name: /设置 Main Inbound.*排序序号/ });
         await act(async () => {
-            fireEvent.dragStart(handle, { dataTransfer });
-            fireEvent.dragEnter(targetRow, { dataTransfer });
-            fireEvent.dragOver(targetRow, { dataTransfer });
-            fireEvent.drop(targetRow, { dataTransfer });
-            fireEvent.dragEnd(handle, { dataTransfer });
+            fireEvent.change(orderInput, { target: { value: '2' } });
+            fireEvent.blur(orderInput);
         });
 
         await waitFor(() => {

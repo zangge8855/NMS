@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import serverStore from '../store/serverStore.js';
+import userStore from '../store/userStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
@@ -298,6 +299,58 @@ router.put('/inbounds/order', adminOnly, (req, res) => {
         return res.status(400).json({
             success: false,
             msg: error.message || 'Failed to update inbound order',
+        });
+    }
+});
+
+router.get('/users/order', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: systemSettingsStore.getUserOrder(),
+    });
+});
+
+router.put('/users/order', adminOnly, (req, res) => {
+    const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds : null;
+
+    if (!userIds) {
+        return res.status(400).json({
+            success: false,
+            msg: 'userIds must be an array',
+        });
+    }
+
+    const knownUsers = new Set(userStore.getAll().map((user) => String(user?.id || '').trim()).filter(Boolean));
+    const normalizedIds = Array.from(new Set(
+        userIds
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+    const invalidIds = normalizedIds.filter((id) => !knownUsers.has(id));
+
+    if (invalidIds.length > 0) {
+        return res.status(400).json({
+            success: false,
+            msg: `Unknown user ids: ${invalidIds.join(', ')}`,
+        });
+    }
+
+    try {
+        const order = systemSettingsStore.setUserOrder(normalizedIds);
+        appendSecurityAudit('user_order_updated', req, {
+            userCount: order.length,
+        });
+        return res.json({
+            success: true,
+            msg: 'User order updated',
+            obj: {
+                userIds: order,
+            },
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'Failed to update user order',
         });
     }
 });

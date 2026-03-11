@@ -112,3 +112,40 @@ export function reorderInboundsWithinServer(inbounds = [], draggedKey, targetKey
         inboundIds: reorderedGroup.map((item) => normalizeId(item?.id)).filter(Boolean),
     };
 }
+
+export function moveInboundWithinServerToPosition(inbounds = [], movedKey, position) {
+    const rows = Array.isArray(inbounds) ? [...inbounds] : [];
+    const moved = rows.find((item) => item?.uiKey === movedKey);
+
+    if (!moved) {
+        return { changed: false, items: rows, serverId: '', inboundIds: [] };
+    }
+
+    const serverId = normalizeId(moved.serverId);
+    const group = rows.filter((item) => normalizeId(item?.serverId) === serverId);
+    const fromIndex = group.findIndex((item) => item?.uiKey === movedKey);
+    const targetIndex = Math.max(0, Math.min(group.length - 1, Number(position)));
+
+    if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) {
+        return { changed: false, items: rows, serverId: '', inboundIds: [] };
+    }
+
+    const reorderedGroup = [...group];
+    const [picked] = reorderedGroup.splice(fromIndex, 1);
+    reorderedGroup.splice(targetIndex, 0, picked);
+
+    let cursor = 0;
+    const items = rows.map((item) => {
+        if (normalizeId(item?.serverId) !== serverId) return item;
+        const nextItem = reorderedGroup[cursor];
+        cursor += 1;
+        return nextItem;
+    });
+
+    return {
+        changed: true,
+        items,
+        serverId,
+        inboundIds: reorderedGroup.map((item) => normalizeId(item?.id)).filter(Boolean),
+    };
+}

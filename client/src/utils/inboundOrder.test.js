@@ -1,4 +1,5 @@
 import {
+    moveInboundWithinServerToPosition,
     normalizeInboundOrderMap,
     reorderInboundsWithinServer,
     sortInboundsByOrder,
@@ -42,5 +43,19 @@ describe('inbound order helpers', () => {
         expect(result.serverId).toBe('server-a');
         expect(result.inboundIds).toEqual(['2', '1']);
         expect(result.items.map((item) => item.uiKey)).toEqual(['a-2', 'a-1', 'b-3']);
+    });
+
+    it('moves an inbound to a numeric position within its server group', () => {
+        const result = moveInboundWithinServerToPosition([
+            { uiKey: 'a-1', serverId: 'server-a', id: '1' },
+            { uiKey: 'a-2', serverId: 'server-a', id: '2' },
+            { uiKey: 'a-3', serverId: 'server-a', id: '3' },
+            { uiKey: 'b-4', serverId: 'server-b', id: '4' },
+        ], 'a-3', 0);
+
+        expect(result.changed).toBe(true);
+        expect(result.serverId).toBe('server-a');
+        expect(result.inboundIds).toEqual(['3', '1', '2']);
+        expect(result.items.map((item) => item.uiKey)).toEqual(['a-3', 'a-1', 'a-2', 'b-4']);
     });
 });

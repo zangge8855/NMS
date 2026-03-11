@@ -12,6 +12,7 @@ import { normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { extractInboundClients } from '../../utils/inboundClients.js';
+import { moveUserToPosition, normalizeUserOrder, sortUsersByOrder } from '../../utils/userOrder.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -111,6 +112,14 @@ function getOnlineStatus(clientCount, sessions) {
     };
 }
 
+function compareUsersFallback(a, b) {
+    const order = { pending: 0, enabled: 1, active: 2, disabled: 3 };
+    const aOrder = order[a.status.key] ?? 4;
+    const bOrder = order[b.status.key] ?? 4;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+}
+
 export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
@@ -124,6 +133,8 @@ export default function UsersHub() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('all');
+    const [userOrder, setUserOrder] = useState([]);
+    const [userOrderDrafts, setUserOrderDrafts] = useState({});
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -186,8 +197,9 @@ export default function UsersHub() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [usersRes, ...serverResults] = await Promise.all([
+            const [usersRes, userOrderRes, ...serverResults] = await Promise.all([
                 api.get('/auth/users'),
+                api.get('/system/users/order').catch(() => ({ data: { obj: [] } })),
                 ...servers.map((s) =>
                     Promise.all([
                         api.get(`/panel/${s.id}/panel/api/inbounds/list`).catch(() => ({ data: { obj: [] } })),
@@ -197,6 +209,8 @@ export default function UsersHub() {
             ]);
             const userList = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
             setUsers(userList.filter((u) => u.role !== 'admin'));
+            setUserOrder(normalizeUserOrder(userOrderRes.data?.obj || []));
+            setUserOrderDrafts({});
 
             // Build email → client data map + collect inbound info
             const emailMap = new Map();
@@ -282,9 +296,8 @@ export default function UsersHub() {
         fetchData();
     }, [servers]);
 
-    const enrichedUsers = useMemo(() => {
-        const search = String(searchTerm || '').trim().toLowerCase();
-        return users
+    const allOrderedUsers = useMemo(() => {
+        return sortUsersByOrder(users
             .map((user) => {
                 const subEmail = normalizeEmail(user.subscriptionEmail);
                 const loginEmail = normalizeEmail(user.email);
@@ -293,22 +306,20 @@ export default function UsersHub() {
                 const status = getUserStatus(user, clientData.count);
                 const onlineStatus = getOnlineStatus(clientData.count, onlineSessions);
                 return { ...user, clientData, status, onlineSessions, onlineStatus };
-            })
+            }),
+        userOrder, compareUsersFallback);
+    }, [users, clientsMap, onlineMap, userOrder]);
+
+    const enrichedUsers = useMemo(() => {
+        const search = String(searchTerm || '').trim().toLowerCase();
+        return allOrderedUsers
             .filter((user) => {
                 if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
                 if (!search) return true;
                 return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label]
                     .some((v) => String(v || '').toLowerCase().includes(search));
-            })
-            .sort((a, b) => {
-                // Pending first, then by creation date descending
-                const order = { pending: 0, enabled: 1, active: 2, disabled: 3 };
-                const aOrder = order[a.status.key] ?? 4;
-                const bOrder = order[b.status.key] ?? 4;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
             });
-    }, [users, clientsMap, onlineMap, searchTerm, statusFilter]);
+    }, [allOrderedUsers, searchTerm, statusFilter]);
     const selectedUsers = useMemo(
         () => enrichedUsers.filter((user) => selectedIds.has(user.id)),
         [enrichedUsers, selectedIds]
@@ -419,7 +430,62 @@ export default function UsersHub() {
         if (selectedIds.size === enrichedUsers.length) {
             setSelectedIds(new Set());
         } else {
-            setSelectedIds(new Set(enrichedUsers.map(u => u.id)));
+            setSelectedIds(new Set(enrichedUsers.map((u) => u.id)));
+        }
+    };
+
+    const getUserOrderPosition = (userId) => {
+        const position = allOrderedUsers.findIndex((item) => item.id === userId);
+        return position >= 0 ? position + 1 : 1;
+    };
+
+    const handleUserOrderDraftChange = (userId, value) => {
+        setUserOrderDrafts((prev) => ({
+            ...prev,
+            [userId]: value,
+        }));
+    };
+
+    const persistUserOrder = async (userIds) => {
+        const res = await api.put('/system/users/order', { userIds });
+        const savedIds = normalizeUserOrder(res.data?.obj?.userIds || userIds);
+        setUserOrder(savedIds);
+    };
+
+    const handleUserOrderCommit = async (user) => {
+        const userId = String(user?.id || '').trim();
+        if (!userId) return;
+
+        const rawValue = String(userOrderDrafts[userId] ?? '').trim();
+        if (!rawValue) {
+            setUserOrderDrafts((prev) => {
+                const next = { ...prev };
+                delete next[userId];
+                return next;
+            });
+            return;
+        }
+
+        const nextPosition = Number.parseInt(rawValue, 10);
+        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
+            toast.error('请输入有效的排序序号');
+            return;
+        }
+
+        const next = moveUserToPosition(allOrderedUsers, userId, nextPosition - 1);
+        setUserOrderDrafts((prev) => {
+            const nextDrafts = { ...prev };
+            delete nextDrafts[userId];
+            return nextDrafts;
+        });
+        if (!next.changed) return;
+
+        try {
+            await persistUserOrder(next.userIds);
+            toast.success('用户顺序已保存');
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || '保存用户顺序失败');
+            await fetchData();
         }
     };
 
@@ -928,6 +994,7 @@ export default function UsersHub() {
                                 <th style={{ width: 40 }}>
                                     <input type="checkbox" checked={enrichedUsers.length > 0 && selectedIds.size === enrichedUsers.length} onChange={toggleSelectAll} />
                                 </th>
+                                <th>序号</th>
                                 <th>用户名</th>
                                 <th>邮箱</th>
                                 <th>状态</th>
@@ -940,19 +1007,47 @@ export default function UsersHub() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 1.1fr 1.3fr 120px 170px 90px 120px 140px 132px" /></td></tr>
+                                <tr><td colSpan={10}><SkeletonTable rows={8} cols={10} colTemplate="40px 88px 1.1fr 1.3fr 120px 170px 90px 120px 140px 132px" /></td></tr>
                             ) : enrichedUsers.length === 0 ? (
-                                <tr><td colSpan={9}>
+                                <tr><td colSpan={10}>
                                     <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
                                 </td></tr>
                             ) : (
-                                enrichedUsers.map((user) => (
+                                enrichedUsers.map((user) => {
+                                    const sequenceValue = userOrderDrafts[user.id] ?? String(getUserOrderPosition(user.id));
+                                    return (
                                     <tr
                                         key={user.id}
                                         className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
                                         onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                     >
                                         <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                        <td data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                inputMode="numeric"
+                                                aria-label={`设置 ${user.username} 的排序序号`}
+                                                className="form-input form-input-sm cell-mono users-order-input"
+                                                value={sequenceValue}
+                                                onChange={(e) => handleUserOrderDraftChange(user.id, e.target.value)}
+                                                onBlur={() => handleUserOrderCommit(user)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleUserOrderCommit(user);
+                                                    }
+                                                    if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        setUserOrderDrafts((prev) => {
+                                                            const next = { ...prev };
+                                                            delete next[user.id];
+                                                            return next;
+                                                        });
+                                                    }
+                                                }}
+                                            />
+                                        </td>
                                         <td data-label="用户名" className="font-medium table-cell-link" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>{user.username}</td>
                                         <td data-label="邮箱" className="text-sm">
                                             {user.email || user.subscriptionEmail ? (
@@ -1097,7 +1192,8 @@ export default function UsersHub() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
+                                );
+                                })
                             )}
                         </tbody>
                     </table>

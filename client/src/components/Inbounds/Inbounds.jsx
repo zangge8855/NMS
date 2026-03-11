@@ -17,14 +17,13 @@ import {
     HiOutlineArrowPath,
     HiOutlineServer,
     HiOutlineSignal,
-    HiOutlineBars3,
     HiOutlineCheck,
     HiOutlineClipboard,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
-    reorderInboundsWithinServer,
+    moveInboundWithinServerToPosition,
     sortInboundsByOrder,
 } from '../../utils/inboundOrder.js';
 import {
@@ -119,9 +118,8 @@ export default function Inbounds() {
     const [editingInbound, setEditingInbound] = useState(null);
     const [filterServerId, setFilterServerId] = useState('all');
     const [inboundOrder, setInboundOrder] = useState({});
-    const [draggingKey, setDraggingKey] = useState('');
-    const [dragOverKey, setDragOverKey] = useState('');
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
+    const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -156,6 +154,7 @@ export default function Inbounds() {
             const orderRes = await api.get('/system/inbounds/order');
             orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
             setInboundOrder(orderMap);
+            setInboundOrderDrafts({});
         } catch (err) {
             console.error('Failed to load inbound order:', err);
         }
@@ -441,69 +440,51 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
-    const resolveDraggedInboundKey = (event) => {
-        return draggingKey || event?.dataTransfer?.getData('text/plain') || '';
+    const getInboundOrderPosition = (uiKey) => {
+        const currentIndex = inbounds.findIndex((item) => item?.uiKey === uiKey);
+        if (currentIndex < 0) return 1;
+        const target = inbounds[currentIndex];
+        const group = inbounds.filter((item) => String(item?.serverId || '').trim() === String(target?.serverId || '').trim());
+        const position = group.findIndex((item) => item?.uiKey === uiKey);
+        return position >= 0 ? position + 1 : 1;
     };
 
-    const handleDropInbound = async (event, targetKey) => {
-        const draggedKey = resolveDraggedInboundKey(event);
-        setDraggingKey('');
-        setDragOverKey('');
-        const next = reorderInboundsWithinServer(inbounds, draggedKey, targetKey);
+    const handleInboundOrderDraftChange = (uiKey, value) => {
+        setInboundOrderDrafts((prev) => ({
+            ...prev,
+            [uiKey]: value,
+        }));
+    };
+
+    const handleInboundOrderCommit = async (inbound) => {
+        const uiKey = inbound?.uiKey;
+        if (!uiKey) return;
+        const rawValue = String(inboundOrderDrafts[uiKey] ?? '').trim();
+        if (!rawValue) {
+            setInboundOrderDrafts((prev) => {
+                const next = { ...prev };
+                delete next[uiKey];
+                return next;
+            });
+            return;
+        }
+
+        const nextPosition = Number.parseInt(rawValue, 10);
+        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
+            toast.error('请输入有效的排序序号');
+            return;
+        }
+
+        const next = moveInboundWithinServerToPosition(inbounds, uiKey, nextPosition - 1);
         if (!next.changed) return;
 
-        const nextOrder = {
-            ...inboundOrder,
-            [next.serverId]: next.inboundIds,
-        };
-        setInboundOrder(nextOrder);
         setInbounds(next.items);
+        setInboundOrderDrafts((prev) => {
+            const nextDrafts = { ...prev };
+            delete nextDrafts[uiKey];
+            return nextDrafts;
+        });
         await persistInboundOrder(next.serverId, next.inboundIds);
-    };
-
-    const handleDragStartInbound = (event, uiKey) => {
-        event.stopPropagation();
-        if (event.dataTransfer) {
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.dropEffect = 'move';
-            event.dataTransfer.setData('text/plain', uiKey);
-        }
-        setDraggingKey(uiKey);
-        setDragOverKey('');
-    };
-
-    const handleDragOverInbound = (event, targetKey) => {
-        const activeDraggedKey = resolveDraggedInboundKey(event);
-        if (!activeDraggedKey || activeDraggedKey === targetKey) return;
-        event.preventDefault();
-        if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = 'move';
-        }
-        if (activeDraggedKey !== draggingKey) {
-            setDraggingKey(activeDraggedKey);
-        }
-        setDragOverKey((prev) => (prev === targetKey ? prev : targetKey));
-    };
-
-    const handleDragEnterInbound = (event, targetKey) => {
-        const activeDraggedKey = resolveDraggedInboundKey(event);
-        if (!activeDraggedKey || activeDraggedKey === targetKey) return;
-        event.preventDefault();
-        if (activeDraggedKey !== draggingKey) {
-            setDraggingKey(activeDraggedKey);
-        }
-        setDragOverKey(targetKey);
-    };
-
-    const handleDragLeaveInbound = (event, targetKey) => {
-        const nextTarget = event.relatedTarget;
-        if (nextTarget && event.currentTarget.contains(nextTarget)) return;
-        setDragOverKey((prev) => (prev === targetKey ? '' : prev));
-    };
-
-    const handleDragEndInbound = () => {
-        setDraggingKey('');
-        setDragOverKey('');
     };
 
     const parseClients = (ib) => {
@@ -869,7 +850,7 @@ export default function Inbounds() {
                                         className="cursor-pointer"
                                     />
                                 </th>
-                                <th>排序</th>
+                                <th>序号</th>
                                 {filterServerId === 'all' && <th>节点</th>}
                                 <th>备注</th>
                                 <th>协议</th>
@@ -903,7 +884,7 @@ export default function Inbounds() {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
-                                    const isDropTarget = dragOverKey === ib.uiKey && draggingKey && draggingKey !== ib.uiKey;
+                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(getInboundOrderPosition(ib.uiKey));
                                     const selectableClientKeys = clients
                                         .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
                                         .filter(Boolean);
@@ -912,21 +893,13 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}${draggingKey === ib.uiKey ? ' inbounds-row-dragging' : ''}${isDropTarget ? ' inbounds-row-drop-target' : ''}`}
+                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row ${isSelected ? 'inbounds-row-selected' : ''}${isBatchSelecting ? ' table-row-selectable' : ''}`}
                                                 onClick={() => {
                                                     if (isBatchSelecting) {
                                                         toggleSelect(ib.uiKey);
                                                         return;
                                                     }
                                                     setExpandedId(isExpanded ? null : ib.uiKey);
-                                                }}
-                                                onDragEnter={(e) => handleDragEnterInbound(e, ib.uiKey)}
-                                                onDragOver={(e) => handleDragOverInbound(e, ib.uiKey)}
-                                                onDragLeave={(e) => handleDragLeaveInbound(e, ib.uiKey)}
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleDropInbound(e, ib.uiKey);
                                                 }}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
@@ -937,27 +910,32 @@ export default function Inbounds() {
                                                         className="cursor-pointer"
                                                     />
                                                 </td>
-                                                <td data-label="排序" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="inbounds-sort-controls">
-                                                        <div
-                                                            role="button"
-                                                            tabIndex={0}
-                                                            aria-label="拖拽排序"
-                                                            aria-grabbed={draggingKey === ib.uiKey}
-                                                            className="inbounds-drag-handle"
-                                                            title="拖拽排序"
-                                                            draggable
-                                                            onDragStart={(e) => handleDragStartInbound(e, ib.uiKey)}
-                                                            onDragEnd={handleDragEndInbound}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                                    e.preventDefault();
-                                                                }
-                                                            }}
-                                                        >
-                                                            <HiOutlineBars3 />
-                                                        </div>
-                                                    </div>
+                                                <td data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        inputMode="numeric"
+                                                        aria-label={`设置 ${ib.remark || ib.protocol}:${ib.port} 的排序序号`}
+                                                        className="form-input form-input-sm cell-mono inbound-order-input"
+                                                        value={sequenceValue}
+                                                        onChange={(e) => handleInboundOrderDraftChange(ib.uiKey, e.target.value)}
+                                                        onBlur={() => handleInboundOrderCommit(ib)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleInboundOrderCommit(ib);
+                                                            }
+                                                            if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                setInboundOrderDrafts((prev) => {
+                                                                    const next = { ...prev };
+                                                                    delete next[ib.uiKey];
+                                                                    return next;
+                                                                });
+                                                            }
+                                                        }}
+                                                        disabled={savingOrderServerId === ib.serverId}
+                                                    />
                                                 </td>
                                                 {filterServerId === 'all' && (
                                                     <td data-label="节点">

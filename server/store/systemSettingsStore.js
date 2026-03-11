@@ -84,6 +84,15 @@ function normalizeInboundOrderMap(input = {}) {
     return output;
 }
 
+function normalizeIdList(input = []) {
+    if (!Array.isArray(input)) return [];
+    return Array.from(new Set(
+        input
+            .map((item) => normalizeId(item))
+            .filter(Boolean)
+    ));
+}
+
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
         fs.mkdirSync(config.dataDir, { recursive: true });
@@ -247,6 +256,7 @@ class SystemSettingsStore {
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
             },
             inboundOrder: {},
+            userOrder: [],
         };
     }
 
@@ -320,6 +330,7 @@ class SystemSettingsStore {
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
+        const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
 
         const securityInput = mergeSection(defaults.security, input.security);
         const jobsInput = mergeSection(defaults.jobs, input.jobs);
@@ -327,6 +338,7 @@ class SystemSettingsStore {
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
+        const userOrderInput = normalizeIdList(input.userOrder);
 
         return {
             security: this._normalizeSecurity(securityInput, securityFallback),
@@ -335,6 +347,7 @@ class SystemSettingsStore {
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
             inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
+            userOrder: userOrderInput.length > 0 ? userOrderInput : userOrderFallback,
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
     }
@@ -396,6 +409,10 @@ class SystemSettingsStore {
         return Array.isArray(all[normalizedServerId]) ? [...all[normalizedServerId]] : [];
     }
 
+    getUserOrder() {
+        return [...(this.getAll().userOrder || [])];
+    }
+
     sortInboundList(serverId, inbounds = []) {
         const rows = Array.isArray(inbounds) ? [...inbounds] : [];
         const order = this.getInboundOrder(serverId);
@@ -447,6 +464,20 @@ class SystemSettingsStore {
         return this.getInboundOrder(normalizedServerId);
     }
 
+    setUserOrder(userIds = []) {
+        if (!Array.isArray(userIds)) {
+            throw new Error('userIds must be an array');
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            userOrder: normalizeIdList(userIds),
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+        return this.getUserOrder();
+    }
+
     update(patch = {}) {
         this._assertAllowedPayload(patch);
         const candidate = {
@@ -456,6 +487,7 @@ class SystemSettingsStore {
             subscription: mergeSection(this.settings.subscription, patch.subscription),
             auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
             inboundOrder: this.settings.inboundOrder,
+            userOrder: this.settings.userOrder,
             updatedAt: new Date().toISOString(),
         };
         this.settings = this._normalizeSettings(candidate, this.settings);
