@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -13,7 +13,6 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
-import ModalShell from '../UI/ModalShell.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
@@ -60,7 +59,6 @@ export default function Subscriptions() {
     const [selectedServerId, setSelectedServerId] = useState('all');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
-    const [showQr, setShowQr] = useState(false);
     const [profileKey, setProfileKey] = useState('v2rayn');
     const [tokenName, setTokenName] = useState('');
     const [tokenTtlDays, setTokenTtlDays] = useState('30');
@@ -473,19 +471,53 @@ export default function Subscriptions() {
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
                             </div>
-                            <div className="subscription-link-grid grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3">
+                            <div className="subscription-link-grid grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
                                 <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
                                     <HiOutlineClipboard /> 复制地址
                                 </button>
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowQr(true)}
-                                    disabled={!activeProfile?.url || !result.subscriptionActive}
-                                    title="显示二维码"
-                                >
-                                    <HiOutlineQrCode /> QR
-                                </button>
+                            </div>
+                            <div
+                                className="mt-4"
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                    gap: '16px',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <div className="flex flex-col gap-2">
+                                    <div className="text-sm font-medium">订阅网址二维码</div>
+                                    <div className="text-xs text-muted">
+                                        当前二维码内容就是 {activeProfile?.label || '当前订阅'} 的订阅网址，切换上方订阅类型后会立即更新。
+                                    </div>
+                                    <div className="text-xs text-muted">
+                                        这是订阅链接本身的二维码，不是快捷导入协议地址。
+                                    </div>
+                                    {result.email && (
+                                        <div className="text-xs text-muted font-mono break-all">
+                                            {result.email}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex justify-center">
+                                    {activeProfile?.url && result.subscriptionActive ? (
+                                        <div
+                                            className="qr-surface qr-surface-lg"
+                                            role="img"
+                                            aria-label={`订阅二维码 · ${activeProfile.label}`}
+                                        >
+                                            <QRCodeSVG
+                                                value={activeProfile.url}
+                                                size={192}
+                                                level="M"
+                                                includeMargin={false}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-muted">当前订阅暂无可用二维码</div>
+                                    )}
+                                </div>
                             </div>
                             <SubscriptionClientLinks bundle={result.bundle} />
                         </div>
@@ -661,41 +693,6 @@ export default function Subscriptions() {
                     </div>
                     <div className="text-xs text-muted mt-3">{PASSWORD_POLICY_HINT}</div>
                 </div>
-
-                {showQr && activeProfile?.url && (
-                    <ModalShell isOpen={showQr} onClose={() => setShowQr(false)}>
-                        <div
-                            className="modal glass-panel"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ maxWidth: '380px', textAlign: 'center' }}
-                        >
-                            <div className="modal-header">
-                                <h3 className="modal-title text-glow">订阅二维码 · {activeProfile.label}</h3>
-                                <button className="modal-close" onClick={() => setShowQr(false)}><HiOutlineXMark /></button>
-                            </div>
-                            <div className="modal-body flex flex-col items-center gap-4">
-                                <div className="qr-surface qr-surface-lg">
-                                    <QRCodeSVG
-                                        value={activeProfile.url}
-                                        size={256}
-                                        level="M"
-                                        includeMargin={false}
-                                    />
-                                </div>
-                                <p className="text-sm text-muted break-all">
-                                    {result.email}
-                                </p>
-                                <SubscriptionClientLinks bundle={result.bundle} />
-                            </div>
-                            <div className="modal-footer">
-                                <button className="btn btn-secondary" onClick={() => setShowQr(false)}>关闭</button>
-                                <button className="btn btn-primary" onClick={handleCopy}>
-                                    <HiOutlineClipboard /> 复制地址
-                                </button>
-                            </div>
-                        </div>
-                    </ModalShell>
-                )}
             </div>
         </>
     );
