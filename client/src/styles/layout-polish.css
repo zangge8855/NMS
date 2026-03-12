@@ -854,3 +854,53 @@
 [data-theme="light"] .modal {
   background: var(--surface-card-bg);
 }
+
+/* --- Master UI Plan Layout Overrides --- */
+.page-content {
+  padding: clamp(16px, 2vw + 12px, 34px) clamp(16px, 3vw + 8px, 36px) clamp(24px, 4vw + 12px, 44px) !important;
+  max-width: 1600px;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Typography refinements */
+h1, h2, h3, h4, h5, .modal-title, .header-title {
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+p, .empty-state-body, td {
+  line-height: 1.6;
+}
+
+/* Consistent Border Radius for Forms & Buttons */
+.form-input, .form-select, .form-textarea, .btn {
+  border-radius: var(--radius-md) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Subtle elevation system for cards */
+.card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
