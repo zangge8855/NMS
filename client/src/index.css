@@ -802,7 +802,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   padding: 10px 16px;
   border-radius: var(--radius-md);
   font-weight: 500;
@@ -1243,7 +1243,7 @@ input[type="radio"]:focus {
 .account-search-shell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -1434,7 +1434,7 @@ input[type="radio"]:focus {
 .header-context {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -1486,7 +1486,7 @@ input[type="radio"]:focus {
 }
 
 .gap-8 {
-  gap: 8px;
+  gap: 6px;
 }
 
 .gap-1 {
@@ -1524,7 +1524,7 @@ input[type="radio"]:focus {
 }
 
 .gap-2 {
-  gap: 8px;
+  gap: 6px;
 }
 
 .gap-4 {
@@ -2180,7 +2180,7 @@ input[type="radio"]:focus {
   padding: 0 20px 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .empty-state-medium {
@@ -2221,7 +2221,7 @@ input[type="radio"]:focus {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex-wrap: nowrap;
 }
@@ -2272,7 +2272,7 @@ input[type="radio"]:focus {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
   background: transparent;
   border-bottom: 1px solid var(--border-color);
@@ -2349,7 +2349,7 @@ input[type="radio"]:focus {
   }
 
   .header-actions {
-    gap: 8px;
+    gap: 6px;
   }
 
   .header-context,
@@ -2562,7 +2562,7 @@ input[type="radio"]:focus {
     padding: 20px 16px 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
@@ -2916,7 +2916,7 @@ input[type="radio"]:focus-visible {
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .server-card-control-btn {
@@ -2961,7 +2961,7 @@ input[type="radio"]:focus-visible {
 }
 
 .server-card-tags {
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 18px;
 }
 
@@ -2978,7 +2978,7 @@ input[type="radio"]:focus-visible {
 .form-check-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 12px;
   background: var(--surface-soft);
   border: 1px solid var(--stroke-soft);
@@ -3297,7 +3297,7 @@ input[type="radio"]:focus-visible {
 .node-health-tile-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
@@ -3899,7 +3899,7 @@ input[type="radio"]:focus-visible {
 .verify-code-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -4102,7 +4102,7 @@ input[type="radio"]:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 6px;
 }
 
@@ -4308,7 +4308,7 @@ input[type="radio"]:focus-visible {
 
 .user-profile-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -5231,7 +5231,7 @@ body::before {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
@@ -5472,7 +5472,7 @@ body::before {
 .notification-dropdown-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -5607,7 +5607,7 @@ body::before {
 .ws-status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -6130,7 +6130,7 @@ body::before {
 }
 
 .server-card-tags {
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 18px;
 }
 
@@ -6232,7 +6232,7 @@ body::before {
 }
 
 .inbounds-row-actions {
-  gap: 8px;
+  gap: 6px;
 }
 
 .inbounds-user-count {
@@ -6288,7 +6288,7 @@ body::before {
 .inbounds-status-cell {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -6364,7 +6364,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -6381,7 +6381,7 @@ body::before {
 .inbounds-client-id-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   max-width: min(100%, 220px);
 }
 
@@ -6395,14 +6395,14 @@ body::before {
 .inbounds-client-email-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
 .inbounds-client-status-stack {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
@@ -6410,7 +6410,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -6644,7 +6644,7 @@ body::before {
 }
 
 .users-row-actions {
-  gap: 8px;
+  gap: 6px;
 }
 
 .users-row-actions .btn {
@@ -7461,7 +7461,7 @@ body::before {
   }
 
   .header-actions {
-    gap: 8px;
+    gap: 6px;
     max-width: none;
     margin-left: 8px;
   }
@@ -7566,7 +7566,7 @@ body::before {
   }
 
   .login-top-actions {
-    gap: 8px;
+    gap: 6px;
   }
 
   .login-card {
@@ -7770,7 +7770,7 @@ body::before {
 .node-health-skeleton-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .node-health-skeleton-bar {
@@ -8467,7 +8467,7 @@ input[type="radio"]:focus-visible {
 .user-profile-meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--stroke-soft);
@@ -8492,7 +8492,7 @@ input[type="radio"]:focus-visible {
 .node-health-sparkline-shell {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -8764,7 +8764,7 @@ input[type="radio"]:focus-visible {
 .dashboard-stat-card-body {
   position: relative;
   min-width: 0;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dashboard-stat-card-value {
@@ -9228,7 +9228,7 @@ input[type="radio"]:focus-visible {
 .subscription-quick-card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .settings-backup-actions {
@@ -9475,7 +9475,7 @@ input[type="radio"]:focus-visible {
   margin-left: 0 !important;
   align-self: start;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   flex: 0 0 auto;
 }
 
@@ -9620,7 +9620,7 @@ input[type="radio"]:focus-visible {
 .settings-restore-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 16px;
 }
 
@@ -9946,7 +9946,7 @@ input[type="radio"]:focus-visible {
 .login-brand-copy {
   flex-direction: row;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
   flex-wrap: nowrap;
 }
@@ -10231,7 +10231,7 @@ input[type="radio"]:focus-visible {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .sidebar-logo-text,
@@ -10262,7 +10262,7 @@ input[type="radio"]:focus-visible {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 

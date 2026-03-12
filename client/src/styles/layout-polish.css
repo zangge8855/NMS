@@ -923,10 +923,10 @@ p, .empty-state-body, td {
 }
 
 .sidebar-logo-text {
-  font-size: 14px !important;
+  font-size: 16px !important;
 }
 .sidebar-logo-subtitle {
-  font-size: 10px !important;
+  font-size: 11px !important;
 }
 
 .settings-grid {
@@ -939,4 +939,13 @@ p, .empty-state-body, td {
 }
 .settings-section-banner {
   margin-bottom: 0 !important;
+}
+
+.sidebar-logo {
+  padding: 14px 24px 14px 16px !important;
+  gap: 10px !important;
+}
+.sidebar-logo-icon {
+  width: 30px !important;
+  height: 30px !important;
 }
