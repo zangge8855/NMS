@@ -3,6 +3,7 @@ import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { resolveClientIp } from '../lib/requestIp.js';
+import jobStore from '../store/jobStore.js';
 import {
     normalizeEmailInput,
     registerUser,
@@ -18,6 +19,7 @@ import {
 } from '../services/authSessionService.js';
 import {
     adminResetUserPassword,
+    buildManagedUserSyncJobPayload,
     buildUsersCsv,
     buildUsersExportFilename,
     bulkSetUsersEnabled,
@@ -73,6 +75,25 @@ function rejectPasswordSelfService(res) {
 
 function buildLoginRateKey(ip, username = '') {
     return `${String(ip || 'unknown')}|${normalizeRateUsername(username)}`;
+}
+
+function safeClone(value) {
+    if (value === undefined) return undefined;
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return null;
+    }
+}
+
+function appendManagedSyncHistory(req, payload = {}) {
+    return jobStore.appendBatch({
+        type: 'user_sync',
+        action: String(payload.action || 'managed_sync'),
+        output: safeClone(payload.output || {}) || { summary: { total: 0, success: 0, failed: 0 }, results: [] },
+        actor: req.user?.username || req.user?.role || 'unknown',
+        requestSnapshot: safeClone(payload.requestSnapshot || {}) || {},
+    });
 }
 
 function getLoginRateState(ip, username = '') {
@@ -486,13 +507,35 @@ router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, re
             req.body,
             String(req.user?.username || 'admin')
         );
+        const syncHistoryIds = [];
+        result.results = result.results.map((item) => {
+            if (!item?.success || item?.partialFailure !== true || !item.target) return item;
+            const jobPayload = buildManagedUserSyncJobPayload({
+                operation: 'set_enabled',
+                target: item.target,
+                subscriptionEmail: item.subscriptionEmail,
+                enabled: item.enabled,
+                clientSync: item.clientSync,
+                deployment: item.deployment,
+            });
+            if (Number(jobPayload.output?.summary?.failed || 0) <= 0) return item;
+            const historyEntry = appendManagedSyncHistory(req, jobPayload);
+            syncHistoryIds.push(historyEntry.id);
+            return {
+                ...item,
+                syncHistoryId: historyEntry.id,
+            };
+        });
         const summaryMessage = result.partialFailureCount > 0
-            ? `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常`
+            ? `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常，可在任务历史中重试`
             : `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`;
         return res.json({
             success: true,
             msg: summaryMessage,
-            obj: result.results,
+            obj: {
+                items: result.results,
+                syncHistoryIds,
+            },
         });
     } catch (err) {
         const error = toHttpError(err, 400, '批量更新用户状态失败');
@@ -556,14 +599,26 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
             String(req.user?.username || 'admin')
         );
         const syncFailureCount = Number(result.clientSync?.failed || 0) + Number(result.deployment?.failed || 0);
+        const syncJobPayload = buildManagedUserSyncJobPayload({
+            operation: 'set_enabled',
+            target: result.target,
+            subscriptionEmail: result.subscriptionEmail,
+            enabled: result.enabled,
+            clientSync: result.clientSync,
+            deployment: result.deployment,
+        });
+        const syncHistory = syncFailureCount > 0
+            ? appendManagedSyncHistory(req, syncJobPayload)
+            : null;
         const syncMessage = syncFailureCount > 0
-            ? `用户已${result.enabled ? '启用' : '停用'}，但有 ${syncFailureCount} 项节点同步失败`
+            ? `用户已${result.enabled ? '启用' : '停用'}，但有 ${syncFailureCount} 项节点同步失败，可在任务历史中重试`
             : `用户已${result.enabled ? '启用' : '停用'}`;
         appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
             enabled: result.enabled,
             syncFailureCount,
+            syncHistoryId: syncHistory?.id || '',
         }));
         return res.json({
             success: true,
@@ -573,6 +628,7 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
                 partialFailure: result.partialFailure,
                 clientSync: result.clientSync,
                 deployment: result.deployment,
+                syncHistoryId: syncHistory?.id || '',
             },
         });
     } catch (err) {
@@ -591,14 +647,34 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
             req.body,
             String(req.user?.username || 'admin')
         );
+        const syncJobPayload = buildManagedUserSyncJobPayload({
+            operation: 'update_expiry',
+            target: result.target,
+            subscriptionEmail: result.subscriptionEmail,
+            enabled: result.target?.enabled !== false,
+            clientSync: null,
+            deployment: result.deployment,
+        });
+        const syncHistory = Number(result.deployment?.failed || 0) > 0
+            ? appendManagedSyncHistory(req, syncJobPayload)
+            : null;
         appendSecurityAudit('user_expiry_updated', req, buildUserAuditDetails(result.target, {
             subscriptionEmail: result.subscriptionEmail,
             expiryTime: result.expiryTime,
             updated: result.deployment.updated,
             failed: result.deployment.failed,
+            syncHistoryId: syncHistory?.id || '',
         }));
-
-        return res.json({ success: true, obj: result.deployment });
+        return res.json({
+            success: true,
+            msg: Number(result.deployment?.failed || 0) > 0
+                ? '到期时间已更新，但部分节点同步失败，可在任务历史中重试'
+                : '到期时间已更新',
+            obj: {
+                ...result.deployment,
+                syncHistoryId: syncHistory?.id || '',
+            },
+        });
     } catch (err) {
         const error = toHttpError(err, 400, '更新到期时间失败');
         return res.status(error.status).json({ success: false, msg: error.message });
@@ -614,6 +690,17 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
         const actor = String(req.user?.username || req.user?.role || 'admin');
         const result = await provisionManagedUserSubscription(req.params.id, req.body, actor);
         const { user, policy, subscription, deployment, context, target } = result;
+        const syncJobPayload = buildManagedUserSyncJobPayload({
+            operation: 'provision_subscription',
+            target,
+            subscriptionEmail: context.subscriptionEmail,
+            enabled: user?.enabled !== false,
+            clientSync: null,
+            deployment,
+        });
+        const syncHistory = Number(deployment?.failed || 0) > 0
+            ? appendManagedSyncHistory(req, syncJobPayload)
+            : null;
 
         appendSecurityAudit('user_subscription_provisioned', req, buildUserAuditDetails(target, {
             subscriptionEmail: context.subscriptionEmail,
@@ -628,15 +715,20 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             deploymentUpdated: deployment.updated,
             deploymentSkipped: deployment.skipped,
             deploymentFailed: deployment.failed,
+            syncHistoryId: syncHistory?.id || '',
         }));
 
         return res.json({
             success: true,
+            msg: Number(deployment?.failed || 0) > 0
+                ? '订阅已开通，但部分节点同步失败，可在任务历史中重试'
+                : '订阅已开通',
             obj: {
                 user,
                 policy,
                 subscription,
                 deployment,
+                syncHistoryId: syncHistory?.id || '',
             },
         });
     } catch (err) {

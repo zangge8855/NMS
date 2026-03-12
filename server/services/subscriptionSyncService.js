@@ -198,6 +198,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const sharedCredentials = options.sharedCredentials || createSharedCredentials();
     const baseEntitlement = resolvePolicyEntitlement(policy, options);
     const forceCredentialRotation = options.forceCredentialRotation === true;
+    const clientEnabled = options.clientEnabled;
 
     for (const server of targetServers) {
         let panelContext;
@@ -235,7 +236,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
                     const override = overrideRepository.get(server.id, inbound.id, clientIdentifier);
                     const targetEntitlement = override || baseEntitlement;
-                    const updatedClient = forceCredentialRotation
+                    const updatedClientBase = forceCredentialRotation
                         ? applyManagedCredentialsToClient(match, {
                             email,
                             protocol,
@@ -245,17 +246,26 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                             resolveFlow: resolveDeployFlow,
                         })
                         : applyEntitlementToClient(match, targetEntitlement);
+                    const updatedClient = clientEnabled === undefined
+                        ? updatedClientBase
+                        : {
+                            ...updatedClientBase,
+                            enable: Boolean(clientEnabled),
+                        };
 
                     const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
                         && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
                         && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0);
+                    const isSameEnableState = clientEnabled === undefined
+                        ? true
+                        : ((match.enable !== false) === Boolean(clientEnabled));
                     const isSameCredentials = !forceCredentialRotation || (
                         String(updatedClient.id || '') === String(match.id || '')
                         && String(updatedClient.password || '') === String(match.password || '')
                         && String(updatedClient.subId || '') === String(match.subId || '')
                     );
 
-                    if (isSameEntitlement && isSameCredentials) {
+                    if (isSameEntitlement && isSameCredentials && isSameEnableState) {
                         result.skipped += 1;
                         result.details.push({
                             serverId: server.id,
@@ -292,6 +302,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     entitlement: baseEntitlement,
                     resolveFlow: resolveDeployFlow,
                 });
+                if (clientEnabled !== undefined) {
+                    clientData.enable = Boolean(clientEnabled);
+                }
 
                 await addClient(client, inbound.id, clientData);
                 result.created += 1;
@@ -584,6 +597,9 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
         expiryTime = Date.now() + Math.floor(rawExpiryDays) * 24 * 60 * 60 * 1000;
     }
 
+    const allowedInboundKeys = Array.isArray(payload.allowedInboundKeys)
+        ? payload.allowedInboundKeys.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
     const limitIp = normalizeNonNegativeInt(payload.limitIp, 0);
     const trafficLimitBytes = normalizeNonNegativeInt(payload.trafficLimitBytes, 0);
     const user = users.setSubscriptionEmail(targetUser.id, subscriptionEmail);
@@ -605,9 +621,6 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
         subscriptionTokenRepository: tokenRepo,
     });
 
-    const allowedInboundKeys = Array.isArray(payload.allowedInboundKeys)
-        ? payload.allowedInboundKeys.map((item) => String(item || '').trim()).filter(Boolean)
-        : [];
     let deployment = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     try {
         deployment = await autoDeployClients(subscriptionEmail, policy, {
@@ -616,6 +629,7 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             trafficLimitBytes,
             allowedInboundKeys,
             allServers: servers.list(),
+            clientEnabled: targetUser?.enabled !== false,
         }, deps);
     } catch (error) {
         deployment.error = error.message || 'Auto-deploy failed';

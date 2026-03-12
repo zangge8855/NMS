@@ -28,6 +28,219 @@ function normalizeExpiryTime(value) {
     return Math.max(0, Math.floor(Number(value) || 0));
 }
 
+function emptyClientSyncResult() {
+    return { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
+}
+
+function emptyDeploymentResult() {
+    return { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
+}
+
+function normalizeStringList(input = []) {
+    if (!Array.isArray(input)) return [];
+    return Array.from(new Set(
+        input
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+}
+
+function applyInboundRetryScope(policy = null, targetInboundKeys = []) {
+    const keys = normalizeStringList(targetInboundKeys);
+    if (keys.length === 0) return policy;
+    if (!policy || typeof policy !== 'object') {
+        return { allowedInboundKeys: keys };
+    }
+
+    const currentKeys = normalizeStringList(policy.allowedInboundKeys);
+    const scopedKeys = currentKeys.length > 0
+        ? keys.filter((key) => currentKeys.includes(key))
+        : keys;
+
+    return {
+        ...policy,
+        allowedInboundKeys: scopedKeys,
+    };
+}
+
+async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {}, deps = {}) {
+    const serverRepo = deps.serverRepository || serverRepository;
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
+    const toggleClients = deps.autoSetManagedClientsEnabled || autoSetManagedClientsEnabled;
+    const deployClients = deps.autoDeployClients || autoDeployClients;
+
+    const enabled = options.enabled !== undefined ? !!options.enabled : (targetUser?.enabled !== false);
+    const subscriptionEmail = resolveUserSubscriptionEmail(targetUser);
+    if (!subscriptionEmail) {
+        return {
+            subscriptionEmail: '',
+            policy: null,
+            clientSync: emptyClientSyncResult(),
+            deployment: emptyDeploymentResult(),
+            partialFailure: false,
+        };
+    }
+
+    const targetServerIds = normalizeStringList(options.targetServerIds);
+    const allServers = serverRepo.list();
+    const scopedServers = targetServerIds.length > 0
+        ? allServers.filter((item) => targetServerIds.includes(String(item?.id || '').trim()))
+        : allServers;
+
+    const basePolicy = options.policyOverride !== undefined
+        ? options.policyOverride
+        : policyRepo.get(subscriptionEmail);
+    const scopedPolicy = applyInboundRetryScope(basePolicy, options.targetInboundKeys);
+
+    let clientSync = emptyClientSyncResult();
+    if (options.includeToggle === true) {
+        try {
+            clientSync = await toggleClients(subscriptionEmail, enabled, {
+                allServers: scopedServers,
+                policy: scopedPolicy,
+            });
+        } catch (error) {
+            clientSync = {
+                total: 0,
+                updated: 0,
+                skipped: 0,
+                failed: 1,
+                details: [{ status: 'failed', error: error.message || 'client-toggle-failed' }],
+            };
+        }
+    }
+
+    let deployment = emptyDeploymentResult();
+    if (options.includeDeploy === true && scopedPolicy) {
+        try {
+            deployment = await deployClients(subscriptionEmail, scopedPolicy, {
+                allServers: scopedServers,
+                allowedInboundKeys: scopedPolicy.allowedInboundKeys,
+                clientEnabled: enabled,
+            });
+        } catch (error) {
+            deployment = {
+                total: 0,
+                created: 0,
+                updated: 0,
+                skipped: 0,
+                failed: 1,
+                details: [{ status: 'failed', error: error.message || 'client-deploy-failed' }],
+            };
+        }
+    }
+
+    return {
+        subscriptionEmail,
+        policy: scopedPolicy || null,
+        clientSync,
+        deployment,
+        partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
+    };
+}
+
+function flattenManagedUserSyncDetails(target, subscriptionEmail, enabled, group, stage) {
+    const userId = String(target?.id || '').trim();
+    const username = String(target?.username || '').trim();
+    const normalizedStage = String(stage || '').trim();
+    const details = Array.isArray(group?.details) ? group.details : [];
+
+    return details.map((item) => {
+        const success = String(item?.status || '').trim().toLowerCase() !== 'failed';
+        return {
+            success,
+            retriable: !success,
+            stage: normalizedStage,
+            userId,
+            username,
+            subscriptionEmail: String(subscriptionEmail || '').trim(),
+            enabled: Boolean(enabled),
+            serverId: String(item?.serverId || '').trim(),
+            serverName: String(item?.serverName || '').trim(),
+            inboundId: item?.inboundId ?? null,
+            inboundRemark: String(item?.inboundRemark || '').trim(),
+            protocol: String(item?.protocol || '').trim(),
+            msg: String(item?.error || item?.reason || item?.status || 'unknown').trim(),
+        };
+    });
+}
+
+function buildManagedUserSyncJobPayload({
+    operation = '',
+    target = null,
+    subscriptionEmail = '',
+    enabled = true,
+    clientSync = null,
+    deployment = null,
+}) {
+    const results = [
+        ...flattenManagedUserSyncDetails(target, subscriptionEmail, enabled, clientSync, 'client_toggle'),
+        ...flattenManagedUserSyncDetails(target, subscriptionEmail, enabled, deployment, 'client_deploy'),
+    ];
+    const summary = {
+        total: results.length,
+        success: results.filter((item) => item.success).length,
+        failed: results.filter((item) => item.success === false).length,
+    };
+
+    return {
+        action: String(operation || 'managed_sync'),
+        output: {
+            summary,
+            results,
+        },
+        requestSnapshot: {
+            operation: String(operation || 'managed_sync'),
+            userId: String(target?.id || '').trim(),
+        },
+    };
+}
+
+async function resyncManagedUserNodes(id, payload = {}, actor = 'admin', deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const target = userRepo.getById(id);
+
+    if (!target) {
+        throw createHttpError(404, '用户不存在');
+    }
+    if (target.role === 'admin') {
+        throw createHttpError(400, '管理员账号无法执行节点同步');
+    }
+
+    const operation = String(payload?.operation || '').trim().toLowerCase();
+    const enabled = target.enabled !== false;
+    const includeToggle = Object.prototype.hasOwnProperty.call(payload || {}, 'includeToggle')
+        ? payload.includeToggle === true
+        : operation === 'set_enabled';
+    const includeDeploy = Object.prototype.hasOwnProperty.call(payload || {}, 'includeDeploy')
+        ? payload.includeDeploy === true
+        : (
+            operation === 'update_expiry'
+            || operation === 'provision_subscription'
+            || (operation === 'set_enabled' && enabled)
+        );
+
+    const sync = await runManagedUserNodeSync(
+        target,
+        actor,
+        {
+            enabled,
+            includeToggle,
+            includeDeploy,
+            targetServerIds: payload.targetServerIds,
+            targetInboundKeys: payload.targetInboundKeys,
+        },
+        deps
+    );
+
+    return {
+        target,
+        updated: stripSubscriptionAliasPath(target),
+        enabled,
+        ...sync,
+    };
+}
+
 function buildCsvCell(value) {
     return `"${String(value || '').replace(/"/g, '""')}"`;
 }
@@ -104,6 +317,8 @@ async function bulkSetUsersEnabled(payload = {}, actor = 'admin', deps = {}) {
                 id: uid,
                 success: true,
                 enabled: updated.enabled,
+                target: updated.target,
+                subscriptionEmail: updated.subscriptionEmail,
                 partialFailure: updated.partialFailure === true,
                 clientSync: updated.clientSync,
                 deployment: updated.deployment,
@@ -201,10 +416,6 @@ function updateUserSubscriptionBinding(id, payload = {}, deps = {}) {
 
 async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {}) {
     const userRepo = deps.userRepository || userRepository;
-    const serverRepo = deps.serverRepository || serverRepository;
-    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
-    const toggleClients = deps.autoSetManagedClientsEnabled || autoSetManagedClientsEnabled;
-    const deployClients = deps.autoDeployClients || autoDeployClients;
     const ensurePersistentToken = deps.ensurePersistentSubscriptionToken || ensurePersistentSubscriptionToken;
     const target = userRepo.getById(id);
 
@@ -217,48 +428,20 @@ async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {
 
     const enabled = !!payload?.enabled;
     const updated = userRepo.setEnabled(id, enabled);
-    const subscriptionEmail = resolveUserSubscriptionEmail(target);
-    const allServers = serverRepo.list();
-    const policy = subscriptionEmail ? policyRepo.get(subscriptionEmail) : null;
-    let clientSync = { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
-    let deployment = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
+    const syncTarget = updated && typeof updated === 'object'
+        ? { ...target, ...updated, enabled }
+        : { ...target, enabled };
+    const sync = await runManagedUserNodeSync(syncTarget, actor, {
+        enabled,
+        includeToggle: true,
+        includeDeploy: enabled,
+    }, deps);
 
-    if (subscriptionEmail) {
+    if (enabled && sync.subscriptionEmail && sync.policy) {
         try {
-            clientSync = await toggleClients(subscriptionEmail, enabled, {
-                allServers,
-                policy,
-            });
-        } catch (error) {
-            clientSync = {
-                total: 0,
-                updated: 0,
-                skipped: 0,
-                failed: 1,
-                details: [{ status: 'failed', error: error.message || 'client-toggle-failed' }],
-            };
-        }
-    }
-
-    if (enabled && subscriptionEmail) {
-        if (policy) {
-            try {
-                deployment = await deployClients(subscriptionEmail, policy, { allServers });
-            } catch (error) {
-                deployment = {
-                    total: 0,
-                    created: 0,
-                    updated: 0,
-                    skipped: 0,
-                    failed: 1,
-                    details: [{ status: 'failed', error: error.message || 'client-deploy-failed' }],
-                };
-            }
-            try {
-                ensurePersistentToken(subscriptionEmail, actor);
-            } catch {
-                // best-effort
-            }
+            ensurePersistentToken(sync.subscriptionEmail, actor);
+        } catch {
+            // best-effort
         }
     }
 
@@ -266,17 +449,16 @@ async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {
         target,
         updated,
         enabled,
-        clientSync,
-        deployment,
-        partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
+        subscriptionEmail: sync.subscriptionEmail,
+        clientSync: sync.clientSync,
+        deployment: sync.deployment,
+        partialFailure: sync.partialFailure,
     };
 }
 
 async function updateManagedUserExpiry(id, payload = {}, actor = 'admin', deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
-    const serverRepo = deps.serverRepository || serverRepository;
-    const deployClients = deps.autoDeployClients || autoDeployClients;
     const target = userRepo.getById(id);
 
     if (!target) {
@@ -298,16 +480,18 @@ async function updateManagedUserExpiry(id, payload = {}, actor = 'admin', deps =
         },
         actor
     );
-    const deployment = await deployClients(subscriptionEmail, nextPolicy, {
-        expiryTime,
-        allServers: serverRepo.list(),
-    });
+    const sync = await runManagedUserNodeSync(target, actor, {
+        enabled: target.enabled !== false,
+        includeToggle: false,
+        includeDeploy: true,
+        policyOverride: nextPolicy,
+    }, deps);
 
     return {
         target,
         subscriptionEmail,
         expiryTime,
-        deployment,
+        deployment: sync.deployment,
     };
 }
 
@@ -439,10 +623,12 @@ function buildUsersExportFilename(now = new Date()) {
 }
 
 export {
+    buildManagedUserSyncJobPayload,
     listUsers,
     createManagedUser,
     bulkSetUsersEnabled,
     buildUsersCsv,
+    resyncManagedUserNodes,
     updateManagedUser,
     updateUserSubscriptionBinding,
     setManagedUserEnabled,

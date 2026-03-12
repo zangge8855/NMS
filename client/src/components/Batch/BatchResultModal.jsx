@@ -10,8 +10,26 @@ function labelByAction(action) {
         disable: '停用',
         delete: '删除',
         resetTraffic: '重置流量',
+        client_toggle: '启停同步',
+        client_deploy: '策略下发',
     };
     return map[action] || action || '-';
+}
+
+function formatInboundLabel(item = {}) {
+    const inboundId = item.inboundId ?? '';
+    const remark = String(item.inboundRemark || '').trim();
+    if (inboundId && remark) return `${inboundId} · ${remark}`;
+    return inboundId || remark || '-';
+}
+
+function formatTargetLabel(item = {}) {
+    const username = String(item.username || '').trim();
+    const subscriptionEmail = String(item.subscriptionEmail || '').trim();
+    if (username && subscriptionEmail) {
+        return `${username} (${subscriptionEmail})`;
+    }
+    return username || subscriptionEmail || item.email || item.remark || item.clientIdentifier || '-';
 }
 
 export default function BatchResultModal({ isOpen, onClose, title = '批量执行结果', data = null }) {
@@ -66,10 +84,10 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                                                     {item.success ? '成功' : '失败'}
                                                 </span>
                                             </td>
-                                            <td data-label="操作">{labelByAction(item.action)}</td>
+                                            <td data-label="操作">{labelByAction(item.action || item.stage)}</td>
                                             <td data-label="节点">{item.serverName || item.serverId || '-'}</td>
-                                            <td data-label="入站">{item.inboundId || '-'}</td>
-                                            <td data-label="对象">{item.email || item.remark || item.clientIdentifier || '-'}</td>
+                                            <td data-label="入站">{formatInboundLabel(item)}</td>
+                                            <td data-label="对象">{formatTargetLabel(item)}</td>
                                             <td data-label="消息" style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
                                                 {item.msg || '-'}
                                             </td>

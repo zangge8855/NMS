@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     adminResetUserPassword,
+    buildManagedUserSyncJobPayload,
     buildUsersCsv,
     bulkSetUsersEnabled,
     createManagedUser,
     deleteManagedUser,
     provisionManagedUserSubscription,
+    resyncManagedUserNodes,
     setManagedUserEnabled,
     updateManagedUserExpiry,
 } from '../services/userAdminService.js';
@@ -173,6 +175,49 @@ test('setManagedUserEnabled disables managed clients without removing them or re
     assert.deepEqual(events, ['policy:get', 'toggle:sub@example.com:false']);
 });
 
+test('buildManagedUserSyncJobPayload flattens sync details for retry history', () => {
+    const payload = buildManagedUserSyncJobPayload({
+        operation: 'set_enabled',
+        target: { id: 'u-9', username: 'nina' },
+        subscriptionEmail: 'nina@example.com',
+        enabled: true,
+        clientSync: {
+            details: [
+                {
+                    serverId: 'srv-1',
+                    serverName: 'Node A',
+                    inboundId: 101,
+                    inboundRemark: 'Inbound A',
+                    protocol: 'vless',
+                    status: 'failed',
+                    error: 'Auth failed',
+                },
+            ],
+        },
+        deployment: {
+            details: [
+                {
+                    serverId: 'srv-2',
+                    serverName: 'Node B',
+                    inboundId: 202,
+                    inboundRemark: 'Inbound B',
+                    protocol: 'trojan',
+                    status: 'updated',
+                },
+            ],
+        },
+    });
+
+    assert.equal(payload.action, 'set_enabled');
+    assert.equal(payload.output.summary.total, 2);
+    assert.equal(payload.output.summary.failed, 1);
+    assert.equal(payload.requestSnapshot.userId, 'u-9');
+    assert.equal(payload.output.results[0].stage, 'client_toggle');
+    assert.equal(payload.output.results[0].success, false);
+    assert.equal(payload.output.results[1].stage, 'client_deploy');
+    assert.equal(payload.output.results[1].success, true);
+});
+
 test('updateManagedUserExpiry writes policy then deploys clients', async () => {
     const steps = [];
     const result = await updateManagedUserExpiry(
@@ -200,7 +245,7 @@ test('updateManagedUserExpiry writes policy then deploys clients', async () => {
                 },
             },
             autoDeployClients: async (email, policy, options) => {
-                steps.push(`deploy:${email}:${policy.expiryTime}:${options.expiryTime}`);
+                steps.push(`deploy:${email}:${policy.expiryTime}:${options.clientEnabled}`);
                 return { updated: 2, failed: 0 };
             },
         }
@@ -209,8 +254,134 @@ test('updateManagedUserExpiry writes policy then deploys clients', async () => {
     assert.equal(result.expiryTime, 7200);
     assert.deepEqual(steps, [
         'upsert:tom@example.com:7200:alice',
-        'deploy:tom@example.com:7200:7200',
+        'deploy:tom@example.com:7200:true',
     ]);
+});
+
+test('resyncManagedUserNodes scopes retry to selected failed servers and inbounds', async () => {
+    const toggleCalls = [];
+    const deployCalls = [];
+
+    const result = await resyncManagedUserNodes(
+        'u-10',
+        {
+            operation: 'set_enabled',
+            includeToggle: true,
+            includeDeploy: true,
+            targetServerIds: ['srv-2'],
+            targetInboundKeys: ['srv-2:202'],
+        },
+        'alice',
+        {
+            userRepository: {
+                getById() {
+                    return {
+                        id: 'u-10',
+                        username: 'iris',
+                        role: 'user',
+                        enabled: true,
+                        email: 'iris@example.com',
+                        subscriptionEmail: 'sub@example.com',
+                    };
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [
+                        { id: 'srv-1', name: 'Node A' },
+                        { id: 'srv-2', name: 'Node B' },
+                    ];
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    assert.equal(email, 'sub@example.com');
+                    return {
+                        serverScopeMode: 'selected',
+                        allowedServerIds: ['srv-1', 'srv-2'],
+                        protocolScopeMode: 'selected',
+                        allowedProtocols: ['vless'],
+                        allowedInboundKeys: ['srv-1:101', 'srv-2:202'],
+                    };
+                },
+            },
+            autoSetManagedClientsEnabled: async (email, enabled, options) => {
+                toggleCalls.push({ email, enabled, options });
+                return { total: 1, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async (email, policy, options) => {
+                deployCalls.push({ email, policy, options });
+                return { total: 1, created: 0, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(result.subscriptionEmail, 'sub@example.com');
+    assert.equal(toggleCalls.length, 1);
+    assert.deepEqual(toggleCalls[0].options.allServers, [{ id: 'srv-2', name: 'Node B' }]);
+    assert.deepEqual(toggleCalls[0].options.policy.allowedInboundKeys, ['srv-2:202']);
+    assert.equal(deployCalls.length, 1);
+    assert.deepEqual(deployCalls[0].policy.allowedInboundKeys, ['srv-2:202']);
+    assert.deepEqual(deployCalls[0].options.allowedInboundKeys, ['srv-2:202']);
+    assert.deepEqual(deployCalls[0].options.allServers, [{ id: 'srv-2', name: 'Node B' }]);
+});
+
+test('resyncManagedUserNodes honors explicit stage flags for set_enabled retries', async () => {
+    let toggleCalls = 0;
+    let deployCalls = 0;
+
+    const result = await resyncManagedUserNodes(
+        'u-12',
+        {
+            operation: 'set_enabled',
+            includeToggle: true,
+            includeDeploy: false,
+        },
+        'alice',
+        {
+            userRepository: {
+                getById() {
+                    return {
+                        id: 'u-12',
+                        username: 'maya',
+                        role: 'user',
+                        enabled: true,
+                        email: 'maya@example.com',
+                        subscriptionEmail: 'sub@example.com',
+                    };
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1', name: 'Node A' }];
+                },
+            },
+            userPolicyRepository: {
+                get() {
+                    return {
+                        serverScopeMode: 'selected',
+                        allowedServerIds: ['srv-1'],
+                        protocolScopeMode: 'selected',
+                        allowedProtocols: ['vless'],
+                        allowedInboundKeys: ['srv-1:101'],
+                    };
+                },
+            },
+            autoSetManagedClientsEnabled: async () => {
+                toggleCalls += 1;
+                return { total: 1, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async () => {
+                deployCalls += 1;
+                return { total: 1, created: 0, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(result.clientSync.updated, 1);
+    assert.equal(result.deployment.total, 0);
+    assert.equal(toggleCalls, 1);
+    assert.equal(deployCalls, 0);
 });
 
 test('provisionManagedUserSubscription validates and delegates to sync service', async () => {

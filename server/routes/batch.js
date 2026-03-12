@@ -5,6 +5,10 @@ import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import jobStore from '../store/jobStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import {
+    buildManagedUserSyncJobPayload,
+    resyncManagedUserNodes,
+} from '../services/userAdminService.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
@@ -668,6 +672,12 @@ function buildRetryRequestSnapshot(entry, options = {}) {
             const currentTargets = Array.isArray(snapshot.targets) ? snapshot.targets : [];
             snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildInboundTargetKey(target)));
         }
+    } else if (entry.type === 'user_sync') {
+        snapshot.targets = selectedFailed.map((item) => ({
+            stage: toStringValue(item.stage),
+            serverId: toStringValue(item.serverId),
+            inboundId: item.inboundId ?? null,
+        }));
     }
 
     return {
@@ -830,10 +840,23 @@ async function retryHistoryItem(historyItem, req) {
             };
         }
     }
+    if (historyItem.type === 'user_sync' && failedOnly) {
+        const hasTargets = Array.isArray(retryRequest.targets) && retryRequest.targets.length > 0;
+        if (!hasTargets) {
+            return {
+                error: {
+                    status: 400,
+                    msg: 'No retryable user sync targets',
+                },
+            };
+        }
+    }
 
     const targetCount = historyItem.type === 'clients'
         ? (Array.isArray(retryRequest.targets) ? retryRequest.targets.length : 0)
-        : inferInboundTargetCount(historyItem.action, retryRequest.targets, retryRequest.serverIds);
+        : (historyItem.type === 'user_sync'
+            ? (Array.isArray(retryRequest.targets) ? retryRequest.targets.length : 0)
+            : inferInboundTargetCount(historyItem.action, retryRequest.targets, retryRequest.serverIds));
     const riskCheck = consumeRiskTokenIfRequired(req, {
         type: historyItem.type,
         action: historyItem.action,
@@ -866,6 +889,41 @@ async function retryHistoryItem(historyItem, req) {
             serverIds: retryRequest.serverIds || [],
             concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
         });
+    } else if (historyItem.type === 'user_sync') {
+        const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
+        const targetServerIds = Array.from(new Set(
+            selectedTargets
+                .map((item) => toStringValue(item.serverId))
+                .filter(Boolean)
+        ));
+        const targetInboundKeys = Array.from(new Set(
+            selectedTargets
+                .filter((item) => toStringValue(item.serverId) && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '')
+                .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
+        ));
+        const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
+        const syncResult = await resyncManagedUserNodes(
+            retryRequest.userId,
+            {
+                operation: retryRequest.operation,
+                includeToggle: selectedTargets.length > 0 ? stages.has('client_toggle') : undefined,
+                includeDeploy: selectedTargets.length > 0 ? stages.has('client_deploy') : undefined,
+                targetServerIds,
+                targetInboundKeys,
+            },
+            String(req.user?.username || req.user?.role || 'admin')
+        );
+        const payload = buildManagedUserSyncJobPayload({
+            operation: retryRequest.operation,
+            target: syncResult.target,
+            subscriptionEmail: syncResult.subscriptionEmail,
+            enabled: syncResult.enabled,
+            clientSync: syncResult.clientSync,
+            deployment: syncResult.deployment,
+        });
+        run = {
+            output: payload.output,
+        };
     } else {
         return {
             error: {

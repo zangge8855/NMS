@@ -395,8 +395,10 @@ export default function UsersHub() {
                 enabled,
             });
             if (res.data?.success) {
-                const hasPartialFailure = Array.isArray(res.data?.obj)
-                    && res.data.obj.some((item) => item?.partialFailure === true);
+                const resultItems = Array.isArray(res.data?.obj)
+                    ? res.data.obj
+                    : (Array.isArray(res.data?.obj?.items) ? res.data.obj.items : []);
+                const hasPartialFailure = resultItems.some((item) => item?.partialFailure === true);
                 if (hasPartialFailure) {
                     toast.error(res.data.msg);
                 } else {

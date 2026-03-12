@@ -15,6 +15,7 @@ process.env.NODE_ENV = 'test';
 
 const {
     autoSetManagedClientsEnabled,
+    provisionSubscriptionForUser,
     rotateManagedSubscriptionCredentials,
 } = await import('../services/subscriptionSyncService.js');
 
@@ -218,5 +219,84 @@ describe('subscriptionSyncService', () => {
         assert.notEqual(updates[0].clientData.id, '11111111-1111-1111-1111-111111111111');
         assert.notEqual(updates[0].clientData.subId, 'old-sub-id');
         assert.equal(result.details[0].status, 'credentials-rotated');
+    });
+
+    it('provisions inbound-scoped policy before deploying managed clients', async () => {
+        const policyWrites = [];
+        const createdClients = [];
+        const result = await provisionSubscriptionForUser({
+            id: 'u-11',
+            enabled: false,
+            email: 'owner@example.com',
+            subscriptionEmail: '',
+        }, {
+            subscriptionEmail: 'bind@example.com',
+            allowedServerIds: ['srv-1'],
+            allowedProtocols: ['vless'],
+            allowedInboundKeys: ['srv-1:101'],
+            expiryTime: 3600,
+        }, 'admin', {
+            userRepository: {
+                setSubscriptionEmail(id, subscriptionEmail) {
+                    return { id, subscriptionEmail };
+                },
+            },
+            userPolicyRepository: {
+                upsert(email, payload, actor) {
+                    policyWrites.push({ email, payload, actor });
+                    return { email, ...payload };
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1', name: 'Server 1' }];
+                },
+            },
+            subscriptionTokenRepository: {
+                getFirstActiveTokenByName() {
+                    return {
+                        metadata: { id: 'tok-1' },
+                    };
+                },
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Allowed inbound',
+                        settings: JSON.stringify({ clients: [] }),
+                    },
+                    {
+                        id: 102,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Blocked inbound',
+                        settings: JSON.stringify({ clients: [] }),
+                    },
+                ],
+            }),
+            postAddClient: async (panelClient, inboundId, clientData) => {
+                createdClients.push({ inboundId, clientData });
+                return { panelClient, inboundId, clientData };
+            },
+            postUpdateClient: async () => ({}),
+            overrideRepository: {
+                get() {
+                    return null;
+                },
+            },
+        });
+
+        assert.equal(policyWrites.length, 1);
+        assert.deepEqual(policyWrites[0].payload.allowedInboundKeys, ['srv-1:101']);
+        assert.deepEqual(result.policy.allowedInboundKeys, ['srv-1:101']);
+        assert.equal(result.deployment.created, 1);
+        assert.equal(createdClients.length, 1);
+        assert.equal(createdClients[0].inboundId, 101);
+        assert.equal(createdClients[0].clientData.enable, false);
+        assert.equal(result.subscription.email, 'bind@example.com');
     });
 });
