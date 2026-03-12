@@ -12,6 +12,7 @@ vi.mock('../../api/client.js', () => ({
     default: {
         get: vi.fn(),
         post: vi.fn(),
+        put: vi.fn(),
     },
 }));
 
@@ -44,6 +45,7 @@ describe('Subscriptions', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.post.mockReset();
+        api.put.mockReset();
         useAuth.mockReset();
         useConfirm.mockReset();
         useServer.mockReset();
@@ -134,6 +136,7 @@ describe('Subscriptions', () => {
                             subscriptionUrl: 'https://sub.example.com/base',
                             subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
                             subscriptionUrlSingbox: 'https://sub.example.com/base?format=singbox',
+                            subscriptionUrlSurge: 'https://sub.example.com/base?format=surge',
                         },
                     },
                 });
@@ -148,10 +151,14 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Clash Verge Rev').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Surge').length).toBeGreaterThan(0);
         expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Surge' }));
+        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=surge')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=singbox')).toBeInTheDocument();
@@ -316,5 +323,115 @@ describe('Subscriptions', () => {
             expect(confirmMock).toHaveBeenCalledTimes(1);
         });
         expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('allows users to change their own login password from the subscription center', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                username: 'review-user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.put.mockResolvedValue({
+            data: {
+                success: true,
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+        await user.type(screen.getByLabelText('当前密码'), 'OldPass123!');
+        await user.type(screen.getByLabelText('新密码'), 'NewPass123!');
+        await user.type(screen.getByLabelText('确认新密码'), 'NewPass123!');
+        await user.click(screen.getByRole('button', { name: '修改登录密码' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/auth/change-password', {
+                oldPassword: 'OldPass123!',
+                newPassword: 'NewPass123!',
+            });
+        });
+    });
+
+    it('allows admins to change their own login password independently of the selected subscription user', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                username: 'review-admin',
+                subscriptionEmail: '',
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            users: ['managed@example.com'],
+                            warnings: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/subscriptions/managed%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'managed@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.put.mockResolvedValue({
+            data: {
+                success: true,
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+        expect(screen.getByText('review-admin · 管理员')).toBeInTheDocument();
+
+        await user.type(screen.getByLabelText('当前密码'), 'AdminOld123!');
+        await user.type(screen.getByLabelText('新密码'), 'AdminNew123!');
+        await user.type(screen.getByLabelText('确认新密码'), 'AdminNew123!');
+        await user.click(screen.getByRole('button', { name: '修改登录密码' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/auth/change-password', {
+                oldPassword: 'AdminOld123!',
+                newPassword: 'AdminNew123!',
+            });
+        });
     });
 });

@@ -33,6 +33,12 @@ function buildClashImportUrl(sourceUrl) {
     return `clash://install-config?url=${encodeURIComponent(url)}`;
 }
 
+function buildSurgeImportUrl(sourceUrl) {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `surge:///install-config?url=${encodeURIComponent(url)}`;
+}
+
 function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
     const url = normalizeUrl(sourceUrl);
     if (!url) return '';
@@ -61,6 +67,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         || appendQuery(mergedUrl, { format: 'clash' });
     const mihomoUrl = clashUrl;
     const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
+    const surgeUrl = normalizeUrl(payload.subscriptionUrlSurge);
     const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
     const importActions = [
         {
@@ -84,8 +91,16 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Stash',
             platform: 'iPhone / iPad',
             href: buildStashImportUrl(clashUrl),
-            hint: '导入 Clash / Mihomo YAML 订阅',
+            hint: '导入 Clash / Mihomo YAML 配置',
             siteUrl: TOOL_SITES.find((item) => item.key === 'stash')?.url || '',
+        },
+        {
+            key: 'surge',
+            label: 'Surge',
+            platform: 'iPhone / iPad / Mac',
+            href: buildSurgeImportUrl(surgeUrl),
+            hint: '导入 Surge 专用 INI 配置',
+            siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
         },
         {
             key: 'singbox',
@@ -108,13 +123,19 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             key: 'clash',
             label: 'Clash / Mihomo',
             url: clashUrl,
-            hint: 'YAML 订阅，适用于 Clash / Mihomo 类客户端',
+            hint: '同一份 YAML，适用于 Clash / Mihomo / Stash 系列',
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
             hint: 'Remote Profile 配置地址',
+        },
+        {
+            key: 'surge',
+            label: 'Surge',
+            url: surgeUrl,
+            hint: 'Surge 专用 INI 配置地址',
         },
         {
             key: 'raw',
@@ -134,6 +155,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         clashUrl,
         mihomoUrl,
         singboxUrl,
+        surgeUrl,
         singboxImportUrl,
         importActions,
         toolSites: TOOL_SITES,

@@ -651,7 +651,7 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                             <div className="text-xs text-muted">
-                                Clash、Mihomo、sing-box 等常见客户端的专用订阅地址已直接内置到订阅页面，不再依赖外部订阅转换器。
+                                Clash / Mihomo / Stash 共用 YAML，sing-box 与 Surge 使用专用配置，常见客户端已直接在订阅页面提供对应地址和快捷导入。
                             </div>
                         </div>
 

@@ -12,6 +12,7 @@ import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import ModalShell from '../UI/ModalShell.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
@@ -67,6 +68,10 @@ export default function Subscriptions() {
     const [tokenActionId, setTokenActionId] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
     const [lastIssuedToken, setLastIssuedToken] = useState(null);
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordLoading, setPasswordLoading] = useState(false);
 
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
     const activeProfile = useMemo(
@@ -270,6 +275,42 @@ export default function Subscriptions() {
         setResetLoading(false);
     };
 
+    const handleChangePassword = async () => {
+        const currentPassword = String(oldPassword || '');
+        const nextPassword = String(newPassword || '');
+        const repeatedPassword = String(confirmPassword || '');
+
+        if (!currentPassword || !nextPassword || !repeatedPassword) {
+            toast.error('请完整填写当前密码、新密码和确认密码');
+            return;
+        }
+        if (nextPassword !== repeatedPassword) {
+            toast.error('两次输入的新密码不一致');
+            return;
+        }
+
+        const passwordError = getPasswordPolicyError(nextPassword);
+        if (passwordError) {
+            toast.error(passwordError);
+            return;
+        }
+
+        setPasswordLoading(true);
+        try {
+            await api.put('/auth/change-password', {
+                oldPassword: currentPassword,
+                newPassword: nextPassword,
+            });
+            setOldPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            toast.success('登录密码已更新');
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '修改密码失败');
+        }
+        setPasswordLoading(false);
+    };
+
     return (
         <>
             <Header title={t('pages.subscriptions.title')} />
@@ -406,7 +447,7 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                能直接吃节点订阅的客户端优先使用通用链接；需要完整配置文件的客户端只保留 Clash / Mihomo YAML 和 sing-box Remote Profile。
+                                v2rayN / v2rayNG / Shadowrocket 优先使用通用节点订阅；Clash / Mihomo / Stash 共用同一份 YAML；sing-box 和 Surge 使用各自专用配置。
                             </div>
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
@@ -544,6 +585,61 @@ export default function Subscriptions() {
                         )}
                     </>
                 )}
+
+                <div className="card mb-8">
+                    <SectionHeader
+                        className="card-header section-header section-header--compact"
+                        title="当前登录账号密码"
+                        meta={(
+                            <span className="text-xs text-muted">
+                                {user?.username || '-'}{user?.role === 'admin' ? ' · 管理员' : ''}
+                            </span>
+                        )}
+                    />
+                    <div className="grid grid-auto-220 gap-3 items-end">
+                        <div className="form-group mb-0">
+                            <label className="form-label">当前密码</label>
+                            <input
+                                type="password"
+                                className="form-input"
+                                aria-label="当前密码"
+                                value={oldPassword}
+                                onChange={(e) => setOldPassword(e.target.value)}
+                                autoComplete="current-password"
+                            />
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">新密码</label>
+                            <input
+                                type="password"
+                                className="form-input"
+                                aria-label="新密码"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                autoComplete="new-password"
+                            />
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">确认新密码</label>
+                            <input
+                                type="password"
+                                className="form-input"
+                                aria-label="确认新密码"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                autoComplete="new-password"
+                            />
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleChangePassword}
+                            disabled={passwordLoading || !oldPassword || !newPassword || !confirmPassword}
+                        >
+                            {passwordLoading ? <span className="spinner" /> : '修改登录密码'}
+                        </button>
+                    </div>
+                    <div className="text-xs text-muted mt-3">{PASSWORD_POLICY_HINT}</div>
+                </div>
 
                 {showQr && activeProfile?.url && (
                     <ModalShell isOpen={showQr} onClose={() => setShowQr(false)}>

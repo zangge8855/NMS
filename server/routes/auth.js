@@ -784,7 +784,6 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
  * PUT /api/auth/change-password — 修改自己的密码
  */
 router.put('/change-password', authMiddleware, (req, res) => {
-    return rejectPasswordSelfService(res);
     try {
         const result = changeOwnPassword(req.body, req.user);
         appendSecurityAudit('password_changed', req, buildUserAuditDetails(result.user, {

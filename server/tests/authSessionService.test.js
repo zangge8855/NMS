@@ -177,3 +177,33 @@ test('changeOwnPassword rejects incorrect old password', () => {
         }
     );
 });
+
+test('changeOwnPassword updates password when old password is correct', () => {
+    let updatedPayload = null;
+    const repo = {
+        getById(id) {
+            assert.equal(id, 'user-6');
+            return { id: 'user-6', username: 'frank', role: 'user' };
+        },
+        authenticate(username, password) {
+            assert.equal(username, 'frank');
+            assert.equal(password, 'OldPass123!');
+            return { id: 'user-6', username: 'frank', role: 'user' };
+        },
+        update(id, payload) {
+            updatedPayload = { id, payload };
+        },
+    };
+
+    const result = changeOwnPassword(
+        { oldPassword: 'OldPass123!', newPassword: 'NewPass123!' },
+        { userId: 'user-6' },
+        { userRepository: repo }
+    );
+
+    assert.equal(result.user.username, 'frank');
+    assert.deepEqual(updatedPayload, {
+        id: 'user-6',
+        payload: { password: 'NewPass123!' },
+    });
+});

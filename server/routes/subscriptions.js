@@ -948,13 +948,59 @@ function buildSubscriptionPayload(links) {
     return { raw, encoded };
 }
 
+const METACUBEX_GEOX_URL = {
+    geoip: 'https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat',
+    geosite: 'https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat',
+    mmdb: 'https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb',
+    asn: 'https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb',
+};
+
 const SINGBOX_GEOIP_CN_RULESET_URL = 'https://cdn.jsdelivr.net/gh/Loyalsoldier/geoip@release/srs/cn.srs';
+const STASH_MANAGED_PREFIX = '#SUBSCRIBED';
+const SURGE_MANAGED_INTERVAL_SECONDS = 43200;
+const LOCAL_DIRECT_RULES = [
+    'IP-CIDR,127.0.0.0/8,DIRECT,no-resolve',
+    'IP-CIDR,10.0.0.0/8,DIRECT,no-resolve',
+    'IP-CIDR,172.16.0.0/12,DIRECT,no-resolve',
+    'IP-CIDR,192.168.0.0/16,DIRECT,no-resolve',
+    'IP-CIDR,100.64.0.0/10,DIRECT,no-resolve',
+];
+const SURGE_GENERAL_CONFIG = {
+    'allow-wifi-access': false,
+    'wifi-access-http-port': 6152,
+    'wifi-access-socks5-port': 6153,
+    'http-listen': '127.0.0.1:6152',
+    'socks5-listen': '127.0.0.1:6153',
+    'allow-hotspot-access': false,
+    'skip-proxy': '127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,100.64.0.0/10,17.0.0.0/8,localhost,*.local',
+    'test-timeout': 5,
+    'proxy-test-url': 'http://cp.cloudflare.com/generate_204',
+    'internet-test-url': 'http://www.apple.com/library/test/success.html',
+    'geoip-maxmind-url': 'https://raw.githubusercontent.com/Loyalsoldier/geoip/release/Country.mmdb',
+    ipv6: false,
+    'show-error-page-for-reject': true,
+    'dns-server': '119.29.29.29, 180.184.1.1, 223.5.5.5, system',
+    'encrypted-dns-server': 'https://223.5.5.5/dns-query',
+    'exclude-simple-hostnames': true,
+    'read-etc-hosts': true,
+    'always-real-ip': '*.msftconnecttest.com, *.msftncsi.com, *.srv.nintendo.net, *.stun.playstation.net, stun.l.google.com',
+    'hijack-dns': '*:53',
+    'udp-policy-not-supported-behaviour': 'REJECT',
+    'hide-vpn-icon': false,
+};
+const SURGE_REPLICA_CONFIG = {
+    'hide-apple-request': true,
+    'hide-crashlytics-request': true,
+    'use-keyword-filter': false,
+    'hide-udp': false,
+};
 
 function normalizeSubscriptionFormat(format) {
     const text = String(format || '').trim().toLowerCase();
     if (text === 'raw') return 'raw';
     if (text === 'clash' || text === 'mihomo') return 'clash';
     if (text === 'singbox' || text === 'sing-box') return 'singbox';
+    if (text === 'surge') return 'surge';
     return 'encoded';
 }
 
@@ -982,6 +1028,35 @@ function decodeMaybeEncoded(value) {
     } catch {
         return text;
     }
+}
+
+function normalizeLinkScheme(link = '') {
+    const raw = String(link || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^hy2:\/\//i, 'hysteria2://');
+}
+
+function pickQueryText(params, ...keys) {
+    for (const key of keys) {
+        const value = firstNonEmpty(params.get(key));
+        if (value) return value;
+    }
+    return '';
+}
+
+function pickQueryBoolean(params, fallback = false, ...keys) {
+    for (const key of keys) {
+        const value = params.get(key);
+        if (value === null || value === undefined || value === '') continue;
+        return normalizeBoolean(value, fallback);
+    }
+    return fallback;
+}
+
+function parseNumericParam(value, fallback = undefined) {
+    if (value === undefined || value === null || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function extractLinkLabel(link, fallback = '') {
@@ -1370,6 +1445,178 @@ function parseShadowsocksProxy(link, usedNames, index) {
     };
 }
 
+function parseHysteria2Outbound(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(normalizeLinkScheme(link));
+    } catch {
+        return null;
+    }
+
+    const server = parsed.hostname;
+    const serverPort = Number(parsed.port);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0) return null;
+
+    const query = parsed.searchParams;
+    const password = decodeMaybeEncoded(parsed.username)
+        || pickQueryText(query, 'auth', 'password');
+    if (!password) return null;
+
+    const outbound = {
+        type: 'hysteria2',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        password,
+        tls: {
+            enabled: true,
+            insecure: pickQueryBoolean(query, false, 'insecure', 'allowInsecure', 'skip-cert-verify'),
+        },
+    };
+
+    const serverName = pickQueryText(query, 'sni', 'peer');
+    const alpn = splitCommaValues(query.get('alpn'));
+    if (serverName) outbound.tls.server_name = serverName;
+    if (alpn.length > 0) outbound.tls.alpn = alpn;
+
+    const obfsType = pickQueryText(query, 'obfs');
+    const obfsPassword = pickQueryText(query, 'obfs-password');
+    if (obfsType && obfsPassword) {
+        outbound.obfs = {
+            type: obfsType,
+            password: obfsPassword,
+        };
+    }
+
+    const auth = pickQueryText(query, 'auth');
+    const ports = pickQueryText(query, 'ports');
+    const recvWindowConn = parseNumericParam(query.get('recv_window_conn'));
+    const hopInterval = parseNumericParam(query.get('hop-interval'));
+    const up = parseNumericParam(pickQueryText(query, 'up', 'upmbps'));
+    const down = parseNumericParam(pickQueryText(query, 'down', 'downmbps'));
+
+    if (auth) outbound.auth = auth;
+    if (ports) outbound.ports = ports;
+    if (recvWindowConn !== undefined) outbound.recv_window_conn = recvWindowConn;
+    if (hopInterval !== undefined) outbound.hop_interval = hopInterval;
+    if (up !== undefined) outbound.up = up;
+    if (down !== undefined) outbound.down = down;
+
+    const fastOpen = query.get('fast-open');
+    if (fastOpen !== null && fastOpen !== '') {
+        outbound.fast_open = normalizeBoolean(fastOpen, false);
+    }
+
+    return outbound;
+}
+
+function parseTuicOutbound(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+
+    const server = parsed.hostname;
+    const serverPort = Number(parsed.port);
+    const uuid = decodeMaybeEncoded(parsed.username);
+    const password = decodeMaybeEncoded(parsed.password);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid || !password) return null;
+
+    const query = parsed.searchParams;
+    const outbound = {
+        type: 'tuic',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        uuid,
+        password,
+        tls: {
+            enabled: true,
+            insecure: pickQueryBoolean(query, false, 'skip-cert-verify', 'insecure', 'allowInsecure'),
+        },
+    };
+
+    const serverName = pickQueryText(query, 'sni');
+    const alpn = splitCommaValues(query.get('alpn'));
+    if (serverName) outbound.tls.server_name = serverName;
+    if (alpn.length > 0) outbound.tls.alpn = alpn;
+
+    const congestionControl = pickQueryText(query, 'congestion_control');
+    const flow = pickQueryText(query, 'flow');
+    const udpRelayMode = pickQueryText(query, 'udp-relay-mode', 'udp_relay_mode');
+
+    if (congestionControl) outbound.congestion_control = congestionControl;
+    if (flow) outbound.flow = flow;
+    if (udpRelayMode) outbound.udp_relay_mode = udpRelayMode;
+
+    const zeroRtt = query.get('zero-rtt');
+    if (zeroRtt !== null && zeroRtt !== '') {
+        outbound.zero_rtt = normalizeBoolean(zeroRtt, false);
+    }
+    const reduceRtt = query.get('reduce-rtt');
+    if (reduceRtt !== null && reduceRtt !== '') {
+        outbound.reduce_rtt = normalizeBoolean(reduceRtt, false);
+    }
+    const fastOpen = query.get('fast-open');
+    if (fastOpen !== null && fastOpen !== '') {
+        outbound.fast_open = normalizeBoolean(fastOpen, false);
+    }
+    const disableSni = query.get('disable-sni');
+    if (disableSni !== null && disableSni !== '') {
+        outbound.disable_sni = normalizeBoolean(disableSni, false);
+    }
+
+    return outbound;
+}
+
+function toMihomoHysteria2Proxy(outbound) {
+    if (!outbound) return null;
+    const proxy = {
+        name: outbound.tag,
+        type: 'hysteria2',
+        server: outbound.server,
+        port: outbound.server_port,
+        password: outbound.password,
+        sni: outbound.tls?.server_name || '',
+        'skip-cert-verify': !!outbound.tls?.insecure,
+    };
+    if (outbound.ports) proxy.ports = outbound.ports;
+    if (outbound.obfs?.type) proxy.obfs = outbound.obfs.type;
+    if (outbound.obfs?.password) proxy['obfs-password'] = outbound.obfs.password;
+    if (outbound.auth) proxy.auth = outbound.auth;
+    if (outbound.up !== undefined) proxy.up = outbound.up;
+    if (outbound.down !== undefined) proxy.down = outbound.down;
+    if (outbound.recv_window_conn !== undefined) proxy['recv-window-conn'] = outbound.recv_window_conn;
+    if (outbound.hop_interval !== undefined) proxy['hop-interval'] = outbound.hop_interval;
+    if (Array.isArray(outbound.tls?.alpn) && outbound.tls.alpn.length > 0) proxy.alpn = outbound.tls.alpn;
+    if (outbound.fast_open !== undefined) proxy['fast-open'] = outbound.fast_open;
+    return proxy;
+}
+
+function toMihomoTuicProxy(outbound) {
+    if (!outbound) return null;
+    const proxy = {
+        name: outbound.tag,
+        type: 'tuic',
+        server: outbound.server,
+        port: outbound.server_port,
+        uuid: outbound.uuid,
+        password: outbound.password,
+        'skip-cert-verify': !!outbound.tls?.insecure,
+        sni: outbound.tls?.server_name || '',
+        'udp-relay-mode': outbound.udp_relay_mode || 'native',
+    };
+    if (outbound.congestion_control) proxy['congestion-controller'] = outbound.congestion_control;
+    if (Array.isArray(outbound.tls?.alpn) && outbound.tls.alpn.length > 0) proxy.alpn = outbound.tls.alpn;
+    if (outbound.zero_rtt !== undefined) proxy['zero-rtt'] = outbound.zero_rtt;
+    if (outbound.reduce_rtt !== undefined) proxy['reduce-rtt'] = outbound.reduce_rtt;
+    if (outbound.fast_open !== undefined) proxy['fast-open'] = outbound.fast_open;
+    if (outbound.disable_sni !== undefined) proxy['disable-sni'] = outbound.disable_sni;
+    return proxy;
+}
+
 function parseMihomoProxyFromLink(link, usedNames, index) {
     const normalized = String(link || '').trim();
     if (!normalized) return null;
@@ -1377,54 +1624,85 @@ function parseMihomoProxyFromLink(link, usedNames, index) {
     if (normalized.startsWith('vless://')) return parseVlessProxy(normalized, usedNames, index);
     if (normalized.startsWith('trojan://')) return parseTrojanProxy(normalized, usedNames, index);
     if (normalized.startsWith('ss://')) return parseShadowsocksProxy(normalized, usedNames, index);
+    if (/^(hy2|hysteria2):\/\//i.test(normalized)) {
+        return toMihomoHysteria2Proxy(parseHysteria2Outbound(normalized, usedNames, index));
+    }
+    if (normalized.startsWith('tuic://')) {
+        return toMihomoTuicProxy(parseTuicOutbound(normalized, usedNames, index));
+    }
     return null;
 }
 
-function buildMihomoConfigObject(subscriptionUrl = '') {
-    const url = String(subscriptionUrl || '').trim();
-    if (!url) return null;
+function buildMihomoConfigObject(links = []) {
+    const usedNames = new Set();
+    const proxies = [];
+    (Array.isArray(links) ? links : []).forEach((link, index) => {
+        const proxy = parseMihomoProxyFromLink(link, usedNames, index + 1);
+        if (proxy) proxies.push(proxy);
+    });
+    if (proxies.length === 0) return null;
+
+    const proxyNames = proxies.map((item) => item.name);
     return {
-        'mixed-port': 7890,
+        port: 7890,
+        'socks-port': 7891,
         'allow-lan': false,
         mode: 'rule',
-        ipv6: true,
         'log-level': 'info',
+        'geodata-mode': true,
+        'geo-auto-update': true,
+        'geodata-loader': 'standard',
+        'geo-update-interval': 24,
+        'geox-url': METACUBEX_GEOX_URL,
+        ipv6: true,
         'unified-delay': true,
+        'rule-providers': {},
         profile: {
             'store-selected': true,
             'store-fake-ip': true,
         },
-        'proxy-providers': {
-            nms: {
-                type: 'http',
-                url,
-                path: './providers/nms.yaml',
-                interval: 3600,
-                'health-check': {
-                    enable: true,
-                    url: 'https://www.gstatic.com/generate_204',
-                    interval: 300,
-                },
+        dns: {
+            enable: true,
+            ipv6: true,
+            'respect-rules': true,
+            'enhanced-mode': 'fake-ip',
+            nameserver: [
+                'https://120.53.53.53/dns-query',
+                'https://223.5.5.5/dns-query',
+            ],
+            'proxy-server-nameserver': [
+                'https://120.53.53.53/dns-query',
+                'https://223.5.5.5/dns-query',
+            ],
+            'nameserver-policy': {
+                'geosite:cn,private': [
+                    'https://120.53.53.53/dns-query',
+                    'https://223.5.5.5/dns-query',
+                ],
+                'geosite:geolocation-!cn': [
+                    'https://dns.cloudflare.com/dns-query',
+                    'https://dns.google/dns-query',
+                ],
             },
         },
+        proxies,
         'proxy-groups': [
             {
                 name: 'PROXY',
                 type: 'select',
-                use: ['nms'],
-                proxies: ['AUTO', 'DIRECT'],
+                proxies: ['AUTO', ...proxyNames, 'DIRECT'],
             },
             {
                 name: 'AUTO',
                 type: 'url-test',
-                use: ['nms'],
+                proxies: proxyNames,
                 url: 'https://www.gstatic.com/generate_204',
                 interval: 300,
                 tolerance: 50,
             },
         ],
         rules: [
-            'RULE-SET,LAN,DIRECT',
+            ...LOCAL_DIRECT_RULES,
             'DOMAIN-SUFFIX,cn,DIRECT',
             'GEOIP,CN,DIRECT',
             'MATCH,PROXY',
@@ -1432,10 +1710,173 @@ function buildMihomoConfigObject(subscriptionUrl = '') {
     };
 }
 
-function buildMihomoConfigFromSubscriptionUrl(subscriptionUrl = '') {
-    const config = buildMihomoConfigObject(subscriptionUrl);
+function buildMihomoConfigFromLinks(links = [], subscriptionUrl = '') {
+    const config = buildMihomoConfigObject(links);
     if (!config) return '';
-    return `${toYaml(config)}\n`;
+    const lines = [];
+    const managedUrl = String(subscriptionUrl || '').trim();
+    if (managedUrl) {
+        lines.push(`${STASH_MANAGED_PREFIX} ${managedUrl}`);
+    }
+    lines.push(toYaml(config));
+    return `${lines.join('\n')}\n`;
+}
+
+function buildSurgeProxyLine(proxy) {
+    if (!proxy || !proxy.type) return '';
+
+    if (proxy.type === 'ss') {
+        return `${proxy.name} = ss, ${proxy.server}, ${proxy.port}, encrypt-method=${proxy.cipher}, password=${proxy.password}`;
+    }
+
+    if (proxy.type === 'vmess') {
+        let line = `${proxy.name} = vmess, ${proxy.server}, ${proxy.port}, username=${proxy.uuid}`;
+        if (Number(proxy.alterId || 0) === 0) line += ', vmess-aead=true';
+        if (proxy.tls) {
+            line += ', tls=true';
+            if (proxy.servername) line += `, sni=${proxy.servername}`;
+            if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+            if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
+                line += `, alpn=${proxy.alpn.join(',')}`;
+            }
+        }
+        if (proxy.network === 'ws') {
+            line += `, ws=true, ws-path=${proxy['ws-opts']?.path || '/'}`;
+            const host = proxy['ws-opts']?.headers?.Host;
+            if (host) line += `, ws-headers=Host:${host}`;
+        } else if (proxy.network === 'grpc' && proxy['grpc-opts']?.['grpc-service-name']) {
+            line += `, grpc-service-name=${proxy['grpc-opts']['grpc-service-name']}`;
+        }
+        return line;
+    }
+
+    if (proxy.type === 'trojan') {
+        let line = `${proxy.name} = trojan, ${proxy.server}, ${proxy.port}, password=${proxy.password}`;
+        if (proxy.sni) line += `, sni=${proxy.sni}`;
+        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
+            line += `, alpn=${proxy.alpn.join(',')}`;
+        }
+        if (proxy.network === 'ws') {
+            line += `, ws=true, ws-path=${proxy['ws-opts']?.path || '/'}`;
+            const host = proxy['ws-opts']?.headers?.Host;
+            if (host) line += `, ws-headers=Host:${host}`;
+        } else if (proxy.network === 'grpc' && proxy['grpc-opts']?.['grpc-service-name']) {
+            line += `, grpc-service-name=${proxy['grpc-opts']['grpc-service-name']}`;
+        }
+        return line;
+    }
+
+    if (proxy.type === 'hysteria2') {
+        let line = `${proxy.name} = hysteria2, ${proxy.server}, ${proxy.port}, password=${proxy.password}`;
+        if (proxy.sni) line += `, sni=${proxy.sni}`;
+        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
+            line += `, alpn=${proxy.alpn.join(',')}`;
+        }
+        if (proxy['hop-interval'] !== undefined) line += `, hop-interval=${proxy['hop-interval']}`;
+        return line;
+    }
+
+    if (proxy.type === 'tuic') {
+        let line = `${proxy.name} = tuic, ${proxy.server}, ${proxy.port}, password=${proxy.password}, uuid=${proxy.uuid}`;
+        if (proxy.sni) line += `, sni=${proxy.sni}`;
+        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
+            line += `, alpn=${proxy.alpn.join(',')}`;
+        }
+        if (proxy['congestion-controller']) {
+            line += `, congestion-controller=${proxy['congestion-controller']}`;
+        }
+        if (proxy['udp-relay-mode']) {
+            line += `, udp-relay-mode=${proxy['udp-relay-mode']}`;
+        }
+        return line;
+    }
+
+    return '';
+}
+
+function buildSurgeConfigObject(links = []) {
+    const usedNames = new Set();
+    const proxies = [];
+    (Array.isArray(links) ? links : []).forEach((link, index) => {
+        const proxy = parseMihomoProxyFromLink(link, usedNames, index + 1);
+        if (!proxy || proxy.type === 'vless') return;
+        const line = buildSurgeProxyLine(proxy);
+        if (line) {
+            proxies.push({
+                name: proxy.name,
+                line,
+            });
+        }
+    });
+    if (proxies.length === 0) return null;
+
+    const proxyNames = proxies.map((item) => item.name);
+    return {
+        general: SURGE_GENERAL_CONFIG,
+        replica: SURGE_REPLICA_CONFIG,
+        proxies,
+        groups: [
+            `PROXY = select, AUTO, ${proxyNames.join(', ')}, DIRECT`,
+            `AUTO = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`,
+        ],
+        rules: [
+            ...LOCAL_DIRECT_RULES,
+            'DOMAIN-SUFFIX,cn,DIRECT',
+            'GEOIP,CN,DIRECT',
+            'FINAL,PROXY',
+        ],
+    };
+}
+
+function buildSurgeConfigFromLinks(links = [], subscriptionUrl = '') {
+    const config = buildSurgeConfigObject(links);
+    if (!config) return '';
+
+    const lines = [];
+    const managedUrl = String(subscriptionUrl || '').trim();
+    if (managedUrl) {
+        lines.push(`#!MANAGED-CONFIG ${managedUrl} interval=${SURGE_MANAGED_INTERVAL_SECONDS} strict=false`);
+        lines.push('');
+    }
+
+    lines.push('[General]');
+    Object.entries(config.general).forEach(([key, value]) => {
+        lines.push(`${key} = ${value}`);
+    });
+    lines.push('');
+
+    lines.push('[Replica]');
+    Object.entries(config.replica).forEach(([key, value]) => {
+        lines.push(`${key} = ${value}`);
+    });
+    lines.push('');
+
+    lines.push('[Proxy]');
+    lines.push('DIRECT = direct');
+    config.proxies.forEach((item) => {
+        lines.push(item.line);
+    });
+    lines.push('');
+
+    lines.push('[Proxy Group]');
+    config.groups.forEach((item) => {
+        lines.push(item);
+    });
+    lines.push('');
+
+    lines.push('[Rule]');
+    config.rules.forEach((item) => {
+        lines.push(item);
+    });
+
+    return `${lines.join('\n')}\n`;
+}
+
+function hasSurgeCompatibleLinks(links = []) {
+    return !!buildSurgeConfigObject(links);
 }
 
 function applyTransportToSingboxOutbound(outbound, network, options = {}) {
@@ -1709,6 +2150,14 @@ function parseSingboxShadowsocksOutbound(link, usedNames, index) {
     };
 }
 
+function parseSingboxHysteria2Outbound(link, usedNames, index) {
+    return parseHysteria2Outbound(link, usedNames, index);
+}
+
+function parseSingboxTuicOutbound(link, usedNames, index) {
+    return parseTuicOutbound(link, usedNames, index);
+}
+
 function parseSingboxOutboundFromLink(link, usedNames, index) {
     const normalized = String(link || '').trim();
     if (!normalized) return null;
@@ -1716,6 +2165,8 @@ function parseSingboxOutboundFromLink(link, usedNames, index) {
     if (normalized.startsWith('vless://')) return parseSingboxVlessOutbound(normalized, usedNames, index);
     if (normalized.startsWith('trojan://')) return parseSingboxTrojanOutbound(normalized, usedNames, index);
     if (normalized.startsWith('ss://')) return parseSingboxShadowsocksOutbound(normalized, usedNames, index);
+    if (/^(hy2|hysteria2):\/\//i.test(normalized)) return parseSingboxHysteria2Outbound(normalized, usedNames, index);
+    if (normalized.startsWith('tuic://')) return parseSingboxTuicOutbound(normalized, usedNames, index);
     return null;
 }
 
@@ -1729,59 +2180,74 @@ function buildSingboxConfigObject(links = []) {
     if (proxies.length === 0) return null;
     const proxyTags = proxies.map((item) => item.tag);
     return {
-        log: {
-            level: 'info',
-        },
         dns: {
             servers: [
                 {
-                    type: 'local',
-                    tag: 'dns-direct',
+                    type: 'tcp',
+                    tag: 'dns_proxy',
+                    server: '1.1.1.1',
+                    detour: 'PROXY',
+                    domain_resolver: 'dns_resolver',
                 },
                 {
                     type: 'https',
-                    tag: 'dns-remote',
-                    server: '1.1.1.1',
-                    path: '/dns-query',
-                    tls: {
-                        enabled: true,
-                        server_name: '1.1.1.1',
-                    },
+                    tag: 'dns_direct',
+                    server: 'dns.alidns.com',
+                    domain_resolver: 'dns_resolver',
+                },
+                {
+                    type: 'udp',
+                    tag: 'dns_resolver',
+                    server: '223.5.5.5',
+                },
+                {
+                    type: 'fakeip',
+                    tag: 'dns_fakeip',
+                    inet4_range: '198.18.0.0/15',
+                    inet6_range: 'fc00::/18',
                 },
             ],
             rules: [
                 {
                     domain_suffix: ['.cn'],
-                    action: 'route',
-                    server: 'dns-direct',
+                    query_type: ['A', 'AAAA'],
+                    server: 'dns_direct',
                 },
                 {
-                    rule_set: ['geoip-cn'],
-                    action: 'route',
-                    server: 'dns-direct',
+                    query_type: ['A', 'AAAA'],
+                    server: 'dns_fakeip',
                 },
                 {
-                    action: 'route',
-                    server: 'dns-remote',
+                    query_type: 'CNAME',
+                    server: 'dns_proxy',
+                },
+                {
+                    query_type: ['A', 'AAAA', 'CNAME'],
+                    invert: true,
+                    action: 'predefined',
+                    rcode: 'REFUSED',
                 },
             ],
-            final: 'dns-remote',
-            strategy: 'prefer_ipv4',
+            final: 'dns_direct',
+            independent_cache: true,
+        },
+        ntp: {
+            enabled: true,
+            server: 'time.apple.com',
+            server_port: 123,
+            interval: '30m',
         },
         inbounds: [
-            {
-                type: 'tun',
-                tag: 'tun-in',
-                address: ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
-                auto_route: true,
-                strict_route: true,
-            },
+            { type: 'mixed', tag: 'mixed-in', listen: '0.0.0.0', listen_port: 2080 },
+            { type: 'tun', tag: 'tun-in', address: '172.19.0.1/30', auto_route: true, strict_route: true, stack: 'mixed', sniff: true },
         ],
         outbounds: [
+            { type: 'block', tag: 'REJECT' },
+            { type: 'direct', tag: 'DIRECT' },
             ...proxies,
             {
                 type: 'urltest',
-                tag: 'auto',
+                tag: 'AUTO',
                 outbounds: proxyTags,
                 url: 'https://www.gstatic.com/generate_204',
                 interval: '10m',
@@ -1789,15 +2255,12 @@ function buildSingboxConfigObject(links = []) {
             },
             {
                 type: 'selector',
-                tag: 'proxy',
-                outbounds: ['auto', ...proxyTags, 'direct'],
-            },
-            {
-                type: 'direct',
-                tag: 'direct',
+                tag: 'PROXY',
+                outbounds: ['AUTO', ...proxyTags, 'DIRECT'],
             },
         ],
         route: {
+            default_domain_resolver: 'dns_resolver',
             rule_set: [
                 {
                     type: 'remote',
@@ -1819,25 +2282,26 @@ function buildSingboxConfigObject(links = []) {
                 {
                     ip_is_private: true,
                     action: 'route',
-                    outbound: 'direct',
+                    outbound: 'DIRECT',
                 },
                 {
                     domain_suffix: ['.cn'],
                     action: 'route',
-                    outbound: 'direct',
+                    outbound: 'DIRECT',
                 },
                 {
                     rule_set: ['geoip-cn'],
                     action: 'route',
-                    outbound: 'direct',
+                    outbound: 'DIRECT',
                 },
             ],
-            final: 'proxy',
+            final: 'PROXY',
             auto_detect_interface: true,
         },
         experimental: {
             cache_file: {
                 enabled: true,
+                store_fakeip: true,
             },
         },
     };
@@ -1935,6 +2399,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
             subscriptionUrlClash: '',
             subscriptionUrlMihomo: '',
             subscriptionUrlSingbox: '',
+            subscriptionUrlSurge: '',
             subscriptionConverterConfigured: false,
         };
     }
@@ -1967,6 +2432,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
     const subscriptionUrlClash = appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = subscriptionUrlClash;
     const subscriptionUrlSingbox = appendQuery(subscriptionUrl, { format: 'singbox' });
+    const subscriptionUrlSurge = appendQuery(subscriptionUrl, { format: 'surge' });
 
     return {
         subscriptionUrl,
@@ -1979,6 +2445,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         subscriptionUrlClash,
         subscriptionUrlMihomo,
         subscriptionUrlSingbox,
+        subscriptionUrlSurge,
         subscriptionConverterConfigured: false,
     };
 }
@@ -2144,10 +2611,11 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         format,
     });
     const { raw, encoded } = buildSubscriptionPayload(links);
+    const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Token-Id', tokenId);
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromSubscriptionUrl(buildRequestScopedSubscriptionUrls(req, mode, serverId).subscriptionUrlRaw);
+        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
@@ -2160,6 +2628,14 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no sing-box-compatible links found');
         }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.send(profile);
+    }
+    if (format === 'surge') {
+        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge);
+        if (!profile) {
+            return res.status(410).send('no surge-compatible links found');
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.send(profile);
     }
     if (format === 'raw') return res.send(raw);
@@ -2236,10 +2712,11 @@ router.get('/public/:email/:sig', async (req, res) => {
         format,
     });
     const { raw, encoded } = buildSubscriptionPayload(links);
+    const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Legacy', '1');
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromSubscriptionUrl(buildRequestScopedSubscriptionUrls(req, mode, serverId).subscriptionUrlRaw);
+        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
@@ -2252,6 +2729,14 @@ router.get('/public/:email/:sig', async (req, res) => {
             return res.status(410).send('no sing-box-compatible links found');
         }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.send(profile);
+    }
+    if (format === 'surge') {
+        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge);
+        if (!profile) {
+            return res.status(410).send('no surge-compatible links found');
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.send(profile);
     }
     if (format === 'raw') return res.send(raw);
@@ -2568,6 +3053,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     let subscriptionUrlClash = '';
     let subscriptionUrlMihomo = '';
     let subscriptionUrlSingbox = '';
+    let subscriptionUrlSurge = '';
     let subscriptionConverterConfigured = false;
 
     if (scopeToken?.token) {
@@ -2583,6 +3069,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
         subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
         subscriptionUrlSingbox = hasSingboxCompatibleLinks(links) ? builtUrls.subscriptionUrlSingbox : '';
+        subscriptionUrlSurge = hasSurgeCompatibleLinks(links) ? builtUrls.subscriptionUrlSurge : '';
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
     }
     const legacySubscriptionUrl = '';
@@ -2622,6 +3109,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             subscriptionUrlClash,
             subscriptionUrlMihomo,
             subscriptionUrlSingbox,
+            subscriptionUrlSurge,
             subscriptionConverterConfigured,
             legacySubscriptionUrl,
             token: {
@@ -2641,7 +3129,8 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
 
 export default router;
 export {
-    buildMihomoConfigFromSubscriptionUrl,
+    buildMihomoConfigFromLinks,
+    buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     normalizeSubscriptionFormat,
