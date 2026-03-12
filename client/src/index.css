@@ -429,7 +429,7 @@ a:hover {
   height: auto;
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  padding: 14px 32px 14px 20px;
   gap: 14px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(255, 255, 255, 0.01);
