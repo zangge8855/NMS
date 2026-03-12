@@ -26,21 +26,15 @@ const STATUS_CONFIG = {
 
 function ProgressBar({ percent, color }) {
     return (
-        <div style={{
-            height: '8px',
-            background: 'var(--bg-tertiary)',
-            borderRadius: '4px',
-            overflow: 'hidden',
-            width: '100%',
-        }}>
-            <div style={{
-                height: '100%',
-                width: `${percent}%`,
-                background: color || 'var(--accent-primary)',
-                borderRadius: '4px',
-                transition: 'width 0.4s ease',
-                boxShadow: `0 0 8px ${color || 'var(--accent-primary-glow)'}`,
-            }} />
+        <div className="w-full h-2 bg-tertiary rounded overflow-hidden">
+            <div
+                className="h-full rounded transition-all duration-300 ease-out"
+                style={{
+                    width: `${percent}%`,
+                    background: color || 'var(--accent-primary)',
+                    boxShadow: `0 0 8px ${color || 'var(--accent-primary-glow)'}`,
+                }}
+            />
         </div>
     );
 }
@@ -62,9 +56,8 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
     return (
         <ModalShell isOpen={!!taskId} onClose={isTerminal ? onClose : undefined} closeOnOverlayClick={isTerminal}>
             <div
-                className="modal"
+                className="modal modal-md"
                 onClick={e => e.stopPropagation()}
-                style={{ minWidth: '480px', maxWidth: '560px' }}
             >
                 <div className="modal-header">
                     <h3 className="modal-title">{title}</h3>
@@ -75,44 +68,39 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                     )}
                 </div>
 
-                <div className="modal-body" style={{ padding: '24px' }}>
+                <div className="modal-body p-6">
                     {/* 状态指示 */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        marginBottom: '20px',
-                    }}>
+                    <div className="flex items-center gap-3 mb-5">
                         <StatusIcon
+                            className="text-2xl"
                             style={{
-                                fontSize: '24px',
                                 color: statusConf.color,
                                 animation: isRunning ? 'spin 1s linear infinite' : 'none',
                             }}
                         />
                         <div>
-                            <div style={{ fontWeight: 600, fontSize: '15px', color: statusConf.color }}>
+                            <div className="font-semibold text-sm" style={{ color: statusConf.color }}>
                                 {statusConf.label}
                             </div>
                             {task?.progress?.label && (
-                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                <div className="text-sm text-muted mt-0.5">
                                     {task.progress.label}
                                 </div>
                             )}
                         </div>
-                        <div style={{ marginLeft: 'auto', fontSize: '18px', fontWeight: 700, color: statusConf.color }}>
+                        <div className="ml-auto text-lg font-bold" style={{ color: statusConf.color }}>
                             {task?.progress?.percent ?? 0}%
                         </div>
                     </div>
 
                     {/* 进度条 */}
-                    <div style={{ marginBottom: '20px' }}>
+                    <div className="mb-5">
                         <ProgressBar
                             percent={task?.progress?.percent ?? 0}
                             color={statusConf.color}
                         />
                         {task?.progress?.step !== undefined && task?.progress?.total !== undefined && (
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>
+                            <div className="text-xs text-muted mt-1.5 text-right">
                                 {task.progress.step} / {task.progress.total} 步
                             </div>
                         )}
@@ -120,30 +108,14 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
 
                     {/* 失败详情 */}
                     {task?.status === 'failed' && task?.error && (
-                        <div style={{
-                            background: 'var(--accent-danger-bg)',
-                            border: '1px solid var(--accent-danger)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '12px 14px',
-                            fontSize: '13px',
-                            color: 'var(--accent-danger)',
-                            marginBottom: '16px',
-                        }}>
+                        <div className="bg-danger/5 border border-danger/15 rounded-md p-3 text-sm text-danger mb-4">
                             <strong>错误：</strong>{task.error}
                         </div>
                     )}
 
                     {/* 成功结果摘要 */}
                     {task?.status === 'completed' && task?.result && (
-                        <div style={{
-                            background: 'var(--accent-success-bg)',
-                            border: '1px solid var(--accent-success)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '12px 14px',
-                            fontSize: '13px',
-                            color: 'var(--accent-success)',
-                            marginBottom: '16px',
-                        }}>
+                        <div className="bg-success/5 border border-success/15 rounded-md p-3 text-sm text-success mb-4">
                             {task.result.cancelled ? (
                                 <span>任务已被取消，已处理 {task.result.success || 0} 项</span>
                             ) : (
@@ -156,14 +128,8 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                     )}
 
                     {/* 任务元信息 */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '8px',
-                        fontSize: '12px',
-                        color: 'var(--text-muted)',
-                    }}>
-                        <div>任务 ID: <span style={{ fontFamily: 'monospace' }}>{taskId?.slice(0, 8)}...</span></div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted">
+                        <div>任务 ID: <span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
                         <div>操作者: {task?.actor || '-'}</div>
                         {task?.startedAt && (
                             <div>开始时间: {new Date(task.startedAt).toLocaleTimeString('zh-CN')}</div>
@@ -186,7 +152,7 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                         </button>
                     )}
                     {!task && (
-                        <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                        <div className="text-muted text-sm">
                             正在连接任务状态...
                         </div>
                     )}

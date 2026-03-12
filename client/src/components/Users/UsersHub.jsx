@@ -998,8 +998,8 @@ export default function UsersHub() {
                                 <th>邮箱</th>
                                 <th>状态</th>
                                 <th>在线状态</th>
-                                <th>节点数</th>
-                                <th>已用流量</th>
+                                <th className="text-right">节点数</th>
+                                <th className="text-right">已用流量</th>
                                 <th>到期时间</th>
                                 <th>操作</th>
                             </tr>

@@ -794,53 +794,47 @@ export default function AuditCenter() {
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '12px',
-                                marginBottom: '16px',
-                                fontSize: '13px',
-                            }}>
+                            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                                 <div>
-                                    <span style={{ color: 'var(--text-muted)' }}>事件类型: </span>
-                                    <span style={{ fontWeight: 600 }}>{formatAuditEventLabel(selectedEvent)}</span>
+                                    <span className="text-muted">事件类型: </span>
+                                    <span className="font-semibold">{formatAuditEventLabel(selectedEvent)}</span>
                                 </div>
                                 <div>
-                                    <span style={{ color: 'var(--text-muted)' }}>时间: </span>
+                                    <span className="text-muted">时间: </span>
                                     <span>{formatDateTime(selectedEvent.ts)}</span>
                                 </div>
                                 <div>
-                                    <span style={{ color: 'var(--text-muted)' }}>操作者: </span>
-                                    <span style={{ fontWeight: 600 }}>{selectedEvent.actor || '-'}</span>
+                                    <span className="text-muted">操作者: </span>
+                                    <span className="font-semibold">{selectedEvent.actor || '-'}</span>
                                     {selectedEvent.actorRole && (
-                                        <span className="badge badge-neutral" style={{ marginLeft: '6px', fontSize: '11px' }}>{selectedEvent.actorRole}</span>
+                                        <span className="badge badge-neutral ml-2 text-xs">{selectedEvent.actorRole}</span>
                                     )}
                                 </div>
                                 <div>
-                                    <span style={{ color: 'var(--text-muted)' }}>结果: </span>
+                                    <span className="text-muted">结果: </span>
                                     <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{selectedEvent.outcome || '-'}</span>
                                 </div>
                                 {selectedEvent.ip && (
                                     <div>
-                                        <span style={{ color: 'var(--text-muted)' }}>IP: </span>
+                                        <span className="text-muted">IP: </span>
                                         <span className="font-mono">{selectedEvent.ip}</span>
                                     </div>
                                 )}
                                 {selectedEvent.path && (
                                     <div>
-                                        <span style={{ color: 'var(--text-muted)' }}>路径: </span>
+                                        <span className="text-muted">路径: </span>
                                         <span className="font-mono">{selectedEvent.method} {selectedEvent.path}</span>
                                     </div>
                                 )}
                                 {selectedEvent.serverId && (
                                     <div>
-                                        <span style={{ color: 'var(--text-muted)' }}>节点: </span>
+                                        <span className="text-muted">节点: </span>
                                         <span>{selectedEvent.serverId}</span>
                                     </div>
                                 )}
                                 {resolveAuditTarget(selectedEvent) !== '-' && (
                                     <div>
-                                        <span style={{ color: 'var(--text-muted)' }}>目标用户: </span>
+                                        <span className="text-muted">目标用户: </span>
                                         <span>{resolveAuditTarget(selectedEvent)}</span>
                                     </div>
                                 )}
@@ -848,21 +842,21 @@ export default function AuditCenter() {
 
                             {/* 变更前后对比（如有） */}
                             {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
-                                <div style={{ marginBottom: '16px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px', color: 'var(--text-primary)' }}>变更对比</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                <div className="mb-4">
+                                    <div className="font-semibold text-sm mb-2 text-primary">变更对比</div>
+                                    <div className="grid grid-cols-2 gap-2">
                                         {selectedEvent.beforeSnapshot && (
                                             <div>
-                                                <div style={{ fontSize: '11px', color: 'var(--accent-danger)', marginBottom: '4px', fontWeight: 600 }}>变更前</div>
-                                                <pre className="log-viewer log-viewer-compact" style={{ maxHeight: '200px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                                                <div className="text-xs text-danger mb-1 font-semibold">变更前</div>
+                                                <pre className="log-viewer log-viewer-compact max-h-[200px] bg-danger/5 border border-danger/15">
                                                     {JSON.stringify(selectedEvent.beforeSnapshot, null, 2)}
                                                 </pre>
                                             </div>
                                         )}
                                         {selectedEvent.afterSnapshot && (
                                             <div>
-                                                <div style={{ fontSize: '11px', color: 'var(--accent-success)', marginBottom: '4px', fontWeight: 600 }}>变更后</div>
-                                                <pre className="log-viewer log-viewer-compact" style={{ maxHeight: '200px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                                                <div className="text-xs text-success mb-1 font-semibold">变更后</div>
+                                                <pre className="log-viewer log-viewer-compact max-h-[200px] bg-success/5 border border-success/15">
                                                     {JSON.stringify(selectedEvent.afterSnapshot, null, 2)}
                                                 </pre>
                                             </div>
@@ -873,7 +867,7 @@ export default function AuditCenter() {
 
                             {/* 详细数据 */}
                             <div>
-                                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px', color: 'var(--text-primary)' }}>事件详情</div>
+                                <div className="font-semibold text-sm mb-2 text-primary">事件详情</div>
                                 <pre className="log-viewer log-viewer-compact">
                                     {JSON.stringify(selectedEvent.details || {}, null, 2)}
                                 </pre>

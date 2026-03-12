@@ -376,10 +376,7 @@ export default function Subscriptions() {
                                     </button>
                                 )}
                             />
-                            <div
-                                className="grid gap-2 mb-3"
-                                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}
-                            >
+                            <div className="grid grid-auto-160 gap-2 mb-3">
                                 {(result.bundle?.availableProfiles || []).map((item) => (
                                     <button
                                         key={item.key}
@@ -398,7 +395,7 @@ export default function Subscriptions() {
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
                             </div>
-                            <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '10px' }}>
+                            <div className="subscription-link-grid grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3">
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
                                 <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
                                     <HiOutlineClipboard /> 复制地址
@@ -426,16 +423,8 @@ export default function Subscriptions() {
                                         </span>
                                     )}
                                 />
-                                <div
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                                        gap: '12px',
-                                        alignItems: 'end',
-                                        marginBottom: '16px',
-                                    }}
-                                >
-                                    <div className="form-group" style={{ margin: 0 }}>
+                                <div className="grid grid-auto-220 gap-3 items-end mb-4">
+                                    <div className="form-group mb-0">
                                         <label className="form-label">用途标注</label>
                                         <input
                                             className="form-input"
@@ -462,7 +451,7 @@ export default function Subscriptions() {
                                     </button>
                                 </div>
 
-                                <div className="grid gap-3 mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                <div className="grid grid-auto-160 gap-3 mb-4">
                                     <div className="card p-3">
                                         <div className="text-sm text-muted">当前范围</div>
                                         <div className="text-lg font-semibold">{result.token?.scope === 'server' ? '单节点' : '全节点'}</div>
@@ -551,7 +540,7 @@ export default function Subscriptions() {
                                 <h3 className="modal-title text-glow">订阅二维码 · {activeProfile.label}</h3>
                                 <button className="modal-close" onClick={() => setShowQr(false)}><HiOutlineXMark /></button>
                             </div>
-                            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                            <div className="modal-body flex flex-col items-center gap-4">
                                 <div className="qr-surface qr-surface-lg">
                                     <QRCodeSVG
                                         value={activeProfile.url}
@@ -560,7 +549,7 @@ export default function Subscriptions() {
                                         includeMargin={false}
                                     />
                                 </div>
-                                <p className="text-sm text-muted" style={{ wordBreak: 'break-all' }}>
+                                <p className="text-sm text-muted break-all">
                                     {result.email}
                                 </p>
                                 <SubscriptionClientLinks bundle={result.bundle} />

@@ -1727,6 +1727,14 @@ input[type="radio"]:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid-cols-\[minmax\(0\,1fr\)_auto_auto\] {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.grid-cols-\[minmax\(0\,1fr\)_auto\] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .overflow-x-auto {
   overflow-x: auto;
 }
@@ -1751,12 +1759,36 @@ input[type="radio"]:focus {
   color: var(--text-secondary);
 }
 
+.text-danger {
+  color: var(--accent-danger);
+}
+
 .text-success {
   color: var(--accent-success);
 }
 
 .text-info {
   color: var(--accent-info);
+}
+
+.bg-danger\/5 {
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.bg-success\/5 {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.border-danger\/15 {
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.border-success\/15 {
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.max-h-\[200px\] {
+  max-height: 200px;
 }
 
 .font-medium {
