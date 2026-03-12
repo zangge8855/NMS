@@ -26,6 +26,7 @@ const ALLOWED_KEYS = {
     ]),
     subscription: new Set([
         'publicBaseUrl',
+        'converterBaseUrl',
     ]),
     auditIpGeo: new Set([
         'enabled',
@@ -225,6 +226,7 @@ class SystemSettingsStore {
             },
             subscription: {
                 publicBaseUrl: String(config.subscription?.publicBaseUrl || '').trim(),
+                converterBaseUrl: String(config.subscription?.converter?.baseUrl || '').trim(),
             },
             auditIpGeo: {
                 enabled: true,
@@ -278,6 +280,7 @@ class SystemSettingsStore {
     _normalizeSubscription(input = {}, fallback) {
         return {
             publicBaseUrl: normalizeHttpUrl(input.publicBaseUrl, fallback.publicBaseUrl),
+            converterBaseUrl: normalizeHttpUrl(input.converterBaseUrl, fallback.converterBaseUrl),
         };
     }
 

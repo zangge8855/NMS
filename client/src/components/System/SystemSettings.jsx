@@ -59,6 +59,7 @@ function buildDraft(source = null) {
         },
         subscription: {
             publicBaseUrl: toText(settings.subscription?.publicBaseUrl, ''),
+            converterBaseUrl: toText(settings.subscription?.converterBaseUrl, ''),
         },
         auditIpGeo: {
             enabled: settings.auditIpGeo?.enabled === true,
@@ -659,8 +660,20 @@ export default function SystemSettings() {
                                     配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。
                                 </div>
                             </div>
+                            <div className="form-group">
+                                <label className="form-label">外部订阅转换器地址（可选）</label>
+                                <input
+                                    className="form-input"
+                                    placeholder="https://converter.example.com"
+                                    value={draft.subscription.converterBaseUrl}
+                                    onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                                />
+                                <div className="text-xs text-muted mt-1">
+                                    配置后，Clash / Mihomo / Sing-box / Surge 专用订阅链接将自动包装到该转换器，不再使用 NMS 内置专用配置生成。
+                                </div>
+                            </div>
                             <div className="text-xs text-muted">
-                                Clash / Mihomo / Stash 共用 YAML，sing-box 与 Surge 使用专用配置，常见客户端已直接在订阅页面提供对应地址和快捷导入。
+                                未配置转换器时，仍使用 NMS 内置 Clash / Mihomo / sing-box / Surge 配置生成逻辑。
                             </div>
                         </div>
                     </div>

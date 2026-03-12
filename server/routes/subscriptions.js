@@ -1202,11 +1202,10 @@ function applyTransportToMihomoProxy(proxy, network, options = {}) {
     }
 
     if (normalized === 'grpc') {
-        proxy.network = 'grpc';
         const serviceName = decodeMaybeEncoded(options.serviceName) || decodeMaybeEncoded(options.path);
-        if (serviceName) {
-            proxy['grpc-opts'] = { 'grpc-service-name': serviceName };
-        }
+        if (!serviceName) return false;
+        proxy.network = 'grpc';
+        proxy['grpc-opts'] = { 'grpc-service-name': serviceName };
         return true;
     }
 
@@ -1363,7 +1362,6 @@ function parseTrojanProxy(link, usedNames, index) {
         security: query.get('security') || 'tls',
         sni: query.get('sni'),
         servernameField: 'sni',
-        tlsField: false,
         forceTls: true,
         alpn: query.get('alpn'),
         publicKey: query.get('pbk'),
@@ -1400,12 +1398,125 @@ function parseShadowsocksUserInfo(value) {
     }
 }
 
+function parseShadowsocksEndpoint(serverPart) {
+    const raw = String(serverPart || '').trim().replace(/\/+$/, '');
+    if (!raw) return { server: '', port: NaN };
+    const ipv6Match = raw.match(/^\[([^\]]+)\]:(\d+)$/);
+    if (ipv6Match) {
+        return {
+            server: ipv6Match[1],
+            port: Number(ipv6Match[2]),
+        };
+    }
+    const splitIndex = raw.lastIndexOf(':');
+    if (splitIndex < 0) {
+        return { server: '', port: NaN };
+    }
+    return {
+        server: raw.slice(0, splitIndex),
+        port: Number(raw.slice(splitIndex + 1)),
+    };
+}
+
+function normalizeShadowsocksPluginName(name, target = 'mihomo') {
+    const normalized = String(name || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (target === 'singbox') {
+        if (normalized === 'simple-obfs' || normalized === 'obfs') return 'obfs-local';
+        return normalized;
+    }
+    if (normalized === 'simple-obfs' || normalized === 'obfs-local') return 'obfs';
+    return normalized;
+}
+
+function parseShadowsocksPluginFlagValue(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (text === 'true') return true;
+    if (text === 'false') return false;
+    return value;
+}
+
+function parseShadowsocksPluginInfo(pluginValue, target = 'mihomo') {
+    const raw = String(pluginValue || '').trim();
+    if (!raw) return null;
+
+    const segments = raw.split(';').map((item) => item.trim()).filter(Boolean);
+    if (segments.length === 0) return null;
+
+    const plugin = normalizeShadowsocksPluginName(segments[0], target);
+    if (!plugin) return null;
+
+    if (target === 'singbox') {
+        const pluginOpts = segments.slice(1).join(';');
+        return {
+            plugin,
+            plugin_opts: pluginOpts || undefined,
+        };
+    }
+
+    const pluginOpts = {};
+    segments.slice(1).forEach((segment) => {
+        const eqIndex = segment.indexOf('=');
+        if (eqIndex < 0) {
+            pluginOpts[segment] = true;
+            return;
+        }
+
+        const key = segment.slice(0, eqIndex).trim();
+        const value = segment.slice(eqIndex + 1);
+        if (!key) return;
+
+        if (key === 'obfs') {
+            pluginOpts.mode = value;
+            return;
+        }
+        if (key === 'obfs-host') {
+            pluginOpts.host = value;
+            return;
+        }
+        if (key === 'obfs-uri') {
+            pluginOpts.path = value;
+            return;
+        }
+        pluginOpts[key] = parseShadowsocksPluginFlagValue(value);
+    });
+
+    return {
+        plugin,
+        pluginOpts: Object.keys(pluginOpts).length > 0 ? pluginOpts : undefined,
+    };
+}
+
+function parseHysteriaHopInterval(value) {
+    const text = String(value || '').trim();
+    if (!text) return undefined;
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+        return `${text}s`;
+    }
+    return text;
+}
+
+function normalizeMihomoHopInterval(value) {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const text = String(value).trim();
+    const match = text.match(/^(\d+(?:\.\d+)?)s$/i);
+    if (match) {
+        const parsed = Number(match[1]);
+        return Number.isFinite(parsed) ? parsed : text;
+    }
+    return text;
+}
+
 function parseShadowsocksProxy(link, usedNames, index) {
     const withoutScheme = String(link || '').slice('ss://'.length);
     if (!withoutScheme) return null;
 
     const [targetPart] = withoutScheme.split('#');
-    const [mainPart] = String(targetPart || '').split('?');
+    const targetText = String(targetPart || '');
+    const queryIndex = targetText.indexOf('?');
+    const mainPart = queryIndex >= 0 ? targetText.slice(0, queryIndex) : targetText;
+    const queryText = queryIndex >= 0 ? targetText.slice(queryIndex + 1) : '';
     if (!mainPart) return null;
 
     let userInfo = '';
@@ -1426,15 +1537,12 @@ function parseShadowsocksProxy(link, usedNames, index) {
         }
     }
 
-    const endpointIndex = serverInfo.lastIndexOf(':');
-    if (endpointIndex < 0) return null;
-    const server = serverInfo.slice(0, endpointIndex);
-    const port = Number(serverInfo.slice(endpointIndex + 1));
+    const { server, port } = parseShadowsocksEndpoint(serverInfo);
     const { method, password } = parseShadowsocksUserInfo(userInfo);
     if (!server || !Number.isFinite(port) || port <= 0 || !method || !password) return null;
 
     const name = makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames);
-    return {
+    const proxy = {
         name,
         type: 'ss',
         server,
@@ -1443,6 +1551,15 @@ function parseShadowsocksProxy(link, usedNames, index) {
         cipher: method,
         password,
     };
+
+    if (queryText) {
+        const params = new URLSearchParams(queryText);
+        const pluginInfo = parseShadowsocksPluginInfo(params.get('plugin'), 'mihomo');
+        if (pluginInfo?.plugin) proxy.plugin = pluginInfo.plugin;
+        if (pluginInfo?.pluginOpts) proxy['plugin-opts'] = pluginInfo.pluginOpts;
+    }
+
+    return proxy;
 }
 
 function parseHysteria2Outbound(link, usedNames, index) {
@@ -1489,18 +1606,18 @@ function parseHysteria2Outbound(link, usedNames, index) {
     }
 
     const auth = pickQueryText(query, 'auth');
-    const ports = pickQueryText(query, 'ports');
+    const serverPorts = pickQueryText(query, 'ports');
     const recvWindowConn = parseNumericParam(query.get('recv_window_conn'));
-    const hopInterval = parseNumericParam(query.get('hop-interval'));
+    const hopInterval = parseHysteriaHopInterval(query.get('hop-interval'));
     const up = parseNumericParam(pickQueryText(query, 'up', 'upmbps'));
     const down = parseNumericParam(pickQueryText(query, 'down', 'downmbps'));
 
     if (auth) outbound.auth = auth;
-    if (ports) outbound.ports = ports;
+    if (serverPorts) outbound.server_ports = serverPorts;
     if (recvWindowConn !== undefined) outbound.recv_window_conn = recvWindowConn;
     if (hopInterval !== undefined) outbound.hop_interval = hopInterval;
-    if (up !== undefined) outbound.up = up;
-    if (down !== undefined) outbound.down = down;
+    if (up !== undefined) outbound.up_mbps = up;
+    if (down !== undefined) outbound.down_mbps = down;
 
     const fastOpen = query.get('fast-open');
     if (fastOpen !== null && fastOpen !== '') {
@@ -1582,14 +1699,14 @@ function toMihomoHysteria2Proxy(outbound) {
         sni: outbound.tls?.server_name || '',
         'skip-cert-verify': !!outbound.tls?.insecure,
     };
-    if (outbound.ports) proxy.ports = outbound.ports;
+    if (outbound.server_ports) proxy.ports = outbound.server_ports;
     if (outbound.obfs?.type) proxy.obfs = outbound.obfs.type;
     if (outbound.obfs?.password) proxy['obfs-password'] = outbound.obfs.password;
     if (outbound.auth) proxy.auth = outbound.auth;
-    if (outbound.up !== undefined) proxy.up = outbound.up;
-    if (outbound.down !== undefined) proxy.down = outbound.down;
+    if (outbound.up_mbps !== undefined) proxy.up = outbound.up_mbps;
+    if (outbound.down_mbps !== undefined) proxy.down = outbound.down_mbps;
     if (outbound.recv_window_conn !== undefined) proxy['recv-window-conn'] = outbound.recv_window_conn;
-    if (outbound.hop_interval !== undefined) proxy['hop-interval'] = outbound.hop_interval;
+    if (outbound.hop_interval !== undefined) proxy['hop-interval'] = normalizeMihomoHopInterval(outbound.hop_interval);
     if (Array.isArray(outbound.tls?.alpn) && outbound.tls.alpn.length > 0) proxy.alpn = outbound.tls.alpn;
     if (outbound.fast_open !== undefined) proxy['fast-open'] = outbound.fast_open;
     return proxy;
@@ -1879,6 +1996,51 @@ function hasSurgeCompatibleLinks(links = []) {
     return !!buildSurgeConfigObject(links);
 }
 
+function parseSemverLike(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const match = text.match(/(\d+)\.(\d+)(?:\.(\d+))?/);
+    if (!match) return null;
+    return {
+        major: Number(match[1]),
+        minor: Number(match[2]),
+        patch: match[3] ? Number(match[3]) : 0,
+    };
+}
+
+function isSingboxLegacyConfig(version) {
+    if (!version || Number.isNaN(version.major) || Number.isNaN(version.minor)) {
+        return false;
+    }
+    if (version.major !== 1) {
+        return version.major < 1;
+    }
+    return version.minor < 12;
+}
+
+function resolveSingboxConfigVersion(requestedVersion, userAgent = '') {
+    const normalizedRequested = String(requestedVersion || '').trim().toLowerCase();
+    if (normalizedRequested && normalizedRequested !== 'auto') {
+        if (normalizedRequested === 'legacy') return '1.11';
+        if (normalizedRequested === 'latest') return '1.12';
+        const parsedRequested = parseSemverLike(normalizedRequested);
+        if (parsedRequested) {
+            return isSingboxLegacyConfig(parsedRequested) ? '1.11' : '1.12';
+        }
+    }
+
+    const uaText = String(userAgent || '').trim();
+    if (uaText) {
+        const uaMatch = uaText.match(/sing-box\/(\d+\.\d+(?:\.\d+)?)/i) || uaText.match(/sing-box\s+(\d+\.\d+(?:\.\d+)?)/i);
+        const parsedUaVersion = uaMatch?.[1] ? parseSemverLike(uaMatch[1]) : null;
+        if (parsedUaVersion) {
+            return isSingboxLegacyConfig(parsedUaVersion) ? '1.11' : '1.12';
+        }
+    }
+
+    return '1.12';
+}
+
 function applyTransportToSingboxOutbound(outbound, network, options = {}) {
     const normalized = String(network || 'tcp').trim().toLowerCase() || 'tcp';
     if (['kcp', 'quic', 'xhttp'].includes(normalized)) {
@@ -2112,7 +2274,10 @@ function parseSingboxShadowsocksOutbound(link, usedNames, index) {
     const withoutScheme = String(link || '').slice('ss://'.length);
     if (!withoutScheme) return null;
     const [targetPart] = withoutScheme.split('#');
-    const [mainPart] = String(targetPart || '').split('?');
+    const targetText = String(targetPart || '');
+    const queryIndex = targetText.indexOf('?');
+    const mainPart = queryIndex >= 0 ? targetText.slice(0, queryIndex) : targetText;
+    const queryText = queryIndex >= 0 ? targetText.slice(queryIndex + 1) : '';
     if (!mainPart) return null;
 
     let userInfo = '';
@@ -2133,14 +2298,11 @@ function parseSingboxShadowsocksOutbound(link, usedNames, index) {
         }
     }
 
-    const endpointIndex = serverInfo.lastIndexOf(':');
-    if (endpointIndex < 0) return null;
-    const server = serverInfo.slice(0, endpointIndex);
-    const serverPort = Number(serverInfo.slice(endpointIndex + 1));
+    const { server, port: serverPort } = parseShadowsocksEndpoint(serverInfo);
     const { method, password } = parseShadowsocksUserInfo(userInfo);
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !method || !password) return null;
 
-    return {
+    const outbound = {
         type: 'shadowsocks',
         tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
         server,
@@ -2148,6 +2310,15 @@ function parseSingboxShadowsocksOutbound(link, usedNames, index) {
         method,
         password,
     };
+
+    if (queryText) {
+        const params = new URLSearchParams(queryText);
+        const pluginInfo = parseShadowsocksPluginInfo(params.get('plugin'), 'singbox');
+        if (pluginInfo?.plugin) outbound.plugin = pluginInfo.plugin;
+        if (pluginInfo?.plugin_opts) outbound.plugin_opts = pluginInfo.plugin_opts;
+    }
+
+    return outbound;
 }
 
 function parseSingboxHysteria2Outbound(link, usedNames, index) {
@@ -2170,7 +2341,8 @@ function parseSingboxOutboundFromLink(link, usedNames, index) {
     return null;
 }
 
-function buildSingboxConfigObject(links = []) {
+function buildSingboxConfigObject(links = [], options = {}) {
+    const configVersion = resolveSingboxConfigVersion(options.version, options.userAgent);
     const usedNames = new Set();
     const proxies = [];
     (Array.isArray(links) ? links : []).forEach((link, index) => {
@@ -2179,6 +2351,134 @@ function buildSingboxConfigObject(links = []) {
     });
     if (proxies.length === 0) return null;
     const proxyTags = proxies.map((item) => item.tag);
+
+    if (configVersion === '1.11') {
+        return {
+            dns: {
+                servers: [
+                    {
+                        tag: 'dns_proxy',
+                        address: 'tls://1.1.1.1',
+                        detour: 'PROXY',
+                    },
+                    {
+                        tag: 'dns_direct',
+                        address: 'https://dns.alidns.com/dns-query',
+                        detour: 'DIRECT',
+                        address_resolver: 'dns_resolver',
+                    },
+                    {
+                        tag: 'dns_resolver',
+                        address: '223.5.5.5',
+                        detour: 'DIRECT',
+                    },
+                    {
+                        tag: 'dns_fakeip',
+                        address: 'fakeip',
+                    },
+                ],
+                rules: [
+                    {
+                        domain_suffix: ['.cn'],
+                        query_type: ['A', 'AAAA', 'CNAME'],
+                        server: 'dns_direct',
+                    },
+                    {
+                        query_type: ['A', 'AAAA'],
+                        server: 'dns_fakeip',
+                    },
+                    {
+                        query_type: 'CNAME',
+                        server: 'dns_proxy',
+                    },
+                    {
+                        query_type: ['A', 'AAAA', 'CNAME'],
+                        invert: true,
+                        server: 'dns_direct',
+                        disable_cache: true,
+                    },
+                ],
+                final: 'dns_direct',
+                strategy: 'prefer_ipv4',
+                independent_cache: true,
+                fakeip: {
+                    enabled: true,
+                    inet4_range: '198.18.0.0/15',
+                    inet6_range: 'fc00::/18',
+                },
+            },
+            ntp: {
+                enabled: true,
+                server: 'time.apple.com',
+                server_port: 123,
+                interval: '30m',
+            },
+            inbounds: [
+                { type: 'mixed', tag: 'mixed-in', listen: '0.0.0.0', listen_port: 2080 },
+                { type: 'tun', tag: 'tun-in', address: '172.19.0.1/30', auto_route: true, strict_route: true, stack: 'mixed', sniff: true },
+            ],
+            outbounds: [
+                { type: 'block', tag: 'REJECT' },
+                { type: 'direct', tag: 'DIRECT' },
+                ...proxies,
+                {
+                    type: 'urltest',
+                    tag: 'AUTO',
+                    outbounds: proxyTags,
+                    url: 'https://www.gstatic.com/generate_204',
+                    interval: '10m',
+                    tolerance: 50,
+                },
+                {
+                    type: 'selector',
+                    tag: 'PROXY',
+                    outbounds: ['AUTO', ...proxyTags, 'DIRECT'],
+                },
+            ],
+            route: {
+                rule_set: [
+                    {
+                        type: 'remote',
+                        tag: 'geoip-cn',
+                        format: 'binary',
+                        url: SINGBOX_GEOIP_CN_RULESET_URL,
+                        update_interval: '7d',
+                    },
+                ],
+                rules: [
+                    {
+                        action: 'sniff',
+                        timeout: '1s',
+                    },
+                    {
+                        protocol: 'dns',
+                        action: 'hijack-dns',
+                    },
+                    {
+                        ip_is_private: true,
+                        outbound: 'DIRECT',
+                    },
+                    {
+                        domain_suffix: ['.cn'],
+                        outbound: 'DIRECT',
+                    },
+                    {
+                        rule_set: ['geoip-cn'],
+                        outbound: 'DIRECT',
+                    },
+                ],
+                final: 'PROXY',
+                auto_detect_interface: true,
+            },
+            experimental: {
+                cache_file: {
+                    enabled: true,
+                    store_fakeip: true,
+                },
+            },
+        };
+    }
+
     return {
         dns: {
             servers: [
@@ -2307,8 +2607,8 @@ function buildSingboxConfigObject(links = []) {
     };
 }
 
-function buildSingboxConfigFromLinks(links = []) {
-    const config = buildSingboxConfigObject(links);
+function buildSingboxConfigFromLinks(links = [], options = {}) {
+    const config = buildSingboxConfigObject(links, options);
     if (!config) return '';
     return `${JSON.stringify(config, null, 2)}\n`;
 }
@@ -2345,6 +2645,20 @@ function normalizeBaseUrl(urlLike) {
     }
 }
 
+function normalizeHttpUrlPreservePath(urlLike) {
+    const text = String(urlLike || '').trim();
+    if (!text) return '';
+    try {
+        const parsed = new URL(text);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+        parsed.search = '';
+        parsed.hash = '';
+        return parsed.toString().replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+}
+
 function resolvePublicBase(req) {
     const runtime = systemSettingsStore.getSubscription();
     const configured = normalizeBaseUrl(runtime?.publicBaseUrl || config.subscription?.publicBaseUrl || '');
@@ -2371,6 +2685,20 @@ function resolvePublicBase(req) {
     return normalizeBaseUrl(`${getForwardedProtocol(req)}://${host}`);
 }
 
+function resolveSubscriptionConverterBaseUrl() {
+    const runtime = systemSettingsStore.getSubscription();
+    return normalizeHttpUrlPreservePath(
+        runtime?.converterBaseUrl || config.subscription?.converter?.baseUrl || ''
+    );
+}
+
+function buildExternalConverterUrl(baseUrl, format, configUrl) {
+    const base = normalizeHttpUrlPreservePath(baseUrl);
+    const configSource = String(configUrl || '').trim();
+    if (!base || !configSource) return '';
+    return appendQuery(`${base}/${format}`, { config: configSource });
+}
+
 function buildTokenPublicBase(req, email, rawToken) {
     const base = resolvePublicBase(req);
     const { tokenId, tokenSecret } = subscriptionTokenStore.parseToken(rawToken);
@@ -2385,7 +2713,7 @@ function buildLegacyPublicBase(req, email) {
     return `${base}/api/subscriptions/public/${encodeURIComponent(email)}/${sig}`;
 }
 
-function buildSubscriptionUrls(publicBase, mode, serverId) {
+function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
     const base = String(publicBase || '').trim();
     if (!base) {
         return {
@@ -2429,10 +2757,18 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
     });
 
     const subscriptionUrlV2rayn = subscriptionUrl;
-    const subscriptionUrlClash = appendQuery(subscriptionUrl, { format: 'clash' });
+    const converterBaseUrl = normalizeHttpUrlPreservePath(
+        firstNonEmpty(options.converterBaseUrl, resolveSubscriptionConverterBaseUrl())
+    );
+    const converterSourceUrl = subscriptionUrlRaw || subscriptionUrl;
+    const externalClashUrl = buildExternalConverterUrl(converterBaseUrl, 'clash', converterSourceUrl);
+    const externalSingboxUrl = buildExternalConverterUrl(converterBaseUrl, 'singbox', converterSourceUrl);
+    const externalSurgeUrl = buildExternalConverterUrl(converterBaseUrl, 'surge', converterSourceUrl);
+    const subscriptionUrlClash = externalClashUrl || appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = subscriptionUrlClash;
-    const subscriptionUrlSingbox = appendQuery(subscriptionUrl, { format: 'singbox' });
-    const subscriptionUrlSurge = appendQuery(subscriptionUrl, { format: 'surge' });
+    const subscriptionUrlSingbox = externalSingboxUrl || appendQuery(subscriptionUrl, { format: 'singbox' });
+    const subscriptionUrlSurge = externalSurgeUrl || appendQuery(subscriptionUrl, { format: 'surge' });
+    const subscriptionConverterConfigured = !!(externalClashUrl || externalSingboxUrl || externalSurgeUrl);
 
     return {
         subscriptionUrl,
@@ -2446,7 +2782,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         subscriptionUrlMihomo,
         subscriptionUrlSingbox,
         subscriptionUrlSurge,
-        subscriptionConverterConfigured: false,
+        subscriptionConverterConfigured,
     };
 }
 
@@ -2516,6 +2852,13 @@ function appendSubscriptionAccessAudit(req, payload = {}) {
         mode: payload.mode,
         format: payload.format,
     });
+}
+
+function resolveSingboxBuildOptions(req) {
+    return {
+        version: firstNonEmpty(req?.query?.singbox_version, req?.query?.sb_version, req?.query?.sb_ver),
+        userAgent: pickHeaderFirstValue(req?.headers?.['user-agent']) || '',
+    };
 }
 
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
@@ -2623,7 +2966,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.send(yaml);
     }
     if (format === 'singbox') {
-        const profile = buildSingboxConfigFromLinks(links);
+        const profile = buildSingboxConfigFromLinks(links, resolveSingboxBuildOptions(req));
         if (!profile) {
             return res.status(410).send('no sing-box-compatible links found');
         }
@@ -2724,7 +3067,7 @@ router.get('/public/:email/:sig', async (req, res) => {
         return res.send(yaml);
     }
     if (format === 'singbox') {
-        const profile = buildSingboxConfigFromLinks(links);
+        const profile = buildSingboxConfigFromLinks(links, resolveSingboxBuildOptions(req));
         if (!profile) {
             return res.status(410).send('no sing-box-compatible links found');
         }
@@ -3068,8 +3411,13 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
         subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
-        subscriptionUrlSingbox = hasSingboxCompatibleLinks(links) ? builtUrls.subscriptionUrlSingbox : '';
-        subscriptionUrlSurge = hasSurgeCompatibleLinks(links) ? builtUrls.subscriptionUrlSurge : '';
+        const usesExternalConverter = builtUrls.subscriptionConverterConfigured === true;
+        subscriptionUrlSingbox = (usesExternalConverter || hasSingboxCompatibleLinks(links))
+            ? builtUrls.subscriptionUrlSingbox
+            : '';
+        subscriptionUrlSurge = (usesExternalConverter || hasSurgeCompatibleLinks(links))
+            ? builtUrls.subscriptionUrlSurge
+            : '';
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
     }
     const legacySubscriptionUrl = '';
@@ -3134,5 +3482,6 @@ export {
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     normalizeSubscriptionFormat,
+    resolveSingboxConfigVersion,
     selectNativeSubIds,
 };
