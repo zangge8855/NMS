@@ -901,3 +901,18 @@ p, .empty-state-body, td {
 .card:hover {
   box-shadow: var(--shadow-md);
 }
+
+/* Fix for table overflow issue on desktop when sidebar is expanded */
+.main-content {
+  overflow-x: hidden !important;
+}
+
+.page-content {
+  min-width: 0 !important;
+}
+
+.table-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: block !important;
+}
