@@ -143,11 +143,9 @@ export default function AuditCenter() {
     const { t } = useI18n();
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
-    const validTabs = new Set(['events', 'traffic', 'subscriptions', 'logs']);
+    const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
     const requestedTab = searchParams.get('tab');
-    const tab = requestedTab === 'tasks'
-        ? 'events'
-        : (validTabs.has(requestedTab) ? requestedTab : 'events');
+    const tab = validTabs.has(requestedTab) ? requestedTab : 'events';
 
     const setTab = (nextTab) => {
         const normalized = validTabs.has(nextTab) ? nextTab : 'events';
@@ -377,7 +375,10 @@ export default function AuditCenter() {
             <div className="page-content page-enter">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
-                        操作记录
+                        {t('comp.audit.tabEvents') || '操作记录'}
+                    </button>
+                    <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
+                        {t('comp.audit.tabTasks') || '批量任务'}
                     </button>
                     <button className={`tab ${tab === 'traffic' ? 'active' : ''}`} onClick={() => setTab('traffic')}>
                         流量统计
@@ -491,10 +492,12 @@ export default function AuditCenter() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                )}
 
-                        <div className="audit-operations-history" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                            <Tasks embedded />
-                        </div>
+                {tab === 'tasks' && (
+                    <div className="audit-operations-history">
+                        <Tasks embedded />
                     </div>
                 )}
 

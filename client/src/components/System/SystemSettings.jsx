@@ -76,6 +76,7 @@ export default function SystemSettings() {
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
 
+    const [tab, setTab] = useState('basic');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [rotateLoading, setRotateLoading] = useState(false);
@@ -585,8 +586,16 @@ export default function SystemSettings() {
                     )}
                     meta={<span>{settings ? '配置快照已加载' : '等待加载配置'}</span>}
                 />
+                
+                <div className="tabs mb-6 settings-tabs">
+                    <button type="button" className={`tab ${tab === 'basic' ? 'active' : ''}`} onClick={() => setTab('basic')}>系统参数</button>
+                    <button type="button" className={`tab === 'db' ? 'active' : ''}`} onClick={() => setTab('db')}>数据库与存储</button>
+                    <button type="button" className={`tab ${tab === 'backup' ? 'active' : ''}`} onClick={() => setTab('backup')}>安全与备份</button>
+                    <button type="button" className={`tab ${tab === 'monitor' ? 'active' : ''}`} onClick={() => setTab('monitor')}>监控诊断</button>
+                </div>
+
                 <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
-                    <div className="settings-grid mb-6">
+                    <div className="settings-grid mb-6" style={{ display: tab === 'basic' ? 'grid' : 'none' }}>
                         <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">系统参数</div>
                             <div className="text-sm text-muted">影响任务保留、审计分页和订阅地址等全局行为。</div>
@@ -654,7 +663,9 @@ export default function SystemSettings() {
                                 Clash / Mihomo / Stash 共用 YAML，sing-box 与 Surge 使用专用配置，常见客户端已直接在订阅页面提供对应地址和快捷导入。
                             </div>
                         </div>
+                    </div>
 
+                    <div className="settings-grid mb-6" style={{ display: tab === 'monitor' ? 'grid' : 'none' }}>
                         <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">运行诊断</div>
                             <div className="text-sm text-muted">只读查看当前邮件、备份和健康巡检状态，高风险操作仍需单独确认。</div>
@@ -739,7 +750,9 @@ export default function SystemSettings() {
                                 </>
                             )}
                         </div>
+                    </div>
 
+                    <div className="settings-grid mb-6" style={{ display: tab === 'backup' ? 'grid' : 'none' }}>
                         <div className="card p-4 settings-panel settings-backup-panel">
                             <SectionHeader
                                 className="mb-3"
@@ -834,7 +847,9 @@ export default function SystemSettings() {
                                 </div>
                             )}
                         </div>
+                    </div>
 
+                    <div className="settings-grid mb-6" style={{ display: tab === 'monitor' ? 'grid' : 'none' }}>
                         <div className="card p-4 settings-panel settings-monitor-panel">
                             <SectionHeader
                                 className="mb-3"
@@ -877,11 +892,10 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </fieldset>
 
-                <div className="card p-4 mt-6 settings-panel settings-danger-panel">
+                <div className="card p-4 mt-6 settings-panel settings-danger-panel" style={{ display: tab === 'backup' ? 'block' : 'none' }}>
                     <h3 className="text-lg font-semibold mb-3">凭据轮换</h3>
                     <div className="text-xs text-muted mb-3">更换 CREDENTIALS_SECRET 后，将已保存的节点凭据用新密钥重新加密。Dry Run 仅预演不修改数据。</div>
                     {isAdmin ? (
@@ -903,7 +917,7 @@ export default function SystemSettings() {
                     )}
                 </div>
 
-                <div className="card p-4 mt-6 settings-panel settings-db-panel">
+                <div className="card p-4 mt-6 settings-panel settings-db-panel" style={{ display: tab === 'db' ? 'block' : 'none' }}>
                     <SectionHeader
                         className="mb-3"
                         compact

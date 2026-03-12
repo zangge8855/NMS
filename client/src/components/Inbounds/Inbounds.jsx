@@ -136,7 +136,7 @@ export default function Inbounds() {
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
     const [clientTargets, _setClientTargets] = useState([]);
     const [batchResultData, setBatchResultData] = useState(null);
-    const [batchResultTitle, setBatchResultTitle] = useState('批量执行结果');
+    const [batchResultTitle, setBatchResultTitle] = useState(t('comp.common.batchResult'));
     const [entitlementOpen, setEntitlementOpen] = useState(false);
     const [entitlementTarget, setEntitlementTarget] = useState(null);
     const [entitlementExpiryDate, setEntitlementExpiryDate] = useState('');
@@ -307,10 +307,10 @@ export default function Inbounds() {
 
     const handleBulkDelete = async () => {
         const ok = await confirmAction({
-            title: '批量删除入站',
+            title: t('comp.inbounds.batchDeleteTitle'),
             message: `确定删除选中的 ${selectedVisibleCount} 个入站吗？`,
-            details: '删除后关联用户将失效，建议先检查订阅影响。',
-            confirmText: '确认删除',
+            details: t('comp.inbounds.batchDeleteDetails'),
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -336,23 +336,23 @@ export default function Inbounds() {
             const res = await api.post('/batch/inbounds', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle('批量删除入站结果');
+            setBatchResultTitle(t('comp.inbounds.batchDeleteResult'));
             setBatchResultData(output || null);
             toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || '批量删除失败';
+            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed');
             toast.error(msg);
         }
     };
 
     const handleBulkReset = async () => {
         const ok = await confirmAction({
-            title: '批量重置流量',
+            title: t('comp.inbounds.batchResetTitle'),
             message: `确定重置选中的 ${selectedVisibleCount} 个入站流量吗？`,
-            confirmText: '确认重置',
+            confirmText: t('comp.common.confirmReset'),
             tone: 'secondary',
         });
         if (!ok) return;
@@ -378,23 +378,23 @@ export default function Inbounds() {
             const res = await api.post('/batch/inbounds', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle('批量重置流量结果');
+            setBatchResultTitle(t('comp.inbounds.batchResetResult'));
             setBatchResultData(output || null);
             toast.success(`流量重置完成: ${summary.success}/${summary.total} 成功`);
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || '批量重置失败';
+            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchResetFailed');
             toast.error(msg);
         }
     };
 
     const handleBulkSetEnable = async (enable) => {
         const ok = await confirmAction({
-            title: `批量${enable ? '启用' : '停用'}入站`,
+            title: enable ? t('comp.inbounds.batchEnableTitle') : t('comp.inbounds.batchDisableTitle'),
             message: `确定${enable ? '启用' : '停用'}选中的 ${selectedVisibleCount} 个入站吗？`,
-            confirmText: enable ? '确认启用' : '确认停用',
+            confirmText: enable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'),
             tone: enable ? 'success' : 'danger',
         });
         if (!ok) return;
@@ -428,32 +428,32 @@ export default function Inbounds() {
             const res = await api.post('/batch/inbounds', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle(`批量${enable ? '启用' : '停用'}入站结果`);
+            setBatchResultTitle(enable ? t('comp.inbounds.batchEnableResult') : t('comp.inbounds.batchDisableResult'));
             setBatchResultData(output || null);
-            toast.success(`批量${enable ? '启用' : '停用'}完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(`${enable ? t('comp.inbounds.batchEnableDone') : t('comp.inbounds.batchDisableDone')}: ${summary.success}/${summary.total}`);
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || '批量启停失败';
+            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchToggleFailed');
             toast.error(msg);
         }
     };
 
     const handleDelete = async (inbound) => {
         const ok = await confirmAction({
-            title: '删除入站',
+            title: t('comp.inbounds.deleteTitle'),
             message: `确定删除 ${inbound.serverName} 上的该入站吗？`,
-            confirmText: '确认删除',
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
         try {
             await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/del/${inbound.id}`);
-            toast.success('入站已删除');
+            toast.success(t('comp.inbounds.inboundDeleted'));
             fetchAllInbounds();
         } catch {
-            toast.error('删除失败');
+            toast.error(t('comp.common.deleteFailed'));
         }
     };
 
@@ -481,9 +481,9 @@ export default function Inbounds() {
             };
             setInboundOrder(nextOrder);
             setInbounds((prev) => sortVisibleInbounds(prev, nextOrder));
-            toast.success('入站顺序已保存');
+            toast.success(t('comp.inbounds.orderSaved'));
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '保存排序失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.orderSaveFailed'));
             fetchAllInbounds();
         }
         setSavingOrderServerId('');
@@ -521,7 +521,7 @@ export default function Inbounds() {
 
         const nextPosition = Number.parseInt(rawValue, 10);
         if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
-            toast.error('请输入有效的入站排序序号');
+            toast.error(t('comp.inbounds.invalidOrder'));
             return;
         }
 
@@ -555,12 +555,12 @@ export default function Inbounds() {
 
     const handleDeleteClient = async (inbound, client) => {
         const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
-        const displayName = client.email || identifier || '该用户';
+        const displayName = client.email || identifier || t('comp.inbounds.thisUser');
         const ok = await confirmAction({
-            title: '删除入站用户',
+            title: t('comp.inbounds.deleteClientTitle'),
             message: `确定删除 ${displayName} 吗？`,
             details: `${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port}`,
-            confirmText: '确认删除',
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -583,11 +583,11 @@ export default function Inbounds() {
                 targetCount: 1,
             });
             await api.post('/batch/clients', payload);
-            toast.success('入站用户已删除');
+            toast.success(t('comp.inbounds.clientDeleted'));
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || '删除失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed'));
         }
     };
 
@@ -640,15 +640,15 @@ export default function Inbounds() {
         });
 
         if (selectedClients.length === 0) {
-            toast.error('请先选择要删除的用户');
+            toast.error(t('comp.inbounds.selectClientsFirst'));
             return;
         }
 
         const ok = await confirmAction({
-            title: '批量删除入站用户',
+            title: t('comp.inbounds.batchDeleteClientTitle'),
             message: `确定删除选中的 ${selectedClients.length} 位用户吗？`,
             details: `${inbound?.serverName || '-'} / ${inbound?.remark || inbound?.protocol || '-'}:${inbound?.port || '-'}`,
-            confirmText: '确认删除',
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -675,21 +675,21 @@ export default function Inbounds() {
             const res = await api.post('/batch/clients', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle('批量删除入站用户结果');
+            setBatchResultTitle(t('comp.inbounds.batchDeleteClientResult'));
             setBatchResultData(output || null);
             toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
             clearInboundClientSelection(inbound, selectedClients);
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || '批量删除失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed'));
         }
     };
 
     const handleToggleClientEnabled = async (inbound, client) => {
         const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
         if (!identifier) {
-            toast.error('缺少用户标识，无法切换状态');
+            toast.error(t('comp.inbounds.missingClientId'));
             return;
         }
 
@@ -714,11 +714,11 @@ export default function Inbounds() {
                 targetCount: 1,
             });
             await api.post('/batch/clients', payload);
-            toast.success(nextAction === 'enable' ? '入站用户已启用' : '入站用户已禁用');
+            toast.success(nextAction === 'enable' ? t('comp.inbounds.clientEnabled') : t('comp.inbounds.clientDisabled'));
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || '切换状态失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.toggleFailed'));
         } finally {
             setClientActionKey('');
         }
@@ -762,11 +762,11 @@ export default function Inbounds() {
                 limitIp: normalizeLimitIp(entitlementLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
             });
-            toast.success('单独限定已保存');
+            toast.success(t('comp.inbounds.entitlementSaved'));
             closeEntitlementModal();
             fetchAllInbounds();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '保存单独限定失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.entitlementSaveFailed'));
             setEntitlementSaving(false);
         }
     };
@@ -783,11 +783,11 @@ export default function Inbounds() {
                 clientIdentifier: entitlementTarget.clientIdentifier,
                 mode: 'follow_policy',
             });
-            toast.success('已恢复跟随统一策略');
+            toast.success(t('comp.inbounds.policyRestored'));
             closeEntitlementModal();
             fetchAllInbounds();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '恢复统一策略失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.policyRestoreFailed'));
             setEntitlementSaving(false);
         }
     };
@@ -800,7 +800,7 @@ export default function Inbounds() {
     const bulkToggleEnable = selectedVisibleCount > 0
         ? !selectedVisibleInbounds.every((item) => item.enable !== false)
         : true;
-    const bulkToggleLabel = bulkToggleEnable ? '启用选中' : '禁用选中';
+    const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
     const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
     const tableColSpan = filterServerId === 'all' ? 11 : 10;
@@ -1069,7 +1069,7 @@ export default function Inbounds() {
                                                 <td data-label="状态">
                                                     <div className="inbounds-status-cell">
                                                         <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
-                                                            {ib.enable ? '启用' : '禁用'}
+                                                            {ib.enable ? t('comp.common.enabled') : t('comp.common.disabled')}
                                                         </span>
                                                         {ib.hasOnlineUsers && (
                                                             <span
@@ -1089,14 +1089,14 @@ export default function Inbounds() {
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon"
-                                                            title="编辑"
+                                                            title={t('comp.common.edit')}
                                                             onClick={() => handleEdit(ib)}
                                                         >
                                                             <HiOutlinePencilSquare />
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon"
-                                                            title="删除"
+                                                            title={t('comp.common.delete')}
                                                             onClick={() => handleDelete(ib)}
                                                         >
                                                             <HiOutlineTrash />
@@ -1175,8 +1175,8 @@ export default function Inbounds() {
                                                                         const isActioning = clientActionKey === rowActionKey;
                                                                         const rawCredential = cl.id || cl.password || '';
                                                                         const maskedCredential = maskSensitiveValue(rawCredential);
-                                                                        const toggleLabel = cl.enable !== false ? '禁用' : '启用';
-                                                                        const toggleTitle = cl.enable !== false ? '禁用该用户' : '启用该用户';
+                                                                        const toggleLabel = cl.enable !== false ? t('comp.common.disable') : t('comp.common.enable');
+                                                                        const toggleTitle = cl.enable !== false ? t('comp.inbounds.disableUser') : t('comp.inbounds.enableUser');
                                                                         const selectionKey = buildInboundClientSelectionKey(ib.serverId, ib.id, clientIdentifier);
                                                                         const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
                                                                         return (
@@ -1211,7 +1211,7 @@ export default function Inbounds() {
                                                                                             onClick={async (e) => {
                                                                                                 e.stopPropagation();
                                                                                                 await copyToClipboard(rawCredential);
-                                                                                                toast.success('完整 ID / 密码已复制');
+                                                                                                toast.success(t('comp.inbounds.idCopied'));
                                                                                             }}
                                                                                         >
                                                                                             <HiOutlineClipboard />
@@ -1224,7 +1224,7 @@ export default function Inbounds() {
                                                                                     <div className="inbound-client-usage-head">
                                                                                         <span className="font-medium">{formatBytes(usedBytes)}</span>
                                                                                         <span className={`inbound-client-usage-badge ${usageTone}`}>
-                                                                                            {usagePercent === null ? '不限额' : `${usagePercent}%`}
+                                                                                            {usagePercent === null ? t('comp.common.unlimited') : `${usagePercent}%`}
                                                                                         </span>
                                                                                     </div>
                                                                                     <div className="inbound-client-usage-track">
@@ -1234,7 +1234,7 @@ export default function Inbounds() {
                                                                                         />
                                                                                     </div>
                                                                                     <div className="inbound-client-usage-meta">
-                                                                                        {totalBytes > 0 ? `剩余 ${formatBytes(remainingBytes)}` : '总量不限'}
+                                                                                        {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
@@ -1245,7 +1245,7 @@ export default function Inbounds() {
                                                                                 <span className="text-muted mx-1">/</span>
                                                                                 <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                             </td>
-                                                                            <td data-label="到期时间" className="whitespace-nowrap">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : '永久'}</td>
+                                                                            <td data-label="到期时间" className="whitespace-nowrap">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
                                                                             <td data-label="状态" className="whitespace-nowrap">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>

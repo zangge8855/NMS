@@ -149,25 +149,7 @@ a:hover {
   color: var(--accent-primary-hover);
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  transition: background var(--transition-fast);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+/* Scrollbar — defined in interaction-polish.css */
 
 /* --- Utilities --- */
 .h-full {
@@ -813,9 +795,7 @@ a:hover {
   user-select: none;
 }
 
-.btn:active {
-  transform: scale(0.96);
-}
+/* .btn:active — defined in interaction-polish.css */
 
 .btn:focus-visible,
 .theme-toggle-btn:focus-visible,
@@ -828,17 +808,7 @@ a:hover {
   outline-offset: 2px;
 }
 
-.btn-primary {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.4);
-}
-
-.btn-primary:hover {
-  background: #4d8dff;
-  box-shadow: 0 10px 18px -14px rgba(99, 102, 241, 0.9);
-}
+/* .btn-primary base + hover — defined in interaction-polish.css */
 
 .btn-secondary {
   background: rgba(148, 163, 184, 0.05);
@@ -933,13 +903,7 @@ a:hover {
   color: var(--text-muted);
 }
 
-.form-select {
-  appearance: auto;
-  -webkit-appearance: menulist;
-  -moz-appearance: auto;
-  background-image: none;
-  padding-right: 0.9rem;
-}
+/* .form-select appearance — defined in interaction-polish.css */
 
 /* --- Custom Checkbox & Radio --- */
 input[type="checkbox"],
@@ -1052,11 +1016,7 @@ input[type="radio"]:focus {
   border-bottom: none;
 }
 
-.table tr:hover td {
-  background: rgba(99, 102, 241, 0.05);
-  color: var(--text-primary);
-  border-color: var(--border-color);
-}
+/* .table tr:hover — defined in interaction-polish.css */
 
 /* --- Badges --- */
 .badge {
@@ -1325,24 +1285,7 @@ input[type="radio"]:focus {
   color: var(--text-muted);
 }
 
-/* --- Empty State --- */
-.empty-state {
-  text-align: center;
-  padding: 64px 24px;
-  color: var(--text-muted);
-}
-
-.empty-state-icon {
-  font-size: 56px;
-  margin-bottom: 20px;
-  opacity: 0.2;
-}
-
-.empty-state-text {
-  font-size: 16px;
-  margin-bottom: 8px;
-  color: var(--text-secondary);
-}
+/* --- Empty State — defined in interaction-polish.css --- */
 
 /* --- Tooltip --- */
 .tooltip-wrapper {
@@ -1486,7 +1429,7 @@ input[type="radio"]:focus {
 }
 
 .gap-8 {
-  gap: 6px;
+  gap: 8px;
 }
 
 .gap-1 {
@@ -1564,7 +1507,7 @@ input[type="radio"]:focus {
 }
 
 .mb-12 {
-  margin-bottom: 12px;
+  margin-bottom: 48px;
 }
 
 .mb-16 {

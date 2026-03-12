@@ -171,7 +171,7 @@ export default function Servers() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.url || !form.username || (!editingId && !form.password)) {
-            toast.error('请填写完整信息');
+            toast.error(t('comp.servers.fillComplete'));
             return;
         }
         setLoading(prev => ({ ...prev, submit: true }));
@@ -190,14 +190,14 @@ export default function Servers() {
                     delete payload.password;
                 }
                 const res = await updateServer(editingId, payload);
-                toast.success(res.msg || '服务器已更新');
+                toast.success(res.msg || t('comp.servers.serverUpdated'));
             } else {
                 const res = await addServer(payload);
-                toast.success(res.msg || '服务器已添加');
+                toast.success(res.msg || t('comp.servers.serverAdded'));
             }
             resetForm();
         } catch (err) {
-            toast.error(getErrorMessage(err, '操作失败'));
+            toast.error(getErrorMessage(err, t('comp.common.operationFailed')));
         }
         setLoading(prev => ({ ...prev, submit: false }));
     };
@@ -207,7 +207,7 @@ export default function Servers() {
         const username = String(batchForm.username || '').trim();
         const password = String(batchForm.password || '').trim();
         if (!username || !password) {
-            toast.error('请填写公共用户名和密码');
+            toast.error(t('comp.servers.fillCredentials'));
             return;
         }
 
@@ -215,12 +215,12 @@ export default function Servers() {
         try {
             items = parseBatchEntries(batchForm.entries);
         } catch (err) {
-            toast.error(getErrorMessage(err, '批量内容格式错误'));
+            toast.error(getErrorMessage(err, t('comp.servers.batchFormatError')));
             return;
         }
 
         if (items.length === 0) {
-            toast.error('请至少填写一条服务器记录');
+            toast.error(t('comp.servers.fillAtLeastOne'));
             return;
         }
 
@@ -240,9 +240,9 @@ export default function Servers() {
             };
             const res = await addServersBatch(payload);
             setBatchResult(res.obj || null);
-            toast.success(res.msg || '批量添加完成');
+            toast.success(res.msg || t('comp.servers.batchAddDone'));
         } catch (err) {
-            toast.error(getErrorMessage(err, '批量添加失败'));
+            toast.error(getErrorMessage(err, t('comp.servers.batchAddFailed')));
         }
         setLoading(prev => ({ ...prev, batchSubmit: false }));
     };
@@ -263,17 +263,17 @@ export default function Servers() {
 
     const handleDelete = async (id) => {
         const ok = await confirmAction({
-            title: '删除服务器',
-            message: '确定删除该服务器吗？',
-            details: '删除后该节点将不再参与集群任务与订阅聚合。',
-            confirmText: '确认删除',
+            title: t('comp.servers.deleteTitle'),
+            message: t('comp.servers.deleteMessage'),
+            details: t('comp.servers.deleteDetails'),
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
         try {
             await removeServer(id);
-            toast.success('服务器已删除');
-        } catch (err) { toast.error(getErrorMessage(err, '删除失败')); }
+            toast.success(t('comp.servers.serverDeleted'));
+        } catch (err) { toast.error(getErrorMessage(err, t('comp.common.deleteFailed'))); }
     };
 
     // Batch Actions
@@ -298,11 +298,12 @@ export default function Servers() {
     };
 
     const handleBulkDelete = async () => {
+        const selectedVisibleCount = filteredServers.filter(item => selectedIds.has(item.id)).length;
         const ok = await confirmAction({
-            title: '批量删除服务器',
-            message: `确定删除选中的 ${selectedIds.size} 个服务器吗？`,
-            details: '建议先确认没有依赖该节点的批量任务。',
-            confirmText: '确认删除',
+            title: t('comp.servers.batchDeleteTitle'),
+            message: t('comp.servers.batchDeleteMessage', { count: selectedVisibleCount }),
+            details: t('comp.servers.batchDeleteDetails'),
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -334,20 +335,20 @@ export default function Servers() {
                 const res = await testConnection(id);
                 setTestResults(prev => ({ ...prev, [id]: res.success ? 'success' : 'error' }));
                 if (!res.success) {
-                    failures.push({ id, msg: res.msg || '连接失败' });
+                    failures.push({ id, msg: res.msg || t('comp.common.connectFailed') });
                     const authCode = getAuthRepairCode(res);
                     if (!repairTargetId && authCode) {
                         repairTargetId = id;
-                        repairReason = res.msg || '节点认证失败';
+                        repairReason = res.msg || t('comp.common.authFailed');
                     }
                 }
             } catch (err) {
                 setTestResults(prev => ({ ...prev, [id]: 'error' }));
-                failures.push({ id, msg: getErrorMessage(err, '连接失败') });
+                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed')) });
                 const authCode = getAuthRepairCode(err);
                 if (!repairTargetId && authCode) {
                     repairTargetId = id;
-                    repairReason = err?.response?.data?.msg || '节点认证失败';
+                    repairReason = err?.response?.data?.msg || t('comp.common.authFailed');
                 }
             }
             setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
@@ -355,7 +356,7 @@ export default function Servers() {
 
         setLoading(prev => ({ ...prev, bulkTest: false }));
         if (failures.length === 0) {
-            toast.success('批量测试完成');
+            toast.success(t('comp.servers.batchTestDone'));
         } else {
             toast.error(`批量测试完成：${ids.length - failures.length}/${ids.length} 成功`);
         }
@@ -375,7 +376,7 @@ export default function Servers() {
         const username = String(credentialRepair.username || '').trim();
         const password = String(credentialRepair.password || '');
         if (!username || !password) {
-            toast.error('请输入 3x-ui 管理用户名和密码');
+            toast.error(t('comp.servers.enterCredentials'));
             return;
         }
 
@@ -385,7 +386,7 @@ export default function Servers() {
         const baseTarget = credentialRepair.serverId ? [credentialRepair.serverId] : [];
         const targetIds = Array.from(new Set([...(selectedTargetIds.length > 0 ? selectedTargetIds : baseTarget)]));
         if (targetIds.length === 0) {
-            toast.error('未找到需要修复的节点');
+            toast.error(t('comp.servers.noRepairNeeded'));
             return;
         }
 
@@ -404,11 +405,11 @@ export default function Servers() {
                     successCount += 1;
                     setTestResults((prev) => ({ ...prev, [id]: 'success' }));
                 } else {
-                    failures.push({ id, msg: res?.msg || '连接失败' });
+                    failures.push({ id, msg: res?.msg || t('comp.common.connectFailed') });
                     setTestResults((prev) => ({ ...prev, [id]: 'error' }));
                 }
             } catch (err) {
-                failures.push({ id, msg: getErrorMessage(err, '连接失败') });
+                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed')) });
                 setTestResults((prev) => ({ ...prev, [id]: 'error' }));
             }
         }
@@ -424,7 +425,7 @@ export default function Servers() {
             }
             return;
         }
-        toast.error('凭据验证失败，请检查 3x-ui 用户名/密码');
+        toast.error(t('comp.servers.credentialCheckFailed'));
     };
 
     const handleTest = async (id) => {
@@ -433,23 +434,23 @@ export default function Servers() {
             const res = await testConnection(id);
             setTestResults(prev => ({ ...prev, [id]: res.success ? 'success' : 'error' }));
             if (res.success) {
-                toast.success('连接成功');
+                toast.success(t('comp.servers.connectSuccess'));
             } else {
-                toast.error(res.msg || '连接失败');
+                toast.error(res.msg || t('comp.common.connectFailed'));
                 const authCode = getAuthRepairCode(res);
                 if (authCode) {
-                    openCredentialRepair(id, res.msg || '节点认证失败');
+                    openCredentialRepair(id, res.msg || t('comp.common.authFailed'));
                 }
             }
         } catch (err) {
             setTestResults(prev => ({ ...prev, [id]: 'error' }));
             const authCode = getAuthRepairCode(err);
             if (authCode) {
-                const reason = err?.response?.data?.msg || '节点认证失败，请更新并保存凭据';
+                const reason = err?.response?.data?.msg || t('comp.servers.authFailedUpdate');
                 openCredentialRepair(id, reason);
                 toast.error(reason);
             } else {
-                toast.error(getErrorMessage(err, '连接失败'));
+                toast.error(getErrorMessage(err, t('comp.common.connectFailed')));
             }
         }
         setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
@@ -528,7 +529,7 @@ export default function Servers() {
                                     <HiOutlinePlusCircle /> 添加服务器
                                 </button>
                                 <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
-                                    {allVisibleSelected ? '取消全选' : '全选'}
+                                    {allVisibleSelected ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
                                 </button>
                             </div>
                         </>
@@ -577,10 +578,10 @@ export default function Servers() {
                             const panelUrl = getPanelUrl(server);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const credentialBadge = credentialStatus === 'unreadable'
-                                ? { cls: 'badge-danger', text: '凭据不可解密' }
+                                ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
                                 : (credentialStatus === 'missing'
-                                    ? { cls: 'badge-warning', text: '缺少凭据' }
-                                    : { cls: 'badge-success', text: '凭据已保存' });
+                                    ? { cls: 'badge-warning', text: t('comp.servers.credMissing') }
+                                    : { cls: 'badge-success', text: t('comp.servers.credSaved') });
                             return (
                                 <div
                                     key={server.id}
@@ -604,7 +605,7 @@ export default function Servers() {
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
                                                                 await copyToClipboard(panelUrl);
-                                                                toast.success('面板地址已复制');
+                                                                toast.success(t('comp.servers.panelUrlCopied'));
                                                             }}
                                                         >
                                                             <HiOutlineClipboard />
@@ -614,10 +615,10 @@ export default function Servers() {
                                             </div>
                                         </div>
                                         <div className="server-card-controls" onClick={e => e.stopPropagation()}>
-                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title="编辑">
+                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
                                             </button>
-                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title="删除">
+                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')}>
                                                 <HiOutlineTrash />
                                             </button>
                                             <input
@@ -639,7 +640,7 @@ export default function Servers() {
                                         )}
                                     </div>
                                     <div className="flex flex-wrap gap-2 mb-4 text-xs server-card-tags">
-                                        <span className="badge badge-neutral">分组: {server.group || '未分组'}</span>
+                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {server.group || t('comp.servers.ungrouped')}</span>
                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                         {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
                                             <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
@@ -656,7 +657,7 @@ export default function Servers() {
                                             disabled={loading[`test-${server.id}`]}
                                         >
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
-                                            {testResults[server.id] === 'success' ? '正常' : testResults[server.id] === 'error' ? '失败' : '测试连接'}
+                                            {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
                                     </div>
                                 </div>
@@ -670,7 +671,7 @@ export default function Servers() {
                     <ModalShell isOpen={showForm} onClose={resetForm}>
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title text-glow">{editingId ? '编辑服务器' : '添加服务器'}</h3>
+                                <h3 className="modal-title text-glow">{editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}</h3>
                                 <button type="button" className="modal-close" onClick={resetForm}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleSubmit}>
@@ -719,9 +720,9 @@ export default function Servers() {
                                     </div>
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={resetForm}>取消</button>
+                                    <button type="button" className="btn btn-secondary" onClick={resetForm}>{t('comp.common.cancel')}</button>
                                     <button type="submit" className="btn btn-primary" disabled={loading.submit}>
-                                        {loading.submit ? <span className="spinner" /> : editingId ? '保存' : '添加'}
+                                        {loading.submit ? <span className="spinner" /> : editingId ? t('comp.servers.saveBtn') : t('comp.servers.addBtn')}
                                     </button>
                                 </div>
                             </form>
@@ -835,7 +836,7 @@ export default function Servers() {
                                                                 <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
                                                                 <td data-label="状态">
                                                                     <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
-                                                                        {item.success ? '成功' : '失败'}
+                                                                        {item.success ? t('comp.common.success') : t('comp.common.failed')}
                                                                     </span>
                                                                 </td>
                                                                 <td data-label="结果" className="table-word-280">
@@ -850,9 +851,9 @@ export default function Servers() {
                                     )}
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={resetBatchForm}>关闭</button>
+                                    <button type="button" className="btn btn-secondary" onClick={resetBatchForm}>{t('comp.common.cancel')}</button>
                                     <button type="submit" className="btn btn-primary" disabled={loading.batchSubmit}>
-                                        {loading.batchSubmit ? <span className="spinner" /> : '开始批量添加'}
+                                        {loading.batchSubmit ? <span className="spinner" /> : t('comp.servers.startBatchAdd')}
                                     </button>
                                 </div>
                             </form>
@@ -908,9 +909,9 @@ export default function Servers() {
                                     )}
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={closeCredentialRepair}>取消</button>
+                                    <button type="button" className="btn btn-secondary" onClick={closeCredentialRepair}>{t('comp.common.cancel')}</button>
                                     <button type="submit" className="btn btn-primary" disabled={loading.repairCredentials}>
-                                        {loading.repairCredentials ? <span className="spinner" /> : '保存并测试连接'}
+                                        {loading.repairCredentials ? <span className="spinner" /> : t('comp.servers.saveAndTest')}
                                     </button>
                                 </div>
                             </form>

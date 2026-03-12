@@ -114,7 +114,7 @@ export default function Subscriptions() {
                 setUsers([]);
                 setUsersAccessDenied(true);
             } else {
-                const msg = error.response?.data?.msg || error.message || '用户列表加载失败';
+                const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.userListFailed');
                 toast.error(msg);
             }
         }
@@ -160,7 +160,7 @@ export default function Subscriptions() {
             }
         } catch (error) {
             setResult(null);
-            const msg = error.response?.data?.msg || error.message || '订阅加载失败';
+            const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.subLoadFailed');
             toast.error(msg);
         }
         setLoading(false);
@@ -187,7 +187,7 @@ export default function Subscriptions() {
 
     const handleCopy = async () => {
         if (!activeProfile?.url) {
-            toast.error('暂无可复制地址');
+            toast.error(t('comp.common.noCopyableUrl'));
             return;
         }
         await copyToClipboard(activeProfile.url);
@@ -205,11 +205,11 @@ export default function Subscriptions() {
             if (Number.isFinite(ttl)) payload.ttlDays = ttl;
             const res = await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/issue`, payload);
             setLastIssuedToken(res.data?.obj || null);
-            toast.success('订阅 token 已签发');
+            toast.success(t('comp.subscriptions.tokenIssued'));
             setTokenName('');
             await loadSubscription();
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '签发 token 失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.tokenIssueFailed'));
         }
         setTokenLoading(false);
     };
@@ -219,10 +219,10 @@ export default function Subscriptions() {
         setTokenActionId(tokenId);
         try {
             await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/revoke`, { tokenId });
-            toast.success('订阅 token 已撤销');
+            toast.success(t('comp.subscriptions.tokenRevoked'));
             await loadSubscription();
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '撤销 token 失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.tokenRevokeFailed'));
         }
         setTokenActionId('');
     };
@@ -235,10 +235,10 @@ export default function Subscriptions() {
                 revokeAll: true,
                 reason: 'manual-revoke-all',
             });
-            toast.success('全部 token 已撤销');
+            toast.success(t('comp.subscriptions.allTokensRevoked'));
             await loadSubscription();
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '批量撤销失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.batchRevokeFailed'));
         }
         setTokenActionId('');
     };
@@ -247,15 +247,15 @@ export default function Subscriptions() {
         if (!normalizedEmail) return;
         const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
             ? `当前节点 (${selectedServerId})`
-            : '当前展示范围';
+            : t('comp.subscriptions.currentScope');
         const resetMessage = isAdmin
-            ? '重置后旧地址会立即失效，需要把新地址重新发给使用者。'
-            : '重置后旧地址会立即失效，你需要在自己的客户端里更新为新地址。';
+            ? t('comp.subscriptions.resetAdminMsg')
+            : t('comp.subscriptions.resetUserMsg');
         const ok = await confirmAction({
-            title: '重置订阅链接',
+            title: t('comp.subscriptions.resetTitle'),
             message: resetMessage,
             details: `目标邮箱: ${normalizedEmail}\n范围: ${scopeLabel}`,
-            confirmText: '确认重置',
+            confirmText: t('comp.common.confirmReset'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -267,10 +267,10 @@ export default function Subscriptions() {
             }
             await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/reset-link`, payload);
             setLastIssuedToken(null);
-            toast.success('订阅链接已重置，旧地址已失效');
+            toast.success(t('comp.subscriptions.subResetDone'));
             await loadSubscription();
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '重置订阅链接失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.resetSubFailed'));
         }
         setResetLoading(false);
     };
@@ -281,11 +281,11 @@ export default function Subscriptions() {
         const repeatedPassword = String(confirmPassword || '');
 
         if (!currentPassword || !nextPassword || !repeatedPassword) {
-            toast.error('请完整填写当前密码、新密码和确认密码');
+            toast.error(t('comp.subscriptions.fillAllPwdFields'));
             return;
         }
         if (nextPassword !== repeatedPassword) {
-            toast.error('两次输入的新密码不一致');
+            toast.error(t('comp.subscriptions.passwordMismatch'));
             return;
         }
 
@@ -304,9 +304,9 @@ export default function Subscriptions() {
             setOldPassword('');
             setNewPassword('');
             setConfirmPassword('');
-            toast.success('登录密码已更新');
+            toast.success(t('comp.subscriptions.passwordUpdated'));
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '修改密码失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.passwordUpdateFailed'));
         }
         setPasswordLoading(false);
     };
@@ -534,7 +534,7 @@ export default function Subscriptions() {
                                             <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.token || ''} />
                                             <div className="subscription-link-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px' }}>
                                                 <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.subscriptionUrl || ''} />
-                                                <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(lastIssuedToken.subscriptionUrl || '').then(() => toast.success('地址已复制'))}>
+                                                <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(lastIssuedToken.subscriptionUrl || '').then(() => toast.success(t('comp.subscriptions.urlCopied')))}>
                                                     <HiOutlineClipboard /> 复制地址
                                                 </button>
                                             </div>

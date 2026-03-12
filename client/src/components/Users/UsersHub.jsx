@@ -284,7 +284,7 @@ export default function UsersHub() {
             setAllInbounds(inboundList);
         } catch (err) {
             console.error('Failed to fetch users data', err);
-            toast.error('加载用户数据失败');
+            toast.error(t('comp.users.loadFailed'));
         }
         setLoading(false);
     };
@@ -327,17 +327,17 @@ export default function UsersHub() {
     const bulkToggleEnable = selectedUsers.length > 0
         ? !selectedUsers.every((user) => user.enabled !== false)
         : true;
-    const bulkToggleLabel = bulkToggleEnable ? '启用选中' : '禁用选中';
+    const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
     const bulkToggleIcon = bulkToggleEnable ? <HiOutlinePlayCircle /> : <HiOutlineNoSymbol />;
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
 
     // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
-        const action = enabled ? '启用' : '停用';
+        const action = enabled ? t('comp.common.enable') : t('comp.common.disable');
         const ok = await confirmAction({
-            title: `${action}用户`,
+            title: `${action}${t('comp.users.user')}`,
             message: `确定${action}用户 ${user.username} 吗？`,
-            details: enabled ? undefined : '停用后用户将无法登录，节点中的订阅客户端会被同步停用，不会删除。',
+            details: enabled ? undefined : t('comp.users.disableDetails'),
             confirmText: `确认${action}`,
             tone: enabled ? 'success' : 'danger',
         });
@@ -354,20 +354,20 @@ export default function UsersHub() {
                 }
                 await fetchData();
             } else {
-                toast.error(res.data?.msg || `${action}失败`);
+                toast.error(res.data?.msg || t('comp.common.operationFailed'));
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || `${action}失败`);
+            toast.error(err.response?.data?.msg || err.message || t('comp.common.operationFailed'));
         }
     };
 
     // --- Delete user ---
     const handleDelete = async (user) => {
         const ok = await confirmAction({
-            title: '删除用户',
+            title: t('comp.users.deleteUser'),
             message: `确定删除用户 ${user.username} 吗？`,
-            details: '删除后不可恢复，关联的订阅和3x-ui客户端也会被清理。',
-            confirmText: '确认删除',
+            details: t('comp.users.deleteDetails'),
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -378,10 +378,10 @@ export default function UsersHub() {
                 toast.success(`用户 ${user.username} 已删除`);
                 await fetchData();
             } else {
-                toast.error(res.data?.msg || '删除失败');
+                toast.error(res.data?.msg || t('comp.common.deleteFailed'));
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '删除失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed'));
         }
     };
 
@@ -407,10 +407,10 @@ export default function UsersHub() {
                 setSelectedIds(new Set());
                 await fetchData();
             } else {
-                toast.error(res.data?.msg || '操作失败');
+                toast.error(res.data?.msg || t('comp.common.operationFailed'));
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || '批量操作失败');
+            toast.error(err.response?.data?.msg || t('comp.users.batchFailed'));
         }
         setBulkLoading(false);
     };
@@ -424,9 +424,9 @@ export default function UsersHub() {
             a.download = `users_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-            toast.success('CSV 已导出');
+            toast.success(t('comp.users.csvExported'));
         } catch {
-            toast.error('导出失败');
+            toast.error(t('comp.users.exportFailed'));
         }
     };
 
@@ -464,7 +464,7 @@ export default function UsersHub() {
     const openProvisionModal = async (user) => {
         const suggestedEmail = normalizeEmail(user?.subscriptionEmail || user?.email);
         if (!suggestedEmail) {
-            toast.error('该用户未配置邮箱，无法开通订阅');
+            toast.error(t('comp.users.noEmailForSubscription'));
             return;
         }
         setProvisionTargetUser(user);
@@ -513,15 +513,15 @@ export default function UsersHub() {
 
         const provisionNormalizedEmail = normalizeEmail(provisionEmail);
         if (!provisionNormalizedEmail) {
-            toast.error('订阅绑定邮箱不能为空');
+            toast.error(t('comp.users.subEmailEmpty'));
             return;
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(provisionNormalizedEmail)) {
-            toast.error('订阅绑定邮箱格式不正确');
+            toast.error(t('comp.users.subEmailInvalid'));
             return;
         }
         if (provisionSelectedInboundKeys.size === 0) {
-            toast.error('请至少选择一个入站');
+            toast.error(t('comp.users.selectAtLeastOneInbound'));
             return;
         }
 
@@ -543,7 +543,7 @@ export default function UsersHub() {
                 trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
             });
             if (!res.data?.success) {
-                toast.error(res.data?.msg || '开通失败');
+                toast.error(res.data?.msg || t('comp.users.provisionFailed'));
                 setProvisionSaving(false);
                 return;
             }
@@ -573,7 +573,7 @@ export default function UsersHub() {
                 console.error('Failed to refresh users hub after provisioning:', refreshErr);
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '开通失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.provisionFailed'));
         }
         setProvisionSaving(false);
     };
@@ -658,13 +658,13 @@ export default function UsersHub() {
 
         const username = String(editUsername || '').trim();
         if (!username) {
-            toast.error('用户名不能为空');
+            toast.error(t('comp.users.usernameEmpty'));
             return;
         }
 
         const email = normalizeEmail(editEmail);
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            toast.error('邮箱格式不正确');
+            toast.error(t('comp.users.emailInvalid'));
             return;
         }
 
@@ -682,7 +682,7 @@ export default function UsersHub() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}`, payload);
             if (!res.data?.success) {
-                toast.error(res.data?.msg || '更新失败');
+                toast.error(res.data?.msg || t('comp.users.updateFailed'));
                 setEditSaving(false);
                 return;
             }
@@ -733,7 +733,7 @@ export default function UsersHub() {
             closeEditModal();
             await fetchData();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '更新失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.updateFailed'));
         }
         setEditSaving(false);
     };
@@ -759,12 +759,12 @@ export default function UsersHub() {
         const email = normalizeEmail(createEmail);
         const password = String(createPassword || '');
 
-        if (!username) { toast.error('用户名不能为空'); return; }
-        if (!password) { toast.error('初始密码不能为空'); return; }
+        if (!username) { toast.error(t('comp.users.usernameEmpty')); return; }
+        if (!password) { toast.error(t('comp.users.passwordEmpty')); return; }
         const passwordError = getPasswordPolicyError(password);
         if (passwordError) { toast.error(passwordError); return; }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            toast.error('邮箱格式不正确');
+            toast.error(t('comp.users.emailInvalid'));
             return;
         }
 
@@ -778,7 +778,7 @@ export default function UsersHub() {
                 subscriptionEmail: email,
             });
             if (!res.data?.success || !res.data?.obj) {
-                toast.error(res.data?.msg || '创建用户失败');
+                toast.error(res.data?.msg || t('comp.users.createFailed'));
                 setCreateSaving(false);
                 return;
             }
@@ -797,7 +797,7 @@ export default function UsersHub() {
                 }
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '创建用户失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.createFailed'));
             setCreateSaving(false);
         }
     };

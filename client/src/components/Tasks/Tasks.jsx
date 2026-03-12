@@ -101,16 +101,16 @@ export default function Tasks({ embedded = false }) {
 
     const handleClear = async () => {
         const ok = await confirmAction({
-            title: '清空任务历史',
-            message: '确定清空批量任务历史吗？',
-            details: '该操作不会影响已执行的节点配置，只会清空控制台历史记录。',
-            confirmText: '确认清空',
+            title: t('comp.tasks.clearTitle') || '清空任务历史',
+            message: t('comp.tasks.clearMessage') || '确定清空批量任务历史吗？',
+            details: t('comp.tasks.clearDetails') || '该操作不会影响已执行的节点配置，只会清空控制台历史记录。',
+            confirmText: t('comp.tasks.clearConfirm') || '确认清空',
             tone: 'danger',
         });
         if (!ok) return;
         try {
             await api.delete('/jobs/history');
-            toast.success('任务历史已清空');
+            toast.success(t('comp.tasks.historyCleared'));
             setTasks([]);
             setSelectedTask(null);
         } catch (err) {
