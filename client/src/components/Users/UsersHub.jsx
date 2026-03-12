@@ -20,6 +20,8 @@ import {
     HiOutlineTrash,
     HiOutlinePencilSquare,
     HiOutlineArrowPath,
+    HiOutlineChevronDown,
+    HiOutlineChevronUp,
     HiOutlineMagnifyingGlass,
     HiOutlineLink,
     HiOutlineClipboard,
@@ -132,6 +134,7 @@ export default function UsersHub() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('all');
+    const [sequenceDirection, setSequenceDirection] = useState('asc');
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -304,7 +307,7 @@ export default function UsersHub() {
             .sort(compareUsersFallback);
     }, [users, clientsMap, onlineMap]);
 
-    const enrichedUsers = useMemo(() => {
+    const filteredUsers = useMemo(() => {
         const search = String(searchTerm || '').trim().toLowerCase();
         return allOrderedUsers
             .filter((user) => {
@@ -314,6 +317,9 @@ export default function UsersHub() {
                     .some((v) => String(v || '').toLowerCase().includes(search));
             });
     }, [allOrderedUsers, searchTerm, statusFilter]);
+    const enrichedUsers = useMemo(() => (
+        sequenceDirection === 'desc' ? [...filteredUsers].reverse() : filteredUsers
+    ), [filteredUsers, sequenceDirection]);
     const selectedUsers = useMemo(
         () => enrichedUsers.filter((user) => selectedIds.has(user.id)),
         [enrichedUsers, selectedIds]
@@ -930,9 +936,21 @@ export default function UsersHub() {
                         <thead>
                             <tr>
                                 <th style={{ width: 40 }}>
-                                    <input type="checkbox" checked={enrichedUsers.length > 0 && selectedIds.size === enrichedUsers.length} onChange={toggleSelectAll} />
+                                    <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
                                 </th>
-                                <th>序号</th>
+                                <th>
+                                    <button
+                                        type="button"
+                                        className="table-sort-button users-sequence-sort-button"
+                                        onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                        aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
+                                    >
+                                        <span>序号</span>
+                                        <span className="table-sort-button-icon" aria-hidden="true">
+                                            {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                        </span>
+                                    </button>
+                                </th>
                                 <th>用户名</th>
                                 <th>邮箱</th>
                                 <th>状态</th>
@@ -952,6 +970,9 @@ export default function UsersHub() {
                                 </td></tr>
                             ) : (
                                 enrichedUsers.map((user, index) => {
+                                    const sequenceNumber = sequenceDirection === 'asc'
+                                        ? index + 1
+                                        : enrichedUsers.length - index;
                                     return (
                                     <tr
                                         key={user.id}
@@ -960,7 +981,7 @@ export default function UsersHub() {
                                     >
                                         <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                         <td data-label="序号" onClick={(e) => e.stopPropagation()}>
-                                            <span className="cell-mono users-sequence-number">{index + 1}</span>
+                                            <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                         </td>
                                         <td data-label="用户名" className="font-medium table-cell-link" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>{user.username}</td>
                                         <td data-label="邮箱" className="text-sm">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
@@ -130,6 +131,24 @@ describe('UsersHub ordering', () => {
         if (!bobRow) throw new Error('Missing Bob row');
 
         expect(within(bobRow).getByText('2')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalledWith('/system/users/order', expect.anything());
+    });
+
+    it('toggles the displayed sequence direction without persisting user order', async () => {
+        const user = userEvent.setup();
+        const { container } = renderWithRouter(<UsersHub />);
+
+        await screen.findByText('alice');
+
+        const beforeRows = container.querySelectorAll('tbody tr');
+        expect(within(beforeRows[0]).getByText('alice')).toBeInTheDocument();
+        expect(within(beforeRows[0]).getByText('1')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '按序号降序显示' }));
+
+        const afterRows = container.querySelectorAll('tbody tr');
+        expect(within(afterRows[0]).getByText('bob')).toBeInTheDocument();
+        expect(within(afterRows[0]).getByText('2')).toBeInTheDocument();
         expect(api.put).not.toHaveBeenCalledWith('/system/users/order', expect.anything());
     });
 });

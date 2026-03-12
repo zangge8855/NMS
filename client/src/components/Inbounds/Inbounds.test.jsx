@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -191,6 +191,7 @@ describe('Inbounds', () => {
         expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
         expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
         expect(within(mainRow).queryByLabelText(/上移 .* 的序号|下移 .* 的序号/)).not.toBeInTheDocument();
+        expect(within(mainRow).queryByRole('spinbutton')).not.toBeInTheDocument();
     });
 
     it('treats the global server context as all nodes and keeps the node column visible', async () => {
@@ -222,24 +223,23 @@ describe('Inbounds', () => {
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
     });
 
-    it('shows sequence controls only for a selected node and persists ordering changes', async () => {
+    it('shows manual order controls for a selected node and persists numeric ordering changes', async () => {
         const user = userEvent.setup();
         renderWithRouter(<Inbounds />);
 
         await user.selectOptions(screen.getByRole('combobox'), 'server-a');
 
-        const moveDownButton = await screen.findByLabelText('下移 Main Inbound:443 的序号');
+        await screen.findByLabelText('下移 Main Inbound:443 的序号');
         const moveUpButton = screen.getByLabelText('上移 Backup Inbound:8443 的序号');
-        const backupInbound = await screen.findByText('Backup Inbound');
-        const mainInbound = await screen.findByText('Main Inbound');
-        const backupRow = backupInbound.closest('tr');
-        const mainRow = mainInbound.closest('tr');
-        if (!backupRow) throw new Error('Missing backup row');
-        if (!mainRow) throw new Error('Missing main row');
+        const mainOrderInput = screen.getByRole('spinbutton', { name: '设置 Main Inbound:443 的排序序号' });
+        const backupOrderInput = screen.getByRole('spinbutton', { name: '设置 Backup Inbound:8443 的排序序号' });
 
         expect(moveUpButton).toBeEnabled();
+        expect(mainOrderInput).toHaveValue(1);
+        expect(backupOrderInput).toHaveValue(2);
 
-        await user.click(moveDownButton);
+        fireEvent.change(mainOrderInput, { target: { value: '2' } });
+        fireEvent.blur(mainOrderInput);
 
         await waitFor(() => {
             expect(api.put).toHaveBeenCalledWith('/system/inbounds/order', {
@@ -249,8 +249,8 @@ describe('Inbounds', () => {
         });
 
         await waitFor(() => {
-            expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
-            expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
+            expect(screen.getByRole('spinbutton', { name: '设置 Main Inbound:443 的排序序号' })).toHaveValue(2);
+            expect(screen.getByRole('spinbutton', { name: '设置 Backup Inbound:8443 的排序序号' })).toHaveValue(1);
         });
     });
 

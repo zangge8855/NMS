@@ -127,6 +127,7 @@ export default function Inbounds() {
     const [inboundOrder, setInboundOrder] = useState({});
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
     const [serverSortDirection, setServerSortDirection] = useState('asc');
+    const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -165,6 +166,7 @@ export default function Inbounds() {
         const allResults = [];
         setSelectedKeys(new Set());
         setSelectedClientKeys(new Set());
+        setInboundOrderDrafts({});
         let orderMap = inboundOrder;
 
         try {
@@ -287,6 +289,7 @@ export default function Inbounds() {
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
         setSelectedKeys(new Set());
+        setInboundOrderDrafts({});
     }, [filterServerId]);
 
     // Batch Actions
@@ -492,6 +495,43 @@ export default function Inbounds() {
         if (!next.changed) return;
         setInbounds(next.items);
         await persistInboundOrder(next.serverId, next.inboundIds);
+    };
+
+    const handleInboundOrderDraftChange = (inboundKey, value) => {
+        setInboundOrderDrafts((prev) => ({
+            ...prev,
+            [inboundKey]: value,
+        }));
+    };
+
+    const handleInboundOrderCommit = async (inbound) => {
+        if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
+        const inboundKey = String(inbound?.uiKey || '').trim();
+        if (!inboundKey) return;
+
+        const rawValue = String(inboundOrderDrafts[inboundKey] ?? '').trim();
+        if (!rawValue) {
+            setInboundOrderDrafts((prev) => {
+                const next = { ...prev };
+                delete next[inboundKey];
+                return next;
+            });
+            return;
+        }
+
+        const nextPosition = Number.parseInt(rawValue, 10);
+        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
+            toast.error('请输入有效的入站排序序号');
+            return;
+        }
+
+        setInboundOrderDrafts((prev) => {
+            const next = { ...prev };
+            delete next[inboundKey];
+            return next;
+        });
+
+        await handleMoveInbound(inbound, nextPosition - 1);
     };
 
     const parseClients = (ib) => {
@@ -914,6 +954,7 @@ export default function Inbounds() {
                                     const canMoveUp = canAdjustOrder && index > 0 && !isSavingOrder;
                                     const canMoveDown = canAdjustOrder && index < filteredInbounds.length - 1 && !isSavingOrder;
                                     const inboundLabel = `${ib.remark || ib.protocol}:${ib.port}`;
+                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(index + 1);
                                     const selectableClientKeys = clients
                                         .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
                                         .filter(Boolean);
@@ -940,7 +981,35 @@ export default function Inbounds() {
                                                 </td>
                                                 <td data-label="序号" onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
                                                     <div className="inbounds-sequence-cell">
-                                                        <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
+                                                        {canAdjustOrder ? (
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                inputMode="numeric"
+                                                                aria-label={`设置 ${inboundLabel} 的排序序号`}
+                                                                className="form-input form-input-sm cell-mono inbound-order-input"
+                                                                value={sequenceValue}
+                                                                disabled={isSavingOrder}
+                                                                onChange={(event) => handleInboundOrderDraftChange(ib.uiKey, event.target.value)}
+                                                                onBlur={() => handleInboundOrderCommit(ib)}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === 'Enter') {
+                                                                        event.preventDefault();
+                                                                        handleInboundOrderCommit(ib);
+                                                                    }
+                                                                    if (event.key === 'Escape') {
+                                                                        event.preventDefault();
+                                                                        setInboundOrderDrafts((prev) => {
+                                                                            const next = { ...prev };
+                                                                            delete next[ib.uiKey];
+                                                                            return next;
+                                                                        });
+                                                                    }
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
+                                                        )}
                                                         {canAdjustOrder && (
                                                             <div className="inbounds-sequence-actions" aria-label={`调整 ${inboundLabel} 的序号`}>
                                                                 <button
