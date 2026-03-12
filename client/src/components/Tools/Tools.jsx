@@ -95,7 +95,7 @@ export default function Tools() {
     return (
         <>
             <Header 
-                title="3x-ui 节点工具"
+                title={t('pages.tools.title')}
                 subtitle="根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书"
                 showSubtitle={true}
             >

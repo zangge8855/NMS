@@ -74,7 +74,7 @@ const messages = {
         wsDisconnected: '已断开',
       },
       dashboardGlobal: {
-        title: '集群仪表盘',
+        title: '仪表盘',
         subtitle: '跨节点观察在线态、容量与异常分布',
         eyebrow: '运行总览',
         toolbarTitle: '全局状态',
@@ -361,7 +361,7 @@ const messages = {
         wsDisconnected: 'Disconnected',
       },
       dashboardGlobal: {
-        title: 'Cluster Dashboard',
+        title: 'Dashboard',
         subtitle: 'Observe sessions, capacity, and anomalies across nodes',
         eyebrow: 'Operations Overview',
         toolbarTitle: 'Cluster Status',
