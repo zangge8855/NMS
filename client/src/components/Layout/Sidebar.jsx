@@ -47,6 +47,9 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const isAdmin = user?.role === 'admin';
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
+    const footerTitle = visibleFooterItems.length > 0
+        ? (isAdmin ? t('nav.system') : t('nav.account'))
+        : '';
 
     navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
 
@@ -300,7 +303,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 })}
 
                 <div className="nav-section nav-section-footer" style={{ marginTop: 'auto' }}>
-                    <div className="nav-section-title">{isAdmin ? t('nav.system') : t('nav.account')}</div>
+                    {footerTitle && <div className="nav-section-title">{footerTitle}</div>}
                     {visibleFooterItems.map((item) => (
                         <NavLink
                             key={item.path}
