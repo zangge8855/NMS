@@ -340,10 +340,6 @@ export default function ServerManagement() {
         <>
             <Header
                 title={t('pages.serverConsole.title')}
-                subtitle={isGlobalView
-                    ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
-                    : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
-                showSubtitle={true}
                 eyebrow={t('pages.serverConsole.eyebrow')}
             />
             <div className="page-content page-enter">

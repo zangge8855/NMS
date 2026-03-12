@@ -561,8 +561,6 @@ export default function SystemSettings() {
         <>
             <Header
                 title={t('pages.settings.title')}
-                subtitle={settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : t('pages.settings.subtitle')}
-                showSubtitle={true}
                 eyebrow={t('pages.settings.eyebrow')}
             >
                 <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>

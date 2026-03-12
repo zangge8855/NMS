@@ -94,11 +94,7 @@ export default function Tools() {
 
     return (
         <>
-            <Header 
-                title={t('pages.tools.title')}
-                subtitle="根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书"
-                showSubtitle={true}
-            >
+            <Header title={t('pages.tools.title')}>
                 <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
                     <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新
                 </button>
