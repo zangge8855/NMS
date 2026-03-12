@@ -1,33 +1,36 @@
 # NMS
 
-## 中文
+## English
 
-NMS 是一个面向 3x-ui / Xray 节点场景的后台管理系统，提供统一的节点接入、用户与订阅管理、审计追踪、批量任务和系统运维能力。项目采用 React + Vite 前端与 Express + WebSocket 后端，默认可直接使用文件存储，也支持逐步接入 PostgreSQL。
+NMS is a bilingual control plane for 3x-ui / Xray operations. It brings server onboarding, inbound changes, user and subscription management, audit trails, backups, and system administration into one dashboard, so teams spend less time jumping between panel tabs, shell scripts, and handwritten runbooks.
 
-### 核心能力
+It is built for operators who want a practical deployment path: start with file-backed storage, move to PostgreSQL when needed, keep Docker available for packaging, and retain enough auditability to trust day-to-day changes.
 
-- 多节点统一接入与健康状态监控
-- 入站、用户、客户端与订阅集中管理
-- 审计日志、流量统计、批量任务记录
-- 系统设置、SMTP、注册流程与安全策略
-- Review Harness 本地评审环境与假面板联调
-- 文件存储 / PostgreSQL 双模式运行
+### Why NMS
 
-### 仓库结构
+- Centralize multi-node operations in one admin UI instead of logging into each panel separately
+- Manage users, clients, subscriptions, and policy changes from the same workflow
+- Keep an operational trail through audit logs, traffic views, notifications, and job history
+- Use built-in backup, SMTP diagnostics, and runtime storage controls instead of external glue scripts
+- Validate locally with the review harness before touching production nodes
 
-```text
-client/   React + Vite 管理端
-server/   Express API、WebSocket、存储层与服务层
-docs/     架构、部署、UI、数据库与评审文档
-data/     默认文件存储目录
-```
+### What You Can Do
 
-### 快速开始
+- Onboard and monitor multiple 3x-ui nodes from a single dashboard
+- Manage inbounds, client credentials, traffic limits, expiry, and protocol-specific settings
+- Generate subscription tokens and share client-ready links for raw, native, Clash, Mihomo, and sing-box style consumption
+- Run batch changes with risk controls and verify outcomes through audit records
+- Test SMTP, export backups, restore snapshots, and inspect storage mode state from the system area
 
-1. 安装 Node.js 20。
-2. 在 `client/` 安装依赖并构建前端。
-3. 在 `server/` 安装依赖并启动后端。
-4. 复制 `.env.example` 为 `.env`，至少修改 `JWT_SECRET`、`ADMIN_PASSWORD`，生产环境再补充 `ADMIN_USERNAME` 和 `CREDENTIALS_SECRET`。
+### Deploy In Minutes
+
+Prerequisites:
+
+- Node.js `20+`, or Docker if you prefer container delivery
+- A local `.env` copied from `.env.example`
+- Production values for `JWT_SECRET`, `ADMIN_PASSWORD`, `ADMIN_USERNAME`, and `CREDENTIALS_SECRET`
+
+Source deployment:
 
 ```bash
 cd client
@@ -36,86 +39,119 @@ npm run build
 
 cd ../server
 npm ci
-node index.js
+NODE_ENV=production node index.js
 ```
 
-默认服务地址：
+Process supervision with PM2:
 
-- 前端构建由后端在生产模式下托管
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+Docker deployment:
+
+```bash
+docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .
+docker run -d \
+  --name nms \
+  -p 3001:3001 \
+  --env-file .env \
+  -v /opt/nms/data:/app/data \
+  -v /opt/nms/logs:/app/logs \
+  ghcr.io/<your-github-user-or-org>/nms:latest
+```
+
+Default runtime endpoints:
+
+- App and static assets are served by the backend in production mode
 - API: `http://127.0.0.1:3001/api`
-- 开发联调时前端默认使用 `http://127.0.0.1:5173`
+- Frontend dev server: `http://127.0.0.1:5173`
 
-### 关键环境变量
+### How Teams Use It
 
-- `JWT_SECRET`: JWT 密钥，生产环境必须使用 32 位以上随机字符串
-- `ADMIN_USERNAME`: 管理员账号，建议不要使用默认值
-- `ADMIN_PASSWORD`: 管理员密码，至少满足三类字符复杂度
-- `CREDENTIALS_SECRET`: 节点凭据加密密钥，应与 `JWT_SECRET` 分离
-- `DATA_DIR`: 文件存储目录
-- `DB_ENABLED` / `DB_URL`: PostgreSQL 集成开关与连接串
-- `SUB_PUBLIC_BASE_URL`: 订阅公开访问地址
-- `SUB_CONVERTER_BASE_URL`: subconverter 地址
+1. Add panel nodes in `Servers`.
+2. Check health and capability detection.
+3. Manage users and client relationships in `Users` and `Clients`.
+4. Issue or rotate subscription links in `Subscriptions`.
+5. Review operational outcomes in `Audit`, `Traffic`, and the dashboard.
+6. Tune SMTP, backups, security, and storage runtime modes in `Settings`.
 
-### 运行模式
+### Why It Is Practical
 
-- 文件模式：默认模式，适合本地开发与轻量部署
-- 双写模式：文件与 PostgreSQL 同步写入，适合迁移阶段
-- 数据库模式：读写都走 PostgreSQL，适合稳定生产环境
+- Less context switching: nodes, subscriptions, user policies, and system settings live in one product
+- Safer changes: batch risk controls, audit history, and backup export/restore reduce blind spots
+- Easier scaling: file mode works out of the box, while PostgreSQL and Docker are ready when the deployment grows
+- Better support handoff: bilingual UI and user-facing subscription flows reduce friction between ops and customer support
 
-### 部署建议
-
-- 单机部署可直接使用 `node server/index.js` 或 `pm2`
-- 容器部署可使用仓库根目录的 `Dockerfile`
-- 反向代理建议由 Nginx 或 Traefik 处理 HTTPS 与 WebSocket 升级
-- 推送镜像到 GHCR 时请使用自己的 GitHub 用户或组织命名空间
-
-### 文档索引
-
-- `docs/ARCHITECTURE_OVERVIEW.md`: 架构与请求流
-- `docs/USER_GUIDE.md`: 管理员与普通用户操作指南
-- `docs/UI_DESIGN_SYSTEM.md`: 管理端视觉与交互规范
-- `docs/DEPLOYMENT_RUNBOOK.md`: 生产部署、升级、回滚与排障
-- `docs/DB_INTEGRATION_DEV.md`: PostgreSQL 开发与迁移说明
-- `docs/REVIEW_HARNESS.md`: 本地评审环境说明
-- `docs/SUBSCRIPTION_CONVERTER_NOTES.md`: 订阅转换器接入说明
-- `docs/3XUI_ALIGNMENT_MATRIX.md`: NMS 与 3x-ui 对齐矩阵
-- `docs/NMS_FEATURE_UI_AUDIT.md`: 当前功能与 UI 审核结果
-- `docs/NMS_GAP_BACKLOG.md`: 后续迭代待办
-
-### 安全说明
-
-- 仓库中的示例地址、邮箱、域名与镜像路径全部为通用占位符
-- 不要把真实管理员口令、SMTP 凭据、数据库口令或面板地址提交到仓库
-- 生产环境必须启用强口令、独立密钥和 HTTPS
-
-## English
-
-NMS is an admin dashboard for 3x-ui / Xray node operations. It provides a single control plane for server onboarding, user and subscription management, auditing, batch jobs, and system operations. The stack is React + Vite on the client and Express + WebSocket on the server, with file-backed storage by default and optional PostgreSQL support.
-
-### Core capabilities
-
-- Multi-node onboarding with health monitoring
-- Centralized inbound, user, client, and subscription management
-- Audit logs, traffic analytics, and batch job history
-- System settings, SMTP, registration flow, and security controls
-- Local review harness with fake panel integrations
-- File storage and PostgreSQL runtime modes
-
-### Repository layout
+### Stack And Layout
 
 ```text
 client/   React + Vite admin app
 server/   Express API, WebSocket, stores, services
-docs/     Architecture, deployment, UI, DB, and review notes
-data/     Default file-backed data directory
+docs/     Deployment, usage, architecture, and review notes
+data/     Default file-backed storage
 ```
 
-### Quick start
+### Key Environment Variables
 
-1. Install Node.js 20.
-2. Install dependencies and build the client.
-3. Install dependencies and start the server.
-4. Copy `.env.example` to `.env` and change at least `JWT_SECRET` and `ADMIN_PASSWORD`. In production, also set `ADMIN_USERNAME` and `CREDENTIALS_SECRET`.
+- `JWT_SECRET`: JWT signing secret; use a strong random value
+- `ADMIN_USERNAME`: admin login name; avoid defaults
+- `ADMIN_PASSWORD`: admin password; production should use a strong multi-class password
+- `CREDENTIALS_SECRET`: dedicated encryption secret for stored node credentials
+- `DATA_DIR`: file-backed storage directory
+- `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
+- `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
+- `SUB_CONVERTER_BASE_URL`: optional subconverter endpoint
+
+### Documentation Map
+
+- [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
+- [Review Harness](docs/REVIEW_HARNESS.md)
+- [Subscription Converter Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
+- [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
+- [UI Design System](docs/UI_DESIGN_SYSTEM.md)
+
+### Security Notes
+
+- All sample domains, email addresses, and image tags in this repository are placeholders
+- Never commit real admin passwords, SMTP credentials, database secrets, or panel endpoints
+- Production deployments should use HTTPS, strong secrets, and regular backups
+
+## 中文
+
+NMS 是一套面向 3x-ui / Xray 运维场景的双语管理后台。它把节点接入、入站维护、用户与订阅管理、审计追踪、备份恢复和系统设置集中到一个界面里，减少在多个面板、脚本和临时文档之间来回切换的成本。
+
+它的定位很务实: 先用文件存储快速上线，规模上来后再接 PostgreSQL；既能直接源码部署，也能走 Docker；既能覆盖日常运维，也保留足够的审计和恢复能力，方便团队长期使用。
+
+### 为什么用 NMS
+
+- 多节点统一管理，不用逐台登录 3x-ui 面板处理日常操作
+- 用户、客户端、订阅链接和策略调整放在同一条工作流里
+- 审计日志、流量视图、通知和任务记录帮助团队复盘每次变更
+- 内置备份、SMTP 诊断和运行模式控制，减少依赖外部脚本拼装
+- Review Harness 方便本地演示、回归检查和上线前预演
+
+### 你可以用它做什么
+
+- 从一个后台接入并监控多个 3x-ui 节点
+- 统一维护入站、客户端凭据、流量额度、到期时间和协议参数
+- 生成订阅令牌，并输出适合原始链接、原生导入、Clash、Mihomo、sing-box 等场景的订阅地址
+- 对批量变更做风险控制，并用审计记录确认执行结果
+- 在系统页测试 SMTP、导出备份、恢复快照、查看存储模式状态
+
+### 几分钟完成部署
+
+前置要求:
+
+- Node.js `20+`，或者使用 Docker
+- 基于 `.env.example` 复制出本地 `.env`
+- 在生产环境中配置好 `JWT_SECRET`、`ADMIN_PASSWORD`、`ADMIN_USERNAME`、`CREDENTIALS_SECRET`
+
+源码部署:
 
 ```bash
 cd client
@@ -124,54 +160,84 @@ npm run build
 
 cd ../server
 npm ci
-node index.js
+NODE_ENV=production node index.js
 ```
 
-Default endpoints:
+如需常驻运行，可配合 PM2:
 
-- The server can host the built client in production mode
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+Docker 部署:
+
+```bash
+docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .
+docker run -d \
+  --name nms \
+  -p 3001:3001 \
+  --env-file .env \
+  -v /opt/nms/data:/app/data \
+  -v /opt/nms/logs:/app/logs \
+  ghcr.io/<your-github-user-or-org>/nms:latest
+```
+
+默认运行地址:
+
+- 生产模式下由后端直接托管前端构建产物
 - API: `http://127.0.0.1:3001/api`
-- Frontend dev server: `http://127.0.0.1:5173`
+- 前端开发服务: `http://127.0.0.1:5173`
 
-### Key environment variables
+### 团队通常怎么用
 
-- `JWT_SECRET`: JWT secret, must be a strong random value in production
-- `ADMIN_USERNAME`: admin login name, avoid defaults
-- `ADMIN_PASSWORD`: strong admin password
-- `CREDENTIALS_SECRET`: encryption secret for stored panel credentials
-- `DATA_DIR`: file-backed data directory
-- `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
-- `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
-- `SUB_CONVERTER_BASE_URL`: subconverter endpoint
+1. 在 `Servers` 里录入节点。
+2. 检查节点健康状态和能力探测结果。
+3. 在 `Users` 和 `Clients` 里维护用户与客户端关系。
+4. 在 `Subscriptions` 里签发、轮换订阅链接。
+5. 在 `Audit`、`Traffic` 和仪表盘里确认变更效果。
+6. 在 `Settings` 里配置 SMTP、备份、安全策略和存储运行模式。
 
-### Runtime modes
+### 为什么它更省事
 
-- File mode: default, simple for local development and small deployments
-- Dual-write mode: writes to both file and PostgreSQL during migration
-- Database mode: reads and writes from PostgreSQL for mature production setups
+- 少切页: 节点、订阅、用户策略和系统配置都在同一个产品里
+- 更稳: 批量风险控制、审计历史和备份恢复降低误操作成本
+- 更容易扩展: 默认文件模式开箱即用，需要时再切 PostgreSQL 或 Docker
+- 更方便协作: 双语界面和用户侧订阅流程，适合运维、管理员和支持团队共同使用
 
-### Deployment guidance
+### 技术栈与目录
 
-- Single-host deployments can use `node server/index.js` or `pm2`
-- Container deployments can use the root `Dockerfile`
-- Put Nginx or Traefik in front for HTTPS termination and WebSocket upgrade
-- When publishing to GHCR, use your own GitHub user or organization namespace
+```text
+client/   React + Vite 管理端
+server/   Express API、WebSocket、存储层与服务层
+docs/     部署、使用、架构与评审文档
+data/     默认文件存储目录
+```
 
-### Documentation map
+### 关键环境变量
 
-- `docs/ARCHITECTURE_OVERVIEW.md`: architecture and request flow
-- `docs/USER_GUIDE.md`: admin and end-user workflows
-- `docs/UI_DESIGN_SYSTEM.md`: visual and interaction standards
-- `docs/DEPLOYMENT_RUNBOOK.md`: deployment, upgrade, rollback, and troubleshooting
-- `docs/DB_INTEGRATION_DEV.md`: PostgreSQL development and migration notes
-- `docs/REVIEW_HARNESS.md`: local review harness guide
-- `docs/SUBSCRIPTION_CONVERTER_NOTES.md`: subscription converter integration
-- `docs/3XUI_ALIGNMENT_MATRIX.md`: NMS to 3x-ui capability alignment
-- `docs/NMS_FEATURE_UI_AUDIT.md`: current feature and UI audit
-- `docs/NMS_GAP_BACKLOG.md`: prioritized follow-up backlog
+- `JWT_SECRET`: JWT 签名密钥，必须使用足够强的随机值
+- `ADMIN_USERNAME`: 管理员账号，建议不要使用默认值
+- `ADMIN_PASSWORD`: 管理员密码，生产环境应满足多类字符复杂度
+- `CREDENTIALS_SECRET`: 节点凭据加密密钥，建议与 JWT 密钥分离
+- `DATA_DIR`: 文件存储目录
+- `DB_ENABLED` / `DB_URL`: PostgreSQL 开关与连接串
+- `SUB_PUBLIC_BASE_URL`: 对外订阅基址
+- `SUB_CONVERTER_BASE_URL`: 可选的订阅转换器地址
 
-### Security notes
+### 文档索引
 
-- All sample domains, email addresses, image names, and paths in this repository are placeholders
-- Never commit real admin passwords, SMTP credentials, database secrets, or panel endpoints
-- Production deployments should enforce strong secrets, separate encryption keys, and HTTPS
+- [部署 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [使用说明](docs/USER_GUIDE.md)
+- [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
+- [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
+- [Review Harness](docs/REVIEW_HARNESS.md)
+- [订阅转换器说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
+- [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
+- [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
+
+### 安全说明
+
+- 仓库中的域名、邮箱和镜像标签都是通用占位符
+- 不要提交真实管理员口令、SMTP 凭据、数据库密钥或节点地址
+- 生产环境建议启用 HTTPS、强密钥和定期备份
