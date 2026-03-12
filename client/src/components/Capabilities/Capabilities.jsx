@@ -38,9 +38,13 @@ export default function Capabilities() {
     const { t } = useI18n();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
+    const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
 
     const fetchCapabilities = async () => {
-        if (!activeServerId) return;
+        if (!hasTargetServer) {
+            setData(null);
+            return;
+        }
         setLoading(true);
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
@@ -53,8 +57,12 @@ export default function Capabilities() {
     };
 
     useEffect(() => {
+        if (!hasTargetServer) {
+            setData(null);
+            return;
+        }
         fetchCapabilities();
-    }, [activeServerId]);
+    }, [activeServerId, hasTargetServer]);
 
     const protocolList = useMemo(
         () => (Array.isArray(data?.protocolDetails) ? data.protocolDetails : []),
@@ -71,15 +79,17 @@ export default function Capabilities() {
         [data]
     );
 
-    if (!activeServerId) {
+    if (!hasTargetServer) {
         return (
             <>
                 <Header title={t('pages.capabilities.title')} />
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineCircleStack /></div>
-                        <div className="empty-state-text">请先选择一台服务器</div>
-                    </div>
+                    <EmptyState
+                        title="请先选择一台服务器"
+                        subtitle="能力探测仅支持单节点视图，请先切换到具体节点。"
+                        icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
+                        surface
+                    />
                 </div>
             </>
         );
@@ -87,12 +97,23 @@ export default function Capabilities() {
 
     return (
         <>
-            <Header title={t('pages.capabilities.title')}>
-                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
-                </button>
-            </Header>
+            <Header title={t('pages.capabilities.title')} />
             <div className="page-content page-enter">
+                <PageToolbar
+                    className="card mb-6 capabilities-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">节点能力矩阵</div>
+                            <div className="page-toolbar-subtitle">展示协议命名、官方能力映射和节点工具可用性。</div>
+                        </div>
+                    )}
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                        </button>
+                    )}
+                    meta={<span>协议 {protocolList.length} · 工具 {toolEntries.length}</span>}
+                />
                 {!data ? (
                     <EmptyState
                         title={loading ? '加载中...' : '暂无能力数据'}

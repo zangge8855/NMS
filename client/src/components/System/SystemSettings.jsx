@@ -14,6 +14,7 @@ import {
 } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
@@ -548,10 +549,12 @@ export default function SystemSettings() {
                     eyebrow={t('pages.settings.eyebrow')}
                 />
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineCog6Tooth /></div>
-                        <div className="empty-state-text">仅管理员可访问系统设置</div>
-                    </div>
+                    <EmptyState
+                        title="仅管理员可访问系统设置"
+                        subtitle="请使用管理员账号登录后再修改系统参数、备份或监控配置。"
+                        icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
+                        surface
+                    />
                 </div>
             </>
         );
@@ -562,13 +565,26 @@ export default function SystemSettings() {
             <Header
                 title={t('pages.settings.title')}
                 eyebrow={t('pages.settings.eyebrow')}
-            >
-                <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
-                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                    {saving ? <span className="spinner" /> : '保存设置'}
-                </button>
-            </Header>
+            />
             <div className="page-content page-enter">
+                <PageToolbar
+                    className="card mb-6 settings-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy settings-toolbar-copy">
+                            <div className="page-toolbar-title">系统参数与运行诊断</div>
+                            <div className="page-toolbar-subtitle">统一管理任务、审计、订阅地址以及备份和健康监控相关配置。</div>
+                        </div>
+                    )}
+                    actions={(
+                        <>
+                            <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
+                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                {saving ? <span className="spinner" /> : '保存设置'}
+                            </button>
+                        </>
+                    )}
+                    meta={<span>{settings ? '配置快照已加载' : '等待加载配置'}</span>}
+                />
                 <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
                     <div className="settings-grid mb-6">
                         <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>

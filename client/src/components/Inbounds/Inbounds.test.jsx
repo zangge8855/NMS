@@ -69,6 +69,7 @@ describe('Inbounds', () => {
         useServer.mockReset();
         useServer.mockReturnValue({
             servers: [{ id: 'server-a', name: 'Node A' }],
+            activeServerId: undefined,
         });
 
         api.get.mockImplementation((url) => {
@@ -190,6 +191,21 @@ describe('Inbounds', () => {
         expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
         expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
         expect(within(mainRow).queryByLabelText(/上移 .* 的序号|下移 .* 的序号/)).not.toBeInTheDocument();
+    });
+
+    it('treats the global server context as all nodes and keeps the node column visible', async () => {
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-a', name: 'Node A' }],
+            activeServerId: 'global',
+        });
+
+        renderWithRouter(<Inbounds />);
+
+        const serverFilter = screen.getByRole('combobox');
+        expect(await screen.findByText('Main Inbound')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: '节点' })).toBeInTheDocument();
+        expect(serverFilter).not.toBeDisabled();
+        expect(serverFilter).toHaveValue('all');
     });
 
     it('allows row expansion even when batch selection is active', async () => {

@@ -18,6 +18,7 @@ import {
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
@@ -25,6 +26,10 @@ export default function ServerManagement() {
     const { activeServerId, panelApi, servers } = useServer();
     const { t } = useI18n();
     const isGlobalView = activeServerId === 'global';
+    const activeServerMeta = useMemo(
+        () => servers.find((item) => item.id === activeServerId) || null,
+        [servers, activeServerId]
+    );
     const confirmAction = useConfirm();
     const [xrayVersions, setXrayVersions] = useState([]);
     const [selectedVersion, setSelectedVersion] = useState('');
@@ -100,6 +105,7 @@ export default function ServerManagement() {
             setSelectedVersion('');
             return;
         }
+        setActionLoading('refreshVersions', true);
         try {
             const probeServerId = targets[0].id;
             const res = await panelRequest(probeServerId, 'get', '/panel/api/server/getXrayVersion');
@@ -109,6 +115,8 @@ export default function ServerManagement() {
         } catch {
             setXrayVersions([]);
             setSelectedVersion('');
+        } finally {
+            setActionLoading('refreshVersions', false);
         }
     };
 
@@ -327,10 +335,12 @@ export default function ServerManagement() {
                     eyebrow={t('pages.serverConsole.eyebrow')}
                 />
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineWrenchScrewdriver /></div>
-                        <div className="empty-state-text">请先选择一台服务器</div>
-                    </div>
+                    <EmptyState
+                        title="请先选择一台服务器"
+                        subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
+                        icon={<HiOutlineWrenchScrewdriver style={{ fontSize: '48px' }} />}
+                        surface
+                    />
                 </div>
             </>
         );
@@ -343,6 +353,30 @@ export default function ServerManagement() {
                 eyebrow={t('pages.serverConsole.eyebrow')}
             />
             <div className="page-content page-enter">
+                <PageToolbar
+                    className="card mb-6 server-console-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">{isGlobalView ? '集群批量控制' : (activeServerMeta?.name || '节点控制台')}</div>
+                            <div className="page-toolbar-subtitle">
+                                {isGlobalView ? '对所有已接入节点执行统一控制动作。' : '执行 Xray、Geo 文件、数据库和节点工具相关操作。'}
+                            </div>
+                        </div>
+                    )}
+                    actions={(
+                        <>
+                            <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
+                                <HiOutlineArrowPath /> 刷新版本
+                            </button>
+                            {!isGlobalView && (
+                                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
+                                    <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
+                                </button>
+                            )}
+                        </>
+                    )}
+                    meta={<span>{isGlobalView ? `当前作用域: ${servers.length} 台节点` : `当前节点: ${activeServerMeta?.name || activeServerId}`}</span>}
+                />
                 {lastRun && (
                     <div className="card mb-6">
                         <SectionHeader

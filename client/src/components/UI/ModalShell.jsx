@@ -4,13 +4,6 @@ import { createPortal } from 'react-dom';
 const BODY_MODAL_COUNT_KEY = 'nmsModalOpenCount';
 const BODY_MODAL_OVERFLOW_KEY = 'nmsModalOverflow';
 const BODY_MODAL_PADDING_KEY = 'nmsModalPaddingRight';
-const BODY_MODAL_POSITION_KEY = 'nmsModalPosition';
-const BODY_MODAL_TOP_KEY = 'nmsModalTop';
-const BODY_MODAL_WIDTH_KEY = 'nmsModalWidth';
-const BODY_MODAL_LEFT_KEY = 'nmsModalLeft';
-const BODY_MODAL_RIGHT_KEY = 'nmsModalRight';
-const BODY_MODAL_TOUCH_ACTION_KEY = 'nmsModalTouchAction';
-const BODY_MODAL_SCROLL_Y_KEY = 'nmsModalScrollY';
 const APP_ROOT_MODAL_INERT_COUNT_KEY = 'nmsModalInertCount';
 const MODAL_EXIT_DURATION_MS = 240;
 const FOCUSABLE_SELECTOR = [

@@ -27,9 +27,13 @@ export default function Tools() {
     const [loading, setLoading] = useState({});
     const [catalogLoading, setCatalogLoading] = useState(false);
     const [tools, setTools] = useState([]);
+    const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
 
     const fetchCatalog = async () => {
-        if (!activeServerId) return;
+        if (!hasTargetServer) {
+            setTools([]);
+            return;
+        }
         setCatalogLoading(true);
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
@@ -45,9 +49,13 @@ export default function Tools() {
     };
 
     useEffect(() => {
-        fetchCatalog();
         setResults({});
-    }, [activeServerId]);
+        if (!hasTargetServer) {
+            setTools([]);
+            return;
+        }
+        fetchCatalog();
+    }, [activeServerId, hasTargetServer]);
 
     const enabledTools = useMemo(
         () => tools.filter((item) => item.available !== false),
@@ -55,7 +63,7 @@ export default function Tools() {
     );
 
     const handleGenerate = async (tool) => {
-        if (!activeServerId) {
+        if (!hasTargetServer) {
             toast.error('请先选择一台服务器');
             return;
         }
@@ -78,15 +86,17 @@ export default function Tools() {
         toast.success('已复制');
     };
 
-    if (!activeServerId) {
+    if (!hasTargetServer) {
         return (
             <>
                 <Header title={t('pages.tools.title')} />
                 <div className="page-content page-enter">
-                    <div className="empty-state">
-                        <div className="empty-state-icon"><HiOutlineWrench /></div>
-                        <div className="empty-state-text">请先选择一台服务器</div>
-                    </div>
+                    <EmptyState
+                        title="请先选择一台服务器"
+                        subtitle="节点工具仅支持单节点执行，请先切换到具体节点。"
+                        icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
+                        surface
+                    />
                 </div>
             </>
         );
@@ -94,12 +104,23 @@ export default function Tools() {
 
     return (
         <>
-            <Header title={t('pages.tools.title')}>
-                <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
-                    <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新
-                </button>
-            </Header>
+            <Header title={t('pages.tools.title')} />
             <div className="page-content page-enter">
+                <PageToolbar
+                    className="card mb-6 tools-toolbar"
+                    main={(
+                        <div className="page-toolbar-copy">
+                            <div className="page-toolbar-title">节点工具集</div>
+                            <div className="page-toolbar-subtitle">执行当前节点暴露的辅助工具接口，并支持直接复制结果。</div>
+                        </div>
+                    )}
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
+                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新
+                        </button>
+                    )}
+                    meta={<span>可执行 {enabledTools.length} / {tools.length}</span>}
+                />
                 {tools.length === 0 && !catalogLoading ? (
                     <EmptyState title="暂无可用节点工具" subtitle="当前节点尚未暴露可执行工具接口。" surface />
                 ) : (
