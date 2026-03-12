@@ -570,7 +570,7 @@ export default function SystemSettings() {
             </Header>
             <div className="page-content page-enter">
                 <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
-                    <div className="grid-auto-280 settings-grid">
+                    <div className="settings-grid mb-6">
                         <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">系统参数</div>
                             <div className="text-sm text-muted">影响任务保留、审计分页和订阅地址等全局行为。</div>
@@ -671,7 +671,7 @@ export default function SystemSettings() {
                             ) : (
                                 <>
                                     <div className="text-xs text-muted mb-3">SMTP 配置来自服务端 `.env`，修改后需要重启后端服务。此处仅展示诊断信息，不返回明文密码。</div>
-                                    <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                                    <div className="settings-mini-grid mb-3">
                                         <div className="card p-3 settings-mini-card">
                                             <div className="text-sm text-muted">配置状态</div>
                                             <div className="mt-2">
@@ -736,7 +736,7 @@ export default function SystemSettings() {
                                 )}
                             />
                             <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。</div>
-                            <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                            <div className="settings-mini-grid mb-3">
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">可备份 Store</div>
                                     <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
@@ -836,7 +836,7 @@ export default function SystemSettings() {
                                 )}
                             />
                             <div className="text-xs text-muted mb-3">后台会定期巡检已配置节点，并通过右上角通知中心推送异常/恢复告警。</div>
-                            <div className="grid gap-3 settings-mini-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                            <div className="settings-mini-grid mb-3">
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">监控状态</div>
                                     <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
@@ -903,10 +903,7 @@ export default function SystemSettings() {
                         <div className="text-sm text-muted">尚未加载数据库状态</div>
                     ) : (
                         <>
-                            <div
-                                className="grid gap-3 mb-4 settings-mini-grid"
-                                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}
-                            >
+                            <div className="settings-mini-grid mb-4">
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">DB 连接</div>
                                     <div className="text-lg font-semibold">
@@ -931,7 +928,7 @@ export default function SystemSettings() {
                                 </div>
                             </div>
 
-                            <div className="grid-auto-280 settings-db-grid">
+                            <div className="settings-grid settings-db-grid">
                                 <div className="card p-3 settings-mini-card settings-db-control-card">
                                     <h4 className="text-base font-semibold mb-2">切换读写模式</h4>
                                     <div className="text-xs text-muted mb-2">运行时切换数据源，无需重启。file=本地JSON，db=PostgreSQL，dual=同时写两者</div>
