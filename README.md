@@ -102,7 +102,7 @@ data/     Default file-backed storage
 - `DATA_DIR`: file-backed storage directory
 - `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
 - `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
-- `SUB_CONVERTER_BASE_URL`: optional subconverter endpoint
+- `SUB_CONVERTER_BASE_URL`: optional external subscription converter base URL
 
 ### Documentation Map
 
@@ -223,7 +223,7 @@ data/     默认文件存储目录
 - `DATA_DIR`: 文件存储目录
 - `DB_ENABLED` / `DB_URL`: PostgreSQL 开关与连接串
 - `SUB_PUBLIC_BASE_URL`: 对外订阅基址
-- `SUB_CONVERTER_BASE_URL`: 可选的订阅转换器地址
+- `SUB_CONVERTER_BASE_URL`: 可选的外部订阅转换器基址
 
 ### 文档索引
 
