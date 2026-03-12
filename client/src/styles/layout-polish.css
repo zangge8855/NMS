@@ -463,8 +463,9 @@
   min-width: 0;
 }
 
-.users-toolbar-main {
-  flex: 0 1 auto;
+.users-toolbar-main,
+.inbounds-toolbar-main {
+  flex: 0 1 520px;
 }
 
 .subscriptions-toolbar-main {

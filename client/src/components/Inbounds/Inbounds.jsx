@@ -111,7 +111,7 @@ function buildClientOnlineKeys(client, protocol) {
 }
 
 export default function Inbounds() {
-    const { servers } = useServer();
+    const { servers, activeServerId } = useServer();
     const { t } = useI18n();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -121,7 +121,7 @@ export default function Inbounds() {
     const [expandedId, setExpandedId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInbound, setEditingInbound] = useState(null);
-    const [filterServerId, setFilterServerId] = useState('all');
+    const [filterServerId, setFilterServerId] = useState(activeServerId || 'all');
     const [inboundOrder, setInboundOrder] = useState({});
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
 
@@ -257,9 +257,17 @@ export default function Inbounds() {
 
     useEffect(() => {
         if (filterServerId !== 'all' && !servers.some(s => s.id === filterServerId)) {
+            setFilterServerId(activeServerId || 'all');
+        }
+    }, [filterServerId, servers, activeServerId]);
+
+    useEffect(() => {
+        if (activeServerId) {
+            setFilterServerId(activeServerId);
+        } else {
             setFilterServerId('all');
         }
-    }, [filterServerId, servers]);
+    }, [activeServerId]);
 
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
@@ -777,6 +785,7 @@ export default function Inbounds() {
                             value={filterServerId}
                             onChange={(e) => setFilterServerId(e.target.value)}
                             style={{ width: 'auto', minWidth: '160px' }}
+                            disabled={!!activeServerId}
                         >
                             <option value="all">全部节点 ({servers.length})</option>
                             {servers.map(s => (
