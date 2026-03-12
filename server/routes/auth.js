@@ -482,10 +482,16 @@ router.post('/users', authMiddleware, adminOnly, (req, res) => {
 // ── Bulk enable/disable users ──
 router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const result = bulkSetUsersEnabled(req.body);
+        const result = await bulkSetUsersEnabled(
+            req.body,
+            String(req.user?.username || 'admin')
+        );
+        const summaryMessage = result.partialFailureCount > 0
+            ? `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常`
+            : `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`;
         return res.json({
             success: true,
-            msg: `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`,
+            msg: summaryMessage,
             obj: result.results,
         });
     } catch (err) {
@@ -549,12 +555,26 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
             req.body,
             String(req.user?.username || 'admin')
         );
+        const syncFailureCount = Number(result.clientSync?.failed || 0) + Number(result.deployment?.failed || 0);
+        const syncMessage = syncFailureCount > 0
+            ? `用户已${result.enabled ? '启用' : '停用'}，但有 ${syncFailureCount} 项节点同步失败`
+            : `用户已${result.enabled ? '启用' : '停用'}`;
         appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
             enabled: result.enabled,
+            syncFailureCount,
         }));
-        return res.json({ success: true, obj: result.updated });
+        return res.json({
+            success: true,
+            msg: syncMessage,
+            obj: {
+                ...result.updated,
+                partialFailure: result.partialFailure,
+                clientSync: result.clientSync,
+                deployment: result.deployment,
+            },
+        });
     } catch (err) {
         const error = toHttpError(err, 400, '更新用户状态失败');
         return res.status(error.status).json({ success: false, msg: error.message });

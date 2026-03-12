@@ -44,6 +44,7 @@ function sanitizePolicy(input = {}) {
     const selectedServerIds = toUniqueStringArray(input.allowedServerIds, (item) => String(item || '').trim());
     const selectedProtocols = toUniqueStringArray(input.allowedProtocols, (item) => String(item || '').trim().toLowerCase())
         .filter((item) => ALLOWED_PROTOCOLS.has(item));
+    const allowedInboundKeys = toUniqueStringArray(input.allowedInboundKeys, (item) => String(item || '').trim());
     const inferredServerMode = selectedServerIds.length > 0 ? 'selected' : 'all';
     const inferredProtocolMode = selectedProtocols.length > 0 ? 'selected' : 'all';
     let serverScopeMode = normalizeScopeMode(input.serverScopeMode, inferredServerMode);
@@ -59,6 +60,7 @@ function sanitizePolicy(input = {}) {
     return {
         allowedServerIds: serverScopeMode === 'selected' ? selectedServerIds : [],
         allowedProtocols: protocolScopeMode === 'selected' ? selectedProtocols : [],
+        allowedInboundKeys,
         serverScopeMode,
         protocolScopeMode,
         expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
@@ -103,6 +105,7 @@ class UserPolicyStore {
                 email: '',
                 allowedServerIds: [],
                 allowedProtocols: [],
+                allowedInboundKeys: [],
                 serverScopeMode: 'all',
                 protocolScopeMode: 'all',
                 expiryTime: 0,

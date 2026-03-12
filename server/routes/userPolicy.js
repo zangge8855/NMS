@@ -28,6 +28,15 @@ function normalizeProtocols(input = []) {
     ));
 }
 
+function normalizeInboundKeys(input = []) {
+    const values = Array.isArray(input) ? input : [];
+    return Array.from(new Set(
+        values
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+}
+
 function normalizeScopeMode(input, fallback = 'all') {
     const normalizedFallback = POLICY_SCOPE_MODES.has(String(fallback || '').trim().toLowerCase())
         ? String(fallback || '').trim().toLowerCase()
@@ -76,6 +85,10 @@ router.put('/:email', (req, res) => {
     }
 
     const allowedProtocols = normalizeProtocols(req.body?.allowedProtocols);
+    const currentPolicy = userPolicyStore.get(email);
+    const allowedInboundKeys = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedInboundKeys')
+        ? normalizeInboundKeys(req.body?.allowedInboundKeys)
+        : (Array.isArray(currentPolicy.allowedInboundKeys) ? currentPolicy.allowedInboundKeys : []);
     let serverScopeMode = normalizeScopeMode(req.body?.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all');
     let protocolScopeMode = normalizeScopeMode(req.body?.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all');
 
@@ -91,6 +104,7 @@ router.put('/:email', (req, res) => {
         {
             allowedServerIds,
             allowedProtocols,
+            allowedInboundKeys,
             serverScopeMode,
             protocolScopeMode,
             expiryTime: normalizeNonNegativeInt(req.body?.expiryTime, 0),
@@ -105,6 +119,7 @@ router.put('/:email', (req, res) => {
         subscriptionEmail: email,
         allowedServerIds,
         allowedProtocols,
+        allowedInboundKeys,
         serverScopeMode,
         protocolScopeMode,
         expiryTime: updated?.expiryTime || 0,

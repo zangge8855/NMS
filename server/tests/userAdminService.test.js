@@ -35,21 +35,28 @@ test('createManagedUser creates a verified enabled user', () => {
     assert.equal(calls[0].enabled, true);
 });
 
-test('bulkSetUsersEnabled aggregates per-user results', () => {
-    const repo = {
-        setEnabled(id) {
-            if (id === 'missing') return null;
-            return { id };
-        },
-    };
-
-    const result = bulkSetUsersEnabled(
+test('bulkSetUsersEnabled aggregates per-user results and delegates sync behavior', async () => {
+    const calls = [];
+    const result = await bulkSetUsersEnabled(
         { userIds: ['ok', 'missing'], enabled: true },
-        { userRepository: repo }
+        'admin',
+        {
+            setManagedUserEnabled: async (id, payload, actor) => {
+                calls.push({ id, payload, actor });
+                if (id === 'missing') {
+                    throw new Error('用户不存在');
+                }
+                return { enabled: payload.enabled };
+            },
+        }
     );
 
     assert.equal(result.successCount, 1);
     assert.equal(result.results[1].msg, '用户不存在');
+    assert.deepEqual(calls, [
+        { id: 'ok', payload: { enabled: true }, actor: 'admin' },
+        { id: 'missing', payload: { enabled: true }, actor: 'admin' },
+    ]);
 });
 
 test('buildUsersCsv renders escaped csv rows', () => {
@@ -95,6 +102,10 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
                     return [{ id: 'srv-1' }];
                 },
             },
+            autoSetManagedClientsEnabled: async (email, enabled) => {
+                events.push(`toggle:${email}:${enabled}`);
+                return { updated: 1 };
+            },
             userPolicyRepository: {
                 get(email) {
                     assert.equal(email, 'sub@example.com');
@@ -112,7 +123,54 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
     );
 
     assert.equal(result.enabled, true);
-    assert.deepEqual(events, ['deploy:sub@example.com', 'token:sub@example.com:admin']);
+    assert.deepEqual(events, ['toggle:sub@example.com:true', 'deploy:sub@example.com', 'token:sub@example.com:admin']);
+});
+
+test('setManagedUserEnabled disables managed clients without removing them or revoking tokens', async () => {
+    const events = [];
+    const result = await setManagedUserEnabled(
+        'u-8',
+        { enabled: false },
+        'admin',
+        {
+            userRepository: {
+                getById() {
+                    return { id: 'u-8', username: 'kate', role: 'user', email: 'kate@example.com', subscriptionEmail: 'sub@example.com' };
+                },
+                setEnabled() {
+                    return { id: 'u-8', enabled: false };
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1' }];
+                },
+            },
+            userPolicyRepository: {
+                get() {
+                    events.push('policy:get');
+                    return { expiryTime: 1 };
+                },
+            },
+            autoSetManagedClientsEnabled: async (email, enabled) => {
+                events.push(`toggle:${email}:${enabled}`);
+                return { updated: 2 };
+            },
+            autoRemoveClients: async () => {
+                events.push('remove:called');
+                return { removed: 1 };
+            },
+            subscriptionTokenRepository: {
+                revokeAllByEmail() {
+                    events.push('revoke:called');
+                    return 1;
+                },
+            },
+        }
+    );
+
+    assert.equal(result.enabled, false);
+    assert.deepEqual(events, ['policy:get', 'toggle:sub@example.com:false']);
 });
 
 test('updateManagedUserExpiry writes policy then deploys clients', async () => {

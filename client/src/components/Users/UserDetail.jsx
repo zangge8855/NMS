@@ -301,7 +301,12 @@ export default function UserDetail() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled: newEnabled });
             if (res.data?.success) {
-                toast.success(`用户已${newEnabled ? '启用' : '停用'}`);
+                const message = res.data?.msg || `用户已${newEnabled ? '启用' : '停用'}`;
+                if (res.data?.obj?.partialFailure) {
+                    toast.error(message);
+                } else {
+                    toast.success(message);
+                }
                 fetchDetail();
             }
         } catch (err) {

@@ -10,6 +10,7 @@ import {
 } from './emailAuthService.js';
 import {
     autoDeployClients,
+    autoSetManagedClientsEnabled,
     autoRemoveClients,
     ensurePersistentSubscriptionToken,
     provisionSubscriptionForUser,
@@ -86,10 +87,10 @@ function createManagedUser(payload = {}, deps = {}) {
     };
 }
 
-function bulkSetUsersEnabled(payload = {}, deps = {}) {
-    const userRepo = deps.userRepository || userRepository;
+async function bulkSetUsersEnabled(payload = {}, actor = 'admin', deps = {}) {
     const userIds = Array.isArray(payload?.userIds) ? payload.userIds : [];
     const enabled = !!payload?.enabled;
+    const setUserEnabled = deps.setManagedUserEnabled || setManagedUserEnabled;
 
     if (userIds.length === 0) {
         throw createHttpError(400, '请提供用户ID列表');
@@ -98,12 +99,15 @@ function bulkSetUsersEnabled(payload = {}, deps = {}) {
     const results = [];
     for (const uid of userIds) {
         try {
-            const updated = userRepo.setEnabled(uid, enabled);
-            if (updated) {
-                results.push({ id: uid, success: true });
-            } else {
-                results.push({ id: uid, success: false, msg: '用户不存在' });
-            }
+            const updated = await setUserEnabled(uid, { enabled }, actor, deps);
+            results.push({
+                id: uid,
+                success: true,
+                enabled: updated.enabled,
+                partialFailure: updated.partialFailure === true,
+                clientSync: updated.clientSync,
+                deployment: updated.deployment,
+            });
         } catch (error) {
             results.push({ id: uid, success: false, msg: error.message });
         }
@@ -113,6 +117,7 @@ function bulkSetUsersEnabled(payload = {}, deps = {}) {
         enabled,
         total: userIds.length,
         successCount: results.filter((item) => item.success).length,
+        partialFailureCount: results.filter((item) => item.partialFailure === true).length,
         results,
     };
 }
@@ -198,8 +203,7 @@ async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {
     const userRepo = deps.userRepository || userRepository;
     const serverRepo = deps.serverRepository || serverRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
-    const tokenRepo = deps.subscriptionTokenRepository || subscriptionTokenRepository;
-    const removeClients = deps.autoRemoveClients || autoRemoveClients;
+    const toggleClients = deps.autoSetManagedClientsEnabled || autoSetManagedClientsEnabled;
     const deployClients = deps.autoDeployClients || autoDeployClients;
     const ensurePersistentToken = deps.ensurePersistentSubscriptionToken || ensurePersistentSubscriptionToken;
     const target = userRepo.getById(id);
@@ -215,25 +219,40 @@ async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {
     const updated = userRepo.setEnabled(id, enabled);
     const subscriptionEmail = resolveUserSubscriptionEmail(target);
     const allServers = serverRepo.list();
+    const policy = subscriptionEmail ? policyRepo.get(subscriptionEmail) : null;
+    let clientSync = { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
+    let deployment = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
 
-    if (!enabled && subscriptionEmail) {
+    if (subscriptionEmail) {
         try {
-            await removeClients(subscriptionEmail, { allServers });
-        } catch {
-            // best-effort
+            clientSync = await toggleClients(subscriptionEmail, enabled, {
+                allServers,
+                policy,
+            });
+        } catch (error) {
+            clientSync = {
+                total: 0,
+                updated: 0,
+                skipped: 0,
+                failed: 1,
+                details: [{ status: 'failed', error: error.message || 'client-toggle-failed' }],
+            };
         }
-        try {
-            tokenRepo.revokeAllByEmail(subscriptionEmail, 'user-disabled');
-        } catch {
-            // best-effort
-        }
-    } else if (enabled && subscriptionEmail) {
-        const policy = policyRepo.get(subscriptionEmail);
+    }
+
+    if (enabled && subscriptionEmail) {
         if (policy) {
             try {
-                await deployClients(subscriptionEmail, policy, { allServers });
-            } catch {
-                // best-effort
+                deployment = await deployClients(subscriptionEmail, policy, { allServers });
+            } catch (error) {
+                deployment = {
+                    total: 0,
+                    created: 0,
+                    updated: 0,
+                    skipped: 0,
+                    failed: 1,
+                    details: [{ status: 'failed', error: error.message || 'client-deploy-failed' }],
+                };
             }
             try {
                 ensurePersistentToken(subscriptionEmail, actor);
@@ -247,6 +266,9 @@ async function setManagedUserEnabled(id, payload = {}, actor = 'admin', deps = {
         target,
         updated,
         enabled,
+        clientSync,
+        deployment,
+        partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
     };
 }
 

@@ -337,7 +337,7 @@ export default function UsersHub() {
         const ok = await confirmAction({
             title: `${action}用户`,
             message: `确定${action}用户 ${user.username} 吗？`,
-            details: enabled ? undefined : '停用后用户将无法登录，3x-ui客户端也会被删除。',
+            details: enabled ? undefined : '停用后用户将无法登录，节点中的订阅客户端会被同步停用，不会删除。',
             confirmText: `确认${action}`,
             tone: enabled ? 'success' : 'danger',
         });
@@ -346,7 +346,12 @@ export default function UsersHub() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled });
             if (res.data?.success) {
-                toast.success(`用户 ${user.username} 已${action}`);
+                const message = res.data?.msg || `用户 ${user.username} 已${action}`;
+                if (res.data?.obj?.partialFailure) {
+                    toast.error(message);
+                } else {
+                    toast.success(message);
+                }
                 await fetchData();
             } else {
                 toast.error(res.data?.msg || `${action}失败`);
@@ -390,7 +395,13 @@ export default function UsersHub() {
                 enabled,
             });
             if (res.data?.success) {
-                toast.success(res.data.msg);
+                const hasPartialFailure = Array.isArray(res.data?.obj)
+                    && res.data.obj.some((item) => item?.partialFailure === true);
+                if (hasPartialFailure) {
+                    toast.error(res.data.msg);
+                } else {
+                    toast.success(res.data.msg);
+                }
                 setSelectedIds(new Set());
                 await fetchData();
             } else {

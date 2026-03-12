@@ -94,6 +94,39 @@ function resolvePolicyEntitlement(policy = {}, options = {}) {
     };
 }
 
+function normalizeScopeMode(value, fallback = 'all') {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return fallback;
+    if (text === 'selected' || text === 'none' || text === 'all') return text;
+    return fallback;
+}
+
+function buildScopedPolicyMeta(policy = {}) {
+    const allowedServerIds = new Set(
+        Array.isArray(policy.allowedServerIds)
+            ? policy.allowedServerIds.map((item) => String(item || '').trim()).filter(Boolean)
+            : []
+    );
+    const allowedProtocols = new Set(
+        Array.isArray(policy.allowedProtocols)
+            ? policy.allowedProtocols.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)
+            : []
+    );
+    const allowedInboundKeys = new Set(
+        Array.isArray(policy.allowedInboundKeys)
+            ? policy.allowedInboundKeys.map((item) => String(item || '').trim()).filter(Boolean)
+            : []
+    );
+
+    return {
+        serverScopeMode: normalizeScopeMode(policy.serverScopeMode, allowedServerIds.size > 0 ? 'selected' : 'all'),
+        protocolScopeMode: normalizeScopeMode(policy.protocolScopeMode, allowedProtocols.size > 0 ? 'selected' : 'all'),
+        allowedServerIds,
+        allowedProtocols,
+        allowedInboundKeys,
+    };
+}
+
 function ensurePersistentSubscriptionToken(email, actor = 'admin', deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const scopeName = buildScopeTokenName('');
@@ -375,6 +408,145 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
     return result;
 }
 
+async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options = {}, deps = {}) {
+    const servers = deps.serverRepository || serverRepository;
+    const listInbounds = deps.listPanelInbounds || listPanelInbounds;
+    const updateClient = deps.postUpdateClient || postUpdateClient;
+
+    const result = { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
+    const email = normalizeEmailInput(subscriptionEmail);
+    if (!email) return result;
+
+    const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
+    const scopedPolicy = buildScopedPolicyMeta(options.policy || {});
+    for (const server of allServers) {
+        let panelContext;
+        try {
+            panelContext = await listInbounds(server.id);
+        } catch (error) {
+            result.failed += 1;
+            result.details.push({
+                serverId: server.id,
+                serverName: server.name,
+                status: 'failed',
+                error: `${error?.code === 'PANEL_INBOUND_LIST_FAILED' ? 'List inbounds failed' : 'Auth failed'}: ${error.message}`,
+            });
+            continue;
+        }
+
+        const client = panelContext.client;
+        const inbounds = panelContext.inbounds;
+        for (const inbound of inbounds) {
+            const protocol = String(inbound.protocol || '').toLowerCase();
+            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+            if (enabled && inbound.enable === false) continue;
+
+            const existingClients = parseInboundClients(inbound);
+            const match = existingClients.find((item) => normalizeEmailInput(item.email) === email);
+            if (!match) continue;
+
+            result.total += 1;
+            if (enabled) {
+                if (scopedPolicy.serverScopeMode === 'none' || scopedPolicy.protocolScopeMode === 'none') {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'blocked-by-policy',
+                    });
+                    continue;
+                }
+                if (scopedPolicy.serverScopeMode === 'selected' && !scopedPolicy.allowedServerIds.has(server.id)) {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'server-not-allowed',
+                    });
+                    continue;
+                }
+                if (scopedPolicy.protocolScopeMode === 'selected' && !scopedPolicy.allowedProtocols.has(protocol)) {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'protocol-not-allowed',
+                    });
+                    continue;
+                }
+                if (scopedPolicy.allowedInboundKeys.size > 0 && !scopedPolicy.allowedInboundKeys.has(`${server.id}:${inbound.id}`)) {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'inbound-not-allowed',
+                    });
+                    continue;
+                }
+            }
+            if ((match.enable !== false) === Boolean(enabled)) {
+                result.skipped += 1;
+                result.details.push({
+                    serverId: server.id,
+                    serverName: server.name,
+                    inboundId: inbound.id,
+                    inboundRemark: inbound.remark || '',
+                    protocol,
+                    status: 'skipped',
+                    reason: enabled ? 'already-enabled' : 'already-disabled',
+                });
+                continue;
+            }
+
+            try {
+                const clientIdentifier = resolveClientIdentifier(match, protocol);
+                await updateClient(client, inbound.id, clientIdentifier, {
+                    ...match,
+                    enable: Boolean(enabled),
+                });
+                result.updated += 1;
+                result.details.push({
+                    serverId: server.id,
+                    serverName: server.name,
+                    inboundId: inbound.id,
+                    inboundRemark: inbound.remark || '',
+                    protocol,
+                    status: enabled ? 'enabled' : 'disabled',
+                });
+            } catch (error) {
+                result.failed += 1;
+                result.details.push({
+                    serverId: server.id,
+                    serverName: server.name,
+                    inboundId: inbound.id,
+                    inboundRemark: inbound.remark || '',
+                    protocol,
+                    status: 'failed',
+                    error: error.message,
+                });
+            }
+        }
+    }
+
+    return result;
+}
+
 async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'admin', deps = {}) {
     const users = deps.userRepository;
     const policies = deps.userPolicyRepository || userPolicyRepository;
@@ -420,6 +592,7 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
         {
             allowedServerIds,
             allowedProtocols,
+            allowedInboundKeys,
             serverScopeMode: payload.serverScopeMode,
             protocolScopeMode: payload.protocolScopeMode,
             expiryTime,
@@ -477,6 +650,7 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
 export {
     autoDeployClients,
     autoRemoveClients,
+    autoSetManagedClientsEnabled,
     createSharedCredentials,
     ensurePersistentSubscriptionToken,
     provisionSubscriptionForUser,
