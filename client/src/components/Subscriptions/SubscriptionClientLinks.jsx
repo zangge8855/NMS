@@ -10,7 +10,7 @@ export default function SubscriptionClientLinks({ bundle }) {
             {quickActions.length > 0 && (
                 <div className="subscription-client-links-section">
                     <div className="text-xs text-muted mb-2">
-                        快捷导入：若设备已安装客户端，可直接点开导入订阅。
+                        快捷导入：只显示当前订阅格式可直接导入的客户端。
                     </div>
                     <div className="subscription-quick-actions">
                         {quickActions.map((item) => (
@@ -43,7 +43,7 @@ export default function SubscriptionClientLinks({ bundle }) {
             {toolSites.length > 0 && (
                 <div className="subscription-client-links-section">
                     <div className="text-xs text-muted mb-2">
-                        常见客户端网址：未安装时可先下载客户端，再使用上方快捷导入或复制订阅地址。
+                        常见客户端网址：未安装时可先下载客户端，再复制订阅地址或使用上方导入。
                     </div>
                     <div className="flex gap-2 flex-wrap">
                         {toolSites.map((item) => (

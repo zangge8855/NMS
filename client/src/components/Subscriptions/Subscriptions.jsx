@@ -4,6 +4,7 @@ import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink, HiOutlineQrCode,
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { copyToClipboard } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
@@ -42,6 +43,7 @@ function renderTokenStatus(status) {
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
+    const confirmAction = useConfirm();
     const { t } = useI18n();
     const [searchParams] = useSearchParams();
     const isAdmin = user?.role === 'admin';
@@ -238,6 +240,17 @@ export default function Subscriptions() {
 
     const handleResetLink = async () => {
         if (!normalizedEmail) return;
+        const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
+            ? `当前节点 (${selectedServerId})`
+            : '当前展示范围';
+        const ok = await confirmAction({
+            title: '重置订阅链接',
+            message: '重置后旧地址会立即失效，需要把新地址重新发给使用者。',
+            details: `目标邮箱: ${normalizedEmail}\n范围: ${scopeLabel}`,
+            confirmText: '确认重置',
+            tone: 'danger',
+        });
+        if (!ok) return;
         setResetLoading(true);
         try {
             const payload = {};
@@ -390,7 +403,7 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                常见客户端专用订阅地址已内置，Clash / Mihomo 共用同一份 YAML 配置。
+                                常用订阅格式只保留通用链接、Clash / Mihomo YAML 和 Raw；有明确导入规则的客户端会在下方显示快捷导入。
                             </div>
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。

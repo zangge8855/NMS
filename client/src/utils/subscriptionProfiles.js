@@ -33,10 +33,10 @@ function buildSurgeImportUrl(sourceUrl, name = 'NMS') {
     return `surge:///install-config?url=${encodeURIComponent(url)}&name=${encodeURIComponent(String(name || 'NMS'))}`;
 }
 
-function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
+function buildClashImportUrl(sourceUrl) {
     const url = normalizeUrl(sourceUrl);
     if (!url) return '';
-    return `sing-box://import-remote-profile?url=${encodeURIComponent(url)}#${encodeURIComponent(String(name || 'NMS'))}`;
+    return `clash://install-config?url=${encodeURIComponent(url)}`;
 }
 
 const TOOL_SITES = [
@@ -60,22 +60,30 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         || normalizeUrl(payload.subscriptionUrlMihomo)
         || appendQuery(mergedUrl, { format: 'clash' });
     const mihomoUrl = clashUrl;
-    const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox) || buildSingboxImportUrl(importSourceUrl);
+    const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
     const importActions = [
         {
             key: 'shadowrocket',
             label: 'Shadowrocket',
             platform: 'iPhone / iPad',
             href: buildShadowrocketImportUrl(v2raynUrl || importSourceUrl),
-            hint: '使用通用 URI 订阅直接导入小火箭',
+            hint: '导入通用订阅链接',
             siteUrl: TOOL_SITES.find((item) => item.key === 'shadowrocket')?.url || '',
+        },
+        {
+            key: 'clash-verge',
+            label: 'Clash Verge Rev',
+            platform: 'Desktop',
+            href: buildClashImportUrl(clashUrl),
+            hint: '导入 Clash / Mihomo YAML 订阅',
+            siteUrl: TOOL_SITES.find((item) => item.key === 'clash-verge')?.url || '',
         },
         {
             key: 'stash',
             label: 'Stash',
             platform: 'iPhone / iPad',
             href: buildStashImportUrl(clashUrl),
-            hint: '使用 Clash / Mihomo YAML 一键导入',
+            hint: '导入 Clash / Mihomo YAML 订阅',
             siteUrl: TOOL_SITES.find((item) => item.key === 'stash')?.url || '',
         },
         {
@@ -83,7 +91,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Surge',
             platform: 'iPhone / iPad / Mac',
             href: buildSurgeImportUrl(clashUrl),
-            hint: '使用兼容配置直接导入 Surge',
+            hint: '导入兼容配置',
             siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
         },
         {
@@ -91,7 +99,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'sing-box',
             platform: 'Desktop / Mobile',
             href: singboxUrl,
-            hint: '使用 sing-box 远程配置一键导入',
+            hint: '导入专用 Remote Profile',
             siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
         },
     ].filter((item) => item.href);
@@ -101,19 +109,19 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             key: 'v2rayn',
             label: '通用链接',
             url: v2raynUrl,
-            hint: '适用于 v2rayN / v2rayNG / Shadowrocket 等常见 URI 订阅客户端',
+            hint: '适用于 v2rayN / v2rayNG / Shadowrocket',
         },
         {
             key: 'clash',
             label: 'Clash / Mihomo',
             url: clashUrl,
-            hint: '通用 YAML 配置，适用于 Clash Verge Rev / Mihomo Party',
+            hint: 'YAML 订阅，适用于 Clash / Mihomo 类客户端',
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
-            hint: 'sing-box 一键导入链接',
+            hint: '专用 Remote Profile',
         },
         {
             key: 'raw',

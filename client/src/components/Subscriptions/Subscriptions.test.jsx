@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import Subscriptions from './Subscriptions.jsx';
@@ -16,6 +17,10 @@ vi.mock('../../api/client.js', () => ({
 
 vi.mock('../../contexts/AuthContext.jsx', () => ({
     useAuth: vi.fn(),
+}));
+
+vi.mock('../../contexts/ConfirmContext.jsx', () => ({
+    useConfirm: vi.fn(),
 }));
 
 vi.mock('../../contexts/ServerContext.jsx', () => ({
@@ -34,14 +39,20 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 describe('Subscriptions', () => {
+    const confirmMock = vi.fn();
+
     beforeEach(() => {
         api.get.mockReset();
         api.post.mockReset();
         useAuth.mockReset();
+        useConfirm.mockReset();
         useServer.mockReset();
+        confirmMock.mockReset();
         useServer.mockReturnValue({
             servers: [{ id: 'server-a', name: 'Node A' }],
         });
+        useConfirm.mockReturnValue(confirmMock);
+        confirmMock.mockResolvedValue(true);
     });
 
     it('auto-loads the current user subscription without exposing admin controls', async () => {
@@ -122,7 +133,6 @@ describe('Subscriptions', () => {
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
                             subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
-                            subscriptionUrlSingbox: 'sing-box://import-remote-profile?url=https://sub.example.com/base?format=raw',
                         },
                     },
                 });
@@ -135,13 +145,12 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect((await screen.findAllByRole('link', { name: '快捷导入' })).length).toBeGreaterThan(0);
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Clash Verge Rev').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'sing-box' })).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
-
-        await user.click(screen.getByRole('button', { name: 'sing-box' }));
-        expect(await screen.findByDisplayValue('sing-box://import-remote-profile?url=https://sub.example.com/base?format=raw')).toBeInTheDocument();
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
@@ -257,7 +266,50 @@ describe('Subscriptions', () => {
         await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
 
         await waitFor(() => {
+            expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
+                title: '重置订阅链接',
+                confirmText: '确认重置',
+                tone: 'danger',
+            }));
             expect(api.post).toHaveBeenCalledWith('/subscriptions/user%40example.com/reset-link', {});
         });
+    });
+
+    it('does not reset the link when confirmation is canceled', async () => {
+        const user = userEvent.setup();
+        confirmMock.mockResolvedValueOnce(false);
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
+
+        await waitFor(() => {
+            expect(confirmMock).toHaveBeenCalledTimes(1);
+        });
+        expect(api.post).not.toHaveBeenCalled();
     });
 });
