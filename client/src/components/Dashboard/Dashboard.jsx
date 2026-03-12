@@ -634,7 +634,6 @@ export default function Dashboard() {
                     eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
                 >
-                    <WsStatusDot status={wsStatus} />
                     <button
                         className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={toggleAutoRefresh}
@@ -776,7 +775,6 @@ export default function Dashboard() {
                     : t('pages.dashboardNode.subtitle')}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
             >
-                <WsStatusDot status={wsStatus} />
                 <button
                     className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={toggleAutoRefresh}
