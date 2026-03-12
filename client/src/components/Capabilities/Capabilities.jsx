@@ -87,25 +87,16 @@ export default function Capabilities() {
 
     return (
         <>
-            <Header title={t('pages.capabilities.title')} />
+            <Header 
+                title="3x-ui 对齐矩阵"
+                subtitle="展示当前节点的协议、工具接口与官方能力在 NMS 中的接入状态"
+                showSubtitle={true}
+            >
+                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                </button>
+            </Header>
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="card mb-8 capabilities-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">3x-ui 对齐矩阵</div>
-                            <div className="page-toolbar-subtitle">
-                                展示当前节点的协议、工具接口与官方能力在 NMS 中的接入状态
-                            </div>
-                        </div>
-                    )}
-                    actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
-                        </button>
-                    )}
-                />
-
                 {!data ? (
                     <EmptyState
                         title={loading ? '加载中...' : '暂无能力数据'}

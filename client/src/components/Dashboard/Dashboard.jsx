@@ -633,31 +633,20 @@ export default function Dashboard() {
                     subtitle={t('pages.dashboardGlobal.subtitle')}
                     eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
-                />
+                >
+                    <WsStatusDot status={wsStatus} />
+                    <button
+                        className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={toggleAutoRefresh}
+                        title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
+                    >
+                        <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                        <span className="hidden sm:inline-block ml-1">
+                            {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                        </span>
+                    </button>
+                </Header>
                 <div className="page-content page-enter">
-                    <PageToolbar
-                        className="dashboard-toolbar"
-                        compact
-                        main={(
-                            <>
-                                <div className="page-toolbar-copy dashboard-toolbar-copy">
-                                    <div className="page-toolbar-title">{t('pages.dashboardGlobal.toolbarTitle')}</div>
-                                </div>
-                                <WsStatusDot status={wsStatus} />
-                            </>
-                        )}
-                        actions={(
-                            <button
-                                className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                                onClick={toggleAutoRefresh}
-                                title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                            >
-                                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                                {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                            </button>
-                        )}
-                    />
-
                     <div className="stats-grid mb-8">
                         {globalCards.map((card, idx) => (
                             <StatCard key={idx} card={card} loading={loading} />
@@ -786,31 +775,20 @@ export default function Dashboard() {
                     ? t('pages.dashboardNode.subtitleWithName', { name: activeServer.name })
                     : t('pages.dashboardNode.subtitle')}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
-            />
+            >
+                <WsStatusDot status={wsStatus} />
+                <button
+                    className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={toggleAutoRefresh}
+                    title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
+                >
+                    <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                    <span className="hidden sm:inline-block ml-1">
+                        {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                    </span>
+                </button>
+            </Header>
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="dashboard-toolbar"
-                    compact
-                    main={(
-                        <>
-                            <div className="page-toolbar-copy dashboard-toolbar-copy">
-                                <div className="page-toolbar-title">{activeServer?.name || t('pages.dashboardNode.currentNodeFallback')}</div>
-                            </div>
-                            <WsStatusDot status={wsStatus} />
-                        </>
-                    )}
-                    actions={(
-                        <button
-                            className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={toggleAutoRefresh}
-                            title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                        >
-                            <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                            {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                        </button>
-                    )}
-                />
-
                 <div className="stats-grid">
                     {statCards.map((card, idx) => (
                         <StatCard key={idx} card={card} loading={loading} />

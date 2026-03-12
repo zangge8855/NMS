@@ -339,25 +339,14 @@ export default function ServerManagement() {
     return (
         <>
             <Header
-                title={isGlobalView ? t('pages.serverConsole.globalTitle') : t('pages.serverConsole.title')}
-                subtitle={isGlobalView ? t('pages.serverConsole.globalSubtitle') : t('pages.serverConsole.subtitle')}
+                title={isGlobalView ? '集群维护模式' : '节点维护模式'}
+                subtitle={isGlobalView
+                    ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
+                    : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
+                showSubtitle={true}
                 eyebrow={t('pages.serverConsole.eyebrow')}
             />
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="card mb-6 server-console-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">{isGlobalView ? '集群维护模式' : '节点维护模式'}</div>
-                            <div className="page-toolbar-subtitle">
-                                {isGlobalView
-                                    ? `当前为集群总览模式，将对 ${servers.length} 个节点执行统一维护动作。单节点专属能力会直接禁用。`
-                                    : '当前为单节点模式，可执行 3x-ui 节点工具、数据库与配置查看等专属动作。'}
-                            </div>
-                        </div>
-                    )}
-                />
-
                 {lastRun && (
                     <div className="card mb-6">
                         <SectionHeader

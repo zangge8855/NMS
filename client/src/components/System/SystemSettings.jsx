@@ -561,23 +561,16 @@ export default function SystemSettings() {
         <>
             <Header
                 title={t('pages.settings.title')}
-                subtitle={t('pages.settings.subtitle')}
+                subtitle={settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : t('pages.settings.subtitle')}
+                showSubtitle={true}
                 eyebrow={t('pages.settings.eyebrow')}
-            />
+            >
+                <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
+                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                    {saving ? <span className="spinner" /> : '保存设置'}
+                </button>
+            </Header>
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="settings-toolbar mb-6"
-                    main={<div className="page-toolbar-copy settings-toolbar-copy">{settings?.updatedAt ? `最近更新: ${new Date(settings.updatedAt).toLocaleString('zh-CN')}` : '系统参数'}</div>}
-                    actions={(
-                        <>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
-                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                {saving ? <span className="spinner" /> : '保存设置'}
-                            </button>
-                        </>
-                    )}
-                />
-
                 <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
                     <div className="grid-auto-280 settings-grid">
                         <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>

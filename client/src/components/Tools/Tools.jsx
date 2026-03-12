@@ -94,25 +94,16 @@ export default function Tools() {
 
     return (
         <>
-            <Header title={t('pages.tools.title')} />
+            <Header 
+                title="3x-ui 节点工具"
+                subtitle="根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书"
+                showSubtitle={true}
+            >
+                <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
+                    <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新
+                </button>
+            </Header>
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="card mb-8 tools-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">3x-ui 节点工具</div>
-                            <div className="page-toolbar-subtitle">
-                                根据当前节点实时能力生成 UUID、X25519、后量子密钥与 ECH 证书
-                            </div>
-                        </div>
-                    )}
-                    actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
-                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> 刷新工具列表
-                        </button>
-                    )}
-                />
-
                 {tools.length === 0 && !catalogLoading ? (
                     <EmptyState title="暂无可用节点工具" subtitle="当前节点尚未暴露可执行工具接口。" surface />
                 ) : (
