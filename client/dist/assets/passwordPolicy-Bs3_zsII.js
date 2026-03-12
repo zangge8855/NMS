@@ -1,0 +1,1 @@
+const r="密码至少 8 位，且至少包含大写字母、小写字母、数字、特殊字符中的 3 类",c=/[a-z]/,E=/[A-Z]/,l=/\d/,a=/[^A-Za-z0-9]/;function i(n=""){const t=String(n||""),e=t.length>=8,o=[c.test(t),E.test(t),l.test(t),a.test(t)].filter(Boolean).length,s=o>=3;return{valid:e&&s,lengthOk:e,typeOk:s,typeCount:o}}function u(n=""){return String(n||"")?i(n).valid?"":r:"密码不能为空"}export{r as P,u as g};
