@@ -256,7 +256,7 @@ export default function Inbounds() {
     }, [servers]);
 
     useEffect(() => {
-        if (filterServerId !== 'all' && !servers.some(s => s.id === filterServerId)) {
+        if (filterServerId !== 'all' && servers.length > 0 && !servers.some(s => s.id === filterServerId)) {
             setFilterServerId(activeServerId || 'all');
         }
     }, [filterServerId, servers, activeServerId]);
