@@ -334,7 +334,7 @@ a:hover {
 .app-layout {
   display: flex;
   min-height: 100vh;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 .main-content {

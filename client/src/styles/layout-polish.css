@@ -916,3 +916,8 @@ p, .empty-state-body, td {
   min-width: 0 !important;
   display: block !important;
 }
+
+.page-content {
+  width: 100% !important;
+  max-width: 100% !important;
+}
