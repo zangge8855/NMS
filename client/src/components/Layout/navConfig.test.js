@@ -11,6 +11,7 @@ describe('navConfig', () => {
         });
 
         expect(sections.map((section) => section.title)).toEqual(['监控', '管理', '系统']);
+        expect(sections[1].items.map((item) => item.path)).toEqual(['/inbounds', '/clients', '/subscriptions']);
         expect(sections[2].items.map((item) => item.path)).toEqual(['/settings', '/server', '/audit', '/servers']);
     });
 

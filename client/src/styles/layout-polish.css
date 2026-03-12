@@ -338,7 +338,7 @@
 
 .user-profile-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(128px, 14vw, 156px);
   align-items: start;
   gap: 20px;
 }
@@ -367,15 +367,18 @@
 }
 
 .user-profile-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-items: stretch;
   gap: 8px;
-  flex-wrap: wrap;
+  width: clamp(128px, 14vw, 156px);
   min-width: 0;
 }
 
 .user-profile-actions .btn {
+  width: 100%;
+  justify-content: center;
   white-space: nowrap;
 }
 

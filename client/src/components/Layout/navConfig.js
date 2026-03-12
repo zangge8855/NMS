@@ -29,7 +29,7 @@ export const navSections = [
         items: [
             { path: '/inbounds', icon: HiOutlineSignal, label: { 'zh-CN': '入站管理', 'en-US': 'Inbounds' }, supportsGlobal: true, keywords: ['协议', '端口', '流量', 'inbound'] },
             { path: '/clients', icon: HiOutlineUsers, label: { 'zh-CN': '用户管理', 'en-US': 'Users' }, supportsGlobal: true, keywords: ['账号', '用户', '客户端', 'users', 'clients'] },
-            { path: '/subscriptions', icon: HiOutlineLink, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, userOnly: true, keywords: ['订阅', 'subscription'] },
+            { path: '/subscriptions', icon: HiOutlineLink, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, keywords: ['订阅', 'subscription', '账户', '密码', 'profile'] },
             { path: '/capabilities', icon: HiOutlineCpuChip, label: { 'zh-CN': '3x-ui 能力', 'en-US': '3x-ui Capabilities' }, supportsGlobal: false, keywords: ['能力', '探测', 'capabilities'] },
             { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: { 'zh-CN': '节点工具', 'en-US': 'Node Tools' }, supportsGlobal: false, keywords: ['工具', 'tools'] },
         ],
