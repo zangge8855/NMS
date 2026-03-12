@@ -74,4 +74,13 @@ describe('InboundModal', () => {
         expect(await screen.findByRole('heading', { name: '批量添加入站' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '保存配置' })).toBeInTheDocument();
     }, 15000);
+
+    it('defaults new inbound protocol to vless', async () => {
+        renderWithRouter(<InboundModalHarness />);
+
+        fireEvent.click(screen.getByRole('button', { name: '添加入站' }));
+
+        const selects = await screen.findAllByRole('combobox');
+        expect(selects[0]).toHaveValue('vless');
+    }, 15000);
 });

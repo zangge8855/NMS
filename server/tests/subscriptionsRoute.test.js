@@ -4,12 +4,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.DATA_DIR = path.join(__dirname, '.test_data');
+process.env.DATA_DIR = path.join('/tmp', 'nms-subscriptions-route-test');
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-subscription-routes';
 
 const {
-    buildMihomoConfigFromLinks,
+    buildMihomoConfigFromSubscriptionUrl,
+    buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     normalizeSubscriptionFormat,
     selectNativeSubIds,
@@ -42,6 +43,7 @@ describe('subscription response formats', () => {
     it('normalizes clash and mihomo formats to clash output', () => {
         assert.equal(normalizeSubscriptionFormat('clash'), 'clash');
         assert.equal(normalizeSubscriptionFormat('mihomo'), 'clash');
+        assert.equal(normalizeSubscriptionFormat('singbox'), 'singbox');
         assert.equal(normalizeSubscriptionFormat('raw'), 'raw');
         assert.equal(normalizeSubscriptionFormat('encoded'), 'encoded');
         assert.equal(normalizeSubscriptionFormat('something-else'), 'encoded');
@@ -60,11 +62,30 @@ describe('subscription url generation', () => {
         assert.equal(urls.subscriptionUrlRaw, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw');
         assert.equal(urls.subscriptionUrlClash, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=clash');
         assert.equal(urls.subscriptionUrlMihomo, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=clash');
+        assert.equal(urls.subscriptionUrlSingbox, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=singbox');
     });
 });
 
 describe('mihomo config generation', () => {
-    it('builds a rule-based mihomo config from supported subscription links', () => {
+    it('builds a minimal provider-based mihomo config from a subscription url', () => {
+        const yaml = buildMihomoConfigFromSubscriptionUrl('https://sub.example.com/base?format=raw');
+
+        assert.match(yaml, /proxy-providers:/);
+        assert.match(yaml, /url: "https:\/\/sub\.example\.com\/base\?format=raw"/);
+        assert.match(yaml, /name: PROXY/);
+        assert.match(yaml, /name: AUTO/);
+        assert.match(yaml, /DOMAIN-SUFFIX,cn,DIRECT/);
+        assert.match(yaml, /GEOIP,CN,DIRECT/);
+        assert.match(yaml, /MATCH,PROXY/);
+    });
+
+    it('returns an empty payload when no clash-compatible links exist', () => {
+        assert.equal(buildMihomoConfigFromSubscriptionUrl(''), '');
+    });
+});
+
+describe('sing-box config generation', () => {
+    it('builds a minimal sing-box remote profile from supported links', () => {
         const vmessPayload = Buffer.from(JSON.stringify({
             v: '2',
             ps: 'NODE-A',
@@ -74,52 +95,37 @@ describe('mihomo config generation', () => {
             aid: '0',
             scy: 'auto',
             net: 'ws',
-            type: 'none',
             host: 'cdn.example.com',
             path: '/ws',
             tls: 'tls',
             sni: 'sni.example.com',
-            alpn: 'h2,http/1.1',
         })).toString('base64');
         const vlessLink = 'vless://22222222-2222-2222-2222-222222222222@reality.example.com:443?type=ws&security=reality&encryption=none&path=%2Fvless&host=cdn.example.com&sni=target.example.com&pbk=public-key-123&fp=chrome&sid=abcd#NODE-B';
-        const ssLink = `ss://${Buffer.from('aes-128-gcm:test-pass').toString('base64')}@ss.example.com:8443#NODE-C`;
 
-        const yaml = buildMihomoConfigFromLinks([
+        const profile = buildSingboxConfigFromLinks([
             `vmess://${vmessPayload}`,
             vlessLink,
-            ssLink,
             'hy2://unsupported.example.com',
         ]);
+        const parsed = JSON.parse(profile);
 
-        assert.match(yaml, /type: vmess/);
-        assert.match(yaml, /type: vless/);
-        assert.match(yaml, /type: ss/);
-        assert.match(yaml, /name: NODE-A/);
-        assert.match(yaml, /name: NODE-B/);
-        assert.match(yaml, /name: NODE-C/);
-        assert.match(yaml, /reality-opts:/);
-        assert.match(yaml, /public-key: public-key-123/);
-        assert.match(yaml, /ws-opts:/);
-        assert.match(yaml, /geodata-mode: true/);
-        assert.match(yaml, /geox-url:/);
-        assert.match(yaml, /geosite-all\.dat/);
-        assert.match(yaml, /geoip-all\.dat/);
-        assert.match(yaml, /GEOSITE,ai,AI/);
-        assert.match(yaml, /GEOIP,cn,DOMESTIC,no-resolve/);
-        assert.match(yaml, /fake-ip-filter:/);
-        assert.match(yaml, /global-client-fingerprint: chrome/);
-        assert.match(yaml, /store-selected: true/);
-        assert.match(yaml, /name: AI/);
-        assert.match(yaml, /name: MEDIA/);
-        assert.match(yaml, /name: GAMES/);
-        assert.match(yaml, /name: GLOBAL/);
-        assert.match(yaml, /name: TELEGRAM/);
-        assert.match(yaml, /name: DOMESTIC/);
-        assert.match(yaml, /MATCH,GLOBAL/);
-        assert.doesNotMatch(yaml, /unsupported\.example\.com/);
+        assert.match(profile, /"type": "vmess"/);
+        assert.match(profile, /"type": "vless"/);
+        assert.match(profile, /"tag": "NODE-A"/);
+        assert.match(profile, /"tag": "NODE-B"/);
+        assert.match(profile, /"type": "tun"/);
+        assert.match(profile, /"type": "selector"/);
+        assert.match(profile, /"domain_suffix": \[/);
+        assert.match(profile, /"url": "https:\/\/cdn\.jsdelivr\.net\/gh\/Loyalsoldier\/geoip@release\/srs\/cn\.srs"/);
+        assert.doesNotMatch(profile, /unsupported\.example\.com/);
+        assert.equal(parsed.inbounds[0].type, 'tun');
+        assert.equal(parsed.outbounds[0].type, 'vmess');
+        assert.equal(parsed.outbounds[1].type, 'vless');
+        assert.equal(parsed.route.final, 'proxy');
+        assert.equal(parsed.route.rule_set[0].tag, 'geoip-cn');
     });
 
-    it('returns an empty payload when no clash-compatible links exist', () => {
-        assert.equal(buildMihomoConfigFromLinks(['hy2://unsupported.example.com']), '');
+    it('returns an empty payload when no sing-box-compatible links exist', () => {
+        assert.equal(buildSingboxConfigFromLinks(['hy2://unsupported.example.com']), '');
     });
 });

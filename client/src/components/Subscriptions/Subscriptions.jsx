@@ -243,9 +243,12 @@ export default function Subscriptions() {
         const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
             ? `当前节点 (${selectedServerId})`
             : '当前展示范围';
+        const resetMessage = isAdmin
+            ? '重置后旧地址会立即失效，需要把新地址重新发给使用者。'
+            : '重置后旧地址会立即失效，你需要在自己的客户端里更新为新地址。';
         const ok = await confirmAction({
             title: '重置订阅链接',
-            message: '重置后旧地址会立即失效，需要把新地址重新发给使用者。',
+            message: resetMessage,
             details: `目标邮箱: ${normalizedEmail}\n范围: ${scopeLabel}`,
             confirmText: '确认重置',
             tone: 'danger',
@@ -403,7 +406,7 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                常用订阅格式只保留通用链接、Clash / Mihomo YAML 和 Raw；有明确导入规则的客户端会在下方显示快捷导入。
+                                能直接吃节点订阅的客户端优先使用通用链接；需要完整配置文件的客户端只保留 Clash / Mihomo YAML 和 sing-box Remote Profile。
                             </div>
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。

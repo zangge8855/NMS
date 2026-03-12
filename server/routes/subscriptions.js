@@ -948,44 +948,13 @@ function buildSubscriptionPayload(links) {
     return { raw, encoded };
 }
 
-const DUSTINWIN_GEODATA_BASE_URL = 'https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-geodata';
-
-const MIHOMO_GEOX_URL = {
-    geosite: `${DUSTINWIN_GEODATA_BASE_URL}/geosite-all.dat`,
-    geoip: `${DUSTINWIN_GEODATA_BASE_URL}/geoip-all.dat`,
-    mmdb: `${DUSTINWIN_GEODATA_BASE_URL}/Country-all.mmdb`,
-};
-
-const MIHOMO_RULES = [
-    'DOMAIN,clash.razord.top,DIRECT',
-    'DOMAIN,yacd.haishan.me,DIRECT',
-    'DOMAIN,metacubex.github.io,DIRECT',
-    'GEOSITE,private,DIRECT',
-    'GEOSITE,apple-cn,DOMESTIC',
-    'GEOSITE,microsoft-cn,DOMESTIC',
-    'GEOSITE,google-cn,DOMESTIC',
-    'GEOSITE,games-cn,DOMESTIC',
-    'GEOSITE,telegram,TELEGRAM',
-    'GEOSITE,ai,AI',
-    'GEOSITE,media,MEDIA',
-    'GEOSITE,games,GAMES',
-    'GEOSITE,google,GLOBAL',
-    'GEOSITE,gfw,GLOBAL',
-    'GEOSITE,tld-proxy,GLOBAL',
-    'GEOSITE,proxy,GLOBAL',
-    'GEOSITE,cn,DOMESTIC',
-    'GEOIP,privateip,DIRECT,no-resolve',
-    'GEOIP,telegram,TELEGRAM,no-resolve',
-    'GEOIP,media,MEDIA,no-resolve',
-    'GEOIP,games,GAMES,no-resolve',
-    'GEOIP,cn,DOMESTIC,no-resolve',
-    'MATCH,GLOBAL',
-];
+const SINGBOX_GEOIP_CN_RULESET_URL = 'https://cdn.jsdelivr.net/gh/Loyalsoldier/geoip@release/srs/cn.srs';
 
 function normalizeSubscriptionFormat(format) {
     const text = String(format || '').trim().toLowerCase();
     if (text === 'raw') return 'raw';
     if (text === 'clash' || text === 'mihomo') return 'clash';
+    if (text === 'singbox' || text === 'sing-box') return 'singbox';
     return 'encoded';
 }
 
@@ -1411,115 +1380,477 @@ function parseMihomoProxyFromLink(link, usedNames, index) {
     return null;
 }
 
-function buildMihomoConfigObject(links = []) {
-    const linkList = Array.isArray(links) ? links : [];
-    const usedNames = new Set();
-    const proxies = [];
-
-    linkList.forEach((link, index) => {
-        const proxy = parseMihomoProxyFromLink(link, usedNames, index + 1);
-        if (proxy) {
-            proxies.push(proxy);
-        }
-    });
-
-    if (proxies.length === 0) return null;
-    const proxyNames = proxies.map((item) => item.name);
-    const selectableProxyTargets = ['AUTO', ...proxyNames, 'DIRECT'];
-    const flexibleProxyTargets = ['PROXY', 'AUTO', ...proxyNames, 'DIRECT'];
-
+function buildMihomoConfigObject(subscriptionUrl = '') {
+    const url = String(subscriptionUrl || '').trim();
+    if (!url) return null;
     return {
+        'mixed-port': 7890,
+        'allow-lan': false,
         mode: 'rule',
-        'log-level': 'info',
         ipv6: true,
-        'geodata-mode': true,
-        'geox-url': MIHOMO_GEOX_URL,
-        'global-client-fingerprint': 'chrome',
+        'log-level': 'info',
         'unified-delay': true,
-        'tcp-concurrent': true,
-        'find-process-mode': 'strict',
         profile: {
             'store-selected': true,
             'store-fake-ip': true,
         },
-        dns: {
-            enable: true,
-            ipv6: true,
-            'respect-rules': true,
-            'enhanced-mode': 'fake-ip',
-            nameserver: [
-                'https://dns.alidns.com/dns-query',
-                'https://doh.pub/dns-query',
-                'https://1.1.1.1/dns-query',
-            ],
-            'proxy-server-nameserver': [
-                'https://1.1.1.1/dns-query',
-                'https://dns.google/dns-query',
-            ],
-            'direct-nameserver': [
-                'https://dns.alidns.com/dns-query',
-                'https://doh.pub/dns-query',
-            ],
-            'fake-ip-filter': [
-                'geosite:private',
-                'geosite:cn',
-                'geosite:fakeip-filter',
-            ],
+        'proxy-providers': {
+            nms: {
+                type: 'http',
+                url,
+                path: './providers/nms.yaml',
+                interval: 3600,
+                'health-check': {
+                    enable: true,
+                    url: 'https://www.gstatic.com/generate_204',
+                    interval: 300,
+                },
+            },
         },
-        proxies,
         'proxy-groups': [
             {
                 name: 'PROXY',
                 type: 'select',
-                proxies: selectableProxyTargets,
+                use: ['nms'],
+                proxies: ['AUTO', 'DIRECT'],
             },
             {
                 name: 'AUTO',
                 type: 'url-test',
+                use: ['nms'],
                 url: 'https://www.gstatic.com/generate_204',
                 interval: 300,
                 tolerance: 50,
-                proxies: proxyNames,
-            },
-            {
-                name: 'AI',
-                type: 'select',
-                proxies: flexibleProxyTargets,
-            },
-            {
-                name: 'MEDIA',
-                type: 'select',
-                proxies: flexibleProxyTargets,
-            },
-            {
-                name: 'GAMES',
-                type: 'select',
-                proxies: flexibleProxyTargets,
-            },
-            {
-                name: 'GLOBAL',
-                type: 'select',
-                proxies: flexibleProxyTargets,
-            },
-            {
-                name: 'TELEGRAM',
-                type: 'select',
-                proxies: flexibleProxyTargets,
-            },
-            {
-                name: 'DOMESTIC',
-                type: 'select',
-                proxies: ['DIRECT', 'PROXY', 'AUTO', ...proxyNames],
             },
         ],
-        rules: MIHOMO_RULES,
+        rules: [
+            'RULE-SET,LAN,DIRECT',
+            'DOMAIN-SUFFIX,cn,DIRECT',
+            'GEOIP,CN,DIRECT',
+            'MATCH,PROXY',
+        ],
     };
 }
 
-function buildMihomoConfigFromLinks(links = []) {
-    const config = buildMihomoConfigObject(links);
+function buildMihomoConfigFromSubscriptionUrl(subscriptionUrl = '') {
+    const config = buildMihomoConfigObject(subscriptionUrl);
     if (!config) return '';
     return `${toYaml(config)}\n`;
+}
+
+function applyTransportToSingboxOutbound(outbound, network, options = {}) {
+    const normalized = String(network || 'tcp').trim().toLowerCase() || 'tcp';
+    if (['kcp', 'quic', 'xhttp'].includes(normalized)) {
+        return false;
+    }
+    if (normalized === 'tcp') return true;
+    if (normalized === 'http' || normalized === 'h2') {
+        const transport = {
+            type: 'http',
+            path: decodeMaybeEncoded(options.path) || '/',
+        };
+        const hosts = splitCommaValues(decodeMaybeEncoded(options.host));
+        if (hosts.length > 0) {
+            transport.host = hosts;
+        }
+        outbound.transport = transport;
+        return true;
+    }
+    if (normalized === 'ws') {
+        const transport = {
+            type: 'ws',
+            path: decodeMaybeEncoded(options.path) || '/',
+        };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            transport.headers = { Host: host };
+        }
+        outbound.transport = transport;
+        return true;
+    }
+    if (normalized === 'grpc') {
+        const serviceName = decodeMaybeEncoded(options.serviceName) || decodeMaybeEncoded(options.path);
+        if (!serviceName) return false;
+        outbound.transport = {
+            type: 'grpc',
+            service_name: serviceName,
+        };
+        return true;
+    }
+    if (normalized === 'httpupgrade') {
+        const transport = {
+            type: 'httpupgrade',
+            path: decodeMaybeEncoded(options.path) || '/',
+        };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            transport.host = host;
+            transport.headers = { Host: host };
+        }
+        outbound.transport = transport;
+        return true;
+    }
+    return false;
+}
+
+function applySharedSingboxTls(outbound, options = {}) {
+    const security = String(options.security || '').trim().toLowerCase();
+    const serverName = firstNonEmpty(options.servername, options.sni);
+    const fingerprint = firstNonEmpty(options.clientFingerprint, options.fingerprint);
+    const alpn = splitCommaValues(options.alpn);
+    const publicKey = firstNonEmpty(options.publicKey);
+    const shortId = firstNonEmpty(options.shortId);
+    const skipCertVerify = normalizeBoolean(options.allowInsecure, false) || options.skipCertVerify === true;
+
+    if (security === 'tls' || security === 'reality' || options.forceTls === true) {
+        outbound.tls = {
+            enabled: true,
+            insecure: skipCertVerify,
+        };
+        if (serverName) outbound.tls.server_name = serverName;
+        if (alpn.length > 0) outbound.tls.alpn = alpn;
+        if (fingerprint) {
+            outbound.tls.utls = {
+                enabled: true,
+                fingerprint,
+            };
+        }
+    }
+
+    if (security === 'reality' || publicKey) {
+        if (!publicKey) return false;
+        outbound.tls = outbound.tls || { enabled: true };
+        outbound.tls.reality = {
+            enabled: true,
+            public_key: publicKey,
+        };
+        if (shortId) outbound.tls.reality.short_id = shortId;
+    }
+    return true;
+}
+
+function parseSingboxVmessOutbound(link, usedNames, index) {
+    const encoded = String(link || '').slice('vmess://'.length).trim();
+    if (!encoded) return null;
+
+    let payload;
+    try {
+        payload = JSON.parse(decodeBase64Text(encoded));
+    } catch {
+        return null;
+    }
+
+    const server = firstNonEmpty(payload.add, payload.server);
+    const serverPort = Number(payload.port);
+    const uuid = firstNonEmpty(payload.id, payload.uuid);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid) return null;
+
+    const outbound = {
+        type: 'vmess',
+        tag: makeUniqueName(payload.ps || extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        uuid,
+        alter_id: Number(payload.aid || 0) || 0,
+        security: firstNonEmpty(payload.scy, payload.cipher, 'auto'),
+    };
+
+    if (!applyTransportToSingboxOutbound(outbound, payload.net || 'tcp', {
+        path: payload.path,
+        host: payload.host,
+        serviceName: payload.path,
+    })) {
+        return null;
+    }
+
+    if (!applySharedSingboxTls(outbound, {
+        security: payload.tls === 'tls' ? 'tls' : (payload.pbk ? 'reality' : ''),
+        servername: payload.sni,
+        alpn: payload.alpn,
+        publicKey: payload.pbk,
+        shortId: payload.sid,
+        clientFingerprint: payload.fp,
+    })) {
+        return null;
+    }
+
+    return outbound;
+}
+
+function parseSingboxVlessOutbound(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+    const server = parsed.hostname;
+    const serverPort = Number(parsed.port);
+    const uuid = decodeMaybeEncoded(parsed.username);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid) return null;
+
+    const query = parsed.searchParams;
+    const outbound = {
+        type: 'vless',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        uuid,
+    };
+
+    const flow = firstNonEmpty(query.get('flow'));
+    if (flow) outbound.flow = flow;
+
+    if (!applyTransportToSingboxOutbound(outbound, query.get('type') || 'tcp', {
+        path: query.get('path'),
+        host: query.get('host'),
+        serviceName: query.get('serviceName'),
+    })) {
+        return null;
+    }
+
+    if (!applySharedSingboxTls(outbound, {
+        security: query.get('security'),
+        servername: query.get('sni'),
+        alpn: query.get('alpn'),
+        publicKey: query.get('pbk'),
+        shortId: query.get('sid'),
+        clientFingerprint: query.get('fp'),
+        allowInsecure: query.get('allowInsecure'),
+    })) {
+        return null;
+    }
+    return outbound;
+}
+
+function parseSingboxTrojanOutbound(link, usedNames, index) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+    const server = parsed.hostname;
+    const serverPort = Number(parsed.port);
+    const password = decodeMaybeEncoded(parsed.username);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !password) return null;
+
+    const query = parsed.searchParams;
+    const outbound = {
+        type: 'trojan',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        password,
+    };
+
+    if (!applyTransportToSingboxOutbound(outbound, query.get('type') || 'tcp', {
+        path: query.get('path'),
+        host: query.get('host'),
+        serviceName: query.get('serviceName'),
+    })) {
+        return null;
+    }
+
+    if (!applySharedSingboxTls(outbound, {
+        security: query.get('security') || 'tls',
+        sni: query.get('sni'),
+        alpn: query.get('alpn'),
+        publicKey: query.get('pbk'),
+        shortId: query.get('sid'),
+        clientFingerprint: query.get('fp'),
+        allowInsecure: query.get('allowInsecure'),
+        forceTls: true,
+    })) {
+        return null;
+    }
+    return outbound;
+}
+
+function parseSingboxShadowsocksOutbound(link, usedNames, index) {
+    const withoutScheme = String(link || '').slice('ss://'.length);
+    if (!withoutScheme) return null;
+    const [targetPart] = withoutScheme.split('#');
+    const [mainPart] = String(targetPart || '').split('?');
+    if (!mainPart) return null;
+
+    let userInfo = '';
+    let serverInfo = '';
+    if (mainPart.includes('@')) {
+        const splitIndex = mainPart.lastIndexOf('@');
+        userInfo = mainPart.slice(0, splitIndex);
+        serverInfo = mainPart.slice(splitIndex + 1);
+    } else {
+        try {
+            const decoded = decodeBase64Text(mainPart);
+            const splitIndex = decoded.lastIndexOf('@');
+            if (splitIndex < 0) return null;
+            userInfo = decoded.slice(0, splitIndex);
+            serverInfo = decoded.slice(splitIndex + 1);
+        } catch {
+            return null;
+        }
+    }
+
+    const endpointIndex = serverInfo.lastIndexOf(':');
+    if (endpointIndex < 0) return null;
+    const server = serverInfo.slice(0, endpointIndex);
+    const serverPort = Number(serverInfo.slice(endpointIndex + 1));
+    const { method, password } = parseShadowsocksUserInfo(userInfo);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !method || !password) return null;
+
+    return {
+        type: 'shadowsocks',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        method,
+        password,
+    };
+}
+
+function parseSingboxOutboundFromLink(link, usedNames, index) {
+    const normalized = String(link || '').trim();
+    if (!normalized) return null;
+    if (normalized.startsWith('vmess://')) return parseSingboxVmessOutbound(normalized, usedNames, index);
+    if (normalized.startsWith('vless://')) return parseSingboxVlessOutbound(normalized, usedNames, index);
+    if (normalized.startsWith('trojan://')) return parseSingboxTrojanOutbound(normalized, usedNames, index);
+    if (normalized.startsWith('ss://')) return parseSingboxShadowsocksOutbound(normalized, usedNames, index);
+    return null;
+}
+
+function buildSingboxConfigObject(links = []) {
+    const usedNames = new Set();
+    const proxies = [];
+    (Array.isArray(links) ? links : []).forEach((link, index) => {
+        const outbound = parseSingboxOutboundFromLink(link, usedNames, index + 1);
+        if (outbound) proxies.push(outbound);
+    });
+    if (proxies.length === 0) return null;
+    const proxyTags = proxies.map((item) => item.tag);
+    return {
+        log: {
+            level: 'info',
+        },
+        dns: {
+            servers: [
+                {
+                    type: 'local',
+                    tag: 'dns-direct',
+                },
+                {
+                    type: 'https',
+                    tag: 'dns-remote',
+                    server: '1.1.1.1',
+                    path: '/dns-query',
+                    tls: {
+                        enabled: true,
+                        server_name: '1.1.1.1',
+                    },
+                },
+            ],
+            rules: [
+                {
+                    domain_suffix: ['.cn'],
+                    action: 'route',
+                    server: 'dns-direct',
+                },
+                {
+                    rule_set: ['geoip-cn'],
+                    action: 'route',
+                    server: 'dns-direct',
+                },
+                {
+                    action: 'route',
+                    server: 'dns-remote',
+                },
+            ],
+            final: 'dns-remote',
+            strategy: 'prefer_ipv4',
+        },
+        inbounds: [
+            {
+                type: 'tun',
+                tag: 'tun-in',
+                address: ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
+                auto_route: true,
+                strict_route: true,
+            },
+        ],
+        outbounds: [
+            ...proxies,
+            {
+                type: 'urltest',
+                tag: 'auto',
+                outbounds: proxyTags,
+                url: 'https://www.gstatic.com/generate_204',
+                interval: '10m',
+                tolerance: 50,
+            },
+            {
+                type: 'selector',
+                tag: 'proxy',
+                outbounds: ['auto', ...proxyTags, 'direct'],
+            },
+            {
+                type: 'direct',
+                tag: 'direct',
+            },
+        ],
+        route: {
+            rule_set: [
+                {
+                    type: 'remote',
+                    tag: 'geoip-cn',
+                    format: 'binary',
+                    url: SINGBOX_GEOIP_CN_RULESET_URL,
+                    update_interval: '7d',
+                },
+            ],
+            rules: [
+                {
+                    action: 'sniff',
+                    timeout: '1s',
+                },
+                {
+                    protocol: 'dns',
+                    action: 'hijack-dns',
+                },
+                {
+                    ip_is_private: true,
+                    action: 'route',
+                    outbound: 'direct',
+                },
+                {
+                    domain_suffix: ['.cn'],
+                    action: 'route',
+                    outbound: 'direct',
+                },
+                {
+                    rule_set: ['geoip-cn'],
+                    action: 'route',
+                    outbound: 'direct',
+                },
+            ],
+            final: 'proxy',
+            auto_detect_interface: true,
+        },
+        experimental: {
+            cache_file: {
+                enabled: true,
+            },
+        },
+    };
+}
+
+function buildSingboxConfigFromLinks(links = []) {
+    const config = buildSingboxConfigObject(links);
+    if (!config) return '';
+    return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+function hasSingboxCompatibleLinks(links = []) {
+    return !!buildSingboxConfigObject(links);
 }
 
 function getForwardedProtocol(req) {
@@ -1589,6 +1920,7 @@ function buildLegacyPublicBase(req, email) {
     if (!base) return '';
     return `${base}/api/subscriptions/public/${encodeURIComponent(email)}/${sig}`;
 }
+
 function buildSubscriptionUrls(publicBase, mode, serverId) {
     const base = String(publicBase || '').trim();
     if (!base) {
@@ -1634,7 +1966,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
     const subscriptionUrlV2rayn = subscriptionUrl;
     const subscriptionUrlClash = appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = subscriptionUrlClash;
-    const subscriptionUrlSingbox = '';
+    const subscriptionUrlSingbox = appendQuery(subscriptionUrl, { format: 'singbox' });
 
     return {
         subscriptionUrl,
@@ -1649,6 +1981,12 @@ function buildSubscriptionUrls(publicBase, mode, serverId) {
         subscriptionUrlSingbox,
         subscriptionConverterConfigured: false,
     };
+}
+
+function buildRequestScopedSubscriptionUrls(req, mode, serverId) {
+    const base = resolvePublicBase(req);
+    if (!base) return buildSubscriptionUrls('', mode, serverId);
+    return buildSubscriptionUrls(`${base}${req.baseUrl}${req.path}`, mode, serverId);
 }
 
 function buildScopeTokenName(serverId = '') {
@@ -1809,12 +2147,20 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Token-Id', tokenId);
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromLinks(links);
+        const yaml = buildMihomoConfigFromSubscriptionUrl(buildRequestScopedSubscriptionUrls(req, mode, serverId).subscriptionUrlRaw);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
         res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
         return res.send(yaml);
+    }
+    if (format === 'singbox') {
+        const profile = buildSingboxConfigFromLinks(links);
+        if (!profile) {
+            return res.status(410).send('no sing-box-compatible links found');
+        }
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.send(profile);
     }
     if (format === 'raw') return res.send(raw);
     return res.send(encoded);
@@ -1893,12 +2239,20 @@ router.get('/public/:email/:sig', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Legacy', '1');
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromLinks(links);
+        const yaml = buildMihomoConfigFromSubscriptionUrl(buildRequestScopedSubscriptionUrls(req, mode, serverId).subscriptionUrlRaw);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
         res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
         return res.send(yaml);
+    }
+    if (format === 'singbox') {
+        const profile = buildSingboxConfigFromLinks(links);
+        if (!profile) {
+            return res.status(410).send('no sing-box-compatible links found');
+        }
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.send(profile);
     }
     if (format === 'raw') return res.send(raw);
     return res.send(encoded);
@@ -2228,7 +2582,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
         subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
-        subscriptionUrlSingbox = builtUrls.subscriptionUrlSingbox;
+        subscriptionUrlSingbox = hasSingboxCompatibleLinks(links) ? builtUrls.subscriptionUrlSingbox : '';
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
     }
     const legacySubscriptionUrl = '';
@@ -2287,7 +2641,8 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
 
 export default router;
 export {
-    buildMihomoConfigFromLinks,
+    buildMihomoConfigFromSubscriptionUrl,
+    buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     normalizeSubscriptionFormat,
     selectNativeSubIds,

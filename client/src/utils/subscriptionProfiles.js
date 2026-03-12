@@ -27,16 +27,16 @@ function buildStashImportUrl(sourceUrl, name = 'NMS') {
     return `stash://install-config?url=${encodeURIComponent(url)}&name=${encodeURIComponent(String(name || 'NMS'))}`;
 }
 
-function buildSurgeImportUrl(sourceUrl, name = 'NMS') {
-    const url = normalizeUrl(sourceUrl);
-    if (!url) return '';
-    return `surge:///install-config?url=${encodeURIComponent(url)}&name=${encodeURIComponent(String(name || 'NMS'))}`;
-}
-
 function buildClashImportUrl(sourceUrl) {
     const url = normalizeUrl(sourceUrl);
     if (!url) return '';
     return `clash://install-config?url=${encodeURIComponent(url)}`;
+}
+
+function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `sing-box://import-remote-profile?url=${encodeURIComponent(url)}#${encodeURIComponent(String(name || 'NMS'))}`;
 }
 
 const TOOL_SITES = [
@@ -61,6 +61,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         || appendQuery(mergedUrl, { format: 'clash' });
     const mihomoUrl = clashUrl;
     const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
+    const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
     const importActions = [
         {
             key: 'shadowrocket',
@@ -87,18 +88,10 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             siteUrl: TOOL_SITES.find((item) => item.key === 'stash')?.url || '',
         },
         {
-            key: 'surge',
-            label: 'Surge',
-            platform: 'iPhone / iPad / Mac',
-            href: buildSurgeImportUrl(clashUrl),
-            hint: '导入兼容配置',
-            siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
-        },
-        {
             key: 'singbox',
             label: 'sing-box',
             platform: 'Desktop / Mobile',
-            href: singboxUrl,
+            href: singboxImportUrl,
             hint: '导入专用 Remote Profile',
             siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
         },
@@ -121,7 +114,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
-            hint: '专用 Remote Profile',
+            hint: 'Remote Profile 配置地址',
         },
         {
             key: 'raw',
@@ -141,6 +134,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         clashUrl,
         mihomoUrl,
         singboxUrl,
+        singboxImportUrl,
         importActions,
         toolSites: TOOL_SITES,
         profiles,

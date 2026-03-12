@@ -133,6 +133,7 @@ describe('Subscriptions', () => {
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
                             subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
+                            subscriptionUrlSingbox: 'https://sub.example.com/base?format=singbox',
                         },
                     },
                 });
@@ -147,10 +148,13 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Clash Verge Rev').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
-        expect(screen.queryByRole('button', { name: 'sing-box' })).not.toBeInTheDocument();
+        expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'sing-box' }));
+        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=singbox')).toBeInTheDocument();
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
@@ -268,6 +272,7 @@ describe('Subscriptions', () => {
         await waitFor(() => {
             expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
                 title: '重置订阅链接',
+                message: '重置后旧地址会立即失效，你需要在自己的客户端里更新为新地址。',
                 confirmText: '确认重置',
                 tone: 'danger',
             }));

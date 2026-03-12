@@ -7,8 +7,8 @@ import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 
 const PROTOCOL_SCHEMA_FALLBACK = [
-    { key: 'vmess', label: 'VMess', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
     { key: 'vless', label: 'VLESS', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
+    { key: 'vmess', label: 'VMess', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
     { key: 'trojan', label: 'Trojan', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
     { key: 'shadowsocks', label: 'Shadowsocks', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
     { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: ['tcp'], securities: ['none'] } },
@@ -526,13 +526,14 @@ function fromLocalDateTimeInput(input) {
 
 export default function InboundModal({ isOpen, onClose, editingInbound = null, onSuccess, servers = [], onBatchResult }) {
     const { panelApi } = useServer();
+    const defaultProtocol = 'vless';
     const [loading, setLoading] = useState(false);
     const [isAdvanced, setIsAdvanced] = useState(false);
     const [schemaProtocols, setSchemaProtocols] = useState(PROTOCOL_SCHEMA_FALLBACK);
 
     // Form State
     const [remark, setRemark] = useState('');
-    const [protocol, setProtocol] = useState('vmess');
+    const [protocol, setProtocol] = useState(defaultProtocol);
     const [port, setPort] = useState('');
     const [listen, setListen] = useState('');
     const [inboundEnabled, setInboundEnabled] = useState(true);
@@ -545,7 +546,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     const [selectedServerIds, setSelectedServerIds] = useState([]);
 
     // Raw JSON State (always the source of truth for submission)
-    const [settings, setSettings] = useState(JSON.stringify(createDefaultSettings('vmess'), null, 2));
+    const [settings, setSettings] = useState(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
     const [streamSettings, setStreamSettings] = useState(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
     const [sniffing, setSniffing] = useState(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
 
@@ -789,7 +790,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         } else {
             // Reset
             setRemark('');
-            setProtocol('vmess');
+            setProtocol(defaultProtocol);
             setPort(Math.floor(Math.random() * 20000) + 10000);
             setListen('');
             setInboundEnabled(true);
@@ -799,7 +800,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             setExpiryMode('never');
             setExpiryDateTime('');
             setExpiryAfterDays('');
-            setSettings(JSON.stringify(createDefaultSettings('vmess'), null, 2));
+            setSettings(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
             setStreamSettings(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
             setSniffing(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
             setSimpleStream({
@@ -845,7 +846,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             });
             if (servers.length > 0) setSelectedServerIds(servers.map(s => s.id));
         }
-    }, [editingInbound, isOpen, servers]);
+    }, [defaultProtocol, editingInbound, isOpen, servers]);
 
     useEffect(() => {
         if (!isOpen) return;
