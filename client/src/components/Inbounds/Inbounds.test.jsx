@@ -254,6 +254,106 @@ describe('Inbounds', () => {
         });
     });
 
+    it('sorts global inbounds by node name when toggling the node header', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+                { id: 'server-b', name: 'Node B' },
+            ],
+            activeServerId: undefined,
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 1,
+                            remark: 'Alpha Inbound',
+                            protocol: 'vless',
+                            listen: '0.0.0.0',
+                            port: 443,
+                            enable: true,
+                            up: 0,
+                            down: 0,
+                            settings: JSON.stringify({ clients: [] }),
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-b/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 9,
+                            remark: 'Beta Inbound',
+                            protocol: 'vmess',
+                            listen: '0.0.0.0',
+                            port: 8443,
+                            enable: true,
+                            up: 0,
+                            down: 0,
+                            settings: JSON.stringify({ clients: [] }),
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines' || url === '/panel/server-b/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            if (url === '/system/batch-risk-token') {
+                return Promise.resolve({
+                    data: {
+                        obj: { required: false },
+                    },
+                });
+            }
+            if (url === '/batch/clients') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            summary: { success: 1, total: 1, failed: 0 },
+                            results: [],
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        const { container } = renderWithRouter(<Inbounds />);
+
+        await screen.findByText('Alpha Inbound');
+        await screen.findByText('Beta Inbound');
+
+        const beforeRows = container.querySelectorAll('tbody > tr.inbounds-row');
+        expect(within(beforeRows[0]).getByText(/Node A/)).toBeInTheDocument();
+        expect(within(beforeRows[1]).getByText(/Node B/)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '按节点名称降序排列' }));
+
+        await waitFor(() => {
+            const afterRows = container.querySelectorAll('tbody > tr.inbounds-row');
+            expect(within(afterRows[0]).getByText(/Node B/)).toBeInTheDocument();
+            expect(within(afterRows[1]).getByText(/Node A/)).toBeInTheDocument();
+        });
+    });
+
     it('supports bulk deleting clients inside an expanded inbound panel', async () => {
         const user = userEvent.setup();
         renderWithRouter(<Inbounds />);

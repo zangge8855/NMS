@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -126,6 +126,7 @@ export default function Inbounds() {
     const [filterServerId, setFilterServerId] = useState(resolvedActiveFilterServerId);
     const [inboundOrder, setInboundOrder] = useState({});
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
+    const [serverSortDirection, setServerSortDirection] = useState('asc');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -144,6 +145,16 @@ export default function Inbounds() {
     const [overrideKeySet, setOverrideKeySet] = useState(new Set());
     const [clientActionKey, setClientActionKey] = useState('');
     const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
+    const orderedServerOptions = useMemo(() => (
+        [...servers].sort((left, right) => (
+            String(left?.name || '').localeCompare(String(right?.name || ''))
+            || String(left?.id || '').localeCompare(String(right?.id || ''))
+        ))
+    ), [servers]);
+
+    const sortVisibleInbounds = (items, orderMap) => sortInboundsByOrder(items, orderMap, {
+        serverDirection: serverSortDirection,
+    });
 
     const fetchAllInbounds = async () => {
         if (servers.length === 0) {
@@ -229,7 +240,7 @@ export default function Inbounds() {
             }
         }));
 
-        const sortedItems = sortInboundsByOrder(allResults, orderMap);
+        const sortedItems = sortVisibleInbounds(allResults, orderMap);
         const nextOrderMap = { ...orderMap };
         let seededOrder = false;
 
@@ -249,7 +260,7 @@ export default function Inbounds() {
         if (seededOrder) {
             setInboundOrder(nextOrderMap);
         }
-        setInbounds(sortInboundsByOrder(allResults, nextOrderMap));
+        setInbounds(sortVisibleInbounds(allResults, nextOrderMap));
         setLoading(false);
     };
 
@@ -266,6 +277,12 @@ export default function Inbounds() {
     useEffect(() => {
         setFilterServerId(resolvedActiveFilterServerId);
     }, [resolvedActiveFilterServerId]);
+
+    useEffect(() => {
+        setInbounds((prev) => sortInboundsByOrder(prev, inboundOrder, {
+            serverDirection: serverSortDirection,
+        }));
+    }, [serverSortDirection, inboundOrder]);
 
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
@@ -460,7 +477,7 @@ export default function Inbounds() {
                 [serverId]: savedIds,
             };
             setInboundOrder(nextOrder);
-            setInbounds((prev) => sortInboundsByOrder(prev, nextOrder));
+            setInbounds((prev) => sortVisibleInbounds(prev, nextOrder));
             toast.success('入站顺序已保存');
         } catch (err) {
             toast.error(err.response?.data?.msg || err.message || '保存排序失败');
@@ -786,7 +803,7 @@ export default function Inbounds() {
                             disabled={isServerFilterLocked}
                         >
                             <option value="all">全部节点 ({servers.length})</option>
-                            {servers.map(s => (
+                            {orderedServerOptions.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
@@ -823,7 +840,7 @@ export default function Inbounds() {
 
                 {savingOrderServerId && (
                     <div className="text-xs text-muted mb-3 inbounds-saving-note">
-                        正在保存节点排序: {servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}
+                        正在保存入站顺序: {servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}
                     </div>
                 )}
 
@@ -841,7 +858,21 @@ export default function Inbounds() {
                                 </th>
                                 <th className="inbounds-expand-col" aria-hidden="true" />
                                 <th>序号</th>
-                                {filterServerId === 'all' && <th>节点</th>}
+                                {filterServerId === 'all' && (
+                                    <th>
+                                        <button
+                                            type="button"
+                                            className="table-sort-button inbounds-server-sort-button"
+                                            onClick={() => setServerSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                            aria-label={`按节点名称${serverSortDirection === 'asc' ? '降序' : '升序'}排列`}
+                                        >
+                                            <span>节点</span>
+                                            <span className="table-sort-button-icon" aria-hidden="true">
+                                                {serverSortDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                            </span>
+                                        </button>
+                                    </th>
+                                )}
                                 <th>备注</th>
                                 <th>协议</th>
                                 <th>监听:端口</th>

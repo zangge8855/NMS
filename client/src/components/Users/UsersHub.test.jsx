@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
@@ -91,13 +91,6 @@ describe('UsersHub ordering', () => {
                     },
                 });
             }
-            if (url === '/system/users/order') {
-                return Promise.resolve({
-                    data: {
-                        obj: ['user-a', 'user-b'],
-                    },
-                });
-            }
             if (url === '/panel/server-a/panel/api/inbounds/list') {
                 return Promise.resolve({
                     data: {
@@ -119,32 +112,24 @@ describe('UsersHub ordering', () => {
             throw new Error(`Unexpected POST ${url}`);
         });
 
-        api.put.mockResolvedValue({
-            data: {
-                obj: {
-                    userIds: ['user-b', 'user-a'],
-                },
-            },
-        });
+        api.put.mockResolvedValue({ data: { success: true } });
     });
 
-    it('persists a new user order from the numeric sequence input', async () => {
+    it('shows auto-increment sequence numbers instead of an editable order input', async () => {
         renderWithRouter(<UsersHub />);
 
         const aliceCell = await screen.findByText('alice');
         const aliceRow = aliceCell.closest('tr');
         if (!aliceRow) throw new Error('Missing Alice row');
 
-        const orderInput = within(aliceRow).getByRole('spinbutton', { name: /设置 alice 的排序序号/ });
-        await act(async () => {
-            fireEvent.change(orderInput, { target: { value: '2' } });
-            fireEvent.blur(orderInput);
-        });
+        expect(within(aliceRow).queryByRole('spinbutton')).not.toBeInTheDocument();
+        expect(within(aliceRow).getByText('1')).toBeInTheDocument();
 
-        await waitFor(() => {
-            expect(api.put).toHaveBeenCalledWith('/system/users/order', {
-                userIds: ['user-b', 'user-a'],
-            });
-        });
+        const bobCell = await screen.findByText('bob');
+        const bobRow = bobCell.closest('tr');
+        if (!bobRow) throw new Error('Missing Bob row');
+
+        expect(within(bobRow).getByText('2')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalledWith('/system/users/order', expect.anything());
     });
 });

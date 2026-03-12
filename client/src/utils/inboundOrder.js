@@ -2,6 +2,10 @@ function normalizeId(value) {
     return String(value || '').trim();
 }
 
+function normalizeServerDirection(value) {
+    return String(value || '').trim().toLowerCase() === 'desc' ? 'desc' : 'asc';
+}
+
 function compareInboundFallback(left, right) {
     const portDiff = Number(left?.port || 0) - Number(right?.port || 0);
     if (portDiff !== 0) return portDiff;
@@ -15,10 +19,12 @@ function compareInboundFallback(left, right) {
     return normalizeId(left?.id).localeCompare(normalizeId(right?.id));
 }
 
-function compareServerGroup(left, right) {
+function compareServerGroup(left, right, direction = 'asc') {
     const nameDiff = String(left?.serverName || '').localeCompare(String(right?.serverName || ''));
-    if (nameDiff !== 0) return nameDiff;
-    return normalizeId(left?.serverId).localeCompare(normalizeId(right?.serverId));
+    const baseResult = nameDiff !== 0
+        ? nameDiff
+        : normalizeId(left?.serverId).localeCompare(normalizeId(right?.serverId));
+    return normalizeServerDirection(direction) === 'desc' ? baseResult * -1 : baseResult;
 }
 
 export function normalizeInboundOrderMap(input = {}) {
@@ -42,8 +48,9 @@ export function normalizeInboundOrderMap(input = {}) {
     return output;
 }
 
-export function sortInboundsByOrder(inbounds = [], orderMap = {}) {
+export function sortInboundsByOrder(inbounds = [], orderMap = {}, options = {}) {
     const normalizedOrderMap = normalizeInboundOrderMap(orderMap);
+    const serverDirection = normalizeServerDirection(options?.serverDirection);
     const serverIndexMap = new Map(
         Object.entries(normalizedOrderMap).map(([serverId, inboundIds]) => [
             serverId,
@@ -56,7 +63,7 @@ export function sortInboundsByOrder(inbounds = [], orderMap = {}) {
         const rightServerId = normalizeId(right?.serverId);
 
         if (leftServerId !== rightServerId) {
-            return compareServerGroup(left, right);
+            return compareServerGroup(left, right, serverDirection);
         }
 
         const orderIndex = serverIndexMap.get(leftServerId) || new Map();

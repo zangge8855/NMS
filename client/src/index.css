@@ -6251,6 +6251,12 @@ body::before {
   padding-right: 10px;
 }
 
+.users-sequence-number {
+  display: inline-flex;
+  min-width: 2ch;
+  justify-content: flex-end;
+}
+
 .inbounds-sequence-btn {
   width: 28px;
   height: 28px;
@@ -6481,6 +6487,30 @@ body::before {
 .users-order-input {
   width: 76px;
   min-width: 76px;
+}
+
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table-sort-button:hover {
+  color: var(--text-primary);
+}
+
+.table-sort-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
 }
 
 .users-toolbar,

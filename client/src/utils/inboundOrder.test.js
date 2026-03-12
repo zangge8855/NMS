@@ -32,6 +32,24 @@ describe('inbound order helpers', () => {
         ]);
     });
 
+    it('supports descending server group ordering while keeping per-server order intact', () => {
+        const inbounds = [
+            { id: '2', serverId: 'server-a', serverName: 'A', port: 2002, remark: 'B' },
+            { id: '1', serverId: 'server-a', serverName: 'A', port: 2001, remark: 'A' },
+            { id: '9', serverId: 'server-b', serverName: 'B', port: 9001, remark: 'Z' },
+        ];
+
+        expect(sortInboundsByOrder(inbounds, {
+            'server-a': ['2', '1'],
+        }, {
+            serverDirection: 'desc',
+        }).map((item) => `${item.serverId}:${item.id}`)).toEqual([
+            'server-b:9',
+            'server-a:2',
+            'server-a:1',
+        ]);
+    });
+
     it('reorders inbounds only within the same server group', () => {
         const result = reorderInboundsWithinServer([
             { uiKey: 'a-1', serverId: 'server-a', id: '1' },
