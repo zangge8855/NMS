@@ -139,6 +139,7 @@ export default function SystemSettings() {
         : emailStatus?.lastVerification?.success === false
             ? '连接测试失败'
             : '未测试';
+    const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -665,11 +666,36 @@ export default function SystemSettings() {
                                 <input
                                     className="form-input"
                                     placeholder="https://converter.example.com"
-                                    value={draft.subscription.converterBaseUrl}
+                                    value={converterBaseUrl}
                                     onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
                                 />
                                 <div className="text-xs text-muted mt-1">
                                     配置后，Clash / Mihomo / Sing-box / Surge 专用订阅链接将自动包装到该转换器，不再使用 NMS 内置专用配置生成。
+                                </div>
+                                <div className="flex gap-2 flex-wrap mt-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => patchField('subscription', 'converterBaseUrl', '')}
+                                        disabled={!converterBaseUrl}
+                                    >
+                                        清空
+                                    </button>
+                                    <a
+                                        href={converterBaseUrl || undefined}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
+                                        aria-disabled={!converterBaseUrl}
+                                        onClick={(event) => {
+                                            if (!converterBaseUrl) event.preventDefault();
+                                        }}
+                                    >
+                                        打开链接
+                                    </a>
+                                </div>
+                                <div className="text-xs text-muted mt-2">
+                                    修改后点击页面顶部“保存设置”生效，订阅中心里的 Clash / Mihomo / sing-box / Surge 快捷方式会自动切换到新地址。
                                 </div>
                             </div>
                             <div className="text-xs text-muted">

@@ -40,4 +40,18 @@ describe('subscription profile bundle', () => {
         expect(bundle.surgeUrl).toBe('https://sub.example.com/surge.conf');
         expect(bundle.singboxImportUrl).toContain(encodeURIComponent('https://sub.example.com/singbox.json'));
     });
+
+    it('detects when client-specific links are wrapped by an external converter', () => {
+        const bundle = buildSubscriptionProfileBundle({
+            subscriptionUrl: 'https://nms.example.com/api/subscriptions/public/t/abc/def',
+            subscriptionUrlRaw: 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
+            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
+            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
+            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
+        });
+
+        expect(bundle.externalConverterConfigured).toBe(true);
+        expect(bundle.externalConverterBaseUrl).toBe('https://converter.example.com');
+        expect(bundle.externalConverterHost).toBe('converter.example.com');
+    });
 });

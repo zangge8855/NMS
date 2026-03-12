@@ -449,6 +449,27 @@ export default function Subscriptions() {
                             <div className="text-xs text-muted mb-2">
                                 v2rayN / v2rayNG / Shadowrocket 优先使用通用节点订阅；Clash / Mihomo / Stash 共用同一份 YAML；sing-box 和 Surge 使用各自专用配置。
                             </div>
+                            {result.bundle?.externalConverterConfigured && (
+                                <div className="text-xs text-muted mb-2">
+                                    当前专用客户端订阅已切换到外部转换器：
+                                    {' '}
+                                    <a
+                                        href={result.bundle.externalConverterBaseUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        {result.bundle.externalConverterHost || result.bundle.externalConverterBaseUrl}
+                                    </a>
+                                    {isAdmin && (
+                                        <>
+                                            {' '}
+                                            ·
+                                            {' '}
+                                            <Link to="/settings">去系统设置修改</Link>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                             <div className="text-xs text-muted mb-3">
                                 如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
                             </div>

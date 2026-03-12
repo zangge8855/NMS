@@ -15,6 +15,41 @@ function normalizeUrl(value) {
     return text || '';
 }
 
+function hasConfigQueryParam(url) {
+    const text = normalizeUrl(url);
+    if (!text) return false;
+    try {
+        const parsed = new URL(text);
+        return parsed.searchParams.has('config');
+    } catch {
+        return false;
+    }
+}
+
+function extractConverterBaseUrl(url) {
+    const text = normalizeUrl(url);
+    if (!text) return '';
+    try {
+        const parsed = new URL(text);
+        parsed.search = '';
+        parsed.hash = '';
+        parsed.pathname = parsed.pathname.replace(/\/(?:clash|singbox|surge)\/?$/i, '') || '/';
+        return parsed.toString().replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+}
+
+function extractUrlHost(url) {
+    const text = normalizeUrl(url);
+    if (!text) return '';
+    try {
+        return new URL(text).host || '';
+    } catch {
+        return '';
+    }
+}
+
 function buildShadowrocketImportUrl(sourceUrl) {
     const url = normalizeUrl(sourceUrl);
     if (!url) return '';
@@ -68,6 +103,10 @@ export function buildSubscriptionProfileBundle(payload = {}) {
     const mihomoUrl = clashUrl;
     const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
     const surgeUrl = normalizeUrl(payload.subscriptionUrlSurge);
+    const wrappedProfileUrls = [clashUrl, singboxUrl, surgeUrl].filter(hasConfigQueryParam);
+    const externalConverterBaseUrl = extractConverterBaseUrl(wrappedProfileUrls[0] || '');
+    const externalConverterHost = extractUrlHost(externalConverterBaseUrl);
+    const externalConverterConfigured = wrappedProfileUrls.length > 0 && !!externalConverterBaseUrl;
     const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
     const importActions = [
         {
@@ -157,6 +196,9 @@ export function buildSubscriptionProfileBundle(payload = {}) {
         singboxUrl,
         surgeUrl,
         singboxImportUrl,
+        externalConverterConfigured,
+        externalConverterBaseUrl,
+        externalConverterHost,
         importActions,
         toolSites: TOOL_SITES,
         profiles,

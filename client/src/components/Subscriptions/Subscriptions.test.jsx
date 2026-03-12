@@ -134,9 +134,9 @@ describe('Subscriptions', () => {
                             total: 2,
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
-                            subscriptionUrlClash: 'https://sub.example.com/base?format=clash',
-                            subscriptionUrlSingbox: 'https://sub.example.com/base?format=singbox',
-                            subscriptionUrlSurge: 'https://sub.example.com/base?format=surge',
+                            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
                         },
                     },
                 });
@@ -153,15 +153,16 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Surge').length).toBeGreaterThan(0);
         expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);
+        expect(await screen.findByText('converter.example.com')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
-        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=clash')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Surge' }));
-        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=surge')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
-        expect(await screen.findByDisplayValue('https://sub.example.com/base?format=singbox')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
