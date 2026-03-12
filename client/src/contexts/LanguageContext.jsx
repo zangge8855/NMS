@@ -30,6 +30,11 @@ export function LanguageProvider({ children }) {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.title = `NMS · ${getLocaleMessage(locale, 'shell.brandSubtitle')}`;
+  }, [locale]);
+
   const value = useMemo(() => ({
     locale,
     setLocale,
