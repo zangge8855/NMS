@@ -391,109 +391,111 @@ export default function AuditCenter() {
                 </div>
 
                 {tab === 'events' && (
-                    <>
-                        <div className="card mb-8 p-3 audit-filter-card audit-filter-card-events">
-                            <div className="audit-filter-bar">
-                                <input
-                                    className="form-input w-180"
-                                    placeholder="关键词"
-                                    value={eventFilters.q}
-                                    onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
-                                />
-                                <input
-                                    className="form-input w-180"
-                                    placeholder="事件类型"
-                                    value={eventFilters.eventType}
-                                    onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
-                                />
-                                <select
-                                    className="form-select w-140"
-                                    value={eventFilters.outcome}
-                                    onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
-                                >
-                                    <option value="">全部结果</option>
-                                    <option value="success">success</option>
-                                    <option value="failed">failed</option>
-                                    <option value="info">info</option>
-                                </select>
-                                <input
-                                    className="form-input w-180"
-                                    placeholder="用户 / 邮箱"
-                                    value={eventFilters.targetEmail}
-                                    onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
-                                />
-                                <input
-                                    className="form-input w-180"
-                                    placeholder="节点 ID"
-                                    value={eventFilters.serverId}
-                                    onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
-                                />
-                                <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
-                                    <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> 查询
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title="清空全部审计日志">
-                                    <HiOutlineTrash /> 清空
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="导出CSV">
-                                    <HiOutlineArrowDownTray /> 导出
-                                </button>
+                    <div className="audit-events-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', alignItems: 'start' }}>
+                        <div className="audit-events-main" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <div className="card mb-6 p-3 audit-filter-card audit-filter-card-events">
+                                <div className="audit-filter-bar flex gap-2 flex-wrap items-center">
+                                    <input
+                                        className="form-input w-180"
+                                        placeholder="关键词"
+                                        value={eventFilters.q}
+                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
+                                    />
+                                    <input
+                                        className="form-input w-180"
+                                        placeholder="事件类型"
+                                        value={eventFilters.eventType}
+                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
+                                    />
+                                    <select
+                                        className="form-select w-140"
+                                        value={eventFilters.outcome}
+                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
+                                    >
+                                        <option value="">全部结果</option>
+                                        <option value="success">success</option>
+                                        <option value="failed">failed</option>
+                                        <option value="info">info</option>
+                                    </select>
+                                    <input
+                                        className="form-input w-180"
+                                        placeholder="用户 / 邮箱"
+                                        value={eventFilters.targetEmail}
+                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                                    />
+                                    <input
+                                        className="form-input w-180"
+                                        placeholder="节点 ID"
+                                        value={eventFilters.serverId}
+                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
+                                    />
+                                    <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
+                                        <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> 查询
+                                    </button>
+                                    <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title="清空全部审计日志">
+                                        <HiOutlineTrash /> 清空
+                                    </button>
+                                    <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="导出CSV">
+                                        <HiOutlineArrowDownTray /> 导出
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>事件</th>
+                                            <th>结果</th>
+                                            <th>操作者</th>
+                                            <th>节点</th>
+                                            <th>用户</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {eventsLoading ? (
+                                            <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
+                                        ) : eventsData.items.length === 0 ? (
+                                            <tr><td colSpan={7}><EmptyState title="暂无审计记录" subtitle="系统操作审计事件将在此显示" /></td></tr>
+                                        ) : (
+                                            eventsData.items.map((item) => (
+                                                <tr key={item.id}>
+                                                    <td data-label="时间">{formatDateTime(item.ts)}</td>
+                                                    <td data-label="事件">{formatAuditEventLabel(item)}</td>
+                                                    <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
+                                                    <td data-label="操作者">{item.actor || '-'}</td>
+                                                    <td data-label="节点">{item.serverId || '-'}</td>
+                                                    <td data-label="用户">{resolveAuditTarget(item)}</td>
+                                                    <td data-label="操作" className="table-cell-actions">
+                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
+                                                            <HiOutlineEye />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="audit-pagination page-pagination">
+                                <div className="page-pagination-meta">共 {eventsData.total || 0} 条</div>
+                                <div className="audit-pagination-actions page-pagination-actions">
+                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>上一页</button>
+                                    <span className="text-sm text-muted self-center">
+                                        {eventsPage} / {eventsData.totalPages || 1}
+                                    </span>
+                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>下一页</button>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="table-container glass-panel mb-8 audit-table-shell audit-events-table-shell">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>时间</th>
-                                        <th>事件</th>
-                                        <th>结果</th>
-                                        <th>操作者</th>
-                                        <th>节点</th>
-                                        <th>用户</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {eventsLoading ? (
-                                        <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
-                                    ) : eventsData.items.length === 0 ? (
-                                        <tr><td colSpan={7}><EmptyState title="暂无审计记录" subtitle="系统操作审计事件将在此显示" /></td></tr>
-                                    ) : (
-                                        eventsData.items.map((item) => (
-                                            <tr key={item.id}>
-                                                <td data-label="时间">{formatDateTime(item.ts)}</td>
-                                                <td data-label="事件">{formatAuditEventLabel(item)}</td>
-                                                <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
-                                                <td data-label="操作者">{item.actor || '-'}</td>
-                                                <td data-label="节点">{item.serverId || '-'}</td>
-                                                <td data-label="用户">{resolveAuditTarget(item)}</td>
-                                                <td data-label="操作" className="table-cell-actions">
-                                                    <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
-                                                        <HiOutlineEye />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="audit-pagination page-pagination">
-                            <div className="page-pagination-meta">共 {eventsData.total || 0} 条</div>
-                            <div className="audit-pagination-actions page-pagination-actions">
-                                <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>上一页</button>
-                                <span className="text-sm text-muted self-center">
-                                    {eventsPage} / {eventsData.totalPages || 1}
-                                </span>
-                                <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>下一页</button>
-                            </div>
-                        </div>
-
-                        <div className="audit-operations-history mt-8">
+                        <div className="audit-operations-history" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                             <Tasks embedded />
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {tab === 'traffic' && (

@@ -921,3 +921,22 @@ p, .empty-state-body, td {
   width: 100% !important;
   max-width: 100% !important;
 }
+
+.sidebar-logo-text {
+  font-size: 14px !important;
+}
+.sidebar-logo-subtitle {
+  font-size: 10px !important;
+}
+
+.settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)) !important;
+}
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.settings-section-banner {
+  margin-bottom: 0 !important;
+}

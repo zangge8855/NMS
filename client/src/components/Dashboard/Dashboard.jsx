@@ -258,33 +258,7 @@ function getWsUrl(ticket) {
     return `${proto}://${host}/ws?ticket=${encodeURIComponent(ticket)}`;
 }
 
-// ── Connection Status Indicator ──────────────────────────
-function WsStatusDot({ status }) {
-    const { t } = useI18n();
-    const labels = {
-        connected: t('pages.dashboardCommon.wsConnected'),
-        connecting: t('pages.dashboardCommon.wsConnecting'),
-        reconnecting: t('pages.dashboardCommon.wsReconnecting'),
-        disconnected: t('pages.dashboardCommon.wsDisconnected'),
-    };
-    const currentStatus = status || 'disconnected';
-    const label = labels[currentStatus] || '未知';
 
-    return (
-        <div
-            className="ws-status-chip"
-            data-status={currentStatus}
-            role="status"
-            aria-live="polite"
-            aria-label={label}
-        >
-            <HiOutlineBolt className="ws-status-icon" />
-            <span className="ws-status-label">
-                {label}
-            </span>
-        </div>
-    );
-}
 
 export default function Dashboard() {
     const { activeServerId, panelApi, activeServer, servers } = useServer();
@@ -630,28 +604,22 @@ export default function Dashboard() {
             <>
                 <Header
                     title={t('pages.dashboardGlobal.title')}
-                    subtitle={t('pages.dashboardGlobal.subtitle')}
+                    subtitle={`${t('pages.dashboardGlobal.subtitle')} · ${t('pages.dashboardGlobal.nodeCount', { count: servers.length })}`}
                     eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
-                />
+                >
+                    <button
+                        className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={toggleAutoRefresh}
+                        title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
+                    >
+                        <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                        <span className="hidden sm:inline-block ml-1">
+                            {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                        </span>
+                    </button>
+                </Header>
                 <div className="page-content page-enter">
-                    <PageToolbar
-                        className="card mb-6 dashboard-toolbar"
-                        main={<WsStatusDot status={wsStatus} />}
-                        actions={(
-                            <button
-                                className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                                onClick={toggleAutoRefresh}
-                                title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                            >
-                                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                                <span className="hidden sm:inline-block ml-1">
-                                    {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                                </span>
-                            </button>
-                        )}
-                        meta={<span>{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
-                    />
                     <div className="stats-grid mb-8">
                         {globalCards.map((card, idx) => (
                             <StatCard key={idx} card={card} loading={loading} />
@@ -775,41 +743,24 @@ export default function Dashboard() {
     return (
         <>
             <Header
-                title={t('pages.dashboardNode.title')}
-                subtitle={activeServer
-                    ? t('pages.dashboardNode.subtitleWithName', { name: activeServer.name })
-                    : t('pages.dashboardNode.subtitle')}
+                title={activeServer?.name || t('pages.dashboardNode.title')}
+                subtitle={status
+                    ? `${t('pages.dashboardNode.inboundsCount', { count: inbounds.length })} · ${t('pages.dashboardNode.cards.runtime')}: ${formatLocalizedUptime(status.uptime, locale)}`
+                    : t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
-            />
+            >
+                <button
+                    className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={toggleAutoRefresh}
+                    title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
+                >
+                    <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                    <span className="hidden sm:inline-block ml-1">
+                        {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                    </span>
+                </button>
+            </Header>
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="card mb-6 dashboard-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">{activeServer?.name || t('pages.dashboardNode.title')}</div>
-                            <div className="page-toolbar-subtitle">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</div>
-                        </div>
-                    )}
-                    actions={(
-                        <button
-                            className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={toggleAutoRefresh}
-                            title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                        >
-                            <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                            <span className="hidden sm:inline-block ml-1">
-                                {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                            </span>
-                        </button>
-                    )}
-                    meta={(
-                        <span>
-                            {status
-                                ? `${t('pages.dashboardNode.cards.runtime')}: ${formatLocalizedUptime(status.uptime, locale)}`
-                                : t('pages.dashboardNode.cards.runtime')}
-                        </span>
-                    )}
-                />
                 <div className="stats-grid">
                     {statCards.map((card, idx) => (
                         <StatCard key={idx} card={card} loading={loading} />
