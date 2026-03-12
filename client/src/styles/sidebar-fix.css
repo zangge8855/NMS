@@ -1,0 +1,27 @@
+.sidebar.collapsed .nav-item::after {
+  display: none !important;
+}
+
+.sidebar-nav-flyout {
+  z-index: 9999 !important;
+}
+.user-profile-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  width: auto !important;
+}
+
+.user-profile-actions .btn {
+  width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+@media (max-width: 768px) {
+  .user-profile-actions {
+    justify-content: flex-start !important;
+  }
+}

@@ -23,3 +23,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </BrowserRouter>
     </React.StrictMode>
 );
+
+import './styles/sidebar-fix.css';

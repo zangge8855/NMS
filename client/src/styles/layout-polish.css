@@ -56,10 +56,7 @@
   text-overflow: ellipsis;
 }
 
-.sidebar.collapsed .nav-item::after {
-  display: none !important;
-  content: none !important;
-}
+
 
 .page-toolbar {
   display: flex;
