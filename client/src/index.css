@@ -343,7 +343,7 @@ a:hover {
   margin-left: var(--sidebar-width);
   width: calc(100vw - var(--sidebar-width));
   max-width: calc(100vw - var(--sidebar-width));
-  transition: margin-left var(--transition-base);
+  transition: margin-left var(--transition-base), width var(--transition-base), max-width var(--transition-base);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
