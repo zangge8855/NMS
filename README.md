@@ -121,6 +121,7 @@ data/     Default file-backed storage
 - [Subscription Converter Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
 - [UI Design System](docs/UI_DESIGN_SYSTEM.md)
+- [UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
 
 ### Security Notes
 

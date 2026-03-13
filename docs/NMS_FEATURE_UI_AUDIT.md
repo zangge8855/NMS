@@ -12,6 +12,9 @@
 - Card、Dropdown、Modal、Input、Button 的圆角、边框、阴影和 focus ring 已统一
 - 表格滚动条、表头吸顶和空状态展示已统一
 - Empty State 已抽成共享组件并接入核心页面
+- `Logs` 页的加载空状态已从手写壳替换为共享 `EmptyState`，并统一到共享表单与圆角体系
+- `Tasks` 页已移除孤立的 `tasks-table-shell` / `audit-tasks-table-shell`，回收到共享 `table-container`
+- `Tools` 页空状态已补上明确的下一步动作按钮，避免停留在被动提示
 
 ### 当前状态良好区域
 
@@ -19,6 +22,7 @@
 - 监控、节点管理、订阅和审计主路径可连续操作
 - 明暗模式下的浮层稳定性明显提升
 - 关键操作的 hover / active / focus 反馈已可接受
+- Logs、Tasks、Tools 这类次级运维页面也开始跟随同一套卡片、表格和空状态规范
 
 ### 仍建议继续优化的区域
 
@@ -49,6 +53,9 @@ Audit date: 2026-03-11
 - Cards, dropdowns, modals, inputs, and buttons now share radius, border, shadow, and focus-ring rules
 - Table scrollbars, sticky headers, and empty states are standardized
 - Empty states are now backed by a shared component in core pages
+- The `Logs` page now uses the shared `EmptyState` for loading/empty states and follows the shared form and radius rules
+- The `Tasks` page has dropped isolated `tasks-table-shell` / `audit-tasks-table-shell` wrappers and converged on the shared `table-container`
+- The `Tools` page now exposes explicit next-step actions in empty states instead of passive copy only
 
 ### Areas in good shape
 
@@ -56,6 +63,7 @@ Audit date: 2026-03-11
 - The main operating paths across monitoring, server management, subscriptions, and audit are stable
 - Floating panel behavior in both light and dark themes is much more consistent
 - Hover, active, and focus feedback is now acceptable for core actions
+- Secondary operator pages such as Logs, Tasks, and Tools are now aligning with the same card, table, and empty-state system
 
 ### Recommended follow-up areas
 
@@ -63,6 +71,7 @@ Audit date: 2026-03-11
 - More non-core pages can still migrate to the shared `EmptyState`
 - Some operational copy is still too engineering-oriented and can be improved for operators
 - Keyboard navigation depth and accessibility hints still have room to improve
+- A few older pages still rely on style inheritance instead of explicitly attaching the shared form/control classes, so future refactors should keep tightening that contract
 
 ### Risk points
 

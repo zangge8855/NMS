@@ -158,9 +158,12 @@ export default function Tasks({ embedded = false }) {
 
     const shellClassName = embedded ? '' : 'page-content page-enter';
     const filterCardClassName = embedded ? 'card mb-8 p-3 audit-filter-card audit-filter-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
-    const tableShellClassName = embedded ? 'table-container glass-panel mb-8 audit-table-shell audit-tasks-table-shell' : 'table-container tasks-table-shell';
+    // Converge on the shared table shell instead of page-specific container variants.
+    const tableShellClassName = 'table-container mb-8';
     const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
     const paginationClassName = 'audit-pagination page-pagination';
+    const filterSelectClassName = 'form-select rounded-lg';
+    const failedOnlyCheckboxClassName = 'rounded';
 
     const handleView = async (id) => {
         try {
@@ -241,10 +244,10 @@ export default function Tasks({ embedded = false }) {
                     )}
                     actions={(
                         <div className="tasks-page-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
+                            <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
                                 <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={handleClear}>
+                            <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
                                 <HiOutlineTrash /> {copy.clear}
                             </button>
                         </div>
@@ -253,15 +256,16 @@ export default function Tasks({ embedded = false }) {
 
                 <div className={filterCardClassName}>
                     <div className="tasks-filter-row audit-filter-bar">
-                        <select className="form-select w-140" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                        {/* Keep native controls on the shared form surface and focus ring rules. */}
+                        <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                             <option value="all">{copy.allTypes}</option>
                             {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                         </select>
-                        <select className="form-select w-140" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                        <select className={`${filterSelectClassName} w-140`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                             <option value="all">{copy.allActions}</option>
                             {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                         </select>
-                        <select className="form-select w-180" value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                        <select className={`${filterSelectClassName} w-180`} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                             <option value="all">{copy.allServers}</option>
                             {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                         </select>
@@ -270,10 +274,11 @@ export default function Tasks({ embedded = false }) {
                                 type="checkbox"
                                 checked={failedOnlyFilter}
                                 onChange={(e) => setFailedOnlyFilter(e.target.checked)}
+                                className={failedOnlyCheckboxClassName}
                             />
                             {copy.failedOnly}
                         </label>
-                        <select className="form-select w-180" value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                        <select className={`${filterSelectClassName} w-180`} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                             <option value="none">{formatRetryGroupLabel('none', locale)}</option>
                             <option value="server">{formatRetryGroupLabel('server', locale)}</option>
                             <option value="error">{formatRetryGroupLabel('error', locale)}</option>
@@ -330,12 +335,12 @@ export default function Tasks({ embedded = false }) {
                                         <td data-label={copy.failedCol} className="table-cell-right">{task.summary?.failed ?? '-'}</td>
                                         <td data-label={copy.actions} className="table-cell-actions">
                                             <div className="table-row-actions tasks-row-actions">
-                                            <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
+                                            <button className="btn btn-secondary btn-sm btn-icon rounded-lg" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                                 <HiOutlineEye />
                                             </button>
                                             {Number(task.summary?.failed || 0) > 0 && (
                                                 <button
-                                                    className="btn btn-primary btn-sm btn-icon"
+                                                    className="btn btn-primary btn-sm btn-icon rounded-lg"
                                                     onClick={() => handleRetryFailed(task)}
                                                     disabled={retryingId === task.id}
                                                     title={copy.retryFailedItems}

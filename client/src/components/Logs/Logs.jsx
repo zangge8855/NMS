@@ -204,6 +204,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         activeSourceMeta.label || t('pages.logs.sourcePanel')
     );
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
+    // Reuse the shared form surface and rounded tokens so controls stay visually consistent.
+    const filterSelectClassName = 'form-select rounded-lg';
+    const keywordInputClassName = 'form-input w-200 rounded-lg';
+    const serverCheckboxClassName = 'checkbox-14 rounded';
 
     const fetchSingleLogs = useCallback(async () => {
         if (!activeServerId || activeServerId === 'global') return;
@@ -367,12 +371,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             <div className={`${embedded ? '' : 'page-content page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
                 <PageToolbar
-                    className="card mb-4 logs-toolbar"
+                    className="card rounded-xl mb-4 logs-toolbar"
                     main={(
                         <>
                             <HiOutlineFunnel className="text-muted" />
                             <select
-                                className="form-select w-120"
+                                className={`${filterSelectClassName} w-120`}
                                 value={levelFilter}
                                 onChange={e => setLevelFilter(e.target.value)}
                             >
@@ -380,7 +384,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             </select>
 
                             <select
-                                className="form-select w-100"
+                                className={`${filterSelectClassName} w-100`}
                                 value={count}
                                 onChange={e => setCount(Number(e.target.value))}
                             >
@@ -392,7 +396,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                             {lockedSourceMode === 'auto' && (
                                 <select
-                                    className="form-select w-140"
+                                    className={`${filterSelectClassName} w-140`}
                                     value={selectedSource}
                                     onChange={(e) => setSelectedSource(e.target.value)}
                                 >
@@ -403,7 +407,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             )}
 
                             <input
-                                className="form-input w-200"
+                                className={keywordInputClassName}
                                 placeholder={t('pages.logs.keywordPlaceholder')}
                                 value={keywords}
                                 onChange={e => setKeywords(e.target.value)}
@@ -413,7 +417,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     actions={(
                         <>
                             <button
-                                className="btn btn-ghost btn-sm"
+                                className="btn btn-ghost btn-sm rounded-lg"
                                 onClick={() => setAutoScrollEnabled((value) => !value)}
                                 title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
                             >
@@ -421,27 +425,27 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
                             </button>
                             <button
-                                className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                className={`btn btn-sm rounded-lg ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
                                 onClick={() => setWrapLines((value) => !value)}
                                 title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
                             >
                                 {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
                             </button>
                             <button
-                                className={`btn btn-sm ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                className={`btn btn-sm rounded-lg ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
                                 onClick={() => setImmersiveMode((value) => !value)}
                                 title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
                             >
                                 {immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
                                 {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
                             </button>
-                            <button className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                            <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                 <HiOutlineTrash /> {t('pages.logs.clearView')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
+                            <button className="btn btn-secondary btn-sm rounded-lg" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
                                 <HiOutlineClipboardDocument /> {t('pages.logs.copy')}
                             </button>
-                            <button className="btn btn-primary btn-sm" onClick={fetchLogs} disabled={loading}>
+                            <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
                                 <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
                                 {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
                             </button>
@@ -451,7 +455,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                 {/* Global Mode: Server Selector */}
                 {isGlobal && (
-                    <div className="card mb-4 logs-server-card">
+                    <div className="card rounded-xl mb-4 logs-server-card">
                         <SectionHeader
                             className="card-header card-header-flat-tight section-header section-header--compact"
                             title={(
@@ -467,8 +471,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             )}
                             actions={(
                                 <>
-                                    <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
-                                    <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
+                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
                                 </>
                             )}
                         />
@@ -482,7 +486,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                         type="checkbox"
                                         checked={selectedServerIds.includes(server.id)}
                                         onChange={() => toggleServer(server.id)}
-                                        className="checkbox-14"
+                                        className={serverCheckboxClassName}
                                     />
                                     <span className="text-sm">{server.name}</span>
                                 </label>
@@ -492,7 +496,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {fetchSummary?.message && (
-                    <div className="card mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
+                    <div className="card rounded-xl mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
                         <SectionHeader
                             className="card-header card-header-flat-tight section-header section-header--compact"
                             title={(
@@ -507,7 +511,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {/* Log Viewer */}
-                <div className="card flex-1 logs-viewer-card">
+                <div className="card rounded-xl flex-1 logs-viewer-card">
                     <SectionHeader
                         className="card-header section-header section-header--compact"
                         title={(
@@ -532,10 +536,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
                     >
                         {loading && filteredLogs.length === 0 ? (
-                            <div className="empty-state empty-state-medium">
-                                <span className="spinner spinner-20" />
-                                <div className="empty-state-text mt-3">{t('pages.logs.loadingLogs')}</div>
-                            </div>
+                            <EmptyState
+                                title={t('pages.logs.loadingLogs')}
+                                size="compact"
+                                icon={<span className="spinner spinner-20" aria-hidden="true" />}
+                            />
                         ) : filteredLogs.length === 0 ? (
                             <EmptyState
                                 title={t('pages.logs.empty')}
