@@ -203,5 +203,7 @@ describe('UsersHub ordering', () => {
 
         expect(within(aliceRow).getByText('30 B')).toBeInTheDocument();
         expect(within(aliceRow).getByText(/ID user-a/i)).toBeInTheDocument();
+        expect(within(aliceRow).getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
+        expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
     });
 });

@@ -6619,12 +6619,57 @@ body::before {
   background: rgba(99, 102, 241, 0.08);
 }
 
+.users-table {
+  table-layout: fixed;
+  min-width: 1120px;
+}
+
+.users-name-column {
+  width: 18%;
+}
+
+.users-email-column {
+  width: 18%;
+}
+
+.users-actions-column {
+  width: 188px;
+}
+
+.users-name-cell,
+.users-email-cell,
+.users-actions-cell {
+  min-width: 0;
+}
+
+.users-name-link,
+.users-email-link,
+.users-id-meta {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.users-email-cell .table-cell-link,
+.users-name-cell .table-cell-link {
+  text-decoration: none;
+}
+
 .users-row-actions {
   gap: 6px;
+  justify-content: flex-end;
 }
 
 .users-row-actions .btn {
   min-height: 36px;
+  flex: 0 0 auto;
+}
+
+.users-actions-cell {
+  white-space: nowrap;
 }
 
 .audit-tabs {
@@ -7339,6 +7384,17 @@ body::before {
 }
 
 @media (max-width: 768px) {
+  .users-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .users-name-column,
+  .users-email-column,
+  .users-actions-column {
+    width: auto;
+  }
+
   .header {
     min-height: 80px;
     padding: 14px 20px 12px 72px;

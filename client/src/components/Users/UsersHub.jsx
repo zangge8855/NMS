@@ -950,7 +950,7 @@ export default function UsersHub() {
                 )}
 
                 <div className="table-container glass-panel users-table-shell">
-                    <table className="table">
+                    <table className="table users-table">
                         <thead>
                             <tr>
                                 <th style={{ width: 40 }}>
@@ -969,14 +969,14 @@ export default function UsersHub() {
                                         </span>
                                     </button>
                                 </th>
-                                <th>用户名</th>
-                                <th>邮箱</th>
+                                <th className="users-name-column">用户名</th>
+                                <th className="users-email-column">邮箱</th>
                                 <th>状态</th>
                                 <th>在线状态</th>
                                 <th className="text-right">节点数</th>
                                 <th className="text-right">已用流量</th>
                                 <th>到期时间</th>
-                                <th>操作</th>
+                                <th className="users-actions-column">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1001,17 +1001,22 @@ export default function UsersHub() {
                                         <td data-label="序号" onClick={(e) => e.stopPropagation()}>
                                             <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                         </td>
-                                        <td data-label="用户名" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>
-                                            <button type="button" className="table-cell-link table-cell-link-button users-name-link">
+                                        <td
+                                            data-label="用户名"
+                                            className="users-name-cell"
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
+                                        >
+                                            <button type="button" className="table-cell-link table-cell-link-button users-name-link" title={user.username}>
                                                 <span className="font-medium">{user.username}</span>
                                             </button>
-                                            <div className="text-xs text-muted cell-mono mt-1">ID {formatUserShortId(user.id)}</div>
+                                            <div className="text-xs text-muted cell-mono mt-1 users-id-meta" title={user.id}>ID {formatUserShortId(user.id)}</div>
                                         </td>
-                                        <td data-label="邮箱" className="text-sm">
+                                        <td data-label="邮箱" className="text-sm users-email-cell">
                                             {user.email || user.subscriptionEmail ? (
                                                 <button
                                                     type="button"
-                                                    className="table-cell-link table-cell-link-button"
+                                                    className="table-cell-link table-cell-link-button users-email-link"
+                                                    title={user.email || user.subscriptionEmail}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigate(`/clients/${user.id}?tab=subscription`);
@@ -1035,7 +1040,7 @@ export default function UsersHub() {
                                         <td data-label="节点数" className="cell-mono-right">{user.clientData.count || '-'}</td>
                                         <td data-label="已用流量" className="cell-mono-right">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
                                         <td data-label="到期时间" className="cell-mono">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
-                                        <td data-label="" onClick={(e) => e.stopPropagation()}>
+                                        <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">
                                                 <button className="btn btn-secondary btn-sm btn-icon" title="详情" onClick={() => navigate(`/clients/${user.id}`)}>
                                                     <HiOutlineEye />
@@ -1098,11 +1103,12 @@ export default function UsersHub() {
                                                 {user.status.key === 'active' && (
                                                     <>
                                                         <button
-                                                            className="btn btn-secondary btn-sm"
-                                                            title="订阅链接"
+                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            title="查看订阅"
+                                                            aria-label="查看订阅"
                                                             onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
                                                         >
-                                                            <HiOutlineLink /> 订阅链接
+                                                            <HiOutlineLink />
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon"
