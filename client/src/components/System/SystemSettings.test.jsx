@@ -29,6 +29,10 @@ vi.mock('../Tasks/TaskProgressModal.jsx', () => ({
     default: () => null,
 }));
 
+vi.mock('../Server/Server.jsx', () => ({
+    default: ({ embedded }) => <div>{embedded ? '嵌入式节点控制台' : '节点控制台页面'}</div>,
+}));
+
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
 }));
@@ -67,6 +71,9 @@ describe('SystemSettings', () => {
                 return Promise.resolve({
                     data: {
                         obj: {
+                            site: {
+                                accessPath: '/portal',
+                            },
                             security: {},
                             jobs: {},
                             audit: {},
@@ -84,8 +91,21 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />);
 
+        expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
+    });
+
+    it('opens the embedded node console when the console tab is selected via query string', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        api.get.mockResolvedValue({ data: { obj: {} } });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=console' });
+
+        expect(await screen.findByText('嵌入式节点控制台')).toBeInTheDocument();
+        expect(screen.getAllByText('节点控制台').length).toBeGreaterThan(0);
     });
 });

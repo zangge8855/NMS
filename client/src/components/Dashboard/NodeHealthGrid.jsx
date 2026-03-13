@@ -62,7 +62,7 @@ function NodeTile({ server, serverData, trend = [] }) {
     const traffic = (serverData?.up || 0) + (serverData?.down || 0);
     const statusLabel = `${server.name} — ${color.label}`;
     const sparkline = buildSparkline(trend);
-    const handleOpen = () => navigate('/server');
+    const handleOpen = () => navigate('/settings?tab=console');
     const handleKeyDown = (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();

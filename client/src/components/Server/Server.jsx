@@ -22,7 +22,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
-export default function ServerManagement() {
+export default function ServerManagement({ embedded = false }) {
     const { activeServerId, panelApi, servers } = useServer();
     const { t } = useI18n();
     const isGlobalView = activeServerId === 'global';
@@ -329,12 +329,14 @@ export default function ServerManagement() {
     if (!activeServerId) {
         return (
             <>
-                <Header
-                    title={t('pages.serverConsole.title')}
-                    subtitle={t('pages.serverConsole.emptySubtitle')}
-                    eyebrow={t('pages.serverConsole.eyebrow')}
-                />
-                <div className="page-content page-enter">
+                {!embedded && (
+                    <Header
+                        title={t('pages.serverConsole.title')}
+                        subtitle={t('pages.serverConsole.emptySubtitle')}
+                        eyebrow={t('pages.serverConsole.eyebrow')}
+                    />
+                )}
+                <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter'}>
                     <EmptyState
                         title="请先选择一台服务器"
                         subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
@@ -346,15 +348,11 @@ export default function ServerManagement() {
         );
     }
 
-    return (
+    const content = (
         <>
-            <Header
-                title={t('pages.serverConsole.title')}
-                eyebrow={t('pages.serverConsole.eyebrow')}
-            />
-            <div className="page-content page-enter">
+            <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter'}>
                 <PageToolbar
-                    className="card mb-6 server-console-toolbar"
+                    className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
                     main={(
                         <div className="page-toolbar-copy">
                             <div className="page-toolbar-title">{isGlobalView ? '集群批量控制' : (activeServerMeta?.name || '节点控制台')}</div>
@@ -555,6 +553,18 @@ export default function ServerManagement() {
                     )}
                 </div>
             </div>
+        </>
+    );
+
+    return (
+        <>
+            {!embedded && (
+                <Header
+                    title={t('pages.serverConsole.title')}
+                    eyebrow={t('pages.serverConsole.eyebrow')}
+                />
+            )}
+            {content}
 
             {showConfig && (
                 <ModalShell isOpen={showConfig} onClose={() => setShowConfig(false)}>

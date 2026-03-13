@@ -374,6 +374,37 @@ export default function Subscriptions() {
                     />
                 )}
 
+                <div className="card mb-6 subscription-guide-card">
+                    <SectionHeader
+                        className="card-header section-header section-header--compact"
+                        title="怎么使用订阅"
+                        subtitle={isUserOnly ? '按这三步就够了。' : '给用户说明时，按这三步最省事。'}
+                    />
+                    <div className="subscription-guide-grid">
+                        <div className="subscription-guide-step">
+                            <span className="subscription-guide-index">1</span>
+                            <div className="subscription-guide-copy">
+                                <div className="subscription-guide-title">先选类型</div>
+                                <div className="subscription-guide-text">通用给 v2rayN、v2rayNG、Shadowrocket；Clash 或 Mihomo 选 YAML。</div>
+                            </div>
+                        </div>
+                        <div className="subscription-guide-step">
+                            <span className="subscription-guide-index">2</span>
+                            <div className="subscription-guide-copy">
+                                <div className="subscription-guide-title">有客户端就导入</div>
+                                <div className="subscription-guide-text">直接复制地址，或者点“快捷导入”。</div>
+                            </div>
+                        </div>
+                        <div className="subscription-guide-step">
+                            <span className="subscription-guide-index">3</span>
+                            <div className="subscription-guide-copy">
+                                <div className="subscription-guide-title">怀疑泄露就重置</div>
+                                <div className="subscription-guide-text">重置后旧链接立刻失效，二维码也会同步换新。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {!result ? (
                     <div className="empty-state">
                         <div className="empty-state-icon"><HiOutlineLink /></div>
@@ -469,7 +500,7 @@ export default function Subscriptions() {
                                 </div>
                             )}
                             <div className="text-xs text-muted mb-3">
-                                不会用就先复制地址；怀疑泄露就重置链接。
+                                不会用就先复制地址；装了客户端就直接导入。
                             </div>
                             <div className="subscription-link-grid grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
@@ -489,7 +520,7 @@ export default function Subscriptions() {
                                 <div className="flex flex-col gap-2">
                                     <div className="text-sm font-medium">订阅网址二维码</div>
                                     <div className="text-xs text-muted">
-                                        二维码就是当前这条订阅地址。先选类型，再扫码。
+                                        先选类型，再扫码导入当前这条订阅地址。
                                     </div>
                                     {result.email && (
                                         <div className="text-xs text-muted font-mono break-all">

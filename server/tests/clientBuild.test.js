@@ -3,27 +3,40 @@ import assert from 'node:assert/strict';
 import {
     DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
     createClientBuildFallbackHandler,
+    injectClientBasePath,
+    normalizeClientBasePath,
+    shouldServeClientRequest,
 } from '../lib/clientBuild.js';
 
 describe('createClientBuildFallbackHandler', () => {
-    it('serves index.html when the client build exists', () => {
+    it('serves index.html with the injected site base path when the client build exists', () => {
         const calls = [];
         const handler = createClientBuildFallbackHandler({
             clientIndexFile: '/tmp/client/dist/index.html',
             hasClientIndex: true,
+            getSiteAccessPath: () => '/portal',
+            readClientIndexFile() {
+                return '<html><head></head><body><div id="root"></div></body></html>';
+            },
         });
         const res = {
-            sendFile(file, callback) {
-                calls.push(file);
-                callback();
+            type(value) {
+                calls.push(['type', value]);
+                return this;
+            },
+            send(body) {
+                calls.push(['send', body]);
+                return this;
             },
         };
 
-        handler({}, res, () => {
+        handler({ path: '/portal' }, res, () => {
             throw new Error('next should not be called');
         });
 
-        assert.deepEqual(calls, ['/tmp/client/dist/index.html']);
+        assert.equal(calls[0][0], 'type');
+        assert.equal(calls[0][1], 'html');
+        assert.match(calls[1][1], /window\.__NMS_SITE_BASE_PATH__="\/portal"/);
     });
 
     it('returns a 503 text response when the client build is missing', () => {
@@ -64,6 +77,9 @@ describe('createClientBuildFallbackHandler', () => {
         const handler = createClientBuildFallbackHandler({
             clientIndexFile: '/tmp/client/dist/index.html',
             hasClientIndex: () => exists,
+            readClientIndexFile() {
+                return '<html><head></head><body></body></html>';
+            },
         });
         const res = {
             status(code) {
@@ -78,18 +94,18 @@ describe('createClientBuildFallbackHandler', () => {
                 calls.push(['send', body]);
                 return this;
             },
-            sendFile(file, callback) {
-                calls.push(['sendFile', file]);
-                callback();
+            type(value) {
+                calls.push(['type', value]);
+                return this;
             },
         };
 
-        handler({}, res, () => {
+        handler({ path: '/' }, res, () => {
             throw new Error('next should not be called');
         });
 
         exists = true;
-        handler({}, res, () => {
+        handler({ path: '/' }, res, () => {
             throw new Error('next should not be called');
         });
 
@@ -97,7 +113,55 @@ describe('createClientBuildFallbackHandler', () => {
             ['status', 503],
             ['type', 'text/plain'],
             ['send', DEFAULT_MISSING_CLIENT_BUILD_MESSAGE],
-            ['sendFile', '/tmp/client/dist/index.html'],
+            ['type', 'html'],
+            ['send', '<html><head><script>window.__NMS_SITE_BASE_PATH__="/";</script></head><body></body></html>'],
         ]);
+    });
+
+    it('skips client fallback for paths outside the configured access path', () => {
+        let nextCalled = false;
+        const handler = createClientBuildFallbackHandler({
+            clientIndexFile: '/tmp/client/dist/index.html',
+            hasClientIndex: true,
+            getSiteAccessPath: () => '/secret',
+            readClientIndexFile() {
+                throw new Error('should not read index file');
+            },
+        });
+
+        handler({
+            path: '/',
+        }, {
+            type() {
+                throw new Error('response should not be used');
+            },
+        }, () => {
+            nextCalled = true;
+        });
+
+        assert.equal(nextCalled, true);
+    });
+});
+
+describe('client build helpers', () => {
+    it('normalizes client base paths', () => {
+        assert.equal(normalizeClientBasePath('portal'), '/portal');
+        assert.equal(normalizeClientBasePath('/portal/'), '/portal');
+        assert.equal(normalizeClientBasePath(' /portal/team/ '), '/portal/team');
+        assert.equal(normalizeClientBasePath('/'), '/');
+        assert.equal(normalizeClientBasePath('/../bad', '/'), '/');
+    });
+
+    it('matches only requests inside a non-root base path', () => {
+        assert.equal(shouldServeClientRequest('/secret', '/secret'), true);
+        assert.equal(shouldServeClientRequest('/secret/clients', '/secret'), true);
+        assert.equal(shouldServeClientRequest('/', '/secret'), false);
+        assert.equal(shouldServeClientRequest('/assets/index.js', '/secret'), false);
+    });
+
+    it('injects the base-path bootstrap script into index html', () => {
+        const output = injectClientBasePath('<html><head></head><body></body></html>', '/nms');
+        assert.match(output, /window\.__NMS_SITE_BASE_PATH__="\/nms"/);
+        assert.match(output, /<\/script><\/head>/);
     });
 });

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
@@ -9,14 +10,19 @@ import { copyToClipboard } from '../../utils/format.js';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
+    HiOutlineCircleStack,
     HiOutlineCog6Tooth,
+    HiOutlineCommandLine,
     HiOutlineExclamationTriangle,
+    HiOutlineServerStack,
+    HiOutlineShieldCheck,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import ServerManagement from '../Server/Server.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -41,11 +47,39 @@ function toText(value, fallback = '') {
     return text || fallback;
 }
 
+function normalizeSiteAccessPathInput(value, fallback = '/') {
+    const fallbackValue = String(fallback || '/').trim() || '/';
+    const text = String(value || '').trim();
+    if (!text) return fallbackValue;
+    if (/[\s?#]/.test(text)) return fallbackValue;
+
+    const segments = text
+        .split('/')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    if (segments.some((item) => item === '.' || item === '..')) {
+        return fallbackValue;
+    }
+
+    return segments.length === 0 ? '/' : `/${segments.join('/')}`;
+}
+
+function buildAppEntryPath(basePath = '/', route = '/') {
+    const normalizedBasePath = normalizeSiteAccessPathInput(basePath, '/');
+    const normalizedRoute = route.startsWith('/') ? route : `/${route}`;
+    if (normalizedBasePath === '/') return normalizedRoute;
+    return normalizedRoute === '/' ? normalizedBasePath : `${normalizedBasePath}${normalizedRoute}`;
+}
+
 function buildDraft(source = null) {
     const settings = source || {};
     const defaultAuditIpGeoProvider = 'ip_api';
     const defaultAuditIpGeoEndpoint = 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
     return {
+        site: {
+            accessPath: normalizeSiteAccessPathInput(settings.site?.accessPath, '/'),
+        },
         registration: {
             inviteOnlyEnabled: settings.registration?.inviteOnlyEnabled === true,
         },
@@ -80,13 +114,55 @@ function buildDraft(source = null) {
     };
 }
 
+const DEFAULT_SETTINGS_TAB = 'basic';
+const SETTINGS_TAB_CONFIG = [
+    {
+        id: 'basic',
+        label: '系统参数',
+        description: '站点入口、注册、任务、订阅地址和审计归属地等全局参数。',
+        icon: HiOutlineCog6Tooth,
+    },
+    {
+        id: 'db',
+        label: '数据库与存储',
+        description: '查看数据库状态、切换模式并执行回填。',
+        icon: HiOutlineCircleStack,
+    },
+    {
+        id: 'backup',
+        label: '安全与备份',
+        description: '管理备份导入导出，以及凭据轮换等高风险操作。',
+        icon: HiOutlineShieldCheck,
+    },
+    {
+        id: 'monitor',
+        label: '监控诊断',
+        description: '查看邮件、节点健康与运行诊断状态。',
+        icon: HiOutlineServerStack,
+    },
+    {
+        id: 'console',
+        label: '节点控制台',
+        description: '在系统设置内直接执行节点维护和工具操作。',
+        icon: HiOutlineCommandLine,
+    },
+];
+
+function resolveSettingsTab(value) {
+    return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
+}
+
+function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString('zh-CN') : '暂无';
+}
+
 export default function SystemSettings() {
     const { t } = useI18n();
     const { user } = useAuth();
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    const [tab, setTab] = useState('basic');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [rotateLoading, setRotateLoading] = useState(false);
@@ -162,7 +238,14 @@ export default function SystemSettings() {
             ? '连接测试失败'
             : '未测试';
     const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
+    const siteAccessPath = normalizeSiteAccessPathInput(draft.site.accessPath, '/');
     const registrationEnabled = registrationRuntime?.enabled !== false;
+    const activeTab = resolveSettingsTab(searchParams.get('tab'));
+    const activeTabMeta = SETTINGS_TAB_CONFIG.find((item) => item.id === activeTab) || SETTINGS_TAB_CONFIG[0];
+    const siteEntryPreview = useMemo(() => {
+        if (typeof window === 'undefined') return siteAccessPath;
+        return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
+    }, [siteAccessPath]);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -296,6 +379,29 @@ export default function SystemSettings() {
         fetchInviteCodes({ quiet: true });
     }, [isAdmin]);
 
+    const setActiveTab = (nextTab) => {
+        const resolvedTab = resolveSettingsTab(nextTab);
+        const nextParams = new URLSearchParams(searchParams);
+        if (resolvedTab === DEFAULT_SETTINGS_TAB) {
+            nextParams.delete('tab');
+        } else {
+            nextParams.set('tab', resolvedTab);
+        }
+        setSearchParams(nextParams, { replace: true });
+    };
+
+    const refreshAllSections = async () => {
+        await Promise.all([
+            fetchSettings(),
+            fetchDbStatus({ quiet: true }),
+            fetchEmailStatus({ quiet: true }),
+            fetchBackupStatus({ quiet: true }),
+            fetchMonitorStatus({ quiet: true }),
+            fetchRegistrationRuntime(),
+            fetchInviteCodes({ quiet: true }),
+        ]);
+    };
+
     const patchField = (section, key, value) => {
         setDraft((prev) => ({
             ...prev,
@@ -326,6 +432,17 @@ export default function SystemSettings() {
             setDraft(buildDraft(next));
             await fetchRegistrationRuntime();
             toast.success('系统设置已更新');
+            const nextSiteAccessPath = normalizeSiteAccessPathInput(next.site?.accessPath, '/');
+            const currentSiteAccessPath = normalizeSiteAccessPathInput(
+                typeof window !== 'undefined' ? window.__NMS_SITE_BASE_PATH__ : '/',
+                '/'
+            );
+            if (nextSiteAccessPath !== currentSiteAccessPath && typeof window !== 'undefined') {
+                const nextRoute = activeTab === DEFAULT_SETTINGS_TAB ? '/settings' : `/settings?tab=${activeTab}`;
+                window.setTimeout(() => {
+                    window.location.assign(buildAppEntryPath(nextSiteAccessPath, nextRoute));
+                }, 250);
+            }
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '保存失败');
         }
@@ -645,6 +762,853 @@ export default function SystemSettings() {
         setMonitorLoading(false);
     };
 
+    const overviewCards = useMemo(() => ([
+        {
+            title: '站点入口',
+            value: siteAccessPath,
+            detail: siteAccessPath === '/' ? '当前仍使用根路径提供登录页和管理页。' : '登录页、管理后台和用户页都改为这个入口路径。',
+            tone: siteAccessPath === '/' ? 'neutral' : 'warning',
+        },
+        {
+            title: '注册模式',
+            value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册',
+            detail: registrationEnabled ? '注册页将按当前模式展示表单。' : '环境变量已关闭自助注册。',
+            tone: registrationEnabled ? 'success' : 'danger',
+        },
+        {
+            title: '数据库模式',
+            value: dbStatus
+                ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
+                : '等待探测',
+            detail: dbStatus?.connection?.enabled
+                ? (dbStatus.connection?.ready ? '数据库连接已就绪。' : (dbStatus.connection?.error || '数据库连接未就绪。'))
+                : '当前仍以本地文件模式为主。',
+            tone: dbStatus?.connection?.ready ? 'success' : dbStatus?.connection?.enabled ? 'warning' : 'neutral',
+        },
+        {
+            title: '邮件诊断',
+            value: emailStatus?.configured ? 'SMTP 已配置' : 'SMTP 未配置',
+            detail: emailStatus?.lastVerification?.ts
+                ? `最近测试 ${formatDateTime(emailStatus.lastVerification.ts)}`
+                : '尚未执行连接测试。',
+            tone: emailStatus?.configured ? (emailStatus?.lastVerification?.success === false ? 'warning' : 'success') : 'neutral',
+        },
+        {
+            title: '备份状态',
+            value: backupStatus?.lastExport?.createdAt ? '已有导出快照' : '暂无备份快照',
+            detail: backupStatus?.lastExport?.createdAt
+                ? `最近导出 ${formatDateTime(backupStatus.lastExport.createdAt)}`
+                : '建议在改动前先导出一份系统快照。',
+            tone: backupStatus?.lastExport?.createdAt ? 'success' : 'warning',
+        },
+        {
+            title: '节点监控',
+            value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
+            detail: monitorStatus?.healthMonitor?.lastRunAt
+                ? `最近巡检 ${formatDateTime(monitorStatus.healthMonitor.lastRunAt)}`
+                : '尚未执行节点健康巡检。',
+            tone: monitorStatus?.healthMonitor?.running ? 'success' : 'neutral',
+        },
+    ]), [
+        backupStatus?.lastExport?.createdAt,
+        dbStatus,
+        draft.registration.inviteOnlyEnabled,
+        emailStatus,
+        monitorStatus,
+        registrationEnabled,
+        siteAccessPath,
+    ]);
+
+    const renderBasicContent = () => (
+        <div className="settings-grid settings-grid--basic">
+            <div className="card p-4 settings-panel settings-panel--wide">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="站点入口"
+                    subtitle="控制登录页、管理后台和用户自助页从哪个路径进入。默认是根路径 `/`。"
+                />
+                <div className="settings-inline-grid">
+                    <div className="form-group mb-0">
+                        <label className="form-label">首页访问路径</label>
+                        <input
+                            className="form-input font-mono"
+                            placeholder="/"
+                            value={draft.site.accessPath}
+                            onChange={(e) => patchField('site', 'accessPath', e.target.value)}
+                        />
+                        <div className="text-xs text-muted mt-1">例如 `/portal` 或 `/office/nms`。保存后旧路径将不再提供页面。</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-detail-card mb-0">
+                        <div className="text-sm text-muted">当前入口预览</div>
+                        <div className="text-base font-semibold font-mono mt-2 break-all">{siteEntryPreview}</div>
+                        <div className="text-xs text-muted mt-2">不要使用 `/api`、`/assets`、`/ws` 这类系统保留路径。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <h3 className="text-lg font-semibold mb-3">任务中心参数</h3>
+                <div className="text-xs text-muted mb-3">批量任务（用户操作、流量重置等）的运行与存储参数。</div>
+                <div className="form-group">
+                    <label className="form-label">任务保留天数</label>
+                    <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
+                    <div className="text-xs text-muted mt-1">历史任务记录的保留期限，超期自动清理。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">任务分页最大条数</label>
+                    <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
+                    <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">任务最大保留记录</label>
+                    <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
+                    <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">批量并发上限</label>
+                    <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
+                    <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">默认并发</label>
+                    <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
+                    <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <h3 className="text-lg font-semibold mb-3">风控确认</h3>
+                <div className="text-xs text-muted mb-3">控制批量高风险动作的二次确认阈值和确认令牌有效期。</div>
+                <div className="form-group">
+                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                        <input
+                            type="checkbox"
+                            checked={draft.security.requireHighRiskConfirmation}
+                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                        />
+                        开启高风险操作二次确认
+                    </label>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">中风险阈值</label>
+                    <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                    <div className="text-xs text-muted mt-1">影响对象数达到该值时按中风险提示。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">高风险阈值</label>
+                    <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                    <div className="text-xs text-muted mt-1">影响对象数达到该值时要求二次确认。</div>
+                </div>
+                <div className="form-group mb-0">
+                    <label className="form-label">确认令牌有效期（秒）</label>
+                    <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                    <div className="text-xs text-muted mt-1">超过该时间后需重新确认高风险操作。</div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <h3 className="text-lg font-semibold mb-3">审计参数</h3>
+                <div className="text-xs text-muted mb-3">登录、增删改查等操作日志的存储策略。</div>
+                <div className="form-group">
+                    <label className="form-label">审计保留天数</label>
+                    <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                    <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
+                </div>
+                <div className="form-group mb-0">
+                    <label className="form-label">审计分页最大条数</label>
+                    <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                    <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <h3 className="text-lg font-semibold mb-3">审计归属地查询</h3>
+                <div className="text-xs text-muted mb-3">控制订阅访问日志里的地区与运营商查询服务。</div>
+                <div className="form-group">
+                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                        <input
+                            type="checkbox"
+                            checked={draft.auditIpGeo.enabled}
+                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                        />
+                        开启归属地查询
+                    </label>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">服务提供方</label>
+                    <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">查询地址模板</label>
+                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
+                    <div className="text-xs text-muted mt-1">使用 `{`ip`}` 作为 IP 占位符。</div>
+                </div>
+                <div className="settings-inline-grid">
+                    <div className="form-group mb-0">
+                        <label className="form-label">超时（毫秒）</label>
+                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="form-label">缓存时长（秒）</label>
+                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                    </div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <h3 className="text-lg font-semibold mb-3">订阅地址</h3>
+                <div className="form-group">
+                    <label className="form-label">订阅公网地址（可选，建议配置）</label>
+                    <input
+                        className="form-input"
+                        placeholder="https://nms.example.com"
+                        value={draft.subscription.publicBaseUrl}
+                        onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                    />
+                    <div className="text-xs text-muted mt-1">配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。</div>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">外部订阅转换器地址（可选）</label>
+                    <input
+                        className="form-input"
+                        placeholder="https://converter.example.com"
+                        value={converterBaseUrl}
+                        onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                    />
+                    <div className="text-xs text-muted mt-1">配置后 Clash / Mihomo / Sing-box / Surge 快捷方式会自动切换到外部转换器。</div>
+                    <div className="flex gap-2 flex-wrap mt-2">
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => patchField('subscription', 'converterBaseUrl', '')}
+                            disabled={!converterBaseUrl}
+                        >
+                            清空
+                        </button>
+                        <a
+                            href={converterBaseUrl || undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
+                            aria-disabled={!converterBaseUrl}
+                            onClick={(event) => {
+                                if (!converterBaseUrl) event.preventDefault();
+                            }}
+                        >
+                            打开链接
+                        </a>
+                    </div>
+                </div>
+                <div className="text-xs text-muted">未配置转换器时，仍使用 NMS 内置专用配置生成逻辑。</div>
+            </div>
+
+            <div className="card p-4 settings-panel settings-panel--wide">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="注册与邀请码"
+                    subtitle="支持邀请注册、批量生成邀请码，并兼容已存在的单次邀请码数据。"
+                    actions={(
+                        <div className="settings-panel-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
+                                {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
+                            </button>
+                        </div>
+                    )}
+                />
+                <div className="settings-mini-grid mb-4">
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">当前注册状态</div>
+                        <div className="text-lg font-semibold">{registrationEnabled ? '允许注册' : '已关闭注册'}</div>
+                        <div className="text-xs text-muted mt-1">全局开关来自环境变量 `REGISTRATION_ENABLED`。</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">注册模式</div>
+                        <div className="text-lg font-semibold">{draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}</div>
+                        <div className="text-xs text-muted mt-1">邀请模式下注册页必须填写有效邀请码。</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">邀请码存量</div>
+                        <div className="text-lg font-semibold">{inviteCodes.length}</div>
+                        <div className="text-xs text-muted mt-1">支持按次数生成和兼容旧单次邀请码。</div>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                        <input
+                            type="checkbox"
+                            checked={draft.registration.inviteOnlyEnabled}
+                            onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                            disabled={!registrationEnabled}
+                        />
+                        开启邀请注册
+                    </label>
+                    <div className="text-xs text-muted mt-2">
+                        {registrationEnabled
+                            ? '开启后，注册页必须填写有效邀请码，并跳过邮箱验证码。'
+                            : '当前环境已关闭自助注册，这里的邀请模式配置会被保留，但不会开放注册入口。'}
+                    </div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                    <div className="text-sm font-medium mb-2">生成参数</div>
+                    <div className="settings-inline-grid settings-inline-grid--triple">
+                        <div className="form-group mb-0">
+                            <label className="form-label">本次生成数量</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={inviteGenerationDraft.count}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                    ...prev,
+                                    count: e.target.value,
+                                }))}
+                            />
+                            <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">每个邀请码可用次数</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={1}
+                                max={1000}
+                                value={inviteGenerationDraft.usageLimit}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                    ...prev,
+                                    usageLimit: e.target.value,
+                                }))}
+                            />
+                            <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
+                        </div>
+                        <div className="form-group mb-0 settings-form-actions">
+                            <button
+                                className="btn btn-primary w-full"
+                                type="button"
+                                onClick={createInviteCode}
+                                disabled={inviteCodeActionLoading}
+                            >
+                                {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                            </button>
+                            <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次。</div>
+                        </div>
+                    </div>
+                </div>
+                {latestInviteCodes.length > 0 && (
+                    <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                            <div className="text-sm font-medium">本次生成的邀请码</div>
+                            <span className="text-xs text-muted">
+                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次
+                            </span>
+                        </div>
+                        <div className="settings-code-list">
+                            {latestInviteCodes.map((code) => (
+                                <code key={code} className="font-mono">{code}</code>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap mt-3">
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={async () => {
+                                    await copyToClipboard(latestInviteCodes.join('\n'));
+                                    toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                                }}
+                            >
+                                {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
+                            </button>
+                        </div>
+                        <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                    </div>
+                )}
+                <div className="settings-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>预览</th>
+                                <th>状态</th>
+                                <th>次数</th>
+                                <th>创建时间</th>
+                                <th>使用情况</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {inviteCodes.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center text-muted">暂无邀请码</td>
+                                </tr>
+                            ) : (
+                                inviteCodes.map((invite) => (
+                                    <tr key={invite.id}>
+                                        <td data-label="预览" className="cell-mono">{invite.preview}</td>
+                                        <td data-label="状态">
+                                            <span className={`badge ${invite.status === 'active' ? 'badge-success' : invite.status === 'used' ? 'badge-neutral' : 'badge-danger'}`}>
+                                                {invite.status === 'active' ? '可用' : invite.status === 'used' ? '已使用' : '已撤销'}
+                                            </span>
+                                        </td>
+                                        <td data-label="次数" className="text-sm text-muted">
+                                            已用 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
+                                            {invite.status === 'active' ? ` · 剩余 ${Number(invite.remainingUses || 0)}` : ''}
+                                        </td>
+                                        <td data-label="创建时间">{formatDateTime(invite.createdAt)}</td>
+                                        <td data-label="使用情况" className="text-sm text-muted">
+                                            {invite.usedAt
+                                                ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${formatDateTime(invite.usedAt)}`
+                                                : invite.revokedAt
+                                                    ? `已于 ${formatDateTime(invite.revokedAt)} 撤销`
+                                                    : '未使用'}
+                                        </td>
+                                        <td data-label="操作" className="table-cell-actions">
+                                            {invite.status === 'active' ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-danger btn-sm"
+                                                    onClick={() => revokeInviteCode(invite)}
+                                                    disabled={inviteCodeActionLoading}
+                                                >
+                                                    撤销
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-muted">-</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderMonitorContent = () => (
+        <div className="settings-grid settings-grid--monitor">
+            <div className="card p-4 settings-panel settings-diagnostics-panel">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="SMTP 诊断"
+                    subtitle="SMTP 配置来自服务端 `.env`，这里只展示诊断结果，不回显明文密码。"
+                    meta={emailStatus && (
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                        </div>
+                    )}
+                    actions={(
+                        <div className="settings-panel-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                                {emailTestLoading ? <span className="spinner" /> : '测试'}
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
+                                {emailStatusLoading ? <span className="spinner" /> : '刷新'}
+                            </button>
+                        </div>
+                    )}
+                />
+                {!emailStatus ? (
+                    <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
+                ) : (
+                    <>
+                        <div className="settings-mini-grid mb-3">
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">配置状态</div>
+                                <div className="mt-2">
+                                    <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                                </div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">SMTP 服务</div>
+                                <div className="text-lg font-semibold">{emailStatus.service || '-'}</div>
+                                <div className="text-xs text-muted">auth {emailStatus.authMethod || 'AUTO'}</div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">服务器</div>
+                                <div className="text-lg font-semibold">{emailStatus.host || '-'}</div>
+                                <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">发件人</div>
+                                <div className="text-lg font-semibold">{emailStatus.from || '-'}</div>
+                                <div className="text-xs text-muted">账号 {emailStatus.userMasked || '-'}</div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">加密模式</div>
+                                <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
+                                <div className="text-xs text-muted">
+                                    {emailStatus.requireTLS ? 'requireTLS' : (emailStatus.ignoreTLS ? 'ignoreTLS' : 'auto TLS')}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
+                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                <div className="text-sm font-medium">最近连接测试</div>
+                                <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                            </div>
+                            <div className="text-sm">最近测试: {formatDateTime(emailStatus.lastVerification?.ts)}</div>
+                            <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
+                            <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
+                        </div>
+                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
+                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                <div className="text-sm font-medium">最近发送结果</div>
+                                <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                            </div>
+                            <div className="text-sm">最近发送: {formatDateTime(emailStatus.lastDelivery?.ts)}</div>
+                            <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
+                            <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
+                            <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="card p-4 settings-panel settings-monitor-panel">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="节点健康监控"
+                    subtitle="后台会定期巡检已配置节点，并通过右上角通知中心推送异常或恢复告警。"
+                    actions={(
+                        <div className="settings-panel-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
+                                {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                                {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                            </button>
+                        </div>
+                    )}
+                />
+                <div className="settings-mini-grid mb-3">
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">监控状态</div>
+                        <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
+                        <div className="text-xs text-muted mt-1">周期 {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">最近巡检</div>
+                        <div className="text-lg font-semibold">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt)}</div>
+                        <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">健康统计</div>
+                        <div className="text-lg font-semibold">
+                            正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
+                        </div>
+                        <div className="text-xs text-muted mt-1">维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0}</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">告警状态</div>
+                        <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
+                        <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderBackupContent = () => (
+        <div className="settings-section-stack">
+            <div className="card p-4 settings-panel settings-backup-panel">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="系统备份"
+                    subtitle="导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。"
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
+                            {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                        </button>
+                    )}
+                />
+                <div className="settings-mini-grid mb-3">
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">可备份 Store</div>
+                        <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
+                        <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">最近导出</div>
+                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt)}</div>
+                        <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
+                    </div>
+                    <div className="card p-3 settings-mini-card">
+                        <div className="text-sm text-muted">最近恢复</div>
+                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt)}</div>
+                        <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
+                    </div>
+                </div>
+                <div className="settings-backup-actions mt-3">
+                    <div className="card p-3 settings-mini-card settings-backup-action-card">
+                        <div className="text-sm font-medium">导出当前快照</div>
+                        <div className="text-xs text-muted mt-1">下载当前系统 store 的 gzip 快照，适合在变更前留存一份回滚点。</div>
+                        <div className="settings-backup-action-footer">
+                            <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
+                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出 gzip 备份</>}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-backup-action-card">
+                        <div className="text-sm font-medium">恢复已有备份</div>
+                        <div className="text-xs text-muted mt-1">通过恢复向导上传并预览 `.gzip` 备份包，再执行覆盖恢复，避免误触高风险动作。</div>
+                        <div className="settings-backup-action-footer">
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                    setBackupRestoreModalOpen(true);
+                                    setBackupRestoreConfirmed(false);
+                                    setBackupUploadProgress(0);
+                                }}
+                                disabled={backupLoading || backupRestoreLoading}
+                            >
+                                <HiOutlineArrowUpTray /> 导入 / 恢复备份
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {backupInspection && (
+                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
+                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                            <div className="text-sm font-medium">备份预览</div>
+                            <span className="badge badge-success">可校验</span>
+                        </div>
+                        <div className="settings-backup-inspection-grid">
+                            <div className="settings-backup-inspection-item">
+                                <div className="text-xs text-muted">备份时间</div>
+                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt) : '未知'}</div>
+                            </div>
+                            <div className="settings-backup-inspection-item">
+                                <div className="text-xs text-muted">格式版本</div>
+                                <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
+                            </div>
+                            <div className="settings-backup-inspection-item">
+                                <div className="text-xs text-muted">可恢复 Store</div>
+                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                            </div>
+                        </div>
+                        {(backupInspection.unsupportedKeys || []).length > 0 && (
+                            <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
+                        )}
+                        {(backupInspection.missingKeys || []).length > 0 && (
+                            <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
+                        )}
+                        <div className="settings-backup-inspection-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                                {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
+                                {backupRestoreLoading ? <span className="spinner" /> : '确认恢复备份'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="card p-4 settings-panel settings-danger-panel">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="凭据轮换"
+                    subtitle="更换 `CREDENTIALS_SECRET` 后，可用新密钥重新加密已保存的节点凭据。Dry Run 仅预演不修改数据。"
+                />
+                <div className="flex gap-2 flex-wrap mb-3">
+                    <button className="btn btn-secondary btn-sm" onClick={() => rotateCredentials(true)} disabled={rotateLoading}>
+                        {rotateLoading ? <span className="spinner" /> : 'Dry Run'}
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => rotateCredentials(false)} disabled={rotateLoading}>
+                        {rotateLoading ? <span className="spinner" /> : '执行轮换'}
+                    </button>
+                </div>
+                {rotateResult && (
+                    <div className="text-sm text-muted">
+                        扫描字段: {rotateResult.scannedFields}，轮换字段: {rotateResult.rotatedFields}，失败: {rotateResult.failedFields}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderDatabaseContent = () => (
+        <div className="settings-section-stack">
+            <div className="card p-4 settings-panel settings-db-panel">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="数据库接入状态"
+                    subtitle="运行时查看数据库就绪情况，并在 file / db / dual 之间切换读写模式。"
+                    actions={(
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
+                            {dbLoading ? <span className="spinner" /> : '刷新状态'}
+                        </button>
+                    )}
+                />
+
+                {!dbStatus ? (
+                    <div className="text-sm text-muted">尚未加载数据库状态。</div>
+                ) : (
+                    <>
+                        <div className="settings-mini-grid mb-4">
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">DB 连接</div>
+                                <div className="text-lg font-semibold">
+                                    {dbStatus.connection?.enabled ? (dbStatus.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
+                                </div>
+                                <div className="text-xs text-muted">{dbStatus.connection?.error || '无错误'}</div>
+                                <div className="text-xs text-muted mt-1">需在 `.env` 中配置 `DB_ENABLED=true` 和 `DB_URL`。</div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">当前模式</div>
+                                <div className="text-lg font-semibold">
+                                    read={dbStatus.currentModes?.readMode || 'file'} / write={dbStatus.currentModes?.writeMode || 'file'}
+                                </div>
+                                <div className="text-xs text-muted">queued {dbStatus.writesQueued || 0} · pending {dbStatus.pendingWrites || 0}</div>
+                            </div>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">写入统计</div>
+                                <div className="text-lg font-semibold">
+                                    成功 {dbStatus.writesSucceeded || 0} / 失败 {dbStatus.writesFailed || 0}
+                                </div>
+                                <div className="text-xs text-muted">最后写入: {formatDateTime(dbStatus.lastWriteAt)}</div>
+                            </div>
+                        </div>
+
+                        <div className="settings-grid settings-db-grid">
+                            <div className="card p-3 settings-mini-card settings-db-control-card">
+                                <h4 className="text-base font-semibold mb-2">切换读写模式</h4>
+                                <div className="text-xs text-muted mb-2">运行时切换数据源，无需重启。file=本地 JSON，db=PostgreSQL，dual=同时写两者。</div>
+                                <div className="form-group">
+                                    <label className="form-label">Read Mode</label>
+                                    <select
+                                        className="form-select"
+                                        value={dbModeDraft.readMode}
+                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
+                                        disabled={!isAdmin}
+                                    >
+                                        {(dbStatus.supportedModes?.readModes || ['file', 'db']).map((mode) => (
+                                            <option key={mode} value={mode}>{mode}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Write Mode</label>
+                                    <select
+                                        className="form-select"
+                                        value={dbModeDraft.writeMode}
+                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
+                                        disabled={!isAdmin}
+                                    >
+                                        {(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map((mode) => (
+                                            <option key={mode} value={mode}>{mode}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit mb-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={dbModeDraft.hydrateOnReadDb}
+                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
+                                        disabled={!isAdmin}
+                                    />
+                                    read=db 时同步加载到内存缓存
+                                </label>
+                                <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={switchDbMode}
+                                    disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
+                                >
+                                    {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
+                                </button>
+                            </div>
+
+                            <div className="card p-3 settings-mini-card settings-db-control-card">
+                                <h4 className="text-base font-semibold mb-2">Store 回填到数据库</h4>
+                                <div className="text-xs text-muted mb-2">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
+                                <div className="form-group">
+                                    <label className="form-label">Store Keys（逗号分隔，留空=全部）</label>
+                                    <input
+                                        className="form-input"
+                                        value={dbBackfillDraft.keysText}
+                                        onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
+                                        placeholder={(dbStatus.storeKeys || []).join(', ')}
+                                        disabled={!isAdmin}
+                                    />
+                                    <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
+                                </div>
+                                <div className="flex gap-3 mb-3 flex-wrap">
+                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                        <input
+                                            type="checkbox"
+                                            checked={dbBackfillDraft.dryRun}
+                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
+                                            disabled={!isAdmin}
+                                        />
+                                        Dry Run
+                                    </label>
+                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                        <input
+                                            type="checkbox"
+                                            checked={dbBackfillDraft.redact}
+                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
+                                            disabled={!isAdmin}
+                                        />
+                                        脱敏写入
+                                    </label>
+                                </div>
+                                <button
+                                    className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
+                                    onClick={runDbBackfill}
+                                    disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
+                                >
+                                    {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
+                                </button>
+                                {dbBackfillResult && (
+                                    <div className="text-sm text-muted mt-3">
+                                        total: {dbBackfillResult.total || 0}，success: {dbBackfillResult.success || 0}，failed: {dbBackfillResult.failed || 0}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 settings-snapshot-section">
+                            <h4 className="text-base font-semibold mb-2">数据库快照</h4>
+                            <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>store</th>
+                                            <th>size(bytes)</th>
+                                            <th>updated_at</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(dbStatus.snapshots || []).length === 0 ? (
+                                            <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
+                                        ) : (
+                                            (dbStatus.snapshots || []).map((item) => (
+                                                <tr key={item.store_key}>
+                                                    <td data-label="Store">{item.store_key}</td>
+                                                    <td data-label="大小">{item.payload_size || 0}</td>
+                                                    <td data-label="更新时间">{formatDateTime(item.updated_at)}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+
     if (!isAdmin) {
         return (
             <>
@@ -671,12 +1635,12 @@ export default function SystemSettings() {
                 title={t('pages.settings.title')}
                 eyebrow={t('pages.settings.eyebrow')}
             />
-            <div className="page-content page-enter">
+            <div className="page-content page-content--wide page-enter">
                 <div className="card mb-6 settings-toolbar settings-overview-card">
                     <SectionHeader
                         className="settings-overview-header"
-                        title="系统参数与运行诊断"
-                        subtitle="统一管理任务、审计、订阅地址以及备份和健康监控相关配置。"
+                        title="系统设置工作台"
+                        subtitle="统一管理注册、存储、备份、诊断和节点控制台，减少分散入口。"
                         meta={(
                             <div className="settings-overview-status" aria-live="polite">
                                 <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
@@ -687,7 +1651,7 @@ export default function SystemSettings() {
                         )}
                         actions={(
                             <div className="settings-overview-actions settings-panel-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>
+                                <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
                                     刷新
                                 </button>
                                 <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
@@ -698,716 +1662,89 @@ export default function SystemSettings() {
                     />
                 </div>
                 
-                <div className="tabs mb-6 settings-tabs">
-                    <button type="button" className={`tab ${tab === 'basic' ? 'active' : ''}`} onClick={() => setTab('basic')}>系统参数</button>
-                    <button type="button" className={`tab ${tab === 'db' ? 'active' : ''}`} onClick={() => setTab('db')}>数据库与存储</button>
-                    <button type="button" className={`tab ${tab === 'backup' ? 'active' : ''}`} onClick={() => setTab('backup')}>安全与备份</button>
-                    <button type="button" className={`tab ${tab === 'monitor' ? 'active' : ''}`} onClick={() => setTab('monitor')}>监控诊断</button>
-                </div>
-
-                <fieldset className="settings-fieldset" disabled={!isAdmin} style={{ border: 'none', margin: 0, padding: 0 }}>
-                    <div className="settings-grid mb-6" style={{ display: tab === 'basic' ? 'grid' : 'none' }}>
-                        <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">系统参数</div>
-                            <div className="text-sm text-muted">影响任务保留、审计分页和订阅地址等全局行为。</div>
+                <div className="settings-shell">
+                    <aside className="card settings-nav">
+                        <div className="settings-nav-copy">
+                            <div className="settings-nav-eyebrow">设置分区</div>
+                            <div className="settings-nav-title">按主题管理系统能力</div>
+                            <div className="settings-nav-subtitle">把原来分散的设置、诊断和节点控制集中到一个工作台里。</div>
                         </div>
-                        <div className="card p-4 settings-panel">
-                            <h3 className="text-lg font-semibold mb-3">任务中心参数</h3>
-                            <div className="text-xs text-muted mb-3">批量任务（用户操作、流量重置等）的运行与存储参数</div>
-                            <div className="form-group">
-                                <label className="form-label">任务保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
-                                <div className="text-xs text-muted mt-1">历史任务记录的保留期限，超期自动清理</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">任务列表单页最大记录数</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务最大保留记录</label>
-                                <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
-                                <div className="text-xs text-muted mt-1">系统保留的历史任务上限</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">批量并发上限</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
-                                <div className="text-xs text-muted mt-1">允许的最大并行操作数</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">默认并发</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
-                                <div className="text-xs text-muted mt-1">新建任务时的默认并行数</div>
-                            </div>
-                        </div>
-
-                        <div className="card p-4 settings-panel">
-                            <h3 className="text-lg font-semibold mb-3">审计参数</h3>
-                            <div className="text-xs text-muted mb-3">操作日志（登录、增删改查等）的存储策略</div>
-                            <div className="form-group">
-                                <label className="form-label">审计保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                                <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">审计分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">日志列表单页最大记录数</div>
-                            </div>
-                        </div>
-
-                        <div className="card p-4 settings-panel">
-                            <h3 className="text-lg font-semibold mb-3">订阅地址</h3>
-                            <div className="form-group">
-                                <label className="form-label">订阅公网地址（可选，建议配置）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://nms.example.com"
-                                    value={draft.subscription.publicBaseUrl}
-                                    onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
-                                />
-                                <div className="text-xs text-muted mt-1">
-                                    配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">外部订阅转换器地址（可选）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://converter.example.com"
-                                    value={converterBaseUrl}
-                                    onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
-                                />
-                                <div className="text-xs text-muted mt-1">
-                                    配置后，Clash / Mihomo / Sing-box / Surge 专用订阅链接将自动包装到该转换器，不再使用 NMS 内置专用配置生成。
-                                </div>
-                                <div className="flex gap-2 flex-wrap mt-2">
+                        <div className="settings-nav-list" role="tablist" aria-label="系统设置分区">
+                            {SETTINGS_TAB_CONFIG.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = activeTab === item.id;
+                                return (
                                     <button
+                                        key={item.id}
                                         type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => patchField('subscription', 'converterBaseUrl', '')}
-                                        disabled={!converterBaseUrl}
+                                        className={`settings-nav-item${isActive ? ' is-active' : ''}`}
+                                        onClick={() => setActiveTab(item.id)}
+                                        role="tab"
+                                        aria-selected={isActive}
                                     >
-                                        清空
-                                    </button>
-                                    <a
-                                        href={converterBaseUrl || undefined}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
-                                        aria-disabled={!converterBaseUrl}
-                                        onClick={(event) => {
-                                            if (!converterBaseUrl) event.preventDefault();
-                                        }}
-                                    >
-                                        打开链接
-                                    </a>
-                                </div>
-                                <div className="text-xs text-muted mt-2">
-                                    修改后点击页面顶部“保存设置”生效，订阅中心里的 Clash / Mihomo / sing-box / Surge 快捷方式会自动切换到新地址。
-                                </div>
-                            </div>
-                            <div className="text-xs text-muted">
-                                未配置转换器时，仍使用 NMS 内置 Clash / Mihomo / sing-box / Surge 配置生成逻辑。
-                            </div>
-                        </div>
-
-                        <div className="card p-4 settings-panel">
-                            <SectionHeader
-                                className="mb-3"
-                                compact
-                                title="注册与邀请码"
-                                actions={(
-                                    <div className="settings-panel-actions">
-                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
-                                            {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
-                                        </button>
-                                    </div>
-                                )}
-                            />
-                            <div className="form-group">
-                                <label className="form-label">当前注册状态</label>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`badge ${registrationEnabled ? 'badge-success' : 'badge-danger'}`}>
-                                        {registrationEnabled ? '允许注册' : '已关闭注册'}
-                                    </span>
-                                    <span className={`badge ${draft.registration.inviteOnlyEnabled ? 'badge-warning' : 'badge-info'}`}>
-                                        {draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-muted mt-2">
-                                    {registrationEnabled
-                                        ? '开启邀请注册后，注册页必须填写有效邀请码，且跳过邮箱验证码。'
-                                        : '全局注册开关来自后端环境变量 REGISTRATION_ENABLED。当前环境已关闭自助注册，下面的邀请注册选项只会保留配置。'}
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                    <input
-                                        type="checkbox"
-                                        checked={draft.registration.inviteOnlyEnabled}
-                                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                                        disabled={!registrationEnabled}
-                                    />
-                                    开启邀请注册
-                                </label>
-                            </div>
-                            <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                                <div className="text-sm font-medium mb-2">生成参数</div>
-                                <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">本次生成数量</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
-                                            min={1}
-                                            max={50}
-                                            value={inviteGenerationDraft.count}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                count: e.target.value,
-                                            }))}
-                                        />
-                                        <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">每个邀请码可用次数</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
-                                            min={1}
-                                            max={1000}
-                                            value={inviteGenerationDraft.usageLimit}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                usageLimit: e.target.value,
-                                            }))}
-                                        />
-                                        <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
-                                    </div>
-                                    <div className="form-group mb-0" style={{ alignSelf: 'end' }}>
-                                        <button
-                                            className="btn btn-primary w-full"
-                                            type="button"
-                                            onClick={createInviteCode}
-                                            disabled={inviteCodeActionLoading}
-                                        >
-                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
-                                        </button>
-                                        <div className="text-xs text-muted mt-1">例如：生成 5 个邀请码，每个可注册 2 次。</div>
-                                    </div>
-                                </div>
-                            </div>
-                            {latestInviteCodes.length > 0 && (
-                                <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                        <div className="text-sm font-medium">本次生成的邀请码</div>
-                                        <span className="text-xs text-muted">
-                                            {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次
+                                        <span className="settings-nav-item-icon"><Icon /></span>
+                                        <span className="settings-nav-item-copy">
+                                            <span className="settings-nav-item-label">{item.label}</span>
+                                            <span className="settings-nav-item-description">{item.description}</span>
                                         </span>
-                                    </div>
-                                    <div className="grid gap-2" style={{ display: 'grid', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
-                                        {latestInviteCodes.map((code) => (
-                                            <code key={code} className="font-mono">{code}</code>
-                                        ))}
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-wrap mt-3">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={async () => {
-                                                await copyToClipboard(latestInviteCodes.join('\n'));
-                                                toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
-                                            }}
-                                        >
-                                            {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
-                                        </button>
-                                    </div>
-                                    <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
-                                </div>
-                            )}
-                            <div className="settings-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>预览</th>
-                                            <th>状态</th>
-                                            <th>次数</th>
-                                            <th>创建时间</th>
-                                            <th>使用情况</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {inviteCodes.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={6} className="text-center text-muted">暂无邀请码</td>
-                                            </tr>
-                                        ) : (
-                                            inviteCodes.map((invite) => (
-                                                <tr key={invite.id}>
-                                                    <td data-label="预览" className="cell-mono">{invite.preview}</td>
-                                                    <td data-label="状态">
-                                                        <span className={`badge ${invite.status === 'active' ? 'badge-success' : invite.status === 'used' ? 'badge-neutral' : 'badge-danger'}`}>
-                                                            {invite.status === 'active' ? '可用' : invite.status === 'used' ? '已使用' : '已撤销'}
-                                                        </span>
-                                                    </td>
-                                                    <td data-label="次数" className="text-sm text-muted">
-                                                        已用 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
-                                                        {invite.status === 'active' ? ` · 剩余 ${Number(invite.remainingUses || 0)}` : ''}
-                                                    </td>
-                                                    <td data-label="创建时间">{invite.createdAt ? new Date(invite.createdAt).toLocaleString('zh-CN') : '-'}</td>
-                                                    <td data-label="使用情况" className="text-sm text-muted">
-                                                        {invite.usedAt
-                                                            ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${new Date(invite.usedAt).toLocaleString('zh-CN')}`
-                                                            : invite.revokedAt
-                                                                ? `已于 ${new Date(invite.revokedAt).toLocaleString('zh-CN')} 撤销`
-                                                                : '未使用'}
-                                                    </td>
-                                                    <td data-label="操作" className="table-cell-actions">
-                                                        {invite.status === 'active' ? (
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-danger btn-sm"
-                                                                onClick={() => revokeInviteCode(invite)}
-                                                                disabled={inviteCodeActionLoading}
-                                                            >
-                                                                撤销
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs text-muted">-</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    </div>
+                    </aside>
 
-                    <div className="settings-grid mb-6" style={{ display: tab === 'monitor' ? 'grid' : 'none' }}>
-                        <div className="card p-4 settings-section-banner" style={{ gridColumn: '1 / -1' }}>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">运行诊断</div>
-                            <div className="text-sm text-muted">只读查看当前邮件、备份和健康巡检状态，高风险操作仍需单独确认。</div>
+                    <div className="settings-main">
+                        <div className="settings-summary-grid mb-6">
+                            {overviewCards.map((item) => (
+                                <div key={item.title} className="card settings-summary-card">
+                                    <div className="settings-summary-label">{item.title}</div>
+                                    <div className="settings-summary-value">{item.value}</div>
+                                    <div className="settings-summary-detail">{item.detail}</div>
+                                    <span className={`badge settings-summary-badge ${
+                                        item.tone === 'success'
+                                            ? 'badge-success'
+                                            : item.tone === 'warning'
+                                                ? 'badge-warning'
+                                                : item.tone === 'danger'
+                                                    ? 'badge-danger'
+                                                    : 'badge-neutral'
+                                    }`}
+                                    >
+                                        {item.tone === 'success' ? '正常' : item.tone === 'warning' ? '关注' : item.tone === 'danger' ? '关闭' : '待检查'}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                        <div className="card p-4 settings-panel settings-diagnostics-panel">
+
+                        <div className="card p-4 settings-panel settings-tab-panel">
                             <SectionHeader
-                                className="mb-3"
-                                compact
-                                title="SMTP 诊断"
-                                meta={emailStatus && (
-                                    <div className="flex items-center gap-2 flex-wrap justify-end">
-                                        <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                                        <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                                        <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                                    </div>
-                                )}
-                                actions={(
-                                    <div className="settings-panel-actions">
-                                        <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                            {emailTestLoading ? <span className="spinner" /> : '测试'}
-                                        </button>
-                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
-                                            {emailStatusLoading ? <span className="spinner" /> : '刷新'}
-                                        </button>
+                                className="mb-4"
+                                title={activeTabMeta.label}
+                                subtitle={activeTabMeta.description}
+                                meta={(
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className={`badge ${loading ? 'badge-neutral' : 'badge-success'}`}>
+                                            {loading ? '加载中' : '已就绪'}
+                                        </span>
+                                        {activeTab === 'console' ? <span className="badge badge-info">已并入系统设置</span> : null}
                                     </div>
                                 )}
                             />
-                            {!emailStatus ? (
-                                <div className="text-sm text-muted">尚未加载 SMTP 状态</div>
+
+                            {activeTab === 'console' ? (
+                                <div className="settings-console-host">
+                                    <ServerManagement embedded />
+                                </div>
                             ) : (
-                                <>
-                                    <div className="text-xs text-muted mb-3">SMTP 配置来自服务端 `.env`，修改后需要重启后端服务。此处仅展示诊断信息，不返回明文密码。</div>
-                                    <div className="settings-mini-grid mb-3">
-                                        <div className="card p-3 settings-mini-card">
-                                            <div className="text-sm text-muted">配置状态</div>
-                                            <div className="mt-2">
-                                                <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                                            </div>
-                                        </div>
-                                        <div className="card p-3 settings-mini-card">
-                                            <div className="text-sm text-muted">SMTP 服务</div>
-                                            <div className="text-lg font-semibold">{emailStatus.service || '-'}</div>
-                                            <div className="text-xs text-muted">auth {emailStatus.authMethod || 'AUTO'}</div>
-                                        </div>
-                                        <div className="card p-3 settings-mini-card">
-                                            <div className="text-sm text-muted">服务器</div>
-                                            <div className="text-lg font-semibold">{emailStatus.host || '-'}</div>
-                                            <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
-                                        </div>
-                                        <div className="card p-3 settings-mini-card">
-                                            <div className="text-sm text-muted">发件人</div>
-                                            <div className="text-lg font-semibold">{emailStatus.from || '-'}</div>
-                                            <div className="text-xs text-muted">账号 {emailStatus.userMasked || '-'}</div>
-                                        </div>
-                                        <div className="card p-3 settings-mini-card">
-                                            <div className="text-sm text-muted">加密模式</div>
-                                            <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
-                                            <div className="text-xs text-muted">
-                                                {emailStatus.requireTLS ? 'requireTLS' : (emailStatus.ignoreTLS ? 'ignoreTLS' : 'auto TLS')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
-                                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                            <div className="text-sm font-medium">最近连接测试</div>
-                                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                                        </div>
-                                        <div className="text-sm">最近测试: {emailStatus.lastVerification?.ts ? new Date(emailStatus.lastVerification.ts).toLocaleString('zh-CN') : '暂无'}</div>
-                                        <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
-                                        <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
-                                    </div>
-                                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
-                                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                            <div className="text-sm font-medium">最近发送结果</div>
-                                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                                        </div>
-                                        <div className="text-sm">最近发送: {emailStatus.lastDelivery?.ts ? new Date(emailStatus.lastDelivery.ts).toLocaleString('zh-CN') : '暂无'}</div>
-                                        <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
-                                        <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
-                                        <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
-                                    </div>
-                                </>
+                                <fieldset className="settings-fieldset">
+                                    {activeTab === 'basic' ? renderBasicContent() : null}
+                                    {activeTab === 'monitor' ? renderMonitorContent() : null}
+                                    {activeTab === 'backup' ? renderBackupContent() : null}
+                                    {activeTab === 'db' ? renderDatabaseContent() : null}
+                                </fieldset>
                             )}
                         </div>
                     </div>
-
-                    <div className="settings-grid mb-6" style={{ display: tab === 'backup' ? 'grid' : 'none' }}>
-                        <div className="card p-4 settings-panel settings-backup-panel">
-                            <SectionHeader
-                                className="mb-3"
-                                compact
-                                title="系统备份"
-                                actions={(
-                                    <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
-                                        {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                                    </button>
-                                )}
-                            />
-                            <div className="text-xs text-muted mb-3">导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。</div>
-                            <div className="settings-mini-grid mb-3">
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">可备份 Store</div>
-                                    <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
-                                    <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">最近导出</div>
-                                    <div className="text-lg font-semibold">{backupStatus?.lastExport?.createdAt ? new Date(backupStatus.lastExport.createdAt).toLocaleString('zh-CN') : '暂无'}</div>
-                                    <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">最近恢复</div>
-                                    <div className="text-lg font-semibold">{backupStatus?.lastImport?.restoredAt ? new Date(backupStatus.lastImport.restoredAt).toLocaleString('zh-CN') : '暂无'}</div>
-                                    <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
-                                </div>
-                            </div>
-                            <div className="settings-backup-actions mt-3">
-                                <div className="card p-3 settings-mini-card settings-backup-action-card">
-                                    <div className="text-sm font-medium">导出当前快照</div>
-                                    <div className="text-xs text-muted mt-1">下载当前系统 store 的 gzip 快照，适合在变更前先留存一份回滚点。</div>
-                                    <div className="settings-backup-action-footer">
-                                        <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
-                                            {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出 gzip 备份</>}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="card p-3 settings-mini-card settings-backup-action-card">
-                                    <div className="text-sm font-medium">恢复已有备份</div>
-                                    <div className="text-xs text-muted mt-1">通过恢复向导上传并预览 `.gzip` 备份包，再执行覆盖恢复，避免在面板里直接误触高风险动作。</div>
-                                    <div className="settings-backup-action-footer">
-                                        <button
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => {
-                                                setBackupRestoreModalOpen(true);
-                                                setBackupRestoreConfirmed(false);
-                                                setBackupUploadProgress(0);
-                                            }}
-                                            disabled={backupLoading || backupRestoreLoading}
-                                        >
-                                            <HiOutlineArrowUpTray /> 导入 / 恢复备份
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {backupInspection && (
-                                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
-                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                        <div className="text-sm font-medium">备份预览</div>
-                                        <span className="badge badge-success">可校验</span>
-                                    </div>
-                                    <div className="settings-backup-inspection-grid">
-                                        <div className="settings-backup-inspection-item">
-                                            <div className="text-xs text-muted">备份时间</div>
-                                            <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
-                                        </div>
-                                        <div className="settings-backup-inspection-item">
-                                            <div className="text-xs text-muted">格式版本</div>
-                                            <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
-                                        </div>
-                                        <div className="settings-backup-inspection-item">
-                                            <div className="text-xs text-muted">可恢复 Store</div>
-                                            <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
-                                        </div>
-                                    </div>
-                                    {(backupInspection.unsupportedKeys || []).length > 0 && (
-                                        <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
-                                    )}
-                                    {(backupInspection.missingKeys || []).length > 0 && (
-                                        <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
-                                    )}
-                                    <div className="settings-backup-inspection-actions">
-                                        <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                            {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
-                                        </button>
-                                        <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
-                                            {backupRestoreLoading ? <span className="spinner" /> : '确认恢复备份'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="settings-grid mb-6" style={{ display: tab === 'monitor' ? 'grid' : 'none' }}>
-                        <div className="card p-4 settings-panel settings-monitor-panel">
-                            <SectionHeader
-                                className="mb-3"
-                                compact
-                                title="节点健康监控"
-                                actions={(
-                                    <>
-                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
-                                            {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                                        </button>
-                                        <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                                            {monitorLoading ? <span className="spinner" /> : '立即巡检'}
-                                        </button>
-                                    </>
-                                )}
-                            />
-                            <div className="text-xs text-muted mb-3">后台会定期巡检已配置节点，并通过右上角通知中心推送异常/恢复告警。</div>
-                            <div className="settings-mini-grid mb-3">
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">监控状态</div>
-                                    <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
-                                    <div className="text-xs text-muted mt-1">周期 {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">最近巡检</div>
-                                    <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.lastRunAt ? new Date(monitorStatus.healthMonitor.lastRunAt).toLocaleString('zh-CN') : '暂无'}</div>
-                                    <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">健康统计</div>
-                                    <div className="text-lg font-semibold">
-                                        正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
-                                    </div>
-                                    <div className="text-xs text-muted mt-1">维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0}</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">告警状态</div>
-                                    <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
-                                    <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <div className="card p-4 mt-6 settings-panel settings-danger-panel" style={{ display: tab === 'backup' ? 'block' : 'none' }}>
-                    <h3 className="text-lg font-semibold mb-3">凭据轮换</h3>
-                    <div className="text-xs text-muted mb-3">更换 CREDENTIALS_SECRET 后，将已保存的节点凭据用新密钥重新加密。Dry Run 仅预演不修改数据。</div>
-                    {isAdmin ? (
-                        <div className="flex gap-2 mb-3">
-                            <button className="btn btn-secondary btn-sm" onClick={() => rotateCredentials(true)} disabled={rotateLoading}>
-                                {rotateLoading ? <span className="spinner" /> : 'Dry Run'}
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={() => rotateCredentials(false)} disabled={rotateLoading}>
-                                {rotateLoading ? <span className="spinner" /> : '执行轮换'}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="text-sm text-muted mb-3">当前角色仅可查看，凭据轮换仅管理员可执行。</div>
-                    )}
-                    {rotateResult && (
-                        <div className="text-sm text-muted">
-                            扫描字段: {rotateResult.scannedFields}，轮换字段: {rotateResult.rotatedFields}，失败: {rotateResult.failedFields}
-                        </div>
-                    )}
-                </div>
-
-                <div className="card p-4 mt-6 settings-panel settings-db-panel" style={{ display: tab === 'db' ? 'block' : 'none' }}>
-                    <SectionHeader
-                        className="mb-3"
-                        compact
-                        title="数据库接入状态"
-                        actions={(
-                            <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
-                                {dbLoading ? <span className="spinner" /> : '刷新状态'}
-                            </button>
-                        )}
-                    />
-
-                    {!dbStatus ? (
-                        <div className="text-sm text-muted">尚未加载数据库状态</div>
-                    ) : (
-                        <>
-                            <div className="settings-mini-grid mb-4">
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">DB 连接</div>
-                                    <div className="text-lg font-semibold">
-                                        {dbStatus.connection?.enabled ? (dbStatus.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
-                                    </div>
-                                    <div className="text-xs text-muted">{dbStatus.connection?.error || '无错误'}</div>
-                                    <div className="text-xs text-muted mt-1">需在 .env 中配置 DB_ENABLED=true 和 DB_URL</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">当前模式</div>
-                                    <div className="text-lg font-semibold">
-                                        read={dbStatus.currentModes?.readMode || 'file'} / write={dbStatus.currentModes?.writeMode || 'file'}
-                                    </div>
-                                    <div className="text-xs text-muted">queued {dbStatus.writesQueued || 0} · pending {dbStatus.pendingWrites || 0}</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">写入统计</div>
-                                    <div className="text-lg font-semibold">
-                                        成功 {dbStatus.writesSucceeded || 0} / 失败 {dbStatus.writesFailed || 0}
-                                    </div>
-                                    <div className="text-xs text-muted">最后写入: {dbStatus.lastWriteAt ? new Date(dbStatus.lastWriteAt).toLocaleString('zh-CN') : '暂无'}</div>
-                                </div>
-                            </div>
-
-                            <div className="settings-grid settings-db-grid">
-                                <div className="card p-3 settings-mini-card settings-db-control-card">
-                                    <h4 className="text-base font-semibold mb-2">切换读写模式</h4>
-                                    <div className="text-xs text-muted mb-2">运行时切换数据源，无需重启。file=本地JSON，db=PostgreSQL，dual=同时写两者</div>
-                                    <div className="form-group">
-                                        <label className="form-label">Read Mode</label>
-                                        <select
-                                            className="form-select"
-                                            value={dbModeDraft.readMode}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
-                                            disabled={!isAdmin}
-                                        >
-                                            {(dbStatus.supportedModes?.readModes || ['file', 'db']).map((mode) => (
-                                                <option key={mode} value={mode}>{mode}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Write Mode</label>
-                                        <select
-                                            className="form-select"
-                                            value={dbModeDraft.writeMode}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
-                                            disabled={!isAdmin}
-                                        >
-                                            {(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map((mode) => (
-                                                <option key={mode} value={mode}>{mode}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit mb-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={dbModeDraft.hydrateOnReadDb}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
-                                            disabled={!isAdmin}
-                                        />
-                                        read=db 时同步加载到内存缓存
-                                    </label>
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={switchDbMode}
-                                        disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                    >
-                                        {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
-                                    </button>
-                                </div>
-
-                                <div className="card p-3 settings-mini-card settings-db-control-card">
-                                    <h4 className="text-base font-semibold mb-2">Store 回填到数据库</h4>
-                                    <div className="text-xs text-muted mb-2">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
-                                    <div className="form-group">
-                                        <label className="form-label">Store Keys (逗号分隔，留空=全部)</label>
-                                        <input
-                                            className="form-input"
-                                            value={dbBackfillDraft.keysText}
-                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
-                                            placeholder={(dbStatus.storeKeys || []).join(', ')}
-                                            disabled={!isAdmin}
-                                        />
-                                        <div className="text-xs text-muted mt-1">
-                                            可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3 mb-3">
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={dbBackfillDraft.dryRun}
-                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
-                                                disabled={!isAdmin}
-                                            />
-                                            Dry Run
-                                        </label>
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={dbBackfillDraft.redact}
-                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
-                                                disabled={!isAdmin}
-                                            />
-                                            脱敏写入
-                                        </label>
-                                    </div>
-                                    <button
-                                        className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
-                                        onClick={runDbBackfill}
-                                        disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                    >
-                                        {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
-                                    </button>
-                                    {dbBackfillResult && (
-                                        <div className="text-sm text-muted mt-3">
-                                            total: {dbBackfillResult.total || 0}，success: {dbBackfillResult.success || 0}，failed: {dbBackfillResult.failed || 0}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="mt-4 settings-snapshot-section">
-                                <h4 className="text-base font-semibold mb-2">数据库快照</h4>
-                                <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>store</th>
-                                                <th>size(bytes)</th>
-                                                <th>updated_at</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(dbStatus.snapshots || []).length === 0 ? (
-                                                <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
-                                            ) : (
-                                                (dbStatus.snapshots || []).map((item) => (
-                                                    <tr key={item.store_key}>
-                                                        <td data-label="Store">{item.store_key}</td>
-                                                        <td data-label="大小">{item.payload_size || 0}</td>
-                                                        <td data-label="更新时间">{item.updated_at ? new Date(item.updated_at).toLocaleString('zh-CN') : '-'}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
             <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>

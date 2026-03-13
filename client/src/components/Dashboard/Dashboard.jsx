@@ -12,6 +12,7 @@ import {
     HiOutlineCircleStack,
     HiOutlineArrowsUpDown,
     HiOutlineClock,
+    HiOutlineCommandLine,
     HiOutlineUsers,
     HiOutlineSignal,
     HiOutlineArrowPath,
@@ -134,6 +135,34 @@ function StatCard({ card, loading }) {
             <div className="card-icon dashboard-stat-card-icon" aria-hidden="true">
                 <card.icon />
             </div>
+        </div>
+    );
+}
+
+function QuickActionGrid({ actions = [] }) {
+    return (
+        <div className="dashboard-quick-grid">
+            {actions.map((action) => (
+                <button
+                    key={action.title}
+                    type="button"
+                    className="dashboard-quick-card"
+                    data-tone={action.tone || 'primary'}
+                    onClick={action.onClick}
+                >
+                    <span className="dashboard-quick-card-icon" aria-hidden="true">
+                        <action.icon />
+                    </span>
+                    <span className="dashboard-quick-card-copy">
+                        <span className="dashboard-quick-card-title">{action.title}</span>
+                        <span className="dashboard-quick-card-detail">{action.detail}</span>
+                        {action.meta && <span className="dashboard-quick-card-meta">{action.meta}</span>}
+                    </span>
+                    <span className="dashboard-quick-card-arrow" aria-hidden="true">
+                        <HiOutlineArrowRight />
+                    </span>
+                </button>
+            ))}
         </div>
     );
 }
@@ -748,6 +777,40 @@ export default function Dashboard() {
                 sparklineDomain: [0, 100],
             },
         ];
+        const globalQuickActions = [
+            {
+                title: '用户管理',
+                detail: globalAccountSummary.pendingUsers > 0 ? `待审核 ${globalAccountSummary.pendingUsers} 个` : '查看账号、流量和订阅',
+                meta: globalAccountSummary.totalUsers > 0 ? `已注册 ${globalAccountSummary.totalUsers} 个用户` : '管理注册用户与订阅入口',
+                icon: HiOutlineUsers,
+                tone: 'info',
+                onClick: () => navigate('/clients'),
+            },
+            {
+                title: '入站管理',
+                detail: `${globalStats.activeInbounds} / ${globalStats.totalInbounds} 已启用`,
+                meta: '调整节点顺序、用户和限制策略',
+                icon: HiOutlineSignal,
+                tone: 'warning',
+                onClick: () => navigate('/inbounds'),
+            },
+            {
+                title: '审计中心',
+                detail: globalOnlineSessionCount > 0 ? `当前在线会话 ${globalOnlineSessionCount}` : '查看订阅访问和操作日志',
+                meta: '排查异常访问、地区归属地和运营商',
+                icon: HiOutlineBolt,
+                tone: 'primary',
+                onClick: () => navigate('/audit'),
+            },
+            {
+                title: '节点控制台',
+                detail: `${globalStats.onlineServers} / ${globalStats.serverCount} 个节点在线`,
+                meta: '直接进入系统设置中的控制台与诊断页',
+                icon: HiOutlineCommandLine,
+                tone: 'success',
+                onClick: () => navigate('/settings?tab=console'),
+            },
+        ];
 
         return (
             <>
@@ -773,6 +836,15 @@ export default function Dashboard() {
                         {globalCards.map((card, idx) => (
                             <StatCard key={idx} card={card} loading={loading} />
                         ))}
+                    </div>
+
+                    <div className="card mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title="运维捷径"
+                            subtitle="把最常用的排查入口收在仪表盘里，减少来回切页。"
+                        />
+                        <QuickActionGrid actions={globalQuickActions} />
                     </div>
 
                     {showOnlineDetail && (
@@ -888,6 +960,40 @@ export default function Dashboard() {
             skeletonWidth: '5.5rem',
         },
     ];
+    const singleQuickActions = [
+        {
+            title: '入站管理',
+            detail: `${activeInbounds} / ${inbounds.length} 已启用`,
+            meta: '查看当前节点下的入站、用户与限制配置',
+            icon: HiOutlineSignal,
+            tone: 'warning',
+            onClick: () => navigate('/inbounds'),
+        },
+        {
+            title: '在线用户',
+            detail: onlineCount > 0 ? `${onlineCount} 个用户在线` : '当前没有在线用户',
+            meta: showOnlineDetail ? '已展开在线明细' : '点击直接展开在线明细',
+            icon: HiOutlineUsers,
+            tone: 'info',
+            onClick: () => setShowOnlineDetail((value) => !value),
+        },
+        {
+            title: '审计中心',
+            detail: '查看这个节点相关的访问与操作日志',
+            meta: '适合排查超时、归属地和订阅访问异常',
+            icon: HiOutlineBolt,
+            tone: 'primary',
+            onClick: () => navigate('/audit'),
+        },
+        {
+            title: '节点控制台',
+            detail: activeServer?.name || '打开当前节点控制台',
+            meta: '进入系统设置里的节点控制台和诊断区',
+            icon: HiOutlineCommandLine,
+            tone: 'success',
+            onClick: () => navigate('/settings?tab=console'),
+        },
+    ];
 
     return (
         <>
@@ -914,6 +1020,15 @@ export default function Dashboard() {
                     {statCards.map((card, idx) => (
                         <StatCard key={idx} card={card} loading={loading} />
                     ))}
+                </div>
+
+                <div className="card mb-6">
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title="运维捷径"
+                        subtitle="围绕当前节点最常用的操作和排查入口。"
+                    />
+                    <QuickActionGrid actions={singleQuickActions} />
                 </div>
 
                 {showOnlineDetail && (

@@ -10,7 +10,7 @@ export default function SubscriptionClientLinks({ bundle }) {
             {quickActions.length > 0 && (
                 <div className="subscription-client-links-section">
                     <div className="text-xs text-muted mb-2">
-                        装了客户端就点“快捷导入”。
+                        装了客户端，直接点“快捷导入”。
                     </div>
                     <div className="subscription-quick-actions">
                         {quickActions.map((item) => (
@@ -43,7 +43,7 @@ export default function SubscriptionClientLinks({ bundle }) {
             {toolSites.length > 0 && (
                 <div className="subscription-client-links-section">
                     <div className="text-xs text-muted mb-2">
-                        没装客户端的话，先下载一个。
+                        没装客户端，就先下载一个再导入。
                     </div>
                     <div className="flex gap-2 flex-wrap">
                         {toolSites.map((item) => (

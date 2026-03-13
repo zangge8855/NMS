@@ -3202,6 +3202,98 @@ input[type="radio"]:focus-visible {
   background: var(--bg-card-hover);
 }
 
+.dashboard-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.dashboard-quick-card {
+  --dashboard-quick-tone: var(--accent-primary);
+  --dashboard-quick-tone-bg: var(--accent-primary-bg);
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  color: inherit;
+  text-align: left;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.dashboard-quick-card[data-tone="info"] {
+  --dashboard-quick-tone: var(--accent-info);
+  --dashboard-quick-tone-bg: var(--accent-info-bg);
+}
+
+.dashboard-quick-card[data-tone="warning"] {
+  --dashboard-quick-tone: var(--accent-warning);
+  --dashboard-quick-tone-bg: var(--accent-warning-bg);
+}
+
+.dashboard-quick-card[data-tone="success"] {
+  --dashboard-quick-tone: var(--accent-success);
+  --dashboard-quick-tone-bg: var(--accent-success-bg);
+}
+
+.dashboard-quick-card:hover,
+.dashboard-quick-card:focus-visible,
+.dashboard-quick-card:active {
+  border-color: color-mix(in srgb, var(--dashboard-quick-tone) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--dashboard-quick-tone-bg) 60%, var(--surface-soft));
+  transform: translateY(-1px);
+}
+
+.dashboard-quick-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  color: var(--dashboard-quick-tone);
+  background: var(--dashboard-quick-tone-bg);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.dashboard-quick-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dashboard-quick-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dashboard-quick-card-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.dashboard-quick-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.dashboard-quick-card-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dashboard-quick-tone);
+  font-size: 15px;
+}
+
 .ws-status-chip {
   display: inline-flex;
   align-items: center;
@@ -9455,6 +9547,55 @@ input[type="radio"]:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.subscription-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.subscription-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+}
+
+.subscription-guide-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.subscription-guide-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subscription-guide-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscription-guide-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 .subscription-client-links-section {

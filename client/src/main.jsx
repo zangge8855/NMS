@@ -10,9 +10,23 @@ import './styles/ui-tokens.css';
 import './styles/layout-polish.css';
 import './styles/interaction-polish.css';
 
+function resolveSiteBasePath() {
+    if (typeof window === 'undefined') return '/';
+    const raw = String(window.__NMS_SITE_BASE_PATH__ || '/').trim();
+    if (!raw || /[\s?#]/.test(raw)) return '/';
+    const segments = raw
+        .split('/')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    if (segments.some((item) => item === '.' || item === '..')) return '/';
+    return segments.length === 0 ? '/' : `/${segments.join('/')}`;
+}
+
+const siteBasePath = resolveSiteBasePath();
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <BrowserRouter>
+        <BrowserRouter basename={siteBasePath}>
             <LanguageProvider>
                 <AuthProvider>
                     <ConfirmProvider>

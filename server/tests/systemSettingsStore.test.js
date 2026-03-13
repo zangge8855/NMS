@@ -61,4 +61,27 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(updated.registration.inviteOnlyEnabled, true);
         assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, true);
     });
+
+    it('defaults site access path to root and normalizes custom values', () => {
+        assert.equal(systemSettingsStore.getSite().accessPath, '/');
+
+        const updated = systemSettingsStore.update({
+            site: {
+                accessPath: ' portal/team/ ',
+            },
+        });
+
+        assert.equal(updated.site.accessPath, '/portal/team');
+        assert.equal(systemSettingsStore.getSite().accessPath, '/portal/team');
+    });
+
+    it('rejects reserved site access paths', () => {
+        assert.throws(() => {
+            systemSettingsStore.update({
+                site: {
+                    accessPath: '/api/private',
+                },
+            });
+        }, /site\.accessPath cannot use/);
+    });
 });

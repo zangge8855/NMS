@@ -23,6 +23,7 @@ import clientsRoutes from './routes/clients.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
+import systemSettingsStore from './store/systemSettingsStore.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
 
@@ -94,7 +95,9 @@ app.use('/api', (req, res) => {
 // Serve React build in production (or when explicitly enabled)
 const shouldServeClientBuild = config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';
 if (shouldServeClientBuild) {
-    registerClientBuildRoutes(app);
+    registerClientBuildRoutes(app, {
+        getSiteAccessPath: () => systemSettingsStore.getSite().accessPath,
+    });
 }
 
 // ── Global Error Handler ───────────────────────────────────

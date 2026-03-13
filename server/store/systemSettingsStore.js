@@ -7,6 +7,9 @@ import { saveObjectAtomic } from './fileUtils.js';
 const SETTINGS_FILE = path.join(config.dataDir, 'system_settings.json');
 
 const ALLOWED_KEYS = {
+    site: new Set([
+        'accessPath',
+    ]),
     registration: new Set([
         'inviteOnlyEnabled',
     ]),
@@ -41,6 +44,7 @@ const ALLOWED_KEYS = {
 };
 
 const GEO_PROVIDERS = new Set(['ip_api', 'ipip_myip']);
+const RESERVED_SITE_ACCESS_PATHS = ['/api', '/assets', '/ws'];
 const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
@@ -139,6 +143,28 @@ function normalizeInt(value, fallback, options = {}) {
     return out;
 }
 
+function normalizeSiteAccessPath(value, fallback = '/') {
+    const fallbackValue = String(fallback || '/').trim() || '/';
+    const text = String(value || '').trim();
+    if (!text) return fallbackValue;
+    if (/[\s?#]/.test(text)) return fallbackValue;
+
+    const segments = text
+        .split('/')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    if (segments.some((item) => item === '.' || item === '..')) {
+        return fallbackValue;
+    }
+
+    return segments.length === 0 ? '/' : `/${segments.join('/')}`;
+}
+
+function isReservedSiteAccessPath(value = '') {
+    return RESERVED_SITE_ACCESS_PATHS.some((prefix) => value === prefix || value.startsWith(`${prefix}/`));
+}
+
 function normalizeHttpUrl(value, fallback = '') {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -210,6 +236,9 @@ class SystemSettingsStore {
         const maxConcurrency = Math.max(1, Number(config.jobs?.maxConcurrency || 10));
         const defaultConcurrency = Math.min(5, maxConcurrency);
         return {
+            site: {
+                accessPath: '/',
+            },
             registration: {
                 inviteOnlyEnabled: false,
             },
@@ -269,6 +298,13 @@ class SystemSettingsStore {
         };
     }
 
+    _normalizeSite(input = {}, fallback) {
+        const accessPath = normalizeSiteAccessPath(input.accessPath, fallback.accessPath);
+        return {
+            accessPath: isReservedSiteAccessPath(accessPath) ? fallback.accessPath : accessPath,
+        };
+    }
+
     _normalizeJobs(input = {}, fallback) {
         const jobs = {
             retentionDays: normalizeInt(input.retentionDays, fallback.retentionDays, { min: 1, max: 3650 }),
@@ -318,6 +354,7 @@ class SystemSettingsStore {
         const fallbackRoot = fallbackSettings && typeof fallbackSettings === 'object' && !Array.isArray(fallbackSettings)
             ? fallbackSettings
             : defaults;
+        const siteFallback = mergeSection(defaults.site, fallbackRoot.site);
         const registrationFallback = mergeSection(defaults.registration, fallbackRoot.registration);
         const securityFallback = mergeSection(defaults.security, fallbackRoot.security);
         const jobsFallback = mergeSection(defaults.jobs, fallbackRoot.jobs);
@@ -328,6 +365,7 @@ class SystemSettingsStore {
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
 
+        const siteInput = mergeSection(defaults.site, input.site);
         const registrationInput = mergeSection(defaults.registration, input.registration);
         const securityInput = mergeSection(defaults.security, input.security);
         const jobsInput = mergeSection(defaults.jobs, input.jobs);
@@ -339,6 +377,7 @@ class SystemSettingsStore {
         const userOrderInput = normalizeIdList(input.userOrder);
 
         return {
+            site: this._normalizeSite(siteInput, siteFallback),
             registration: this._normalizeRegistration(registrationInput, registrationFallback),
             security: this._normalizeSecurity(securityInput, securityFallback),
             jobs: this._normalizeJobs(jobsInput, jobsFallback),
@@ -384,6 +423,10 @@ class SystemSettingsStore {
 
     getSecurity() {
         return this.getAll().security;
+    }
+
+    getSite() {
+        return this.getAll().site;
     }
 
     getRegistration() {
@@ -502,7 +545,17 @@ class SystemSettingsStore {
 
     update(patch = {}) {
         this._assertAllowedPayload(patch);
+        if (patch.site && Object.prototype.hasOwnProperty.call(patch.site, 'accessPath')) {
+            const normalizedAccessPath = normalizeSiteAccessPath(patch.site.accessPath, '');
+            if (!normalizedAccessPath) {
+                throw new Error('site.accessPath must be a valid path');
+            }
+            if (isReservedSiteAccessPath(normalizedAccessPath)) {
+                throw new Error('site.accessPath cannot use /api, /assets or /ws');
+            }
+        }
         const candidate = {
+            site: mergeSection(this.settings.site, patch.site),
             registration: mergeSection(this.settings.registration, patch.registration),
             security: mergeSection(this.settings.security, patch.security),
             jobs: mergeSection(this.settings.jobs, patch.jobs),

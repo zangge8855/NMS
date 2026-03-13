@@ -7,7 +7,6 @@ import {
     HiOutlineLink,
     HiOutlineSignal,
     HiOutlineCpuChip,
-    HiOutlineCommandLine,
     HiOutlineShieldCheck,
 } from 'react-icons/hi2';
 
@@ -38,8 +37,7 @@ export const navSections = [
     {
         title: { 'zh-CN': '系统', 'en-US': 'System' },
         items: [
-            { path: '/settings', icon: HiOutlineCog6Tooth, label: { 'zh-CN': '系统设置', 'en-US': 'Settings' }, supportsGlobal: true, adminOnly: true, keywords: ['设置', 'system', 'settings'] },
-            { path: '/server', icon: HiOutlineCommandLine, label: { 'zh-CN': '节点控制台', 'en-US': 'Node Console' }, supportsGlobal: true, keywords: ['节点', '控制台', 'server', 'node'] },
+            { path: '/settings', icon: HiOutlineCog6Tooth, label: { 'zh-CN': '系统设置', 'en-US': 'Settings' }, supportsGlobal: true, adminOnly: true, keywords: ['设置', 'system', 'settings', '节点', '控制台', 'console', 'backup', 'monitor', 'database'] },
             { path: '/servers', icon: HiOutlineServerStack, label: { 'zh-CN': '服务器管理', 'en-US': 'Servers' }, supportsGlobal: true, adminOnly: true, keywords: ['服务器', '节点', 'server', 'registry'] },
         ],
     },

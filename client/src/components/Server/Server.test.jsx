@@ -78,4 +78,23 @@ describe('ServerManagement', () => {
         expect(screen.getByText('当前作用域: 1 台节点')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '1.8.0' })).toBeInTheDocument();
     });
+
+    it('renders without the standalone header when embedded inside settings', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+        apiMock.mockImplementation(({ url, method }) => {
+            if (method === 'get' && url === '/panel/server-a/panel/api/server/getXrayVersion') {
+                return Promise.resolve({ data: { obj: ['1.8.0'] } });
+            }
+            throw new Error(`Unexpected ${method || 'request'} ${url}`);
+        });
+
+        renderWithRouter(<ServerManagement embedded />);
+
+        expect(await screen.findByText('集群批量控制')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: '节点控制台' })).not.toBeInTheDocument();
+    });
 });
