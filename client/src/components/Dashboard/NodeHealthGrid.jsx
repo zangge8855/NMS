@@ -111,7 +111,7 @@ function NodeTile({ server, serverData, trend = [] }) {
                     <div>
                         <div>{t('pages.nodeHealth.onlineUsers')}</div>
                         <div className="node-health-tile-value">
-                            {serverData?.onlineCount ?? 0}
+                            {serverData?.managedOnlineCount ?? serverData?.onlineCount ?? 0}
                         </div>
                     </div>
                     <div>

@@ -5,6 +5,8 @@ import Header from '../Layout/Header.jsx';
 import { formatBytes } from '../../utils/format.js';
 import useWebSocket from '../../hooks/useWebSocket.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
+import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
@@ -163,22 +165,132 @@ function normalizeOnlineList(raw, serverName = '') {
     return normalized;
 }
 
-function summarizeOnlineUsers(users) {
-    const summary = new Map();
-    for (const user of Array.isArray(users) ? users : []) {
-        const rawEmail = String(user?.email || '').trim();
-        if (!rawEmail) continue;
-        const key = rawEmail.toLowerCase();
-        if (!summary.has(key)) {
-            summary.set(key, { email: rawEmail, sessions: 0, servers: new Set() });
-        }
-        const row = summary.get(key);
-        row.sessions += 1;
-        if (user?.serverName) row.servers.add(user.serverName);
+function normalizeOnlineValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function normalizeOnlineKeys(item) {
+    if (typeof item === 'string') {
+        const value = normalizeOnlineValue(item);
+        return value ? [value] : [];
     }
-    return Array.from(summary.values())
-        .map((row) => ({ email: row.email, sessions: row.sessions, servers: Array.from(row.servers.values()) }))
-        .sort((a, b) => (b.sessions !== a.sessions ? b.sessions - a.sessions : a.email.localeCompare(b.email)));
+    if (!item || typeof item !== 'object') {
+        return [];
+    }
+    return Array.from(new Set(
+        [
+            item.email,
+            item.user,
+            item.username,
+            item.clientEmail,
+            item.client,
+            item.remark,
+            item.id,
+            item.password,
+        ]
+            .map((value) => normalizeOnlineValue(value))
+            .filter(Boolean)
+    ));
+}
+
+function buildClientOnlineKeys(client, protocol) {
+    const keys = new Set();
+    const email = normalizeOnlineValue(client?.email);
+    const identifier = normalizeOnlineValue(getClientIdentifier(client, protocol));
+    const id = normalizeOnlineValue(client?.id);
+    const password = normalizeOnlineValue(client?.password);
+
+    if (email) keys.add(email);
+    if (identifier) keys.add(identifier);
+    if (id) keys.add(id);
+    if (password) keys.add(password);
+
+    return Array.from(keys);
+}
+
+function buildManagedOnlineSummary(users, serverPayloads = []) {
+    const clientsMap = new Map();
+    const onlineMap = new Map();
+    const onlineServerMap = new Map();
+
+    serverPayloads.forEach((payload) => {
+        const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
+        const onlines = Array.isArray(payload?.onlines) ? payload.onlines : [];
+        const serverName = String(payload?.serverName || '').trim();
+        const onlineCounter = new Map();
+
+        onlines.forEach((entry) => {
+            normalizeOnlineKeys(entry).forEach((key) => {
+                onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+            });
+            const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
+            if (email) {
+                onlineMap.set(email, (onlineMap.get(email) || 0) + 1);
+                if (!onlineServerMap.has(email)) {
+                    onlineServerMap.set(email, new Set());
+                }
+                if (serverName) {
+                    onlineServerMap.get(email).add(serverName);
+                }
+            }
+        });
+
+        inbounds.forEach((inbound) => {
+            const protocol = String(inbound?.protocol || '').toLowerCase();
+            if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
+            if (inbound?.enable === false) return;
+
+            const clients = mergeInboundClientStats(inbound);
+            clients.forEach((client) => {
+                const email = normalizeEmail(client?.email);
+                if (!email) return;
+                if (!clientsMap.has(email)) {
+                    clientsMap.set(email, { count: 0, onlineSessions: 0, servers: new Set() });
+                }
+                const entry = clientsMap.get(email);
+                const onlineSessions = buildClientOnlineKeys(client, protocol).reduce((total, key) => (
+                    total + (onlineCounter.get(key) || 0)
+                ), 0);
+                entry.count += 1;
+                entry.onlineSessions += onlineSessions;
+                if (onlineSessions > 0 && serverName) {
+                    entry.servers.add(serverName);
+                }
+            });
+        });
+    });
+
+    const rows = (Array.isArray(users) ? users : [])
+        .filter((user) => user?.role !== 'admin')
+        .map((user) => {
+            const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
+            const loginEmail = normalizeEmail(user?.email);
+            const clientData = clientsMap.get(subscriptionEmail) || clientsMap.get(loginEmail) || { count: 0, onlineSessions: 0, servers: new Set() };
+            const sessions = clientData.onlineSessions || onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0;
+            const matchedServers = clientData.servers?.size
+                ? Array.from(clientData.servers)
+                : Array.from(onlineServerMap.get(subscriptionEmail) || onlineServerMap.get(loginEmail) || []);
+            return {
+                userId: user?.id,
+                username: user?.username || '',
+                label: user?.subscriptionEmail || user?.email || user?.username || user?.id || '-',
+                sessions,
+                clientCount: clientData.count || 0,
+                enabled: user?.enabled !== false,
+                servers: matchedServers,
+            };
+        })
+        .sort((left, right) => {
+            if (right.sessions !== left.sessions) return right.sessions - left.sessions;
+            return String(left.label || '').localeCompare(String(right.label || ''));
+        });
+
+    return {
+        rows,
+        onlineRows: rows.filter((row) => row.sessions > 0),
+        onlineSessionCount: rows.reduce((sum, row) => sum + Number(row.sessions || 0), 0),
+        pendingCount: rows.filter((row) => row.enabled === false && row.clientCount === 0).length,
+    };
 }
 
 function pushServerTrendSamples(previous, serverMap) {
@@ -274,6 +386,7 @@ export default function Dashboard() {
     const [inbounds, setInbounds] = useState([]);
     const [onlineCount, setOnlineCount] = useState(0);
     const [onlineUsers, setOnlineUsers] = useState([]);
+    const [onlineSessionCount, setOnlineSessionCount] = useState(0);
 
     // Global State
     const [globalStats, setGlobalStats] = useState({
@@ -284,6 +397,8 @@ export default function Dashboard() {
     const [serverStatuses, setServerStatuses] = useState({});
     const [serverTrendHistory, setServerTrendHistory] = useState({});
     const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]);
+    const [globalOnlineSessionCount, setGlobalOnlineSessionCount] = useState(0);
+    const [globalAccountSummary, setGlobalAccountSummary] = useState({ totalUsers: 0, pendingUsers: 0 });
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -351,7 +466,6 @@ export default function Dashboard() {
         if (!data) return;
 
         // Update global stats from WS push
-        const clusterOnlines = [];
         const statusMap = {};
         let derivedTotalInbounds = 0;
         let derivedActiveInbounds = 0;
@@ -365,12 +479,6 @@ export default function Dashboard() {
                 derivedActiveInbounds += Number(sData?.activeInbounds || 0);
                 derivedTotalUp += Number(sData?.up || sData?.status?.netTraffic?.sent || 0);
                 derivedTotalDown += Number(sData?.down || sData?.status?.netTraffic?.recv || 0);
-            }
-            if (sData.online && sData.onlineUsers) {
-                const serverName = sData.name || serverId;
-                for (const u of sData.onlineUsers) {
-                    clusterOnlines.push({ email: u.email, serverName });
-                }
             }
         }
 
@@ -387,18 +495,26 @@ export default function Dashboard() {
             ? Number(data.totalDown)
             : derivedTotalDown;
 
-        setServerStatuses(statusMap);
+        setServerStatuses((previous) => {
+            const next = {};
+            Object.entries(statusMap).forEach(([serverId, serverData]) => {
+                next[serverId] = {
+                    ...serverData,
+                    managedOnlineCount: previous?.[serverId]?.managedOnlineCount ?? 0,
+                };
+            });
+            return next;
+        });
         setServerTrendHistory((previous) => pushServerTrendSamples(previous, statusMap));
-        setGlobalOnlineUsers(clusterOnlines);
-        setGlobalStats({
+        setGlobalStats((previous) => ({
             totalUp,
             totalDown,
-            totalOnline: data.totalOnline || 0,
+            totalOnline: previous.totalOnline || 0,
             totalInbounds,
             activeInbounds,
             serverCount: data.serverCount || 0,
             onlineServers: data.onlineServers || 0,
-        });
+        }));
         setLoading(false);
     }, [lastMessage, activeServerId]);
 
@@ -406,10 +522,12 @@ export default function Dashboard() {
     const fetchSingleData = useCallback(async () => {
         if (!activeServerId || activeServerId === 'global') return;
         try {
-            const [statusRes, cpuRes, inboundsRes] = await Promise.all([
+            const [statusRes, cpuRes, inboundsRes, onlineRes, usersRes] = await Promise.all([
                 panelApi('get', '/panel/api/server/status'),
                 panelApi('get', '/panel/api/server/cpuHistory/30'),
                 panelApi('get', '/panel/api/inbounds/list'),
+                panelApi('post', '/panel/api/inbounds/onlines').catch(() => ({ data: { obj: [] } })),
+                api.get('/auth/users').catch(() => ({ data: { obj: [] } })),
             ]);
             if (statusRes.data?.obj) setStatus(statusRes.data.obj);
             if (cpuRes.data?.obj) {
@@ -418,17 +536,19 @@ export default function Dashboard() {
                     cpu: typeof p === 'number' ? p : p?.cpu || 0,
                 })));
             }
-            if (inboundsRes.data?.obj) setInbounds(inboundsRes.data.obj);
+            const singleInbounds = Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [];
+            const singleOnlines = Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [];
+            const users = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
+            setInbounds(singleInbounds);
 
-            try {
-                const onlineRes = await panelApi('post', '/panel/api/inbounds/onlines');
-                const normalizedOnline = normalizeOnlineList(onlineRes.data?.obj || [], activeServer?.name || '');
-                setOnlineUsers(normalizedOnline);
-                setOnlineCount(normalizedOnline.length);
-            } catch {
-                setOnlineUsers([]);
-                setOnlineCount(0);
-            }
+            const presence = buildManagedOnlineSummary(users, [{
+                inbounds: singleInbounds,
+                onlines: singleOnlines,
+                serverName: activeServer?.name || '',
+            }]);
+            setOnlineUsers(presence.onlineRows);
+            setOnlineSessionCount(presence.onlineSessionCount);
+            setOnlineCount(presence.onlineRows.length);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
         }
@@ -438,56 +558,85 @@ export default function Dashboard() {
     const fetchGlobalData = useCallback(async () => {
         if (servers.length === 0) {
             setGlobalOnlineUsers([]);
+            setGlobalOnlineSessionCount(0);
+            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setLoading(false);
             return;
         }
         try {
             const results = {};
-            const clusterOnlines = [];
             let stats = {
                 totalUp: 0, totalDown: 0, totalOnline: 0,
                 totalInbounds: 0, activeInbounds: 0,
                 serverCount: servers.length, onlineServers: 0,
             };
+            const [usersRes] = await Promise.all([
+                api.get('/auth/users').catch(() => ({ data: { obj: [] } })),
+                ...servers.map(async (server) => {
+                    try {
+                        const [statusRes, inboundsRes, onlineRes] = await Promise.all([
+                            api.get(`/panel/${server.id}/panel/api/server/status`),
+                            api.get(`/panel/${server.id}/panel/api/inbounds/list`),
+                            api.post(`/panel/${server.id}/panel/api/inbounds/onlines`),
+                        ]);
+                        const sStatus = statusRes.data.obj;
+                        const sInbounds = inboundsRes.data.obj || [];
+                        const sOnlines = normalizeOnlineList(onlineRes.data?.obj || [], server.name);
 
-            await Promise.all(servers.map(async (server) => {
-                try {
-                    const [statusRes, inboundsRes, onlineRes] = await Promise.all([
-                        api.get(`/panel/${server.id}/panel/api/server/status`),
-                        api.get(`/panel/${server.id}/panel/api/inbounds/list`),
-                        api.post(`/panel/${server.id}/panel/api/inbounds/onlines`),
-                    ]);
-                    const sStatus = statusRes.data.obj;
-                    const sInbounds = inboundsRes.data.obj || [];
-                    const sOnlines = normalizeOnlineList(onlineRes.data?.obj || [], server.name);
-
-                    results[server.id] = {
-                        online: true, status: sStatus, name: server.name,
-                        inboundCount: sInbounds.length, onlineCount: sOnlines.length,
-                        onlineUsers: sOnlines,
-                        activeInbounds: sInbounds.filter(i => i.enable).length,
-                        up: sInbounds.reduce((a, b) => a + (b.up || 0), 0),
-                        down: sInbounds.reduce((a, b) => a + (b.down || 0), 0),
-                    };
-                    clusterOnlines.push(...sOnlines);
-                    stats.onlineServers++;
-                    stats.totalUp += results[server.id].up;
-                    stats.totalDown += results[server.id].down;
-                    stats.totalOnline += results[server.id].onlineCount;
-                    stats.totalInbounds += results[server.id].inboundCount;
-                    stats.activeInbounds += results[server.id].activeInbounds;
-                } catch (err) {
-                    results[server.id] = { online: false, error: err.message };
-                }
-            }));
+                        results[server.id] = {
+                            online: true, status: sStatus, name: server.name,
+                            inboundCount: sInbounds.length, onlineCount: sOnlines.length,
+                            onlineUsers: sOnlines,
+                            activeInbounds: sInbounds.filter(i => i.enable).length,
+                            up: sInbounds.reduce((a, b) => a + (b.up || 0), 0),
+                            down: sInbounds.reduce((a, b) => a + (b.down || 0), 0),
+                            rawInbounds: sInbounds,
+                            rawOnlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
+                        };
+                        stats.onlineServers++;
+                        stats.totalUp += results[server.id].up;
+                        stats.totalDown += results[server.id].down;
+                        stats.totalInbounds += results[server.id].inboundCount;
+                        stats.activeInbounds += results[server.id].activeInbounds;
+                    } catch (err) {
+                        results[server.id] = { online: false, error: err.message };
+                    }
+                }),
+            ]);
+            const users = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
+            const presence = buildManagedOnlineSummary(
+                users,
+                Object.values(results).map((item) => ({
+                    inbounds: item?.rawInbounds || [],
+                    onlines: item?.rawOnlines || [],
+                    serverName: item?.name || '',
+                }))
+            );
+            stats.totalOnline = presence.onlineRows.length;
+            const managedOnlineCountByServer = new Map();
+            presence.onlineRows.forEach((row) => {
+                row.servers.forEach((serverName) => {
+                    managedOnlineCountByServer.set(serverName, (managedOnlineCountByServer.get(serverName) || 0) + 1);
+                });
+            });
+            Object.values(results).forEach((item) => {
+                item.managedOnlineCount = managedOnlineCountByServer.get(item?.name || '') || 0;
+            });
 
             setServerStatuses(results);
             setServerTrendHistory((previous) => pushServerTrendSamples(previous, results));
             setGlobalStats(stats);
-            setGlobalOnlineUsers(clusterOnlines);
+            setGlobalOnlineUsers(presence.onlineRows);
+            setGlobalOnlineSessionCount(presence.onlineSessionCount);
+            setGlobalAccountSummary({
+                totalUsers: presence.rows.length,
+                pendingUsers: presence.pendingCount,
+            });
         } catch (err) {
             console.error('Global fetch error:', err);
             setGlobalOnlineUsers([]);
+            setGlobalOnlineSessionCount(0);
+            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
         }
         setLoading(false);
     }, [servers]);
@@ -505,15 +654,15 @@ export default function Dashboard() {
 
         if (!autoRefresh) return;
         const interval = setInterval(() => {
-            // For single server, keep polling; for global, WS handles it (but poll as fallback)
+            // Keep polling even in global view so user-level online counts stay aligned with UsersHub.
             if (activeServerId === 'global') {
-                if (wsStatus !== 'connected') fetchGlobalData();
+                fetchGlobalData();
             } else if (activeServerId) {
                 fetchSingleData();
             }
         }, AUTO_REFRESH_INTERVAL);
         return () => clearInterval(interval);
-    }, [activeServerId, fetchSingleData, fetchGlobalData, autoRefresh, wsStatus]);
+    }, [activeServerId, fetchSingleData, fetchGlobalData, autoRefresh]);
 
     const refresh = () => activeServerId === 'global' ? fetchGlobalData() : fetchSingleData();
     const toggleAutoRefresh = () => {
@@ -525,8 +674,6 @@ export default function Dashboard() {
             return next;
         });
     };
-    const onlineUserRows = useMemo(() => summarizeOnlineUsers(onlineUsers), [onlineUsers]);
-    const globalOnlineUserRows = useMemo(() => summarizeOnlineUsers(globalOnlineUsers), [globalOnlineUsers]);
     const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
 
     // Empty State
@@ -570,7 +717,9 @@ export default function Dashboard() {
                 icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
                 animateValue: globalStats.totalOnline,
                 renderAnimatedValue: (value) => String(value),
-                sub: showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail'),
+                sub: globalAccountSummary.totalUsers > 0
+                    ? `总用户 ${globalAccountSummary.totalUsers} · 待审核 ${globalAccountSummary.pendingUsers}`
+                    : (showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail')),
                 onClick: () => setShowOnlineDetail((v) => !v),
                 ...DASHBOARD_ACCENT.info,
                 skeletonWidth: '6rem',
@@ -635,13 +784,13 @@ export default function Dashboard() {
                                 meta={(
                                     <span className="text-sm text-muted">
                                         {t('pages.dashboardCommon.userSessionSummary', {
-                                            users: globalOnlineUserRows.length,
-                                            sessions: globalOnlineUsers.length,
+                                            users: globalOnlineUsers.length,
+                                            sessions: globalOnlineSessionCount,
                                         })}
                                     </span>
                                 )}
                             />
-                            {globalOnlineUserRows.length === 0 ? (
+                            {globalOnlineUsers.length === 0 ? (
                                 <EmptyState
                                     title={t('pages.dashboardCommon.onlineEmpty')}
                                     size="compact"
@@ -658,16 +807,16 @@ export default function Dashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {globalOnlineUserRows.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
-                                                <tr key={`global-online-${row.email}`}>
-                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.email}</td>
+                                            {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
+                                                <tr key={`global-online-${row.userId || row.label}`}>
+                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.label}</td>
                                                     <td data-label={t('pages.dashboardGlobal.onlineNodes')}>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {row.servers.length === 0 ? (
                                                                 <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
                                                             ) : (
-                                                                row.servers.slice(0, 4).map((sn) => (
-                                                                    <span key={`${row.email}-${sn}`} className="badge badge-info">{sn}</span>
+                                                                row.servers.slice(0, 4).map((serverName) => (
+                                                                    <span key={`${row.userId || row.label}-${serverName}`} className="badge badge-info">{serverName}</span>
                                                                 ))
                                                             )}
                                                             {row.servers.length > 4 && <span className="badge badge-neutral">+{row.servers.length - 4}</span>}
@@ -676,7 +825,7 @@ export default function Dashboard() {
                                                     <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
                                                 </tr>
                                             ))}
-                                            {globalOnlineUserRows.length > MAX_GLOBAL_ONLINE_ROWS && (
+                                            {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
                                                 <tr><td colSpan={3} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</td></tr>
                                             )}
                                         </tbody>
@@ -773,9 +922,9 @@ export default function Dashboard() {
                             className="dashboard-section-head"
                             title={t('pages.dashboardNode.onlineDetailTitle')}
                             subtitle={t('pages.dashboardNode.onlineDetailSubtitle')}
-                            meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUserRows.length, sessions: onlineUsers.length })}</span>}
+                            meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUsers.length, sessions: onlineSessionCount })}</span>}
                         />
-                        {onlineUserRows.length === 0 ? (
+                        {onlineUsers.length === 0 ? (
                             <EmptyState
                                 title={t('pages.dashboardCommon.onlineEmpty')}
                                 size="compact"
@@ -786,13 +935,13 @@ export default function Dashboard() {
                                 <table className="table">
                                     <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
                                     <tbody>
-                                        {onlineUserRows.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
-                                            <tr key={`single-online-${row.email}`}>
-                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.email}</td>
+                                        {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
+                                            <tr key={`single-online-${row.userId || row.label}`}>
+                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.label}</td>
                                                 <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
                                             </tr>
                                         ))}
-                                        {onlineUserRows.length > MAX_SINGLE_ONLINE_ROWS && (
+                                        {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (
                                             <tr><td colSpan={2} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</td></tr>
                                         )}
                                     </tbody>

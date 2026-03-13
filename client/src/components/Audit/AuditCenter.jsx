@@ -340,7 +340,7 @@ export default function AuditCenter() {
                 subtitle={t('pages.audit.subtitle')}
                 eyebrow={t('pages.audit.eyebrow')}
             />
-            <div className="page-content page-enter">
+            <div className="page-content page-enter page-content--wide">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
                         {t('comp.audit.tabEvents') || '操作记录'}
@@ -360,8 +360,8 @@ export default function AuditCenter() {
                 </div>
 
                 {tab === 'events' && (
-                    <div className="audit-events-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', alignItems: 'start' }}>
-                        <div className="audit-events-main" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <div className="audit-events-layout">
+                        <div className="audit-events-main">
                             <div className="card mb-6 p-3 audit-filter-card audit-filter-card-events">
                                 <div className="audit-filter-bar flex gap-2 flex-wrap items-center">
                                     <input
