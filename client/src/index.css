@@ -6266,67 +6266,67 @@ body::before {
 }
 
 .inbounds-table-shell .table {
-  min-width: 980px;
+  min-width: 940px;
   table-layout: fixed;
 }
 
 .inbounds-table-shell .table th {
   background: rgba(255, 255, 255, 0.03);
-  padding: 12px 12px;
+  padding: 12px clamp(8px, 0.8vw, 12px);
 }
 
 .inbounds-table-shell .table td {
-  padding: 12px 12px;
+  padding: 12px clamp(8px, 0.8vw, 12px);
 }
 
 .inbounds-sequence-col {
-  width: 128px;
-  min-width: 128px;
+  width: clamp(108px, 10vw, 128px);
+  min-width: 108px;
 }
 
 .inbounds-sequence-col.is-compact {
-  width: 56px;
-  min-width: 56px;
+  width: clamp(48px, 5vw, 56px);
+  min-width: 48px;
 }
 
 .inbounds-node-col {
-  width: 276px;
-  min-width: 276px;
+  width: clamp(240px, 28vw, 320px);
+  min-width: 240px;
 }
 
 .inbounds-remark-col {
-  width: 72px;
-  min-width: 72px;
+  width: clamp(56px, 6vw, 72px);
+  min-width: 56px;
 }
 
 .inbounds-protocol-col {
-  width: 72px;
-  min-width: 72px;
+  width: clamp(64px, 7vw, 76px);
+  min-width: 64px;
 }
 
 .inbounds-port-col {
-  width: 112px;
-  min-width: 112px;
+  width: clamp(96px, 10vw, 112px);
+  min-width: 96px;
 }
 
 .inbounds-users-col {
-  width: 68px;
-  min-width: 68px;
+  width: clamp(56px, 6vw, 68px);
+  min-width: 56px;
 }
 
 .inbounds-traffic-col {
-  width: 156px;
-  min-width: 156px;
+  width: clamp(136px, 14vw, 156px);
+  min-width: 136px;
 }
 
 .inbounds-status-col {
-  width: 156px;
-  min-width: 156px;
+  width: clamp(116px, 12vw, 138px);
+  min-width: 116px;
 }
 
 .inbounds-actions-col {
-  width: 132px;
-  min-width: 132px;
+  width: clamp(96px, 9vw, 108px);
+  min-width: 96px;
 }
 
 .inbounds-expand-col,
@@ -6433,15 +6433,17 @@ body::before {
 }
 
 .inbounds-row-actions {
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
   flex-wrap: nowrap;
+  width: fit-content;
+  margin-left: auto;
 }
 
 .inbounds-row-actions .btn {
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
 }
 
 .inbounds-user-count {
@@ -6547,12 +6549,17 @@ body::before {
 
 .inbounds-clients-cell {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 10, 11, 0.5);
+  background: transparent;
 }
 
 .inbounds-clients-panel {
+  width: calc(100% - 24px);
+  margin: 12px auto;
   padding: 16px 18px 18px;
   background: rgba(10, 10, 11, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px -24px rgba(0, 0, 0, 0.4);
   overflow-x: auto;
 }
 
@@ -6578,8 +6585,8 @@ body::before {
 }
 
 .inbounds-clients-table {
-  width: 100%;
-  min-width: 840px;
+  width: max(100%, 960px);
+  min-width: 960px;
   table-layout: fixed;
 }
 
@@ -6590,7 +6597,7 @@ body::before {
   vertical-align: top;
   white-space: normal;
   word-break: break-word;
-  padding: 10px 12px;
+  padding: 10px 10px;
 }
 
 .inbounds-client-id-row {
@@ -6639,30 +6646,33 @@ body::before {
 }
 
 .inbounds-clients-col-email {
-  width: 15%;
+  width: 16%;
 }
 
 .inbounds-clients-col-id {
-  width: 13%;
+  width: 14%;
 }
 
 .inbounds-clients-col-usage {
-  width: 18%;
+  width: 13%;
 }
 
 .inbounds-clients-col-total,
-.inbounds-clients-col-ip,
+.inbounds-clients-col-ip {
+  width: 6.5%;
+}
+
 .inbounds-clients-col-expiry {
   width: 8%;
 }
 
 .inbounds-clients-col-traffic,
 .inbounds-clients-col-status {
-  width: 10%;
+  width: 9%;
 }
 
 .inbounds-clients-col-actions {
-  width: 112px;
+  width: 104px;
 }
 
 @media (max-width: 768px) {
