@@ -765,6 +765,9 @@ export default function UserDetail() {
                                         <div className="subscription-link-grid">
                                             <div className="card p-4 user-detail-subscription-card">
                                                 <div className="text-sm font-medium mb-3">订阅资料</div>
+                                                <div className="subscription-inline-tip user-detail-subscription-tip">
+                                                    直接告诉用户：选类型 -&gt; 复制地址 -&gt; 导入客户端。
+                                                </div>
                                                 <div className="flex gap-2 flex-wrap mb-3">
                                                     {(subscriptionResult.bundle?.availableProfiles || []).map((item) => (
                                                         <button
@@ -799,10 +802,8 @@ export default function UserDetail() {
                                                     </div>
                                                 )}
                                                 <div className="user-detail-subscription-guides">
-                                                    <div className="text-sm font-medium">怎么给用户用</div>
-                                                    <div className="text-xs text-muted">
-                                                        让用户只做这三步：1. 找到自己的设备 2. 先装客户端 3. 点快捷导入；如果没有快捷导入，就复制上面的地址。
-                                                    </div>
+                                                    <div className="text-sm font-medium">就这三步</div>
+                                                    <div className="text-xs text-muted">选类型，复制地址，导入客户端。</div>
                                                     <SubscriptionClientLinks
                                                         bundle={subscriptionResult.bundle}
                                                         compact

@@ -83,7 +83,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'windows',
             title: 'Windows',
-            summary: '任选一个客户端。',
+            summary: '先装一个主流客户端。',
             appLinks: buildLinks(toolLookup, ['flclash', 'v2rayn', 'sparkle']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
@@ -94,7 +94,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'macos',
             title: 'macOS',
-            summary: '任选一个客户端。',
+            summary: '先装一个主流客户端。',
             appLinks: buildLinks(toolLookup, ['flclash', 'sparkle', 'v2rayn']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
@@ -105,7 +105,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'android',
             title: 'Android',
-            summary: '任选一个客户端。',
+            summary: '先装一个主流客户端。',
             appLinks: buildLinks(toolLookup, ['flclash', 'cmfa', 'exclave']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
@@ -135,8 +135,8 @@ export default function SubscriptionClientLinks({
                 <div className="subscription-client-links-section">
                     {showHeading && (
                         <div className="subscription-client-links-heading">
-                            <div className="subscription-client-links-title">还没装客户端？先按设备选</div>
-                            <div className="subscription-client-links-caption">先下客户端，再按下面的订阅类型导入。</div>
+                            <div className="subscription-client-links-title">先按你的设备装客户端</div>
+                            <div className="subscription-client-links-caption">每个设备任选一个主流客户端，再按卡片里的类型导入。</div>
                         </div>
                     )}
                     <div className="subscription-device-grid">
@@ -157,7 +157,7 @@ export default function SubscriptionClientLinks({
                                     <div className="subscription-device-title">{item.title}</div>
                                     <div className="subscription-device-text">{item.summary}</div>
                                     <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">客户端下载</div>
+                                        <div className="subscription-device-block-label">先装客户端</div>
                                         <div className="subscription-device-actions">
                                             {item.appLinks.map((link) => (
                                                 <a
@@ -173,7 +173,7 @@ export default function SubscriptionClientLinks({
                                         </div>
                                     </div>
                                     <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">对应订阅</div>
+                                        <div className="subscription-device-block-label">选这个订阅</div>
                                         <div className="subscription-device-rules">
                                             {item.profileRules.map((rule) => (
                                                 <div key={rule.key} className="subscription-device-rule">
@@ -185,7 +185,7 @@ export default function SubscriptionClientLinks({
                                         </div>
                                     </div>
                                     <div className="subscription-device-block subscription-device-block--push">
-                                        <div className="subscription-device-block-label">导入方式</div>
+                                        <div className="subscription-device-block-label">装好后</div>
                                         {quickItems.length > 0 ? (
                                             <div className="subscription-device-actions">
                                                 {quickItems.map((action) => (

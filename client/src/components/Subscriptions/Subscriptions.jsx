@@ -312,7 +312,7 @@ export default function Subscriptions() {
                     />
                 )}
 
-                <div className="subscriptions-workbench">
+                <div className={`subscriptions-workbench${isUserOnly ? ' subscriptions-workbench--simple' : ''}`}>
                     <div className="subscriptions-main-column">
                         {!result ? (
                             <div className="card subscription-empty-card">
@@ -329,8 +329,8 @@ export default function Subscriptions() {
                                     <SectionHeader
                                         className="card-header section-header section-header--compact"
                                         title={isUserOnly ? '你的订阅地址' : '订阅地址与导入'}
-                                        subtitle={isUserOnly ? '不会用也没关系，按右侧三步操作就能完成。' : '先选订阅类型，再复制地址或直接引导用户导入。'}
-                                        actions={(
+                                        subtitle={isUserOnly ? '就按这三步：选类型 -> 复制地址 -> 导入客户端。' : '给用户时，直接按这三步说明就够了。'}
+                                        actions={!isUserOnly ? (
                                             <button
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={handleResetLink}
@@ -338,113 +338,246 @@ export default function Subscriptions() {
                                             >
                                                 {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置订阅链接</>}
                                             </button>
-                                        )}
+                                        ) : null}
                                     />
-                                    <div className="subscription-hero-summary">
-                                        <div className="subscription-hero-copy">
-                                            <div className="subscription-hero-title">先选客户端类型，再复制或导入</div>
-                                            <div className="subscription-hero-text">
-                                                不知道怎么选时，先用“通用”；如果你用的是 Clash / Mihomo，再切到对应格式。
+                                    {isUserOnly ? (
+                                        <div className="subscription-user-flow">
+                                            <div className="subscription-user-step">
+                                                <div className="subscription-user-step-head">
+                                                    <div className="subscription-user-step-kicker">第 1 步</div>
+                                                    <div className="subscription-user-step-title">先选一个订阅类型</div>
+                                                    <div className="subscription-user-step-text">不知道怎么选时，就看下面设备推荐里写的“选这个订阅”。</div>
+                                                </div>
+                                                <div className="subscription-profile-switches">
+                                                    {availableProfiles.map((item) => (
+                                                        <button
+                                                            key={item.key}
+                                                            type="button"
+                                                            className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                            onClick={() => setProfileKey(item.key)}
+                                                        >
+                                                            {item.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {activeProfile?.label && (
+                                                    <div className="subscription-current-profile-card">
+                                                        <div className="subscription-current-profile-label">当前类型</div>
+                                                        <div className="subscription-current-profile-value">{activeProfile.label}</div>
+                                                        <div className="subscription-current-profile-hint">{activeProfile?.hint || '请选择订阅类型'}</div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="subscription-hero-badges">
-                                            <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                {result.subscriptionActive ? '订阅可用' : '订阅不可用'}
-                                            </span>
-                                            <span className="badge badge-neutral">{activeProfile?.label || '请选择类型'}</span>
-                                            <span className="badge badge-neutral">{result.total} 个节点</span>
-                                        </div>
-                                    </div>
-                                    <div className="subscription-profile-switches">
-                                        {availableProfiles.map((item) => (
-                                            <button
-                                                key={item.key}
-                                                type="button"
-                                                className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                                                onClick={() => setProfileKey(item.key)}
-                                            >
-                                                {item.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="subscription-profile-notes">
-                                        <div className="text-xs text-muted">{activeProfile?.hint || '请选择订阅类型'}</div>
-                                        <div className="text-xs text-muted">
-                                            装好客户端后优先用“快捷导入”；如果不会导入，就先复制下面这条地址。
-                                        </div>
-                                        {isAdmin && result.bundle?.externalConverterConfigured && (
-                                            <div className="text-xs text-muted">
-                                                管理提示：专用订阅当前走外部转换器
-                                                {' '}
-                                                <a
-                                                    href={result.bundle.externalConverterBaseUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
+
+                                            <div className="subscription-user-step subscription-user-step--highlight">
+                                                <div className="subscription-user-step-head">
+                                                    <div className="subscription-user-step-kicker">第 2 步</div>
+                                                    <div className="subscription-user-step-title">复制地址，或直接扫码导入</div>
+                                                    <div className="subscription-user-step-text">网址很长没关系，不用手动看全，直接点复制就行。</div>
+                                                </div>
+                                                <div className="subscription-link-with-qr">
+                                                    <div className="subscription-link-card">
+                                                        <div className="subscription-link-grid">
+                                                            <input
+                                                                className="form-input font-mono text-xs"
+                                                                value={activeProfile?.url || ''}
+                                                                readOnly
+                                                                title={activeProfile?.url || ''}
+                                                                dir="ltr"
+                                                                spellCheck={false}
+                                                            />
+                                                            <button
+                                                                className="btn btn-primary subscription-copy-btn"
+                                                                onClick={handleCopy}
+                                                                disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                            >
+                                                                <HiOutlineClipboard /> 复制地址
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="subscription-inline-qr">
+                                                        {activeProfile?.url && result.subscriptionActive ? (
+                                                            <>
+                                                                <div
+                                                                    className="qr-surface subscription-inline-qr-surface"
+                                                                    role="img"
+                                                                    aria-label={`订阅二维码 · ${activeProfile.label}`}
+                                                                >
+                                                                    <QRCodeSVG
+                                                                        value={activeProfile.url}
+                                                                        size={132}
+                                                                        level="M"
+                                                                        includeMargin={false}
+                                                                    />
+                                                                </div>
+                                                                <div className="subscription-inline-qr-text">扫码导入</div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-muted">当前格式暂无二维码</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="subscription-user-step">
+                                                <div className="subscription-user-step-head">
+                                                    <div className="subscription-user-step-kicker">第 3 步</div>
+                                                    <div className="subscription-user-step-title">按你的设备装客户端</div>
+                                                    <div className="subscription-user-step-text">装好客户端后，按上面选好的类型导入就能用。</div>
+                                                </div>
+                                                <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} />
+                                            </div>
+
+                                            <div className="subscription-user-meta-bar">
+                                                <div className="subscription-user-meta-badges">
+                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {result.subscriptionActive ? '订阅可用' : '订阅不可用'}
+                                                    </span>
+                                                    <span className="badge badge-neutral">{result.total} 个节点</span>
+                                                </div>
+                                                <button
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={handleResetLink}
+                                                    disabled={resetLoading || !normalizedEmail}
                                                 >
-                                                    {result.bundle.externalConverterHost || result.bundle.externalConverterBaseUrl}
-                                                </a>
-                                                {' '}
-                                                ·
-                                                {' '}
-                                                <Link to="/settings">去系统设置修改</Link>
+                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 链接泄露再重置</>}
+                                                </button>
                                             </div>
-                                        )}
-                                    </div>
-                                    <div className="subscription-link-grid">
-                                        <input
-                                            className="form-input font-mono text-xs"
-                                            value={activeProfile?.url || ''}
-                                            readOnly
-                                            title={activeProfile?.url || ''}
-                                            dir="ltr"
-                                            spellCheck={false}
-                                        />
-                                        <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
-                                            <HiOutlineClipboard /> 复制地址
-                                        </button>
-                                    </div>
-                                    <div className="subscription-inline-tip">
-                                        给小白用户时，直接告诉他“选类型 -&gt; 复制地址 -&gt; 导入客户端”就够了。
-                                    </div>
-                                    <SubscriptionClientLinks bundle={result.bundle} />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="subscription-hero-summary">
+                                                <div className="subscription-hero-copy">
+                                                    <div className="subscription-hero-title">{'选类型 -> 复制地址 -> 导入客户端'}</div>
+                                                    <div className="subscription-hero-text">
+                                                        不知道选哪个时，先看下面设备推荐。
+                                                    </div>
+                                                </div>
+                                                <div className="subscription-hero-badges">
+                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {result.subscriptionActive ? '订阅可用' : '订阅不可用'}
+                                                    </span>
+                                                    <span className="badge badge-neutral">{activeProfile?.label || '请选择类型'}</span>
+                                                    <span className="badge badge-neutral">{result.total} 个节点</span>
+                                                </div>
+                                            </div>
+                                            <div className="subscription-profile-switches">
+                                                {availableProfiles.map((item) => (
+                                                    <button
+                                                        key={item.key}
+                                                        type="button"
+                                                        className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                        onClick={() => setProfileKey(item.key)}
+                                                    >
+                                                        {item.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className="subscription-profile-notes">
+                                                <div className="text-xs text-muted">{activeProfile?.hint || '请选择订阅类型'}</div>
+                                                <div className="text-xs text-muted">不会导入时，直接复制下面这条地址到客户端里就行。</div>
+                                                {isAdmin && result.bundle?.externalConverterConfigured && (
+                                                    <div className="text-xs text-muted">
+                                                        管理提示：专用订阅当前走外部转换器
+                                                        {' '}
+                                                        <a
+                                                            href={result.bundle.externalConverterBaseUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            {result.bundle.externalConverterHost || result.bundle.externalConverterBaseUrl}
+                                                        </a>
+                                                        {' '}
+                                                        ·
+                                                        {' '}
+                                                        <Link to="/settings">去系统设置修改</Link>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="subscription-link-with-qr">
+                                                <div className="subscription-link-card">
+                                                    <div className="subscription-link-grid">
+                                                        <input
+                                                            className="form-input font-mono text-xs"
+                                                            value={activeProfile?.url || ''}
+                                                            readOnly
+                                                            title={activeProfile?.url || ''}
+                                                            dir="ltr"
+                                                            spellCheck={false}
+                                                        />
+                                                        <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
+                                                            <HiOutlineClipboard /> 复制地址
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="subscription-inline-qr">
+                                                    {activeProfile?.url && result.subscriptionActive ? (
+                                                        <>
+                                                            <div
+                                                                className="qr-surface subscription-inline-qr-surface"
+                                                                role="img"
+                                                                aria-label={`订阅二维码 · ${activeProfile.label}`}
+                                                            >
+                                                                <QRCodeSVG
+                                                                    value={activeProfile.url}
+                                                                    size={132}
+                                                                    level="M"
+                                                                    includeMargin={false}
+                                                                />
+                                                            </div>
+                                                            <div className="subscription-inline-qr-text">扫码导入</div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-sm text-muted">当前格式暂无二维码</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="subscription-inline-tip">
+                                                小白用户就记这一句：选类型 -&gt; 复制地址 -&gt; 导入客户端。
+                                            </div>
+                                            <SubscriptionClientLinks bundle={result.bundle} />
+                                        </>
+                                    )}
                                 </div>
                             </>
                         )}
                     </div>
 
                     <div className="subscriptions-side-column">
-                        <div className="card subscription-guide-card">
-                            <SectionHeader
-                                className="card-header section-header section-header--compact"
-                                title="怎么使用订阅"
-                                subtitle={isUserOnly ? '按这三步操作，基本就不会出错。' : '给用户说明时，照这三步说最简单。'}
-                            />
-                            <div className="subscription-guide-grid">
-                                <div className="subscription-guide-step">
-                                    <span className="subscription-guide-index">1</span>
-                                    <div className="subscription-guide-copy">
-                                        <div className="subscription-guide-title">先选客户端类型</div>
-                                        <div className="subscription-guide-text">不知道怎么选，就先用“通用”；Clash / Mihomo 再切到对应格式。</div>
+                        {!isUserOnly && (
+                            <div className="card subscription-guide-card">
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title="怎么使用订阅"
+                                    subtitle="就按这三步，不用讲别的。"
+                                />
+                                <div className="subscription-guide-grid">
+                                    <div className="subscription-guide-step">
+                                        <span className="subscription-guide-index">1</span>
+                                        <div className="subscription-guide-copy">
+                                            <div className="subscription-guide-title">选类型</div>
+                                            <div className="subscription-guide-text">不知道怎么选，就先看设备推荐。</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="subscription-guide-step">
-                                    <span className="subscription-guide-index">2</span>
-                                    <div className="subscription-guide-copy">
-                                        <div className="subscription-guide-title">再复制地址或点导入</div>
-                                        <div className="subscription-guide-text">已经装好客户端时，优先点“快捷导入”，最省事。</div>
+                                    <div className="subscription-guide-step">
+                                        <span className="subscription-guide-index">2</span>
+                                        <div className="subscription-guide-copy">
+                                            <div className="subscription-guide-title">复制地址</div>
+                                            <div className="subscription-guide-text">不会一键导入时，就复制上面的地址。</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="subscription-guide-step">
-                                    <span className="subscription-guide-index">3</span>
-                                    <div className="subscription-guide-copy">
-                                        <div className="subscription-guide-title">节点变化时刷新订阅</div>
-                                        <div className="subscription-guide-text">如果怀疑链接泄露，再点“重置订阅链接”换新地址。</div>
+                                    <div className="subscription-guide-step">
+                                        <span className="subscription-guide-index">3</span>
+                                        <div className="subscription-guide-copy">
+                                            <div className="subscription-guide-title">导入客户端</div>
+                                            <div className="subscription-guide-text">客户端里粘贴地址，导入后就能用。</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        {result && (
+                        {!isUserOnly && result && (
                             <>
                                 <div className="card subscription-summary-card">
                                     <SectionHeader
@@ -483,40 +616,6 @@ export default function Subscriptions() {
                                     </div>
                                 </div>
 
-                                <div className="card subscription-qr-card">
-                                    <SectionHeader
-                                        className="card-header section-header section-header--compact"
-                                        title="扫码导入"
-                                        subtitle="手机端或支持扫码的客户端，可以直接扫当前这条地址。"
-                                    />
-                                    <div className="subscription-qr-shell">
-                                        {activeProfile?.url && result.subscriptionActive ? (
-                                            <div
-                                                className="qr-surface qr-surface-lg"
-                                                role="img"
-                                                aria-label={`订阅二维码 · ${activeProfile.label}`}
-                                            >
-                                                <QRCodeSVG
-                                                    value={activeProfile.url}
-                                                    size={176}
-                                                    level="M"
-                                                    includeMargin={false}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-muted">当前订阅暂无可用二维码</div>
-                                        )}
-                                        <div className="subscription-qr-copy">
-                                            <div className="subscription-qr-title">{activeProfile?.label || '未选择类型'}</div>
-                                            <div className="subscription-qr-text">二维码会跟随上面选择的订阅类型一起切换。</div>
-                                            {result.email && (
-                                                <div className="text-xs text-muted font-mono break-all">
-                                                    {result.email}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
                             </>
                         )}
 

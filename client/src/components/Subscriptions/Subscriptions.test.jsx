@@ -83,6 +83,9 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.getByText('当前类型')).toBeInTheDocument();
+        expect(screen.getByText('第 2 步')).toBeInTheDocument();
+        expect(screen.getByText('复制地址，或直接扫码导入')).toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
@@ -258,7 +261,7 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
+        await user.click(screen.getByRole('button', { name: '链接泄露再重置' }));
 
         await waitFor(() => {
             expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -301,7 +304,7 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
+        await user.click(screen.getByRole('button', { name: '链接泄露再重置' }));
 
         await waitFor(() => {
             expect(confirmMock).toHaveBeenCalledTimes(1);
