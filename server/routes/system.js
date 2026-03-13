@@ -75,12 +75,14 @@ router.post('/invite-codes', adminOnly, (req, res) => {
             createdBy: req.user?.username || req.user?.role || 'admin',
             count: req.body?.count,
             usageLimit: req.body?.usageLimit,
+            subscriptionDays: req.body?.subscriptionDays,
         });
         appendSecurityAudit('invite_code_created', req, {
             inviteId: created.invite?.id || '',
             preview: created.invite?.preview || '',
             count: created.count || 1,
             usageLimit: created.usageLimit || 1,
+            subscriptionDays: created.subscriptionDays || 0,
         });
         const createdCount = Number(created.count || created.codes?.length || 1);
         return res.json({
@@ -104,7 +106,7 @@ router.delete('/invite-codes/:id', adminOnly, (req, res) => {
         appendSecurityAudit('invite_code_revoked', req, {
             inviteId: revoked.id,
             preview: revoked.preview,
-        });
+        }, { outcome: 'success' });
         return res.json({
             success: true,
             msg: '邀请码已撤销',

@@ -6,13 +6,12 @@ import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import toast from 'react-hot-toast';
-import { copyToClipboard, getErrorMessage } from '../../utils/format.js';
+import { getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import api from '../../api/client.js';
 import {
     HiOutlineArrowDown,
     HiOutlineArrowUp,
-    HiOutlineClipboard,
     HiOutlinePlusCircle,
     HiOutlineTrash,
     HiOutlinePencilSquare,
@@ -734,7 +733,6 @@ export default function Servers() {
                                 {filteredServers.map((server, index) => {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
-                            const panelUrl = getPanelUrl(server);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
@@ -796,24 +794,6 @@ export default function Servers() {
                                                 >
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
-                                            </div>
-                                            <div className="server-card-url-row">
-                                                <div className="text-sm text-muted font-mono server-card-url" title={panelUrl}>{panelUrl}</div>
-                                                {panelUrl && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-ghost btn-xs btn-icon server-card-copy-btn"
-                                                        title="复制面板地址"
-                                                        aria-label="复制面板地址"
-                                                        onClick={async (e) => {
-                                                            e.stopPropagation();
-                                                            await copyToClipboard(panelUrl);
-                                                            toast.success(t('comp.servers.panelUrlCopied'));
-                                                        }}
-                                                    >
-                                                        <HiOutlineClipboard />
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     </td>

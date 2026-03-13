@@ -179,14 +179,19 @@ test('resetPasswordWithCode updates password and clears reset code', () => {
 
 test('registerUser consumes invite code and skips email verification in invite-only mode', async () => {
     const consumed = [];
+    const provisionCalls = [];
     let sentVerificationEmail = false;
     const repo = {
         add(payload) {
             assert.equal(payload.emailVerified, true);
+            assert.equal(payload.enabled, true);
+            assert.equal(payload.subscriptionEmail, 'invite@example.com');
             return {
                 id: 'user-5',
                 username: payload.username,
                 email: payload.email,
+                enabled: payload.enabled,
+                subscriptionEmail: payload.subscriptionEmail,
             };
         },
         remove() {
@@ -196,9 +201,21 @@ test('registerUser consumes invite code and skips email verification in invite-o
     const inviteStore = {
         assertUsable(code) {
             assert.equal(code, 'ABCD-EFGH-IJKL');
+            return {
+                id: 'invite-1',
+                preview: 'ABCD-****-IJKL',
+                usageLimit: 1,
+                subscriptionDays: 30,
+            };
         },
         consume(code, options) {
             consumed.push({ code, options });
+            return {
+                id: 'invite-1',
+                preview: 'ABCD-****-IJKL',
+                status: 'used',
+                subscriptionDays: 30,
+            };
         },
     };
     const fakeMailer = {
@@ -208,6 +225,27 @@ test('registerUser consumes invite code and skips email verification in invite-o
         async sendVerificationEmail() {
             sentVerificationEmail = true;
         },
+    };
+    const fakeProvisionSubscription = async (user, payload, actor, deps) => {
+        provisionCalls.push({ user, payload, actor, deps });
+        return {
+            subscription: {
+                email: 'invite@example.com',
+                token: {
+                    currentTokenId: 'token-1',
+                    autoIssued: true,
+                    issueError: null,
+                },
+            },
+            deployment: {
+                total: 1,
+                created: 1,
+                updated: 0,
+                skipped: 0,
+                failed: 0,
+                details: [],
+            },
+        };
     };
 
     const result = await registerUser(
@@ -223,10 +261,13 @@ test('registerUser consumes invite code and skips email verification in invite-o
             mailer: fakeMailer,
             inviteOnlyEnabled: true,
             registrationConfig: { defaultRole: 'user', verifyCodeTtlMinutes: 10 },
+            provisionSubscriptionForUser: fakeProvisionSubscription,
         }
     );
 
     assert.equal(result.requireEmailVerification, false);
+    assert.equal(result.requireApproval, false);
+    assert.equal(result.subscriptionProvisioned, true);
     assert.equal(sentVerificationEmail, false);
     assert.deepEqual(consumed, [{
         code: 'ABCD-EFGH-IJKL',
@@ -235,4 +276,71 @@ test('registerUser consumes invite code and skips email verification in invite-o
             usedByUsername: 'invite-user',
         },
     }]);
+    assert.equal(provisionCalls.length, 1);
+    assert.equal(provisionCalls[0].actor, 'invite_registration');
+    assert.deepEqual(provisionCalls[0].payload, {
+        subscriptionEmail: 'invite@example.com',
+        expiryDays: 30,
+        serverScopeMode: 'all',
+        protocolScopeMode: 'all',
+    });
+});
+
+test('registerUser still succeeds when invite auto-provisioning fails', async () => {
+    const repo = {
+        add(payload) {
+            return {
+                id: 'user-6',
+                username: payload.username,
+                email: payload.email,
+                enabled: payload.enabled,
+                subscriptionEmail: payload.subscriptionEmail,
+            };
+        },
+        remove() {
+            throw new Error('should not rollback');
+        },
+    };
+    const inviteStore = {
+        assertUsable() {
+            return {
+                id: 'invite-2',
+                preview: 'WXYZ-****-QRST',
+                usageLimit: 1,
+                subscriptionDays: 0,
+            };
+        },
+        consume() {
+            return {
+                id: 'invite-2',
+                preview: 'WXYZ-****-QRST',
+                status: 'used',
+                subscriptionDays: 0,
+            };
+        },
+    };
+
+    const result = await registerUser(
+        {
+            username: 'invite-user-2',
+            password: 'InvitePass123!',
+            email: 'invite2@example.com',
+            inviteCode: 'WXYZ-QRST-ABCD',
+        },
+        {
+            userRepository: repo,
+            inviteCodeStore: inviteStore,
+            inviteOnlyEnabled: true,
+            registrationConfig: { defaultRole: 'user', verifyCodeTtlMinutes: 10 },
+            provisionSubscriptionForUser: async () => {
+                throw new Error('panel offline');
+            },
+        }
+    );
+
+    assert.equal(result.requireEmailVerification, false);
+    assert.equal(result.subscriptionProvisioned, false);
+    assert.equal(result.provisionError, 'panel offline');
+    assert.equal(result.user.enabled, true);
+    assert.equal(result.user.subscriptionEmail, 'invite2@example.com');
 });

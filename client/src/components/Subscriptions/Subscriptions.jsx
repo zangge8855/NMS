@@ -80,8 +80,8 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             pickTypeText: 'If you are unsure, follow the recommended profile on the device cards.',
             copyOrScanTitle: 'Copy the address or scan it',
             copyOrScanText: 'Copy is the main action. The QR code and quick import stay right next to it.',
-            deviceOpenTitle: 'Open it on your device',
-            deviceOpenText: 'Pick one mainstream client for your device, install it, and import the address above.',
+            deviceOpenTitle: 'Client Downloads',
+            deviceOpenText: 'Download by device and use the recommended profile below.',
             resetRiskTitle: 'Reset only when the address is leaked',
             resetRiskText: 'After reset, the old address stops working immediately and the client must import the new address again.',
             heroTitle: 'Choose a profile -> Copy the address -> Import into the client',
@@ -158,8 +158,8 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         pickTypeText: '不会选时，看下面设备推荐。',
         copyOrScanTitle: '订阅地址',
         copyOrScanText: '导入、复制、扫码都在这里。',
-        deviceOpenTitle: '按你的设备打开',
-        deviceOpenText: '下方只放下载链接和推荐类型。',
+        deviceOpenTitle: '软件下载地址',
+        deviceOpenText: '按设备下载，推荐类型见下方。',
         resetRiskTitle: '只有地址泄露时，才需要重置',
         resetRiskText: '重置后旧地址会失效。',
         heroTitle: '选类型 -> 复制地址 -> 导入客户端',
@@ -596,6 +596,18 @@ export default function Subscriptions() {
                                                         <div className="subscription-current-profile-label">{ui.currentType}</div>
                                                         <div className="subscription-current-profile-value">{activeProfile.label}</div>
                                                         <div className="subscription-current-profile-hint">{activeProfile?.hint || ui.currentProfileFallback}</div>
+                                                        {Array.isArray(activeProfile?.supportedClients) && activeProfile.supportedClients.length > 0 && (
+                                                            <div className="subscription-current-profile-tools">
+                                                                <span className="subscription-current-profile-tools-label">
+                                                                    {activeProfile.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件')}
+                                                                </span>
+                                                                <div className="subscription-current-profile-tools-list">
+                                                                    {activeProfile.supportedClients.map((client) => (
+                                                                        <span key={client} className="badge badge-neutral">{client}</span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                                 <div className="subscription-user-import-layout">
@@ -628,7 +640,7 @@ export default function Subscriptions() {
                                                         )}
                                                         <div className="subscription-user-address-foot">
                                                             <button
-                                                                className="btn btn-ghost btn-sm subscription-user-reset-inline-btn"
+                                                                className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
                                                                 onClick={handleResetLink}
                                                                 disabled={resetLoading || !normalizedEmail}
                                                             >
@@ -708,6 +720,18 @@ export default function Subscriptions() {
                                             </div>
                                             <div className="subscription-profile-notes">
                                                 <div className="text-xs text-muted">{activeProfile?.hint || ui.currentProfileFallback}</div>
+                                                {Array.isArray(activeProfile?.supportedClients) && activeProfile.supportedClients.length > 0 && (
+                                                    <div className="subscription-current-profile-tools subscription-current-profile-tools--inline">
+                                                        <span className="subscription-current-profile-tools-label">
+                                                            {activeProfile.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件')}
+                                                        </span>
+                                                        <div className="subscription-current-profile-tools-list">
+                                                            {activeProfile.supportedClients.map((client) => (
+                                                                <span key={client} className="badge badge-neutral">{client}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="text-xs text-muted">{ui.manualImportHint}</div>
                                                 {isAdmin && result.bundle?.externalConverterConfigured && (
                                                     <div className="text-xs text-muted">

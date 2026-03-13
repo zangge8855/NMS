@@ -10,6 +10,7 @@ import { copyToClipboard, formatDateTime as formatDateTimeValue } from '../../ut
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
+    HiOutlineChartBarSquare,
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
     HiOutlineCommandLine,
@@ -117,6 +118,11 @@ function buildDraft(source = null) {
 const DEFAULT_SETTINGS_TAB = 'basic';
 const SETTINGS_TAB_CONFIG = [
     {
+        id: 'status',
+        label: '系统状态',
+        icon: HiOutlineChartBarSquare,
+    },
+    {
         id: 'basic',
         label: '系统参数',
         icon: HiOutlineCog6Tooth,
@@ -159,6 +165,53 @@ function SettingsPanelHeader({ title, subtitle }) {
             {subtitle ? <div className="settings-panel-subtitle">{subtitle}</div> : null}
         </div>
     );
+}
+
+function SettingsToggleCard({
+    checked,
+    onChange,
+    disabled = false,
+    label,
+    description,
+    activeLabel = '已开启',
+    inactiveLabel = '已关闭',
+}) {
+    return (
+        <label className={`settings-toggle-card${checked ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}>
+            <div className="settings-toggle-copy">
+                <div className="settings-toggle-label">{label}</div>
+                {description ? <div className="settings-toggle-description">{description}</div> : null}
+            </div>
+            <div className="settings-toggle-side">
+                <span className={`badge settings-toggle-badge ${checked ? 'badge-success' : 'badge-neutral'}`}>
+                    {checked ? activeLabel : inactiveLabel}
+                </span>
+                <input
+                    type="checkbox"
+                    className="settings-toggle-input"
+                    checked={checked}
+                    onChange={onChange}
+                    disabled={disabled}
+                />
+                <span className="settings-toggle-switch" aria-hidden="true">
+                    <span className="settings-toggle-thumb" />
+                </span>
+            </div>
+        </label>
+    );
+}
+
+function resolveInviteState(invite) {
+    const status = String(invite?.status || '').trim();
+    if (status === 'revoked') return 'revoked';
+    if (status === 'used') return 'used';
+    const remaining = Number(invite?.remainingUses ?? invite?.usageLimit ?? 0) - Number(invite?.usedCount || 0);
+    return remaining > 0 ? 'active' : 'used';
+}
+
+function formatInviteDuration(days) {
+    const normalized = Math.max(0, Number(days) || 0);
+    return normalized > 0 ? `${normalized} 天` : '不限时';
 }
 
 export default function SystemSettings() {
@@ -214,11 +267,13 @@ export default function SystemSettings() {
     const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
         count: '1',
         usageLimit: '1',
+        subscriptionDays: '30',
     });
     const [latestInviteCodes, setLatestInviteCodes] = useState([]);
     const [latestInviteBatch, setLatestInviteBatch] = useState({
         count: 0,
         usageLimit: 1,
+        subscriptionDays: 30,
     });
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
@@ -457,11 +512,13 @@ export default function SystemSettings() {
         if (!isAdmin) return;
         const count = toBoundedInt(inviteGenerationDraft.count, 1, 1, 50);
         const usageLimit = toBoundedInt(inviteGenerationDraft.usageLimit, 1, 1, 1000);
+        const subscriptionDays = toBoundedInt(inviteGenerationDraft.subscriptionDays, 30, 0, 3650);
         setInviteCodeActionLoading(true);
         try {
             const res = await api.post('/system/invite-codes', {
                 count,
                 usageLimit,
+                subscriptionDays,
             });
             const payload = res.data?.obj || {};
             const codes = Array.isArray(payload.codes)
@@ -471,6 +528,7 @@ export default function SystemSettings() {
             setLatestInviteBatch({
                 count: Number(payload.count || codes.length || 0),
                 usageLimit: Number(payload.usageLimit || usageLimit || 1),
+                subscriptionDays: Number(payload.subscriptionDays ?? subscriptionDays),
             });
             toast.success(res.data?.msg || (codes.length > 1 ? `已生成 ${codes.length} 个邀请码` : '邀请码已创建'));
             await fetchInviteCodes({ quiet: true });
@@ -766,6 +824,14 @@ export default function SystemSettings() {
         setMonitorLoading(false);
     };
 
+    const inviteStatusSummary = useMemo(() => (
+        inviteCodes.reduce((acc, invite) => {
+            const state = resolveInviteState(invite);
+            acc[state] += 1;
+            return acc;
+        }, { active: 0, used: 0, revoked: 0 })
+    ), [inviteCodes]);
+
     const overviewCards = useMemo(() => ([
         {
             title: '站点入口',
@@ -891,14 +957,12 @@ export default function SystemSettings() {
                     subtitle="控制高风险批量动作的确认阈值和令牌时效。"
                 />
                 <div className="form-group settings-checkbox-row">
-                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                        <input
-                            type="checkbox"
-                            checked={draft.security.requireHighRiskConfirmation}
-                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                        />
-                        开启高风险操作二次确认
-                    </label>
+                    <SettingsToggleCard
+                        checked={draft.security.requireHighRiskConfirmation}
+                        onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                        label="高风险操作二次确认"
+                        description="批量动作达到高风险阈值后，执行前必须再次确认。"
+                    />
                 </div>
                 <div className="settings-field-grid settings-field-grid--triple settings-field-grid--compact">
                     <div className="form-group">
@@ -944,14 +1008,12 @@ export default function SystemSettings() {
                     subtitle="控制订阅访问日志里的地区与运营商查询服务。"
                 />
                 <div className="form-group settings-checkbox-row">
-                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                        <input
-                            type="checkbox"
-                            checked={draft.auditIpGeo.enabled}
-                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                        />
-                        开启归属地查询
-                    </label>
+                    <SettingsToggleCard
+                        checked={draft.auditIpGeo.enabled}
+                        onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                        label="归属地查询"
+                        description="为订阅访问日志补充地区和运营商信息。"
+                    />
                 </div>
                 <div className="form-group">
                     <label className="form-label">查询地址模板</label>
@@ -1038,7 +1100,7 @@ export default function SystemSettings() {
                         </div>
                     )}
                 />
-                <div className="settings-mini-grid mb-4">
+                <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">当前注册状态</div>
                         <div className="text-lg font-semibold">{registrationEnabled ? '允许注册' : '已关闭注册'}</div>
@@ -1050,29 +1112,27 @@ export default function SystemSettings() {
                         <div className="text-xs text-muted mt-1">邀请模式下注册页必须填写有效邀请码。</div>
                     </div>
                     <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">邀请码存量</div>
+                        <div className="text-sm text-muted">邀请码情况</div>
                         <div className="text-lg font-semibold">{inviteCodes.length}</div>
-                        <div className="text-xs text-muted mt-1">支持多次使用并兼容旧单次邀请码。</div>
+                        <div className="text-xs text-muted mt-1">可用 {inviteStatusSummary.active} · 用完 {inviteStatusSummary.used} · 撤销 {inviteStatusSummary.revoked}</div>
                     </div>
                 </div>
                 <div className="form-group">
-                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                        <input
-                            type="checkbox"
-                            checked={draft.registration.inviteOnlyEnabled}
-                            onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                            disabled={!registrationEnabled}
-                        />
-                        开启邀请注册
-                    </label>
-                    <div className="text-xs text-muted mt-2">
-                        {registrationEnabled
-                            ? '开启后，注册页必须填写有效邀请码，并跳过邮箱验证码。'
-                            : '当前环境已关闭自助注册，这里的邀请模式配置会被保留，但不会开放注册入口。'}
-                    </div>
+                    <SettingsToggleCard
+                        checked={draft.registration.inviteOnlyEnabled}
+                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                        disabled={!registrationEnabled}
+                        label="开启邀请注册"
+                        description={registrationEnabled
+                            ? '开启后，注册页必须填写有效邀请码；注册成功后可直接登录，后台自动按邀请码开通全部节点订阅。'
+                            : '当前环境已关闭自助注册，这里的邀请模式配置会保留，但不会开放注册入口。'}
+                        activeLabel="邀请模式"
+                        inactiveLabel="普通模式"
+                    />
                 </div>
                 <div className="card p-3 settings-mini-card settings-detail-card mb-3">
                     <div className="text-sm font-medium mb-2">生成参数</div>
+                    <div className="text-xs text-muted mb-3">邀请码注册会默认开通全部节点和全部协议；这里主要控制可用次数和开通时长。</div>
                     <div className="settings-inline-grid settings-inline-grid--triple">
                         <div className="form-group mb-0">
                             <label className="form-label">本次生成数量</label>
@@ -1104,6 +1164,21 @@ export default function SystemSettings() {
                             />
                             <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
                         </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">开通时长（天）</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={0}
+                                max={3650}
+                                value={inviteGenerationDraft.subscriptionDays}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                    ...prev,
+                                    subscriptionDays: e.target.value,
+                                }))}
+                            />
+                            <div className="text-xs text-muted mt-1">填 0 表示不限时，例如 30 / 90 / 365 天。</div>
+                        </div>
                         <div className="form-group mb-0 settings-form-actions">
                             <button
                                 className="btn btn-primary w-full"
@@ -1113,7 +1188,7 @@ export default function SystemSettings() {
                             >
                                 {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
                             </button>
-                            <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次。</div>
+                            <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次，并自动开通 30 天。</div>
                         </div>
                     </div>
                 </div>
@@ -1122,7 +1197,7 @@ export default function SystemSettings() {
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                             <div className="text-sm font-medium">本次生成的邀请码</div>
                             <span className="text-xs text-muted">
-                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次
+                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
                             </span>
                         </div>
                         <div className="settings-code-list">
@@ -1152,6 +1227,7 @@ export default function SystemSettings() {
                                 <th>预览</th>
                                 <th>状态</th>
                                 <th>次数</th>
+                                <th>开通时长</th>
                                 <th>创建时间</th>
                                 <th>使用情况</th>
                                 <th>操作</th>
@@ -1160,31 +1236,59 @@ export default function SystemSettings() {
                         <tbody>
                             {inviteCodes.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center text-muted">暂无邀请码</td>
+                                    <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
                                 </tr>
                             ) : (
                                 inviteCodes.map((invite) => (
                                     <tr key={invite.id}>
                                         <td data-label="预览" className="cell-mono">{invite.preview}</td>
-                                        <td data-label="状态">
-                                            <span className={`badge ${invite.status === 'active' ? 'badge-success' : invite.status === 'used' ? 'badge-neutral' : 'badge-danger'}`}>
-                                                {invite.status === 'active' ? '可用' : invite.status === 'used' ? '已使用' : '已撤销'}
+                                        <td data-label="状态" className="table-cell-stack">
+                                            <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
+                                                {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
+                                            </span>
+                                            <span className="settings-invite-status-note">
+                                                {resolveInviteState(invite) === 'active'
+                                                    ? `剩余 ${Number(invite.remainingUses || 0)} 次`
+                                                    : resolveInviteState(invite) === 'used'
+                                                        ? '已达到使用上限'
+                                                        : '已停止使用'}
                                             </span>
                                         </td>
-                                        <td data-label="次数" className="text-sm text-muted">
-                                            已用 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
-                                            {invite.status === 'active' ? ` · 剩余 ${Number(invite.remainingUses || 0)}` : ''}
+                                        <td data-label="次数" className="table-cell-stack">
+                                            <span className="settings-invite-usage-main">
+                                                {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
+                                            </span>
+                                            <span className="settings-invite-usage-note">
+                                                已用 {Number(invite.usedCount || 0)} 次
+                                            </span>
+                                        </td>
+                                        <td data-label="开通时长" className="table-cell-stack">
+                                            <span className="settings-invite-usage-main">
+                                                {formatInviteDuration(invite.subscriptionDays)}
+                                            </span>
+                                            <span className="settings-invite-usage-note">
+                                                {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
+                                            </span>
                                         </td>
                                         <td data-label="创建时间">{formatDateTime(invite.createdAt, locale)}</td>
-                                        <td data-label="使用情况" className="text-sm text-muted">
-                                            {invite.usedAt
-                                                ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${formatDateTime(invite.usedAt, locale)}`
-                                                : invite.revokedAt
-                                                    ? `已于 ${formatDateTime(invite.revokedAt, locale)} 撤销`
-                                                    : '未使用'}
+                                        <td data-label="使用情况" className="table-cell-stack">
+                                            <span className="settings-invite-history-main">
+                                                {invite.revokedAt
+                                                    ? '手动撤销'
+                                                    : invite.usedAt
+                                                        ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
+                                                        : '暂无使用记录'}
+                                            </span>
+                                            <span className="settings-invite-history-note">
+                                                {invite.revokedAt
+                                                    ? formatDateTime(invite.revokedAt, locale)
+                                                    : invite.usedAt
+                                                        ? formatDateTime(invite.usedAt, locale)
+                                                        : '等待首次使用'}
+                                            </span>
                                         </td>
                                         <td data-label="操作" className="table-cell-actions">
-                                            {invite.status === 'active' ? (
+                                            {resolveInviteState(invite) === 'active' ? (
                                                 <button
                                                     type="button"
                                                     className="btn btn-danger btn-sm"
@@ -1475,7 +1579,7 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载数据库状态。</div>
                 ) : (
                     <>
-                        <div className="settings-mini-grid mb-4">
+                        <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
                             <div className="card p-3 settings-mini-card">
                                 <div className="text-sm text-muted">DB 连接</div>
                                 <div className="text-lg font-semibold">
@@ -1642,6 +1746,32 @@ export default function SystemSettings() {
         </div>
     );
 
+    const renderStatusContent = () => (
+        <div className="settings-section-stack">
+            <div className="settings-summary-grid settings-summary-grid--status">
+                {overviewCards.map((item) => (
+                    <div key={item.title} className="card settings-summary-card">
+                        <div className="settings-summary-label">{item.title}</div>
+                        <div className="settings-summary-value">{item.value}</div>
+                        <div className="settings-summary-detail">{item.detail}</div>
+                        <span className={`badge settings-summary-badge ${
+                            item.tone === 'success'
+                                ? 'badge-success'
+                                : item.tone === 'warning'
+                                    ? 'badge-warning'
+                                    : item.tone === 'danger'
+                                        ? 'badge-danger'
+                                        : 'badge-neutral'
+                        }`}
+                        >
+                            {item.tone === 'success' ? '正常' : item.tone === 'warning' ? '关注' : item.tone === 'danger' ? '关闭' : '待检查'}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     if (!isAdmin) {
         return (
             <>
@@ -1694,50 +1824,30 @@ export default function SystemSettings() {
                                 })}
                             </div>
                             <div className="settings-nav-side">
-                                <div className="settings-nav-status-card" aria-live="polite">
-                                    <div className="settings-nav-status-label">当前状态</div>
-                                    <div className="settings-nav-status-value">
-                                        {settings ? '已加载当前配置' : '等待加载配置'}
+                                <div className="settings-nav-status-panel" aria-live="polite">
+                                    <div className="settings-nav-status-card">
+                                        <div className="settings-nav-status-label">当前状态</div>
+                                        <div className="settings-nav-status-value">
+                                            {settings ? '已加载当前配置' : '等待加载配置'}
+                                        </div>
+                                        <div className="settings-nav-status-meta">
+                                            {saving ? '正在保存设置' : '可以直接修改并保存'}
+                                        </div>
                                     </div>
-                                    <div className="settings-nav-status-meta">
-                                        {saving ? '正在保存设置' : '可以直接修改并保存'}
+                                    <div className="settings-nav-actions settings-panel-actions">
+                                        <button className="btn btn-secondary" onClick={refreshAllSections} disabled={loading}>
+                                            重新加载
+                                        </button>
+                                        <button className="btn btn-primary" onClick={saveSettings} disabled={loading || saving}>
+                                            {saving ? <span className="spinner" /> : '保存配置'}
+                                        </button>
                                     </div>
-                                </div>
-                                <div className="settings-nav-actions settings-panel-actions">
-                                    <button className="btn btn-secondary" onClick={refreshAllSections} disabled={loading}>
-                                        重新加载
-                                    </button>
-                                    <button className="btn btn-primary" onClick={saveSettings} disabled={loading || saving}>
-                                        {saving ? <span className="spinner" /> : '保存设置'}
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="settings-main">
-                        <div className="settings-summary-grid">
-                            {overviewCards.map((item) => (
-                                <div key={item.title} className="card settings-summary-card">
-                                    <div className="settings-summary-label">{item.title}</div>
-                                    <div className="settings-summary-value">{item.value}</div>
-                                    <div className="settings-summary-detail">{item.detail}</div>
-                                    <span className={`badge settings-summary-badge ${
-                                        item.tone === 'success'
-                                            ? 'badge-success'
-                                            : item.tone === 'warning'
-                                                ? 'badge-warning'
-                                                : item.tone === 'danger'
-                                                    ? 'badge-danger'
-                                                    : 'badge-neutral'
-                                    }`}
-                                    >
-                                        {item.tone === 'success' ? '正常' : item.tone === 'warning' ? '关注' : item.tone === 'danger' ? '关闭' : '待检查'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-
                         <div className="settings-tab-panel">
                             {activeTab === 'console' ? (
                                 <div className="settings-console-host">
@@ -1745,6 +1855,7 @@ export default function SystemSettings() {
                                 </div>
                             ) : (
                                 <fieldset className="settings-fieldset">
+                                    {activeTab === 'status' ? renderStatusContent() : null}
                                     {activeTab === 'basic' ? renderBasicContent() : null}
                                     {activeTab === 'monitor' ? renderMonitorContent() : null}
                                     {activeTab === 'backup' ? renderBackupContent() : null}

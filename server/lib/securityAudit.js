@@ -43,7 +43,7 @@ function redactSensitive(value) {
     return out;
 }
 
-export function appendSecurityAudit(event, req, details = {}) {
+export function appendSecurityAudit(event, req, details = {}, options = {}) {
     try {
         ensureAuditDir();
         const safeDetails = redactSensitive(details);
@@ -62,6 +62,7 @@ export function appendSecurityAudit(event, req, details = {}) {
             event,
             req,
             details: safeDetails,
+            outcome: typeof options?.outcome === 'string' ? options.outcome : '',
         });
     } catch {
         // Ignore audit errors to avoid affecting main request flow.

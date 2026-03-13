@@ -193,7 +193,7 @@ router.delete('/:id/tokens/:tid', (req, res) => {
         publicTokenId: result.publicTokenId || '',
         tokenName: result.name || '',
         revokedReason: result.revokedReason || 'admin-revoke',
-    });
+    }, { outcome: 'success' });
     return res.json({ success: true, obj: result });
 });
 

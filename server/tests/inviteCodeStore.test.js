@@ -36,6 +36,7 @@ describe('InviteCodeStore', { concurrency: false }, () => {
         assert.match(created.code, /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
         assert.equal(created.invite.status, 'active');
         assert.equal(created.invite.usageLimit, 1);
+        assert.equal(created.invite.subscriptionDays, 0);
         assert.equal(created.invite.usedCount, 0);
 
         const consumed = store.consume(created.code, {
@@ -55,13 +56,16 @@ describe('InviteCodeStore', { concurrency: false }, () => {
             createdBy: 'admin',
             count: 2,
             usageLimit: 3,
+            subscriptionDays: 90,
         });
 
         assert.equal(created.codes.length, 2);
         assert.equal(created.invites.length, 2);
         assert.equal(created.usageLimit, 3);
+        assert.equal(created.subscriptionDays, 90);
         assert.equal(created.invites[0].usageLimit, 3);
         assert.equal(created.invites[0].remainingUses, 3);
+        assert.equal(created.invites[0].subscriptionDays, 90);
 
         const firstCode = created.codes[0];
         const usableAfterOne = store.consume(firstCode, {
@@ -113,6 +117,7 @@ describe('InviteCodeStore', { concurrency: false }, () => {
 
         assert.equal(legacyInvite.id, 'legacy-1');
         assert.equal(legacyInvite.usageLimit, 1);
+        assert.equal(legacyInvite.subscriptionDays, 0);
         assert.equal(legacyInvite.usedCount, 1);
         assert.equal(legacyInvite.remainingUses, 0);
         assert.equal(legacyInvite.status, 'used');

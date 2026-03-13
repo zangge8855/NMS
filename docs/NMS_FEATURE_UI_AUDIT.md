@@ -15,6 +15,8 @@
 - `Logs` 页的加载空状态已从手写壳替换为共享 `EmptyState`，并统一到共享表单与圆角体系
 - `Tasks` 页已移除孤立的 `tasks-table-shell` / `audit-tasks-table-shell`，回收到共享 `table-container`
 - `Tools` 页空状态已补上明确的下一步动作按钮，避免停留在被动提示
+- 邀请码注册链路已改为“注册即启用、后台自动开通订阅”，后台邀请码表也补上了可用次数与开通时长展示
+- 仪表盘在线用户明细现在会同时显示用户名与邮箱，减少在用户识别时来回切页
 
 ### 当前状态良好区域
 
@@ -56,6 +58,8 @@ Audit date: 2026-03-11
 - The `Logs` page now uses the shared `EmptyState` for loading/empty states and follows the shared form and radius rules
 - The `Tasks` page has dropped isolated `tasks-table-shell` / `audit-tasks-table-shell` wrappers and converged on the shared `table-container`
 - The `Tools` page now exposes explicit next-step actions in empty states instead of passive copy only
+- Invite-code registration now activates the account immediately and auto-provisions a subscription, while the settings table also exposes both usage limits and granted duration
+- Dashboard online-user detail now shows username and email together, making account identification faster during operations
 - The login page now exposes self-service password reset by email code, while the public response stays generic so the flow does not reveal whether an email is registered
 - The subscription page now centers the user flow around “choose profile -> copy address -> import client”, keeps the QR code beside the address, and switches quick-import actions with the selected profile
 - The end-user subscription page now keeps quick import, copy, QR code, and reset actions inside one primary import block, while device cards only show downloads and recommended profile types

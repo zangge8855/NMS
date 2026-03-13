@@ -7243,7 +7243,25 @@ body::before {
 
 .audit-events-table th:nth-child(7),
 .audit-events-table td:nth-child(7) {
-  width: 56px;
+  width: 108px;
+}
+
+.audit-table-row-actions {
+  justify-content: center;
+}
+
+.audit-action-btn {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.audit-action-btn-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 .audit-subscriptions-table td:nth-child(1),
@@ -7292,6 +7310,14 @@ body::before {
 
 .audit-stat-card {
   min-height: 148px;
+}
+
+.audit-stat-note {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
 }
 
 .audit-chart-card .card-header {
@@ -9970,6 +9996,8 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-reset-inline-btn {
   flex: 0 0 auto;
+  min-width: 132px;
+  font-weight: 700;
 }
 
 .subscription-user-reset-inline-copy {
@@ -9987,13 +10015,13 @@ input[type="radio"]:focus-visible {
   font-size: 13px;
   line-height: 1.35;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--accent-danger);
 }
 
 .subscription-user-reset-inline-title svg {
   width: 15px;
   height: 15px;
-  color: var(--accent-warning);
+  color: var(--accent-danger);
   flex: 0 0 auto;
 }
 
@@ -10173,6 +10201,31 @@ input[type="radio"]:focus-visible {
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+.subscription-current-profile-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.subscription-current-profile-tools--inline {
+  padding-top: 2px;
+}
+
+.subscription-current-profile-tools-label {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.subscription-current-profile-tools-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .subscription-profile-notes {
@@ -10537,6 +10590,29 @@ input[type="radio"]:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.subscription-device-actions--downloads {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.subscription-device-download-btn {
+  width: 100%;
+  min-height: 38px;
+  justify-content: center;
+  border-color: rgba(99, 102, 241, 0.18);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), rgba(99, 102, 241, 0.06));
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.subscription-device-download-btn:hover,
+.subscription-device-download-btn:focus-visible {
+  border-color: rgba(99, 102, 241, 0.32);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.1));
+  box-shadow: 0 8px 18px -14px rgba(99, 102, 241, 0.55);
 }
 
 .subscription-device-rules {
@@ -12225,12 +12301,29 @@ input[type="radio"]:focus-visible {
 }
 
 .dashboard-online-label {
-  display: block;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dashboard-online-name,
+.dashboard-online-email {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-online-name {
+  line-height: 1.35;
+}
+
+.dashboard-online-email {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 .dashboard-online-nodes-cell {

@@ -50,6 +50,7 @@ const AUDIT_COPY = {
             export: '导出',
             previous: '上一页',
             next: '下一页',
+            detail: '详情',
             viewDetail: '查看详情',
             refreshSample: '立即采样',
         },
@@ -100,6 +101,13 @@ const AUDIT_COPY = {
             samplePoints: '采样点',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
+            totalTrafficScope: '最近 30 天 · 全部节点汇总',
+            activeAccountsScope: '最近 30 天 · 有流量的已注册用户',
+            samplePointsScope: '最近 30 天采样记录数',
+            userTrendScope: '当前所选用户 · 最近 14 天趋势',
+            serverTrendScope: '当前所选节点 · 最近 14 天趋势',
+            topUsersScope: '最近 30 天 · 已注册用户排行',
+            topServersScope: '最近 30 天 · 全部节点排行',
             selectUser: '请选择用户',
             selectServer: '请选择节点',
             userLevelUnsupported: '当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。',
@@ -171,6 +179,7 @@ const AUDIT_COPY = {
             export: 'Export',
             previous: 'Previous',
             next: 'Next',
+            detail: 'Details',
             viewDetail: 'View Detail',
             refreshSample: 'Collect Now',
         },
@@ -221,6 +230,13 @@ const AUDIT_COPY = {
             samplePoints: 'Samples',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
+            totalTrafficScope: 'Last 30 days · all nodes combined',
+            activeAccountsScope: 'Last 30 days · registered users with traffic',
+            samplePointsScope: 'Traffic samples collected in the last 30 days',
+            userTrendScope: 'Selected user · last 14 days',
+            serverTrendScope: 'Selected node · last 14 days',
+            topUsersScope: 'Last 30 days · registered user ranking',
+            topServersScope: 'Last 30 days · all nodes ranking',
             selectUser: 'Select a user',
             selectServer: 'Select a node',
             userLevelUnsupported: 'Current 3x-ui data only supports node-level traffic and does not provide per-user traffic details.',
@@ -853,9 +869,17 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.node}>{item.serverId || '-'}</td>
                                                     <td data-label={copy.tables.user}>{resolveAuditTarget(item)}</td>
                                                     <td data-label={copy.tables.action} className="table-cell-actions">
-                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title={copy.actions.viewDetail} aria-label={copy.actions.viewDetail}>
-                                                            <HiOutlineEye />
-                                                        </button>
+                                                        <div className="table-row-actions audit-table-row-actions">
+                                                            <button
+                                                                className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
+                                                                onClick={() => setSelectedEvent(item)}
+                                                                title={copy.actions.viewDetail}
+                                                                aria-label={copy.actions.viewDetail}
+                                                            >
+                                                                <HiOutlineEye className="audit-action-btn-icon" />
+                                                                <span>{copy.actions.detail}</span>
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -919,14 +943,17 @@ export default function AuditCenter() {
                                 <div className="card-header"><span className="card-title">{copy.traffic.totalTraffic}</span><HiOutlineChartBarSquare /></div>
                                 <div className="card-value">{formatBytes(trafficOverview?.totals?.totalBytes || 0)}</div>
                                 <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.totals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.totals?.downBytes || 0)}</div>
+                                <div className="audit-stat-note">{copy.traffic.totalTrafficScope}</div>
                             </div>
                             <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">{copy.traffic.activeAccounts}</span><HiOutlineUsers /></div>
                                 <div className="card-value">{trafficOverview?.activeUsers || 0}</div>
+                                <div className="audit-stat-note">{copy.traffic.activeAccountsScope}</div>
                             </div>
                             <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">{copy.traffic.samplePoints}</span><HiOutlineSignal /></div>
                                 <div className="card-value">{trafficOverview?.sampleCount || 0}</div>
+                                <div className="audit-stat-note">{copy.traffic.samplePointsScope}</div>
                             </div>
                         </div>
 
@@ -935,6 +962,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.userTrend}
+                                    subtitle={copy.traffic.userTrendScope}
                                     actions={(
                                         <select
                                             className="form-select w-220"
@@ -970,6 +998,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.serverTrend}
+                                    subtitle={copy.traffic.serverTrendScope}
                                     actions={(
                                         <select
                                             className="form-select w-220"
@@ -1004,6 +1033,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.topUsers}
+                                    subtitle={copy.traffic.topUsersScope}
                                 />
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">{copy.traffic.userLevelNoCounts}</div>
@@ -1028,6 +1058,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.topServers}
+                                    subtitle={copy.traffic.topServersScope}
                                 />
                                 <div className="table-container audit-nested-table-shell">
                                     <table className="table">

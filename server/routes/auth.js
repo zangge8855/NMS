@@ -361,14 +361,22 @@ router.post('/register', async (req, res) => {
             username: result.username,
             email: result.email,
             inviteOnlyEnabled: registrationStatus.inviteOnlyEnabled,
+            invitePreview: result.invite?.preview || '',
+            inviteUsageLimit: Number(result.invite?.usageLimit || 0),
+            inviteSubscriptionDays: Number(result.invite?.subscriptionDays || 0),
+            subscriptionProvisioned: result.subscriptionProvisioned === true,
+            provisionError: result.provisionError || '',
         });
         res.json({
             success: true,
             msg: result.requireEmailVerification === false
-                ? '注册成功，请等待管理员审核通过后再登录。'
+                ? (result.subscriptionProvisioned === false
+                    ? '注册成功，现在可以直接登录。如订阅未显示，请联系管理员检查。'
+                    : '注册成功，现在可以直接登录。')
                 : '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
             email: result.user.email,
             requireEmailVerification: result.requireEmailVerification !== false,
+            subscriptionProvisioned: result.subscriptionProvisioned === true,
         });
     } catch (err) {
         const error = toHttpError(err, 400, '注册失败');

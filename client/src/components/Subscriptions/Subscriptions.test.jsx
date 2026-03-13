@@ -86,7 +86,7 @@ describe('Subscriptions', () => {
         expect(screen.getByText('当前类型')).toBeInTheDocument();
         expect(screen.getByText('现在这样用')).toBeInTheDocument();
         expect(screen.getByText('就记这一句：选类型 -> 导入客户端。')).toBeInTheDocument();
-        expect(screen.getByText('按你的设备打开')).toBeInTheDocument();
+        expect(screen.getByText('软件下载地址')).toBeInTheDocument();
         expect(screen.queryByText('你的订阅地址')).not.toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
@@ -161,9 +161,9 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('CMFA').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Exclave').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
         expect(screen.queryByText('Verge Rev')).not.toBeInTheDocument();
         expect(screen.queryByText('v2rayNG')).not.toBeInTheDocument();
-        expect(screen.queryByText('Stash')).not.toBeInTheDocument();
         expect(screen.queryByText('Mihomo Party')).not.toBeInTheDocument();
         expect(screen.getAllByText('FlClash / Sparkle').length).toBeGreaterThan(0);
         expect(screen.getAllByText('FlClash / CMFA').length).toBeGreaterThan(0);
@@ -174,6 +174,11 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Stash' })).toBeInTheDocument();
+        expect(screen.getByText('适用软件')).toBeInTheDocument();
+        expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Sparkle').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('CMFA').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
 
         await user.click(screen.getByRole('button', { name: 'Surge' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();

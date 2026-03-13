@@ -86,6 +86,10 @@ function normalizeNonNegativeInt(value, fallback, options = {}) {
     return output;
 }
 
+function normalizeSubscriptionDays(value, fallback = 0) {
+    return normalizeNonNegativeInt(value, fallback, { max: 3650 });
+}
+
 function normalizeRecord(input = {}) {
     const rawId = normalizeText(input.id);
     const id = rawId || crypto.randomUUID();
@@ -99,6 +103,7 @@ function normalizeRecord(input = {}) {
     const revokedAt = normalizeText(input.revokedAt);
     const revokedBy = normalizeText(input.revokedBy);
     const usageLimit = normalizePositiveInt(input.usageLimit, 1, { min: 1, max: 1000 });
+    const subscriptionDays = normalizeSubscriptionDays(input.subscriptionDays, 0);
     const legacyUsedCount = usedAt ? 1 : 0;
     const usedCount = Math.min(
         usageLimit,
@@ -112,6 +117,7 @@ function normalizeRecord(input = {}) {
         createdAt,
         createdBy,
         usageLimit,
+        subscriptionDays,
         usedCount,
         usedAt: usedAt || null,
         usedByUserId: usedByUserId || '',
@@ -180,6 +186,7 @@ class InviteCodeStore {
             createdAt: record.createdAt,
             createdBy: record.createdBy || '',
             usageLimit,
+            subscriptionDays: normalizeSubscriptionDays(record.subscriptionDays, 0),
             usedCount,
             remainingUses: Math.max(0, usageLimit - usedCount),
             usedAt: record.usedAt || null,
@@ -199,6 +206,7 @@ class InviteCodeStore {
     create(options = {}) {
         const count = normalizePositiveInt(options.count, 1, { min: 1, max: 50 });
         const usageLimit = normalizePositiveInt(options.usageLimit, 1, { min: 1, max: 1000 });
+        const subscriptionDays = normalizeSubscriptionDays(options.subscriptionDays, 0);
         const existingHashes = new Set(this.invites.map((item) => item.codeHash));
         const createdHashes = new Set();
         const codes = [];
@@ -220,6 +228,7 @@ class InviteCodeStore {
                 createdAt: new Date().toISOString(),
                 createdBy: normalizeText(options.createdBy),
                 usageLimit,
+                subscriptionDays,
                 usedCount: 0,
             }));
         }
@@ -236,6 +245,7 @@ class InviteCodeStore {
             codes,
             count: codes.length,
             usageLimit,
+            subscriptionDays,
             invite: this._toPublicRecord(records[0]),
             invites: records.map((item) => this._toPublicRecord(item)),
         };
@@ -315,6 +325,7 @@ export {
     formatInviteCode,
     generateInviteCode,
     hashInviteCode,
+    normalizeSubscriptionDays,
     normalizeInviteCode,
     resolveStatus,
     InviteCodeStore,

@@ -12,7 +12,7 @@ import {
     HiOutlineCircleStack,
     HiOutlineArrowsUpDown,
     HiOutlineClock,
-    HiOutlineCommandLine,
+    HiOutlineCog6Tooth,
     HiOutlineUsers,
     HiOutlineSignal,
     HiOutlineArrowPath,
@@ -296,15 +296,20 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
         .map((user) => {
             const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
             const loginEmail = normalizeEmail(user?.email);
+            const username = String(user?.username || '').trim();
+            const resolvedEmail = subscriptionEmail || loginEmail || '';
             const clientData = clientsMap.get(subscriptionEmail) || clientsMap.get(loginEmail) || { count: 0, onlineSessions: 0, servers: new Set() };
             const sessions = clientData.onlineSessions || onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0;
             const matchedServers = clientData.servers?.size
                 ? Array.from(clientData.servers)
                 : Array.from(onlineServerMap.get(subscriptionEmail) || onlineServerMap.get(loginEmail) || []);
+            const displayName = username || resolvedEmail || user?.id || '-';
             return {
                 userId: user?.id,
-                username: user?.username || '',
-                label: user?.subscriptionEmail || user?.email || user?.username || user?.id || '-',
+                username,
+                email: resolvedEmail,
+                displayName,
+                label: resolvedEmail || displayName,
                 sessions,
                 clientCount: clientData.count || 0,
                 enabled: user?.enabled !== false,
@@ -313,7 +318,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
         })
         .sort((left, right) => {
             if (right.sessions !== left.sessions) return right.sessions - left.sessions;
-            return String(left.label || '').localeCompare(String(right.label || ''));
+            return String(left.displayName || left.label || '').localeCompare(String(right.displayName || right.label || ''));
         });
 
     return {
@@ -789,14 +794,16 @@ export default function Dashboard() {
                 onClick: () => navigate('/audit'),
             },
             {
-                title: locale === 'en-US' ? 'Node Console' : '节点控制台',
+                title: locale === 'en-US' ? 'Settings' : '系统设置',
                 detail: locale === 'en-US'
+                    ? 'Open system settings, console, and diagnostics'
+                    : '进入系统设置、节点控制台和诊断区',
+                meta: locale === 'en-US'
                     ? `${globalStats.onlineServers} / ${globalStats.serverCount} nodes online`
                     : `${globalStats.onlineServers} / ${globalStats.serverCount} 个节点在线`,
-                meta: locale === 'en-US' ? 'Jump to the console and diagnostics area in Settings' : '直接进入系统设置中的控制台与诊断页',
-                icon: HiOutlineCommandLine,
+                icon: HiOutlineCog6Tooth,
                 tone: 'success',
-                onClick: () => navigate('/settings?tab=console'),
+                onClick: () => navigate('/settings'),
             },
         ];
 
@@ -861,7 +868,12 @@ export default function Dashboard() {
                                             {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
                                                 <tr key={`global-online-${row.userId || row.label}`}>
                                                     <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
-                                                        <div className="dashboard-online-label text-white font-medium" title={row.label}>{row.label}</div>
+                                                        <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                            <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                            {row.email && row.email !== row.displayName && (
+                                                                <div className="dashboard-online-email">{row.email}</div>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
                                                         <div className="flex flex-wrap gap-1.5">
@@ -980,12 +992,14 @@ export default function Dashboard() {
             onClick: () => navigate('/audit'),
         },
         {
-            title: locale === 'en-US' ? 'Node Console' : '节点控制台',
-            detail: activeServer?.name || (locale === 'en-US' ? 'Open the current node console' : '打开当前节点控制台'),
-            meta: locale === 'en-US' ? 'Open the node console and diagnostics in Settings' : '进入系统设置里的节点控制台和诊断区',
-            icon: HiOutlineCommandLine,
+            title: locale === 'en-US' ? 'Settings' : '系统设置',
+            detail: locale === 'en-US'
+                ? 'Open settings, diagnostics, and the embedded console'
+                : '进入系统设置、诊断区和嵌入式控制台',
+            meta: activeServer?.name || (locale === 'en-US' ? 'For the current node' : '当前节点'),
+            icon: HiOutlineCog6Tooth,
             tone: 'success',
-            onClick: () => navigate('/settings?tab=console'),
+            onClick: () => navigate('/settings'),
         },
     ];
 
@@ -1035,11 +1049,16 @@ export default function Dashboard() {
                                 <table className="table dashboard-online-table">
                                     <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
                                     <tbody>
-                                        {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
-                                            <tr key={`single-online-${row.userId || row.label}`}>
-                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
-                                                    <div className="dashboard-online-label text-white font-medium" title={row.label}>{row.label}</div>
-                                                </td>
+                                            {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
+                                                <tr key={`single-online-${row.userId || row.label}`}>
+                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                        <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                            <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                            {row.email && row.email !== row.displayName && (
+                                                                <div className="dashboard-online-email">{row.email}</div>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                 <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                             </tr>
                                         ))}

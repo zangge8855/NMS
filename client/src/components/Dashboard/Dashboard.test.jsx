@@ -194,6 +194,7 @@ describe('Dashboard', () => {
         fireEvent.click(onlineCard);
 
         expect(await screen.findByText('在线用户明细')).toBeInTheDocument();
+        expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
     });

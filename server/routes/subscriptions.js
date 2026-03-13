@@ -3268,7 +3268,7 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
                 email: result.email,
                 revoked: result.revoked,
                 reason: result.reason,
-            });
+            }, { outcome: 'success' });
             return res.json({
                 success: true,
                 obj: { email: result.email, revoked: result.revoked },
@@ -3279,7 +3279,7 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
             email: result.email,
             tokenId: result.tokenId,
             reason: result.reason,
-        });
+        }, { outcome: 'success' });
         return res.json({
             success: true,
             obj: result.revoked,

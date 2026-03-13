@@ -93,6 +93,7 @@ function getSubscriptionProfileCopy(locale = 'zh-CN') {
             profileSingboxHint: 'For sing-box',
             profileSurgeHint: 'For Surge',
             profileRawHint: 'Raw node list',
+            supportedClientsLabel: 'Compatible Clients',
         };
     }
     return {
@@ -106,6 +107,7 @@ function getSubscriptionProfileCopy(locale = 'zh-CN') {
         profileSingboxHint: '给 sing-box',
         profileSurgeHint: '给 Surge',
         profileRawHint: '原始节点列表',
+        supportedClientsLabel: '适用软件',
     };
 }
 
@@ -201,30 +203,40 @@ export function buildSubscriptionProfileBundle(payload = {}, locale = 'zh-CN') {
             label: copy.profileStandard,
             url: v2raynUrl,
             hint: copy.profileStandardHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['v2rayN', 'Exclave', 'Shadowrocket'],
         },
         {
             key: 'clash',
             label: 'Clash / Mihomo',
             url: clashUrl,
             hint: copy.profileClashHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['FlClash', 'Sparkle', 'CMFA', 'Stash'],
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
             hint: copy.profileSingboxHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['sing-box'],
         },
         {
             key: 'surge',
             label: 'Surge',
             url: surgeUrl,
             hint: copy.profileSurgeHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['Surge'],
         },
         {
             key: 'raw',
             label: 'Raw',
             url: rawUrl,
             hint: copy.profileRawHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: locale === 'en-US' ? ['Advanced Clients', 'Manual Import'] : ['高级客户端', '手动导入'],
         },
     ];
 

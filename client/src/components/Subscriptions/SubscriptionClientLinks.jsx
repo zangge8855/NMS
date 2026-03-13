@@ -145,13 +145,14 @@ export default function SubscriptionClientLinks({
             key: 'ios',
             title: 'iPhone / iPad',
             summary: copy.importReady,
-            appLinks: buildLinks(toolLookup, ['shadowrocket', 'surge', 'singbox']),
+            appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'singbox']),
             profileRules: [
+                buildRule(toolLookup, profileLookup, ['stash'], 'clash'),
                 buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn'),
                 buildRule(toolLookup, profileLookup, ['surge'], 'surge'),
                 buildRule(toolLookup, profileLookup, ['singbox'], 'singbox'),
             ].filter(Boolean),
-            quickKeys: ['shadowrocket', 'surge', 'singbox'],
+            quickKeys: ['shadowrocket', 'clash-family', 'surge', 'singbox'],
         },
     ]), [copy.chooseAny, copy.importReady, profileLookup, toolLookup]);
 
@@ -186,14 +187,14 @@ export default function SubscriptionClientLinks({
                                     <div className="subscription-device-text">{item.summary}</div>
                                     <div className="subscription-device-block">
                                         <div className="subscription-device-block-label">{copy.downloads}</div>
-                                        <div className="subscription-device-actions">
+                                        <div className="subscription-device-actions subscription-device-actions--downloads">
                                             {item.appLinks.map((link) => (
                                                 <a
                                                     key={link.key}
                                                     href={link.url}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="btn btn-ghost btn-sm"
+                                                    className="btn btn-secondary btn-sm subscription-device-download-btn"
                                                 >
                                                     {link.label}
                                                 </a>

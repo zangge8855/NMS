@@ -2,8 +2,11 @@ import config from '../config.js';
 import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
+import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
 import userRepository from '../repositories/userRepository.js';
+import userPolicyRepository from '../repositories/userPolicyRepository.js';
 import inviteCodeStore from '../store/inviteCodeStore.js';
+import { provisionSubscriptionForUser } from './subscriptionSyncService.js';
 
 function normalizeEmailInput(value) {
     return String(value || '').trim().toLowerCase();
@@ -17,11 +20,24 @@ function buildExpiryIso(ttlMinutes) {
     return new Date(Date.now() + Number(ttlMinutes || 0) * 60 * 1000).toISOString();
 }
 
+function buildInviteProvisionPayload(email, invite = {}) {
+    const subscriptionDays = Math.max(0, Number.parseInt(String(invite?.subscriptionDays || 0), 10) || 0);
+    return {
+        subscriptionEmail: email,
+        expiryDays: subscriptionDays,
+        serverScopeMode: 'all',
+        protocolScopeMode: 'all',
+    };
+}
+
 async function registerUser(payload = {}, deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const emailSender = deps.mailer || mailer;
     const registrationConfig = deps.registrationConfig || config.registration;
     const inviteStore = deps.inviteCodeStore || inviteCodeStore;
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
+    const tokenRepo = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const provisionSubscription = deps.provisionSubscriptionForUser || provisionSubscriptionForUser;
     const inviteOnlyEnabled = deps.inviteOnlyEnabled === true;
     const username = String(payload?.username || '').trim();
     const password = String(payload?.password || '');
@@ -40,12 +56,13 @@ async function registerUser(payload = {}, deps = {}) {
         throw createHttpError(400, passwordCheck.reason);
     }
 
+    let invite = null;
     if (inviteOnlyEnabled) {
         if (!inviteCode) {
             throw createHttpError(400, '邀请码不能为空');
         }
         try {
-            inviteStore.assertUsable(inviteCode);
+            invite = inviteStore.assertUsable(inviteCode);
         } catch (error) {
             throw createHttpError(400, error.message || '邀请码无效', {
                 code: 'INVITE_CODE_INVALID',
@@ -62,10 +79,10 @@ async function registerUser(payload = {}, deps = {}) {
         username,
         password,
         email,
-        subscriptionEmail: '',
+        subscriptionEmail: inviteOnlyEnabled ? email : '',
         role: registrationConfig.defaultRole,
         emailVerified: inviteOnlyEnabled,
-        enabled: false,
+        enabled: inviteOnlyEnabled,
     });
 
     if (inviteOnlyEnabled) {
@@ -90,11 +107,33 @@ async function registerUser(payload = {}, deps = {}) {
             });
         }
 
+        let provisionResult = null;
+        let provisionError = '';
+        try {
+            provisionResult = await provisionSubscription(
+                user,
+                buildInviteProvisionPayload(email, invite),
+                'invite_registration',
+                {
+                    userRepository: userRepo,
+                    userPolicyRepository: policyRepo,
+                    subscriptionTokenRepository: tokenRepo,
+                }
+            );
+        } catch (error) {
+            provisionError = error?.message || '自动开通订阅失败';
+        }
+
         return {
             user,
             username,
             email,
+            invite,
             requireEmailVerification: false,
+            requireApproval: false,
+            subscriptionProvisioned: provisionResult !== null,
+            provisionError,
+            provisionResult,
         };
     }
 
