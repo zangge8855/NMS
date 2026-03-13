@@ -618,8 +618,10 @@
 }
 
 .servers-filter-select {
-  width: 160px;
-  flex: 0 0 160px;
+  width: fit-content;
+  min-width: 116px;
+  max-width: 148px;
+  flex: 0 1 132px;
 }
 
 .servers-filter-summary {
@@ -985,26 +987,29 @@
 .settings-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 .settings-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 .settings-summary-card {
   position: relative;
   display: flex;
-  min-height: 126px;
+  min-height: 0;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
+  gap: 10px;
+  padding: clamp(16px, 1.8vw, 20px);
   overflow: hidden;
 }
 
@@ -1030,7 +1035,7 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .settings-summary-badge {
@@ -1058,7 +1063,7 @@
   min-height: 0;
   flex-direction: column;
   gap: 14px;
-  padding: 18px !important;
+  padding: clamp(16px, 2vw, 24px);
 }
 
 .settings-panel > * {
@@ -1125,13 +1130,13 @@
 }
 
 .settings-grid--basic {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   gap: 16px;
 }
 
 .settings-grid--monitor,
 .settings-db-grid {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   gap: 16px;
 }
 
@@ -1232,7 +1237,7 @@
 .settings-mini-grid,
 .settings-backup-actions,
 .settings-db-grid {
-  align-items: stretch;
+  align-items: start;
 }
 
 .settings-mini-card,
@@ -1245,7 +1250,7 @@
 }
 
 .settings-mini-card {
-  min-height: 118px;
+  min-height: 0;
   padding: 14px;
 }
 
@@ -1257,7 +1262,8 @@
 .settings-inline-grid .settings-detail-card,
 .settings-db-control-card,
 .settings-backup-action-card {
-  height: 100%;
+  height: auto;
+  align-self: start;
 }
 
 .settings-mini-card .text-lg.font-semibold,
@@ -1283,7 +1289,53 @@
 }
 
 @media (min-width: 1200px) {
+  .settings-grid--basic,
   .settings-grid--monitor {
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  }
+
+  .settings-db-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  }
+
+  .settings-panel--entry {
+    grid-column: 1 / -1;
+  }
+
+  .settings-panel--span-4 {
+    grid-column: span 4;
+  }
+
+  .settings-panel--span-5 {
+    grid-column: span 5;
+  }
+
+  .settings-panel--span-6 {
+    grid-column: span 6;
+  }
+
+  .settings-panel--span-7 {
+    grid-column: span 7;
+  }
+
+  .settings-panel--span-8 {
+    grid-column: span 8;
+  }
+
+  .settings-panel--entry .settings-inline-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr);
+    gap: 16px;
+  }
+
+  .settings-mini-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .settings-db-grid > .settings-db-control-card {
+    grid-column: span 6;
+  }
+
+  .settings-backup-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1302,6 +1354,13 @@
 .inbounds-filter-select,
 .servers-filter-select {
   flex: 0 0 auto;
+}
+
+.inbounds-filter-select {
+  width: fit-content;
+  min-width: 124px;
+  max-width: 168px;
+  flex: 0 1 144px;
 }
 
 .inbounds-toolbar-main {
@@ -1609,8 +1668,31 @@
   .server-console-action-row .btn,
   .server-console-select-row .btn,
   .user-profile-actions .btn {
-    flex: 1 1 calc(50% - 5px);
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
     justify-content: center;
+  }
+
+  .users-toolbar-actions,
+  .inbounds-toolbar-actions,
+  .servers-toolbar-actions,
+  .servers-selection-bar-takeover,
+  .subscriptions-toolbar-actions,
+  .audit-filter-bar,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .audit-pagination-actions,
+  .page-toolbar-actions,
+  .page-pagination-actions,
+  .section-header-actions,
+  .tool-card-actions,
+  .server-console-action-row,
+  .server-console-select-row,
+  .user-profile-actions,
+  .inbounds-selection-bar {
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .inbounds-selection-bar,
@@ -1620,8 +1702,34 @@
   }
 
   .inbounds-selection-bar .btn {
-    flex: 1 1 calc(50% - 5px);
+    flex: 0 0 auto;
+    width: auto;
     justify-content: center;
+  }
+
+  .btn.btn-block,
+  .users-toolbar-actions .btn.btn-block,
+  .inbounds-toolbar-actions > .btn.btn-block,
+  .servers-toolbar-actions .btn.btn-block,
+  .subscriptions-toolbar-actions .btn.btn-block,
+  .audit-filter-bar .btn.btn-block,
+  .audit-traffic-toolbar-actions .btn.btn-block,
+  .settings-toolbar-actions .btn.btn-block,
+  .page-toolbar-actions .btn.btn-block,
+  .page-pagination-actions .btn.btn-block,
+  .tool-card-actions .btn.btn-block,
+  .server-console-action-row .btn.btn-block,
+  .user-profile-actions .btn.btn-block,
+  .inbounds-selection-bar .btn.btn-block {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .btn-icon,
+  .tool-card-actions .btn-icon,
+  .server-console-action-row .btn-icon,
+  .section-header-actions .btn-icon {
+    flex: 0 0 auto;
   }
 
   .dashboard-toolbar-actions .dashboard-refresh-btn {

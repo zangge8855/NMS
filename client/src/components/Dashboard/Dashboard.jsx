@@ -104,23 +104,25 @@ function StatCard({ card, loading }) {
                 </div>
             </div>
             <div className="dashboard-stat-card-body">
-                <div className="card-value dashboard-stat-card-value">
-                    {loading ? (
-                        <div
-                            className="skeleton dashboard-stat-card-skeleton mt-1"
-                            style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
-                        />
-                    ) : card.animateValue !== undefined ? (
-                        card.renderAnimatedValue
-                            ? card.renderAnimatedValue(animatedValue)
-                            : `${animatedValue}${card.animateSuffix || ''}`
-                    ) : (
-                        card.value
+                <div className="dashboard-stat-card-primary">
+                    <div className="card-value dashboard-stat-card-value">
+                        {loading ? (
+                            <div
+                                className="skeleton dashboard-stat-card-skeleton mt-1"
+                                style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
+                            />
+                        ) : card.animateValue !== undefined ? (
+                            card.renderAnimatedValue
+                                ? card.renderAnimatedValue(animatedValue)
+                                : `${animatedValue}${card.animateSuffix || ''}`
+                        ) : (
+                            card.value
+                        )}
+                    </div>
+                    {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
+                        <StatSparkline points={card.sparkline} domain={card.sparklineDomain} />
                     )}
                 </div>
-                {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
-                    <StatSparkline points={card.sparkline} domain={card.sparklineDomain} />
-                )}
                 {card.sub && (
                     <div className="dashboard-stat-card-subtitle">
                         {card.sub}
@@ -861,7 +863,7 @@ export default function Dashboard() {
                                 />
                             ) : (
                                 <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
-                                    <table className="table">
+                                    <table className="table dashboard-online-table">
                                         <thead>
                                             <tr>
                                                 <th>{t('pages.dashboardCommon.userIdentifier')}</th>
@@ -872,8 +874,10 @@ export default function Dashboard() {
                                         <tbody>
                                             {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
                                                 <tr key={`global-online-${row.userId || row.label}`}>
-                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.label}</td>
-                                                    <td data-label={t('pages.dashboardGlobal.onlineNodes')}>
+                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                        <div className="dashboard-online-label text-white font-medium" title={row.label}>{row.label}</div>
+                                                    </td>
+                                                    <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {row.servers.length === 0 ? (
                                                                 <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
@@ -885,7 +889,7 @@ export default function Dashboard() {
                                                             {row.servers.length > 4 && <span className="badge badge-neutral">+{row.servers.length - 4}</span>}
                                                         </div>
                                                     </td>
-                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
+                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                                 </tr>
                                             ))}
                                             {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
@@ -1038,13 +1042,15 @@ export default function Dashboard() {
                             />
                         ) : (
                             <div className="table-container table-scroll table-scroll-md overflow-x-auto">
-                                <table className="table">
+                                <table className="table dashboard-online-table">
                                     <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
                                     <tbody>
                                         {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
                                             <tr key={`single-online-${row.userId || row.label}`}>
-                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="text-white font-medium truncate max-w-[200px]">{row.label}</td>
-                                                <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono"><span className="badge badge-success">{row.sessions}</span></td>
+                                                <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                    <div className="dashboard-online-label text-white font-medium" title={row.label}>{row.label}</div>
+                                                </td>
+                                                <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                             </tr>
                                         ))}
                                         {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (

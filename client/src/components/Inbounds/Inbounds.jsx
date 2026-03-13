@@ -871,7 +871,6 @@ export default function Inbounds() {
                             className="form-select inbounds-filter-select"
                             value={filterServerId}
                             onChange={(e) => setFilterServerId(e.target.value)}
-                            style={{ width: 'auto', minWidth: '160px' }}
                             disabled={isServerFilterLocked}
                         >
                             <option value="all">全部节点 ({servers.length})</option>

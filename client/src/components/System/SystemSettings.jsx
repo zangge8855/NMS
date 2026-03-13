@@ -825,7 +825,7 @@ export default function SystemSettings() {
 
     const renderBasicContent = () => (
         <div className="settings-grid settings-grid--basic">
-            <div className="card p-4 settings-panel settings-panel--wide">
+            <div className="card p-4 settings-panel settings-panel--wide settings-panel--entry">
                 <SectionHeader
                     className="mb-3"
                     compact
@@ -851,7 +851,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel">
+            <div className="card p-4 settings-panel settings-panel--span-6">
                 <SettingsPanelHeader
                     title="任务中心参数"
                     subtitle="批量任务的保留、分页和并发策略。"
@@ -885,7 +885,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel">
+            <div className="card p-4 settings-panel settings-panel--span-6">
                 <SettingsPanelHeader
                     title="风控确认"
                     subtitle="控制高风险批量动作的确认阈值和令牌时效。"
@@ -919,7 +919,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel">
+            <div className="card p-4 settings-panel settings-panel--span-4">
                 <SettingsPanelHeader
                     title="审计参数"
                     subtitle="控制操作日志的保留周期和分页上限。"
@@ -938,7 +938,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel">
+            <div className="card p-4 settings-panel settings-panel--span-8">
                 <SettingsPanelHeader
                     title="审计归属地查询"
                     subtitle="控制订阅访问日志里的地区与运营商查询服务。"
@@ -974,7 +974,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel">
+            <div className="card p-4 settings-panel settings-panel--span-6">
                 <SettingsPanelHeader
                     title="订阅地址"
                     subtitle="控制公开订阅域名和外部转换器地址。"
@@ -1209,7 +1209,7 @@ export default function SystemSettings() {
 
     const renderMonitorContent = () => (
         <div className="settings-grid settings-grid--monitor">
-            <div className="card p-4 settings-panel settings-diagnostics-panel">
+            <div className="card p-4 settings-panel settings-diagnostics-panel settings-panel--span-7">
                 <SectionHeader
                     className="mb-3"
                     compact
@@ -1290,7 +1290,7 @@ export default function SystemSettings() {
                 )}
             </div>
 
-            <div className="card p-4 settings-panel settings-monitor-panel">
+            <div className="card p-4 settings-panel settings-monitor-panel settings-panel--span-5">
                 <SectionHeader
                     className="mb-3"
                     compact

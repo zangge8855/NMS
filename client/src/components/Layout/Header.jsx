@@ -272,6 +272,7 @@ export default function Header({
             <div className="header-actions">
                 <div
                     className={`header-search${searchOpen ? ' is-open' : ''}`}
+                    data-open={searchOpen ? 'true' : 'false'}
                     ref={searchRef}
                     onClick={openSearch}
                     role="combobox"
