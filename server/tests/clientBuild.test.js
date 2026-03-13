@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    CLIENT_STATIC_OPTIONS,
     DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
     createClientBuildFallbackHandler,
     injectClientBasePath,
@@ -204,5 +205,9 @@ describe('client build helpers', () => {
         const output = injectClientBasePath('<html><head></head><body></body></html>', '/nms');
         assert.match(output, /window\.__NMS_SITE_BASE_PATH__="\/nms"/);
         assert.match(output, /<\/script><\/head>/);
+    });
+
+    it('disables static index auto-serving so root requests still honor the access-path gate', () => {
+        assert.equal(CLIENT_STATIC_OPTIONS.index, false);
     });
 });

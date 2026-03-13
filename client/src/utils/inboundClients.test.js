@@ -82,6 +82,42 @@ describe('inbound client helpers', () => {
         ]);
     });
 
+    it('prefers refreshed clientStats traffic over stale settings counters', () => {
+        const inbound = {
+            protocol: 'vless',
+            settings: {
+                clients: [
+                    {
+                        id: 'client-3',
+                        email: 'reset@example.com',
+                        totalGB: 4096,
+                        up: 1024,
+                        down: 2048,
+                    },
+                ],
+            },
+            clientStats: [
+                {
+                    id: 'client-3',
+                    email: 'reset@example.com',
+                    up: 0,
+                    down: 0,
+                },
+            ],
+        };
+
+        expect(mergeInboundClientStats(inbound)).toEqual([
+            {
+                id: 'client-3',
+                email: 'reset@example.com',
+                totalGB: 4096,
+                up: 0,
+                down: 0,
+            },
+        ]);
+        expect(resolveClientUsed(mergeInboundClientStats(inbound)[0])).toBe(0);
+    });
+
     it('falls back safely for invalid non-object JSON payloads', () => {
         expect(parseJsonObjectLike('[]', { clients: [] })).toEqual({ clients: [] });
         expect(parseJsonObjectLike('not-json', { clients: [] })).toEqual({ clients: [] });

@@ -8,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const DEFAULT_MISSING_CLIENT_BUILD_MESSAGE = 'Client build not found. Run `cd client && npm run build` before starting NMS in production.';
 export const SITE_BASE_PATH_SCRIPT = 'window.__NMS_SITE_BASE_PATH__';
+export const CLIENT_STATIC_OPTIONS = {
+    index: false,
+};
 
 export function resolveClientBuildPaths(rootDir = resolve(__dirname, '..', '..')) {
     const clientBuild = resolve(rootDir, 'client', 'dist');
@@ -110,7 +113,9 @@ export function registerClientBuildRoutes(app, options = {}) {
         console.warn(`[Client] Build file not found: ${clientIndexFile}`);
     }
 
-    app.use(express.static(clientBuild));
+    // Keep document requests under the access-path gate. Static assets remain public,
+    // but "/" must not auto-serve dist/index.html before the fallback handler runs.
+    app.use(express.static(clientBuild, CLIENT_STATIC_OPTIONS));
     app.get('*', createClientBuildFallbackHandler({
         clientIndexFile,
         hasClientIndex: () => fs.existsSync(clientIndexFile),

@@ -68,8 +68,8 @@ export function mergeInboundClientStats(inbound) {
             .find(Boolean);
 
         return {
-            ...(stats || {}),
             ...client,
+            ...(stats || {}),
         };
     });
 }
