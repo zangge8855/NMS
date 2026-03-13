@@ -624,3 +624,70 @@ body,
   border-color: rgba(148, 163, 184, 0.5);
   box-shadow: 0 4px 8px -2px rgba(148, 163, 184, 0.2);
 }
+
+/*
+ * Final select rendering pass:
+ * keep the closed control fully themed, but stop background transitions and
+ * duplicate theme overrides from repainting the native popup as a dark block
+ * before the browser settles on the final menu surface.
+ */
+:is(select, .form-select, .inbounds-filter-select) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  color-scheme: dark !important;
+  background-color: var(--surface-elevated-muted) !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+    linear-gradient(135deg, #94a3b8 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px) !important;
+  background-repeat: no-repeat !important;
+  background-size: 6px 6px !important;
+  background-clip: padding-box !important;
+  padding-right: 38px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease !important;
+}
+
+:is(select, .form-select, .inbounds-filter-select):hover,
+:is(select, .form-select, .inbounds-filter-select):focus,
+:is(select, .form-select, .inbounds-filter-select):focus-visible,
+:is(select, .form-select, .inbounds-filter-select):active {
+  background-color: var(--surface-elevated-muted) !important;
+  color: var(--text-primary) !important;
+}
+
+:is(select, .form-select, .inbounds-filter-select) option,
+:is(select, .form-select, .inbounds-filter-select) optgroup {
+  background: Field !important;
+  color: FieldText !important;
+}
+
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select) {
+  color-scheme: light !important;
+  background-color: #ffffff !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #64748b 50%),
+    linear-gradient(135deg, #64748b 50%, transparent 50%) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select):hover,
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select):focus,
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select):focus-visible,
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select):active {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.server-dropdown-menu,
+.header-search-results,
+.notification-dropdown,
+.sidebar-nav-flyout {
+  background: var(--floating-panel-bg) !important;
+  border-color: var(--floating-panel-border) !important;
+  box-shadow: var(--floating-panel-shadow) !important;
+}
