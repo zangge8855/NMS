@@ -210,7 +210,7 @@ describe('UserDetail', () => {
         await screen.findByText('用户详情 · alice');
         await user.click(screen.getByRole('button', { name: '订阅' }));
 
-        expect(await screen.findByText('订阅地址')).toBeInTheDocument();
+        expect((await screen.findAllByText('订阅资料')).length).toBeGreaterThan(0);
         expect(screen.getByText('直接告诉用户：选类型 -> 复制地址 -> 导入客户端。')).toBeInTheDocument();
         expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
         expect(screen.getByText('subscription-client-links')).toBeInTheDocument();

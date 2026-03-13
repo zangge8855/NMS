@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
-import { formatBytes } from '../../utils/format.js';
+import { formatBytes, formatUptime } from '../../utils/format.js';
 import useWebSocket from '../../hooks/useWebSocket.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
@@ -369,30 +369,6 @@ function buildClusterTrend(historyMap, selector) {
     return points;
 }
 
-function formatLocalizedUptime(seconds, locale) {
-    const totalSeconds = Number(seconds || 0);
-    if (!totalSeconds) return locale === 'en-US' ? '0s' : '0秒';
-
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const parts = [];
-
-    if (locale === 'en-US') {
-        if (days > 0) parts.push(`${days}d`);
-        if (hours > 0) parts.push(`${hours}h`);
-        if (minutes > 0) parts.push(`${minutes}m`);
-        if (parts.length === 0) parts.push(`${totalSeconds}s`);
-        return parts.join(' ');
-    }
-
-    if (days > 0) parts.push(`${days}天`);
-    if (hours > 0) parts.push(`${hours}时`);
-    if (minutes > 0) parts.push(`${minutes}分`);
-    if (parts.length === 0) parts.push(`${totalSeconds}秒`);
-    return parts.join(' ');
-}
-
 // ── WebSocket URL builder ────────────────────────────────
 function getWsUrl(ticket) {
     if (!ticket) return null;
@@ -749,7 +725,9 @@ export default function Dashboard() {
                 animateValue: globalStats.totalOnline,
                 renderAnimatedValue: (value) => String(value),
                 sub: globalAccountSummary.totalUsers > 0
-                    ? `总用户 ${globalAccountSummary.totalUsers} · 待审核 ${globalAccountSummary.pendingUsers}`
+                    ? (locale === 'en-US'
+                        ? `Users ${globalAccountSummary.totalUsers} · Pending ${globalAccountSummary.pendingUsers}`
+                        : `总用户 ${globalAccountSummary.totalUsers} · 待审核 ${globalAccountSummary.pendingUsers}`)
                     : (showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail')),
                 onClick: () => setShowOnlineDetail((v) => !v),
                 ...DASHBOARD_ACCENT.info,
@@ -781,33 +759,41 @@ export default function Dashboard() {
         ];
         const globalQuickActions = [
             {
-                title: '用户管理',
-                detail: globalAccountSummary.pendingUsers > 0 ? `待审核 ${globalAccountSummary.pendingUsers} 个` : '查看账号、流量和订阅',
-                meta: globalAccountSummary.totalUsers > 0 ? `已注册 ${globalAccountSummary.totalUsers} 个用户` : '管理注册用户与订阅入口',
+                title: locale === 'en-US' ? 'Users' : '用户管理',
+                detail: globalAccountSummary.pendingUsers > 0
+                    ? (locale === 'en-US' ? `${globalAccountSummary.pendingUsers} pending` : `待审核 ${globalAccountSummary.pendingUsers} 个`)
+                    : (locale === 'en-US' ? 'View accounts, traffic, and subscriptions' : '查看账号、流量和订阅'),
+                meta: globalAccountSummary.totalUsers > 0
+                    ? (locale === 'en-US' ? `${globalAccountSummary.totalUsers} registered users` : `已注册 ${globalAccountSummary.totalUsers} 个用户`)
+                    : (locale === 'en-US' ? 'Manage registered users and subscription entry points' : '管理注册用户与订阅入口'),
                 icon: HiOutlineUsers,
                 tone: 'info',
                 onClick: () => navigate('/clients'),
             },
             {
-                title: '入站管理',
+                title: locale === 'en-US' ? 'Inbounds' : '入站管理',
                 detail: `${globalStats.activeInbounds} / ${globalStats.totalInbounds} 已启用`,
-                meta: '调整节点顺序、用户和限制策略',
+                meta: locale === 'en-US' ? 'Adjust node order, users, and policy limits' : '调整节点顺序、用户和限制策略',
                 icon: HiOutlineSignal,
                 tone: 'warning',
                 onClick: () => navigate('/inbounds'),
             },
             {
-                title: '审计中心',
-                detail: globalOnlineSessionCount > 0 ? `当前在线会话 ${globalOnlineSessionCount}` : '查看订阅访问和操作日志',
-                meta: '排查异常访问、地区归属地和运营商',
+                title: locale === 'en-US' ? 'Audit' : '审计中心',
+                detail: globalOnlineSessionCount > 0
+                    ? (locale === 'en-US' ? `Online sessions ${globalOnlineSessionCount}` : `当前在线会话 ${globalOnlineSessionCount}`)
+                    : (locale === 'en-US' ? 'Review subscription access and audit logs' : '查看订阅访问和操作日志'),
+                meta: locale === 'en-US' ? 'Investigate abnormal access, geo lookup, and carrier info' : '排查异常访问、地区归属地和运营商',
                 icon: HiOutlineBolt,
                 tone: 'primary',
                 onClick: () => navigate('/audit'),
             },
             {
-                title: '节点控制台',
-                detail: `${globalStats.onlineServers} / ${globalStats.serverCount} 个节点在线`,
-                meta: '直接进入系统设置中的控制台与诊断页',
+                title: locale === 'en-US' ? 'Node Console' : '节点控制台',
+                detail: locale === 'en-US'
+                    ? `${globalStats.onlineServers} / ${globalStats.serverCount} nodes online`
+                    : `${globalStats.onlineServers} / ${globalStats.serverCount} 个节点在线`,
+                meta: locale === 'en-US' ? 'Jump to the console and diagnostics area in Settings' : '直接进入系统设置中的控制台与诊断页',
                 icon: HiOutlineCommandLine,
                 tone: 'success',
                 onClick: () => navigate('/settings?tab=console'),
@@ -905,8 +891,8 @@ export default function Dashboard() {
                     <div className="card mb-6">
                         <SectionHeader
                             className="dashboard-section-head"
-                            title="运维捷径"
-                            subtitle="把最常用的排查入口收在仪表盘里，减少来回切页。"
+                            title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
+                            subtitle={locale === 'en-US' ? 'Keep the most common troubleshooting entries on the dashboard.' : '把最常用的排查入口收在仪表盘里，减少来回切页。'}
                         />
                         <QuickActionGrid actions={globalQuickActions} />
                     </div>
@@ -942,7 +928,7 @@ export default function Dashboard() {
             sparklineDomain: [0, 100],
         },
         { icon: HiOutlineCircleStack, label: t('pages.dashboardNode.cards.memoryUsage'), value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary, skeletonWidth: '7rem' },
-        { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatLocalizedUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
+        { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
         {
             icon: HiOutlineArrowsUpDown,
             label: t('pages.dashboardNode.cards.totalTraffic'),
@@ -966,33 +952,37 @@ export default function Dashboard() {
     ];
     const singleQuickActions = [
         {
-            title: '入站管理',
+            title: locale === 'en-US' ? 'Inbounds' : '入站管理',
             detail: `${activeInbounds} / ${inbounds.length} 已启用`,
-            meta: '查看当前节点下的入站、用户与限制配置',
+            meta: locale === 'en-US' ? 'Inspect inbounds, users, and limit policies on this node' : '查看当前节点下的入站、用户与限制配置',
             icon: HiOutlineSignal,
             tone: 'warning',
             onClick: () => navigate('/inbounds'),
         },
         {
-            title: '在线用户',
-            detail: onlineCount > 0 ? `${onlineCount} 个用户在线` : '当前没有在线用户',
-            meta: showOnlineDetail ? '已展开在线明细' : '点击直接展开在线明细',
+            title: locale === 'en-US' ? 'Online Users' : '在线用户',
+            detail: onlineCount > 0
+                ? (locale === 'en-US' ? `${onlineCount} users online` : `${onlineCount} 个用户在线`)
+                : (locale === 'en-US' ? 'No users are online right now' : '当前没有在线用户'),
+            meta: showOnlineDetail
+                ? (locale === 'en-US' ? 'Online detail is expanded' : '已展开在线明细')
+                : (locale === 'en-US' ? 'Click to expand online detail' : '点击直接展开在线明细'),
             icon: HiOutlineUsers,
             tone: 'info',
             onClick: () => setShowOnlineDetail((value) => !value),
         },
         {
-            title: '审计中心',
-            detail: '查看这个节点相关的访问与操作日志',
-            meta: '适合排查超时、归属地和订阅访问异常',
+            title: locale === 'en-US' ? 'Audit' : '审计中心',
+            detail: locale === 'en-US' ? 'Inspect access and audit logs for this node' : '查看这个节点相关的访问与操作日志',
+            meta: locale === 'en-US' ? 'Useful for tracing timeouts, geo lookup, and subscription access issues' : '适合排查超时、归属地和订阅访问异常',
             icon: HiOutlineBolt,
             tone: 'primary',
             onClick: () => navigate('/audit'),
         },
         {
-            title: '节点控制台',
-            detail: activeServer?.name || '打开当前节点控制台',
-            meta: '进入系统设置里的节点控制台和诊断区',
+            title: locale === 'en-US' ? 'Node Console' : '节点控制台',
+            detail: activeServer?.name || (locale === 'en-US' ? 'Open the current node console' : '打开当前节点控制台'),
+            meta: locale === 'en-US' ? 'Open the node console and diagnostics in Settings' : '进入系统设置里的节点控制台和诊断区',
             icon: HiOutlineCommandLine,
             tone: 'success',
             onClick: () => navigate('/settings?tab=console'),
@@ -1004,7 +994,7 @@ export default function Dashboard() {
             <Header
                 title={activeServer?.name || t('pages.dashboardNode.title')}
                 subtitle={status
-                    ? `${t('pages.dashboardNode.inboundsCount', { count: inbounds.length })} · ${t('pages.dashboardNode.cards.runtime')}: ${formatLocalizedUptime(status.uptime, locale)}`
+                    ? `${t('pages.dashboardNode.inboundsCount', { count: inbounds.length })} · ${t('pages.dashboardNode.cards.runtime')}: ${formatUptime(status.uptime, locale)}`
                     : t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
             >
@@ -1066,8 +1056,8 @@ export default function Dashboard() {
                 <div className="card mb-6">
                     <SectionHeader
                         className="dashboard-section-head"
-                        title="运维捷径"
-                        subtitle="围绕当前节点最常用的操作和排查入口。"
+                        title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
+                        subtitle={locale === 'en-US' ? 'The most common actions and troubleshooting entries for this node.' : '围绕当前节点最常用的操作和排查入口。'}
                     />
                     <QuickActionGrid actions={singleQuickActions} />
                 </div>

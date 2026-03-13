@@ -1151,14 +1151,14 @@ export default function Inbounds() {
                                                 <td data-label="" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon inbounds-action-btn"
                                                             title={t('comp.common.edit')}
                                                             onClick={() => handleEdit(ib)}
                                                         >
                                                             <HiOutlinePencilSquare />
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon"
+                                                            className="btn btn-danger btn-sm btn-icon inbounds-action-btn is-danger"
                                                             title={t('comp.common.delete')}
                                                             onClick={() => handleDelete(ib)}
                                                         >

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -109,6 +109,7 @@ export default function Servers() {
     // Batch Selection
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [searchKeyword, setSearchKeyword] = useState('');
+    const deferredSearchKeyword = useDeferredValue(searchKeyword);
     const [filterGroup, setFilterGroup] = useState('all');
     const [filterEnvironment] = useState('all');
     const [filterHealth] = useState('all');
@@ -267,7 +268,7 @@ export default function Servers() {
             }
             resetForm();
         } catch (err) {
-            toast.error(getErrorMessage(err, t('comp.common.operationFailed')));
+            toast.error(getErrorMessage(err, t('comp.common.operationFailed'), locale));
         }
         setLoading(prev => ({ ...prev, submit: false }));
     };
@@ -285,7 +286,7 @@ export default function Servers() {
         try {
             items = parseBatchEntries(batchForm.entries);
         } catch (err) {
-            toast.error(getErrorMessage(err, t('comp.servers.batchFormatError')));
+            toast.error(getErrorMessage(err, t('comp.servers.batchFormatError'), locale));
             return;
         }
 
@@ -312,7 +313,7 @@ export default function Servers() {
             setBatchResult(res.obj || null);
             toast.success(res.msg || t('comp.servers.batchAddDone'));
         } catch (err) {
-            toast.error(getErrorMessage(err, t('comp.servers.batchAddFailed')));
+            toast.error(getErrorMessage(err, t('comp.servers.batchAddFailed'), locale));
         }
         setLoading(prev => ({ ...prev, batchSubmit: false }));
     };
@@ -343,7 +344,7 @@ export default function Servers() {
         try {
             await removeServer(id);
             toast.success(t('comp.servers.serverDeleted'));
-        } catch (err) { toast.error(getErrorMessage(err, t('comp.common.deleteFailed'))); }
+        } catch (err) { toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale)); }
     };
 
     // Batch Actions
@@ -414,7 +415,7 @@ export default function Servers() {
                 }
             } catch (err) {
                 setTestResults(prev => ({ ...prev, [id]: 'error' }));
-                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed')) });
+                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed'), locale) });
                 const authCode = getAuthRepairCode(err);
                 if (!repairTargetId && authCode) {
                     repairTargetId = id;
@@ -479,7 +480,7 @@ export default function Servers() {
                     setTestResults((prev) => ({ ...prev, [id]: 'error' }));
                 }
             } catch (err) {
-                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed')) });
+                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed'), locale) });
                 setTestResults((prev) => ({ ...prev, [id]: 'error' }));
             }
         }
@@ -520,7 +521,7 @@ export default function Servers() {
                 openCredentialRepair(id, reason);
                 toast.error(reason);
             } else {
-                toast.error(getErrorMessage(err, t('comp.common.connectFailed')));
+                toast.error(getErrorMessage(err, t('comp.common.connectFailed'), locale));
             }
         }
         setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
@@ -549,7 +550,7 @@ export default function Servers() {
     }, [orderedServers]);
 
     const filteredServers = useMemo(() => {
-        const keyword = String(searchKeyword || '').trim().toLowerCase();
+        const keyword = String(deferredSearchKeyword || '').trim().toLowerCase();
         return orderedServers.filter((server) => {
             if (filterGroup !== 'all' && String(server.group || '') !== filterGroup) return false;
             if (filterEnvironment !== 'all' && String(server.environment || 'unknown') !== filterEnvironment) return false;
@@ -569,7 +570,7 @@ export default function Servers() {
                 .join(' ');
             return text.includes(keyword);
         });
-    }, [orderedServers, searchKeyword, filterGroup, filterEnvironment, filterHealth]);
+    }, [orderedServers, deferredSearchKeyword, filterGroup, filterEnvironment, filterHealth]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
     const activeServer = useMemo(
@@ -620,7 +621,7 @@ export default function Servers() {
             setServerOrder(persistedOrder);
             toast.success('服务器顺序已更新');
         } catch (err) {
-            toast.error(getErrorMessage(err, '更新服务器顺序失败'));
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Failed to update server order' : '更新服务器顺序失败', locale));
         }
         setLoading((prev) => ({ ...prev, serverOrder: false }));
     };

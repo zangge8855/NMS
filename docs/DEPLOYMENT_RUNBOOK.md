@@ -160,6 +160,7 @@ NMS is easier to operate in production because it already includes:
 - 在对外发放订阅链接前，先把 `SUB_PUBLIC_BASE_URL` 设置成真实公网域名
 - 后台首页默认走 `/`；如果后续在 `系统设置` 里改成自定义路径，也要继续保留 `/api`、`/ws` 和订阅公开地址可访问
 - 只有在需要注册、验证邮件或找回密码时才开启 SMTP
+- 登录页的“忘记密码”接口默认会隐藏邮箱是否存在的结果；上线前只需要确认 SMTP 可用，不需要额外暴露用户是否已注册
 
 ### 上线前检查
 

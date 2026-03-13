@@ -80,6 +80,35 @@ function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
     return `sing-box://import-remote-profile?url=${encodeURIComponent(url)}#${encodeURIComponent(String(name || 'NMS'))}`;
 }
 
+function getSubscriptionProfileCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            shadowrocketHint: 'Import the standard subscription',
+            clashFamilyHint: 'Use this YAML for Verge Rev / Mihomo Party / Stash',
+            surgeHint: 'Import the Surge profile',
+            singboxHint: 'Import the remote profile',
+            profileStandard: 'Standard Link',
+            profileStandardHint: 'For v2rayN / v2rayNG / Shadowrocket',
+            profileClashHint: 'For Clash / Mihomo / Stash',
+            profileSingboxHint: 'For sing-box',
+            profileSurgeHint: 'For Surge',
+            profileRawHint: 'Raw node list',
+        };
+    }
+    return {
+        shadowrocketHint: '导入通用订阅',
+        clashFamilyHint: 'Verge Rev / Mihomo Party / Stash 共用这一组 YAML',
+        surgeHint: '导入 Surge 配置',
+        singboxHint: '导入 Remote Profile',
+        profileStandard: '通用链接',
+        profileStandardHint: '给 v2rayN / v2rayNG / Shadowrocket',
+        profileClashHint: '给 Clash / Mihomo / Stash',
+        profileSingboxHint: '给 sing-box',
+        profileSurgeHint: '给 Surge',
+        profileRawHint: '原始节点列表',
+    };
+}
+
 const TOOL_SITES = [
     { key: 'flclash', label: 'FlClash', url: 'https://github.com/chen08209/FlClash' },
     { key: 'exclave', label: 'Exclave', url: 'https://github.com/dyhkwong/Exclave' },
@@ -101,7 +130,8 @@ const TOOL_SITES = [
     { key: 'singbox', label: 'sing-box', url: 'https://sing-box.sagernet.org/clients/' },
 ];
 
-export function buildSubscriptionProfileBundle(payload = {}) {
+export function buildSubscriptionProfileBundle(payload = {}, locale = 'zh-CN') {
+    const copy = getSubscriptionProfileCopy(locale);
     const mergedUrl = normalizeUrl(payload.subscriptionUrl) || normalizeUrl(payload.legacySubscriptionUrl);
     const rawUrl = normalizeUrl(payload.subscriptionUrlRaw) || appendQuery(mergedUrl, { format: 'raw' });
     const importSourceUrl = rawUrl || mergedUrl;
@@ -125,14 +155,14 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Shadowrocket',
             platform: 'iPhone / iPad',
             href: buildShadowrocketImportUrl(v2raynUrl || importSourceUrl),
-            hint: '导入通用订阅',
+            hint: copy.shadowrocketHint,
             siteUrl: TOOL_SITES.find((item) => item.key === 'shadowrocket')?.url || '',
         },
         {
             key: 'clash-family',
             label: 'Clash / Mihomo 系列',
             platform: 'Desktop / iPhone / iPad',
-            hint: 'Verge Rev / Mihomo Party / Stash 共用这一组 YAML',
+            hint: copy.clashFamilyHint,
             actions: [
                 {
                     key: 'clash',
@@ -152,7 +182,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Surge',
             platform: 'iPhone / iPad / Mac',
             href: buildSurgeImportUrl(surgeUrl),
-            hint: '导入 Surge 配置',
+            hint: copy.surgeHint,
             siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
         },
         {
@@ -160,7 +190,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'sing-box',
             platform: 'Desktop / Mobile',
             href: singboxImportUrl,
-            hint: '导入 Remote Profile',
+            hint: copy.singboxHint,
             siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
         },
     ].filter((item) => item.href || (Array.isArray(item.actions) && item.actions.length > 0));
@@ -168,33 +198,33 @@ export function buildSubscriptionProfileBundle(payload = {}) {
     const profiles = [
         {
             key: 'v2rayn',
-            label: '通用链接',
+            label: copy.profileStandard,
             url: v2raynUrl,
-            hint: '给 v2rayN / v2rayNG / Shadowrocket',
+            hint: copy.profileStandardHint,
         },
         {
             key: 'clash',
             label: 'Clash / Mihomo',
             url: clashUrl,
-            hint: '给 Clash / Mihomo / Stash',
+            hint: copy.profileClashHint,
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
-            hint: '给 sing-box',
+            hint: copy.profileSingboxHint,
         },
         {
             key: 'surge',
             label: 'Surge',
             url: surgeUrl,
-            hint: '给 Surge',
+            hint: copy.profileSurgeHint,
         },
         {
             key: 'raw',
             label: 'Raw',
             url: rawUrl,
-            hint: '原始节点列表',
+            hint: copy.profileRawHint,
         },
     ];
 

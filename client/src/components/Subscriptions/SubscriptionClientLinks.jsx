@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 function buildToolLookup(items = []) {
     const map = new Map();
@@ -63,6 +64,32 @@ export default function SubscriptionClientLinks({
     compact = false,
     showHeading = true,
 }) {
+    const { locale } = useI18n();
+    const copy = useMemo(() => (
+        locale === 'en-US'
+            ? {
+                sectionTitle: 'Pick one client for your device',
+                sectionCaption: 'Install it, then import the profile you selected above.',
+                chooseAny: 'Pick any mainstream client.',
+                importReady: 'After installation, you can import it directly.',
+                downloads: 'Client Downloads',
+                recommended: 'Recommended Profile',
+                chooseLabel: 'Use',
+                importMethod: 'Import Method',
+                copyAddress: 'If one-tap import is not available, just copy the address above.',
+            }
+            : {
+                sectionTitle: '按设备选一个客户端',
+                sectionCaption: '装好后，导入上面选好的类型就行。',
+                chooseAny: '任选一个主流客户端。',
+                importReady: '装好后可直接导入。',
+                downloads: '客户端下载',
+                recommended: '推荐类型',
+                chooseLabel: '选',
+                importMethod: '导入方式',
+                copyAddress: '复制上面的地址导入就行。',
+            }
+    ), [locale]);
     const quickActions = Array.isArray(bundle?.importActions)
         ? bundle.importActions.filter((item) => (
             String(item?.href || '').trim()
@@ -83,7 +110,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'windows',
             title: 'Windows',
-            summary: '先装一个主流客户端。',
+            summary: copy.chooseAny,
             appLinks: buildLinks(toolLookup, ['flclash', 'v2rayn', 'sparkle']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
@@ -94,7 +121,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'macos',
             title: 'macOS',
-            summary: '先装一个主流客户端。',
+            summary: copy.chooseAny,
             appLinks: buildLinks(toolLookup, ['flclash', 'sparkle', 'v2rayn']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
@@ -105,7 +132,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'android',
             title: 'Android',
-            summary: '先装一个主流客户端。',
+            summary: copy.chooseAny,
             appLinks: buildLinks(toolLookup, ['flclash', 'cmfa', 'exclave']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
@@ -116,7 +143,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'ios',
             title: 'iPhone / iPad',
-            summary: '装好后可直接导入。',
+            summary: copy.importReady,
             appLinks: buildLinks(toolLookup, ['shadowrocket', 'surge', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn'),
@@ -125,7 +152,7 @@ export default function SubscriptionClientLinks({
             ].filter(Boolean),
             quickKeys: ['shadowrocket', 'surge', 'singbox'],
         },
-    ]), [profileLookup, toolLookup]);
+    ]), [copy.chooseAny, copy.importReady, profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
@@ -134,9 +161,9 @@ export default function SubscriptionClientLinks({
             {hasSection(sections, 'devices') && (
                 <div className="subscription-client-links-section">
                     {showHeading && (
-                        <div className="subscription-client-links-heading">
-                            <div className="subscription-client-links-title">先按你的设备装客户端</div>
-                            <div className="subscription-client-links-caption">每个设备任选一个主流客户端，再按卡片里的类型导入。</div>
+                            <div className="subscription-client-links-heading">
+                            <div className="subscription-client-links-title">{copy.sectionTitle}</div>
+                            <div className="subscription-client-links-caption">{copy.sectionCaption}</div>
                         </div>
                     )}
                     <div className="subscription-device-grid">
@@ -157,7 +184,7 @@ export default function SubscriptionClientLinks({
                                     <div className="subscription-device-title">{item.title}</div>
                                     <div className="subscription-device-text">{item.summary}</div>
                                     <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">先装客户端</div>
+                                        <div className="subscription-device-block-label">{copy.downloads}</div>
                                         <div className="subscription-device-actions">
                                             {item.appLinks.map((link) => (
                                                 <a
@@ -173,19 +200,19 @@ export default function SubscriptionClientLinks({
                                         </div>
                                     </div>
                                     <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">选这个订阅</div>
+                                        <div className="subscription-device-block-label">{copy.recommended}</div>
                                         <div className="subscription-device-rules">
                                             {item.profileRules.map((rule) => (
                                                 <div key={rule.key} className="subscription-device-rule">
                                                     <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                    <span className="subscription-device-rule-arrow">选</span>
+                                                    <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
                                                     <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                     <div className="subscription-device-block subscription-device-block--push">
-                                        <div className="subscription-device-block-label">装好后</div>
+                                        <div className="subscription-device-block-label">{copy.importMethod}</div>
                                         {quickItems.length > 0 ? (
                                             <div className="subscription-device-actions">
                                                 {quickItems.map((action) => (
@@ -196,7 +223,7 @@ export default function SubscriptionClientLinks({
                                             </div>
                                         ) : (
                                             <div className="subscription-device-empty">
-                                                复制上面的订阅地址，到客户端里粘贴导入就行。
+                                                {copy.copyAddress}
                                             </div>
                                         )}
                                     </div>

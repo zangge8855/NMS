@@ -33,6 +33,282 @@ import {
     HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 
+function getUserDetailCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            unsetEmail: 'No email set',
+            backToUsers: 'Back to Users',
+            userMissingTitle: 'User not found',
+            userMissingSubtitle: 'The user may have been deleted',
+            tabs: {
+                overview: 'Overview',
+                subscription: 'Subscription',
+                clients: 'Nodes',
+                activity: 'Activity',
+            },
+            auditLabels: {
+                login_success: 'Sign-in Succeeded',
+                login_failed: 'Sign-in Failed',
+                login_denied_email_unverified: 'Sign-in Denied',
+                login_denied_user_disabled: 'Sign-in Denied',
+                password_changed: 'Password Changed',
+                user_updated: 'User Updated',
+                user_enabled: 'User Enabled',
+                user_disabled: 'User Disabled',
+                user_deleted: 'User Deleted',
+                user_subscription_binding_updated: 'Subscription Binding Updated',
+                user_subscription_provisioned: 'Subscription Enabled',
+                user_expiry_updated: 'Expiry Updated',
+                user_password_reset_by_admin: 'Password Reset by Admin',
+                user_policy_updated: 'User Policy Updated',
+                subscription_token_issued: 'Subscription Token Issued',
+                subscription_token_revoked: 'Subscription Token Revoked',
+            },
+            labels: {
+                subscriptionAccess: 'Subscription Access',
+                auditEvent: 'Audit Event',
+                success: 'Success',
+                expired: 'Expired',
+                revoked: 'Revoked',
+                failed: 'Failed',
+                info: 'Info',
+                unknown: 'Unknown',
+                target: 'Target',
+                subscriptionEmail: 'Subscription Email',
+                statusEnabled: 'Status Enabled',
+                statusDisabled: 'Status Disabled',
+                expiry: 'Expiry',
+                servers: 'Servers',
+                protocols: 'Protocols',
+                limitIp: 'IP Limit',
+                trafficLimit: 'Traffic Limit',
+                deployment: 'Deployment',
+                cleanupError: 'Cleanup Error',
+                mode: 'Mode',
+                format: 'Format',
+                location: 'Location',
+                carrier: 'Carrier',
+                userId: 'User ID',
+                registeredAt: 'Registered',
+                lastLoginAt: 'Last Sign-in',
+                copiedUserId: 'User ID copied',
+                loadUserFailed: 'Failed to load user detail',
+                loadSubscriptionFailed: 'Failed to load subscription detail',
+                noCopyableSubscription: 'No subscription address to copy',
+                copiedSubscription: '{label} subscription address copied',
+                resetTitle: 'Reset Subscription Link',
+                resetMessage: 'Resetting invalidates the old address immediately. The client must import the new address again.',
+                resetTarget: 'Target Email',
+                resetConfirm: 'Reset Link',
+                resetDone: 'Subscription link reset',
+                resetFailed: 'Failed to reset subscription link',
+                userEnabled: 'User enabled',
+                userDisabled: 'User disabled',
+                actionFailed: 'Action failed',
+                clientIpTitle: 'Node Access IP - {server}',
+                clientIpSubtitle: '{email} · Node-level record{inbound}',
+                clientIpInbound: ' · Inbound {name}',
+                clientIpLoadFailed: 'Failed to load node access IPs',
+                clientIpUnsupported: 'This node uses an older 3x-ui version and does not support the clientIps API',
+                clearClientIpTitle: 'Clear Node Access IPs',
+                clearClientIpMessage: 'Clear node access IPs for {email} on {server}?',
+                clearClientIpConfirm: 'Clear',
+                clearClientIpDone: 'Node access IPs cleared',
+                clearClientIpFailed: 'Failed to clear node access IPs',
+                roleAdmin: 'Admin',
+                roleUser: 'User',
+                enabled: 'Enabled',
+                disabled: 'Disabled',
+                emailVerified: 'Email Verified',
+                totalTraffic: 'Total Traffic',
+                nodeCount: 'Nodes',
+                accessCount: 'Subscription Access',
+                auditCount: 'Audit Records',
+                clientSummaryLoading: 'Loading node summary...',
+                accessPolicy: 'Access Policy',
+                unlimited: 'Unlimited',
+                blocked: 'Blocked',
+                available: 'Available',
+                unavailable: 'Unavailable',
+                refresh: 'Refresh',
+                resetLink: 'Reset Link',
+                copyAddress: 'Copy Address',
+                noSubscriptionTitle: 'No subscription info',
+                noSubscriptionSubtitle: 'This user does not have an available subscription address yet',
+                subscriptionInfo: 'Subscription Details',
+                subscriptionIntro: 'Tell the user only this: choose a profile, copy the address, then import it.',
+                currentAddress: 'Current Address',
+                noSubscriptionAddress: 'No address is available for this format',
+                converterEnabled: 'External converter enabled',
+                converterBuiltin: 'Generated by built-in NMS subscription service',
+                matchedNodes: 'Active nodes {active} / matched nodes {raw}',
+                filteredSummary: 'Filtered: expired {expired} / disabled {disabled} / policy {policy}',
+                justThreeSteps: 'Only these three steps',
+                justThreeStepsText: 'Choose a profile, copy the address, and import it.',
+                qrTitle: 'QR Code',
+                qrHint: 'Scan with {label} to import',
+                qrUnavailable: 'No QR code is available for this format',
+                clientIpNotice: 'If the node runs an older 3x-ui build without the clientIps API, the Node IP button is disabled automatically.',
+                noClientsTitle: 'No node records',
+                noClientsSubtitle: 'This user is not linked to any node yet',
+                server: 'Server',
+                inbound: 'Inbound',
+                protocol: 'Protocol',
+                traffic: 'Traffic',
+                expiryTime: 'Expiry Time',
+                status: 'Status',
+                actions: 'Actions',
+                permanent: 'Permanent',
+                nodeIp: 'Node IP',
+                missingEmailForClient: 'This node record does not include an email identifier',
+                viewNodeIp: 'View proxy access IPs for this user on the current node',
+                noActivityTitle: 'No activity yet',
+                noActivitySubtitle: 'This user has no audit or access records yet',
+                actor: 'Actor',
+                node: 'Node',
+                ip: 'IP',
+                ua: 'UA',
+            },
+        };
+    }
+
+    return {
+        unsetEmail: '未设置邮箱',
+        backToUsers: '返回用户列表',
+        userMissingTitle: '用户不存在',
+        userMissingSubtitle: '该用户可能已被删除',
+        tabs: {
+            overview: '概览',
+            subscription: '订阅',
+            clients: '节点',
+            activity: '活动日志',
+        },
+        auditLabels: {
+            login_success: '登录成功',
+            login_failed: '登录失败',
+            login_denied_email_unverified: '登录被拒绝',
+            login_denied_user_disabled: '登录被拒绝',
+            password_changed: '修改密码',
+            user_updated: '更新用户资料',
+            user_enabled: '启用用户',
+            user_disabled: '停用用户',
+            user_deleted: '删除用户',
+            user_subscription_binding_updated: '更新订阅绑定',
+            user_subscription_provisioned: '开通订阅',
+            user_expiry_updated: '更新到期时间',
+            user_password_reset_by_admin: '管理员重置密码',
+            user_policy_updated: '更新用户策略',
+            subscription_token_issued: '签发订阅令牌',
+            subscription_token_revoked: '撤销订阅令牌',
+        },
+        labels: {
+            subscriptionAccess: '订阅访问',
+            auditEvent: '审计事件',
+            success: '成功',
+            expired: '已过期',
+            revoked: '已撤销',
+            failed: '失败',
+            info: '信息',
+            unknown: '未知',
+            target: '目标',
+            subscriptionEmail: '订阅邮箱',
+            statusEnabled: '状态 已启用',
+            statusDisabled: '状态 已停用',
+            expiry: '到期',
+            servers: '服务器',
+            protocols: '协议',
+            limitIp: '限 IP',
+            trafficLimit: '限流量',
+            deployment: '部署',
+            cleanupError: '清理异常',
+            mode: '模式',
+            format: '格式',
+            location: '地区',
+            carrier: '运营商',
+            userId: '用户 ID',
+            registeredAt: '注册',
+            lastLoginAt: '最后登录',
+            copiedUserId: '用户 ID 已复制',
+            loadUserFailed: '加载用户详情失败',
+            loadSubscriptionFailed: '加载订阅详情失败',
+            noCopyableSubscription: '暂无可复制订阅地址',
+            copiedSubscription: '{label} 订阅地址已复制',
+            resetTitle: '重置订阅链接',
+            resetMessage: '重置后旧订阅地址会立即失效，客户端需要重新导入新地址。',
+            resetTarget: '目标邮箱',
+            resetConfirm: '确认重置',
+            resetDone: '订阅链接已重置',
+            resetFailed: '重置订阅链接失败',
+            userEnabled: '用户已启用',
+            userDisabled: '用户已停用',
+            actionFailed: '操作失败',
+            clientIpTitle: '节点访问 IP — {server}',
+            clientIpSubtitle: '{email} · 节点级记录{inbound}',
+            clientIpInbound: ' · 入站 {name}',
+            clientIpLoadFailed: '加载节点访问 IP 失败',
+            clientIpUnsupported: '当前节点的 3x-ui 版本不支持节点 IP 接口',
+            clearClientIpTitle: '清空节点访问 IP',
+            clearClientIpMessage: '确定清空 {email} 在 {server} 的节点访问 IP 记录吗？',
+            clearClientIpConfirm: '确认清空',
+            clearClientIpDone: '节点访问 IP 记录已清空',
+            clearClientIpFailed: '清空节点访问 IP 失败',
+            roleAdmin: '管理员',
+            roleUser: '用户',
+            enabled: '已启用',
+            disabled: '已停用',
+            emailVerified: '邮箱已验证',
+            totalTraffic: '总流量',
+            nodeCount: '节点数',
+            accessCount: '订阅访问',
+            auditCount: '审计记录',
+            clientSummaryLoading: '节点汇总加载中...',
+            accessPolicy: '访问策略',
+            unlimited: '不限',
+            blocked: '禁止',
+            available: '可用',
+            unavailable: '失效',
+            refresh: '刷新',
+            resetLink: '重置链接',
+            copyAddress: '复制地址',
+            noSubscriptionTitle: '暂无订阅信息',
+            noSubscriptionSubtitle: '该用户尚未生成可用订阅地址',
+            subscriptionInfo: '订阅资料',
+            subscriptionIntro: '直接告诉用户：选类型 -> 复制地址 -> 导入客户端。',
+            currentAddress: '当前地址',
+            noSubscriptionAddress: '当前格式暂无可用订阅地址',
+            converterEnabled: '已启用外部订阅转换器',
+            converterBuiltin: '使用 NMS 内置订阅生成',
+            matchedNodes: '活跃节点 {active} / 匹配节点 {raw}',
+            filteredSummary: '已过滤: 过期 {expired} / 禁用 {disabled} / 策略限制 {policy}',
+            justThreeSteps: '就这三步',
+            justThreeStepsText: '选类型，复制地址，导入客户端。',
+            qrTitle: '二维码',
+            qrHint: '使用 {label} 扫码导入',
+            qrUnavailable: '当前格式暂无二维码',
+            clientIpNotice: '旧版 3x-ui 节点不支持 `clientIps` 接口时，节点 IP 按钮会自动禁用。',
+            noClientsTitle: '暂无节点记录',
+            noClientsSubtitle: '该用户在各节点上还没有关联配置',
+            server: '服务器',
+            inbound: '入站',
+            protocol: '协议',
+            traffic: '流量',
+            expiryTime: '到期时间',
+            status: '状态',
+            actions: '操作',
+            permanent: '永久',
+            nodeIp: '节点 IP',
+            missingEmailForClient: '该节点记录缺少邮箱标识',
+            viewNodeIp: '查看该用户在当前节点上的代理访问 IP',
+            noActivityTitle: '暂无活动记录',
+            noActivitySubtitle: '该用户尚无审计或访问记录',
+            actor: '操作者',
+            node: '节点',
+            ip: 'IP',
+            ua: 'UA',
+        },
+    };
+}
+
 function UserAvatar({ username }) {
     const initial = String(username || '?').charAt(0).toUpperCase();
     return <div className="user-avatar user-avatar-lg">{initial}</div>;
@@ -67,53 +343,34 @@ function normalizeAccessOutcome(status) {
     return 'failed';
 }
 
-const AUDIT_EVENT_LABELS = {
-    login_success: '登录成功',
-    login_failed: '登录失败',
-    login_denied_email_unverified: '登录被拒绝',
-    login_denied_user_disabled: '登录被拒绝',
-    password_changed: '修改密码',
-    user_updated: '更新用户资料',
-    user_enabled: '启用用户',
-    user_disabled: '停用用户',
-    user_deleted: '删除用户',
-    user_subscription_binding_updated: '更新订阅绑定',
-    user_subscription_provisioned: '开通订阅',
-    user_expiry_updated: '更新到期时间',
-    user_password_reset_by_admin: '管理员重置密码',
-    user_policy_updated: '更新用户策略',
-    subscription_token_issued: '签发订阅令牌',
-    subscription_token_revoked: '撤销订阅令牌',
-};
-
-function formatTimelineTitle(item) {
-    if (item.type === 'access') return '订阅访问';
-    return AUDIT_EVENT_LABELS[item.eventKey] || item.eventKey || '审计事件';
+function formatTimelineTitle(item, copy) {
+    if (item.type === 'access') return copy.labels.subscriptionAccess;
+    return copy.auditLabels[item.eventKey] || item.eventKey || copy.labels.auditEvent;
 }
 
-function formatOutcomeLabel(item) {
+function formatOutcomeLabel(item, copy) {
     if (item.type === 'access') {
-        if (item.accessStatus === 'success' || item.accessStatus === 'ok') return '成功';
-        if (item.accessStatus === 'expired') return '已过期';
-        if (item.accessStatus === 'revoked') return '已撤销';
-        return '失败';
+        if (item.accessStatus === 'success' || item.accessStatus === 'ok') return copy.labels.success;
+        if (item.accessStatus === 'expired') return copy.labels.expired;
+        if (item.accessStatus === 'revoked') return copy.labels.revoked;
+        return copy.labels.failed;
     }
-    if (item.outcome === 'success' || item.outcome === 'ok') return '成功';
-    if (item.outcome === 'failed' || item.outcome === 'denied') return '失败';
-    if (item.outcome === 'info') return '信息';
-    return '未知';
+    if (item.outcome === 'success' || item.outcome === 'ok') return copy.labels.success;
+    if (item.outcome === 'failed' || item.outcome === 'denied') return copy.labels.failed;
+    if (item.outcome === 'info') return copy.labels.info;
+    return copy.labels.unknown;
 }
 
-function formatSummaryText(item) {
+function formatSummaryText(item, copy) {
     const parts = [];
 
     if (item.type === 'access') {
         const geoDisplay = resolveAccessGeoDisplay(item);
         if (item.reason) parts.push(item.reason);
-        if (item.mode) parts.push(`模式 ${item.mode}`);
-        if (item.format) parts.push(`格式 ${item.format}`);
-        if (geoDisplay.location && geoDisplay.location !== '-') parts.push(`地区 ${geoDisplay.location}`);
-        if (geoDisplay.carrier) parts.push(`运营商 ${geoDisplay.carrier}`);
+        if (item.mode) parts.push(`${copy.labels.mode} ${item.mode}`);
+        if (item.format) parts.push(`${copy.labels.format} ${item.format}`);
+        if (geoDisplay.location && geoDisplay.location !== '-') parts.push(`${copy.labels.location} ${geoDisplay.location}`);
+        if (geoDisplay.carrier) parts.push(`${copy.labels.carrier} ${geoDisplay.carrier}`);
         return parts.join(' · ');
     }
 
@@ -132,6 +389,7 @@ function normalizeDetailTab(value) {
 
 export default function UserDetail() {
     const { locale, t } = useI18n();
+    const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
     const { userId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -149,7 +407,9 @@ export default function UserDetail() {
     // Client data from servers
     const [clientData, setClientData] = useState([]);
     const [clientsLoading, setClientsLoading] = useState(false);
+    const [clientsFetched, setClientsFetched] = useState(false);
     const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
+    const [subscriptionFetched, setSubscriptionFetched] = useState(false);
     const [clientIpModal, setClientIpModal] = useState({
         open: false,
         serverId: '',
@@ -182,10 +442,10 @@ export default function UserDetail() {
             if (res.data?.success) {
                 setDetail(res.data.obj);
             } else {
-                toast.error(res.data?.msg || '加载用户详情失败');
+                toast.error(res.data?.msg || copy.labels.loadUserFailed);
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || '加载用户详情失败');
+            toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
         }
         setLoading(false);
     };
@@ -200,6 +460,7 @@ export default function UserDetail() {
 
         if (!email) {
             setSubscriptionResult(null);
+            setSubscriptionFetched(true);
             return;
         }
 
@@ -207,7 +468,7 @@ export default function UserDetail() {
         try {
             const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
             const payload = res.data?.obj || {};
-            const bundle = buildSubscriptionProfileBundle(payload);
+            const bundle = buildSubscriptionProfileBundle(payload, locale);
             setSubscriptionResult({
                 email: payload.email || email,
                 total: Number(payload.total || 0),
@@ -229,15 +490,17 @@ export default function UserDetail() {
         } catch (err) {
             setSubscriptionResult(null);
             if (!quiet) {
-                toast.error(err.response?.data?.msg || '加载订阅详情失败');
+                toast.error(err.response?.data?.msg || copy.labels.loadSubscriptionFailed);
             }
         }
+        setSubscriptionFetched(true);
         setSubscriptionLoading(false);
     };
 
     const fetchClients = async () => {
         if (!detail?.user?.subscriptionEmail && !detail?.user?.email) {
             setClientData([]);
+            setClientsFetched(true);
             return;
         }
         setClientsLoading(true);
@@ -281,10 +544,16 @@ export default function UserDetail() {
         } catch {
             setClientData([]);
         }
+        setClientsFetched(true);
         setClientsLoading(false);
     };
 
     useEffect(() => {
+        setClientData([]);
+        setClientsFetched(false);
+        setSubscriptionResult(null);
+        setSubscriptionFetched(false);
+        setClientIpSupportByServer({});
         fetchDetail();
     }, [userId]);
 
@@ -294,16 +563,18 @@ export default function UserDetail() {
     }, [searchParams]);
 
     useEffect(() => {
-        if (detail) {
+        if (!detail) return;
+        if (!clientsFetched && !clientsLoading && (activeTab === 'overview' || activeTab === 'clients')) {
             fetchClients();
         }
-    }, [detail]);
+    }, [detail, activeTab, clientsFetched, clientsLoading]);
 
     useEffect(() => {
-        if (detail) {
+        if (!detail) return;
+        if (!subscriptionFetched && !subscriptionLoading && activeTab === 'subscription') {
             loadSubscription({ quiet: true });
         }
-    }, [detail]);
+    }, [detail, activeTab, subscriptionFetched, subscriptionLoading]);
 
     const user = detail?.user;
     const recentAudit = detail?.recentAudit?.items || [];
@@ -317,18 +588,18 @@ export default function UserDetail() {
         recentAudit.forEach(e => {
             const details = e.details || {};
             const summaryParts = [];
-            if (details.targetUsername) summaryParts.push(`目标 ${details.targetUsername}`);
-            if (details.subscriptionEmail && details.subscriptionEmail !== details.email) summaryParts.push(`订阅邮箱 ${details.subscriptionEmail}`);
-            if (typeof details.enabled === 'boolean') summaryParts.push(details.enabled ? '状态 已启用' : '状态 已停用');
-            if (details.expiryTime > 0) summaryParts.push(`到期 ${formatDateOnly(details.expiryTime, locale)}`);
-            if (typeof details.allowedServerCount === 'number') summaryParts.push(`服务器 ${details.allowedServerCount}`);
-            if (typeof details.allowedProtocolCount === 'number') summaryParts.push(`协议 ${details.allowedProtocolCount}`);
-            if (typeof details.limitIp === 'number' && details.limitIp > 0) summaryParts.push(`限 IP ${details.limitIp}`);
-            if (typeof details.trafficLimitBytes === 'number' && details.trafficLimitBytes > 0) summaryParts.push(`限流量 ${formatBytes(details.trafficLimitBytes)}`);
+            if (details.targetUsername) summaryParts.push(`${copy.labels.target} ${details.targetUsername}`);
+            if (details.subscriptionEmail && details.subscriptionEmail !== details.email) summaryParts.push(`${copy.labels.subscriptionEmail} ${details.subscriptionEmail}`);
+            if (typeof details.enabled === 'boolean') summaryParts.push(details.enabled ? copy.labels.statusEnabled : copy.labels.statusDisabled);
+            if (details.expiryTime > 0) summaryParts.push(`${copy.labels.expiry} ${formatDateOnly(details.expiryTime, locale)}`);
+            if (typeof details.allowedServerCount === 'number') summaryParts.push(`${copy.labels.servers} ${details.allowedServerCount}`);
+            if (typeof details.allowedProtocolCount === 'number') summaryParts.push(`${copy.labels.protocols} ${details.allowedProtocolCount}`);
+            if (typeof details.limitIp === 'number' && details.limitIp > 0) summaryParts.push(`${copy.labels.limitIp} ${details.limitIp}`);
+            if (typeof details.trafficLimitBytes === 'number' && details.trafficLimitBytes > 0) summaryParts.push(`${copy.labels.trafficLimit} ${formatBytes(details.trafficLimitBytes)}`);
             if (typeof details.updated === 'number' || typeof details.failed === 'number') {
-                summaryParts.push(`部署 ${Number(details.updated || 0)} 成功 / ${Number(details.failed || 0)} 失败`);
+                summaryParts.push(`${copy.labels.deployment} ${Number(details.updated || 0)} ${copy.labels.success} / ${Number(details.failed || 0)} ${copy.labels.failed}`);
             }
-            if (details.cleanupError) summaryParts.push(`清理异常 ${details.cleanupError}`);
+            if (details.cleanupError) summaryParts.push(`${copy.labels.cleanupError} ${details.cleanupError}`);
 
             items.push({
                 id: `audit-${e.id || `${e.ts}-${e.eventType}`}`,
@@ -366,7 +637,7 @@ export default function UserDetail() {
             });
         });
         return items.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 50);
-    }, [detail]);
+    }, [detail, copy, locale, recentAudit, subscriptionAccess]);
 
     // Stats
     const totalTraffic = useMemo(() => {
@@ -379,11 +650,11 @@ export default function UserDetail() {
 
     const handleCopySubscription = async () => {
         if (!activeSubscriptionProfile?.url) {
-            toast.error('暂无可复制订阅地址');
+            toast.error(copy.labels.noCopyableSubscription);
             return;
         }
         await copyToClipboard(activeSubscriptionProfile.url);
-        toast.success(`${activeSubscriptionProfile.label} 订阅地址已复制`);
+        toast.success(copy.labels.copiedSubscription.replace('{label}', activeSubscriptionProfile.label));
     };
 
     const handleResetSubscription = async () => {
@@ -391,10 +662,10 @@ export default function UserDetail() {
         if (!targetEmail) return;
 
         const ok = await confirmAction({
-            title: '重置订阅链接',
-            message: '重置后旧订阅地址会立即失效，客户端需要重新导入新地址。',
-            details: `目标邮箱: ${targetEmail}`,
-            confirmText: '确认重置',
+            title: copy.labels.resetTitle,
+            message: copy.labels.resetMessage,
+            details: `${copy.labels.resetTarget}: ${targetEmail}`,
+            confirmText: copy.labels.resetConfirm,
             tone: 'danger',
         });
         if (!ok) return;
@@ -402,13 +673,13 @@ export default function UserDetail() {
         setSubscriptionResetLoading(true);
         try {
             await api.post(`/subscriptions/${encodeURIComponent(targetEmail)}/reset-link`, {});
-            toast.success('订阅链接已重置');
+            toast.success(copy.labels.resetDone);
             await Promise.all([
                 loadSubscription({ quiet: true }),
                 fetchDetail(),
             ]);
         } catch (err) {
-            toast.error(err.response?.data?.msg || '重置订阅链接失败');
+            toast.error(err.response?.data?.msg || copy.labels.resetFailed);
         }
         setSubscriptionResetLoading(false);
     };
@@ -419,7 +690,7 @@ export default function UserDetail() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled: newEnabled });
             if (res.data?.success) {
-                const message = res.data?.msg || `用户已${newEnabled ? '启用' : '停用'}`;
+                const message = res.data?.msg || (newEnabled ? copy.labels.userEnabled : copy.labels.userDisabled);
                 if (res.data?.obj?.partialFailure) {
                     toast.error(message);
                 } else {
@@ -428,7 +699,7 @@ export default function UserDetail() {
                 fetchDetail();
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || '操作失败');
+            toast.error(err.response?.data?.msg || copy.labels.actionFailed);
         }
     };
 
@@ -459,8 +730,10 @@ export default function UserDetail() {
                 serverId: target.serverId,
                 serverName: target.serverName || '',
                 email: target.email,
-                title: `节点访问 IP — ${target.serverName || target.serverId}`,
-                subtitle: `${target.email} · 节点级记录${target.inboundRemark ? ` · 入站 ${target.inboundRemark}` : ''}`,
+                title: copy.labels.clientIpTitle.replace('{server}', target.serverName || target.serverId),
+                subtitle: copy.labels.clientIpSubtitle
+                    .replace('{email}', target.email)
+                    .replace('{inbound}', target.inboundRemark ? copy.labels.clientIpInbound.replace('{name}', target.inboundRemark) : ''),
                 items: [],
                 loading: true,
                 clearing: false,
@@ -487,20 +760,22 @@ export default function UserDetail() {
                 serverId: target.serverId,
                 serverName: target.serverName || '',
                 email: target.email,
-                title: `节点访问 IP — ${target.serverName || target.serverId}`,
-                subtitle: `${target.email} · 节点级记录${target.inboundRemark ? ` · 入站 ${target.inboundRemark}` : ''}`,
+                title: copy.labels.clientIpTitle.replace('{server}', target.serverName || target.serverId),
+                subtitle: copy.labels.clientIpSubtitle
+                    .replace('{email}', target.email)
+                    .replace('{inbound}', target.inboundRemark ? copy.labels.clientIpInbound.replace('{name}', target.inboundRemark) : ''),
                 items,
                 loading: false,
                 error: '',
             }));
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '加载节点访问 IP 失败';
+            const msg = err.response?.data?.msg || err.message || copy.labels.clientIpLoadFailed;
             if (isUnsupportedPanelClientIpsError(err)) {
                 setClientIpSupportByServer((prev) => ({
                     ...prev,
                     [target.serverId]: {
                         supported: false,
-                        reason: msg || '当前节点的 3x-ui 版本不支持节点 IP 接口',
+                        reason: msg || copy.labels.clientIpUnsupported,
                     },
                 }));
             }
@@ -518,9 +793,11 @@ export default function UserDetail() {
     const clearClientIps = async () => {
         if (!clientIpModal.serverId || !clientIpModal.email) return;
         const ok = await confirmAction({
-            title: '清空节点访问 IP',
-            message: `确定清空 ${clientIpModal.email} 在 ${clientIpModal.serverName || clientIpModal.serverId} 的节点访问 IP 记录吗？`,
-            confirmText: '确认清空',
+            title: copy.labels.clearClientIpTitle,
+            message: copy.labels.clearClientIpMessage
+                .replace('{email}', clientIpModal.email)
+                .replace('{server}', clientIpModal.serverName || clientIpModal.serverId),
+            confirmText: copy.labels.clearClientIpConfirm,
             tone: 'danger',
         });
         if (!ok) return;
@@ -533,7 +810,7 @@ export default function UserDetail() {
 
         try {
             await api.post(`/panel/${encodeURIComponent(clientIpModal.serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
-            toast.success('节点访问 IP 记录已清空');
+            toast.success(copy.labels.clearClientIpDone);
             await loadClientIps({
                 serverId: clientIpModal.serverId,
                 serverName: clientIpModal.serverName,
@@ -542,7 +819,7 @@ export default function UserDetail() {
                 inboundId: '',
             }, { preserveOpen: true });
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '清空节点访问 IP 失败';
+            const msg = err.response?.data?.msg || err.message || copy.labels.clearClientIpFailed;
             setClientIpModal((prev) => ({
                 ...prev,
                 clearing: false,
@@ -584,9 +861,9 @@ export default function UserDetail() {
                     eyebrow={t('pages.userDetail.eyebrow')}
                 />
                 <div className="page-content page-enter">
-                    <EmptyState title="用户不存在" subtitle="该用户可能已被删除" action={
+                    <EmptyState title={copy.userMissingTitle} subtitle={copy.userMissingSubtitle} action={
                         <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
-                            <HiOutlineArrowLeft /> 返回用户列表
+                            <HiOutlineArrowLeft /> {copy.backToUsers}
                         </button>
                     } />
                 </div>
@@ -595,10 +872,10 @@ export default function UserDetail() {
     }
 
     const tabs = [
-        { key: 'overview', label: '概览' },
-        { key: 'subscription', label: '订阅' },
-        { key: 'clients', label: '节点' },
-        { key: 'activity', label: '活动日志' },
+        { key: 'overview', label: copy.tabs.overview },
+        { key: 'subscription', label: copy.tabs.subscription },
+        { key: 'clients', label: copy.tabs.clients },
+        { key: 'activity', label: copy.tabs.activity },
     ];
 
     return (
@@ -609,47 +886,45 @@ export default function UserDetail() {
                 eyebrow={t('pages.userDetail.eyebrow')}
             />
             <div className="page-content page-enter">
-                {/* Back button */}
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
-                    <HiOutlineArrowLeft /> 返回用户列表
+                    <HiOutlineArrowLeft /> {copy.backToUsers}
                 </button>
 
-                {/* Profile Card */}
                 <div className="glass-panel mb-6">
                     <div className="user-profile-card">
                         <UserAvatar username={user.username} />
                         <div className="user-profile-info">
                             <div className="user-profile-name">{user.username}</div>
-                            <div className="user-profile-email">{user.email || user.subscriptionEmail || '未设置邮箱'}</div>
+                            <div className="user-profile-email">{user.email || user.subscriptionEmail || copy.unsetEmail}</div>
                             <div className="user-profile-badges">
-                                <span className={`badge ${user.role === 'admin' ? 'badge-info' : 'badge-neutral'}`}>{user.role}</span>
-                                <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? '已启用' : '已停用'}</span>
-                                {user.emailVerified && <span className="badge badge-success">邮箱已验证</span>}
+                                <span className={`badge ${user.role === 'admin' ? 'badge-info' : 'badge-neutral'}`}>{user.role === 'admin' ? copy.labels.roleAdmin : copy.labels.roleUser}</span>
+                                <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</span>
+                                {user.emailVerified && <span className="badge badge-success">{copy.labels.emailVerified}</span>}
                             </div>
                             <div className="user-profile-meta">
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineKey /> 用户 ID: {user.id}
+                                    <HiOutlineKey /> {copy.labels.userId}: {user.id}
                                     <button
                                         type="button"
                                         className="btn btn-ghost btn-xs btn-icon"
-                                        title="复制完整用户 ID"
+                                        title={copy.labels.userId}
                                         onClick={async () => {
                                             await copyToClipboard(user.id);
-                                            toast.success('用户 ID 已复制');
+                                            toast.success(copy.labels.copiedUserId);
                                         }}
                                     >
                                         <HiOutlineClipboard />
                                     </button>
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineCalendarDays /> 注册: {formatTime(user.createdAt, locale)}
+                                    <HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineClock /> 最后登录: {formatTime(user.lastLoginAt, locale)}
+                                    <HiOutlineClock /> {copy.labels.lastLoginAt}: {formatTime(user.lastLoginAt, locale)}
                                 </div>
                                 {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
                                     <div className="user-profile-meta-item">
-                                        <HiOutlineEnvelope /> 订阅邮箱: {user.subscriptionEmail}
+                                        <HiOutlineEnvelope /> {copy.labels.subscriptionEmail}: {user.subscriptionEmail}
                                     </div>
                                 )}
                             </div>
@@ -659,19 +934,18 @@ export default function UserDetail() {
                                 className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
                                 onClick={handleToggleEnabled}
                             >
-                                {user.enabled ? <><HiOutlineNoSymbol /> 停用</> : <><HiOutlinePlayCircle /> 启用</>}
+                                {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disabled}</> : <><HiOutlinePlayCircle /> {copy.labels.enabled}</>}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
-                                <HiOutlinePencilSquare /> 编辑
+                                <HiOutlinePencilSquare /> {t('comp.common.edit')}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={fetchDetail}>
-                                <HiOutlineArrowPath /> 刷新
+                                <HiOutlineArrowPath /> {copy.labels.refresh}
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Tabs */}
                 <div className="user-detail-tabs">
                     <div className="tabs">
                         {tabs.map(t => (
@@ -686,30 +960,29 @@ export default function UserDetail() {
                     </div>
 
                     <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
-                        {/* Overview Tab */}
                         {activeTab === 'overview' && (
                             <div>
                                 <div className="stat-mini-grid">
-                                    <StatCard label="总流量" value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
-                                    <StatCard label="节点数" value={clientSummaryLoading ? null : clientData.length} />
-                                    <StatCard label="订阅访问" value={detail?.subscriptionAccess?.total || 0} />
-                                    <StatCard label="审计记录" value={detail?.recentAudit?.total || 0} />
+                                    <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
+                                    <StatCard label={copy.labels.nodeCount} value={clientSummaryLoading ? null : clientData.length} />
+                                    <StatCard label={copy.labels.accessCount} value={detail?.subscriptionAccess?.total || 0} />
+                                    <StatCard label={copy.labels.auditCount} value={detail?.recentAudit?.total || 0} />
                                 </div>
                                 {clientSummaryLoading && (
-                                    <p className="text-muted text-sm mb-4">节点汇总加载中...</p>
+                                    <p className="text-muted text-sm mb-4">{copy.labels.clientSummaryLoading}</p>
                                 )}
                                 {totalTraffic > 0 && (
-                                    <p className="text-muted text-sm mb-4">总流量: {formatBytes(totalTraffic)}</p>
+                                    <p className="text-muted text-sm mb-4">{copy.labels.totalTraffic}: {formatBytes(totalTraffic)}</p>
                                 )}
                                 {detail?.policy && (
                                     <div className="card mb-4">
                                         <div className="card-header pb-0 mb-0" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>
-                                            <span className="card-title"><HiOutlineShieldCheck className="inline-flex mr-2" /> 访问策略</span>
+                                            <span className="card-title"><HiOutlineShieldCheck className="inline-flex mr-2" /> {copy.labels.accessPolicy}</span>
                                         </div>
                                         <div className="p-3">
                                             <div className="flex gap-4 text-sm">
-                                                <span>服务器: <strong>{detail.policy.serverScopeMode === 'all' ? '不限' : detail.policy.serverScopeMode === 'none' ? '禁止' : `${(detail.policy.allowedServerIds || []).length} 台`}</strong></span>
-                                                <span>协议: <strong>{detail.policy.protocolScopeMode === 'all' ? '不限' : detail.policy.protocolScopeMode === 'none' ? '禁止' : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
+                                                <span>{copy.labels.server}: <strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
+                                                <span>{copy.labels.protocol}: <strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
                                             </div>
                                         </div>
                                     </div>
@@ -722,11 +995,11 @@ export default function UserDetail() {
                                 <SectionHeader
                                     className="mb-4"
                                     compact
-                                    title="订阅地址"
+                                    title={copy.labels.subscriptionInfo}
                                     meta={subscriptionResult && (
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-danger'}`}>
-                                                {subscriptionResult.subscriptionActive ? '可用' : '失效'}
+                                                {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
                                             </span>
                                             {subscriptionResult.inactiveReason ? (
                                                 <span className="text-xs text-muted">{subscriptionResult.inactiveReason}</span>
@@ -736,21 +1009,21 @@ export default function UserDetail() {
                                     actions={(
                                         <div className="flex gap-2 flex-wrap">
                                             <button className="btn btn-secondary btn-sm" onClick={() => loadSubscription()} disabled={subscriptionLoading}>
-                                                {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新</>}
+                                                {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.refresh}</>}
                                             </button>
                                             <button
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={handleResetSubscription}
                                                 disabled={subscriptionResetLoading || !subscriptionResult?.email}
                                             >
-                                                {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置链接</>}
+                                                {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.resetLink}</>}
                                             </button>
                                             <button
                                                 className="btn btn-primary btn-sm"
                                                 onClick={handleCopySubscription}
                                                 disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}
                                             >
-                                                <HiOutlineClipboard /> 复制地址
+                                                <HiOutlineClipboard /> {copy.labels.copyAddress}
                                             </button>
                                         </div>
                                     )}
@@ -759,14 +1032,14 @@ export default function UserDetail() {
                                 {subscriptionLoading && !subscriptionResult ? (
                                     <SkeletonTable rows={3} cols={3} />
                                 ) : !subscriptionResult ? (
-                                    <EmptyState title="暂无订阅信息" subtitle="该用户尚未生成可用订阅地址" />
+                                    <EmptyState title={copy.labels.noSubscriptionTitle} subtitle={copy.labels.noSubscriptionSubtitle} />
                                 ) : (
                                     <div className="flex flex-col gap-4">
                                         <div className="subscription-link-grid">
                                             <div className="card p-4 user-detail-subscription-card">
-                                                <div className="text-sm font-medium mb-3">订阅资料</div>
+                                                <div className="text-sm font-medium mb-3">{copy.labels.subscriptionInfo}</div>
                                                 <div className="subscription-inline-tip user-detail-subscription-tip">
-                                                    直接告诉用户：选类型 -&gt; 复制地址 -&gt; 导入客户端。
+                                                    {copy.labels.subscriptionIntro}
                                                 </div>
                                                 <div className="flex gap-2 flex-wrap mb-3">
                                                     {(subscriptionResult.bundle?.availableProfiles || []).map((item) => (
@@ -781,29 +1054,34 @@ export default function UserDetail() {
                                                     ))}
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">当前地址</label>
+                                                    <label className="form-label">{copy.labels.currentAddress}</label>
                                                     <input
                                                         className="form-input font-mono"
                                                         value={activeSubscriptionProfile?.url || ''}
                                                         readOnly
-                                                        placeholder="当前格式暂无可用订阅地址"
+                                                        placeholder={copy.labels.noSubscriptionAddress}
                                                     />
                                                 </div>
                                                 <div className="text-xs text-muted">
-                                                    订阅邮箱: {subscriptionResult.email}
-                                                    {subscriptionResult.bundle?.externalConverterConfigured ? ' · 已启用外部订阅转换器' : ' · 使用 NMS 内置订阅生成'}
+                                                    {copy.labels.subscriptionEmail}: {subscriptionResult.email}
+                                                    {subscriptionResult.bundle?.externalConverterConfigured ? ` · ${copy.labels.converterEnabled}` : ` · ${copy.labels.converterBuiltin}`}
                                                 </div>
                                                 <div className="text-xs text-muted mt-1">
-                                                    活跃节点 {subscriptionResult.matchedClientsActive || 0} / 匹配节点 {subscriptionResult.matchedClientsRaw || 0}
+                                                    {copy.labels.matchedNodes
+                                                        .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
+                                                        .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
                                                 </div>
                                                 {(subscriptionResult.filteredExpired > 0 || subscriptionResult.filteredDisabled > 0 || subscriptionResult.filteredByPolicy > 0) && (
                                                     <div className="text-xs text-muted mt-1">
-                                                        已过滤: 过期 {subscriptionResult.filteredExpired || 0} / 禁用 {subscriptionResult.filteredDisabled || 0} / 策略限制 {subscriptionResult.filteredByPolicy || 0}
+                                                        {copy.labels.filteredSummary
+                                                            .replace('{expired}', String(subscriptionResult.filteredExpired || 0))
+                                                            .replace('{disabled}', String(subscriptionResult.filteredDisabled || 0))
+                                                            .replace('{policy}', String(subscriptionResult.filteredByPolicy || 0))}
                                                     </div>
                                                 )}
                                                 <div className="user-detail-subscription-guides">
-                                                    <div className="text-sm font-medium">就这三步</div>
-                                                    <div className="text-xs text-muted">选类型，复制地址，导入客户端。</div>
+                                                    <div className="text-sm font-medium">{copy.labels.justThreeSteps}</div>
+                                                    <div className="text-xs text-muted">{copy.labels.justThreeStepsText}</div>
                                                     <SubscriptionClientLinks
                                                         bundle={subscriptionResult.bundle}
                                                         compact
@@ -813,18 +1091,18 @@ export default function UserDetail() {
                                             </div>
 
                                             <div className="card p-4">
-                                                <div className="text-sm font-medium mb-3">二维码</div>
+                                                <div className="text-sm font-medium mb-3">{copy.labels.qrTitle}</div>
                                                 {activeSubscriptionProfile?.url ? (
                                                     <div className="flex flex-col items-center gap-3">
                                                         <div className="rounded-xl p-3 bg-white">
                                                             <QRCodeSVG value={activeSubscriptionProfile.url} size={180} />
                                                         </div>
                                                         <div className="text-xs text-muted text-center">
-                                                            使用 {activeSubscriptionProfile.label} 扫码导入
+                                                            {copy.labels.qrHint.replace('{label}', activeSubscriptionProfile.label)}
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-sm text-muted">当前格式暂无二维码</div>
+                                                    <div className="text-sm text-muted">{copy.labels.qrUnavailable}</div>
                                                 )}
                                             </div>
                                         </div>
@@ -837,24 +1115,24 @@ export default function UserDetail() {
                         {activeTab === 'clients' && (
                             <div>
                                 {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
-                                    <div className="text-xs text-muted mb-3">旧版 3x-ui 节点不支持 `clientIps` 接口时，节点 IP 按钮会自动禁用。</div>
+                                    <div className="text-xs text-muted mb-3">{copy.labels.clientIpNotice}</div>
                                 )}
                                 {clientsLoading ? (
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
-                                    <EmptyState title="暂无节点记录" subtitle="该用户在各节点上还没有关联配置" />
+                                    <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">
                                             <thead>
                                                 <tr>
-                                                    <th>服务器</th>
-                                                    <th>入站</th>
-                                                    <th>协议</th>
-                                                    <th>流量</th>
-                                                    <th>到期时间</th>
-                                                    <th>状态</th>
-                                                    <th>操作</th>
+                                                    <th>{copy.labels.server}</th>
+                                                    <th>{copy.labels.inbound}</th>
+                                                    <th>{copy.labels.protocol}</th>
+                                                    <th>{copy.labels.traffic}</th>
+                                                    <th>{copy.labels.expiryTime}</th>
+                                                    <th>{copy.labels.status}</th>
+                                                    <th>{copy.labels.actions}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -863,17 +1141,17 @@ export default function UserDetail() {
                                                     const clientIpUnsupported = supportState?.supported === false;
                                                     const clientIpDisabled = !c.email || clientIpUnsupported;
                                                     const clientIpTitle = !c.email
-                                                        ? '该节点记录缺少邮箱标识'
-                                                        : (clientIpUnsupported ? supportState.reason : '查看该用户在当前节点上的代理访问 IP');
+                                                        ? copy.labels.missingEmailForClient
+                                                        : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
                                                     return (
                                                     <tr key={i}>
-                                                        <td data-label="服务器">{c.serverName}</td>
-                                                        <td data-label="入站">{c.inboundRemark || c.inboundId}</td>
-                                                        <td data-label="协议"><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td data-label="流量">{formatBytes((c.up || 0) + (c.down || 0))}</td>
-                                                        <td data-label="到期时间">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : '永久'}</td>
-                                                        <td data-label="状态"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
-                                                        <td data-label="操作" className="table-cell-actions">
+                                                        <td data-label={copy.labels.server}>{c.serverName}</td>
+                                                        <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
+                                                        <td data-label={copy.labels.protocol}><span className="badge badge-neutral">{c.protocol}</span></td>
+                                                        <td data-label={copy.labels.traffic}>{formatBytes((c.up || 0) + (c.down || 0))}</td>
+                                                        <td data-label={copy.labels.expiryTime}>{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
+                                                        <td data-label={copy.labels.status}><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
+                                                        <td data-label={copy.labels.actions} className="table-cell-actions">
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm"
@@ -881,7 +1159,7 @@ export default function UserDetail() {
                                                                 disabled={clientIpDisabled}
                                                                 title={clientIpTitle}
                                                             >
-                                                                <HiOutlineGlobeAlt /> 节点 IP
+                                                                <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -898,7 +1176,7 @@ export default function UserDetail() {
                         {activeTab === 'activity' && (
                             <div>
                                 {timeline.length === 0 ? (
-                                    <EmptyState title="暂无活动记录" subtitle="该用户尚无审计或访问记录" />
+                                    <EmptyState title={copy.labels.noActivityTitle} subtitle={copy.labels.noActivitySubtitle} />
                                 ) : (
                                     <div className="timeline-list">
                                         {timeline.map((item, i) => (
@@ -906,24 +1184,24 @@ export default function UserDetail() {
                                                     <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
                                                     <div className="timeline-content">
                                                     <div className="timeline-head">
-                                                        <span className="font-medium">{formatTimelineTitle(item)}</span>
+                                                        <span className="font-medium">{formatTimelineTitle(item, copy)}</span>
                                                         <span className="timeline-time">{formatTime(item.ts, locale)}</span>
                                                     </div>
                                                     <div className="flex gap-2 flex-wrap mt-2">
                                                         <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
-                                                            {item.type === 'access' ? '订阅访问' : '审计事件'}
+                                                            {item.type === 'access' ? copy.labels.subscriptionAccess : copy.labels.auditEvent}
                                                         </span>
                                                         <span className={`badge ${item.outcome === 'success' || item.outcome === 'ok' ? 'badge-success' : item.outcome === 'failed' || item.outcome === 'denied' ? 'badge-danger' : 'badge-neutral'}`}>
-                                                            {formatOutcomeLabel(item)}
+                                                            {formatOutcomeLabel(item, copy)}
                                                         </span>
-                                                        {item.actor && <span className="badge badge-neutral">操作者 {item.actor}</span>}
-                                                        {item.serverId && <span className="badge badge-info">节点 {item.serverId}</span>}
+                                                        {item.actor && <span className="badge badge-neutral">{copy.labels.actor} {item.actor}</span>}
+                                                        {item.serverId && <span className="badge badge-info">{copy.labels.node} {item.serverId}</span>}
                                                         {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
                                                     </div>
-                                                    {formatSummaryText(item) && <div className="text-sm text-muted mt-2">{formatSummaryText(item)}</div>}
+                                                    {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
                                                     <div className="text-xs text-muted mt-1">
-                                                        {item.ip ? `IP: ${item.ip}` : 'IP: -'}
-                                                        {item.userAgent ? ` · UA: ${item.userAgent}` : ''}
+                                                        {item.ip ? `${copy.labels.ip}: ${item.ip}` : `${copy.labels.ip}: -`}
+                                                        {item.userAgent ? ` · ${copy.labels.ua}: ${item.userAgent}` : ''}
                                                     </div>
                                                 </div>
                                             </div>

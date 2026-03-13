@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineLink } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineExclamationTriangle, HiOutlineLink } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -12,12 +12,20 @@ import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
+import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
-function normalizeInactiveReason(reason) {
+function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
+    if (locale === 'en-US') {
+        if (!text) return 'Available';
+        if (text === 'all-expired-or-disabled') return 'All nodes have expired or are disabled';
+        if (text === 'blocked-by-policy') return 'Blocked by subscription policy';
+        if (text === 'user-not-found') return 'User not found';
+        if (text === 'no-links-found') return 'No usable node links were generated';
+        return reason;
+    }
     if (!text) return '可用';
     if (text === 'all-expired-or-disabled') return '全部节点已过期或禁用';
     if (text === 'blocked-by-policy') return '被订阅权限策略限制';
@@ -26,11 +34,208 @@ function normalizeInactiveReason(reason) {
     return reason;
 }
 
+function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } = {}) {
+    if (locale === 'en-US') {
+        return {
+            allNodes: 'All Nodes',
+            adminRole: 'Admin',
+            userEmail: 'User Email',
+            scope: 'Scope',
+            manageUsers: 'User Management',
+            refreshUsers: 'Refresh Users',
+            reload: 'Reload',
+            listDenied: 'Your role cannot view the full user list. Enter the email manually.',
+            listLoaded: `Loaded ${userCount} users. Search or pick one directly.`,
+            loadingAddress: 'Loading subscription address',
+            noAssignedLink: 'No subscription link has been assigned yet',
+            inputEmailHint: 'Enter an email to load the subscription address',
+            userTitle: 'Your Subscription',
+            adminTitle: 'Subscription Address & Import',
+            userSubtitle: 'Choose a profile, then copy or scan it.',
+            adminSubtitle: 'For end users, these three steps are enough.',
+            available: 'Subscription Ready',
+            unavailable: 'Subscription Unavailable',
+            nodeCount: `${nodeCount} nodes`,
+            currentProfileFallback: 'Choose a profile',
+            currentType: 'Current Profile',
+            copyAddress: 'Copy Address',
+            scanImport: 'Scan to Import',
+            noQr: 'No QR code is available for this format.',
+            noQuickImport: 'This profile does not support one-tap import. Copy the address instead.',
+            resetLink: 'Reset Subscription Link',
+            passwordTitle: 'Current Login Password',
+            currentPassword: 'Current Password',
+            newPassword: 'New Password',
+            confirmPassword: 'Confirm New Password',
+            changePassword: 'Change Login Password',
+            copiedAddress: '{label} subscription address copied',
+            selectedNode: 'Node {id}',
+            currentNode: 'Current node ({id})',
+            resetDetailsTarget: 'Target Email',
+            resetDetailsScope: 'Scope',
+            userStepKicker: 'Use it like this',
+            userStepTitle: 'Choose a profile, then copy or scan it',
+            userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
+            pickTypeTitle: 'Choose a profile',
+            pickTypeText: 'If you are unsure, follow the recommended profile on the device cards.',
+            copyOrScanTitle: 'Copy the address or scan it',
+            copyOrScanText: 'Copy is the main action. The QR code and quick import stay right next to it.',
+            deviceOpenTitle: 'Open it on your device',
+            deviceOpenText: 'Pick one mainstream client for your device, install it, and import the address above.',
+            resetRiskTitle: 'Reset only when the address is leaked',
+            resetRiskText: 'After reset, the old address stops working immediately and the client must import the new address again.',
+            heroTitle: 'Choose a profile -> Copy the address -> Import into the client',
+            heroText: 'If you are unsure which one to choose, start with the device recommendation below.',
+            manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
+            adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
+            goSettings: 'Change it in Settings',
+            qrAriaLabel: 'Subscription QR code · {label}',
+            quickImportHint: 'You can also use the quick import buttons below.',
+            adminQuickImportHint: 'Quick import buttons for the current profile stay here as well.',
+            simpleReminder: 'For beginners, just remember this: choose a profile, copy the address, and import it.',
+            guideTitle: 'How to share it',
+            guideSubtitle: 'Just explain these three steps.',
+            guideStep1Title: 'Choose a profile',
+            guideStep1Text: 'If they are unsure, tell them to start with the device recommendation.',
+            guideStep2Title: 'Copy the address',
+            guideStep2Text: 'If one-tap import is unavailable, copy the address above.',
+            guideStep3Title: 'Import it into the client',
+            guideStep3Text: 'Paste the address into the client and import it.',
+            summaryTitle: 'Current Subscription Summary',
+            summarySubtitle: 'Key details stay in one place for quick checks.',
+            summaryUser: 'Current User',
+            summaryStatus: 'Subscription Status',
+            summaryStatusReady: 'Ready to import',
+            summaryStatusBlocked: 'Unavailable',
+            summaryNodes: 'Available Nodes',
+            summaryMatched: 'Matched {active}/{raw}',
+            summaryScope: 'Current Scope',
+            summaryFilters: 'Expired {expired} / Disabled {disabled} / Policy {policy}',
+        };
+    }
+
+    return {
+        allNodes: '全部节点',
+        adminRole: '管理员',
+        userEmail: '用户邮箱',
+        scope: '订阅范围',
+        manageUsers: '用户管理',
+        refreshUsers: '刷新用户列表',
+        reload: '重新加载',
+        listDenied: '当前角色无全量用户列表权限，请手动输入邮箱',
+        listLoaded: `已加载 ${userCount} 个用户，可直接搜索或选择`,
+        loadingAddress: '正在加载订阅地址',
+        noAssignedLink: '管理员尚未为当前账号分配订阅链接',
+        inputEmailHint: '输入邮箱后会自动加载订阅地址',
+        userTitle: '你的订阅地址',
+        adminTitle: '订阅地址与导入',
+        userSubtitle: '先选类型，再复制或扫码导入。',
+        adminSubtitle: '给用户时，直接按这三步说明就够了。',
+        available: '订阅可用',
+        unavailable: '订阅不可用',
+        nodeCount: `${nodeCount} 个节点`,
+        currentProfileFallback: '请选择订阅类型',
+        currentType: '当前类型',
+        copyAddress: '复制地址',
+        scanImport: '扫码导入',
+        noQr: '当前格式暂无二维码',
+        noQuickImport: '当前类型不支持一键导入，复制地址即可。',
+        resetLink: '重置订阅链接',
+        passwordTitle: '当前登录账号密码',
+        currentPassword: '当前密码',
+        newPassword: '新密码',
+        confirmPassword: '确认新密码',
+        changePassword: '修改登录密码',
+        copiedAddress: '{label} 订阅地址已复制',
+        selectedNode: '节点 {id}',
+        currentNode: '当前节点 ({id})',
+        resetDetailsTarget: '目标邮箱',
+        resetDetailsScope: '范围',
+        userStepKicker: '现在这样用',
+        userStepTitle: '选好类型后，直接复制或扫码导入',
+        userStepText: '先看下面设备推荐，选一个客户端；网址很长也不用看全，直接复制就行。',
+        pickTypeTitle: '选一个类型',
+        pickTypeText: '不会选时，就按设备卡片里的“推荐类型”来。',
+        copyOrScanTitle: '复制地址或扫码',
+        copyOrScanText: '只需要点复制，或者让客户端扫旁边这个码。',
+        deviceOpenTitle: '按你的设备打开',
+        deviceOpenText: '每个设备选一个主流客户端，装好后导入上面这条地址。',
+        resetRiskTitle: '只有地址泄露时，才需要重置',
+        resetRiskText: '重置后旧订阅地址会立刻失效，客户端需要重新导入新地址。',
+        heroTitle: '选类型 -> 复制地址 -> 导入客户端',
+        heroText: '不知道选哪个时，先看下面设备推荐。',
+        manualImportHint: '不会导入时，直接复制下面这条地址到客户端里就行。',
+        adminConverterHint: '管理提示：专用订阅当前走外部转换器',
+        goSettings: '去系统设置修改',
+        qrAriaLabel: '订阅二维码 · {label}',
+        quickImportHint: '也可以直接点下面的快捷导入。',
+        adminQuickImportHint: '当前类型的快捷导入按钮也在这里。',
+        simpleReminder: '小白用户就记这一句：选类型 -> 复制地址 -> 导入客户端。',
+        guideTitle: '怎么使用订阅',
+        guideSubtitle: '就按这三步，不用讲别的。',
+        guideStep1Title: '选类型',
+        guideStep1Text: '不知道怎么选，就先看设备推荐。',
+        guideStep2Title: '复制地址',
+        guideStep2Text: '不会一键导入时，就复制上面的地址。',
+        guideStep3Title: '导入客户端',
+        guideStep3Text: '客户端里粘贴地址，导入后就能用。',
+        summaryTitle: '当前订阅概览',
+        summarySubtitle: '重点信息集中显示，方便快速确认。',
+        summaryUser: '当前用户',
+        summaryStatus: '订阅状态',
+        summaryStatusReady: '可正常导入',
+        summaryStatusBlocked: '暂不可用',
+        summaryNodes: '可用节点',
+        summaryMatched: '已匹配 {active}/{raw}',
+        summaryScope: '查看范围',
+        summaryFilters: '过期 {expired} / 禁用 {disabled} / 限制 {policy}',
+    };
+}
+
+function normalizeProfileKey(profileKey) {
+    return String(profileKey || '').trim() === 'mihomo' ? 'clash' : String(profileKey || '').trim();
+}
+
+function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN') {
+    const normalizedProfileKey = normalizeProfileKey(profileKey);
+    const importActions = Array.isArray(bundle?.importActions) ? bundle.importActions : [];
+    const pushLink = (items, href, label) => {
+        if (!String(href || '').trim() || !String(label || '').trim()) return;
+        items.push({ href, label });
+    };
+
+    if (normalizedProfileKey === 'v2rayn') {
+        const shadowrocket = importActions.find((item) => item.key === 'shadowrocket');
+        return shadowrocket?.href ? [{ href: shadowrocket.href, label: locale === 'en-US' ? `Import to ${shadowrocket.label}` : `导入到 ${shadowrocket.label}` }] : [];
+    }
+
+    if (normalizedProfileKey === 'clash') {
+        const clashFamily = importActions.find((item) => item.key === 'clash-family');
+        const items = [];
+        (Array.isArray(clashFamily?.actions) ? clashFamily.actions : []).forEach((action) => {
+            pushLink(items, action.href, locale === 'en-US' ? `Import to ${action.label}` : `导入到 ${action.label}`);
+        });
+        return items;
+    }
+
+    if (normalizedProfileKey === 'surge') {
+        const surge = importActions.find((item) => item.key === 'surge');
+        return surge?.href ? [{ href: surge.href, label: locale === 'en-US' ? `Import to ${surge.label}` : `导入到 ${surge.label}` }] : [];
+    }
+
+    if (normalizedProfileKey === 'singbox') {
+        const singbox = importActions.find((item) => item.key === 'singbox');
+        return singbox?.href ? [{ href: singbox.href, label: locale === 'en-US' ? `Import to ${singbox.label}` : `导入到 ${singbox.label}` }] : [];
+    }
+
+    return [];
+}
+
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
     const confirmAction = useConfirm();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const [searchParams] = useSearchParams();
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
@@ -51,8 +256,13 @@ export default function Subscriptions() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordLoading, setPasswordLoading] = useState(false);
+    const ui = useMemo(
+        () => getSubscriptionCopy(locale, { userCount: users.length, nodeCount: Number(result?.total || 0) }),
+        [locale, users.length, result?.total]
+    );
 
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
+    const deferredEmail = useDeferredValue(normalizedEmail);
     const activeProfile = useMemo(
         () => findSubscriptionProfile(result?.bundle, profileKey),
         [result, profileKey]
@@ -61,11 +271,15 @@ export default function Subscriptions() {
         () => (Array.isArray(result?.bundle?.availableProfiles) ? result.bundle.availableProfiles : []),
         [result]
     );
+    const selectedImportActions = useMemo(
+        () => buildSelectedImportActions(result?.bundle, profileKey, locale),
+        [result, profileKey, locale]
+    );
     const linkedUserHref = normalizedEmail ? `/clients?q=${encodeURIComponent(normalizedEmail)}` : '';
     const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
-        ? `节点 ${selectedServerId}`
-        : '全部节点';
-    const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ' · 管理员' : ''}`;
+        ? ui.selectedNode.replace('{id}', selectedServerId)
+        : ui.allNodes;
+    const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ` · ${ui.adminRole}` : ''}`;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -94,7 +308,9 @@ export default function Subscriptions() {
 
             const warningCount = Array.isArray(payload.warnings) ? payload.warnings.length : 0;
             if (warningCount > 0) {
-                toast.error(`有 ${warningCount} 个节点用户列表拉取失败`);
+                toast.error(locale === 'en-US'
+                    ? `${warningCount} node user lists failed to load`
+                    : `有 ${warningCount} 个节点用户列表拉取失败`);
             }
         } catch (error) {
             if (error.response?.status === 403) {
@@ -108,8 +324,9 @@ export default function Subscriptions() {
         setUsersLoading(false);
     };
 
-    const loadSubscription = async () => {
-        if (!normalizedEmail) {
+    const loadSubscription = async (targetEmail = normalizedEmail) => {
+        const resolvedEmail = String(targetEmail || '').trim();
+        if (!resolvedEmail) {
             setResult(null);
             return;
         }
@@ -121,18 +338,18 @@ export default function Subscriptions() {
                 query.append('serverId', selectedServerId);
             }
 
-            const res = await api.get(`/subscriptions/${encodeURIComponent(normalizedEmail)}${query.toString() ? `?${query.toString()}` : ''}`);
+            const res = await api.get(`/subscriptions/${encodeURIComponent(resolvedEmail)}${query.toString() ? `?${query.toString()}` : ''}`);
             const payload = res.data?.obj || {};
-            const bundle = buildSubscriptionProfileBundle(payload);
+            const bundle = buildSubscriptionProfileBundle(payload, locale);
 
             setResult({
-                email: payload.email || normalizedEmail,
+                email: payload.email || resolvedEmail,
                 total: Number(payload.total || 0),
                 sourceMode: payload.sourceMode || 'unknown',
                 mergedUrl: bundle.mergedUrl,
                 bundle,
                 subscriptionActive: payload.subscriptionActive !== false,
-                inactiveReason: normalizeInactiveReason(payload.inactiveReason),
+                inactiveReason: normalizeInactiveReason(payload.inactiveReason, locale),
                 filteredExpired: Number(payload.filteredExpired || 0),
                 filteredDisabled: Number(payload.filteredDisabled || 0),
                 filteredByPolicy: Number(payload.filteredByPolicy || 0),
@@ -168,8 +385,8 @@ export default function Subscriptions() {
     }, [defaultIdentity, isUserOnly, selectedEmail]);
 
     useEffect(() => {
-        loadSubscription();
-    }, [normalizedEmail, selectedServerId]);
+        loadSubscription(deferredEmail);
+    }, [deferredEmail, selectedServerId, locale]);
 
     const handleCopy = async () => {
         if (!activeProfile?.url) {
@@ -177,13 +394,13 @@ export default function Subscriptions() {
             return;
         }
         await copyToClipboard(activeProfile.url);
-        toast.success(`${activeProfile.label} 订阅地址已复制`);
+        toast.success(ui.copiedAddress.replace('{label}', activeProfile.label));
     };
 
     const handleResetLink = async () => {
         if (!normalizedEmail) return;
         const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
-            ? `当前节点 (${selectedServerId})`
+            ? ui.currentNode.replace('{id}', selectedServerId)
             : t('comp.subscriptions.currentScope');
         const resetMessage = isAdmin
             ? t('comp.subscriptions.resetAdminMsg')
@@ -191,7 +408,7 @@ export default function Subscriptions() {
         const ok = await confirmAction({
             title: t('comp.subscriptions.resetTitle'),
             message: resetMessage,
-            details: `目标邮箱: ${normalizedEmail}\n范围: ${scopeLabel}`,
+            details: `${ui.resetDetailsTarget}: ${normalizedEmail}\n${ui.resetDetailsScope}: ${scopeLabel}`,
             confirmText: t('comp.common.confirmReset'),
             tone: 'danger',
         });
@@ -225,7 +442,7 @@ export default function Subscriptions() {
             return;
         }
 
-        const passwordError = getPasswordPolicyError(nextPassword);
+        const passwordError = getPasswordPolicyError(nextPassword, locale);
         if (passwordError) {
             toast.error(passwordError);
             return;
@@ -257,7 +474,7 @@ export default function Subscriptions() {
                         main={(
                             <>
                                 <div className="form-group subscriptions-toolbar-field">
-                                    <label className="form-label">用户邮箱</label>
+                                    <label className="form-label">{ui.userEmail}</label>
                                     <input
                                         type="email"
                                         className="form-input"
@@ -274,13 +491,13 @@ export default function Subscriptions() {
                                     </datalist>
                                 </div>
                                 <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
-                                    <label className="form-label">订阅范围</label>
+                                    <label className="form-label">{ui.scope}</label>
                                     <select
                                         className="form-select"
                                         value={selectedServerId}
                                         onChange={(e) => setSelectedServerId(e.target.value)}
                                     >
-                                        <option value="all">全部节点</option>
+                                        <option value="all">{ui.allNodes}</option>
                                         {servers.map((server) => (
                                             <option key={server.id} value={server.id}>{server.name}</option>
                                         ))}
@@ -292,21 +509,20 @@ export default function Subscriptions() {
                             <>
                                 {normalizedEmail && (
                                     <Link className="btn btn-secondary" to={linkedUserHref}>
-                                        用户管理
+                                        {ui.manageUsers}
                                     </Link>
                                 )}
                                 <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
-                                    {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新用户列表</>}
+                                    {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
                                 </button>
-                                <button className="btn btn-primary" onClick={loadSubscription} disabled={loading || !normalizedEmail}>
-                                    {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新加载</>}
+                                <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={loading || !normalizedEmail}>
+                                    {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
                                 </button>
                             </>
                         )}
                         meta={(
                             <span className="subscriptions-toolbar-status">
-                                {usersAccessDenied ? '当前角色无全量用户列表权限，请手动输入邮箱'
-                                    : `已加载 ${users.length} 个用户，可直接搜索或选择`}
+                                {usersAccessDenied ? ui.listDenied : ui.listLoaded}
                             </span>
                         )}
                     />
@@ -319,7 +535,7 @@ export default function Subscriptions() {
                                 <div className="empty-state">
                                     <div className="empty-state-icon"><HiOutlineLink /></div>
                                     <div className="empty-state-text">
-                                        {isUserOnly ? (defaultIdentity ? '正在加载订阅地址' : '管理员尚未为当前账号分配订阅链接') : '输入邮箱后会自动加载订阅地址'}
+                                        {isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
                                     </div>
                                 </div>
                             </div>
@@ -328,119 +544,145 @@ export default function Subscriptions() {
                                 <div className="card subscription-primary-card">
                                     <SectionHeader
                                         className="card-header section-header section-header--compact"
-                                        title={isUserOnly ? '你的订阅地址' : '订阅地址与导入'}
-                                        subtitle={isUserOnly ? '就按这三步：选类型 -> 复制地址 -> 导入客户端。' : '给用户时，直接按这三步说明就够了。'}
+                                        title={isUserOnly ? ui.userTitle : ui.adminTitle}
+                                        subtitle={isUserOnly ? ui.userSubtitle : ui.adminSubtitle}
                                         actions={!isUserOnly ? (
                                             <button
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={handleResetLink}
                                                 disabled={resetLoading || !normalizedEmail}
                                             >
-                                                {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置订阅链接</>}
+                                                {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
                                             </button>
                                         ) : null}
                                     />
                                     {isUserOnly ? (
                                         <div className="subscription-user-flow">
-                                            <div className="subscription-user-step">
+                                            <div className="subscription-user-hero">
                                                 <div className="subscription-user-step-head">
-                                                    <div className="subscription-user-step-kicker">第 1 步</div>
-                                                    <div className="subscription-user-step-title">先选一个订阅类型</div>
-                                                    <div className="subscription-user-step-text">不知道怎么选时，就看下面设备推荐里写的“选这个订阅”。</div>
+                                                    <div className="subscription-user-step-kicker">{ui.userStepKicker}</div>
+                                                    <div className="subscription-user-step-title">{ui.userStepTitle}</div>
+                                                    <div className="subscription-user-step-text">{ui.userStepText}</div>
                                                 </div>
-                                                <div className="subscription-profile-switches">
-                                                    {availableProfiles.map((item) => (
-                                                        <button
-                                                            key={item.key}
-                                                            type="button"
-                                                            className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                                                            onClick={() => setProfileKey(item.key)}
-                                                        >
-                                                            {item.label}
-                                                        </button>
-                                                    ))}
+                                                <div className="subscription-user-meta-badges">
+                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                    </span>
+                                                    <span className="badge badge-neutral">{ui.nodeCount}</span>
                                                 </div>
-                                                {activeProfile?.label && (
-                                                    <div className="subscription-current-profile-card">
-                                                        <div className="subscription-current-profile-label">当前类型</div>
-                                                        <div className="subscription-current-profile-value">{activeProfile.label}</div>
-                                                        <div className="subscription-current-profile-hint">{activeProfile?.hint || '请选择订阅类型'}</div>
-                                                    </div>
-                                                )}
                                             </div>
 
-                                            <div className="subscription-user-step subscription-user-step--highlight">
-                                                <div className="subscription-user-step-head">
-                                                    <div className="subscription-user-step-kicker">第 2 步</div>
-                                                    <div className="subscription-user-step-title">复制地址，或直接扫码导入</div>
-                                                    <div className="subscription-user-step-text">网址很长没关系，不用手动看全，直接点复制就行。</div>
-                                                </div>
-                                                <div className="subscription-link-with-qr">
-                                                    <div className="subscription-link-card">
-                                                        <div className="subscription-link-grid">
-                                                            <input
-                                                                className="form-input font-mono text-xs"
-                                                                value={activeProfile?.url || ''}
-                                                                readOnly
-                                                                title={activeProfile?.url || ''}
-                                                                dir="ltr"
-                                                                spellCheck={false}
-                                                            />
+                                            <div className="subscription-user-main-grid">
+                                                <div className="subscription-user-panel subscription-user-panel--type">
+                                                    <div className="subscription-user-panel-title">{ui.pickTypeTitle}</div>
+                                                    <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
+                                                    <div className="subscription-profile-switches">
+                                                        {availableProfiles.map((item) => (
                                                             <button
-                                                                className="btn btn-primary subscription-copy-btn"
-                                                                onClick={handleCopy}
-                                                                disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                                key={item.key}
+                                                                type="button"
+                                                                className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                                onClick={() => setProfileKey(item.key)}
                                                             >
-                                                                <HiOutlineClipboard /> 复制地址
+                                                                {item.label}
                                                             </button>
+                                                        ))}
+                                                    </div>
+                                                    {activeProfile?.label && (
+                                                        <div className="subscription-current-profile-card">
+                                                            <div className="subscription-current-profile-label">{ui.currentType}</div>
+                                                            <div className="subscription-current-profile-value">{activeProfile.label}</div>
+                                                            <div className="subscription-current-profile-hint">{activeProfile?.hint || ui.currentProfileFallback}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="subscription-user-panel subscription-user-panel--link">
+                                                    <div className="subscription-user-panel-title">{ui.copyOrScanTitle}</div>
+                                                    <div className="subscription-user-panel-text">{ui.copyOrScanText}</div>
+                                                    <div className="subscription-link-with-qr subscription-link-with-qr--user">
+                                                        <div className="subscription-link-card">
+                                                            <div className="subscription-link-grid">
+                                                                <input
+                                                                    className="form-input font-mono text-xs subscription-url-input"
+                                                                    value={activeProfile?.url || ''}
+                                                                    readOnly
+                                                                    title={activeProfile?.url || ''}
+                                                                    dir="ltr"
+                                                                    spellCheck={false}
+                                                                />
+                                                                <button
+                                                                    className="btn btn-primary subscription-copy-btn"
+                                                                    onClick={handleCopy}
+                                                                    disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                                >
+                                                                    <HiOutlineClipboard /> {ui.copyAddress}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="subscription-inline-qr">
+                                                            {activeProfile?.url && result.subscriptionActive ? (
+                                                                <>
+                                                                    <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                    <div
+                                                                        className="qr-surface subscription-inline-qr-surface"
+                                                                        role="img"
+                                                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
+                                                                    >
+                                                                        <QRCodeSVG
+                                                                            value={activeProfile.url}
+                                                                            size={120}
+                                                                            level="M"
+                                                                            includeMargin={false}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="subscription-inline-qr-text">{ui.quickImportHint}</div>
+                                                                    {selectedImportActions.length > 0 ? (
+                                                                        <div className="subscription-inline-quick-actions">
+                                                                            <div className="subscription-inline-quick-list">
+                                                                                {selectedImportActions.map((item) => (
+                                                                                    <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-inline-quick-btn">
+                                                                                        {item.label}
+                                                                                    </a>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="subscription-inline-quick-hint">{ui.noQuickImport}</div>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <div className="text-sm text-muted">{ui.noQr}</div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div className="subscription-inline-qr">
-                                                        {activeProfile?.url && result.subscriptionActive ? (
-                                                            <>
-                                                                <div
-                                                                    className="qr-surface subscription-inline-qr-surface"
-                                                                    role="img"
-                                                                    aria-label={`订阅二维码 · ${activeProfile.label}`}
-                                                                >
-                                                                    <QRCodeSVG
-                                                                        value={activeProfile.url}
-                                                                        size={132}
-                                                                        level="M"
-                                                                        includeMargin={false}
-                                                                    />
-                                                                </div>
-                                                                <div className="subscription-inline-qr-text">扫码导入</div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="text-sm text-muted">当前格式暂无二维码</div>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div className="subscription-user-step">
-                                                <div className="subscription-user-step-head">
-                                                    <div className="subscription-user-step-kicker">第 3 步</div>
-                                                    <div className="subscription-user-step-title">按你的设备装客户端</div>
-                                                    <div className="subscription-user-step-text">装好客户端后，按上面选好的类型导入就能用。</div>
+                                            <div className="subscription-user-panel subscription-user-panel--clients">
+                                                <div className="subscription-user-panel-head">
+                                                    <div className="subscription-user-panel-title">{ui.deviceOpenTitle}</div>
+                                                    <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
                                                 </div>
                                                 <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} />
                                             </div>
 
-                                            <div className="subscription-user-meta-bar">
-                                                <div className="subscription-user-meta-badges">
-                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {result.subscriptionActive ? '订阅可用' : '订阅不可用'}
-                                                    </span>
-                                                    <span className="badge badge-neutral">{result.total} 个节点</span>
-                                                </div>
+                                            <div className="subscription-user-reset-callout">
+                                                    <div className="subscription-user-reset-copy">
+                                                        <div className="subscription-user-reset-title">
+                                                            <HiOutlineExclamationTriangle />
+                                                            <span>{ui.resetRiskTitle}</span>
+                                                        </div>
+                                                        <div className="subscription-user-reset-text">
+                                                            {ui.resetRiskText}
+                                                        </div>
+                                                    </div>
                                                 <button
-                                                    className="btn btn-secondary btn-sm"
+                                                    className="btn btn-secondary btn-sm subscription-user-reset-btn"
                                                     onClick={handleResetLink}
                                                     disabled={resetLoading || !normalizedEmail}
                                                 >
-                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 链接泄露再重置</>}
+                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
                                                 </button>
                                             </div>
                                         </div>
@@ -448,17 +690,17 @@ export default function Subscriptions() {
                                         <>
                                             <div className="subscription-hero-summary">
                                                 <div className="subscription-hero-copy">
-                                                    <div className="subscription-hero-title">{'选类型 -> 复制地址 -> 导入客户端'}</div>
+                                                    <div className="subscription-hero-title">{ui.heroTitle}</div>
                                                     <div className="subscription-hero-text">
-                                                        不知道选哪个时，先看下面设备推荐。
+                                                        {ui.heroText}
                                                     </div>
                                                 </div>
                                                 <div className="subscription-hero-badges">
                                                     <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {result.subscriptionActive ? '订阅可用' : '订阅不可用'}
+                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
                                                     </span>
-                                                    <span className="badge badge-neutral">{activeProfile?.label || '请选择类型'}</span>
-                                                    <span className="badge badge-neutral">{result.total} 个节点</span>
+                                                    <span className="badge badge-neutral">{activeProfile?.label || ui.currentProfileFallback}</span>
+                                                    <span className="badge badge-neutral">{ui.nodeCount}</span>
                                                 </div>
                                             </div>
                                             <div className="subscription-profile-switches">
@@ -474,11 +716,11 @@ export default function Subscriptions() {
                                                 ))}
                                             </div>
                                             <div className="subscription-profile-notes">
-                                                <div className="text-xs text-muted">{activeProfile?.hint || '请选择订阅类型'}</div>
-                                                <div className="text-xs text-muted">不会导入时，直接复制下面这条地址到客户端里就行。</div>
+                                                <div className="text-xs text-muted">{activeProfile?.hint || ui.currentProfileFallback}</div>
+                                                <div className="text-xs text-muted">{ui.manualImportHint}</div>
                                                 {isAdmin && result.bundle?.externalConverterConfigured && (
                                                     <div className="text-xs text-muted">
-                                                        管理提示：专用订阅当前走外部转换器
+                                                        {ui.adminConverterHint}
                                                         {' '}
                                                         <a
                                                             href={result.bundle.externalConverterBaseUrl}
@@ -490,15 +732,15 @@ export default function Subscriptions() {
                                                         {' '}
                                                         ·
                                                         {' '}
-                                                        <Link to="/settings">去系统设置修改</Link>
+                                                        <Link to="/settings">{ui.goSettings}</Link>
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="subscription-link-with-qr">
-                                                <div className="subscription-link-card">
-                                                    <div className="subscription-link-grid">
+                                                <div className="subscription-link-with-qr">
+                                                    <div className="subscription-link-card">
+                                                        <div className="subscription-link-grid">
                                                         <input
-                                                            className="form-input font-mono text-xs"
+                                                            className="form-input font-mono text-xs subscription-url-input"
                                                             value={activeProfile?.url || ''}
                                                             readOnly
                                                             title={activeProfile?.url || ''}
@@ -506,34 +748,48 @@ export default function Subscriptions() {
                                                             spellCheck={false}
                                                         />
                                                         <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
-                                                            <HiOutlineClipboard /> 复制地址
+                                                            <HiOutlineClipboard /> {ui.copyAddress}
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="subscription-inline-qr">
-                                                    {activeProfile?.url && result.subscriptionActive ? (
-                                                        <>
-                                                            <div
-                                                                className="qr-surface subscription-inline-qr-surface"
-                                                                role="img"
-                                                                aria-label={`订阅二维码 · ${activeProfile.label}`}
+                                                    <div className="subscription-inline-qr">
+                                                        {activeProfile?.url && result.subscriptionActive ? (
+                                                            <>
+                                                                <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                <div
+                                                                    className="qr-surface subscription-inline-qr-surface"
+                                                                    role="img"
+                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
                                                             >
                                                                 <QRCodeSVG
                                                                     value={activeProfile.url}
-                                                                    size={132}
+                                                                    size={124}
                                                                     level="M"
-                                                                    includeMargin={false}
-                                                                />
-                                                            </div>
-                                                            <div className="subscription-inline-qr-text">扫码导入</div>
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-sm text-muted">当前格式暂无二维码</div>
+                                                                        includeMargin={false}
+                                                                    />
+                                                                </div>
+                                                                <div className="subscription-inline-qr-text">{ui.adminQuickImportHint}</div>
+                                                                {selectedImportActions.length > 0 ? (
+                                                                    <div className="subscription-inline-quick-actions">
+                                                                        <div className="subscription-inline-quick-list">
+                                                                            {selectedImportActions.map((item) => (
+                                                                                <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-inline-quick-btn">
+                                                                                    {item.label}
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="subscription-inline-quick-hint">{ui.noQuickImport}</div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-muted">{ui.noQr}</div>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="subscription-inline-tip">
-                                                小白用户就记这一句：选类型 -&gt; 复制地址 -&gt; 导入客户端。
+                                                {ui.simpleReminder}
                                             </div>
                                             <SubscriptionClientLinks bundle={result.bundle} />
                                         </>
@@ -548,29 +804,29 @@ export default function Subscriptions() {
                             <div className="card subscription-guide-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
-                                    title="怎么使用订阅"
-                                    subtitle="就按这三步，不用讲别的。"
+                                    title={ui.guideTitle}
+                                    subtitle={ui.guideSubtitle}
                                 />
                                 <div className="subscription-guide-grid">
                                     <div className="subscription-guide-step">
                                         <span className="subscription-guide-index">1</span>
                                         <div className="subscription-guide-copy">
-                                            <div className="subscription-guide-title">选类型</div>
-                                            <div className="subscription-guide-text">不知道怎么选，就先看设备推荐。</div>
+                                            <div className="subscription-guide-title">{ui.guideStep1Title}</div>
+                                            <div className="subscription-guide-text">{ui.guideStep1Text}</div>
                                         </div>
                                     </div>
                                     <div className="subscription-guide-step">
                                         <span className="subscription-guide-index">2</span>
                                         <div className="subscription-guide-copy">
-                                            <div className="subscription-guide-title">复制地址</div>
-                                            <div className="subscription-guide-text">不会一键导入时，就复制上面的地址。</div>
+                                            <div className="subscription-guide-title">{ui.guideStep2Title}</div>
+                                            <div className="subscription-guide-text">{ui.guideStep2Text}</div>
                                         </div>
                                     </div>
                                     <div className="subscription-guide-step">
                                         <span className="subscription-guide-index">3</span>
                                         <div className="subscription-guide-copy">
-                                            <div className="subscription-guide-title">导入客户端</div>
-                                            <div className="subscription-guide-text">客户端里粘贴地址，导入后就能用。</div>
+                                            <div className="subscription-guide-title">{ui.guideStep3Title}</div>
+                                            <div className="subscription-guide-text">{ui.guideStep3Text}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -582,12 +838,12 @@ export default function Subscriptions() {
                                 <div className="card subscription-summary-card">
                                     <SectionHeader
                                         className="card-header section-header section-header--compact"
-                                        title="当前订阅概览"
-                                        subtitle="重点信息集中显示，方便快速确认。"
+                                        title={ui.summaryTitle}
+                                        subtitle={ui.summarySubtitle}
                                     />
                                     <div className="subscription-summary-grid">
                                         <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">当前用户</div>
+                                            <div className="subscription-summary-label">{ui.summaryUser}</div>
                                             {isAdmin ? (
                                                 <Link className="subscription-email-link" to={linkedUserHref}>
                                                     {result.email}
@@ -597,20 +853,23 @@ export default function Subscriptions() {
                                             )}
                                         </div>
                                         <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">订阅状态</div>
-                                            <div className="subscription-summary-value">{result.subscriptionActive ? '可正常导入' : '暂不可用'}</div>
+                                            <div className="subscription-summary-label">{ui.summaryStatus}</div>
+                                            <div className="subscription-summary-value">{result.subscriptionActive ? ui.summaryStatusReady : ui.summaryStatusBlocked}</div>
                                             <div className="subscription-summary-meta">{result.inactiveReason || '-'}</div>
                                         </div>
                                         <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">可用节点</div>
+                                            <div className="subscription-summary-label">{ui.summaryNodes}</div>
                                             <div className="subscription-summary-value">{result.total}</div>
-                                            <div className="subscription-summary-meta">已匹配 {result.matchedClientsActive}/{result.matchedClientsRaw}</div>
+                                            <div className="subscription-summary-meta">{ui.summaryMatched.replace('{active}', String(result.matchedClientsActive)).replace('{raw}', String(result.matchedClientsRaw))}</div>
                                         </div>
                                         <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">查看范围</div>
+                                            <div className="subscription-summary-label">{ui.summaryScope}</div>
                                             <div className="subscription-summary-value">{summaryScopeLabel}</div>
                                             <div className="subscription-summary-meta">
-                                                过期 {result.filteredExpired} / 禁用 {result.filteredDisabled} / 限制 {result.filteredByPolicy}
+                                                {ui.summaryFilters
+                                                    .replace('{expired}', String(result.filteredExpired))
+                                                    .replace('{disabled}', String(result.filteredDisabled))
+                                                    .replace('{policy}', String(result.filteredByPolicy))}
                                             </div>
                                         </div>
                                     </div>
@@ -622,7 +881,7 @@ export default function Subscriptions() {
                         <div className="card subscription-password-card">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="当前登录账号密码"
+                                title={ui.passwordTitle}
                                 meta={(
                                     <span className="text-xs text-muted">
                                         {accountMeta}
@@ -631,33 +890,33 @@ export default function Subscriptions() {
                             />
                             <div className="grid grid-auto-220 gap-3 items-end">
                                 <div className="form-group mb-0">
-                                    <label className="form-label">当前密码</label>
+                                    <label className="form-label">{ui.currentPassword}</label>
                                     <input
                                         type="password"
                                         className="form-input"
-                                        aria-label="当前密码"
+                                        aria-label={ui.currentPassword}
                                         value={oldPassword}
                                         onChange={(e) => setOldPassword(e.target.value)}
                                         autoComplete="current-password"
                                     />
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">新密码</label>
+                                    <label className="form-label">{ui.newPassword}</label>
                                     <input
                                         type="password"
                                         className="form-input"
-                                        aria-label="新密码"
+                                        aria-label={ui.newPassword}
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         autoComplete="new-password"
                                     />
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">确认新密码</label>
+                                    <label className="form-label">{ui.confirmPassword}</label>
                                     <input
                                         type="password"
                                         className="form-input"
-                                        aria-label="确认新密码"
+                                        aria-label={ui.confirmPassword}
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         autoComplete="new-password"
@@ -668,10 +927,10 @@ export default function Subscriptions() {
                                     onClick={handleChangePassword}
                                     disabled={passwordLoading || !oldPassword || !newPassword || !confirmPassword}
                                 >
-                                    {passwordLoading ? <span className="spinner" /> : '修改登录密码'}
+                                    {passwordLoading ? <span className="spinner" /> : ui.changePassword}
                                 </button>
                             </div>
-                            <div className="text-xs text-muted mt-3">{PASSWORD_POLICY_HINT}</div>
+                            <div className="text-xs text-muted mt-3">{getPasswordPolicyHint(locale)}</div>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,9 @@
 /**
  * Format bytes to human readable (KB, MB, GB, TB).
  */
+const DATE_TIME_FORMATTER_CACHE = new Map();
+const RELATIVE_TIME_FORMATTER_CACHE = new Map();
+
 export function resolveLocaleTag(locale = 'zh-CN') {
     return locale === 'en-US' ? 'en-US' : 'zh-CN';
 }
@@ -12,27 +15,66 @@ function toValidDate(value) {
     return date;
 }
 
+function buildFormatterCacheKey(locale, options = {}) {
+    const normalizedLocale = resolveLocaleTag(locale);
+    const entries = Object.entries(options)
+        .filter(([, value]) => value !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right));
+    return JSON.stringify([normalizedLocale, entries]);
+}
+
+function getDateTimeFormatter(locale, options = {}) {
+    const cacheKey = buildFormatterCacheKey(locale, options);
+    if (!DATE_TIME_FORMATTER_CACHE.has(cacheKey)) {
+        DATE_TIME_FORMATTER_CACHE.set(cacheKey, new Intl.DateTimeFormat(resolveLocaleTag(locale), options));
+    }
+    return DATE_TIME_FORMATTER_CACHE.get(cacheKey);
+}
+
+function getRelativeTimeFormatter(locale) {
+    const normalizedLocale = resolveLocaleTag(locale);
+    if (!RELATIVE_TIME_FORMATTER_CACHE.has(normalizedLocale)) {
+        RELATIVE_TIME_FORMATTER_CACHE.set(
+            normalizedLocale,
+            new Intl.RelativeTimeFormat(normalizedLocale, { numeric: 'auto' })
+        );
+    }
+    return RELATIVE_TIME_FORMATTER_CACHE.get(normalizedLocale);
+}
+
 export function formatBytes(bytes, decimals = 2) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.min(Math.floor(Math.log(Math.abs(bytes)) / Math.log(k)), sizes.length - 1);
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
 }
 
 /**
  * Format uptime seconds to human readable.
  */
-export function formatUptime(seconds) {
-    if (!seconds) return '0s';
-    const d = Math.floor(seconds / 86400);
-    const h = Math.floor((seconds % 86400) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
+export function formatUptime(seconds, locale = 'zh-CN') {
+    const normalizedLocale = resolveLocaleTag(locale);
+    const totalSeconds = Number(seconds || 0);
+    if (!totalSeconds) return normalizedLocale === 'en-US' ? '0s' : '0秒';
+
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
     const parts = [];
-    if (d > 0) parts.push(`${d}天`);
-    if (h > 0) parts.push(`${h}时`);
-    if (m > 0) parts.push(`${m}分`);
-    if (parts.length === 0) parts.push(`${seconds}秒`);
+
+    if (normalizedLocale === 'en-US') {
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (parts.length === 0) parts.push(`${totalSeconds}s`);
+        return parts.join(' ');
+    }
+
+    if (days > 0) parts.push(`${days}天`);
+    if (hours > 0) parts.push(`${hours}时`);
+    if (minutes > 0) parts.push(`${minutes}分`);
+    if (parts.length === 0) parts.push(`${totalSeconds}秒`);
     return parts.join(' ');
 }
 
@@ -42,77 +84,78 @@ export function formatUptime(seconds) {
 export function formatDate(dateStr, locale = 'zh-CN') {
     const date = toValidDate(dateStr);
     if (!date) return '-';
-    return date.toLocaleDateString(resolveLocaleTag(locale), {
+    return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-    });
+    }).format(date);
 }
 
 export function formatDateTime(value, locale = 'zh-CN', options = {}) {
     const date = toValidDate(value);
     if (!date) return '-';
-    return date.toLocaleString(resolveLocaleTag(locale), {
+    return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-        hour: '2-digit', minute: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
         hour12: false,
         ...options,
-    });
+    }).format(date);
 }
 
 export function formatDateOnly(value, locale = 'zh-CN', options = {}) {
     const date = toValidDate(value);
     if (!date) return '-';
-    return date.toLocaleDateString(resolveLocaleTag(locale), {
+    return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         ...options,
-    });
+    }).format(date);
 }
 
 export function formatTimeOnly(value, locale = 'zh-CN', options = {}) {
     const date = toValidDate(value);
     if (!date) return '-';
-    return date.toLocaleTimeString(resolveLocaleTag(locale), {
+    return getDateTimeFormatter(locale, {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
         ...options,
-    });
+    }).format(date);
 }
 
 export function formatRelativeTime(value, locale = 'zh-CN') {
     const date = toValidDate(value);
     if (!date) return '';
-    const diff = Date.now() - date.getTime();
-    const normalizedLocale = resolveLocaleTag(locale);
-    if (diff < 60_000) return normalizedLocale === 'en-US' ? 'Just now' : '刚刚';
-    if (diff < 3600_000) {
-        const minutes = Math.floor(diff / 60_000);
-        return normalizedLocale === 'en-US' ? `${minutes} min ago` : `${minutes} 分钟前`;
+    const diffMs = date.getTime() - Date.now();
+    const diffSeconds = Math.round(diffMs / 1000);
+    const absoluteSeconds = Math.abs(diffSeconds);
+    const formatter = getRelativeTimeFormatter(locale);
+
+    if (absoluteSeconds < 60) {
+        return formatter.format(Math.round(diffSeconds), 'second');
     }
-    if (diff < 86400_000) {
-        const hours = Math.floor(diff / 3600_000);
-        return normalizedLocale === 'en-US' ? `${hours} hr ago` : `${hours} 小时前`;
+    if (absoluteSeconds < 3600) {
+        return formatter.format(Math.round(diffSeconds / 60), 'minute');
     }
-    return formatDateOnly(date, normalizedLocale);
+    if (absoluteSeconds < 86400) {
+        return formatter.format(Math.round(diffSeconds / 3600), 'hour');
+    }
+    if (absoluteSeconds < 604800) {
+        return formatter.format(Math.round(diffSeconds / 86400), 'day');
+    }
+    return formatDateOnly(date, locale);
 }
 
 /**
  * Format timestamp (ms) to relative time.
  */
-export function formatTimestamp(ts) {
-    if (!ts || ts === 0) return '从未';
-    const date = new Date(ts);
-    const now = new Date();
-    const diff = Math.floor((now - date) / 1000);
-    if (diff < 60) return `${diff}秒前`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-    return `${Math.floor(diff / 86400)}天前`;
+export function formatTimestamp(ts, locale = 'zh-CN') {
+    if (!ts || ts === 0) return resolveLocaleTag(locale) === 'en-US' ? 'Never' : '从未';
+    return formatRelativeTime(ts, locale);
 }
 
 /**
@@ -156,12 +199,18 @@ export async function copyToClipboard(text) {
 /**
  * Extract a user-friendly error message from an Axios error or generic Error.
  */
-export function getErrorMessage(err, fallback = '操作失败') {
+export function getErrorMessage(err, fallback = '操作失败', locale = 'zh-CN') {
     const apiMsg = err?.response?.data?.msg;
     if (apiMsg) return apiMsg;
-    if (err?.code === 'ECONNABORTED') return '请求超时，请检查网络或节点状态';
+    if (err?.code === 'ECONNABORTED') {
+        return resolveLocaleTag(locale) === 'en-US'
+            ? 'Request timed out. Check the network path or node status.'
+            : '请求超时，请检查网络或节点状态';
+    }
     if (err?.message === 'Network Error') {
-        return '连接失败：管理后端不可达，请确认后端服务已启动';
+        return resolveLocaleTag(locale) === 'en-US'
+            ? 'Connection failed: the management backend is unreachable.'
+            : '连接失败：管理后端不可达，请确认后端服务已启动';
     }
     return err?.message || fallback;
 }

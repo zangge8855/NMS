@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -6,7 +6,7 @@ import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
-import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
+import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
@@ -162,6 +162,7 @@ export default function UsersHub() {
     const [onlineMap, setOnlineMap] = useState(new Map());
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const deferredSearchTerm = useDeferredValue(searchTerm);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('all');
@@ -350,7 +351,7 @@ export default function UsersHub() {
     }, [users, clientsMap, onlineMap]);
 
     const filteredUsers = useMemo(() => {
-        const search = String(searchTerm || '').trim().toLowerCase();
+        const search = String(deferredSearchTerm || '').trim().toLowerCase();
         return allOrderedUsers
             .filter((user) => {
                 if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
@@ -358,7 +359,7 @@ export default function UsersHub() {
                 return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label]
                     .some((v) => String(v || '').toLowerCase().includes(search));
             });
-    }, [allOrderedUsers, searchTerm, statusFilter]);
+    }, [allOrderedUsers, deferredSearchTerm, statusFilter]);
     const enrichedUsers = useMemo(() => (
         sequenceDirection === 'desc' ? [...filteredUsers].reverse() : filteredUsers
     ), [filteredUsers, sequenceDirection]);
@@ -606,7 +607,7 @@ export default function UsersHub() {
                 email: boundEmail,
                 deployment: dep,
                 successMessage,
-                bundle: buildSubscriptionProfileBundle(subscriptionPayload || {}),
+                bundle: buildSubscriptionProfileBundle(subscriptionPayload || {}, locale),
             });
 
             try {
@@ -712,7 +713,7 @@ export default function UsersHub() {
 
         const payload = { username, email };
         if (editPassword) {
-            const passwordError = getPasswordPolicyError(editPassword);
+            const passwordError = getPasswordPolicyError(editPassword, locale);
             if (passwordError) {
                 toast.error(passwordError);
                 return;
@@ -803,7 +804,7 @@ export default function UsersHub() {
 
         if (!username) { toast.error(t('comp.users.usernameEmpty')); return; }
         if (!password) { toast.error(t('comp.users.passwordEmpty')); return; }
-        const passwordError = getPasswordPolicyError(password);
+        const passwordError = getPasswordPolicyError(password, locale);
         if (passwordError) { toast.error(passwordError); return; }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             toast.error(t('comp.users.emailInvalid'));
@@ -862,7 +863,7 @@ export default function UsersHub() {
         try {
             const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
             const subPayload = res.data?.obj || {};
-            const bundle = buildSubscriptionProfileBundle(subPayload);
+            const bundle = buildSubscriptionProfileBundle(subPayload, locale);
             setSubscriptionResult({
                 email: subPayload.email || email,
                 bundle,
@@ -1282,7 +1283,7 @@ export default function UsersHub() {
                                             <HiOutlineArrowPath /> 生成
                                         </button>
                                     </div>
-                                    <p className="text-muted text-sm mt-1">{PASSWORD_POLICY_HINT}</p>
+                                    <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 <div className="form-group">
                                     <label className="badge badge-info flex items-center gap-2 cursor-pointer">
@@ -1358,7 +1359,7 @@ export default function UsersHub() {
                                             <HiOutlineArrowPath /> 生成
                                         </button>
                                     </div>
-                                    <p className="text-muted text-sm mt-1">{PASSWORD_POLICY_HINT}</p>
+                                    <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 {editHasClients && (
                                     <div className="form-group">

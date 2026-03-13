@@ -84,8 +84,9 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByText('当前类型')).toBeInTheDocument();
-        expect(screen.getByText('第 2 步')).toBeInTheDocument();
-        expect(screen.getByText('复制地址，或直接扫码导入')).toBeInTheDocument();
+        expect(screen.getByText('现在这样用')).toBeInTheDocument();
+        expect(screen.getByText('选好类型后，直接复制或扫码导入')).toBeInTheDocument();
+        expect(screen.getByText('按你的设备打开')).toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
@@ -150,6 +151,7 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toBeInTheDocument();
         expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(1);
         expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(1);
         expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
@@ -169,12 +171,16 @@ describe('Subscriptions', () => {
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '导入到 Stash' })).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Surge' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '导入到 Surge' })).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '导入到 sing-box' })).toBeInTheDocument();
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
@@ -261,7 +267,7 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        await user.click(screen.getByRole('button', { name: '链接泄露再重置' }));
+        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
 
         await waitFor(() => {
             expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -304,7 +310,7 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        await user.click(screen.getByRole('button', { name: '链接泄露再重置' }));
+        await user.click(screen.getByRole('button', { name: '重置订阅链接' }));
 
         await waitFor(() => {
             expect(confirmMock).toHaveBeenCalledTimes(1);

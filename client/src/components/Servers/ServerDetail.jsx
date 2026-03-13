@@ -384,7 +384,7 @@ export default function ServerDetail() {
                                     <>
                                         <div className="user-profile-meta-item"><HiOutlineCpuChip /> CPU: {status.cpu?.toFixed(1)}%</div>
                                         <div className="user-profile-meta-item"><HiOutlineCircleStack /> 内存: {status.mem ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '-'}</div>
-                                        <div className="user-profile-meta-item"><HiOutlineClock /> 运行: {status.uptime ? formatUptime(status.uptime) : '-'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineClock /> 运行: {status.uptime ? formatUptime(status.uptime, locale) : '-'}</div>
                                     </>
                                 )}
                                 {!status && <div className="user-profile-meta-item text-muted">服务器状态获取中...</div>}
@@ -445,7 +445,7 @@ export default function ServerDetail() {
                                         <h4 className="card-title mb-3">Xray 状态</h4>
                                         <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div><span className="text-muted">Xray 版本:</span> {status.xray?.version || '-'}</div>
-                                            <div><span className="text-muted">运行时间:</span> {formatUptime(status.uptime)}</div>
+                                            <div><span className="text-muted">运行时间:</span> {formatUptime(status.uptime, locale)}</div>
                                             <div><span className="text-muted">CPU:</span> {status.cpu?.toFixed(1)}%</div>
                                             <div><span className="text-muted">内存:</span> {status.mem ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>
                                             <div><span className="text-muted">磁盘:</span> {status.disk ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '-'}</div>

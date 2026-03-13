@@ -5,13 +5,13 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop } from 'react-icons/hi2';
-import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
+import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 
 const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
 const MODE_VERIFY = 'verify';
 const MODE_FORGOT = 'forgot';
-const SELF_SERVICE_PASSWORD_RESET_ENABLED = false;
+const SELF_SERVICE_PASSWORD_RESET_ENABLED = true;
 
 export default function Login() {
     const [mode, setMode] = useState(MODE_LOGIN);
@@ -20,9 +20,34 @@ export default function Login() {
 
     const themeIcons = { dark: HiOutlineMoon, light: HiOutlineSun, auto: HiOutlineComputerDesktop };
     const ThemeIcon = themeIcons[themeMode] || HiOutlineMoon;
-    const passwordPolicyHint = locale === 'en-US'
-        ? 'Use at least 8 characters and include 3 character types.'
-        : PASSWORD_POLICY_HINT;
+    const passwordPolicyHint = getPasswordPolicyHint(locale);
+    const copy = locale === 'en-US'
+        ? {
+            loginVerifyRequired: 'Finish email verification first',
+            loginFailed: 'Sign-in failed',
+            networkFailed: 'Connection failed. Check the network and try again.',
+            registerSuccessPending: 'Registration complete. Wait for administrator approval before signing in.',
+            registerSuccessVerify: 'Registration complete. Check your email for the verification code.',
+            registerFailed: 'Registration failed',
+            verifySuccess: 'Verification complete. Please sign in.',
+            verifyFinished: 'Email verification complete. You can sign in now.',
+            verifyFailed: 'Verification failed',
+            resendDone: 'The verification code has been sent again',
+            sendFailed: 'Send failed',
+        }
+        : {
+            loginVerifyRequired: '请先完成邮箱验证',
+            loginFailed: '登录失败',
+            networkFailed: '连接失败，请检查网络',
+            registerSuccessPending: '注册成功！请等待管理员审核通过后再登录',
+            registerSuccessVerify: '注册成功！请查收邮箱验证码',
+            registerFailed: '注册失败',
+            verifySuccess: '验证成功！请登录',
+            verifyFinished: '邮箱验证完成，现在可以登录了',
+            verifyFailed: '验证失败',
+            resendDone: '验证码已重新发送',
+            sendFailed: '发送失败',
+        };
     const themeToggleTitle = themeMode === 'dark'
         ? t('shell.themeLight')
         : themeMode === 'light'
@@ -130,12 +155,12 @@ export default function Login() {
                 setVerifyEmailAddr(result.email || '');
                 setMode(MODE_VERIFY);
                 setError('');
-                setSuccess('请先完成邮箱验证');
+                setSuccess(copy.loginVerifyRequired);
             } else {
-                setError(result.msg || '登录失败');
+                setError(result.msg || copy.loginFailed);
             }
         } catch {
-            setError('连接失败，请检查网络');
+            setError(copy.networkFailed);
         }
         setLoading(false);
     };
@@ -147,11 +172,11 @@ export default function Login() {
         setSuccess('');
 
         if (regPassword !== regConfirm) {
-            setError('两次输入的密码不一致');
+            setError(t('pages.login.passwordMismatch'));
             return;
         }
 
-        const registerPasswordError = getPasswordPolicyError(regPassword);
+        const registerPasswordError = getPasswordPolicyError(regPassword, locale);
         if (registerPasswordError) {
             setError(registerPasswordError);
             return;
@@ -171,18 +196,18 @@ export default function Login() {
                     setVerifyEmailAddr('');
                     setVerifyCode('');
                     setMode(MODE_LOGIN);
-                    setSuccess(result.msg || '注册成功！请等待管理员审核通过后再登录');
+                    setSuccess(result.msg || copy.registerSuccessPending);
                 } else {
                     setVerifyEmailAddr(result.email || regEmail);
                     setMode(MODE_VERIFY);
-                    setSuccess(result.msg || '注册成功！请查收邮箱验证码');
+                    setSuccess(result.msg || copy.registerSuccessVerify);
                 }
                 setError('');
             } else {
-                setError(result.msg || '注册失败');
+                setError(result.msg || copy.registerFailed);
             }
         } catch {
-            setError('连接失败，请检查网络');
+            setError(copy.networkFailed);
         }
         setLoading(false);
     };
@@ -196,17 +221,17 @@ export default function Login() {
         try {
             const result = await verifyEmailFn(verifyEmail, verifyCode);
             if (result.success) {
-                setSuccess('验证成功！请登录');
+                setSuccess(copy.verifySuccess);
                 setTimeout(() => {
                     setMode(MODE_LOGIN);
-                    setSuccess('邮箱验证完成，现在可以登录了');
+                    setSuccess(copy.verifyFinished);
                     setError('');
                 }, 1500);
             } else {
-                setError(result.msg || '验证失败');
+                setError(result.msg || copy.verifyFailed);
             }
         } catch {
-            setError('连接失败');
+            setError(copy.networkFailed);
         }
         setLoading(false);
     };
@@ -219,13 +244,13 @@ export default function Login() {
         try {
             const result = await resendCode(verifyEmail);
             if (result.success) {
-                setSuccess('验证码已重新发送');
+                setSuccess(copy.resendDone);
                 startCooldown(setResendCooldown, 60);
             } else {
-                setError(result.msg || '发送失败');
+                setError(result.msg || copy.sendFailed);
             }
         } catch {
-            setError('发送失败');
+            setError(copy.sendFailed);
         }
     };
 
@@ -236,20 +261,20 @@ export default function Login() {
         setError('');
         setSuccess('');
         if (!resetEmail.trim()) {
-            setError('请输入注册邮箱');
+            setError(t('pages.login.forgotEmailRequired'));
             return;
         }
         setLoading(true);
         try {
             const result = await requestPasswordReset(resetEmail.trim());
             if (result.success) {
-                setSuccess(result.msg || '验证码已发送，请查收邮箱');
+                setSuccess(result.msg || t('pages.login.forgotCodeSent'));
                 startCooldown(setResetCooldown, 60);
             } else {
-                setError(result.msg || '发送失败');
+                setError(result.msg || t('comp.common.operationFailed'));
             }
         } catch {
-            setError('连接失败');
+            setError(t('pages.login.forgotConnectionFailed'));
         }
         setLoading(false);
     };
@@ -261,21 +286,21 @@ export default function Login() {
         setSuccess('');
 
         if (!resetEmail.trim() || !resetCode || !resetPassword || !resetConfirm) {
-            setError('请完整填写邮箱、验证码和新密码');
+            setError(t('pages.login.forgotFieldsRequired'));
             return;
         }
         if (resetCode.length !== 6) {
-            setError('验证码应为 6 位数字');
+            setError(t('pages.login.forgotCodeInvalid'));
             return;
         }
 
-        const resetPasswordError = getPasswordPolicyError(resetPassword);
+        const resetPasswordError = getPasswordPolicyError(resetPassword, locale);
         if (resetPasswordError) {
             setError(resetPasswordError);
             return;
         }
         if (resetPassword !== resetConfirm) {
-            setError('两次输入的密码不一致');
+            setError(t('pages.login.passwordMismatch'));
             return;
         }
 
@@ -283,16 +308,16 @@ export default function Login() {
         try {
             const result = await resetPasswordFn(resetEmail.trim(), resetCode.trim(), resetPassword);
             if (result.success) {
-                setSuccess(result.msg || '密码重置成功，请登录');
+                setSuccess(result.msg || t('pages.login.forgotPasswordResetDone'));
                 setTimeout(() => {
                     switchMode(MODE_LOGIN);
-                    setSuccess('密码已重置，请使用新密码登录');
+                    setSuccess(t('pages.login.forgotPasswordResetDone'));
                 }, 1200);
             } else {
-                setError(result.msg || '重置失败');
+                setError(result.msg || t('comp.common.operationFailed'));
             }
         } catch {
-            setError('连接失败');
+            setError(t('pages.login.forgotConnectionFailed'));
         }
         setLoading(false);
     };
@@ -429,6 +454,17 @@ export default function Login() {
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
+                                {SELF_SERVICE_PASSWORD_RESET_ENABLED && (
+                                    <div className="verify-actions">
+                                        <button
+                                            type="button"
+                                            className="btn-link"
+                                            onClick={() => switchMode(MODE_FORGOT)}
+                                        >
+                                            {t('pages.login.toForgot')}
+                                        </button>
+                                    </div>
+                                )}
                             </form>
                         )}
 
@@ -509,7 +545,7 @@ export default function Login() {
                                         />
                                     </div>
                                     {regConfirm && regPassword !== regConfirm && (
-                                        <p className="field-error">密码不一致</p>
+                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
                                     )}
                                 </div>
                                 <button
@@ -580,6 +616,9 @@ export default function Login() {
                                     <h2>{t('pages.login.forgotTitle')}</h2>
                                     <p className="text-muted text-sm">
                                         {t('pages.login.forgotSubtitle')}
+                                    </p>
+                                    <p className="text-muted text-xs">
+                                        {t('pages.login.forgotPrivacyHint')}
                                     </p>
                                 </div>
 
@@ -652,7 +691,7 @@ export default function Login() {
                                         />
                                     </div>
                                     {resetConfirm && resetPassword !== resetConfirm && (
-                                        <p className="field-error">密码不一致</p>
+                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
                                     )}
                                 </div>
 

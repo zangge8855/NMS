@@ -82,8 +82,13 @@
   border-radius: var(--radius-md);
 }
 
-:is(select, .form-select) {
-  color-scheme: dark;
+:is(select, .form-select, .inbounds-filter-select) {
+  /*
+   * Keep the closed control themed with CSS, but stop forcing a dark/light
+   * native popup. Chromium can render native select popups as black blocks
+   * when page-level color-scheme and custom option surfaces stack together.
+   */
+  color-scheme: light !important;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -99,16 +104,17 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   padding-right: 38px;
+  background-clip: padding-box;
 }
 
-:is(select, .form-select) option,
-:is(select, .form-select) optgroup {
-  background: var(--surface-elevated);
-  color: var(--text-primary);
+:is(select, .form-select, .inbounds-filter-select) option,
+:is(select, .form-select, .inbounds-filter-select) optgroup {
+  background: Canvas !important;
+  color: CanvasText !important;
 }
 
-[data-theme="light"] :is(select, .form-select) {
-  color-scheme: light;
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select) {
+  color-scheme: light !important;
   background-image:
     linear-gradient(45deg, transparent 50%, #64748b 50%),
     linear-gradient(135deg, #64748b 50%, transparent 50%);
@@ -116,10 +122,10 @@
   color: #0f172a;
 }
 
-[data-theme="light"] :is(select, .form-select) option,
-[data-theme="light"] :is(select, .form-select) optgroup {
-  background: #ffffff;
-  color: #0f172a;
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select) option,
+[data-theme="light"] :is(select, .form-select, .inbounds-filter-select) optgroup {
+  background: Canvas !important;
+  color: CanvasText !important;
 }
 
 .sidebar-nav-flyout {

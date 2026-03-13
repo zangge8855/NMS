@@ -52,6 +52,7 @@ const LOGIN_RATE_MAX = config.nodeEnv === 'development' ? 300 : 20;
 const LOGIN_RATE_MAP_LIMIT = 10000;
 const loginAttempts = new Map(); // `${ip}|${username}` -> { count, firstAttempt, blockedUntil }
 const PASSWORD_SELF_SERVICE_DISABLED_MESSAGE = '密码由管理员统一维护，请联系管理员重置';
+const PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE = '如果邮箱已注册，验证码已发送，请查收邮箱';
 
 startCleanupInterval(() => {
     const now = Date.now();
@@ -446,7 +447,6 @@ router.post('/resend-code', async (req, res) => {
  * POST /api/auth/forgot-password — 发送密码重置验证码
  */
 router.post('/forgot-password', async (req, res) => {
-    return rejectPasswordSelfService(res);
     const clientIp = resolveClientIp(req);
     if (!checkResetRate(clientIp)) {
         appendSecurityAudit('password_reset_request_rate_limited', req, { ip: clientIp });
@@ -455,20 +455,17 @@ router.post('/forgot-password', async (req, res) => {
 
     try {
         const result = await requestPasswordReset(req.body);
-        if (result.hidden) {
-            // 不暴露邮箱是否存在，防止枚举。
-            return res.json({ success: true, msg: '如果邮箱已注册，验证码已发送，请查收邮箱' });
+        if (!result.hidden) {
+            appendSecurityAudit('password_reset_email_sent', req, {
+                email: result.email,
+                username: result.user.username,
+            });
+            appendSecurityAudit('password_reset_code_sent', req, {
+                email: result.email,
+                username: result.user.username,
+            });
         }
-
-        appendSecurityAudit('password_reset_email_sent', req, {
-            email: result.email,
-            username: result.user.username,
-        });
-        appendSecurityAudit('password_reset_code_sent', req, {
-            email: result.email,
-            username: result.user.username,
-        });
-        return res.json({ success: true, msg: '重置验证码已发送，请查收邮箱' });
+        return res.json({ success: true, msg: PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE });
     } catch (err) {
         const error = toHttpError(err, 500, '发送失败');
         if (error.code === 'PASSWORD_RESET_EMAIL_SEND_FAILED') {
@@ -477,6 +474,8 @@ router.post('/forgot-password', async (req, res) => {
                 username: error.details?.username || '',
                 error: error.details?.error || error.message,
             });
+            // Keep the public response identical so the endpoint cannot be used to enumerate emails.
+            return res.json({ success: true, msg: PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE });
         }
         return res.status(error.status).json({ success: false, msg: error.message || '发送失败' });
     }
@@ -486,7 +485,6 @@ router.post('/forgot-password', async (req, res) => {
  * POST /api/auth/reset-password — 使用邮箱验证码重置密码
  */
 router.post('/reset-password', (req, res) => {
-    return rejectPasswordSelfService(res);
     try {
         const result = resetPasswordWithCode(req.body);
         appendSecurityAudit('password_reset_completed', req, {

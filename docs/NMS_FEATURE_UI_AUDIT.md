@@ -56,6 +56,9 @@ Audit date: 2026-03-11
 - The `Logs` page now uses the shared `EmptyState` for loading/empty states and follows the shared form and radius rules
 - The `Tasks` page has dropped isolated `tasks-table-shell` / `audit-tasks-table-shell` wrappers and converged on the shared `table-container`
 - The `Tools` page now exposes explicit next-step actions in empty states instead of passive copy only
+- The login page now exposes self-service password reset by email code, while the public response stays generic so the flow does not reveal whether an email is registered
+- The subscription page now centers the user flow around “choose profile -> copy address -> import client”, keeps the QR code beside the address, and switches quick-import actions with the selected profile
+- Native select styling has been tightened again so the global dropdown menu no longer falls back to black native popups on Chromium
 
 ### Areas in good shape
 
@@ -64,6 +67,7 @@ Audit date: 2026-03-11
 - Floating panel behavior in both light and dark themes is much more consistent
 - Hover, active, and focus feedback is now acceptable for core actions
 - Secondary operator pages such as Logs, Tasks, and Tools are now aligning with the same card, table, and empty-state system
+- The user-facing subscription page is now more focused and easier to explain to non-technical users
 
 ### Recommended follow-up areas
 
@@ -72,6 +76,7 @@ Audit date: 2026-03-11
 - Some operational copy is still too engineering-oriented and can be improved for operators
 - Keyboard navigation depth and accessibility hints still have room to improve
 - A few older pages still rely on style inheritance instead of explicitly attaching the shared form/control classes, so future refactors should keep tightening that contract
+- Full i18n coverage still needs continued cleanup in a few older admin pages outside the main login / subscription / user-detail path
 
 ### Risk points
 
