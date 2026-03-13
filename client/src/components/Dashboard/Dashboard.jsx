@@ -276,7 +276,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 const email = normalizeEmail(client?.email);
                 if (!email) return;
                 if (!clientsMap.has(email)) {
-                    clientsMap.set(email, { count: 0, onlineSessions: 0, servers: new Set() });
+                    clientsMap.set(email, { count: 0, onlineSessions: 0, servers: new Set(), nodeLabels: new Set() });
                 }
                 const entry = clientsMap.get(email);
                 const onlineSessions = buildClientOnlineKeys(client, protocol).reduce((total, key) => (
@@ -286,6 +286,12 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 entry.onlineSessions += onlineSessions;
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
+                }
+                if (onlineSessions > 0) {
+                    const nodeLabel = String(inbound?.remark || '').trim() || serverName;
+                    if (nodeLabel) {
+                        entry.nodeLabels.add(nodeLabel);
+                    }
                 }
             });
         });
@@ -303,6 +309,9 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
             const matchedServers = clientData.servers?.size
                 ? Array.from(clientData.servers)
                 : Array.from(onlineServerMap.get(subscriptionEmail) || onlineServerMap.get(loginEmail) || []);
+            const matchedNodes = clientData.nodeLabels?.size
+                ? Array.from(clientData.nodeLabels)
+                : matchedServers;
             const displayName = username || resolvedEmail || user?.id || '-';
             return {
                 userId: user?.id,
@@ -314,6 +323,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 clientCount: clientData.count || 0,
                 enabled: user?.enabled !== false,
                 servers: matchedServers,
+                nodeLabels: matchedNodes,
             };
         })
         .sort((left, right) => {
@@ -877,14 +887,14 @@ export default function Dashboard() {
                                                     </td>
                                                     <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
                                                         <div className="flex flex-wrap gap-1.5">
-                                                            {row.servers.length === 0 ? (
+                                                            {row.nodeLabels.length === 0 ? (
                                                                 <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
                                                             ) : (
-                                                                row.servers.slice(0, 4).map((serverName) => (
-                                                                    <span key={`${row.userId || row.label}-${serverName}`} className="badge badge-info">{serverName}</span>
+                                                                row.nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                                                    <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
                                                                 ))
                                                             )}
-                                                            {row.servers.length > 4 && <span className="badge badge-neutral">+{row.servers.length - 4}</span>}
+                                                            {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
                                                         </div>
                                                     </td>
                                                     <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>

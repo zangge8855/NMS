@@ -73,6 +73,16 @@ function buildAppEntryPath(basePath = '/', route = '/') {
     return normalizedRoute === '/' ? normalizedBasePath : `${normalizedBasePath}${normalizedRoute}`;
 }
 
+function generateRandomSiteAccessPath() {
+    const wordPool = ['nova', 'relay', 'vault', 'matrix', 'core', 'flux', 'vector', 'edge', 'signal', 'lattice'];
+    const randomWord = () => wordPool[Math.floor(Math.random() * wordPool.length)];
+    const bytes = typeof window !== 'undefined' && window.crypto?.getRandomValues
+        ? window.crypto.getRandomValues(new Uint8Array(5))
+        : Array.from({ length: 5 }, () => Math.floor(Math.random() * 256));
+    const randomToken = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `/${randomWord()}-${randomWord()}/${randomToken}`;
+}
+
 function buildDraft(source = null) {
     const settings = source || {};
     const defaultAuditIpGeoProvider = 'ip_api';
@@ -80,6 +90,7 @@ function buildDraft(source = null) {
     return {
         site: {
             accessPath: normalizeSiteAccessPathInput(settings.site?.accessPath, '/'),
+            camouflageEnabled: settings.site?.camouflageEnabled === true,
         },
         registration: {
             inviteOnlyEnabled: settings.registration?.inviteOnlyEnabled === true,
@@ -305,6 +316,11 @@ export default function SystemSettings() {
         if (typeof window === 'undefined') return siteAccessPath;
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
     }, [siteAccessPath]);
+    const siteCamouflageEnabled = draft.site.camouflageEnabled === true;
+    const camouflagePreview = useMemo(() => {
+        if (typeof window === 'undefined') return '/';
+        return `${window.location.origin}/`;
+    }, []);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -469,6 +485,10 @@ export default function SystemSettings() {
                 [key]: value,
             },
         }));
+    };
+
+    const applyRandomSiteAccessPath = () => {
+        patchField('site', 'accessPath', generateRandomSiteAccessPath());
     };
 
     const saveSettings = async () => {
@@ -836,7 +856,9 @@ export default function SystemSettings() {
         {
             title: '站点入口',
             value: siteAccessPath,
-            detail: siteAccessPath === '/' ? '当前仍使用根路径提供登录页和管理页。' : '登录页、管理后台和用户页都改为这个入口路径。',
+            detail: siteAccessPath === '/'
+                ? '当前仍使用根路径提供登录页和管理页。'
+                : (siteCamouflageEnabled ? '真实入口已隐藏到自定义路径，其他路径将展示公开首页。' : '登录页、管理后台和用户页都改为这个入口路径。'),
             tone: siteAccessPath === '/' ? 'neutral' : 'warning',
         },
         {
@@ -886,6 +908,7 @@ export default function SystemSettings() {
         emailStatus,
         monitorStatus,
         registrationEnabled,
+        siteCamouflageEnabled,
         siteAccessPath,
     ]);
 
@@ -896,23 +919,53 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="站点入口"
-                    subtitle="控制登录页、管理后台和用户自助页从哪个路径进入。默认是根路径 `/`。"
+                    subtitle="控制登录页、管理后台和用户自助页从哪个路径进入，并决定未命中真实入口时是否展示公开首页。"
                 />
                 <div className="settings-inline-grid">
                     <div className="form-group mb-0">
                         <label className="form-label">首页访问路径</label>
-                        <input
-                            className="form-input font-mono"
-                            placeholder="/"
-                            value={draft.site.accessPath}
-                            onChange={(e) => patchField('site', 'accessPath', e.target.value)}
-                        />
+                        <div className="flex items-center gap-2">
+                            <input
+                                className="form-input font-mono"
+                                placeholder="/"
+                                value={draft.site.accessPath}
+                                onChange={(e) => patchField('site', 'accessPath', e.target.value)}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={applyRandomSiteAccessPath}
+                            >
+                                随机路径
+                            </button>
+                        </div>
                         <div className="text-xs text-muted mt-1">例如 `/portal` 或 `/office/nms`。保存后旧路径将不再提供页面。</div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-detail-card mb-0">
                         <div className="text-sm text-muted">当前入口预览</div>
                         <div className="text-base font-semibold font-mono mt-2 break-all">{siteEntryPreview}</div>
                         <div className="text-xs text-muted mt-2">不要使用 `/api`、`/assets`、`/ws` 这类系统保留路径。</div>
+                    </div>
+                </div>
+                <div className="settings-field-grid settings-field-grid--compact mt-4">
+                    <div className="form-group mb-0">
+                        <SettingsToggleCard
+                            checked={draft.site.camouflageEnabled}
+                            onChange={(e) => patchField('site', 'camouflageEnabled', e.target.checked)}
+                            label="站点伪装首页"
+                            description="未命中真实入口路径时，返回一个公开品牌首页。建议搭配非根路径入口一起使用。"
+                            activeLabel="已开启"
+                            inactiveLabel="已关闭"
+                        />
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-detail-card mb-0">
+                        <div className="text-sm text-muted">公开首页预览</div>
+                        <div className="text-base font-semibold font-mono mt-2 break-all">{camouflagePreview}</div>
+                        <div className="text-xs text-muted mt-2">
+                            {siteCamouflageEnabled
+                                ? (siteAccessPath === '/' ? '当前入口仍是根路径，伪装首页暂不会拦截真实后台入口。' : '访问根路径或错误路径时，将展示高科技设备公司的公开首页。')
+                                : '关闭时，错误路径将按默认 404 / 前端路由处理。'}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1220,8 +1273,8 @@ export default function SystemSettings() {
                         <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                     </div>
                 )}
-                <div className="settings-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
-                    <table className="table">
+                <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                    <table className="table settings-invite-table">
                         <thead>
                             <tr>
                                 <th>预览</th>
@@ -1241,8 +1294,15 @@ export default function SystemSettings() {
                             ) : (
                                 inviteCodes.map((invite) => (
                                     <tr key={invite.id}>
-                                        <td data-label="预览" className="cell-mono">{invite.preview}</td>
-                                        <td data-label="状态" className="table-cell-stack">
+                                        <td data-label="预览" className="cell-mono settings-invite-preview-cell">
+                                            <div className="settings-invite-preview">
+                                                <span className="settings-invite-preview-code">{invite.preview}</span>
+                                                <span className="settings-invite-preview-note">
+                                                    {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td data-label="状态" className="table-cell-stack settings-invite-cell">
                                             <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
                                                 {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
                                             </span>
@@ -1254,7 +1314,7 @@ export default function SystemSettings() {
                                                         : '已停止使用'}
                                             </span>
                                         </td>
-                                        <td data-label="次数" className="table-cell-stack">
+                                        <td data-label="次数" className="table-cell-stack settings-invite-cell">
                                             <span className="settings-invite-usage-main">
                                                 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
                                             </span>
@@ -1262,7 +1322,7 @@ export default function SystemSettings() {
                                                 已用 {Number(invite.usedCount || 0)} 次
                                             </span>
                                         </td>
-                                        <td data-label="开通时长" className="table-cell-stack">
+                                        <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
                                             <span className="settings-invite-usage-main">
                                                 {formatInviteDuration(invite.subscriptionDays)}
                                             </span>
@@ -1270,8 +1330,10 @@ export default function SystemSettings() {
                                                 {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
                                             </span>
                                         </td>
-                                        <td data-label="创建时间">{formatDateTime(invite.createdAt, locale)}</td>
-                                        <td data-label="使用情况" className="table-cell-stack">
+                                        <td data-label="创建时间" className="settings-invite-created-cell">
+                                            <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
+                                        </td>
+                                        <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
                                             <span className="settings-invite-history-main">
                                                 {invite.revokedAt
                                                     ? '手动撤销'
@@ -1287,11 +1349,11 @@ export default function SystemSettings() {
                                                         : '等待首次使用'}
                                             </span>
                                         </td>
-                                        <td data-label="操作" className="table-cell-actions">
+                                        <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
                                             {resolveInviteState(invite) === 'active' ? (
                                                 <button
                                                     type="button"
-                                                    className="btn btn-danger btn-sm"
+                                                    className="btn btn-danger btn-sm settings-invite-revoke-btn"
                                                     onClick={() => revokeInviteCode(invite)}
                                                     disabled={inviteCodeActionLoading}
                                                 >
@@ -1825,22 +1887,19 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-nav-side">
                                 <div className="settings-nav-status-panel" aria-live="polite">
-                                    <div className="settings-nav-status-card">
-                                        <div className="settings-nav-status-label">当前状态</div>
-                                        <div className="settings-nav-status-value">
-                                            {settings ? '已加载当前配置' : '等待加载配置'}
-                                        </div>
-                                        <div className="settings-nav-status-meta">
-                                            {saving ? '正在保存设置' : '可以直接修改并保存'}
-                                        </div>
+                                    <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
+                                        {saving ? <span className="spinner spinner-16" /> : null}
+                                        <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
                                     </div>
-                                    <div className="settings-nav-actions settings-panel-actions">
-                                        <button className="btn btn-secondary" onClick={refreshAllSections} disabled={loading}>
-                                            重新加载
-                                        </button>
-                                        <button className="btn btn-primary" onClick={saveSettings} disabled={loading || saving}>
-                                            {saving ? <span className="spinner" /> : '保存配置'}
-                                        </button>
+                                    <div className="settings-nav-actions-group">
+                                        <div className="settings-nav-actions settings-panel-actions">
+                                            <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
+                                                重新加载
+                                            </button>
+                                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                                {saving ? <span className="spinner" /> : '保存配置'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

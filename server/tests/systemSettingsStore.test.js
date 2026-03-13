@@ -64,15 +64,19 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
 
     it('defaults site access path to root and normalizes custom values', () => {
         assert.equal(systemSettingsStore.getSite().accessPath, '/');
+        assert.equal(systemSettingsStore.getSite().camouflageEnabled, false);
 
         const updated = systemSettingsStore.update({
             site: {
                 accessPath: ' portal/team/ ',
+                camouflageEnabled: true,
             },
         });
 
         assert.equal(updated.site.accessPath, '/portal/team');
+        assert.equal(updated.site.camouflageEnabled, true);
         assert.equal(systemSettingsStore.getSite().accessPath, '/portal/team');
+        assert.equal(systemSettingsStore.getSite().camouflageEnabled, true);
     });
 
     it('rejects reserved site access paths', () => {

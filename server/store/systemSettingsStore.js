@@ -9,6 +9,7 @@ const SETTINGS_FILE = path.join(config.dataDir, 'system_settings.json');
 const ALLOWED_KEYS = {
     site: new Set([
         'accessPath',
+        'camouflageEnabled',
     ]),
     registration: new Set([
         'inviteOnlyEnabled',
@@ -238,6 +239,7 @@ class SystemSettingsStore {
         return {
             site: {
                 accessPath: '/',
+                camouflageEnabled: false,
             },
             registration: {
                 inviteOnlyEnabled: false,
@@ -302,6 +304,7 @@ class SystemSettingsStore {
         const accessPath = normalizeSiteAccessPath(input.accessPath, fallback.accessPath);
         return {
             accessPath: isReservedSiteAccessPath(accessPath) ? fallback.accessPath : accessPath,
+            camouflageEnabled: normalizeBoolean(input.camouflageEnabled, fallback.camouflageEnabled),
         };
     }
 

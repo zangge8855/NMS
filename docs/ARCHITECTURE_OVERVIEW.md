@@ -12,7 +12,7 @@ NMS 由三层组成：
 
 ### 请求流
 
-1. 浏览器访问前端页面或已构建的静态资源；生产环境下前端入口路径可由系统设置里的 `site.accessPath` 控制
+1. 浏览器访问前端页面或已构建的静态资源；生产环境下前端真实入口路径由系统设置里的 `site.accessPath` 控制，未命中时可按 `site.camouflageEnabled` 返回公开伪装首页
 2. 前端通过 `/api/*` 调用后端接口
 3. 后端经过认证、中间件、路由、服务层与存储层处理请求
 4. 需要实时刷新的页面通过 WebSocket ticket 建立安全连接
@@ -65,7 +65,7 @@ NMS 由三层组成：
 
 - 管理接口统一经过 `authMiddleware` 与 `adminOnly`
 - 订阅公开访问通过 token 校验，不复用管理员会话
-- 首页访问路径只影响前端页面入口，不改变 `/api/subscriptions/public/*` 的公开订阅地址
+- 首页访问路径和伪装首页只影响前端页面入口，不改变 `/api/subscriptions/public/*` 的公开订阅地址
 - 订阅内容构建时会先按持久化的服务器顺序，再按每台服务器的入站顺序聚合链接；排序变化不会改写已签发的订阅 URL
 - 生产环境会强制检查弱口令、弱用户名与弱密钥
 - 面板凭据加密使用 `CREDENTIALS_SECRET`
@@ -95,7 +95,7 @@ NMS is built from three layers:
 
 ### Request flow
 
-1. The browser loads the SPA or the built static assets; in production the UI base path can be changed through the `site.accessPath` system setting
+1. The browser loads the SPA or the built static assets; in production the real UI entry is controlled by `site.accessPath`, while non-matching document requests can render a public camouflage landing page when `site.camouflageEnabled` is enabled
 2. The frontend calls backend endpoints under `/api/*`
 3. The backend processes requests through auth, middleware, routes, services, and stores
 4. Real-time pages obtain a secure WebSocket ticket before connecting
@@ -148,7 +148,7 @@ Related environment variables:
 
 - Admin routes are protected by `authMiddleware` and `adminOnly`
 - Public subscription access uses token validation, not admin sessions
-- The configurable homepage access path only changes where the UI is served; it does not rewrite `/api/subscriptions/public/*`
+- The configurable homepage access path and camouflage landing page only change how the UI entry is served; they do not rewrite `/api/subscriptions/public/*`
 - Subscription payloads are merged by persisted server order first and inbound order second; changing sort order does not rewrite issued subscription URLs
 - Production mode enforces checks against weak usernames, passwords, and secrets
 - Panel credentials are encrypted with `CREDENTIALS_SECRET`

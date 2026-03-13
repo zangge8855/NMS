@@ -514,23 +514,6 @@ export default function Login() {
                                     </div>
                                     <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
-                                {inviteOnlyEnabled && (
-                                    <div className="form-group">
-                                        <label className="form-label">{t('pages.login.inviteCode')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineShieldCheck className="input-icon" />
-                                            <input
-                                                type="text"
-                                                className="form-input input-with-icon"
-                                                placeholder={t('pages.login.inviteCodePlaceholder')}
-                                                value={inviteCode}
-                                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                                                autoComplete="off"
-                                            />
-                                        </div>
-                                        <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
-                                    </div>
-                                )}
                                 <div className="form-group">
                                     <label className="form-label">{t('pages.login.confirmPassword')}</label>
                                     <div className="input-icon-wrapper">
@@ -548,6 +531,23 @@ export default function Login() {
                                         <p className="field-error">{t('pages.login.passwordMismatch')}</p>
                                     )}
                                 </div>
+                                {inviteOnlyEnabled && (
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.inviteCode')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineShieldCheck className="input-icon" />
+                                            <input
+                                                type="text"
+                                                className="form-input input-with-icon"
+                                                placeholder={t('pages.login.inviteCodePlaceholder')}
+                                                value={inviteCode}
+                                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                        <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
+                                    </div>
+                                )}
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"

@@ -5,6 +5,7 @@ import {
     createClientBuildFallbackHandler,
     injectClientBasePath,
     normalizeClientBasePath,
+    shouldServeCamouflageRequest,
     shouldServeClientRequest,
 } from '../lib/clientBuild.js';
 
@@ -141,6 +142,39 @@ describe('createClientBuildFallbackHandler', () => {
 
         assert.equal(nextCalled, true);
     });
+
+    it('serves the camouflage site for requests outside the configured access path when enabled', () => {
+        const calls = [];
+        const handler = createClientBuildFallbackHandler({
+            clientIndexFile: '/tmp/client/dist/index.html',
+            hasClientIndex: true,
+            getSiteConfig: () => ({
+                accessPath: '/portal',
+                camouflageEnabled: true,
+            }),
+            readClientIndexFile() {
+                throw new Error('should not read index file');
+            },
+        });
+        const res = {
+            type(value) {
+                calls.push(['type', value]);
+                return this;
+            },
+            send(body) {
+                calls.push(['send', body]);
+                return this;
+            },
+        };
+
+        handler({ path: '/', method: 'GET' }, res, () => {
+            throw new Error('next should not be called');
+        });
+
+        assert.equal(calls[0][1], 'html');
+        assert.match(calls[1][1], /曜衡智能设备/);
+        assert.doesNotMatch(calls[1][1], /window\.__NMS_SITE_BASE_PATH__/);
+    });
 });
 
 describe('client build helpers', () => {
@@ -157,6 +191,13 @@ describe('client build helpers', () => {
         assert.equal(shouldServeClientRequest('/secret/clients', '/secret'), true);
         assert.equal(shouldServeClientRequest('/', '/secret'), false);
         assert.equal(shouldServeClientRequest('/assets/index.js', '/secret'), false);
+    });
+
+    it('only serves the camouflage page for document-like requests', () => {
+        assert.equal(shouldServeCamouflageRequest({ method: 'GET', path: '/' }), true);
+        assert.equal(shouldServeCamouflageRequest({ method: 'GET', path: '/landing' }), true);
+        assert.equal(shouldServeCamouflageRequest({ method: 'GET', path: '/assets/main.js' }), false);
+        assert.equal(shouldServeCamouflageRequest({ method: 'POST', path: '/' }), false);
     });
 
     it('injects the base-path bootstrap script into index html', () => {

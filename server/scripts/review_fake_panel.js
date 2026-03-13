@@ -441,7 +441,7 @@ function createPanelApp(definition) {
         });
     });
 
-    app.post('/panel/api/inbounds/resetTraffic/:id', (req, res) => {
+    const handleResetInboundTraffic = (req, res) => {
         const inboundId = Number(req.params.id);
         const target = state.inbounds.find((item) => Number(item.id) === inboundId);
         if (!target) {
@@ -461,7 +461,10 @@ function createPanelApp(definition) {
         target.clientStats = buildClientStats(clients);
         appendLog(state, 'panel', `${new Date().toISOString()} [INFO] inbound ${inboundId} traffic reset`);
         return makeSuccess(res, target);
-    });
+    };
+
+    app.post('/panel/api/inbounds/resetAllClientTraffics/:id', handleResetInboundTraffic);
+    app.post('/panel/api/inbounds/resetTraffic/:id', handleResetInboundTraffic);
 
     app.post('/panel/api/inbounds/addClient', (req, res) => {
         const inboundId = toNumber(req.body?.id, 0);

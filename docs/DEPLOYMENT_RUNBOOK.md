@@ -14,6 +14,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 - Keep `.env`, `data/*.json`, `logs/`, and build output outside Git; only templates and documentation should be committed
 - Set `SUB_PUBLIC_BASE_URL` to the real external domain before sharing subscription links
 - The UI homepage defaults to `/`; if you later move it to a custom path in `Settings`, keep `/api`, `/ws`, and subscription public routes reachable
+- If you enable the camouflage landing page, keep the real UI access path documented internally; only the public-facing fallback page should remain visible on `/` or other non-matching document paths
 - Enable SMTP only when you need registration, verification, or password reset mail
 
 ### Preflight Checklist
@@ -80,6 +81,7 @@ Recommended proxy behavior:
 - Preserve `Upgrade` and `Connection` headers
 - Keep the public hostname aligned with `SUB_PUBLIC_BASE_URL`
 - If you change the homepage path in `Settings`, update bookmarks and proxy rules, but do not rewrite the subscription public API path
+- If camouflage is enabled, only unmatched document requests should fall back to the public landing page; `/api`, `/ws`, and subscription routes must keep their normal behavior
 
 ### Upgrade Workflow
 
@@ -111,6 +113,7 @@ NMS is easier to operate in production because it already includes:
 - `GET /api/auth/check` responds correctly
 - Admin login succeeds
 - The configured homepage path opens normally
+- If camouflage is enabled, `/` or another non-matching document path shows the public landing page while the real UI path still opens normally
 - The dashboard loads without frontend errors
 - Node health status refreshes correctly
 - Subscription links can be generated
@@ -144,6 +147,7 @@ NMS is easier to operate in production because it already includes:
 - Verify `SUB_PUBLIC_BASE_URL`
 - Check whether the reverse proxy rewrites host or scheme unexpectedly
 - Do not expect the homepage access path to change subscription URLs; that setting only affects where the UI is served
+- The camouflage landing page also does not change subscription URLs; it is only a public-facing HTML fallback
 
 ## 中文
 

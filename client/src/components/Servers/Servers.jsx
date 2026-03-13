@@ -783,9 +783,6 @@ export default function Servers() {
                                     <td className="servers-name-cell">
                                         <div className="servers-name-stack">
                                             <div className="servers-name-head">
-                                                <span className="card-icon server-card-icon">
-                                                    <HiOutlineServerStack />
-                                                </span>
                                                 <button
                                                     type="button"
                                                     className={`table-cell-link-button server-card-name-trigger ${isActive ? 'text-glow' : ''}`}

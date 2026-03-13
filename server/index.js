@@ -96,7 +96,7 @@ app.use('/api', (req, res) => {
 const shouldServeClientBuild = config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';
 if (shouldServeClientBuild) {
     registerClientBuildRoutes(app, {
-        getSiteAccessPath: () => systemSettingsStore.getSite().accessPath,
+        getSiteConfig: () => systemSettingsStore.getSite(),
     });
 }
 

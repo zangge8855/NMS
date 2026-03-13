@@ -1,7 +1,8 @@
 import express from 'express';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { dirname, extname, resolve } from 'path';
+import { createSiteCamouflageHtml } from './siteCamouflage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,14 @@ export function shouldServeClientRequest(pathname = '/', basePath = '/') {
     return normalizedPathname === normalizedBasePath || normalizedPathname.startsWith(`${normalizedBasePath}/`);
 }
 
+export function shouldServeCamouflageRequest(req = {}) {
+    const method = String(req.method || 'GET').toUpperCase();
+    const pathname = String(req.path || '/').trim() || '/';
+    if (!['GET', 'HEAD'].includes(method)) return false;
+    if (extname(pathname)) return false;
+    return true;
+}
+
 export function injectClientBasePath(html, basePath = '/') {
     const normalizedBasePath = normalizeClientBasePath(basePath, '/');
     const snippet = `<script>window.__NMS_SITE_BASE_PATH__=${JSON.stringify(normalizedBasePath)};</script>`;
@@ -53,21 +62,30 @@ export function createClientBuildFallbackHandler({
     hasClientIndex,
     missingBuildMessage = DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
     getSiteAccessPath = () => '/',
+    getSiteConfig = null,
     readClientIndexFile = (file) => fs.readFileSync(file, 'utf8'),
 }) {
     return (req, res, next) => {
+        const siteConfig = typeof getSiteConfig === 'function'
+            ? (getSiteConfig() || {})
+            : { accessPath: typeof getSiteAccessPath === 'function' ? getSiteAccessPath() : getSiteAccessPath };
+        const siteAccessPath = normalizeClientBasePath(siteConfig.accessPath, '/');
+        const camouflageEnabled = siteConfig.camouflageEnabled === true;
+
+        if (!shouldServeClientRequest(req.path, siteAccessPath)) {
+            if (camouflageEnabled && shouldServeCamouflageRequest(req)) {
+                return res.type('html').send(createSiteCamouflageHtml({
+                    requestPath: req.path,
+                }));
+            }
+            return next();
+        }
+
         const exists = typeof hasClientIndex === 'function'
             ? !!hasClientIndex()
             : !!hasClientIndex;
         if (!exists) {
             return res.status(503).type('text/plain').send(missingBuildMessage);
-        }
-        const siteAccessPath = normalizeClientBasePath(
-            typeof getSiteAccessPath === 'function' ? getSiteAccessPath() : getSiteAccessPath,
-            '/'
-        );
-        if (!shouldServeClientRequest(req.path, siteAccessPath)) {
-            return next();
         }
         try {
             const html = readClientIndexFile(clientIndexFile);
@@ -83,6 +101,7 @@ export function registerClientBuildRoutes(app, options = {}) {
         rootDir,
         missingBuildMessage = DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
         getSiteAccessPath = () => '/',
+        getSiteConfig = null,
     } = options;
     const { clientBuild, clientIndexFile } = resolveClientBuildPaths(rootDir);
     const hasClientIndex = fs.existsSync(clientIndexFile);
@@ -97,6 +116,7 @@ export function registerClientBuildRoutes(app, options = {}) {
         hasClientIndex: () => fs.existsSync(clientIndexFile),
         missingBuildMessage,
         getSiteAccessPath,
+        getSiteConfig,
     }));
 
     return { clientBuild, clientIndexFile, hasClientIndex };

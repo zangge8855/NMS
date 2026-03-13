@@ -165,6 +165,29 @@ async function postForm(client, path, data) {
     });
 }
 
+export async function resetInboundTrafficCompat(client, inboundId) {
+    const candidatePaths = [
+        `/panel/api/inbounds/resetAllClientTraffics/${inboundId}`,
+        `/panel/api/inbounds/resetTraffic/${inboundId}`,
+    ];
+    let lastError = null;
+
+    for (const path of candidatePaths) {
+        try {
+            return await client.post(path);
+        } catch (error) {
+            lastError = error;
+            const status = Number(error?.response?.status || 0);
+            if (status === 404 || status === 405) {
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    throw lastError || new Error(`Failed to reset inbound traffic for ${inboundId}`);
+}
+
 function normalizeInboundSnapshot(input = {}, enableOverride = null) {
     const normalizeJson = (value, fallback) => {
         if (value === undefined || value === null || value === '') {
@@ -428,7 +451,7 @@ async function executeInboundAction({ action, target, payload }) {
         }
 
         if (action === 'resetTraffic') {
-            await client.post(`/panel/api/inbounds/resetTraffic/${inboundId}`);
+            await resetInboundTrafficCompat(client, inboundId);
             return {
                 ...baseResult,
                 success: true,
