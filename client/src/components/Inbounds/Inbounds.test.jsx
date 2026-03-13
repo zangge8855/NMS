@@ -184,6 +184,56 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
+    it('prefers the expanded user-list traffic totals over stale inbound aggregate counters', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 1,
+                            remark: 'Reset Inbound',
+                            protocol: 'vless',
+                            listen: '0.0.0.0',
+                            port: 443,
+                            enable: true,
+                            up: 1024,
+                            down: 2048,
+                            settings: JSON.stringify({
+                                clients: [
+                                    { email: 'alice@example.com', id: 'alice-uuid', enable: true },
+                                    { email: 'bob@example.com', id: 'bob-uuid', enable: true },
+                                ],
+                            }),
+                            clientStats: [
+                                { email: 'alice@example.com', id: 'alice-uuid', up: 0, down: 0 },
+                                { email: 'bob@example.com', id: 'bob-uuid', up: 0, down: 0 },
+                            ],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Inbounds />);
+
+        const inboundName = await screen.findByText('Reset Inbound');
+        const summaryRow = inboundName.closest('tr');
+        if (!summaryRow) throw new Error('Missing inbound summary row');
+
+        expect(within(summaryRow).getByText('↑0 B')).toBeInTheDocument();
+        expect(within(summaryRow).getByText('↓0 B')).toBeInTheDocument();
+    });
+
     it('shows visual sequence numbers in global view, hides duplicate node order inputs, and exposes node move buttons only once per server group', async () => {
         renderWithRouter(<Inbounds />);
 

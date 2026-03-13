@@ -9,6 +9,7 @@ import {
     shouldServeCamouflageRequest,
     shouldServeClientRequest,
 } from '../lib/clientBuild.js';
+import { createSiteCamouflageHtml } from '../lib/siteCamouflage.js';
 
 describe('createClientBuildFallbackHandler', () => {
     it('serves index.html with the injected site base path when the client build exists', () => {
@@ -209,5 +210,14 @@ describe('client build helpers', () => {
 
     it('disables static index auto-serving so root requests still honor the access-path gate', () => {
         assert.equal(CLIENT_STATIC_OPTIONS.index, false);
+    });
+
+    it('renders the camouflage site with browser-language switching support', () => {
+        const html = createSiteCamouflageHtml();
+        assert.match(html, /data-lang-toggle="zh"/);
+        assert.match(html, /data-lang-toggle="en"/);
+        assert.match(html, /navigator\.languages/);
+        assert.match(html, /nms-camouflage-lang/);
+        assert.match(html, /html\[data-lang="zh"\] \.lang-en/);
     });
 });

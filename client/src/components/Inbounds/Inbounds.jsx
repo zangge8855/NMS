@@ -68,6 +68,27 @@ function buildInboundClientSelectionKey(serverId, inboundId, clientIdentifier) {
     return `${String(serverId || '').trim()}::${String(inboundId || '').trim()}::${String(clientIdentifier || '').trim()}`;
 }
 
+function resolveInboundTrafficSummary(inbound, clients = []) {
+    const clientList = Array.isArray(clients) ? clients : [];
+    const hasPerClientTraffic = clientList.some((client) => (
+        Object.prototype.hasOwnProperty.call(client || {}, 'up')
+        || Object.prototype.hasOwnProperty.call(client || {}, 'down')
+    ));
+
+    if (hasPerClientTraffic) {
+        return clientList.reduce((acc, client) => {
+            acc.up += safeNumber(client?.up);
+            acc.down += safeNumber(client?.down);
+            return acc;
+        }, { up: 0, down: 0 });
+    }
+
+    return {
+        up: safeNumber(inbound?.up),
+        down: safeNumber(inbound?.down),
+    };
+}
+
 function maskSensitiveValue(value) {
     const text = String(value || '').trim();
     if (!text) return '-';
@@ -230,6 +251,7 @@ export default function Inbounds() {
                                 onlineSessionCount += client.onlineSessionCount;
                             }
                         });
+                        const trafficSummary = resolveInboundTrafficSummary(ib, inboundClients);
 
                         return {
                             ...ib,
@@ -240,6 +262,8 @@ export default function Inbounds() {
                             onlineSessionCount,
                             onlineUserCount,
                             hasOnlineUsers: onlineSessionCount > 0,
+                            trafficUp: trafficSummary.up,
+                            trafficDown: trafficSummary.down,
                         };
                     });
                     allResults.push(...serverInbounds);
@@ -1125,8 +1149,8 @@ export default function Inbounds() {
                                                 </td>
                                                 <td data-label="流量" className="text-sm">
                                                     <div className="inbounds-traffic-stack">
-                                                        <span className="text-success">↑{formatBytes(ib.up)}</span>
-                                                        <span className="text-info">↓{formatBytes(ib.down)}</span>
+                                                        <span className="text-success">↑{formatBytes(ib.trafficUp)}</span>
+                                                        <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
                                                     </div>
                                                 </td>
                                                 <td data-label="状态">

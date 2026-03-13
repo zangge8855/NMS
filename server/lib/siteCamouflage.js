@@ -12,12 +12,31 @@ function escapeHtml(value) {
 
 export function createSiteCamouflageHtml() {
     return `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-lang="zh">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>曜衡智能设备 | Edge Precision Systems</title>
     <meta name="description" content="曜衡智能设备专注边缘智能终端、工业视觉设备与数据采集平台，为先进制造与科研场景提供高可靠硬件系统。" />
+    <script>
+        (() => {
+            const storageKey = 'nms-camouflage-lang';
+            let saved = '';
+            try {
+                saved = localStorage.getItem(storageKey) || '';
+            } catch {}
+            const preferredLanguages = Array.isArray(navigator.languages) && navigator.languages.length > 0
+                ? navigator.languages
+                : [navigator.language || ''];
+            const browserLang = preferredLanguages.some((value) => String(value || '').toLowerCase().startsWith('zh'))
+                ? 'zh'
+                : 'en';
+            const current = saved === 'zh' || saved === 'en' ? saved : browserLang;
+            document.documentElement.setAttribute('data-lang', current);
+            document.documentElement.lang = current === 'zh' ? 'zh-CN' : 'en';
+            window.__NMS_CAMOUFLAGE_LANG__ = current;
+        })();
+    </script>
     <style>
         :root {
             --bg: #07111f;
@@ -36,6 +55,11 @@ export function createSiteCamouflageHtml() {
 
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
+        html[data-lang="zh"] .lang-en,
+        html[data-lang="en"] .lang-zh {
+            display: none !important;
+        }
+
         body {
             font-family: "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
             color: var(--text);
@@ -127,6 +151,7 @@ export function createSiteCamouflageHtml() {
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .nav-link {
@@ -147,6 +172,45 @@ export function createSiteCamouflageHtml() {
             transform: translateY(-1px);
             color: var(--text);
             border-color: rgba(255,255,255,0.16);
+        }
+
+        .lang-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .lang-switch-btn {
+            appearance: none;
+            border: 0;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 52px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .lang-switch-btn:hover {
+            transform: translateY(-1px);
+            color: var(--text);
+        }
+
+        .lang-switch-btn.is-active {
+            color: #03111f;
+            background: linear-gradient(135deg, #d7f7ff, #8fe5ff);
+            box-shadow: 0 10px 26px rgba(89, 199, 255, 0.22);
         }
 
         .hero {
@@ -543,6 +607,7 @@ export function createSiteCamouflageHtml() {
 
             .nav-links {
                 width: 100%;
+                justify-content: flex-start;
             }
 
             .hero-main,
@@ -570,72 +635,124 @@ export function createSiteCamouflageHtml() {
             <div class="brand">
                 <div class="brand-mark" aria-hidden="true"></div>
                 <div class="brand-copy">
-                    <div class="brand-name">曜衡智能设备</div>
-                    <div class="brand-sub"><strong>Edge Precision Systems</strong> · Advanced Hardware Lab</div>
+                    <div class="brand-name">
+                        <span class="lang-zh">曜衡智能设备</span>
+                        <span class="lang-en">Edge Precision Systems</span>
+                    </div>
+                    <div class="brand-sub">
+                        <span class="lang-zh"><strong>Edge Precision Systems</strong> · 高可靠设备实验室</span>
+                        <span class="lang-en"><strong>Advanced Hardware Lab</strong> · Precision Edge Programs</span>
+                    </div>
                 </div>
             </div>
             <div class="nav-links">
-                <div class="nav-badge">CN / EN Corporate Landing</div>
-                <a class="nav-link" href="#products">产品矩阵 Products</a>
-                <a class="nav-link" href="#industries">行业方案 Industries</a>
-                <a class="nav-link" href="#assurance">质量体系 Assurance</a>
+                <div class="nav-badge">
+                    <span class="lang-zh">企业展示站点</span>
+                    <span class="lang-en">Corporate Landing</span>
+                </div>
+                <div class="lang-switch" role="group" aria-label="Language switch">
+                    <button type="button" class="lang-switch-btn" data-lang-toggle="zh">中文</button>
+                    <button type="button" class="lang-switch-btn" data-lang-toggle="en">EN</button>
+                </div>
+                <a class="nav-link" href="#products">
+                    <span class="lang-zh">产品矩阵</span>
+                    <span class="lang-en">Products</span>
+                </a>
+                <a class="nav-link" href="#industries">
+                    <span class="lang-zh">行业方案</span>
+                    <span class="lang-en">Solutions</span>
+                </a>
+                <a class="nav-link" href="#assurance">
+                    <span class="lang-zh">质量体系</span>
+                    <span class="lang-en">Assurance</span>
+                </a>
             </div>
         </div>
 
         <section class="hero">
             <article class="hero-main">
                 <div class="hero-content">
-                    <div class="eyebrow">Industrial Edge Devices</div>
-                    <h1 class="hero-title">面向高可靠场景的智能设备平台</h1>
-                    <p class="hero-title-en">Advanced hardware systems for industrial edge computing, precision sensing, and mission-critical field operations.</p>
-                    <p class="hero-lead">
+                    <div class="eyebrow">
+                        <span class="lang-zh">工业边缘设备</span>
+                        <span class="lang-en">Industrial Edge Devices</span>
+                    </div>
+                    <h1 class="hero-title lang-zh">面向高可靠场景的智能设备平台</h1>
+                    <h1 class="hero-title lang-en">Advanced hardware systems for mission-critical edge operations</h1>
+                    <p class="hero-lead lang-zh">
                         曜衡智能设备聚焦边缘计算终端、工业视觉单元与数据采集设备，
                         为实验室、先进制造与智能检测场景提供一体化硬件系统。
                     </p>
-                    <p class="hero-lead-en">
+                    <p class="hero-lead lang-en">
                         We design integrated edge devices, machine-vision units, and acquisition systems for advanced manufacturing, research facilities, and intelligent inspection environments.
                     </p>
                     <div class="hero-actions">
-                        <a class="hero-action hero-action-primary" href="#products">查看产品矩阵 · Product Portfolio</a>
-                        <a class="hero-action hero-action-secondary" href="#industries">了解行业方案 · Industry Solutions</a>
+                        <a class="hero-action hero-action-primary" href="#products">
+                            <span class="lang-zh">查看产品矩阵</span>
+                            <span class="lang-en">View Product Portfolio</span>
+                        </a>
+                        <a class="hero-action hero-action-secondary" href="#industries">
+                            <span class="lang-zh">了解行业方案</span>
+                            <span class="lang-en">Explore Industry Solutions</span>
+                        </a>
                     </div>
                 </div>
                 <div class="hero-metrics">
                     <div class="metric">
                         <div class="metric-value">24h</div>
-                        <div class="metric-label">关键产线连续运维响应<span class="metric-label-en">Continuous response coverage for critical production lines</span></div>
+                        <div class="metric-label">
+                            <span class="lang-zh">关键产线连续运维响应</span>
+                            <span class="lang-en">Continuous response coverage for critical production lines</span>
+                        </div>
                     </div>
                     <div class="metric">
                         <div class="metric-value">99.95%</div>
-                        <div class="metric-label">设备集群年度可用性目标<span class="metric-label-en">Annual availability target for managed device fleets</span></div>
+                        <div class="metric-label">
+                            <span class="lang-zh">设备集群年度可用性目标</span>
+                            <span class="lang-en">Annual availability target for managed device fleets</span>
+                        </div>
                     </div>
                     <div class="metric">
                         <div class="metric-value">3.8x</div>
-                        <div class="metric-label">复杂检测任务边缘提速能力<span class="metric-label-en">Acceleration uplift for complex edge inspection workloads</span></div>
+                        <div class="metric-label">
+                            <span class="lang-zh">复杂检测任务边缘提速能力</span>
+                            <span class="lang-en">Acceleration uplift for complex edge inspection workloads</span>
+                        </div>
                     </div>
                 </div>
             </article>
 
             <aside class="hero-side">
                 <div class="hero-side-card">
-                    <div class="hero-side-kicker">旗舰方案</div>
+                    <div class="hero-side-kicker">
+                        <span class="lang-zh">旗舰方案</span>
+                        <span class="lang-en">Flagship Program</span>
+                    </div>
                     <h2 class="hero-side-title">Aurora Edge X7</h2>
-                    <div class="hero-side-title-en">Flagship Integrated Platform</div>
-                    <p class="hero-side-copy">
+                    <div class="hero-side-title-en">
+                        <span class="lang-zh">旗舰一体化平台</span>
+                        <span class="lang-en">Flagship Integrated Platform</span>
+                    </div>
+                    <p class="hero-side-copy lang-zh">
                         为工业视觉、实验自动化与多源数据采集场景提供模块化设备底座，
                         支持多协议接入、边缘决策与远程维护。
                     </p>
-                    <p class="hero-side-copy-en">
+                    <p class="hero-side-copy lang-en">
                         A modular hardware foundation for machine vision, lab automation, and multi-source data capture with unified remote operations.
                     </p>
                 </div>
                 <div class="hero-side-card">
-                    <div class="hero-side-kicker">交付模式</div>
-                    <div class="hero-side-title-en">Deployment & Lifecycle</div>
-                    <p class="hero-side-copy">
+                    <div class="hero-side-kicker">
+                        <span class="lang-zh">交付模式</span>
+                        <span class="lang-en">Delivery Model</span>
+                    </div>
+                    <div class="hero-side-title-en">
+                        <span class="lang-zh">部署与全生命周期服务</span>
+                        <span class="lang-en">Deployment & Lifecycle</span>
+                    </div>
+                    <p class="hero-side-copy lang-zh">
                         从样机验证、试产导入到多点部署，统一采用设备标准化与任务编排并行交付。
                     </p>
-                    <p class="hero-side-copy-en">
+                    <p class="hero-side-copy lang-en">
                         From pilot validation to scaled rollout, delivery follows a standardized device and orchestration baseline.
                     </p>
                 </div>
@@ -645,84 +762,123 @@ export function createSiteCamouflageHtml() {
 
         <section class="grid" id="products">
             <article class="section-card">
-                <div class="section-kicker">智能终端</div>
-                <h3 class="section-title">边缘设备平台</h3>
-                <div class="section-title-en">Edge Device Platform</div>
-                <p class="section-copy">覆盖工控现场、实验台位与机柜级部署，统一管理采集、控制与分析链路。</p>
-                <p class="section-copy-en">A unified platform for cabinet-grade deployments, industrial control sites, and research workbenches.</p>
+                <div class="section-kicker">
+                    <span class="lang-zh">智能终端</span>
+                    <span class="lang-en">Smart Terminals</span>
+                </div>
+                <h3 class="section-title">
+                    <span class="lang-zh">边缘设备平台</span>
+                    <span class="lang-en">Edge Device Platform</span>
+                </h3>
+                <p class="section-copy lang-zh">覆盖工控现场、实验台位与机柜级部署，统一管理采集、控制与分析链路。</p>
+                <p class="section-copy lang-en">A unified platform for cabinet-grade deployments, industrial control sites, and research workbenches.</p>
             </article>
             <article class="section-card">
-                <div class="section-kicker">工业检测</div>
-                <h3 class="section-title">多模态视觉单元</h3>
-                <div class="section-title-en">Multi-Modal Vision Units</div>
-                <p class="section-copy">用于缺陷识别、尺寸量测与自动化检测站，支持连续运行和快速复核。</p>
-                <p class="section-copy-en">Built for defect screening, dimensional measurement, and inspection cells with continuous duty cycles.</p>
+                <div class="section-kicker">
+                    <span class="lang-zh">工业检测</span>
+                    <span class="lang-en">Industrial Inspection</span>
+                </div>
+                <h3 class="section-title">
+                    <span class="lang-zh">多模态视觉单元</span>
+                    <span class="lang-en">Multi-Modal Vision Units</span>
+                </h3>
+                <p class="section-copy lang-zh">用于缺陷识别、尺寸量测与自动化检测站，支持连续运行和快速复核。</p>
+                <p class="section-copy lang-en">Built for defect screening, dimensional measurement, and inspection cells with continuous duty cycles.</p>
             </article>
             <article class="section-card">
-                <div class="section-kicker">场景交付</div>
-                <h3 class="section-title">科研与制造双场景</h3>
-                <div class="section-title-en">Research & Production Ready</div>
-                <p class="section-copy">兼顾研发试验、数据标定与量产部署，降低从实验室到产线的切换成本。</p>
-                <p class="section-copy-en">Designed to bridge prototype validation, calibration, and production deployment without rebuilding the stack.</p>
+                <div class="section-kicker">
+                    <span class="lang-zh">场景交付</span>
+                    <span class="lang-en">Deployment Scenarios</span>
+                </div>
+                <h3 class="section-title">
+                    <span class="lang-zh">科研与制造双场景</span>
+                    <span class="lang-en">Research & Production Ready</span>
+                </h3>
+                <p class="section-copy lang-zh">兼顾研发试验、数据标定与量产部署，降低从实验室到产线的切换成本。</p>
+                <p class="section-copy lang-en">Designed to bridge prototype validation, calibration, and production deployment without rebuilding the stack.</p>
             </article>
         </section>
 
         <section class="section-card">
-            <div class="section-kicker">产品矩阵</div>
-            <h3 class="section-title">面向关键场景的三条产品线</h3>
-            <div class="section-title-en">Three coordinated product families for high-reliability deployments</div>
+            <div class="section-kicker">
+                <span class="lang-zh">产品矩阵</span>
+                <span class="lang-en">Product Portfolio</span>
+            </div>
+            <h3 class="section-title">
+                <span class="lang-zh">面向关键场景的三条产品线</span>
+                <span class="lang-en">Three coordinated product families for high-reliability deployments</span>
+            </h3>
             <div class="product-grid">
                 <div class="product-card">
                     <div class="product-name">Aurora Edge X7</div>
                     <div class="product-tag">Integrated Edge Controller</div>
-                    <div class="section-copy">面向边缘控制、数据采集与机柜级集成，适合实验自动化与工艺控制单元。</div>
-                    <div class="section-copy-en">Built for integrated control, data capture, and cabinet-scale orchestration in lab and process environments.</div>
+                    <div class="section-copy lang-zh">面向边缘控制、数据采集与机柜级集成，适合实验自动化与工艺控制单元。</div>
+                    <div class="section-copy lang-en">Built for integrated control, data capture, and cabinet-scale orchestration in lab and process environments.</div>
                 </div>
                 <div class="product-card">
                     <div class="product-name">Vector Vision R4</div>
                     <div class="product-tag">Machine Vision Appliance</div>
-                    <div class="section-copy">服务于缺陷识别、尺寸测量与自动检测站，对连续运行和可复核性有更高要求的产线场景。</div>
-                    <div class="section-copy-en">Optimized for inspection cells that require stable throughput, repeatability, and fast review loops.</div>
+                    <div class="section-copy lang-zh">服务于缺陷识别、尺寸测量与自动检测站，对连续运行和可复核性有更高要求的产线场景。</div>
+                    <div class="section-copy lang-en">Optimized for inspection cells that require stable throughput, repeatability, and fast review loops.</div>
                 </div>
                 <div class="product-card">
                     <div class="product-name">Helios Capture H2</div>
                     <div class="product-tag">Industrial Data Hub</div>
-                    <div class="section-copy">聚焦多源传感器接入与时序数据治理，适用于工站级和科研级现场采集。</div>
-                    <div class="section-copy-en">A data hub for multi-sensor ingestion, synchronized collection, and disciplined field telemetry management.</div>
+                    <div class="section-copy lang-zh">聚焦多源传感器接入与时序数据治理，适用于工站级和科研级现场采集。</div>
+                    <div class="section-copy lang-en">A data hub for multi-sensor ingestion, synchronized collection, and disciplined field telemetry management.</div>
                 </div>
             </div>
         </section>
 
         <section class="grid-two" id="industries">
             <article class="section-card">
-                <div class="section-kicker">行业方案</div>
-                <h3 class="section-title">典型应用场景</h3>
-                <div class="section-title-en">Applied across industrial inspection and advanced research operations</div>
+                <div class="section-kicker">
+                    <span class="lang-zh">行业方案</span>
+                    <span class="lang-en">Industry Solutions</span>
+                </div>
+                <h3 class="section-title">
+                    <span class="lang-zh">典型应用场景</span>
+                    <span class="lang-en">Applied across industrial inspection and advanced research operations</span>
+                </h3>
                 <div class="capabilities">
                     <div class="capability">
-                        <div class="capability-title">智能检测产线</div>
-                        <div class="section-copy">支持相机、控制器和工位设备统一部署。</div>
-                        <div class="section-copy-en">Unified deployment for cameras, controllers, and inspection stations.</div>
+                        <div class="capability-title">
+                            <span class="lang-zh">智能检测产线</span>
+                            <span class="lang-en">Inspection Lines</span>
+                        </div>
+                        <div class="section-copy lang-zh">支持相机、控制器和工位设备统一部署。</div>
+                        <div class="section-copy lang-en">Unified deployment for cameras, controllers, and inspection stations.</div>
                     </div>
                     <div class="capability">
-                        <div class="capability-title">实验仪器集成</div>
-                        <div class="section-copy">兼容台架试验、标定记录与自动化任务编排。</div>
-                        <div class="section-copy-en">Ready for bench validation, calibration logging, and automated task flows.</div>
+                        <div class="capability-title">
+                            <span class="lang-zh">实验仪器集成</span>
+                            <span class="lang-en">Lab Instrument Integration</span>
+                        </div>
+                        <div class="section-copy lang-zh">兼容台架试验、标定记录与自动化任务编排。</div>
+                        <div class="section-copy lang-en">Ready for bench validation, calibration logging, and automated task flows.</div>
                     </div>
                     <div class="capability">
-                        <div class="capability-title">多点设备运维</div>
-                        <div class="section-copy">适合跨区域设备批量上线与后续变更管理。</div>
-                        <div class="section-copy-en">Designed for multi-site rollout and controlled change management.</div>
+                        <div class="capability-title">
+                            <span class="lang-zh">多点设备运维</span>
+                            <span class="lang-en">Multi-Site Operations</span>
+                        </div>
+                        <div class="section-copy lang-zh">适合跨区域设备批量上线与后续变更管理。</div>
+                        <div class="section-copy lang-en">Designed for multi-site rollout and controlled change management.</div>
                     </div>
                 </div>
             </article>
 
             <article class="section-card" id="assurance">
-                <div class="section-kicker">质量体系</div>
-                <h3 class="section-title">从样机到量产保持同一标准</h3>
-                <div class="section-title-en">The same engineering baseline from pilot builds to scaled deployment</div>
-                <p class="section-copy">我们以设备一致性、版本可追溯、现场交付稳定性为核心，确保不同项目阶段保持统一质量基线。</p>
-                <p class="section-copy-en">Engineering governance is centered on hardware consistency, traceable revisions, and controlled delivery quality.</p>
+                <div class="section-kicker">
+                    <span class="lang-zh">质量体系</span>
+                    <span class="lang-en">Quality Assurance</span>
+                </div>
+                <h3 class="section-title">
+                    <span class="lang-zh">从样机到量产保持同一标准</span>
+                    <span class="lang-en">The same engineering baseline from pilot builds to scaled deployment</span>
+                </h3>
+                <p class="section-copy lang-zh">我们以设备一致性、版本可追溯、现场交付稳定性为核心，确保不同项目阶段保持统一质量基线。</p>
+                <p class="section-copy lang-en">Engineering governance is centered on hardware consistency, traceable revisions, and controlled delivery quality.</p>
                 <div class="pill-strip">
                     <span class="pill">ISO 9001 Ready</span>
                     <span class="pill">EMC Validation</span>
@@ -733,39 +889,103 @@ export function createSiteCamouflageHtml() {
         </section>
 
         <section class="section-card">
-            <div class="section-kicker">核心能力</div>
-            <h3 class="section-title">稳定交付而不是堆砌参数</h3>
-            <div class="section-title-en">Engineered for dependable delivery, not specification theater</div>
-            <p class="section-copy">我们围绕设备可靠性、边缘算力调度、远程维护与批量部署标准化构建产品体系，让复杂现场也能保持统一运营节奏。</p>
-            <p class="section-copy-en">Our product architecture prioritizes reliability, orchestration, maintainability, and operational consistency across distributed hardware fleets.</p>
+            <div class="section-kicker">
+                <span class="lang-zh">核心能力</span>
+                <span class="lang-en">Core Capabilities</span>
+            </div>
+            <h3 class="section-title">
+                <span class="lang-zh">稳定交付而不是堆砌参数</span>
+                <span class="lang-en">Engineered for dependable delivery, not specification theater</span>
+            </h3>
+            <p class="section-copy lang-zh">我们围绕设备可靠性、边缘算力调度、远程维护与批量部署标准化构建产品体系，让复杂现场也能保持统一运营节奏。</p>
+            <p class="section-copy lang-en">Our product architecture prioritizes reliability, orchestration, maintainability, and operational consistency across distributed hardware fleets.</p>
             <div class="capabilities">
                 <div class="capability">
-                    <div class="capability-title">模块化硬件</div>
-                    <div class="section-copy">接口、算力与供电方案按项目场景灵活组合。</div>
-                    <div class="section-copy-en">Flexible compute, I/O, and power topology tailored to project requirements.</div>
+                    <div class="capability-title">
+                        <span class="lang-zh">模块化硬件</span>
+                        <span class="lang-en">Modular Hardware</span>
+                    </div>
+                    <div class="section-copy lang-zh">接口、算力与供电方案按项目场景灵活组合。</div>
+                    <div class="section-copy lang-en">Flexible compute, I/O, and power topology tailored to project requirements.</div>
                 </div>
                 <div class="capability">
-                    <div class="capability-title">批量部署</div>
-                    <div class="section-copy">多点上线采用统一镜像、统一策略与统一监控基线。</div>
-                    <div class="section-copy-en">Fleet rollout built on standardized images, policy baselines, and observability presets.</div>
+                    <div class="capability-title">
+                        <span class="lang-zh">批量部署</span>
+                        <span class="lang-en">Fleet Deployment</span>
+                    </div>
+                    <div class="section-copy lang-zh">多点上线采用统一镜像、统一策略与统一监控基线。</div>
+                    <div class="section-copy lang-en">Fleet rollout built on standardized images, policy baselines, and observability presets.</div>
                 </div>
                 <div class="capability">
-                    <div class="capability-title">远程运维</div>
-                    <div class="section-copy">设备状态、日志和变更流程全部纳入可回溯闭环。</div>
-                    <div class="section-copy-en">Status, logs, and change history stay traceable throughout the device lifecycle.</div>
+                    <div class="capability-title">
+                        <span class="lang-zh">远程运维</span>
+                        <span class="lang-en">Remote Operations</span>
+                    </div>
+                    <div class="section-copy lang-zh">设备状态、日志和变更流程全部纳入可回溯闭环。</div>
+                    <div class="section-copy lang-en">Status, logs, and change history stay traceable throughout the device lifecycle.</div>
                 </div>
             </div>
         </section>
 
         <footer class="footer-card">
             <div class="footer-copy">
-                曜衡智能设备 · Edge Precision Systems<br />
-                面向工业检测、科研仪器与高可靠边缘终端的设备解决方案<br />
-                Advanced hardware solutions for inspection lines, research instruments, and mission-critical edge terminals
+                <span class="lang-zh">
+                    曜衡智能设备<br />
+                    面向工业检测、科研仪器与高可靠边缘终端的设备解决方案
+                </span>
+                <span class="lang-en">
+                    Edge Precision Systems<br />
+                    Advanced hardware solutions for inspection lines, research instruments, and mission-critical edge terminals
+                </span>
             </div>
-            <div class="footer-chip">生产可用性目标 <strong>99.95%</strong></div>
+            <div class="footer-chip">
+                <span class="lang-zh">生产可用性目标 <strong>99.95%</strong></span>
+                <span class="lang-en">Availability target <strong>99.95%</strong></span>
+            </div>
         </footer>
     </main>
+    <script>
+        (() => {
+            const storageKey = 'nms-camouflage-lang';
+            const root = document.documentElement;
+            const description = document.querySelector('meta[name="description"]');
+            const buttons = Array.from(document.querySelectorAll('[data-lang-toggle]'));
+            const copy = {
+                zh: {
+                    title: '曜衡智能设备 | Edge Precision Systems',
+                    description: '曜衡智能设备专注边缘智能终端、工业视觉设备与数据采集平台，为先进制造与科研场景提供高可靠硬件系统。',
+                },
+                en: {
+                    title: 'Edge Precision Systems | Advanced Hardware Lab',
+                    description: 'Edge Precision Systems designs industrial edge devices, machine vision units, and field data platforms for advanced manufacturing and research operations.',
+                },
+            };
+
+            function applyLanguage(nextLang) {
+                const lang = nextLang === 'en' ? 'en' : 'zh';
+                root.setAttribute('data-lang', lang);
+                root.lang = lang === 'zh' ? 'zh-CN' : 'en';
+                document.title = copy[lang].title;
+                if (description) {
+                    description.setAttribute('content', copy[lang].description);
+                }
+                buttons.forEach((button) => {
+                    const active = button.getAttribute('data-lang-toggle') === lang;
+                    button.classList.toggle('is-active', active);
+                    button.setAttribute('aria-pressed', String(active));
+                });
+                try {
+                    localStorage.setItem(storageKey, lang);
+                } catch {}
+            }
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => applyLanguage(button.getAttribute('data-lang-toggle')));
+            });
+
+            applyLanguage(root.getAttribute('data-lang') || window.__NMS_CAMOUFLAGE_LANG__ || 'zh');
+        })();
+    </script>
 </body>
 </html>`;
 }
