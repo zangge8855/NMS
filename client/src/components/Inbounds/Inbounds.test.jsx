@@ -182,7 +182,7 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('shows visual sequence numbers in global view, hides inbound reorder controls, and exposes node order controls only once per server group', async () => {
+    it('shows visual sequence numbers in global view, hides duplicate node order inputs, and exposes node move buttons only once per server group', async () => {
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
@@ -195,8 +195,11 @@ describe('Inbounds', () => {
         expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
         expect(within(mainRow).queryByLabelText('设置 Main Inbound:443 的排序序号')).not.toBeInTheDocument();
         expect(within(backupRow).queryByLabelText('设置 Backup Inbound:8443 的排序序号')).not.toBeInTheDocument();
-        expect(within(mainRow).getByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).toHaveValue(1);
-        expect(within(backupRow).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
+        expect(within(mainRow).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
+        expect(within(mainRow).getByRole('button', { name: '上移节点 Node A' })).toBeDisabled();
+        expect(within(mainRow).getByRole('button', { name: '下移节点 Node A' })).toBeDisabled();
+        expect(within(backupRow).queryByRole('button', { name: '上移节点 Node A' })).not.toBeInTheDocument();
+        expect(within(backupRow).queryByRole('button', { name: '下移节点 Node A' })).not.toBeInTheDocument();
     });
 
     it('treats the global server context as all nodes and keeps the node column visible', async () => {
@@ -367,9 +370,9 @@ describe('Inbounds', () => {
         expect(within(beforeRows[0]).getByText(/Node A/)).toBeInTheDocument();
         expect(within(beforeRows[1]).getByText(/Node A/)).toBeInTheDocument();
         expect(within(beforeRows[2]).getByText(/Node B/)).toBeInTheDocument();
-        expect(within(beforeRows[0]).getByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).toHaveValue(1);
-        expect(within(beforeRows[1]).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
-        expect(within(beforeRows[2]).getByRole('spinbutton', { name: '设置节点 Node B 的排序序号' })).toHaveValue(2);
+        expect(within(beforeRows[0]).getByRole('button', { name: '下移节点 Node A' })).toBeEnabled();
+        expect(within(beforeRows[1]).queryByRole('button', { name: '下移节点 Node A' })).not.toBeInTheDocument();
+        expect(within(beforeRows[2]).getByRole('button', { name: '上移节点 Node B' })).toBeEnabled();
 
         await user.click(screen.getByRole('button', { name: '上移节点 Node B' }));
 

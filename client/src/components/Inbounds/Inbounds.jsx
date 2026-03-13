@@ -130,7 +130,6 @@ export default function Inbounds() {
     const [serverOrder, setServerOrder] = useState([]);
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
     const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
-    const [serverOrderDrafts, setServerOrderDrafts] = useState({});
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -168,7 +167,6 @@ export default function Inbounds() {
         setSelectedKeys(new Set());
         setSelectedClientKeys(new Set());
         setInboundOrderDrafts({});
-        setServerOrderDrafts({});
         let orderMap = inboundOrder;
         let nextServerOrder = serverOrder;
 
@@ -298,7 +296,6 @@ export default function Inbounds() {
         // Avoid accidental cross-node batch actions after changing filter tabs.
         setSelectedKeys(new Set());
         setInboundOrderDrafts({});
-        setServerOrderDrafts({});
     }, [filterServerId]);
 
     // Batch Actions
@@ -538,13 +535,6 @@ export default function Inbounds() {
         }));
     };
 
-    const handleServerOrderDraftChange = (serverId, value) => {
-        setServerOrderDrafts((prev) => ({
-            ...prev,
-            [serverId]: value,
-        }));
-    };
-
     const handleInboundOrderCommit = async (inbound) => {
         if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
         const inboundKey = String(inbound?.uiKey || '').trim();
@@ -574,35 +564,6 @@ export default function Inbounds() {
 
         await handleMoveInbound(inbound, nextPosition - 1);
     };
-
-    const handleServerOrderCommit = async (serverId, currentPosition) => {
-        if (filterServerId !== 'all' || savingOrderServerId) return;
-        const rawValue = String(serverOrderDrafts[serverId] ?? '').trim();
-        if (!rawValue) {
-            setServerOrderDrafts((prev) => {
-                const next = { ...prev };
-                delete next[serverId];
-                return next;
-            });
-            return;
-        }
-
-        const nextPosition = Number.parseInt(rawValue, 10);
-        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
-            toast.error(t('comp.inbounds.invalidOrder'));
-            return;
-        }
-
-        setServerOrderDrafts((prev) => {
-            const next = { ...prev };
-            delete next[serverId];
-            return next;
-        });
-
-        if (nextPosition - 1 === currentPosition) return;
-        await handleMoveServerGroup(serverId, nextPosition - 1);
-    };
-
     const parseClients = (ib) => {
         if (Array.isArray(ib?.clients)) {
             return ib.clients.map((client) => ({
@@ -1013,7 +974,6 @@ export default function Inbounds() {
                                     const canAdjustOrder = filterServerId !== 'all';
                                     const isFirstInServerGroup = filterServerId !== 'all' || index === 0 || filteredInbounds[index - 1]?.serverId !== ib.serverId;
                                     const serverGroupIndex = visibleServerIndexMap.get(String(ib.serverId || '').trim()) ?? 0;
-                                    const serverSequenceValue = serverOrderDrafts[ib.serverId] ?? String(serverGroupIndex + 1);
                                     const canMoveServerUp = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex > 0 && !savingOrderServerId;
                                     const canMoveServerDown = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex < visibleServerIds.length - 1 && !savingOrderServerId;
                                     const isSavingOrder = savingOrderServerId === ib.serverId;
@@ -1113,59 +1073,32 @@ export default function Inbounds() {
                                                                 <HiOutlineServer size={10} /> {ib.serverName}
                                                             </span>
                                                             {isFirstInServerGroup && (
-                                                                <>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="1"
-                                                                        inputMode="numeric"
-                                                                        aria-label={`设置节点 ${ib.serverName} 的排序序号`}
-                                                                        className="form-input form-input-sm cell-mono inbound-order-input"
-                                                                        value={serverSequenceValue}
-                                                                        disabled={savingOrderServerId === 'global'}
-                                                                        onChange={(event) => handleServerOrderDraftChange(ib.serverId, event.target.value)}
-                                                                        onBlur={() => handleServerOrderCommit(ib.serverId, serverGroupIndex)}
-                                                                        onKeyDown={(event) => {
-                                                                            if (event.key === 'Enter') {
-                                                                                event.preventDefault();
-                                                                                handleServerOrderCommit(ib.serverId, serverGroupIndex);
-                                                                            }
-                                                                            if (event.key === 'Escape') {
-                                                                                event.preventDefault();
-                                                                                setServerOrderDrafts((prev) => {
-                                                                                    const next = { ...prev };
-                                                                                    delete next[ib.serverId];
-                                                                                    return next;
-                                                                                });
-                                                                            }
+                                                                <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inbounds-sequence-btn"
+                                                                        aria-label={`上移节点 ${ib.serverName}`}
+                                                                        disabled={!canMoveServerUp}
+                                                                        onClick={(event) => {
+                                                                            event.stopPropagation();
+                                                                            handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
                                                                         }}
-                                                                    />
-                                                                    <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="inbounds-sequence-btn"
-                                                                            aria-label={`上移节点 ${ib.serverName}`}
-                                                                            disabled={!canMoveServerUp}
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
-                                                                            }}
-                                                                        >
-                                                                            <HiOutlineChevronUp />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="inbounds-sequence-btn"
-                                                                            aria-label={`下移节点 ${ib.serverName}`}
-                                                                            disabled={!canMoveServerDown}
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
-                                                                            }}
-                                                                        >
-                                                                            <HiOutlineChevronDown />
-                                                                        </button>
-                                                                    </div>
-                                                                </>
+                                                                    >
+                                                                        <HiOutlineChevronUp />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inbounds-sequence-btn"
+                                                                        aria-label={`下移节点 ${ib.serverName}`}
+                                                                        disabled={!canMoveServerDown}
+                                                                        onClick={(event) => {
+                                                                            event.stopPropagation();
+                                                                            handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
+                                                                        }}
+                                                                    >
+                                                                        <HiOutlineChevronDown />
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </td>
