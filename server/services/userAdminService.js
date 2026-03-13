@@ -495,6 +495,100 @@ async function updateManagedUserExpiry(id, payload = {}, actor = 'admin', deps =
     };
 }
 
+async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admin', deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
+    const serverRepo = deps.serverRepository || serverRepository;
+    const toggleClients = deps.autoSetManagedClientsEnabled || autoSetManagedClientsEnabled;
+    const deployClients = deps.autoDeployClients || autoDeployClients;
+
+    const requestedEmail = normalizeEmailInput(email);
+    if (!requestedEmail) {
+        throw createHttpError(400, '订阅邮箱不能为空');
+    }
+
+    const target = userRepo.getBySubscriptionEmail(requestedEmail) || userRepo.getByEmail(requestedEmail) || null;
+    const subscriptionEmail = normalizeEmailInput(target?.subscriptionEmail || target?.email || requestedEmail);
+    const currentPolicy = policyRepo.get(subscriptionEmail);
+    const hasAllowedInboundKeys = Object.prototype.hasOwnProperty.call(payload || {}, 'allowedInboundKeys');
+    const nextPolicy = policyRepo.upsert(
+        subscriptionEmail,
+        {
+            ...currentPolicy,
+            ...payload,
+            allowedInboundKeys: hasAllowedInboundKeys
+                ? normalizeStringList(payload.allowedInboundKeys)
+                : normalizeStringList(currentPolicy.allowedInboundKeys),
+        },
+        actor
+    );
+
+    if (requestedEmail !== subscriptionEmail) {
+        try {
+            policyRepo.remove(requestedEmail);
+        } catch {
+            // best-effort cleanup for legacy email-keyed policy records
+        }
+    }
+
+    if (!target || target.role === 'admin') {
+        return {
+            requestedEmail,
+            subscriptionEmail,
+            target,
+            policy: nextPolicy,
+            clientSync: emptyClientSyncResult(),
+            deployment: emptyDeploymentResult(),
+            partialFailure: false,
+        };
+    }
+
+    const allServers = serverRepo.list();
+    let clientSync = emptyClientSyncResult();
+    let deployment = emptyDeploymentResult();
+
+    try {
+        clientSync = await toggleClients(subscriptionEmail, false, { allServers }, deps);
+    } catch (error) {
+        clientSync = {
+            total: 0,
+            updated: 0,
+            skipped: 0,
+            failed: 1,
+            details: [{ status: 'failed', error: error.message || 'client-toggle-failed' }],
+        };
+    }
+
+    if (target.enabled !== false && nextPolicy.serverScopeMode !== 'none' && nextPolicy.protocolScopeMode !== 'none') {
+        try {
+            deployment = await deployClients(subscriptionEmail, nextPolicy, {
+                allServers,
+                allowedInboundKeys: nextPolicy.allowedInboundKeys,
+                clientEnabled: true,
+            }, deps);
+        } catch (error) {
+            deployment = {
+                total: 0,
+                created: 0,
+                updated: 0,
+                skipped: 0,
+                failed: 1,
+                details: [{ status: 'failed', error: error.message || 'client-deploy-failed' }],
+            };
+        }
+    }
+
+    return {
+        requestedEmail,
+        subscriptionEmail,
+        target,
+        policy: nextPolicy,
+        clientSync,
+        deployment,
+        partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
+    };
+}
+
 async function provisionManagedUserSubscription(id, payload = {}, actor = 'admin', deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const provisionSubscription = deps.provisionSubscriptionForUser || provisionSubscriptionForUser;
@@ -630,6 +724,7 @@ export {
     buildUsersCsv,
     resyncManagedUserNodes,
     updateManagedUser,
+    updateManagedUserPolicyByEmail,
     updateUserSubscriptionBinding,
     setManagedUserEnabled,
     updateManagedUserExpiry,

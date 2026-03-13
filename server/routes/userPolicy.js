@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
+import { updateManagedUserPolicyByEmail } from '../services/userAdminService.js';
 
 const router = Router();
 
@@ -68,7 +69,7 @@ router.get('/:email', (req, res) => {
     });
 });
 
-router.put('/:email', (req, res) => {
+router.put('/:email', async (req, res) => {
     const email = normalizeEmail(req.params.email);
     if (!email) {
         return res.status(400).json({ success: false, msg: 'Email is required' });
@@ -85,10 +86,10 @@ router.put('/:email', (req, res) => {
     }
 
     const allowedProtocols = normalizeProtocols(req.body?.allowedProtocols);
-    const currentPolicy = userPolicyStore.get(email);
-    const allowedInboundKeys = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedInboundKeys')
+    const hasAllowedInboundKeys = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedInboundKeys');
+    const allowedInboundKeys = hasAllowedInboundKeys
         ? normalizeInboundKeys(req.body?.allowedInboundKeys)
-        : (Array.isArray(currentPolicy.allowedInboundKeys) ? currentPolicy.allowedInboundKeys : []);
+        : undefined;
     let serverScopeMode = normalizeScopeMode(req.body?.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all');
     let protocolScopeMode = normalizeScopeMode(req.body?.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all');
 
@@ -99,38 +100,50 @@ router.put('/:email', (req, res) => {
         protocolScopeMode = 'none';
     }
 
-    const updated = userPolicyStore.upsert(
-        email,
-        {
+    try {
+        const result = await updateManagedUserPolicyByEmail(
+            email,
+            {
+                allowedServerIds,
+                allowedProtocols,
+                ...(hasAllowedInboundKeys ? { allowedInboundKeys } : {}),
+                serverScopeMode,
+                protocolScopeMode,
+                expiryTime: normalizeNonNegativeInt(req.body?.expiryTime, 0),
+                limitIp: normalizeNonNegativeInt(req.body?.limitIp, 0),
+                trafficLimitBytes: normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0),
+            },
+            req.user?.username || req.user?.role || 'admin'
+        );
+        appendSecurityAudit('user_policy_updated', req, {
+            email: result.subscriptionEmail,
+            subscriptionEmail: result.subscriptionEmail,
+            targetUserId: result.target?.id || '',
+            targetUsername: result.target?.username || '',
             allowedServerIds,
             allowedProtocols,
-            allowedInboundKeys,
+            allowedInboundKeys: result.policy?.allowedInboundKeys || [],
             serverScopeMode,
             protocolScopeMode,
-            expiryTime: normalizeNonNegativeInt(req.body?.expiryTime, 0),
-            limitIp: normalizeNonNegativeInt(req.body?.limitIp, 0),
-            trafficLimitBytes: normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0),
-        },
-        req.user?.role || 'admin'
-    );
+            expiryTime: result.policy?.expiryTime || 0,
+            limitIp: result.policy?.limitIp || 0,
+            trafficLimitBytes: result.policy?.trafficLimitBytes || 0,
+            syncFailureCount: Number(result.clientSync?.failed || 0) + Number(result.deployment?.failed || 0),
+        });
 
-    appendSecurityAudit('user_policy_updated', req, {
-        email,
-        subscriptionEmail: email,
-        allowedServerIds,
-        allowedProtocols,
-        allowedInboundKeys,
-        serverScopeMode,
-        protocolScopeMode,
-        expiryTime: updated?.expiryTime || 0,
-        limitIp: updated?.limitIp || 0,
-        trafficLimitBytes: updated?.trafficLimitBytes || 0,
-    });
-
-    return res.json({
-        success: true,
-        obj: updated,
-    });
+        return res.json({
+            success: true,
+            msg: result.partialFailure
+                ? '订阅策略已保存，但部分节点同步失败'
+                : '订阅策略已保存',
+            obj: result,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'Update policy failed',
+        });
+    }
 });
 
 export default router;

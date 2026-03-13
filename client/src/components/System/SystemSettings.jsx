@@ -491,6 +491,27 @@ export default function SystemSettings() {
         patchField('site', 'accessPath', generateRandomSiteAccessPath());
     };
 
+    const handleCamouflageToggle = (checked) => {
+        if (!checked) {
+            patchField('site', 'camouflageEnabled', false);
+            return;
+        }
+        if (siteAccessPath === '/') {
+            const nextPath = generateRandomSiteAccessPath();
+            setDraft((prev) => ({
+                ...prev,
+                site: {
+                    ...prev.site,
+                    accessPath: nextPath,
+                    camouflageEnabled: true,
+                },
+            }));
+            toast.success('已自动生成真实入口路径，保存后首页将显示伪装站点');
+            return;
+        }
+        patchField('site', 'camouflageEnabled', true);
+    };
+
     const saveSettings = async () => {
         if (!isAdmin) return;
         const ok = await confirmAction({
@@ -951,9 +972,9 @@ export default function SystemSettings() {
                     <div className="form-group mb-0">
                         <SettingsToggleCard
                             checked={draft.site.camouflageEnabled}
-                            onChange={(e) => patchField('site', 'camouflageEnabled', e.target.checked)}
+                            onChange={(e) => handleCamouflageToggle(e.target.checked)}
                             label="站点伪装首页"
-                            description="未命中真实入口路径时，返回一个公开品牌首页。建议搭配非根路径入口一起使用。"
+                            description="开启后，首页和错误路径将展示公开首页；只有输入真实入口路径才能进入 NMS。"
                             activeLabel="已开启"
                             inactiveLabel="已关闭"
                         />
@@ -963,7 +984,7 @@ export default function SystemSettings() {
                         <div className="text-base font-semibold font-mono mt-2 break-all">{camouflagePreview}</div>
                         <div className="text-xs text-muted mt-2">
                             {siteCamouflageEnabled
-                                ? (siteAccessPath === '/' ? '当前入口仍是根路径，伪装首页暂不会拦截真实后台入口。' : '访问根路径或错误路径时，将展示高科技设备公司的公开首页。')
+                                ? '访问根路径或错误路径时，将展示高科技设备公司的公开首页。'
                                 : '关闭时，错误路径将按默认 404 / 前端路由处理。'}
                         </div>
                     </div>
@@ -1887,19 +1908,19 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-nav-side">
                                 <div className="settings-nav-status-panel" aria-live="polite">
-                                    <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
-                                        {saving ? <span className="spinner spinner-16" /> : null}
-                                        <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
-                                    </div>
-                                    <div className="settings-nav-actions-group">
-                                        <div className="settings-nav-actions settings-panel-actions">
-                                            <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                                重新加载
-                                            </button>
-                                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                                {saving ? <span className="spinner" /> : '保存配置'}
-                                            </button>
+                                    <div className="settings-nav-status-main">
+                                        <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
+                                            {saving ? <span className="spinner spinner-16" /> : null}
+                                            <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
                                         </div>
+                                    </div>
+                                    <div className="settings-nav-actions settings-panel-actions">
+                                        <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
+                                            重新加载
+                                        </button>
+                                        <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                            {saving ? <span className="spinner" /> : '保存配置'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>

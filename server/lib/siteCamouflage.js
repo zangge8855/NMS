@@ -10,9 +10,7 @@ function escapeHtml(value) {
         .replaceAll("'", '&#39;');
 }
 
-export function createSiteCamouflageHtml(options = {}) {
-    const requestPath = escapeHtml(options.requestPath || '/');
-
+export function createSiteCamouflageHtml() {
     return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -476,14 +474,6 @@ export function createSiteCamouflageHtml(options = {}) {
             font-size: 12px;
         }
 
-        .site-note {
-            margin-top: 18px;
-            color: rgba(227, 233, 244, 0.48);
-            font-size: 11px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
         .capability {
             padding: 16px 18px;
             border-radius: 18px;
@@ -739,7 +729,6 @@ export function createSiteCamouflageHtml(options = {}) {
                     <span class="pill">Remote Service SOP</span>
                     <span class="pill">Fleet Rollout Baseline</span>
                 </div>
-                <div class="site-note">PUBLIC LANDING · REQUEST PATH ${requestPath}</div>
             </article>
         </section>
 

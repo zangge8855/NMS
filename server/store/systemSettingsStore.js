@@ -570,6 +570,11 @@ class SystemSettingsStore {
             userOrder: this.settings.userOrder,
             updatedAt: new Date().toISOString(),
         };
+        const candidateSiteAccessPath = normalizeSiteAccessPath(candidate.site?.accessPath, '/');
+        const candidateCamouflageEnabled = normalizeBoolean(candidate.site?.camouflageEnabled, false);
+        if (candidateCamouflageEnabled && candidateSiteAccessPath === '/') {
+            throw new Error('site.camouflageEnabled requires a non-root site.accessPath');
+        }
         this.settings = this._normalizeSettings(candidate, this.settings);
         this._save();
         return this.getAll();

@@ -892,9 +892,9 @@
 
 .settings-nav-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(248px, 288px);
+  align-items: stretch;
+  gap: 14px;
 }
 
 .settings-nav-list {
@@ -909,17 +909,25 @@
 }
 
 .settings-nav-status-panel {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  padding: 14px;
+  height: 100%;
+  min-height: 72px;
+  padding: 12px;
   border-radius: 18px;
   border: 1px solid var(--stroke-soft);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(148, 163, 184, 0.02) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.settings-nav-status-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .settings-nav-status-chip {
@@ -964,19 +972,15 @@
   flex-wrap: nowrap;
 }
 
-.settings-nav-actions-group {
-  display: inline-flex;
-  align-items: center;
-  min-height: 48px;
-  padding: 5px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke-soft);
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+.settings-nav-status-panel .settings-nav-actions {
+  width: 100%;
+  gap: 8px;
+  justify-content: stretch;
 }
 
-.settings-nav-actions-group .settings-nav-actions {
-  gap: 8px;
+.settings-nav-status-panel .settings-nav-actions .btn {
+  flex: 1 1 0;
+  justify-content: center;
 }
 
 .settings-nav-actions .btn {
@@ -1819,7 +1823,7 @@
   }
 
   .settings-nav-bar {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
   }
 
@@ -1840,11 +1844,6 @@
 
   .settings-nav-actions {
     flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-
-  .settings-nav-actions-group {
-    width: 100%;
     justify-content: flex-start;
   }
 }

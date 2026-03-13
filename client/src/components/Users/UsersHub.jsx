@@ -731,12 +731,20 @@ export default function UsersHub() {
             }
 
             // Update policy
-            const policyEmail = normalizeEmail(editUser.subscriptionEmail || editUser.email);
+            const updatedUser = res.data?.obj || {};
+            const policyEmail = normalizeEmail(
+                updatedUser.subscriptionEmail
+                || updatedUser.email
+                || editUser.subscriptionEmail
+                || editUser.email
+            );
+            let policySyncFailedMessage = '';
+            let policySyncPartialFailure = false;
             if (policyEmail) {
                 const serverScopeMode = editNoServerLimit ? 'all' : (editServerIds.length > 0 ? 'selected' : 'none');
                 const protocolScopeMode = editNoProtocolLimit ? 'all' : (editProtocols.length > 0 ? 'selected' : 'none');
                 try {
-                    await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, {
+                    const policyRes = await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, {
                         allowedServerIds: serverScopeMode === 'selected' ? editServerIds : [],
                         allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
                         serverScopeMode,
@@ -744,7 +752,10 @@ export default function UsersHub() {
                         limitIp: normalizeLimitIp(editLimitIp),
                         trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
                     });
-                } catch { /* best-effort */ }
+                    policySyncPartialFailure = policyRes.data?.obj?.partialFailure === true;
+                } catch (policyErr) {
+                    policySyncFailedMessage = policyErr.response?.data?.msg || policyErr.message || '订阅策略同步失败';
+                }
             }
 
             // Update expiry if user has clients
@@ -758,19 +769,32 @@ export default function UsersHub() {
                     });
                     if (expiryRes.data?.success) {
                         const r = expiryRes.data.obj;
-                        if (r.failed > 0) {
-                            toast.success(`用户信息已更新，到期时间更新: ${r.updated}/${r.total} 成功`);
+                        if (policySyncFailedMessage) {
+                            toast.error(`用户信息已更新，但${policySyncFailedMessage}`);
+                        } else if (r.failed > 0 || policySyncPartialFailure) {
+                            toast.success(`用户信息已更新，但节点同步有部分失败（到期时间成功 ${r.updated}/${r.total}）`);
                         } else if (r.updated > 0) {
-                            toast.success(`用户信息及到期时间已更新（${r.updated} 个节点）`);
+                            toast.success(`用户信息、订阅策略和到期时间已更新（${r.updated} 个节点）`);
                         } else {
-                            toast.success('用户信息已更新');
+                            toast.success('用户信息和订阅策略已更新');
                         }
                     }
                 } catch (expiryErr) {
-                    toast.error('用户信息已更新，但到期时间更新失败: ' + (expiryErr.response?.data?.msg || expiryErr.message));
+                    const expiryFailedMessage = expiryErr.response?.data?.msg || expiryErr.message;
+                    if (policySyncFailedMessage) {
+                        toast.error(`用户信息已更新，但${policySyncFailedMessage}；到期时间更新也失败: ${expiryFailedMessage}`);
+                    } else {
+                        toast.error(`用户信息和订阅策略已更新，但到期时间更新失败: ${expiryFailedMessage}`);
+                    }
                 }
             } else {
-                toast.success('用户信息已更新');
+                if (policySyncFailedMessage) {
+                    toast.error(`用户信息已更新，但${policySyncFailedMessage}`);
+                } else if (policySyncPartialFailure) {
+                    toast.success('用户信息和订阅策略已更新，但部分节点同步失败');
+                } else {
+                    toast.success('用户信息和订阅策略已更新');
+                }
             }
 
             closeEditModal();

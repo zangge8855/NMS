@@ -88,4 +88,15 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
             });
         }, /site\.accessPath cannot use/);
     });
+
+    it('rejects enabling camouflage when the site access path is root', () => {
+        assert.throws(() => {
+            systemSettingsStore.update({
+                site: {
+                    accessPath: '/',
+                    camouflageEnabled: true,
+                },
+            });
+        }, /site\.camouflageEnabled requires a non-root site\.accessPath/);
+    });
 });

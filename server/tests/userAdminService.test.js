@@ -11,6 +11,7 @@ import {
     resyncManagedUserNodes,
     setManagedUserEnabled,
     updateManagedUserExpiry,
+    updateManagedUserPolicyByEmail,
 } from '../services/userAdminService.js';
 
 test('createManagedUser creates a verified enabled user', () => {
@@ -255,6 +256,88 @@ test('updateManagedUserExpiry writes policy then deploys clients', async () => {
     assert.deepEqual(steps, [
         'upsert:tom@example.com:7200:alice',
         'deploy:tom@example.com:7200:true',
+    ]);
+});
+
+test('updateManagedUserPolicyByEmail saves policy on the subscription email and resyncs managed clients', async () => {
+    const steps = [];
+    const result = await updateManagedUserPolicyByEmail(
+        'legacy@example.com',
+        {
+            allowedServerIds: ['srv-2'],
+            allowedProtocols: ['trojan'],
+            serverScopeMode: 'selected',
+            protocolScopeMode: 'selected',
+            limitIp: 3,
+            trafficLimitBytes: 1024,
+        },
+        'alice',
+        {
+            userRepository: {
+                getBySubscriptionEmail() {
+                    return null;
+                },
+                getByEmail(email) {
+                    assert.equal(email, 'legacy@example.com');
+                    return {
+                        id: 'u-14',
+                        username: 'policy-user',
+                        role: 'user',
+                        enabled: true,
+                        email: 'legacy@example.com',
+                        subscriptionEmail: 'bound@example.com',
+                    };
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    assert.equal(email, 'bound@example.com');
+                    return {
+                        allowedInboundKeys: ['srv-1:101', 'srv-2:202'],
+                        limitIp: 1,
+                        trafficLimitBytes: 0,
+                    };
+                },
+                upsert(email, payload, actor) {
+                    steps.push(`upsert:${email}:${payload.serverScopeMode}:${payload.protocolScopeMode}:${actor}`);
+                    assert.deepEqual(payload.allowedInboundKeys, ['srv-1:101', 'srv-2:202']);
+                    return {
+                        email,
+                        ...payload,
+                    };
+                },
+                remove(email) {
+                    steps.push(`remove:${email}`);
+                    return true;
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [
+                        { id: 'srv-1', name: 'Node A' },
+                        { id: 'srv-2', name: 'Node B' },
+                    ];
+                },
+            },
+            autoSetManagedClientsEnabled: async (email, enabled, options) => {
+                steps.push(`toggle:${email}:${enabled}:${options.allServers.length}`);
+                return { total: 2, updated: 2, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async (email, policy, options) => {
+                steps.push(`deploy:${email}:${policy.allowedServerIds.join(',')}:${policy.allowedProtocols.join(',')}:${options.clientEnabled}`);
+                assert.deepEqual(options.allowedInboundKeys, ['srv-1:101', 'srv-2:202']);
+                return { total: 1, created: 0, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(result.subscriptionEmail, 'bound@example.com');
+    assert.equal(result.partialFailure, false);
+    assert.deepEqual(steps, [
+        'upsert:bound@example.com:selected:selected:alice',
+        'remove:legacy@example.com',
+        'toggle:bound@example.com:false:2',
+        'deploy:bound@example.com:srv-2:trojan:true',
     ]);
 });
 
