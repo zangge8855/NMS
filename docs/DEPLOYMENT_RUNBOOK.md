@@ -13,6 +13,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 - Store `.env` outside the repository lifecycle and back it up with the deployment
 - Keep `.env`, `data/*.json`, `logs/`, and build output outside Git; only templates and documentation should be committed
 - Set `SUB_PUBLIC_BASE_URL` to the real external domain before sharing subscription links
+- The UI homepage defaults to `/`; if you later move it to a custom path in `Settings`, keep `/api`, `/ws`, and subscription public routes reachable
 - Enable SMTP only when you need registration, verification, or password reset mail
 
 ### Preflight Checklist
@@ -67,9 +68,10 @@ docker run -d \
 
 The proxy must handle:
 
-- `/` and static assets
+- `/` or your configured homepage path, plus static assets
 - `/api/*`
 - WebSocket traffic
+- `/api/subscriptions/public/*`
 
 Recommended proxy behavior:
 
@@ -77,6 +79,7 @@ Recommended proxy behavior:
 - Forward `X-Forwarded-For` and `X-Forwarded-Proto`
 - Preserve `Upgrade` and `Connection` headers
 - Keep the public hostname aligned with `SUB_PUBLIC_BASE_URL`
+- If you change the homepage path in `Settings`, update bookmarks and proxy rules, but do not rewrite the subscription public API path
 
 ### Upgrade Workflow
 
@@ -107,6 +110,7 @@ NMS is easier to operate in production because it already includes:
 
 - `GET /api/auth/check` responds correctly
 - Admin login succeeds
+- The configured homepage path opens normally
 - The dashboard loads without frontend errors
 - Node health status refreshes correctly
 - Subscription links can be generated
@@ -139,6 +143,7 @@ NMS is easier to operate in production because it already includes:
 
 - Verify `SUB_PUBLIC_BASE_URL`
 - Check whether the reverse proxy rewrites host or scheme unexpectedly
+- Do not expect the homepage access path to change subscription URLs; that setting only affects where the UI is served
 
 ## 中文
 
@@ -153,6 +158,7 @@ NMS is easier to operate in production because it already includes:
 - 将 `.env` 放在仓库生命周期之外管理，并和部署一起备份
 - `.env`、`data/*.json`、`logs/` 和构建产物不要提交进 Git，仓库里只保留模板和文档
 - 在对外发放订阅链接前，先把 `SUB_PUBLIC_BASE_URL` 设置成真实公网域名
+- 后台首页默认走 `/`；如果后续在 `系统设置` 里改成自定义路径，也要继续保留 `/api`、`/ws` 和订阅公开地址可访问
 - 只有在需要注册、验证邮件或找回密码时才开启 SMTP
 
 ### 上线前检查
@@ -207,9 +213,10 @@ docker run -d \
 
 代理必须同时处理:
 
-- `/` 和静态资源
+- `/` 或你自定义的首页路径，以及静态资源
 - `/api/*`
 - WebSocket 请求
+- `/api/subscriptions/public/*`
 
 建议配置:
 
@@ -217,6 +224,7 @@ docker run -d \
 - 透传 `X-Forwarded-For` 和 `X-Forwarded-Proto`
 - 保留 `Upgrade` 与 `Connection` 头
 - 让外部访问域名与 `SUB_PUBLIC_BASE_URL` 保持一致
+- 如果你在 `Settings` 里修改了首页访问路径，要同步更新书签和代理规则，但不要去改订阅公开接口路径
 
 ### 升级流程
 
@@ -247,6 +255,7 @@ NMS 自带了一些生产环境里很实用的能力:
 
 - `GET /api/auth/check` 响应正常
 - 管理员可以成功登录
+- 配置过的首页访问路径可以正常打开
 - 仪表盘无前端报错
 - 节点健康状态可以刷新
 - 可以生成订阅链接
@@ -279,3 +288,4 @@ NMS 自带了一些生产环境里很实用的能力:
 
 - 检查 `SUB_PUBLIC_BASE_URL`
 - 检查代理是否错误改写了主机名或协议
+- 首页访问路径不会改变订阅链接；它只影响后台和登录页从哪里进入

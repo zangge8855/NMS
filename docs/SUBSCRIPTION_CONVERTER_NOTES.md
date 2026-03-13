@@ -9,6 +9,7 @@ NMS now supports an external subscription converter base URL for client-specific
 - Raw subscription links still come from NMS.
 - Client-specific links for Clash / Mihomo, sing-box, and Surge can now be wrapped through an external converter.
 - Subscription Center quick actions, displayed client links, and the subscription URL QR code all follow the configured converter URL automatically.
+- The configurable homepage access path only changes where the UI loads; it does not rewrite subscription public URLs.
 
 ### Where To Configure It
 
@@ -102,6 +103,7 @@ NMS 现在支持“外部订阅转换器基址”。
 - 原始订阅链接仍然由 NMS 自己生成。
 - Clash / Mihomo、sing-box、Surge 这些客户端专用链接可以自动包装到外部转换器。
 - 订阅中心里的快捷导入、展示出来的客户端专用链接、以及订阅网址二维码，都会自动跟随这个转换器地址。
+- 可配置的首页访问路径只影响后台和登录页从哪里打开，不会改写订阅公开地址。
 
 ### 在哪里配置
 

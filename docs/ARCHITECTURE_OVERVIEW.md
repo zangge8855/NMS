@@ -12,7 +12,7 @@ NMS 由三层组成：
 
 ### 请求流
 
-1. 浏览器访问前端页面或已构建的静态资源
+1. 浏览器访问前端页面或已构建的静态资源；生产环境下前端入口路径可由系统设置里的 `site.accessPath` 控制
 2. 前端通过 `/api/*` 调用后端接口
 3. 后端经过认证、中间件、路由、服务层与存储层处理请求
 4. 需要实时刷新的页面通过 WebSocket ticket 建立安全连接
@@ -33,7 +33,7 @@ NMS 由三层组成：
 - 用户与订阅管理：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
 - 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
-- 系统设置与邀请码：`routes/system.js`, `repositories/systemSettingsRepository.js`, `store/inviteCodeStore.js`
+- 系统设置与邀请码：`routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
 
 ### 存储模式
 
@@ -55,15 +55,17 @@ NMS 由三层组成：
 ### 前端信息架构
 
 - Layout：Sidebar + Header + Content
-- 监控：Dashboard
-- 管理：Inbounds、Users、Audit、Node Console、3x-ui Capabilities、Node Tools
+- 监控：Dashboard（含快捷运维入口）
+- 管理：Inbounds、Users、Audit、3x-ui Capabilities、Node Tools
 - 运维：Settings、Servers
+- 系统工作台：Settings 内包含系统参数、数据库、备份、监控诊断和 Node Console
 - 用户自助：Subscriptions
 
 ### 安全边界
 
 - 管理接口统一经过 `authMiddleware` 与 `adminOnly`
 - 订阅公开访问通过 token 校验，不复用管理员会话
+- 首页访问路径只影响前端页面入口，不改变 `/api/subscriptions/public/*` 的公开订阅地址
 - 生产环境会强制检查弱口令、弱用户名与弱密钥
 - 面板凭据加密使用 `CREDENTIALS_SECRET`
 - 反向代理场景启用了可信代理设置，便于审计真实来源 IP
@@ -92,7 +94,7 @@ NMS is built from three layers:
 
 ### Request flow
 
-1. The browser loads the SPA or the built static assets
+1. The browser loads the SPA or the built static assets; in production the UI base path can be changed through the `site.accessPath` system setting
 2. The frontend calls backend endpoints under `/api/*`
 3. The backend processes requests through auth, middleware, routes, services, and stores
 4. Real-time pages obtain a secure WebSocket ticket before connecting
@@ -113,7 +115,7 @@ NMS is built from three layers:
 - Users and subscription administration: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
 - Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
-- System settings and invite codes: `routes/system.js`, `repositories/systemSettingsRepository.js`, `store/inviteCodeStore.js`
+- System settings and invite codes: `routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
 
 ### Storage modes
 
@@ -135,15 +137,17 @@ Related environment variables:
 ### Frontend information architecture
 
 - Layout: Sidebar + Header + Content
-- Monitor: Dashboard
-- Manage: Inbounds, Users, Audit, Node Console, 3x-ui Capabilities, Node Tools
+- Monitor: Dashboard with quick operations
+- Manage: Inbounds, Users, Audit, 3x-ui Capabilities, Node Tools
 - Operate: Settings, Servers
+- System workbench: `Settings` includes basic system parameters, database, backup, diagnostics, and the embedded Node Console
 - End-user self-service: Subscriptions
 
 ### Security boundaries
 
 - Admin routes are protected by `authMiddleware` and `adminOnly`
 - Public subscription access uses token validation, not admin sessions
+- The configurable homepage access path only changes where the UI is served; it does not rewrite `/api/subscriptions/public/*`
 - Production mode enforces checks against weak usernames, passwords, and secrets
 - Panel credentials are encrypted with `CREDENTIALS_SECRET`
 - Trusted proxy settings allow audit logs to record the correct client IP behind reverse proxies
