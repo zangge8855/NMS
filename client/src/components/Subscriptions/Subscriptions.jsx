@@ -26,20 +26,6 @@ function normalizeInactiveReason(reason) {
     return reason;
 }
 
-function formatTokenDate(value) {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString('zh-CN');
-}
-
-function renderTokenStatus(status) {
-    if (status === 'active') return <span className="badge badge-success">活跃</span>;
-    if (status === 'expired') return <span className="badge badge-warning">已过期</span>;
-    if (status === 'revoked') return <span className="badge badge-danger">已撤销</span>;
-    return <span className="badge badge-neutral">{status || '未知'}</span>;
-}
-
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
@@ -60,12 +46,7 @@ export default function Subscriptions() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [profileKey, setProfileKey] = useState('v2rayn');
-    const [tokenName, setTokenName] = useState('');
-    const [tokenTtlDays, setTokenTtlDays] = useState('30');
-    const [tokenLoading, setTokenLoading] = useState(false);
-    const [tokenActionId, setTokenActionId] = useState('');
     const [resetLoading, setResetLoading] = useState(false);
-    const [lastIssuedToken, setLastIssuedToken] = useState(null);
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -159,7 +140,6 @@ export default function Subscriptions() {
                 matchedClientsActive: Number(payload.matchedClientsActive || 0),
                 scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
                 serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
-                token: payload.token || null,
             });
             if (bundle.defaultProfileKey) {
                 setProfileKey(bundle.defaultProfileKey);
@@ -200,55 +180,6 @@ export default function Subscriptions() {
         toast.success(`${activeProfile.label} 订阅地址已复制`);
     };
 
-    const handleIssueToken = async () => {
-        if (!isAdmin || !normalizedEmail) return;
-        setTokenLoading(true);
-        try {
-            const payload = {};
-            const trimmedName = String(tokenName || '').trim();
-            if (trimmedName) payload.name = trimmedName;
-            const ttl = Number(tokenTtlDays);
-            if (Number.isFinite(ttl)) payload.ttlDays = ttl;
-            const res = await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/issue`, payload);
-            setLastIssuedToken(res.data?.obj || null);
-            toast.success(t('comp.subscriptions.tokenIssued'));
-            setTokenName('');
-            await loadSubscription();
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.tokenIssueFailed'));
-        }
-        setTokenLoading(false);
-    };
-
-    const handleRevokeToken = async (tokenId) => {
-        if (!isAdmin || !normalizedEmail || !tokenId) return;
-        setTokenActionId(tokenId);
-        try {
-            await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/revoke`, { tokenId });
-            toast.success(t('comp.subscriptions.tokenRevoked'));
-            await loadSubscription();
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.tokenRevokeFailed'));
-        }
-        setTokenActionId('');
-    };
-
-    const handleRevokeAllTokens = async () => {
-        if (!isAdmin || !normalizedEmail) return;
-        setTokenActionId('all');
-        try {
-            await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/revoke`, {
-                revokeAll: true,
-                reason: 'manual-revoke-all',
-            });
-            toast.success(t('comp.subscriptions.allTokensRevoked'));
-            await loadSubscription();
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.batchRevokeFailed'));
-        }
-        setTokenActionId('');
-    };
-
     const handleResetLink = async () => {
         if (!normalizedEmail) return;
         const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
@@ -272,7 +203,6 @@ export default function Subscriptions() {
                 payload.serverId = selectedServerId;
             }
             await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/reset-link`, payload);
-            setLastIssuedToken(null);
             toast.success(t('comp.subscriptions.subResetDone'));
             await loadSubscription();
         } catch (error) {
@@ -478,118 +408,6 @@ export default function Subscriptions() {
                                     </div>
                                     <SubscriptionClientLinks bundle={result.bundle} />
                                 </div>
-
-                                {isAdmin && (
-                                    <div className="card subscription-token-card">
-                                        <SectionHeader
-                                            className="card-header section-header section-header--compact"
-                                            title="Token 生命周期管理"
-                                            meta={(
-                                                <span className="badge badge-info">
-                                                    {result.token?.activeCount || 0}/{result.token?.activeLimit || 0}
-                                                </span>
-                                            )}
-                                        />
-                                        <div className="grid grid-auto-220 gap-3 items-end mb-4">
-                                            <div className="form-group mb-0">
-                                                <label className="form-label">用途标注</label>
-                                                <input
-                                                    className="form-input"
-                                                    value={tokenName}
-                                                    onChange={(e) => setTokenName(e.target.value)}
-                                                    placeholder="例如：Clash 客户端 / 用户自助"
-                                                />
-                                            </div>
-                                            <div className="form-group" style={{ margin: 0 }}>
-                                                <label className="form-label">有效期</label>
-                                                <select className="form-select" value={tokenTtlDays} onChange={(e) => setTokenTtlDays(e.target.value)}>
-                                                    <option value="7">7 天</option>
-                                                    <option value="30">30 天</option>
-                                                    <option value="90">90 天</option>
-                                                    <option value="365">365 天</option>
-                                                    <option value="0">永久</option>
-                                                </select>
-                                            </div>
-                                            <button className="btn btn-primary" onClick={handleIssueToken} disabled={tokenLoading || !normalizedEmail}>
-                                                {tokenLoading ? <span className="spinner" /> : '签发 token'}
-                                            </button>
-                                            <button className="btn btn-secondary" onClick={handleRevokeAllTokens} disabled={tokenActionId === 'all' || !normalizedEmail}>
-                                                {tokenActionId === 'all' ? <span className="spinner" /> : '撤销全部'}
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-auto-160 gap-3 mb-4">
-                                            <div className="card p-3 mini-card">
-                                                <div className="text-sm text-muted">当前范围</div>
-                                                <div className="text-lg font-semibold">{result.token?.scope === 'server' ? '单节点' : '全节点'}</div>
-                                                <div className="text-xs text-muted mt-1">{result.token?.serverId || 'all'}</div>
-                                            </div>
-                                            <div className="card p-3 mini-card">
-                                                <div className="text-sm text-muted">当前作用中的范围 token</div>
-                                                <div className="text-xs font-mono">{result.token?.currentTokenId || '-'}</div>
-                                                <div className="text-xs text-muted mt-1">{result.token?.autoIssued ? '系统自动签发' : '已有手动 token'}</div>
-                                            </div>
-                                            <div className="card p-3 mini-card">
-                                                <div className="text-sm text-muted">当前作用中的 token 必须性</div>
-                                                <div className="text-lg font-semibold">{result.token?.tokenRequired ? '需要补签发' : '已满足'}</div>
-                                                <div className="text-xs text-muted mt-1">{result.token?.issueError || '当前范围已有可用 token'}</div>
-                                            </div>
-                                        </div>
-                                        {lastIssuedToken && (
-                                            <div className="card p-3 mini-card mb-4">
-                                                <div className="text-sm text-muted mb-2">最近签发</div>
-                                                <div className="text-xs text-muted mb-2">该 token 明文只在签发时返回一次。</div>
-                                                <div className="grid gap-2" style={{ display: 'grid', gap: '8px' }}>
-                                                    <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.token || ''} title={lastIssuedToken.token || ''} dir="ltr" spellCheck={false} />
-                                                    <div className="subscription-link-grid subscription-link-grid--compact">
-                                                        <input className="form-input font-mono text-xs" readOnly value={lastIssuedToken.subscriptionUrl || ''} title={lastIssuedToken.subscriptionUrl || ''} dir="ltr" spellCheck={false} />
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(lastIssuedToken.subscriptionUrl || '').then(() => toast.success(t('comp.subscriptions.urlCopied')))}>
-                                                            <HiOutlineClipboard /> 复制地址
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div className="table-container">
-                                            <table className="table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>用途</th>
-                                                        <th>状态</th>
-                                                        <th>到期时间</th>
-                                                        <th>最近使用</th>
-                                                        <th>操作</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {(result.token?.tokens || []).length === 0 ? (
-                                                        <tr><td colSpan={5} className="text-center">暂无 token</td></tr>
-                                                    ) : (result.token?.tokens || []).map((token) => (
-                                                        <tr key={token.publicTokenId || token.id}>
-                                                            <td data-label="用途">
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                    <span>{token.name || '未命名 token'}</span>
-                                                                    <span className="text-xs text-muted font-mono">{token.publicTokenId || token.id}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td data-label="状态">{renderTokenStatus(token.status)}</td>
-                                                            <td data-label="到期时间" className="text-sm text-muted">{formatTokenDate(token.expiresAt)}</td>
-                                                            <td data-label="最近使用" className="text-sm text-muted">{formatTokenDate(token.lastUsedAt)}</td>
-                                                            <td data-label="操作">
-                                                                <button
-                                                                    className="btn btn-secondary btn-sm"
-                                                                    onClick={() => handleRevokeToken(token.id)}
-                                                                    disabled={tokenActionId === token.id || token.status !== 'active'}
-                                                                >
-                                                                    {tokenActionId === token.id ? <span className="spinner" /> : '撤销'}
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
                             </>
                         )}
                     </div>

@@ -6272,41 +6272,46 @@ body::before {
 
 .inbounds-table-shell .table th {
   background: rgba(255, 255, 255, 0.03);
+  padding: 12px 12px;
+}
+
+.inbounds-table-shell .table td {
+  padding: 12px 12px;
 }
 
 .inbounds-sequence-col {
-  width: 152px;
-  min-width: 152px;
+  width: 128px;
+  min-width: 128px;
 }
 
 .inbounds-sequence-col.is-compact {
+  width: 56px;
+  min-width: 56px;
+}
+
+.inbounds-node-col {
+  width: 276px;
+  min-width: 276px;
+}
+
+.inbounds-remark-col {
   width: 72px;
   min-width: 72px;
 }
 
-.inbounds-node-col {
-  width: 196px;
-  min-width: 196px;
+.inbounds-protocol-col {
+  width: 72px;
+  min-width: 72px;
 }
 
-.inbounds-remark-col {
+.inbounds-port-col {
   width: 112px;
   min-width: 112px;
 }
 
-.inbounds-protocol-col {
-  width: 88px;
-  min-width: 88px;
-}
-
-.inbounds-port-col {
-  width: 124px;
-  min-width: 124px;
-}
-
 .inbounds-users-col {
-  width: 84px;
-  min-width: 84px;
+  width: 68px;
+  min-width: 68px;
 }
 
 .inbounds-traffic-col {
@@ -6347,7 +6352,7 @@ body::before {
 .inbounds-sequence-cell {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .inbounds-sequence-cell-td {
@@ -6373,25 +6378,30 @@ body::before {
 
 .inbounds-node-cell-inner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
 }
 
 .inbounds-node-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  column-gap: 6px;
   min-width: 0;
   max-width: 100%;
   padding-right: 10px;
+  white-space: normal;
+  flex: 1 1 auto;
 }
 
 .inbounds-node-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
 }
 
 .inbounds-remark-cell {
@@ -6442,11 +6452,11 @@ body::before {
 
 .inbound-order-input,
 .users-order-input {
-  width: 72px;
-  min-width: 72px;
+  width: 56px;
+  min-width: 56px;
   text-align: center;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .users-sequence-number {
@@ -9823,11 +9833,38 @@ input[type="radio"]:focus-visible {
   color: var(--text-secondary);
 }
 
+.subscription-device-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subscription-device-block--push {
+  margin-top: auto;
+}
+
+.subscription-device-block-label {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .subscription-device-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: auto;
+}
+
+.subscription-device-empty {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .subscription-guide-grid {
@@ -9981,19 +10018,19 @@ input[type="radio"]:focus-visible {
 
 .subscription-quick-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 
 .subscription-quick-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 186px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
+  gap: 8px;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid var(--border-color);
-  background: var(--surface-soft);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .subscription-quick-card-copy {

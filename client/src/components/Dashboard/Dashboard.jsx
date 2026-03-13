@@ -838,15 +838,6 @@ export default function Dashboard() {
                         ))}
                     </div>
 
-                    <div className="card mb-6">
-                        <SectionHeader
-                            className="dashboard-section-head"
-                            title="运维捷径"
-                            subtitle="把最常用的排查入口收在仪表盘里，减少来回切页。"
-                        />
-                        <QuickActionGrid actions={globalQuickActions} />
-                    </div>
-
                     {showOnlineDetail && (
                         <div className="card mb-6">
                             <SectionHeader
@@ -906,6 +897,15 @@ export default function Dashboard() {
                             )}
                         </div>
                     )}
+
+                    <div className="card mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title="运维捷径"
+                            subtitle="把最常用的排查入口收在仪表盘里，减少来回切页。"
+                        />
+                        <QuickActionGrid actions={globalQuickActions} />
+                    </div>
 
                     {/* 节点健康网格 */}
                     <div className="mb-6">
@@ -1022,15 +1022,6 @@ export default function Dashboard() {
                     ))}
                 </div>
 
-                <div className="card mb-6">
-                    <SectionHeader
-                        className="dashboard-section-head"
-                        title="运维捷径"
-                        subtitle="围绕当前节点最常用的操作和排查入口。"
-                    />
-                    <QuickActionGrid actions={singleQuickActions} />
-                </div>
-
                 {showOnlineDetail && (
                     <div className="card mb-6">
                         <SectionHeader
@@ -1065,6 +1056,15 @@ export default function Dashboard() {
                         )}
                     </div>
                 )}
+
+                <div className="card mb-6">
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title="运维捷径"
+                        subtitle="围绕当前节点最常用的操作和排查入口。"
+                    />
+                    <QuickActionGrid actions={singleQuickActions} />
+                </div>
 
                 {/* Inbound Summary */}
                 <div className="card mb-6">

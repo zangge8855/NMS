@@ -20,8 +20,6 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import {
     HiOutlineArrowLeft,
-    HiOutlinePlusCircle,
-    HiOutlineTrash,
     HiOutlineClipboard,
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
@@ -31,7 +29,6 @@ import {
     HiOutlineShieldCheck,
     HiOutlineKey,
     HiOutlineArrowPath,
-    HiOutlineXMark,
     HiOutlinePencilSquare,
     HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
@@ -127,7 +124,7 @@ function formatSummaryText(item) {
 
 function normalizeDetailTab(value) {
     const text = String(value || '').trim().toLowerCase();
-    if (['overview', 'subscription', 'clients', 'tokens', 'activity'].includes(text)) {
+    if (['overview', 'subscription', 'clients', 'activity'].includes(text)) {
         return text;
     }
     return 'overview';
@@ -144,12 +141,6 @@ export default function UserDetail() {
     const [detail, setDetail] = useState(null);
     const [activeTab, setActiveTab] = useState(() => normalizeDetailTab(searchParams.get('tab')));
 
-    // Token issue modal
-    const [tokenModalOpen, setTokenModalOpen] = useState(false);
-    const [tokenName, setTokenName] = useState('');
-    const [tokenNoExpiry, setTokenNoExpiry] = useState(true);
-    const [tokenTtlDays, setTokenTtlDays] = useState(30);
-    const [tokenIssuing, setTokenIssuing] = useState(false);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [subscriptionResult, setSubscriptionResult] = useState(null);
     const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
@@ -315,7 +306,6 @@ export default function UserDetail() {
     }, [detail]);
 
     const user = detail?.user;
-    const tokens = detail?.tokens || [];
     const recentAudit = detail?.recentAudit?.items || [];
     const subscriptionAccess = detail?.subscriptionAccess?.items || [];
     const clientSummaryLoading = !!detail && clientsLoading && clientData.length === 0;
@@ -439,44 +429,6 @@ export default function UserDetail() {
             }
         } catch (err) {
             toast.error(err.response?.data?.msg || '操作失败');
-        }
-    };
-
-    const handleIssueToken = async (e) => {
-        e.preventDefault();
-        setTokenIssuing(true);
-        try {
-            const res = await api.post(`/users/${encodeURIComponent(userId)}/tokens`, {
-                name: tokenName || 'manual',
-                noExpiry: tokenNoExpiry,
-                ttlDays: tokenNoExpiry ? 0 : tokenTtlDays,
-            });
-            if (res.data?.success) {
-                toast.success('Token 已签发');
-                const token = res.data.obj?.token;
-                if (token) {
-                    await copyToClipboard(token);
-                    toast.success('Token 已复制到剪贴板');
-                }
-                setTokenModalOpen(false);
-                setTokenName('');
-                fetchDetail();
-            }
-        } catch (err) {
-            toast.error(err.response?.data?.msg || '签发失败');
-        }
-        setTokenIssuing(false);
-    };
-
-    const handleRevokeToken = async (tokenId) => {
-        try {
-            const res = await api.delete(`/users/${encodeURIComponent(userId)}/tokens/${encodeURIComponent(tokenId)}`);
-            if (res.data?.success) {
-                toast.success('Token 已撤销');
-                fetchDetail();
-            }
-        } catch (err) {
-            toast.error(err.response?.data?.msg || '撤销失败');
         }
     };
 
@@ -646,7 +598,6 @@ export default function UserDetail() {
         { key: 'overview', label: '概览' },
         { key: 'subscription', label: '订阅' },
         { key: 'clients', label: '节点' },
-        { key: 'tokens', label: '订阅令牌' },
         { key: 'activity', label: '活动日志' },
     ];
 
@@ -741,7 +692,7 @@ export default function UserDetail() {
                                 <div className="stat-mini-grid">
                                     <StatCard label="总流量" value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
                                     <StatCard label="节点数" value={clientSummaryLoading ? null : clientData.length} />
-                                    <StatCard label="Token 数" value={tokens.length} />
+                                    <StatCard label="订阅访问" value={detail?.subscriptionAccess?.total || 0} />
                                     <StatCard label="审计记录" value={detail?.recentAudit?.total || 0} />
                                 </div>
                                 {clientSummaryLoading && (
@@ -933,76 +884,6 @@ export default function UserDetail() {
                             </div>
                         )}
 
-                        {/* Tokens Tab */}
-                        {activeTab === 'tokens' && (
-                            <div>
-                                <SectionHeader
-                                    className="mb-4"
-                                    compact
-                                    title="订阅令牌"
-                                    meta={<span className="text-sm text-muted">共 {tokens.length} 个令牌</span>}
-                                    actions={(
-                                        <button className="btn btn-primary btn-sm" onClick={() => setTokenModalOpen(true)}>
-                                            <HiOutlinePlusCircle /> 签发令牌
-                                        </button>
-                                    )}
-                                />
-                                {tokens.length === 0 ? (
-                                    <EmptyState title="暂无订阅令牌" subtitle="点击上方按钮签发新令牌" />
-                                ) : (
-                                    <div className="table-container">
-                                        <table className="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>名称</th>
-                                                    <th>状态</th>
-                                                    <th>创建时间</th>
-                                                    <th>过期时间</th>
-                                                    <th>最后使用</th>
-                                                    <th>操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {tokens.map(t => (
-                                                    <tr key={t.id}>
-                                                        <td data-label="名称" className="font-medium">{t.name || t.publicTokenId?.slice(0, 8) || '-'}</td>
-                                                        <td data-label="状态">
-                                                            <span className={`badge ${t.status === 'active' ? 'badge-success' : t.status === 'revoked' ? 'badge-danger' : 'badge-warning'}`}>
-                                                                {t.status === 'active' ? '有效' : t.status === 'revoked' ? '已撤销' : '已过期'}
-                                                            </span>
-                                                        </td>
-                                                        <td data-label="创建时间" className="text-sm text-muted">{formatTime(t.createdAt, locale)}</td>
-                                                        <td data-label="过期时间" className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt, locale) : '永久'}</td>
-                                                        <td data-label="最后使用" className="text-sm text-muted">{formatTime(t.lastUsedAt, locale)}</td>
-                                                        <td data-label="操作" className="table-cell-actions">
-                                                            <div className="table-row-actions">
-                                                                <button
-                                                                    className="btn btn-secondary btn-sm btn-icon"
-                                                                    title="复制 Token ID"
-                                                                    onClick={() => { copyToClipboard(t.publicTokenId || t.id); toast.success('Token ID 已复制'); }}
-                                                                >
-                                                                    <HiOutlineClipboard />
-                                                                </button>
-                                                                {t.status === 'active' && (
-                                                                    <button
-                                                                        className="btn btn-danger btn-sm btn-icon"
-                                                                        title="撤销"
-                                                                        onClick={() => handleRevokeToken(t.id)}
-                                                                    >
-                                                                        <HiOutlineTrash />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         {/* Activity Tab */}
                         {activeTab === 'activity' && (
                             <div>
@@ -1044,44 +925,6 @@ export default function UserDetail() {
                     </div>
                 </div>
             </div>
-
-            {/* Issue Token Modal */}
-            {tokenModalOpen && (
-                <ModalShell isOpen={tokenModalOpen} onClose={() => setTokenModalOpen(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">签发订阅令牌</h3>
-                            <button className="modal-close" onClick={() => setTokenModalOpen(false)}><HiOutlineXMark /></button>
-                        </div>
-                        <form onSubmit={handleIssueToken}>
-                            <div className="modal-body">
-                                <div className="form-group">
-                                    <label className="form-label">令牌名称</label>
-                                    <input className="form-input" value={tokenName} onChange={e => setTokenName(e.target.value)} placeholder="例如: 主设备" />
-                                </div>
-                                <div className="form-group">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" checked={tokenNoExpiry} onChange={e => setTokenNoExpiry(e.target.checked)} />
-                                        <span className="text-sm">永不过期</span>
-                                    </label>
-                                </div>
-                                {!tokenNoExpiry && (
-                                    <div className="form-group">
-                                        <label className="form-label">有效天数</label>
-                                        <input type="number" className="form-input" value={tokenTtlDays} onChange={e => setTokenTtlDays(Number(e.target.value))} min={1} max={3650} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setTokenModalOpen(false)}>取消</button>
-                                <button type="submit" className="btn btn-primary" disabled={tokenIssuing}>
-                                    {tokenIssuing ? <span className="spinner" /> : <><HiOutlineKey /> 签发</>}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </ModalShell>
-            )}
 
             <ClientIpModal
                 isOpen={clientIpModal.open}

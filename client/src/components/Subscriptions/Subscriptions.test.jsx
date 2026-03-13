@@ -156,6 +156,7 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('Surge').length).toBeGreaterThan(0);
         expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);
         expect(await screen.findByText('converter.example.com')).toBeInTheDocument();
+        expect(screen.queryByText('更多客户端下载')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
@@ -172,9 +173,7 @@ describe('Subscriptions', () => {
         });
     }, 10000);
 
-    it('allows admins to issue a subscription token from the subscription center', async () => {
-        const user = userEvent.setup();
-
+    it('hides token lifecycle controls in the admin subscription center', async () => {
         useAuth.mockReturnValue({
             user: {
                 role: 'admin',
@@ -201,14 +200,6 @@ describe('Subscriptions', () => {
                             total: 1,
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
-                            token: {
-                                activeCount: 1,
-                                activeLimit: 5,
-                                scope: 'all',
-                                currentTokenId: 'scope-token',
-                                tokenRequired: false,
-                                tokens: [],
-                            },
                         },
                     },
                 });
@@ -216,28 +207,12 @@ describe('Subscriptions', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        api.post.mockResolvedValue({
-            data: {
-                obj: {
-                    token: 'token-value',
-                    subscriptionUrl: 'https://sub.example.com/issued',
-                },
-            },
-        });
-
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
 
-        await user.type(screen.getByPlaceholderText('例如：Clash 客户端 / 用户自助'), 'Verge');
-        await user.click(screen.getByRole('button', { name: '签发 token' }));
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/subscriptions/admin%40example.com/issue', {
-                name: 'Verge',
-                ttlDays: 30,
-            });
-        });
+        expect(screen.queryByText('Token 生命周期管理')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '签发 token' })).not.toBeInTheDocument();
     }, 10000);
 
     it('allows users to reset their own persistent subscription link', async () => {
