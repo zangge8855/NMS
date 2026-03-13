@@ -363,6 +363,12 @@ export default function ServerManagement({ embedded = false }) {
                     )}
                     actions={(
                         <>
+                            <div className="server-console-scope-card" aria-live="polite">
+                                <div className="server-console-scope-label">{isGlobalView ? '当前作用域' : '当前节点'}</div>
+                                <div className="server-console-scope-value">
+                                    {isGlobalView ? `${servers.length} 台节点` : (activeServerMeta?.name || activeServerId)}
+                                </div>
+                            </div>
                             <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
                                 <HiOutlineArrowPath /> 刷新版本
                             </button>
@@ -373,7 +379,6 @@ export default function ServerManagement({ embedded = false }) {
                             )}
                         </>
                     )}
-                    meta={<span>{isGlobalView ? `当前作用域: ${servers.length} 台节点` : `当前节点: ${activeServerMeta?.name || activeServerId}`}</span>}
                 />
                 {lastRun && (
                     <div className="card mb-6">

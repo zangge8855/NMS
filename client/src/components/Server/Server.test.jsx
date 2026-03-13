@@ -75,7 +75,8 @@ describe('ServerManagement', () => {
         renderWithRouter(<ServerManagement />);
 
         expect(await screen.findByText('集群批量控制')).toBeInTheDocument();
-        expect(screen.getByText('当前作用域: 1 台节点')).toBeInTheDocument();
+        expect(screen.getByText('当前作用域')).toBeInTheDocument();
+        expect(screen.getByText('1 台节点')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '1.8.0' })).toBeInTheDocument();
     });
 

@@ -152,6 +152,15 @@ function formatDateTime(value, locale = 'zh-CN') {
     return formatDateTimeValue(value, locale);
 }
 
+function SettingsPanelHeader({ title, subtitle }) {
+    return (
+        <div className="settings-panel-head">
+            <div className="settings-panel-title">{title}</div>
+            {subtitle ? <div className="settings-panel-subtitle">{subtitle}</div> : null}
+        </div>
+    );
+}
+
 export default function SystemSettings() {
     const { locale, t } = useI18n();
     const { user } = useAuth();
@@ -843,39 +852,45 @@ export default function SystemSettings() {
             </div>
 
             <div className="card p-4 settings-panel">
-                <h3 className="text-lg font-semibold mb-3">任务中心参数</h3>
-                <div className="text-xs text-muted mb-3">批量任务（用户操作、流量重置等）的运行与存储参数。</div>
-                <div className="form-group">
-                    <label className="form-label">任务保留天数</label>
-                    <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
-                    <div className="text-xs text-muted mt-1">历史任务记录的保留期限，超期自动清理。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">任务分页最大条数</label>
-                    <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
-                    <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">任务最大保留记录</label>
-                    <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
-                    <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">批量并发上限</label>
-                    <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
-                    <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">默认并发</label>
-                    <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
-                    <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
+                <SettingsPanelHeader
+                    title="任务中心参数"
+                    subtitle="批量任务的保留、分页和并发策略。"
+                />
+                <div className="settings-field-grid settings-field-grid--compact">
+                    <div className="form-group">
+                        <label className="form-label">任务保留天数</label>
+                        <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
+                        <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">任务分页最大条数</label>
+                        <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
+                        <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">任务最大保留记录</label>
+                        <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
+                        <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">批量并发上限</label>
+                        <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
+                        <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">默认并发</label>
+                        <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
+                        <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
+                    </div>
                 </div>
             </div>
 
             <div className="card p-4 settings-panel">
-                <h3 className="text-lg font-semibold mb-3">风控确认</h3>
-                <div className="text-xs text-muted mb-3">控制批量高风险动作的二次确认阈值和确认令牌有效期。</div>
-                <div className="form-group">
+                <SettingsPanelHeader
+                    title="风控确认"
+                    subtitle="控制高风险批量动作的确认阈值和令牌时效。"
+                />
+                <div className="form-group settings-checkbox-row">
                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                         <input
                             type="checkbox"
@@ -885,42 +900,50 @@ export default function SystemSettings() {
                         开启高风险操作二次确认
                     </label>
                 </div>
-                <div className="form-group">
-                    <label className="form-label">中风险阈值</label>
-                    <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                    <div className="text-xs text-muted mt-1">影响对象数达到该值时按中风险提示。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">高风险阈值</label>
-                    <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                    <div className="text-xs text-muted mt-1">影响对象数达到该值时要求二次确认。</div>
-                </div>
-                <div className="form-group mb-0">
-                    <label className="form-label">确认令牌有效期（秒）</label>
-                    <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                    <div className="text-xs text-muted mt-1">超过该时间后需重新确认高风险操作。</div>
-                </div>
-            </div>
-
-            <div className="card p-4 settings-panel">
-                <h3 className="text-lg font-semibold mb-3">审计参数</h3>
-                <div className="text-xs text-muted mb-3">登录、增删改查等操作日志的存储策略。</div>
-                <div className="form-group">
-                    <label className="form-label">审计保留天数</label>
-                    <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                    <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
-                </div>
-                <div className="form-group mb-0">
-                    <label className="form-label">审计分页最大条数</label>
-                    <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                    <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
+                <div className="settings-field-grid settings-field-grid--triple settings-field-grid--compact">
+                    <div className="form-group">
+                        <label className="form-label">中风险阈值</label>
+                        <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                        <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">高风险阈值</label>
+                        <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                        <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="form-label">确认令牌有效期（秒）</label>
+                        <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                        <div className="text-xs text-muted mt-1">超时后需重新确认。</div>
+                    </div>
                 </div>
             </div>
 
             <div className="card p-4 settings-panel">
-                <h3 className="text-lg font-semibold mb-3">审计归属地查询</h3>
-                <div className="text-xs text-muted mb-3">控制订阅访问日志里的地区与运营商查询服务。</div>
-                <div className="form-group">
+                <SettingsPanelHeader
+                    title="审计参数"
+                    subtitle="控制操作日志的保留周期和分页上限。"
+                />
+                <div className="settings-field-grid settings-field-grid--compact">
+                    <div className="form-group">
+                        <label className="form-label">审计保留天数</label>
+                        <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                        <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
+                    </div>
+                    <div className="form-group mb-0">
+                        <label className="form-label">审计分页最大条数</label>
+                        <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                        <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel">
+                <SettingsPanelHeader
+                    title="审计归属地查询"
+                    subtitle="控制订阅访问日志里的地区与运营商查询服务。"
+                />
+                <div className="form-group settings-checkbox-row">
                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                         <input
                             type="checkbox"
@@ -931,16 +954,16 @@ export default function SystemSettings() {
                     </label>
                 </div>
                 <div className="form-group">
-                    <label className="form-label">服务提供方</label>
-                    <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
-                </div>
-                <div className="form-group">
                     <label className="form-label">查询地址模板</label>
                     <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
                     <div className="text-xs text-muted mt-1">使用 `{`ip`}` 作为 IP 占位符。</div>
                 </div>
-                <div className="settings-inline-grid">
-                    <div className="form-group mb-0">
+                <div className="settings-field-grid settings-field-grid--compact">
+                    <div className="form-group">
+                        <label className="form-label">服务提供方</label>
+                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                    </div>
+                    <div className="form-group">
                         <label className="form-label">超时（毫秒）</label>
                         <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
                     </div>
@@ -952,7 +975,10 @@ export default function SystemSettings() {
             </div>
 
             <div className="card p-4 settings-panel">
-                <h3 className="text-lg font-semibold mb-3">订阅地址</h3>
+                <SettingsPanelHeader
+                    title="订阅地址"
+                    subtitle="控制公开订阅域名和外部转换器地址。"
+                />
                 <div className="form-group">
                     <label className="form-label">订阅公网地址（可选，建议配置）</label>
                     <input
@@ -1026,7 +1052,7 @@ export default function SystemSettings() {
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">邀请码存量</div>
                         <div className="text-lg font-semibold">{inviteCodes.length}</div>
-                        <div className="text-xs text-muted mt-1">支持按次数生成和兼容旧单次邀请码。</div>
+                        <div className="text-xs text-muted mt-1">支持多次使用并兼容旧单次邀请码。</div>
                     </div>
                 </div>
                 <div className="form-group">
@@ -1631,52 +1657,51 @@ export default function SystemSettings() {
                 eyebrow={t('pages.settings.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter">
-                <div className="card mb-6 settings-toolbar settings-overview-card">
-                    <div className="settings-overview-bar">
-                        <div className="settings-overview-status" aria-live="polite">
-                            <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
-                                {settings ? '配置快照已加载' : '等待加载配置'}
-                            </span>
-                            {saving ? <span className="badge badge-info">正在保存设置</span> : null}
-                        </div>
-                        <div className="settings-overview-actions settings-panel-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                刷新
-                            </button>
-                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                {saving ? <span className="spinner" /> : '保存设置'}
-                            </button>
+                <div className="settings-shell">
+                    <div className="card settings-nav">
+                        <div className="settings-nav-bar">
+                            <div className="settings-nav-list" role="tablist" aria-label="系统设置分区">
+                                {SETTINGS_TAB_CONFIG.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = activeTab === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            className={`settings-nav-item${isActive ? ' is-active' : ''}`}
+                                            onClick={() => setActiveTab(item.id)}
+                                            role="tab"
+                                            aria-selected={isActive}
+                                        >
+                                            <span className="settings-nav-item-icon"><Icon /></span>
+                                            <span className="settings-nav-item-copy">
+                                                <span className="settings-nav-item-label">{item.label}</span>
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="settings-nav-side">
+                                <div className="settings-overview-status" aria-live="polite">
+                                    <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
+                                        {settings ? '配置快照已加载' : '等待加载配置'}
+                                    </span>
+                                    {saving ? <span className="badge badge-info">正在保存设置</span> : null}
+                                </div>
+                                <div className="settings-overview-actions settings-panel-actions">
+                                    <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
+                                        刷新
+                                    </button>
+                                    <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                        {saving ? <span className="spinner" /> : '保存设置'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div className="settings-shell">
-                    <aside className="card settings-nav">
-                        <div className="settings-nav-list" role="tablist" aria-label="系统设置分区">
-                            {SETTINGS_TAB_CONFIG.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = activeTab === item.id;
-                                return (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        className={`settings-nav-item${isActive ? ' is-active' : ''}`}
-                                        onClick={() => setActiveTab(item.id)}
-                                        role="tab"
-                                        aria-selected={isActive}
-                                    >
-                                        <span className="settings-nav-item-icon"><Icon /></span>
-                                        <span className="settings-nav-item-copy">
-                                            <span className="settings-nav-item-label">{item.label}</span>
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </aside>
 
                     <div className="settings-main">
-                        <div className="settings-summary-grid mb-6">
+                        <div className="settings-summary-grid">
                             {overviewCards.map((item) => (
                                 <div key={item.title} className="card settings-summary-card">
                                     <div className="settings-summary-label">{item.title}</div>
@@ -1698,7 +1723,7 @@ export default function SystemSettings() {
                             ))}
                         </div>
 
-                        <div className="card p-4 settings-panel settings-tab-panel">
+                        <div className="settings-tab-panel">
                             {activeTab === 'console' ? (
                                 <div className="settings-console-host">
                                     <ServerManagement embedded />

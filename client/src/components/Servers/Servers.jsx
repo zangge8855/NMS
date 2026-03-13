@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -8,7 +8,10 @@ import EmptyState from '../UI/EmptyState.jsx';
 import toast from 'react-hot-toast';
 import { copyToClipboard, getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import api from '../../api/client.js';
 import {
+    HiOutlineArrowDown,
+    HiOutlineArrowUp,
     HiOutlineClipboard,
     HiOutlinePlusCircle,
     HiOutlineTrash,
@@ -58,6 +61,7 @@ export default function Servers() {
     const [batchResult, setBatchResult] = useState(null);
     const [testResults, setTestResults] = useState({});
     const [loading, setLoading] = useState({});
+    const [serverOrder, setServerOrder] = useState([]);
     const [credentialRepair, setCredentialRepair] = useState({
         open: false,
         serverId: '',
@@ -114,6 +118,37 @@ export default function Servers() {
             reason: '',
         });
     };
+
+    useEffect(() => {
+        let disposed = false;
+        const loadServerOrder = async () => {
+            try {
+                const res = await api.get('/system/servers/order');
+                if (disposed) return;
+                const ids = Array.isArray(res.data?.obj) ? res.data.obj.map((item) => String(item || '').trim()).filter(Boolean) : [];
+                setServerOrder(ids);
+            } catch (err) {
+                if (!disposed) {
+                    console.error('Failed to load server order:', err);
+                }
+            }
+        };
+        loadServerOrder();
+        return () => {
+            disposed = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        const knownIds = servers.map((item) => String(item?.id || '').trim()).filter(Boolean);
+        setServerOrder((prev) => {
+            const next = prev.filter((id) => knownIds.includes(id));
+            knownIds.forEach((id) => {
+                if (!next.includes(id)) next.push(id);
+            });
+            return next.length === prev.length && next.every((id, index) => id === prev[index]) ? prev : next;
+        });
+    }, [servers]);
 
     const openCredentialRepair = (serverId, reason = '') => {
         const target = servers.find((item) => item.id === serverId);
@@ -456,18 +491,31 @@ export default function Servers() {
         setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
     };
 
+    const orderedServers = useMemo(() => {
+        const orderMap = new Map();
+        serverOrder.forEach((id, index) => orderMap.set(id, index));
+        return [...servers].sort((a, b) => {
+            const aId = String(a?.id || '').trim();
+            const bId = String(b?.id || '').trim();
+            const aIndex = orderMap.has(aId) ? orderMap.get(aId) : Number.MAX_SAFE_INTEGER;
+            const bIndex = orderMap.has(bId) ? orderMap.get(bId) : Number.MAX_SAFE_INTEGER;
+            if (aIndex !== bIndex) return aIndex - bIndex;
+            return String(a?.name || '').localeCompare(String(b?.name || ''), locale, { sensitivity: 'base' });
+        });
+    }, [locale, serverOrder, servers]);
+
     const groupOptions = useMemo(() => {
         const set = new Set(
-            servers
+            orderedServers
                 .map((item) => String(item.group || '').trim())
                 .filter(Boolean)
         );
         return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [servers]);
+    }, [orderedServers]);
 
     const filteredServers = useMemo(() => {
         const keyword = String(searchKeyword || '').trim().toLowerCase();
-        return servers.filter((server) => {
+        return orderedServers.filter((server) => {
             if (filterGroup !== 'all' && String(server.group || '') !== filterGroup) return false;
             if (filterEnvironment !== 'all' && String(server.environment || 'unknown') !== filterEnvironment) return false;
             if (filterHealth !== 'all' && String(server.health || 'unknown') !== filterHealth) return false;
@@ -486,7 +534,7 @@ export default function Servers() {
                 .join(' ');
             return text.includes(keyword);
         });
-    }, [servers, searchKeyword, filterGroup, filterEnvironment, filterHealth]);
+    }, [orderedServers, searchKeyword, filterGroup, filterEnvironment, filterHealth]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
     const activeServer = useMemo(
@@ -511,6 +559,36 @@ export default function Servers() {
             }
     ), [filteredServers.length, locale, servers.length]);
     const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
+    const orderedServerIds = useMemo(
+        () => orderedServers.map((item) => String(item?.id || '').trim()).filter(Boolean),
+        [orderedServers]
+    );
+
+    const moveServer = async (serverId, direction) => {
+        const visibleIds = filteredServers.map((item) => String(item.id || '').trim()).filter(Boolean);
+        const currentVisibleIndex = visibleIds.indexOf(serverId);
+        const swapWithId = visibleIds[currentVisibleIndex + direction];
+        if (currentVisibleIndex === -1 || !swapWithId) return;
+
+        const nextOrder = [...orderedServerIds];
+        const currentIndex = nextOrder.indexOf(serverId);
+        const swapIndex = nextOrder.indexOf(swapWithId);
+        if (currentIndex === -1 || swapIndex === -1) return;
+        [nextOrder[currentIndex], nextOrder[swapIndex]] = [nextOrder[swapIndex], nextOrder[currentIndex]];
+
+        setLoading((prev) => ({ ...prev, serverOrder: true }));
+        try {
+            const res = await api.put('/system/servers/order', { serverIds: nextOrder });
+            const persistedOrder = Array.isArray(res.data?.obj?.serverIds)
+                ? res.data.obj.serverIds.map((item) => String(item || '').trim()).filter(Boolean)
+                : nextOrder;
+            setServerOrder(persistedOrder);
+            toast.success('服务器顺序已更新');
+        } catch (err) {
+            toast.error(getErrorMessage(err, '更新服务器顺序失败'));
+        }
+        setLoading((prev) => ({ ...prev, serverOrder: false }));
+    };
 
     return (
         <>
@@ -586,7 +664,7 @@ export default function Servers() {
                     </div>
                 </div>
 
-                {/* Server Cards */}
+                {/* Server List */}
                 {servers.length === 0 ? (
                     <EmptyState
                         title="暂无服务器"
@@ -602,8 +680,22 @@ export default function Servers() {
                         surface
                     />
                 ) : (
-                    <div className="grid-auto-280 servers-grid">
-                        {filteredServers.map(server => {
+                    <div className="table-container servers-table-shell">
+                        <table className="table servers-table">
+                            <thead>
+                                <tr>
+                                    <th className="table-cell-center">选择</th>
+                                    <th className="table-cell-center">序号</th>
+                                    <th>服务器</th>
+                                    <th>分组 / 标签</th>
+                                    <th>账号</th>
+                                    <th>凭据</th>
+                                    <th>状态</th>
+                                    <th className="table-cell-actions">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredServers.map((server, index) => {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
                             const panelUrl = getPanelUrl(server);
@@ -614,17 +706,52 @@ export default function Servers() {
                                     ? { cls: 'badge-warning', text: t('comp.servers.credMissing') }
                                     : { cls: 'badge-success', text: t('comp.servers.credSaved') });
                             return (
-                                <div
+                                <tr
                                     key={server.id}
-                                    className={`card server-card hover-lift transition-all duration-300 ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
+                                    className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
                                     onClick={() => selectServer(server.id)}
                                 >
-                                    <div className="server-card-head">
-                                        <div className="flex items-center gap-4 server-card-summary">
-                                            <div className="card-icon server-card-icon">
-                                                <HiOutlineServerStack />
+                                    <td className="table-cell-center" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            className="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleSelect(server.id)}
+                                        />
+                                    </td>
+                                    <td className="table-cell-center servers-order-cell" onClick={(e) => e.stopPropagation()}>
+                                        <div className="servers-order-stack">
+                                            <span className="servers-order-number">{index + 1}</span>
+                                            <div className="servers-order-actions">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs btn-icon"
+                                                    aria-label={`上移服务器 ${server.name}`}
+                                                    title="上移"
+                                                    disabled={index === 0 || loading.serverOrder}
+                                                    onClick={() => moveServer(server.id, -1)}
+                                                >
+                                                    <HiOutlineArrowUp />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs btn-icon"
+                                                    aria-label={`下移服务器 ${server.name}`}
+                                                    title="下移"
+                                                    disabled={index === filteredServers.length - 1 || loading.serverOrder}
+                                                    onClick={() => moveServer(server.id, 1)}
+                                                >
+                                                    <HiOutlineArrowDown />
+                                                </button>
                                             </div>
-                                            <div className="server-card-copy">
+                                        </div>
+                                    </td>
+                                    <td className="servers-name-cell">
+                                        <div className="servers-name-stack">
+                                            <div className="servers-name-head">
+                                                <span className="card-icon server-card-icon">
+                                                    <HiOutlineServerStack />
+                                                </span>
                                                 <button
                                                     type="button"
                                                     className={`table-cell-link-button server-card-name-trigger ${isActive ? 'text-glow' : ''}`}
@@ -633,75 +760,78 @@ export default function Servers() {
                                                 >
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
-                                                <div className="server-card-url-row">
-                                                    <div className="text-sm text-muted font-mono mt-1 server-card-url" title={panelUrl}>{panelUrl}</div>
-                                                    {panelUrl && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-ghost btn-xs btn-icon server-card-copy-btn"
-                                                            title="复制面板地址"
-                                                            aria-label="复制面板地址"
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                await copyToClipboard(panelUrl);
-                                                                toast.success(t('comp.servers.panelUrlCopied'));
-                                                            }}
-                                                        >
-                                                            <HiOutlineClipboard />
-                                                        </button>
-                                                    )}
-                                                </div>
+                                            </div>
+                                            <div className="server-card-url-row">
+                                                <div className="text-sm text-muted font-mono server-card-url" title={panelUrl}>{panelUrl}</div>
+                                                {panelUrl && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-xs btn-icon server-card-copy-btn"
+                                                        title="复制面板地址"
+                                                        aria-label="复制面板地址"
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            await copyToClipboard(panelUrl);
+                                                            toast.success(t('comp.servers.panelUrlCopied'));
+                                                        }}
+                                                    >
+                                                        <HiOutlineClipboard />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="server-card-controls" onClick={e => e.stopPropagation()}>
-                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
-                                                <HiOutlinePencilSquare />
-                                            </button>
-                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
-                                                <HiOutlineTrash />
-                                            </button>
-                                            <input
-                                                type="checkbox"
-                                                className="checkbox"
-                                                checked={isSelected}
-                                                onChange={() => toggleSelect(server.id)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 text-sm text-muted mb-6 bg-black/20 p-3 rounded-lg border border-white/5 server-card-meta">
-                                        <div className="flex-1 truncate">
-                                            <span className="opacity-70">用户: </span>
-                                            <span className="font-medium text-primary">{server.username}</span>
-                                        </div>
-                                        {isActive && (
-                                            <span className="badge badge-success px-2 py-0.5 text-xs">当前节点</span>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mb-4 text-xs server-card-tags">
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {server.group || t('comp.servers.ungrouped')}</span>
-                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                         {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
                                             <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
                                         ))}
-                                    </div>
-
-                                    <div className="flex gap-2 server-card-actions" onClick={(e) => e.stopPropagation()}>
-                                        <button className="btn btn-secondary btn-sm flex-1" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="servers-account-stack">
+                                            <span className="font-medium text-primary">{server.username}</span>
+                                            <span className="text-xs text-muted">{server.environment || 'unknown'}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                                    </td>
+                                    <td>
+                                        <div className="servers-status-stack">
+                                            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{isActive ? '当前节点' : '已接入'}</span>
+                                            <span className="text-xs text-muted">
+                                                {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : '未测试'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
+                                        <div className="table-row-actions servers-row-actions">
+                                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
                                             <HiOutlineEye /> 详情
                                         </button>
                                         <button
-                                            className="btn btn-secondary btn-sm flex-1"
+                                            className="btn btn-secondary btn-sm"
                                             onClick={() => handleTest(server.id)}
                                             disabled={loading[`test-${server.id}`]}
                                         >
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
-                                    </div>
-                                </div>
+                                            <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
+                                                <HiOutlinePencilSquare />
+                                            </button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
+                                                <HiOutlineTrash />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
                             );
                         })}
+                            </tbody>
+                        </table>
                     </div>
                 )}
 
