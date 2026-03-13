@@ -38,7 +38,31 @@ function hasSection(sections = [], key) {
     return Array.isArray(sections) ? sections.includes(key) : false;
 }
 
-export default function SubscriptionClientLinks({ bundle, sections = ['devices'], compact = false }) {
+function buildLinks(toolLookup, keys = []) {
+    return keys
+        .map((key) => toolLookup.get(key))
+        .filter(Boolean);
+}
+
+function buildRule(toolLookup, profileLookup, toolKeys = [], profileKey) {
+    const tools = toolKeys
+        .map((key) => toolLookup.get(key)?.label)
+        .filter(Boolean);
+    const profileLabel = profileLookup.get(profileKey)?.label;
+    if (!tools.length || !profileLabel) return null;
+    return {
+        key: `${toolKeys.join('-')}::${profileKey}`,
+        tools,
+        profileLabel,
+    };
+}
+
+export default function SubscriptionClientLinks({
+    bundle,
+    sections = ['devices'],
+    compact = false,
+    showHeading = true,
+}) {
     const quickActions = Array.isArray(bundle?.importActions)
         ? bundle.importActions.filter((item) => (
             String(item?.href || '').trim()
@@ -59,69 +83,78 @@ export default function SubscriptionClientLinks({ bundle, sections = ['devices']
         {
             key: 'windows',
             title: 'Windows',
-            summary: '先用通用链接，常见客户端是 v2rayN；如果你平时用 Clash，再切到 Clash / Mihomo。',
-            profileLabel: profileLookup.get('v2rayn')?.label || '通用链接',
-            appLinks: ['v2rayn', 'clash-verge', 'mihomo-party']
-                .map((key) => toolLookup.get(key))
-                .filter(Boolean),
-            quickKeys: ['clash-family', 'singbox'],
+            summary: '任选一个客户端。',
+            appLinks: buildLinks(toolLookup, ['flclash', 'v2rayn', 'sparkle']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn'),
+            ].filter(Boolean),
+            quickKeys: [],
         },
         {
             key: 'macos',
             title: 'macOS',
-            summary: '优先用 Clash / Mihomo、Stash 或 Surge；对应的订阅类型要和客户端一致。',
-            profileLabel: profileLookup.get('clash')?.label || profileLookup.get('surge')?.label || '通用链接',
-            appLinks: ['mihomo-party', 'stash', 'surge']
-                .map((key) => toolLookup.get(key))
-                .filter(Boolean),
-            quickKeys: ['clash-family', 'surge'],
+            summary: '任选一个客户端。',
+            appLinks: buildLinks(toolLookup, ['flclash', 'sparkle', 'v2rayn']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn'),
+            ].filter(Boolean),
+            quickKeys: [],
         },
         {
             key: 'android',
             title: 'Android',
-            summary: '通常用 v2rayNG；如果你装的是 sing-box，也可以选 sing-box 专用格式。',
-            profileLabel: profileLookup.get('v2rayn')?.label || '通用链接',
-            appLinks: ['v2rayng', 'singbox']
-                .map((key) => toolLookup.get(key))
-                .filter(Boolean),
-            quickKeys: ['singbox'],
+            summary: '任选一个客户端。',
+            appLinks: buildLinks(toolLookup, ['flclash', 'cmfa', 'exclave']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['exclave'], 'v2rayn'),
+            ].filter(Boolean),
+            quickKeys: [],
         },
         {
             key: 'ios',
             title: 'iPhone / iPad',
-            summary: '常见是 Shadowrocket、Stash 或 Surge；装好后可以直接用对应的快捷导入。',
-            profileLabel: profileLookup.get('v2rayn')?.label || profileLookup.get('clash')?.label || '通用链接',
-            appLinks: ['shadowrocket', 'stash', 'surge']
-                .map((key) => toolLookup.get(key))
-                .filter(Boolean),
-            quickKeys: ['shadowrocket', 'clash-family', 'surge'],
+            summary: '装好后可直接导入。',
+            appLinks: buildLinks(toolLookup, ['shadowrocket', 'surge', 'singbox']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn'),
+                buildRule(toolLookup, profileLookup, ['surge'], 'surge'),
+                buildRule(toolLookup, profileLookup, ['singbox'], 'singbox'),
+            ].filter(Boolean),
+            quickKeys: ['shadowrocket', 'surge', 'singbox'],
         },
     ]), [profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
     return (
-        <div className="subscription-client-links">
+        <div className={`subscription-client-links${compact ? ' subscription-client-links--compact' : ''}`}>
             {hasSection(sections, 'devices') && (
                 <div className="subscription-client-links-section">
-                    <div className="subscription-client-links-heading">
-                        <div className="subscription-client-links-title">还没装客户端？先按设备选</div>
-                        <div className="subscription-client-links-caption">只看自己设备那一张卡：先装客户端，再点对应快捷导入；没有快捷导入时，就复制上面的订阅地址。</div>
-                    </div>
+                    {showHeading && (
+                        <div className="subscription-client-links-heading">
+                            <div className="subscription-client-links-title">还没装客户端？先按设备选</div>
+                            <div className="subscription-client-links-caption">先下客户端，再按下面的订阅类型导入。</div>
+                        </div>
+                    )}
                     <div className="subscription-device-grid">
                         {deviceGuides.map((item) => {
-                            const deviceActions = item.quickKeys
+                            const quickItems = item.quickKeys
                                 .map((key) => quickActionLookup.get(key))
-                                .filter(Boolean);
+                                .filter(Boolean)
+                                .map((action) => {
+                                    if (Array.isArray(action?.actions)) {
+                                        return action.actions.find((subAction) => subAction.key === 'clash') || action.actions[0] || null;
+                                    }
+                                    return action;
+                                })
+                                .filter((action) => String(action?.href || '').trim());
 
                             return (
                                 <div key={item.key} className="subscription-device-card">
                                     <div className="subscription-device-title">{item.title}</div>
-                                    <div className="subscription-device-profile">
-                                        建议先选
-                                        {' '}
-                                        <span>{item.profileLabel}</span>
-                                    </div>
                                     <div className="subscription-device-text">{item.summary}</div>
                                     <div className="subscription-device-block">
                                         <div className="subscription-device-block-label">客户端下载</div>
@@ -139,38 +172,31 @@ export default function SubscriptionClientLinks({ bundle, sections = ['devices']
                                             ))}
                                         </div>
                                     </div>
+                                    <div className="subscription-device-block">
+                                        <div className="subscription-device-block-label">对应订阅</div>
+                                        <div className="subscription-device-rules">
+                                            {item.profileRules.map((rule) => (
+                                                <div key={rule.key} className="subscription-device-rule">
+                                                    <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
+                                                    <span className="subscription-device-rule-arrow">选</span>
+                                                    <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <div className="subscription-device-block subscription-device-block--push">
-                                        <div className="subscription-device-block-label">快捷导入</div>
-                                        {deviceActions.length > 0 ? (
-                                            <div className={`subscription-quick-actions${compact ? ' subscription-quick-actions--compact' : ''}`}>
-                                                {deviceActions.map((action) => (
-                                                    <div key={`${item.key}-${action.key}`} className={`subscription-quick-card${compact ? ' subscription-quick-card--compact' : ''}`}>
-                                                        <div className="subscription-quick-card-copy">
-                                                            <div className="subscription-quick-card-title">{action.label}</div>
-                                                            <div className="subscription-quick-card-hint">{action.hint}</div>
-                                                        </div>
-                                                        <div className="subscription-quick-card-actions">
-                                                            {action.href ? (
-                                                                <a href={action.href} className="btn btn-primary btn-sm">
-                                                                    快捷导入
-                                                                </a>
-                                                            ) : null}
-                                                            {Array.isArray(action.actions) && action.actions.map((subAction, index) => (
-                                                                <a
-                                                                    key={subAction.key || `${action.key}-${index}`}
-                                                                    href={subAction.href}
-                                                                    className={`btn btn-sm ${index === 0 ? 'btn-primary' : 'btn-secondary'}`}
-                                                                >
-                                                                    {subAction.label}
-                                                                </a>
-                                                            ))}
-                                                        </div>
-                                                    </div>
+                                        <div className="subscription-device-block-label">导入方式</div>
+                                        {quickItems.length > 0 ? (
+                                            <div className="subscription-device-actions">
+                                                {quickItems.map((action) => (
+                                                    <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
+                                                        {action.label}
+                                                    </a>
                                                 ))}
                                             </div>
                                         ) : (
                                             <div className="subscription-device-empty">
-                                                这个平台没有一键导入时，直接复制上面的订阅地址到客户端里就行。
+                                                复制上面的订阅地址，到客户端里粘贴导入就行。
                                             </div>
                                         )}
                                     </div>

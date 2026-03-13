@@ -28,6 +28,41 @@ const PANEL_AUTH_REPAIR_CODES = new Set([
     'PANEL_LOGIN_FAILED',
 ]);
 
+const SERVER_ENV_LABELS_ZH = {
+    prod: '生产',
+    production: '生产',
+    stage: '预发布',
+    staging: '预发布',
+    dev: '开发',
+    development: '开发',
+    test: '测试',
+    testing: '测试',
+    dr: '灾备',
+    sandbox: '沙盒',
+    unknown: '未设置环境',
+};
+
+const SERVER_ENV_LABELS_EN = {
+    prod: 'Production',
+    production: 'Production',
+    stage: 'Staging',
+    staging: 'Staging',
+    dev: 'Development',
+    development: 'Development',
+    test: 'Testing',
+    testing: 'Testing',
+    dr: 'Disaster Recovery',
+    sandbox: 'Sandbox',
+    unknown: 'No environment',
+};
+
+function formatServerEnvironment(value, locale = 'zh-CN') {
+    const raw = String(value || '').trim();
+    const normalized = raw.toLowerCase() || 'unknown';
+    const labels = locale === 'zh-CN' ? SERVER_ENV_LABELS_ZH : SERVER_ENV_LABELS_EN;
+    return labels[normalized] || raw || labels.unknown;
+}
+
 export default function Servers() {
     const { locale, t } = useI18n();
     const navigate = useNavigate();
@@ -781,7 +816,7 @@ export default function Servers() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td className="servers-tags-cell">
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {server.group || t('comp.servers.ungrouped')}</span>
                                         {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
@@ -789,19 +824,19 @@ export default function Servers() {
                                         ))}
                                         </div>
                                     </td>
-                                    <td>
+                                    <td className="servers-account-cell">
                                         <div className="servers-account-stack">
                                             <span className="font-medium text-primary">{server.username}</span>
-                                            <span className="text-xs text-muted">{server.environment || 'unknown'}</span>
+                                            <span className="text-xs text-muted">环境：{formatServerEnvironment(server.environment, locale)}</span>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td className="servers-credential-cell">
                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                     </td>
-                                    <td>
+                                    <td className="servers-status-cell">
                                         <div className="servers-status-stack">
                                             <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{isActive ? '当前节点' : '已接入'}</span>
-                                            <span className="text-xs text-muted">
+                                            <span className="text-xs text-muted servers-status-meta">
                                                 {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : '未测试'}
                                             </span>
                                         </div>

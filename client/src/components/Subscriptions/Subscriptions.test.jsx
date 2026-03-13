@@ -147,14 +147,20 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
-        expect((await screen.findAllByRole('link', { name: '快捷导入' })).length).toBeGreaterThan(0);
+        expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(1);
+        expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(1);
+        expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Sparkle').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('CMFA').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Exclave').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Clash / Mihomo 系列').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Verge Rev').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Mihomo Party').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Surge').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);
+        expect(screen.queryByText('Verge Rev')).not.toBeInTheDocument();
+        expect(screen.queryByText('v2rayNG')).not.toBeInTheDocument();
+        expect(screen.queryByText('Stash')).not.toBeInTheDocument();
+        expect(screen.queryByText('Mihomo Party')).not.toBeInTheDocument();
+        expect(screen.getAllByText('FlClash / Sparkle').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('FlClash / CMFA').length).toBeGreaterThan(0);
         expect(await screen.findByText('converter.example.com')).toBeInTheDocument();
         expect(screen.queryByText('更多客户端下载')).not.toBeInTheDocument();
 

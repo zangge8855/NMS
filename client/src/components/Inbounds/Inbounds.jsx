@@ -845,7 +845,7 @@ export default function Inbounds() {
                     subtitle={t('pages.inbounds.subtitle')}
                     eyebrow={t('pages.inbounds.eyebrow')}
                 />
-                <div className="page-content page-enter">
+                <div className="page-content page-content--wide page-enter">
                     <EmptyState
                         title="请先在「服务器管理」添加节点"
                         subtitle="接入至少一台 3x-ui 节点后，再统一维护入站和客户端。"
@@ -864,7 +864,7 @@ export default function Inbounds() {
                 subtitle={t('pages.inbounds.subtitle')}
                 eyebrow={t('pages.inbounds.eyebrow')}
             />
-            <div className="page-content page-enter">
+            <div className="page-content page-content--wide page-enter">
                 <div className="inbounds-toolbar glass-panel mb-6">
                     <div className="inbounds-toolbar-main">
                         <select
@@ -1078,31 +1078,33 @@ export default function Inbounds() {
                                                                 <span className="inbounds-node-name" title={ib.serverName}>{ib.serverName}</span>
                                                             </span>
                                                             {isFirstInServerGroup && (
-                                                                <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="inbounds-sequence-btn"
-                                                                        aria-label={`上移节点 ${ib.serverName}`}
-                                                                        disabled={!canMoveServerUp}
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
-                                                                        }}
-                                                                    >
-                                                                        <HiOutlineChevronUp />
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="inbounds-sequence-btn"
-                                                                        aria-label={`下移节点 ${ib.serverName}`}
-                                                                        disabled={!canMoveServerDown}
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
-                                                                        }}
-                                                                    >
-                                                                        <HiOutlineChevronDown />
-                                                                    </button>
+                                                                <div className="inbounds-node-order-actions">
+                                                                    <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="inbounds-sequence-btn"
+                                                                            aria-label={`上移节点 ${ib.serverName}`}
+                                                                            disabled={!canMoveServerUp}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineChevronUp />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="inbounds-sequence-btn"
+                                                                            aria-label={`下移节点 ${ib.serverName}`}
+                                                                            disabled={!canMoveServerDown}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineChevronDown />
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1122,10 +1124,11 @@ export default function Inbounds() {
                                                         {clients.length}
                                                     </span>
                                                 </td>
-                                                <td data-label="流量" className="text-sm whitespace-nowrap">
-                                                    <span className="text-success">↑{formatBytes(ib.up)}</span>
-                                                    <span className="text-muted mx-1">/</span>
-                                                    <span className="text-info">↓{formatBytes(ib.down)}</span>
+                                                <td data-label="流量" className="text-sm">
+                                                    <div className="inbounds-traffic-stack">
+                                                        <span className="text-success">↑{formatBytes(ib.up)}</span>
+                                                        <span className="text-info">↓{formatBytes(ib.down)}</span>
+                                                    </div>
                                                 </td>
                                                 <td data-label="状态">
                                                     <div className="inbounds-status-cell">

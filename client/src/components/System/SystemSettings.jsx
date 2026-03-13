@@ -1682,17 +1682,20 @@ export default function SystemSettings() {
                                 })}
                             </div>
                             <div className="settings-nav-side">
-                                <div className="settings-overview-status" aria-live="polite">
-                                    <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
-                                        {settings ? '配置快照已加载' : '等待加载配置'}
-                                    </span>
-                                    {saving ? <span className="badge badge-info">正在保存设置</span> : null}
+                                <div className="settings-nav-status-card" aria-live="polite">
+                                    <div className="settings-nav-status-label">当前状态</div>
+                                    <div className="settings-nav-status-value">
+                                        {settings ? '已加载当前配置' : '等待加载配置'}
+                                    </div>
+                                    <div className="settings-nav-status-meta">
+                                        {saving ? '正在保存设置' : '可以直接修改并保存'}
+                                    </div>
                                 </div>
-                                <div className="settings-overview-actions settings-panel-actions">
-                                    <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                        刷新
+                                <div className="settings-nav-actions settings-panel-actions">
+                                    <button className="btn btn-secondary" onClick={refreshAllSections} disabled={loading}>
+                                        重新加载
                                     </button>
-                                    <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                    <button className="btn btn-primary" onClick={saveSettings} disabled={loading || saving}>
                                         {saving ? <span className="spinner" /> : '保存设置'}
                                     </button>
                                 </div>

@@ -217,7 +217,8 @@ describe('UsersHub ordering', () => {
         if (!aliceRow) throw new Error('Missing Alice row');
 
         expect(within(aliceRow).getByText('alice@example.com')).toBeInTheDocument();
-        expect(within(aliceRow).getByText('30 B')).toBeInTheDocument();
+        expect(within(aliceRow).getByText('↑10 B')).toBeInTheDocument();
+        expect(within(aliceRow).getByText('↓20 B')).toBeInTheDocument();
         expect(within(aliceRow).queryByText(/ID user-a/i)).not.toBeInTheDocument();
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
         expect(within(aliceRow).getByText('1 会话')).toBeInTheDocument();

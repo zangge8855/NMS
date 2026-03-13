@@ -11,7 +11,7 @@ import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../u
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
-import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients.js';
+import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -303,7 +303,7 @@ export default function UsersHub() {
                         const email = normalizeEmail(cl.email);
                         if (!email) return;
                         if (!emailMap.has(email)) {
-                            emailMap.set(email, { count: 0, totalUsed: 0, expiryValues: [], onlineSessions: 0 });
+                            emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 });
                         }
                         const entry = emailMap.get(email);
                         const onlineSessions = buildClientOnlineKeys(cl, protocol).reduce((total, key) => (
@@ -311,6 +311,8 @@ export default function UsersHub() {
                         ), 0);
                         entry.count += 1;
                         entry.totalUsed += resolveClientUsed(cl);
+                        entry.totalUp += safeNumber(cl?.up);
+                        entry.totalDown += safeNumber(cl?.down);
                         entry.onlineSessions += onlineSessions;
                         if (Number(cl.expiryTime || 0) > 0) {
                             entry.expiryValues.push(Number(cl.expiryTime));
@@ -338,7 +340,7 @@ export default function UsersHub() {
             .map((user) => {
                 const subEmail = normalizeEmail(user.subscriptionEmail);
                 const loginEmail = normalizeEmail(user.email);
-                const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, expiryValues: [], onlineSessions: 0 };
+                const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 };
                 const onlineSessions = clientData.onlineSessions || onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0;
                 const status = getUserStatus(user, clientData.count);
                 const onlineStatus = getOnlineStatus(clientData.count, onlineSessions);
@@ -1008,7 +1010,7 @@ export default function UsersHub() {
                                 <th>状态</th>
                                 <th>在线状态</th>
                                 <th className="text-right">节点数</th>
-                                <th className="text-right">已用流量</th>
+                                <th className="text-right users-traffic-column">已用流量</th>
                                 <th className="users-expiry-column">到期时间</th>
                                 <th className="users-actions-column">操作</th>
                             </tr>
@@ -1062,7 +1064,18 @@ export default function UsersHub() {
                                             </div>
                                         </td>
                                         <td data-label="节点数" className="cell-mono-right">{user.clientData.count || '-'}</td>
-                                        <td data-label="已用流量" className="cell-mono-right">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
+                                        <td
+                                            data-label="已用流量"
+                                            className="users-traffic-cell"
+                                            title={user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-'}
+                                        >
+                                            {user.clientData.totalUsed ? (
+                                                <div className="users-traffic-stack">
+                                                    <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
+                                                    <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
+                                                </div>
+                                            ) : '-'}
+                                        </td>
                                         <td
                                             data-label="到期时间"
                                             className="cell-mono users-expiry-cell"

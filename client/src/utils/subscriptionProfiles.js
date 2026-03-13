@@ -81,8 +81,12 @@ function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
 }
 
 const TOOL_SITES = [
+    { key: 'flclash', label: 'FlClash', url: 'https://github.com/chen08209/FlClash' },
+    { key: 'exclave', label: 'Exclave', url: 'https://github.com/dyhkwong/Exclave' },
     { key: 'v2rayn', label: 'v2rayN', url: 'https://github.com/2dust/v2rayN' },
     { key: 'v2rayng', label: 'v2rayNG', url: 'https://github.com/2dust/v2rayNG' },
+    { key: 'cmfa', label: 'CMFA', url: 'https://github.com/MetaCubeX/ClashMetaForAndroid' },
+    { key: 'sparkle', label: 'Sparkle', url: 'https://www.sparkle.pics/' },
     { key: 'shadowrocket', label: 'Shadowrocket', url: 'https://apps.apple.com/app/shadowrocket/id932747118' },
     {
         key: 'clash-family',

@@ -6315,8 +6315,8 @@ body::before {
 }
 
 .inbounds-traffic-col {
-  width: clamp(136px, 14vw, 156px);
-  min-width: 136px;
+  width: clamp(108px, 11vw, 124px);
+  min-width: 108px;
 }
 
 .inbounds-status-col {
@@ -6377,9 +6377,9 @@ body::before {
 }
 
 .inbounds-node-cell-inner {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   min-width: 0;
 }
 
@@ -6393,6 +6393,7 @@ body::before {
   padding-right: 10px;
   white-space: normal;
   flex: 1 1 auto;
+  width: 100%;
 }
 
 .inbounds-node-name {
@@ -6402,6 +6403,12 @@ body::before {
   white-space: normal;
   word-break: break-word;
   line-height: 1.45;
+}
+
+.inbounds-node-order-actions {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .inbounds-remark-cell {
@@ -6450,6 +6457,14 @@ body::before {
   display: inline-flex;
   min-width: 2ch;
   justify-content: flex-end;
+}
+
+.inbounds-traffic-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.35;
 }
 
 .inbound-order-input,
@@ -6917,31 +6932,51 @@ body::before {
 
 .users-table {
   table-layout: fixed;
-  min-width: 968px;
+  min-width: 944px;
 }
 
 .users-table th,
 .users-table td {
-  padding: 12px 14px;
+  padding: 12px 12px;
 }
 
 .users-identity-column {
-  width: 236px;
-  min-width: 236px;
+  width: 224px;
+  min-width: 224px;
+}
+
+.users-traffic-column {
+  width: 108px;
+  min-width: 108px;
 }
 
 .users-expiry-column {
-  width: 144px;
-  min-width: 144px;
+  width: 132px;
+  min-width: 132px;
 }
 
 .users-actions-column {
-  width: 144px;
+  width: 136px;
 }
 
 .users-identity-cell,
 .users-actions-cell {
   min-width: 0;
+}
+
+.users-traffic-cell {
+  min-width: 0;
+}
+
+.users-traffic-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  width: fit-content;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
 }
 
 .users-identity-link {
@@ -6988,16 +7023,16 @@ body::before {
 }
 
 .users-row-actions {
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
   flex-wrap: nowrap;
 }
 
 .users-row-actions .btn {
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
-  flex: 0 0 34px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 32px;
 }
 
 .users-actions-cell {
@@ -9774,6 +9809,11 @@ input[type="radio"]:focus-visible {
   margin-top: 16px;
 }
 
+.subscription-client-links--compact {
+  gap: 12px;
+  margin-top: 0;
+}
+
 .subscription-client-links-section {
   display: flex;
   flex-direction: column;
@@ -9804,6 +9844,11 @@ input[type="radio"]:focus-visible {
   gap: 10px;
 }
 
+.subscription-client-links--compact .subscription-device-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
 .subscription-device-card {
   display: flex;
   flex-direction: column;
@@ -9813,6 +9858,12 @@ input[type="radio"]:focus-visible {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background: linear-gradient(180deg, var(--surface-soft), rgba(255, 255, 255, 0.01));
+}
+
+.subscription-client-links--compact .subscription-device-card {
+  min-height: 0;
+  padding: 12px;
+  gap: 8px;
 }
 
 .subscription-device-title {
@@ -9843,6 +9894,10 @@ input[type="radio"]:focus-visible {
   color: var(--text-secondary);
 }
 
+.subscription-client-links--compact .subscription-device-text {
+  line-height: 1.55;
+}
+
 .subscription-device-block {
   display: flex;
   flex-direction: column;
@@ -9861,10 +9916,61 @@ input[type="radio"]:focus-visible {
   color: var(--text-muted);
 }
 
+.subscription-client-links--compact .subscription-device-block-label {
+  letter-spacing: 0.04em;
+}
+
+.user-detail-subscription-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.user-detail-subscription-guides {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--stroke-soft);
+}
+
 .subscription-device-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.subscription-device-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subscription-device-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.subscription-device-rule-tools {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.subscription-device-rule-arrow {
+  color: var(--text-muted);
+}
+
+.subscription-device-rule-profile {
+  color: var(--accent-primary);
+  font-weight: 700;
 }
 
 .subscription-device-empty {

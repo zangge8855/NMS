@@ -763,7 +763,7 @@ export default function UserDetail() {
                                 ) : (
                                     <div className="flex flex-col gap-4">
                                         <div className="subscription-link-grid">
-                                            <div className="card p-4">
+                                            <div className="card p-4 user-detail-subscription-card">
                                                 <div className="text-sm font-medium mb-3">订阅资料</div>
                                                 <div className="flex gap-2 flex-wrap mb-3">
                                                     {(subscriptionResult.bundle?.availableProfiles || []).map((item) => (
@@ -798,6 +798,17 @@ export default function UserDetail() {
                                                         已过滤: 过期 {subscriptionResult.filteredExpired || 0} / 禁用 {subscriptionResult.filteredDisabled || 0} / 策略限制 {subscriptionResult.filteredByPolicy || 0}
                                                     </div>
                                                 )}
+                                                <div className="user-detail-subscription-guides">
+                                                    <div className="text-sm font-medium">怎么给用户用</div>
+                                                    <div className="text-xs text-muted">
+                                                        让用户只做这三步：1. 找到自己的设备 2. 先装客户端 3. 点快捷导入；如果没有快捷导入，就复制上面的地址。
+                                                    </div>
+                                                    <SubscriptionClientLinks
+                                                        bundle={subscriptionResult.bundle}
+                                                        compact
+                                                        showHeading={false}
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className="card p-4">
@@ -816,8 +827,6 @@ export default function UserDetail() {
                                                 )}
                                             </div>
                                         </div>
-
-                                        <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
                                     </div>
                                 )}
                             </div>
