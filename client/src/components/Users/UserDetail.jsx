@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
@@ -120,15 +120,24 @@ function formatSummaryText(item) {
     return parts.join(' · ');
 }
 
+function normalizeDetailTab(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (['overview', 'subscription', 'clients', 'tokens', 'activity'].includes(text)) {
+        return text;
+    }
+    return 'overview';
+}
+
 export default function UserDetail() {
     const { t } = useI18n();
     const { userId } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
 
     const [loading, setLoading] = useState(true);
     const [detail, setDetail] = useState(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(() => normalizeDetailTab(searchParams.get('tab')));
 
     // Token issue modal
     const [tokenModalOpen, setTokenModalOpen] = useState(false);
@@ -136,6 +145,10 @@ export default function UserDetail() {
     const [tokenNoExpiry, setTokenNoExpiry] = useState(true);
     const [tokenTtlDays, setTokenTtlDays] = useState(30);
     const [tokenIssuing, setTokenIssuing] = useState(false);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+    const [subscriptionResult, setSubscriptionResult] = useState(null);
+    const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
+    const [subscriptionResetLoading, setSubscriptionResetLoading] = useState(false);
 
     // Client data from servers
     const [clientData, setClientData] = useState([]);
@@ -154,6 +167,18 @@ export default function UserDetail() {
         error: '',
     });
 
+    const applyTab = (tabKey) => {
+        const normalized = normalizeDetailTab(tabKey);
+        setActiveTab(normalized);
+        const nextParams = new URLSearchParams(searchParams);
+        if (normalized === 'overview') {
+            nextParams.delete('tab');
+        } else {
+            nextParams.set('tab', normalized);
+        }
+        setSearchParams(nextParams, { replace: true });
+    };
+
     const fetchDetail = async () => {
         setLoading(true);
         try {
@@ -167,6 +192,51 @@ export default function UserDetail() {
             toast.error(err.response?.data?.msg || '加载用户详情失败');
         }
         setLoading(false);
+    };
+
+    const loadSubscription = async (options = {}) => {
+        const quiet = options.quiet === true;
+        const email = String(
+            detail?.user?.subscriptionEmail
+            || detail?.user?.email
+            || ''
+        ).trim().toLowerCase();
+
+        if (!email) {
+            setSubscriptionResult(null);
+            return;
+        }
+
+        setSubscriptionLoading(true);
+        try {
+            const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
+            const payload = res.data?.obj || {};
+            const bundle = buildSubscriptionProfileBundle(payload);
+            setSubscriptionResult({
+                email: payload.email || email,
+                total: Number(payload.total || 0),
+                sourceMode: payload.sourceMode || 'unknown',
+                bundle,
+                mergedUrl: bundle.mergedUrl,
+                subscriptionActive: payload.subscriptionActive !== false,
+                inactiveReason: payload.inactiveReason || '',
+                filteredExpired: Number(payload.filteredExpired || 0),
+                filteredDisabled: Number(payload.filteredDisabled || 0),
+                filteredByPolicy: Number(payload.filteredByPolicy || 0),
+                matchedClientsRaw: Number(payload.matchedClientsRaw || 0),
+                matchedClientsActive: Number(payload.matchedClientsActive || 0),
+                token: payload.token || null,
+            });
+            if (bundle.defaultProfileKey) {
+                setSubscriptionProfileKey(bundle.defaultProfileKey);
+            }
+        } catch (err) {
+            setSubscriptionResult(null);
+            if (!quiet) {
+                toast.error(err.response?.data?.msg || '加载订阅详情失败');
+            }
+        }
+        setSubscriptionLoading(false);
     };
 
     const fetchClients = async () => {
@@ -223,8 +293,19 @@ export default function UserDetail() {
     }, [userId]);
 
     useEffect(() => {
+        const nextTab = normalizeDetailTab(searchParams.get('tab'));
+        setActiveTab((prev) => (prev === nextTab ? prev : nextTab));
+    }, [searchParams]);
+
+    useEffect(() => {
         if (detail) {
             fetchClients();
+        }
+    }, [detail]);
+
+    useEffect(() => {
+        if (detail) {
+            loadSubscription({ quiet: true });
         }
     }, [detail]);
 
@@ -294,6 +375,46 @@ export default function UserDetail() {
     const totalTraffic = useMemo(() => {
         return clientData.reduce((sum, c) => sum + (c.up || 0) + (c.down || 0), 0);
     }, [clientData]);
+    const activeSubscriptionProfile = useMemo(
+        () => findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey),
+        [subscriptionResult, subscriptionProfileKey]
+    );
+
+    const handleCopySubscription = async () => {
+        if (!activeSubscriptionProfile?.url) {
+            toast.error('暂无可复制订阅地址');
+            return;
+        }
+        await copyToClipboard(activeSubscriptionProfile.url);
+        toast.success(`${activeSubscriptionProfile.label} 订阅地址已复制`);
+    };
+
+    const handleResetSubscription = async () => {
+        const targetEmail = String(subscriptionResult?.email || user?.subscriptionEmail || user?.email || '').trim().toLowerCase();
+        if (!targetEmail) return;
+
+        const ok = await confirmAction({
+            title: '重置订阅链接',
+            message: '重置后旧订阅地址会立即失效，客户端需要重新导入新地址。',
+            details: `目标邮箱: ${targetEmail}`,
+            confirmText: '确认重置',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setSubscriptionResetLoading(true);
+        try {
+            await api.post(`/subscriptions/${encodeURIComponent(targetEmail)}/reset-link`, {});
+            toast.success('订阅链接已重置');
+            await Promise.all([
+                loadSubscription({ quiet: true }),
+                fetchDetail(),
+            ]);
+        } catch (err) {
+            toast.error(err.response?.data?.msg || '重置订阅链接失败');
+        }
+        setSubscriptionResetLoading(false);
+    };
 
     const handleToggleEnabled = async () => {
         if (!user) return;
@@ -516,6 +637,7 @@ export default function UserDetail() {
 
     const tabs = [
         { key: 'overview', label: '概览' },
+        { key: 'subscription', label: '订阅' },
         { key: 'clients', label: '客户端' },
         { key: 'tokens', label: '订阅令牌' },
         { key: 'activity', label: '活动日志' },
@@ -547,6 +669,20 @@ export default function UserDetail() {
                                 {user.emailVerified && <span className="badge badge-success">邮箱已验证</span>}
                             </div>
                             <div className="user-profile-meta">
+                                <div className="user-profile-meta-item">
+                                    <HiOutlineKey /> 用户 ID: {user.id}
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-xs btn-icon"
+                                        title="复制完整用户 ID"
+                                        onClick={async () => {
+                                            await copyToClipboard(user.id);
+                                            toast.success('用户 ID 已复制');
+                                        }}
+                                    >
+                                        <HiOutlineClipboard />
+                                    </button>
+                                </div>
                                 <div className="user-profile-meta-item">
                                     <HiOutlineCalendarDays /> 注册: {formatTime(user.createdAt)}
                                 </div>
@@ -584,7 +720,7 @@ export default function UserDetail() {
                             <button
                                 key={t.key}
                                 className={`tab ${activeTab === t.key ? 'active' : ''}`}
-                                onClick={() => setActiveTab(t.key)}
+                                onClick={() => applyTab(t.key)}
                             >
                                 {t.label}
                             </button>
@@ -618,6 +754,112 @@ export default function UserDetail() {
                                                 <span>协议: <strong>{detail.policy.protocolScopeMode === 'all' ? '不限' : detail.policy.protocolScopeMode === 'none' ? '禁止' : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'subscription' && (
+                            <div>
+                                <SectionHeader
+                                    className="mb-4"
+                                    compact
+                                    title="订阅地址"
+                                    meta={subscriptionResult && (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-danger'}`}>
+                                                {subscriptionResult.subscriptionActive ? '可用' : '失效'}
+                                            </span>
+                                            {subscriptionResult.inactiveReason ? (
+                                                <span className="text-xs text-muted">{subscriptionResult.inactiveReason}</span>
+                                            ) : null}
+                                        </div>
+                                    )}
+                                    actions={(
+                                        <div className="flex gap-2 flex-wrap">
+                                            <button className="btn btn-secondary btn-sm" onClick={() => loadSubscription()} disabled={subscriptionLoading}>
+                                                {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新</>}
+                                            </button>
+                                            <button
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={handleResetSubscription}
+                                                disabled={subscriptionResetLoading || !subscriptionResult?.email}
+                                            >
+                                                {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置链接</>}
+                                            </button>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={handleCopySubscription}
+                                                disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}
+                                            >
+                                                <HiOutlineClipboard /> 复制地址
+                                            </button>
+                                        </div>
+                                    )}
+                                />
+
+                                {subscriptionLoading && !subscriptionResult ? (
+                                    <SkeletonTable rows={3} cols={3} />
+                                ) : !subscriptionResult ? (
+                                    <EmptyState title="暂无订阅信息" subtitle="该用户尚未生成可用订阅地址" />
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        <div className="subscription-link-grid">
+                                            <div className="card p-4">
+                                                <div className="text-sm font-medium mb-3">订阅资料</div>
+                                                <div className="flex gap-2 flex-wrap mb-3">
+                                                    {(subscriptionResult.bundle?.availableProfiles || []).map((item) => (
+                                                        <button
+                                                            key={item.key}
+                                                            type="button"
+                                                            className={`btn btn-sm ${subscriptionProfileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                            onClick={() => setSubscriptionProfileKey(item.key)}
+                                                        >
+                                                            {item.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">当前地址</label>
+                                                    <input
+                                                        className="form-input font-mono"
+                                                        value={activeSubscriptionProfile?.url || ''}
+                                                        readOnly
+                                                        placeholder="当前格式暂无可用订阅地址"
+                                                    />
+                                                </div>
+                                                <div className="text-xs text-muted">
+                                                    订阅邮箱: {subscriptionResult.email}
+                                                    {subscriptionResult.bundle?.externalConverterConfigured ? ' · 已启用外部订阅转换器' : ' · 使用 NMS 内置订阅生成'}
+                                                </div>
+                                                <div className="text-xs text-muted mt-1">
+                                                    活跃节点 {subscriptionResult.matchedClientsActive || 0} / 匹配节点 {subscriptionResult.matchedClientsRaw || 0}
+                                                </div>
+                                                {(subscriptionResult.filteredExpired > 0 || subscriptionResult.filteredDisabled > 0 || subscriptionResult.filteredByPolicy > 0) && (
+                                                    <div className="text-xs text-muted mt-1">
+                                                        已过滤: 过期 {subscriptionResult.filteredExpired || 0} / 禁用 {subscriptionResult.filteredDisabled || 0} / 策略限制 {subscriptionResult.filteredByPolicy || 0}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="card p-4">
+                                                <div className="text-sm font-medium mb-3">二维码</div>
+                                                {activeSubscriptionProfile?.url ? (
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="rounded-xl p-3 bg-white">
+                                                            <QRCodeSVG value={activeSubscriptionProfile.url} size={180} />
+                                                        </div>
+                                                        <div className="text-xs text-muted text-center">
+                                                            使用 {activeSubscriptionProfile.label} 扫码导入
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-muted">当前格式暂无二维码</div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
                                     </div>
                                 )}
                             </div>

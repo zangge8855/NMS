@@ -4,6 +4,7 @@ import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 import jobStore from '../store/jobStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import {
     normalizeEmailInput,
     registerUser,
@@ -210,6 +211,13 @@ function buildUserAuditDetails(target, extra = {}) {
     };
 }
 
+function getRegistrationStatus() {
+    return {
+        enabled: config.registration.enabled === true,
+        inviteOnlyEnabled: systemSettingsStore.getRegistration().inviteOnlyEnabled === true,
+    };
+}
+
 /**
  * POST /api/auth/login
  * 支持两种模式:
@@ -309,12 +317,19 @@ router.get('/check', (req, res) => {
 
 // ── Registration Routes ─────────────────────────────────────
 
+router.get('/registration-status', (req, res) => {
+    return res.json({
+        success: true,
+        obj: getRegistrationStatus(),
+    });
+});
+
 /**
  * POST /api/auth/register — 用户自助注册
  */
 router.post('/register', async (req, res) => {
-    // 检查注册是否开启
-    if (!config.registration.enabled) {
+    const registrationStatus = getRegistrationStatus();
+    if (!registrationStatus.enabled) {
         return res.status(403).json({ success: false, msg: '注册功能已关闭' });
     }
 
@@ -328,23 +343,31 @@ router.post('/register', async (req, res) => {
     }
 
     try {
-        const result = await registerUser(req.body);
-
-        appendSecurityAudit('verification_email_sent', req, {
-            ip: clientIp,
-            username: result.username,
-            email: result.email,
-            type: 'register',
+        const result = await registerUser(req.body, {
+            inviteOnlyEnabled: registrationStatus.inviteOnlyEnabled,
         });
+
+        if (result.requireEmailVerification !== false) {
+            appendSecurityAudit('verification_email_sent', req, {
+                ip: clientIp,
+                username: result.username,
+                email: result.email,
+                type: 'register',
+            });
+        }
         appendSecurityAudit('user_registered', req, {
             ip: clientIp,
             username: result.username,
             email: result.email,
+            inviteOnlyEnabled: registrationStatus.inviteOnlyEnabled,
         });
         res.json({
             success: true,
-            msg: '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
+            msg: result.requireEmailVerification === false
+                ? '注册成功，请等待管理员审核通过后再登录。'
+                : '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
             email: result.user.email,
+            requireEmailVerification: result.requireEmailVerification !== false,
         });
     } catch (err) {
         const error = toHttpError(err, 400, '注册失败');

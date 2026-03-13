@@ -151,4 +151,57 @@ describe('UsersHub ordering', () => {
         expect(within(afterRows[0]).getByText('2')).toBeInTheDocument();
         expect(api.put).not.toHaveBeenCalledWith('/system/users/order', expect.anything());
     });
+
+    it('aggregates used traffic from inbound clientStats instead of raw settings only', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-a',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                            enabled: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [{
+                                    id: 'uuid-1',
+                                    email: 'alice@example.com',
+                                }],
+                            }),
+                            clientStats: [{
+                                id: 'uuid-1',
+                                email: 'alice@example.com',
+                                up: 10,
+                                down: 20,
+                            }],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const aliceCell = await screen.findByText('alice');
+        const aliceRow = aliceCell.closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+
+        expect(within(aliceRow).getByText('30 B')).toBeInTheDocument();
+        expect(within(aliceRow).getByText(/ID user-a/i)).toBeInTheDocument();
+    });
 });

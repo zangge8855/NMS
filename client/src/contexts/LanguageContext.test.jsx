@@ -14,7 +14,7 @@ describe('LanguageProvider', () => {
             </LanguageProvider>
         );
 
-        expect(document.title).toBe('NMS · 节点管理系统');
+        expect(document.title).toBe('NMS');
         expect(document.documentElement.lang).toBe('zh-CN');
     });
 
@@ -27,7 +27,7 @@ describe('LanguageProvider', () => {
             </LanguageProvider>
         );
 
-        expect(document.title).toBe('NMS · Node Management System');
+        expect(document.title).toBe('NMS');
         expect(document.documentElement.lang).toBe('en-US');
     });
 });

@@ -4,6 +4,7 @@ import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import serverStore from '../store/serverStore.js';
 import userStore from '../store/userStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import inviteCodeStore from '../store/inviteCodeStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import batchRiskTokenStore, {
@@ -59,6 +60,57 @@ router.get('/settings', adminOnly, (req, res) => {
         success: true,
         obj: systemSettingsStore.getAll(),
     });
+});
+
+router.get('/invite-codes', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: inviteCodeStore.list(),
+    });
+});
+
+router.post('/invite-codes', adminOnly, (req, res) => {
+    try {
+        const created = inviteCodeStore.create({
+            createdBy: req.user?.username || req.user?.role || 'admin',
+        });
+        appendSecurityAudit('invite_code_created', req, {
+            inviteId: created.invite.id,
+            preview: created.invite.preview,
+        });
+        return res.json({
+            success: true,
+            msg: '邀请码已创建',
+            obj: created,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '创建邀请码失败',
+        });
+    }
+});
+
+router.delete('/invite-codes/:id', adminOnly, (req, res) => {
+    try {
+        const revoked = inviteCodeStore.revoke(req.params.id, {
+            revokedBy: req.user?.username || req.user?.role || 'admin',
+        });
+        appendSecurityAudit('invite_code_revoked', req, {
+            inviteId: revoked.id,
+            preview: revoked.preview,
+        });
+        return res.json({
+            success: true,
+            msg: '邀请码已撤销',
+            obj: revoked,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '撤销邀请码失败',
+        });
+    }
 });
 
 router.get('/email/status', adminOnly, (req, res) => {
@@ -256,6 +308,44 @@ router.get('/inbounds/order', adminOnly, (req, res) => {
         success: true,
         obj: systemSettingsStore.getInboundOrder(),
     });
+});
+
+router.get('/servers/order', adminOnly, (req, res) => {
+    return res.json({
+        success: true,
+        obj: systemSettingsStore.getServerOrder(),
+    });
+});
+
+router.put('/servers/order', adminOnly, (req, res) => {
+    const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : null;
+    if (!serverIds) {
+        return res.status(400).json({
+            success: false,
+            msg: 'serverIds must be an array',
+        });
+    }
+
+    try {
+        const knownServerIds = new Set(serverStore.getAll().map((item) => String(item?.id || '').trim()).filter(Boolean));
+        const filteredIds = serverIds.filter((id) => knownServerIds.has(String(id || '').trim()));
+        const order = systemSettingsStore.setServerOrder(filteredIds);
+        appendSecurityAudit('server_order_updated', req, {
+            serverCount: order.length,
+        });
+        return res.json({
+            success: true,
+            msg: 'Server order updated',
+            obj: {
+                serverIds: order,
+            },
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'Failed to update server order',
+        });
+    }
 });
 
 router.put('/inbounds/order', adminOnly, (req, res) => {

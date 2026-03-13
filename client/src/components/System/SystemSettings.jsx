@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { copyToClipboard } from '../../utils/format.js';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
@@ -15,7 +16,6 @@ import {
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
-import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
 function toInt(value, fallback) {
@@ -40,6 +40,9 @@ function buildDraft(source = null) {
     const defaultAuditIpGeoProvider = 'ip_api';
     const defaultAuditIpGeoEndpoint = 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
     return {
+        registration: {
+            inviteOnlyEnabled: settings.registration?.inviteOnlyEnabled === true,
+        },
         security: {
             requireHighRiskConfirmation: Boolean(settings.security?.requireHighRiskConfirmation),
             mediumRiskMinTargets: toInt(settings.security?.mediumRiskMinTargets, 20),
@@ -117,6 +120,11 @@ export default function SystemSettings() {
     const [monitorLoading, setMonitorLoading] = useState(false);
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
+    const [registrationRuntime, setRegistrationRuntime] = useState(null);
+    const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
+    const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
+    const [inviteCodes, setInviteCodes] = useState([]);
+    const [latestInviteCode, setLatestInviteCode] = useState('');
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
@@ -140,6 +148,7 @@ export default function SystemSettings() {
             ? '连接测试失败'
             : '未测试';
     const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
+    const registrationEnabled = registrationRuntime?.enabled !== false;
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -236,6 +245,29 @@ export default function SystemSettings() {
         setMonitorStatusLoading(false);
     };
 
+    const fetchRegistrationRuntime = async () => {
+        try {
+            const res = await api.get('/auth/registration-status');
+            setRegistrationRuntime(res.data?.obj || null);
+        } catch {
+            setRegistrationRuntime(null);
+        }
+    };
+
+    const fetchInviteCodes = async (options = {}) => {
+        const quiet = options.quiet === true;
+        setInviteCodesLoading(true);
+        try {
+            const res = await api.get('/system/invite-codes');
+            setInviteCodes(Array.isArray(res.data?.obj) ? res.data.obj : []);
+        } catch (error) {
+            if (!quiet) {
+                toast.error(error.response?.data?.msg || error.message || '加载邀请码失败');
+            }
+        }
+        setInviteCodesLoading(false);
+    };
+
     useEffect(() => {
         if (!isAdmin) {
             setLoading(false);
@@ -246,6 +278,8 @@ export default function SystemSettings() {
         fetchEmailStatus({ quiet: true });
         fetchBackupStatus({ quiet: true });
         fetchMonitorStatus({ quiet: true });
+        fetchRegistrationRuntime();
+        fetchInviteCodes({ quiet: true });
     }, [isAdmin]);
 
     const patchField = (section, key, value) => {
@@ -276,11 +310,53 @@ export default function SystemSettings() {
             const next = res.data?.obj || payload;
             setSettings(next);
             setDraft(buildDraft(next));
+            await fetchRegistrationRuntime();
             toast.success('系统设置已更新');
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '保存失败');
         }
         setSaving(false);
+    };
+
+    const createInviteCode = async () => {
+        if (!isAdmin) return;
+        setInviteCodeActionLoading(true);
+        try {
+            const res = await api.post('/system/invite-codes', {});
+            const code = String(res.data?.obj?.code || '').trim();
+            setLatestInviteCode(code);
+            toast.success(res.data?.msg || '邀请码已创建');
+            await fetchInviteCodes({ quiet: true });
+            if (code) {
+                await copyToClipboard(code);
+                toast.success('邀请码已复制到剪贴板');
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
+        }
+        setInviteCodeActionLoading(false);
+    };
+
+    const revokeInviteCode = async (invite) => {
+        if (!invite?.id || !isAdmin) return;
+        const ok = await confirmAction({
+            title: '撤销邀请码',
+            message: `确定撤销邀请码 ${invite.preview} 吗？`,
+            details: '撤销后该邀请码将不能再用于注册。',
+            confirmText: '确认撤销',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setInviteCodeActionLoading(true);
+        try {
+            await api.delete(`/system/invite-codes/${encodeURIComponent(invite.id)}`);
+            toast.success('邀请码已撤销');
+            await fetchInviteCodes({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '撤销邀请码失败');
+        }
+        setInviteCodeActionLoading(false);
     };
 
     const rotateCredentials = async (dryRun) => {
@@ -570,28 +646,35 @@ export default function SystemSettings() {
                 eyebrow={t('pages.settings.eyebrow')}
             />
             <div className="page-content page-enter">
-                <PageToolbar
-                    className="card mb-6 settings-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy settings-toolbar-copy">
-                            <div className="page-toolbar-title">系统参数与运行诊断</div>
-                            <div className="page-toolbar-subtitle">统一管理任务、审计、订阅地址以及备份和健康监控相关配置。</div>
-                        </div>
-                    )}
-                    actions={(
-                        <>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>刷新</button>
-                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                {saving ? <span className="spinner" /> : '保存设置'}
-                            </button>
-                        </>
-                    )}
-                    meta={<span>{settings ? '配置快照已加载' : '等待加载配置'}</span>}
-                />
+                <div className="card mb-6 settings-toolbar settings-overview-card">
+                    <SectionHeader
+                        className="settings-overview-header"
+                        title="系统参数与运行诊断"
+                        subtitle="统一管理任务、审计、订阅地址以及备份和健康监控相关配置。"
+                        meta={(
+                            <div className="settings-overview-status" aria-live="polite">
+                                <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
+                                    {settings ? '配置快照已加载' : '等待加载配置'}
+                                </span>
+                                {saving ? <span className="badge badge-info">正在保存设置</span> : null}
+                            </div>
+                        )}
+                        actions={(
+                            <div className="settings-overview-actions settings-panel-actions">
+                                <button className="btn btn-secondary btn-sm" onClick={fetchSettings} disabled={loading}>
+                                    刷新
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                    {saving ? <span className="spinner" /> : '保存设置'}
+                                </button>
+                            </div>
+                        )}
+                    />
+                </div>
                 
                 <div className="tabs mb-6 settings-tabs">
                     <button type="button" className={`tab ${tab === 'basic' ? 'active' : ''}`} onClick={() => setTab('basic')}>系统参数</button>
-                    <button type="button" className={`tab === 'db' ? 'active' : ''}`} onClick={() => setTab('db')}>数据库与存储</button>
+                    <button type="button" className={`tab ${tab === 'db' ? 'active' : ''}`} onClick={() => setTab('db')}>数据库与存储</button>
                     <button type="button" className={`tab ${tab === 'backup' ? 'active' : ''}`} onClick={() => setTab('backup')}>安全与备份</button>
                     <button type="button" className={`tab ${tab === 'monitor' ? 'active' : ''}`} onClick={() => setTab('monitor')}>监控诊断</button>
                 </div>
@@ -700,6 +783,127 @@ export default function SystemSettings() {
                             </div>
                             <div className="text-xs text-muted">
                                 未配置转换器时，仍使用 NMS 内置 Clash / Mihomo / sing-box / Surge 配置生成逻辑。
+                            </div>
+                        </div>
+
+                        <div className="card p-4 settings-panel">
+                            <SectionHeader
+                                className="mb-3"
+                                compact
+                                title="注册与邀请码"
+                                actions={(
+                                    <div className="settings-panel-actions">
+                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
+                                            {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
+                                        </button>
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={createInviteCode}
+                                            disabled={inviteCodeActionLoading}
+                                        >
+                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                                        </button>
+                                    </div>
+                                )}
+                            />
+                            <div className="form-group">
+                                <label className="form-label">当前注册状态</label>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`badge ${registrationEnabled ? 'badge-success' : 'badge-danger'}`}>
+                                        {registrationEnabled ? '允许注册' : '已关闭注册'}
+                                    </span>
+                                    <span className={`badge ${draft.registration.inviteOnlyEnabled ? 'badge-warning' : 'badge-info'}`}>
+                                        {draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}
+                                    </span>
+                                </div>
+                                <div className="text-xs text-muted mt-2">
+                                    {registrationEnabled
+                                        ? '开启邀请注册后，注册页必须填写有效邀请码，且跳过邮箱验证码。'
+                                        : '全局注册开关来自后端环境变量 REGISTRATION_ENABLED。当前环境已关闭自助注册，下面的邀请注册选项只会保留配置。'}
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                    <input
+                                        type="checkbox"
+                                        checked={draft.registration.inviteOnlyEnabled}
+                                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                                        disabled={!registrationEnabled}
+                                    />
+                                    开启邀请注册
+                                </label>
+                            </div>
+                            {latestInviteCode && (
+                                <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                                    <div className="text-sm font-medium mb-2">最新生成的邀请码</div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <code className="font-mono">{latestInviteCode}</code>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={async () => {
+                                                await copyToClipboard(latestInviteCode);
+                                                toast.success('邀请码已复制到剪贴板');
+                                            }}
+                                        >
+                                            复制
+                                        </button>
+                                    </div>
+                                    <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                                </div>
+                            )}
+                            <div className="settings-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>预览</th>
+                                            <th>状态</th>
+                                            <th>创建时间</th>
+                                            <th>使用情况</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {inviteCodes.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center text-muted">暂无邀请码</td>
+                                            </tr>
+                                        ) : (
+                                            inviteCodes.map((invite) => (
+                                                <tr key={invite.id}>
+                                                    <td data-label="预览" className="cell-mono">{invite.preview}</td>
+                                                    <td data-label="状态">
+                                                        <span className={`badge ${invite.status === 'active' ? 'badge-success' : invite.status === 'used' ? 'badge-neutral' : 'badge-danger'}`}>
+                                                            {invite.status === 'active' ? '可用' : invite.status === 'used' ? '已使用' : '已撤销'}
+                                                        </span>
+                                                    </td>
+                                                    <td data-label="创建时间">{invite.createdAt ? new Date(invite.createdAt).toLocaleString('zh-CN') : '-'}</td>
+                                                    <td data-label="使用情况" className="text-sm text-muted">
+                                                        {invite.usedAt
+                                                            ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${new Date(invite.usedAt).toLocaleString('zh-CN')}`
+                                                            : invite.revokedAt
+                                                                ? `已于 ${new Date(invite.revokedAt).toLocaleString('zh-CN')} 撤销`
+                                                                : '未使用'}
+                                                    </td>
+                                                    <td data-label="操作" className="table-cell-actions">
+                                                        {invite.status === 'active' ? (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-danger btn-sm"
+                                                                onClick={() => revokeInviteCode(invite)}
+                                                                disabled={inviteCodeActionLoading}
+                                                            >
+                                                                撤销
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-xs text-muted">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

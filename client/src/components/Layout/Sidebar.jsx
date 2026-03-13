@@ -252,7 +252,9 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 </div>
                 <div className="sidebar-logo-copy">
                     <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
-                    <span className="sidebar-logo-subtitle">{t('shell.brandSubtitle')}</span>
+                    {t('shell.brandSubtitle') ? (
+                        <span className="sidebar-logo-subtitle">{t('shell.brandSubtitle')}</span>
+                    ) : null}
                 </div>
             </div>
 

@@ -76,6 +76,9 @@ describe('Inbounds', () => {
             if (url === '/system/inbounds/order') {
                 return Promise.resolve({ data: { obj: {} } });
             }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
             if (url === '/clients/entitlement-overrides') {
                 return Promise.resolve({ data: { obj: [] } });
             }
@@ -179,7 +182,7 @@ describe('Inbounds', () => {
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
     });
 
-    it('shows visual sequence numbers in global view and hides reorder controls', async () => {
+    it('shows visual sequence numbers in global view, hides inbound reorder controls, and exposes node order controls only once per server group', async () => {
         renderWithRouter(<Inbounds />);
 
         const mainInbound = await screen.findByText('Main Inbound');
@@ -190,8 +193,10 @@ describe('Inbounds', () => {
 
         expect(mainRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('1');
         expect(backupRow.querySelector('.inbounds-sequence-number')).toHaveTextContent('2');
-        expect(within(mainRow).queryByLabelText(/上移 .* 的序号|下移 .* 的序号/)).not.toBeInTheDocument();
-        expect(within(mainRow).queryByRole('spinbutton')).not.toBeInTheDocument();
+        expect(within(mainRow).queryByLabelText('设置 Main Inbound:443 的排序序号')).not.toBeInTheDocument();
+        expect(within(backupRow).queryByLabelText('设置 Backup Inbound:8443 的排序序号')).not.toBeInTheDocument();
+        expect(within(mainRow).getByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).toHaveValue(1);
+        expect(within(backupRow).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
     });
 
     it('treats the global server context as all nodes and keeps the node column visible', async () => {
@@ -254,7 +259,7 @@ describe('Inbounds', () => {
         });
     });
 
-    it('sorts global inbounds by node name when toggling the node header', async () => {
+    it('persists manual node ordering in global view', async () => {
         const user = userEvent.setup();
         useServer.mockReturnValue({
             servers: [
@@ -268,23 +273,39 @@ describe('Inbounds', () => {
             if (url === '/system/inbounds/order') {
                 return Promise.resolve({ data: { obj: {} } });
             }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
             if (url === '/clients/entitlement-overrides') {
                 return Promise.resolve({ data: { obj: [] } });
             }
             if (url === '/panel/server-a/panel/api/inbounds/list') {
                 return Promise.resolve({
                     data: {
-                        obj: [{
-                            id: 1,
-                            remark: 'Alpha Inbound',
-                            protocol: 'vless',
-                            listen: '0.0.0.0',
-                            port: 443,
-                            enable: true,
-                            up: 0,
-                            down: 0,
-                            settings: JSON.stringify({ clients: [] }),
-                        }],
+                        obj: [
+                            {
+                                id: 1,
+                                remark: 'Alpha Inbound',
+                                protocol: 'vless',
+                                listen: '0.0.0.0',
+                                port: 443,
+                                enable: true,
+                                up: 0,
+                                down: 0,
+                                settings: JSON.stringify({ clients: [] }),
+                            },
+                            {
+                                id: 2,
+                                remark: 'Alpha Backup',
+                                protocol: 'vmess',
+                                listen: '0.0.0.0',
+                                port: 8443,
+                                enable: true,
+                                up: 0,
+                                down: 0,
+                                settings: JSON.stringify({ clients: [] }),
+                            },
+                        ],
                     },
                 });
             }
@@ -340,17 +361,29 @@ describe('Inbounds', () => {
 
         await screen.findByText('Alpha Inbound');
         await screen.findByText('Beta Inbound');
+        await screen.findByText('Alpha Backup');
 
         const beforeRows = container.querySelectorAll('tbody > tr.inbounds-row');
         expect(within(beforeRows[0]).getByText(/Node A/)).toBeInTheDocument();
-        expect(within(beforeRows[1]).getByText(/Node B/)).toBeInTheDocument();
+        expect(within(beforeRows[1]).getByText(/Node A/)).toBeInTheDocument();
+        expect(within(beforeRows[2]).getByText(/Node B/)).toBeInTheDocument();
+        expect(within(beforeRows[0]).getByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).toHaveValue(1);
+        expect(within(beforeRows[1]).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
+        expect(within(beforeRows[2]).getByRole('spinbutton', { name: '设置节点 Node B 的排序序号' })).toHaveValue(2);
 
-        await user.click(screen.getByRole('button', { name: '按节点名称降序排列' }));
+        await user.click(screen.getByRole('button', { name: '上移节点 Node B' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/servers/order', {
+                serverIds: ['server-b', 'server-a'],
+            });
+        });
 
         await waitFor(() => {
             const afterRows = container.querySelectorAll('tbody > tr.inbounds-row');
             expect(within(afterRows[0]).getByText(/Node B/)).toBeInTheDocument();
             expect(within(afterRows[1]).getByText(/Node A/)).toBeInTheDocument();
+            expect(within(afterRows[2]).getByText(/Node A/)).toBeInTheDocument();
         });
     });
 

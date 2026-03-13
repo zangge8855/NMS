@@ -1,6 +1,6 @@
 import notificationService, { SEVERITY } from './notifications.js';
 import serverStore from '../store/serverStore.js';
-import { ensureAuthenticated } from './panelClient.js';
+import { ensureAuthenticated, fetchPanelServerStatus } from './panelClient.js';
 
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
 const HEALTHY = 'healthy';
@@ -106,7 +106,7 @@ class ServerHealthMonitor {
 
             try {
                 const client = await auth(server.id);
-                const response = await client.get('/panel/api/server/status');
+                const response = await fetchPanelServerStatus(client);
                 const next = deriveHealthFromStatus(response?.data || response);
                 const checkedAt = new Date().toISOString();
                 const result = {

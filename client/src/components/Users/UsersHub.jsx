@@ -11,7 +11,7 @@ import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../u
 import { normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
-import { extractInboundClients } from '../../utils/inboundClients.js';
+import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -74,6 +74,11 @@ function formatExpiryLabel(expiryValues) {
     if (!expiryValues || expiryValues.length === 0) return '永久';
     const earliest = Math.min(...expiryValues);
     return new Date(earliest).toLocaleDateString('zh-CN');
+}
+
+function formatUserShortId(userId) {
+    const text = String(userId || '').trim();
+    return text ? text.slice(0, 8) : '-';
 }
 
 function normalizeOnlineEmail(item) {
@@ -231,7 +236,7 @@ export default function UsersHub() {
                     if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
                     if (ib.enable === false) return;
 
-                    const ibClients = extractInboundClients(ib);
+                    const ibClients = mergeInboundClientStats(ib);
 
                     const ibKey = `${server.id}:${ib.id}`;
 
@@ -271,7 +276,7 @@ export default function UsersHub() {
                         }
                         const entry = emailMap.get(email);
                         entry.count += 1;
-                        entry.totalUsed += Number(cl.up || 0) + Number(cl.down || 0);
+                        entry.totalUsed += resolveClientUsed(cl);
                         if (Number(cl.expiryTime || 0) > 0) {
                             entry.expiryValues.push(Number(cl.expiryTime));
                         }
@@ -996,7 +1001,12 @@ export default function UsersHub() {
                                         <td data-label="序号" onClick={(e) => e.stopPropagation()}>
                                             <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                         </td>
-                                        <td data-label="用户名" className="font-medium table-cell-link" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>{user.username}</td>
+                                        <td data-label="用户名" onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}>
+                                            <button type="button" className="table-cell-link table-cell-link-button users-name-link">
+                                                <span className="font-medium">{user.username}</span>
+                                            </button>
+                                            <div className="text-xs text-muted cell-mono mt-1">ID {formatUserShortId(user.id)}</div>
+                                        </td>
                                         <td data-label="邮箱" className="text-sm">
                                             {user.email || user.subscriptionEmail ? (
                                                 <button
@@ -1004,7 +1014,7 @@ export default function UsersHub() {
                                                     className="table-cell-link table-cell-link-button"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(`/subscriptions?email=${encodeURIComponent(user.subscriptionEmail || user.email)}`);
+                                                        navigate(`/clients/${user.id}?tab=subscription`);
                                                     }}
                                                 >
                                                     {user.email || user.subscriptionEmail}
@@ -1090,7 +1100,7 @@ export default function UsersHub() {
                                                         <button
                                                             className="btn btn-secondary btn-sm"
                                                             title="订阅链接"
-                                                            onClick={() => openSubscriptionModal(user.subscriptionEmail || user.email)}
+                                                            onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
                                                         >
                                                             <HiOutlineLink /> 订阅链接
                                                         </button>
@@ -1649,9 +1659,9 @@ export default function UsersHub() {
                                 <button
                                     type="button"
                                     className="btn btn-secondary"
-                                    onClick={() => navigate(`/subscriptions?email=${encodeURIComponent(subscriptionEmail)}`)}
+                                    onClick={() => navigate(`/clients?q=${encodeURIComponent(subscriptionEmail)}`)}
                                 >
-                                    打开订阅中心
+                                    打开用户管理
                                 </button>
                             </div>
 

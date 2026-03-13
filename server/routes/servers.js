@@ -3,7 +3,7 @@ import dns from 'dns/promises';
 import net from 'net';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
-import { ensureAuthenticated } from '../lib/panelClient.js';
+import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
@@ -638,7 +638,7 @@ router.post('/:id/test', async (req, res) => {
                 serverId: req.params.id,
             });
         }
-        const statusRes = await client.get('/panel/api/server/status');
+        const statusRes = await fetchPanelServerStatus(client);
         appendSecurityAudit('server_test_success', req, { serverId: req.params.id });
         res.json({ success: true, msg: 'Connection successful', obj: statusRes.data?.obj });
     } catch (e) {

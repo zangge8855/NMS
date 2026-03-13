@@ -2,6 +2,15 @@ function normalizeId(value) {
     return String(value || '').trim();
 }
 
+function normalizeIdList(input = []) {
+    if (!Array.isArray(input)) return [];
+    return Array.from(new Set(
+        input
+            .map((item) => normalizeId(item))
+            .filter(Boolean)
+    ));
+}
+
 function normalizeServerDirection(value) {
     return String(value || '').trim().toLowerCase() === 'desc' ? 'desc' : 'asc';
 }
@@ -48,9 +57,36 @@ export function normalizeInboundOrderMap(input = {}) {
     return output;
 }
 
+export function sortServersByOrder(servers = [], serverOrder = [], options = {}) {
+    const normalizedServerOrder = normalizeIdList(serverOrder);
+    const orderIndex = new Map(normalizedServerOrder.map((id, index) => [id, index]));
+    const direction = normalizeServerDirection(options?.direction);
+
+    return [...(Array.isArray(servers) ? servers : [])].sort((left, right) => {
+        const leftId = normalizeId(left?.id);
+        const rightId = normalizeId(right?.id);
+        const leftIndex = orderIndex.get(leftId);
+        const rightIndex = orderIndex.get(rightId);
+        const leftKnown = Number.isInteger(leftIndex);
+        const rightKnown = Number.isInteger(rightIndex);
+
+        if (leftKnown && rightKnown) return leftIndex - rightIndex;
+        if (leftKnown) return -1;
+        if (rightKnown) return 1;
+
+        const nameDiff = String(left?.name || '').localeCompare(String(right?.name || ''));
+        const baseResult = nameDiff !== 0
+            ? nameDiff
+            : leftId.localeCompare(rightId);
+        return direction === 'desc' ? baseResult * -1 : baseResult;
+    });
+}
+
 export function sortInboundsByOrder(inbounds = [], orderMap = {}, options = {}) {
     const normalizedOrderMap = normalizeInboundOrderMap(orderMap);
+    const normalizedServerOrder = normalizeIdList(options?.serverOrder);
     const serverDirection = normalizeServerDirection(options?.serverDirection);
+    const serverOrderIndex = new Map(normalizedServerOrder.map((id, index) => [id, index]));
     const serverIndexMap = new Map(
         Object.entries(normalizedOrderMap).map(([serverId, inboundIds]) => [
             serverId,
@@ -63,6 +99,14 @@ export function sortInboundsByOrder(inbounds = [], orderMap = {}, options = {}) 
         const rightServerId = normalizeId(right?.serverId);
 
         if (leftServerId !== rightServerId) {
+            const leftServerIndex = serverOrderIndex.get(leftServerId);
+            const rightServerIndex = serverOrderIndex.get(rightServerId);
+            const leftServerKnown = Number.isInteger(leftServerIndex);
+            const rightServerKnown = Number.isInteger(rightServerIndex);
+
+            if (leftServerKnown && rightServerKnown) return leftServerIndex - rightServerIndex;
+            if (leftServerKnown) return -1;
+            if (rightServerKnown) return 1;
             return compareServerGroup(left, right, serverDirection);
         }
 
@@ -117,6 +161,43 @@ export function reorderInboundsWithinServer(inbounds = [], draggedKey, targetKey
         items,
         serverId,
         inboundIds: reorderedGroup.map((item) => normalizeId(item?.id)).filter(Boolean),
+    };
+}
+
+export function moveServerGroupToPosition(inbounds = [], serverId, position) {
+    const rows = Array.isArray(inbounds) ? [...inbounds] : [];
+    const normalizedServerId = normalizeId(serverId);
+    if (!normalizedServerId) {
+        return { changed: false, items: rows, serverIds: [] };
+    }
+
+    const groups = new Map();
+    const serverIds = [];
+    rows.forEach((item) => {
+        const itemServerId = normalizeId(item?.serverId);
+        if (!itemServerId) return;
+        if (!groups.has(itemServerId)) {
+            groups.set(itemServerId, []);
+            serverIds.push(itemServerId);
+        }
+        groups.get(itemServerId).push(item);
+    });
+
+    const fromIndex = serverIds.indexOf(normalizedServerId);
+    const targetIndex = Math.max(0, Math.min(serverIds.length - 1, Number(position)));
+    if (fromIndex < 0 || fromIndex === targetIndex) {
+        return { changed: false, items: rows, serverIds };
+    }
+
+    const reorderedServerIds = [...serverIds];
+    const [picked] = reorderedServerIds.splice(fromIndex, 1);
+    reorderedServerIds.splice(targetIndex, 0, picked);
+
+    const items = reorderedServerIds.flatMap((id) => groups.get(id) || []);
+    return {
+        changed: true,
+        items,
+        serverIds: reorderedServerIds,
     };
 }
 

@@ -28,6 +28,8 @@ import {
 import {
     normalizeInboundOrderMap,
     moveInboundWithinServerToPosition,
+    moveServerGroupToPosition,
+    sortServersByOrder,
     sortInboundsByOrder,
 } from '../../utils/inboundOrder.js';
 import {
@@ -125,9 +127,10 @@ export default function Inbounds() {
     const [editingInbound, setEditingInbound] = useState(null);
     const [filterServerId, setFilterServerId] = useState(resolvedActiveFilterServerId);
     const [inboundOrder, setInboundOrder] = useState({});
+    const [serverOrder, setServerOrder] = useState([]);
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
-    const [serverSortDirection, setServerSortDirection] = useState('asc');
     const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
+    const [serverOrderDrafts, setServerOrderDrafts] = useState({});
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -146,15 +149,13 @@ export default function Inbounds() {
     const [overrideKeySet, setOverrideKeySet] = useState(new Set());
     const [clientActionKey, setClientActionKey] = useState('');
     const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
-    const orderedServerOptions = useMemo(() => (
-        [...servers].sort((left, right) => (
-            String(left?.name || '').localeCompare(String(right?.name || ''))
-            || String(left?.id || '').localeCompare(String(right?.id || ''))
-        ))
-    ), [servers]);
+    const orderedServerOptions = useMemo(
+        () => sortServersByOrder(servers, serverOrder),
+        [servers, serverOrder]
+    );
 
-    const sortVisibleInbounds = (items, orderMap) => sortInboundsByOrder(items, orderMap, {
-        serverDirection: serverSortDirection,
+    const sortVisibleInbounds = (items, orderMap, nextServerOrder = serverOrder) => sortInboundsByOrder(items, orderMap, {
+        serverOrder: nextServerOrder,
     });
 
     const fetchAllInbounds = async () => {
@@ -167,14 +168,23 @@ export default function Inbounds() {
         setSelectedKeys(new Set());
         setSelectedClientKeys(new Set());
         setInboundOrderDrafts({});
+        setServerOrderDrafts({});
         let orderMap = inboundOrder;
+        let nextServerOrder = serverOrder;
 
         try {
-            const orderRes = await api.get('/system/inbounds/order');
+            const [orderRes, serverOrderRes] = await Promise.all([
+                api.get('/system/inbounds/order'),
+                api.get('/system/servers/order'),
+            ]);
             orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
+            nextServerOrder = Array.isArray(serverOrderRes.data?.obj)
+                ? serverOrderRes.data.obj.map((item) => String(item || '').trim()).filter(Boolean)
+                : [];
             setInboundOrder(orderMap);
+            setServerOrder(nextServerOrder);
         } catch (err) {
-            console.error('Failed to load inbound order:', err);
+            console.error('Failed to load inbound or server order:', err);
         }
 
         try {
@@ -242,7 +252,7 @@ export default function Inbounds() {
             }
         }));
 
-        const sortedItems = sortVisibleInbounds(allResults, orderMap);
+        const sortedItems = sortVisibleInbounds(allResults, orderMap, nextServerOrder);
         const nextOrderMap = { ...orderMap };
         let seededOrder = false;
 
@@ -262,7 +272,7 @@ export default function Inbounds() {
         if (seededOrder) {
             setInboundOrder(nextOrderMap);
         }
-        setInbounds(sortVisibleInbounds(allResults, nextOrderMap));
+        setInbounds(sortVisibleInbounds(allResults, nextOrderMap, nextServerOrder));
         setLoading(false);
     };
 
@@ -281,15 +291,14 @@ export default function Inbounds() {
     }, [resolvedActiveFilterServerId]);
 
     useEffect(() => {
-        setInbounds((prev) => sortInboundsByOrder(prev, inboundOrder, {
-            serverDirection: serverSortDirection,
-        }));
-    }, [serverSortDirection, inboundOrder]);
+        setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder));
+    }, [inboundOrder, serverOrder]);
 
     useEffect(() => {
         // Avoid accidental cross-node batch actions after changing filter tabs.
         setSelectedKeys(new Set());
         setInboundOrderDrafts({});
+        setServerOrderDrafts({});
     }, [filterServerId]);
 
     // Batch Actions
@@ -489,6 +498,23 @@ export default function Inbounds() {
         setSavingOrderServerId('');
     };
 
+    const persistServerOrder = async (serverIds) => {
+        setSavingOrderServerId('global');
+        try {
+            const res = await api.put('/system/servers/order', {
+                serverIds,
+            });
+            const savedIds = Array.isArray(res.data?.obj?.serverIds) ? res.data.obj.serverIds : serverIds;
+            setServerOrder(savedIds);
+            setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder, savedIds));
+            toast.success('节点顺序已保存');
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || '节点顺序保存失败');
+            fetchAllInbounds();
+        }
+        setSavingOrderServerId('');
+    };
+
     const handleMoveInbound = async (inbound, position) => {
         if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
         const next = moveInboundWithinServerToPosition(inbounds, inbound?.uiKey, position);
@@ -497,10 +523,25 @@ export default function Inbounds() {
         await persistInboundOrder(next.serverId, next.inboundIds);
     };
 
+    const handleMoveServerGroup = async (serverId, position) => {
+        if (filterServerId !== 'all' || savingOrderServerId) return;
+        const next = moveServerGroupToPosition(inbounds, serverId, position);
+        if (!next.changed) return;
+        setInbounds(next.items);
+        await persistServerOrder(next.serverIds);
+    };
+
     const handleInboundOrderDraftChange = (inboundKey, value) => {
         setInboundOrderDrafts((prev) => ({
             ...prev,
             [inboundKey]: value,
+        }));
+    };
+
+    const handleServerOrderDraftChange = (serverId, value) => {
+        setServerOrderDrafts((prev) => ({
+            ...prev,
+            [serverId]: value,
         }));
     };
 
@@ -532,6 +573,34 @@ export default function Inbounds() {
         });
 
         await handleMoveInbound(inbound, nextPosition - 1);
+    };
+
+    const handleServerOrderCommit = async (serverId, currentPosition) => {
+        if (filterServerId !== 'all' || savingOrderServerId) return;
+        const rawValue = String(serverOrderDrafts[serverId] ?? '').trim();
+        if (!rawValue) {
+            setServerOrderDrafts((prev) => {
+                const next = { ...prev };
+                delete next[serverId];
+                return next;
+            });
+            return;
+        }
+
+        const nextPosition = Number.parseInt(rawValue, 10);
+        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
+            toast.error(t('comp.inbounds.invalidOrder'));
+            return;
+        }
+
+        setServerOrderDrafts((prev) => {
+            const next = { ...prev };
+            delete next[serverId];
+            return next;
+        });
+
+        if (nextPosition - 1 === currentPosition) return;
+        await handleMoveServerGroup(serverId, nextPosition - 1);
     };
 
     const parseClients = (ib) => {
@@ -803,6 +872,8 @@ export default function Inbounds() {
     const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
     const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
+    const visibleServerIds = Array.from(new Set(filteredInbounds.map((item) => String(item?.serverId || '').trim()).filter(Boolean)));
+    const visibleServerIndexMap = new Map(visibleServerIds.map((id, index) => [id, index]));
     const tableColSpan = filterServerId === 'all' ? 11 : 10;
 
     if (servers.length === 0) {
@@ -880,7 +951,9 @@ export default function Inbounds() {
 
                 {savingOrderServerId && (
                     <div className="text-xs text-muted mb-3 inbounds-saving-note">
-                        正在保存入站顺序: {servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}
+                        {savingOrderServerId === 'global'
+                            ? '正在保存节点顺序'
+                            : `正在保存入站顺序: ${servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}`}
                     </div>
                 )}
 
@@ -899,19 +972,7 @@ export default function Inbounds() {
                                 <th className="inbounds-expand-col" aria-hidden="true" />
                                 <th>序号</th>
                                 {filterServerId === 'all' && (
-                                    <th>
-                                        <button
-                                            type="button"
-                                            className="table-sort-button inbounds-server-sort-button"
-                                            onClick={() => setServerSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                                            aria-label={`按节点名称${serverSortDirection === 'asc' ? '降序' : '升序'}排列`}
-                                        >
-                                            <span>节点</span>
-                                            <span className="table-sort-button-icon" aria-hidden="true">
-                                                {serverSortDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
-                                            </span>
-                                        </button>
-                                    </th>
+                                    <th>节点</th>
                                 )}
                                 <th>备注</th>
                                 <th>协议</th>
@@ -950,6 +1011,11 @@ export default function Inbounds() {
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
                                     const canAdjustOrder = filterServerId !== 'all';
+                                    const isFirstInServerGroup = filterServerId !== 'all' || index === 0 || filteredInbounds[index - 1]?.serverId !== ib.serverId;
+                                    const serverGroupIndex = visibleServerIndexMap.get(String(ib.serverId || '').trim()) ?? 0;
+                                    const serverSequenceValue = serverOrderDrafts[ib.serverId] ?? String(serverGroupIndex + 1);
+                                    const canMoveServerUp = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex > 0 && !savingOrderServerId;
+                                    const canMoveServerDown = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex < visibleServerIds.length - 1 && !savingOrderServerId;
                                     const isSavingOrder = savingOrderServerId === ib.serverId;
                                     const canMoveUp = canAdjustOrder && index > 0 && !isSavingOrder;
                                     const canMoveDown = canAdjustOrder && index < filteredInbounds.length - 1 && !isSavingOrder;
@@ -1041,10 +1107,67 @@ export default function Inbounds() {
                                                     </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
-                                                    <td data-label="节点" className="whitespace-nowrap">
-                                                        <span className="badge badge-neutral flex items-center gap-1 w-fit">
-                                                            <HiOutlineServer size={10} /> {ib.serverName}
-                                                        </span>
+                                                    <td data-label="节点" onClick={(event) => event.stopPropagation()}>
+                                                        <div className="inbounds-sequence-cell">
+                                                            <span className="badge badge-neutral flex items-center gap-1 w-fit">
+                                                                <HiOutlineServer size={10} /> {ib.serverName}
+                                                            </span>
+                                                            {isFirstInServerGroup && (
+                                                                <>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="1"
+                                                                        inputMode="numeric"
+                                                                        aria-label={`设置节点 ${ib.serverName} 的排序序号`}
+                                                                        className="form-input form-input-sm cell-mono inbound-order-input"
+                                                                        value={serverSequenceValue}
+                                                                        disabled={savingOrderServerId === 'global'}
+                                                                        onChange={(event) => handleServerOrderDraftChange(ib.serverId, event.target.value)}
+                                                                        onBlur={() => handleServerOrderCommit(ib.serverId, serverGroupIndex)}
+                                                                        onKeyDown={(event) => {
+                                                                            if (event.key === 'Enter') {
+                                                                                event.preventDefault();
+                                                                                handleServerOrderCommit(ib.serverId, serverGroupIndex);
+                                                                            }
+                                                                            if (event.key === 'Escape') {
+                                                                                event.preventDefault();
+                                                                                setServerOrderDrafts((prev) => {
+                                                                                    const next = { ...prev };
+                                                                                    delete next[ib.serverId];
+                                                                                    return next;
+                                                                                });
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="inbounds-sequence-btn"
+                                                                            aria-label={`上移节点 ${ib.serverName}`}
+                                                                            disabled={!canMoveServerUp}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineChevronUp />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="inbounds-sequence-btn"
+                                                                            aria-label={`下移节点 ${ib.serverName}`}
+                                                                            disabled={!canMoveServerDown}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineChevronDown />
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                                 <td
@@ -1149,15 +1272,15 @@ export default function Inbounds() {
                                                                                 className="cursor-pointer"
                                                                             />
                                                                         </th>
-                                                                        <th className="whitespace-nowrap">Email</th>
-                                                                        <th className="whitespace-nowrap">ID/密码（脱敏）</th>
-                                                                        <th className="whitespace-nowrap">已用流量</th>
-                                                                        <th className="whitespace-nowrap">总量</th>
-                                                                        <th className="whitespace-nowrap">IP 限制</th>
-                                                                        <th className="whitespace-nowrap">上 / 下行</th>
-                                                                        <th className="whitespace-nowrap">到期时间</th>
-                                                                        <th className="whitespace-nowrap">状态</th>
-                                                                        <th className="whitespace-nowrap">操作</th>
+                                                                        <th className="inbounds-clients-col-email">Email</th>
+                                                                        <th className="inbounds-clients-col-id">ID/密码（脱敏）</th>
+                                                                        <th className="inbounds-clients-col-usage">已用流量</th>
+                                                                        <th className="inbounds-clients-col-total">总量</th>
+                                                                        <th className="inbounds-clients-col-ip">IP 限制</th>
+                                                                        <th className="inbounds-clients-col-traffic">上 / 下行</th>
+                                                                        <th className="inbounds-clients-col-expiry">到期时间</th>
+                                                                        <th className="inbounds-clients-col-status">状态</th>
+                                                                        <th className="inbounds-clients-col-actions">操作</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1189,7 +1312,7 @@ export default function Inbounds() {
                                                                                     className="cursor-pointer"
                                                                                 />
                                                                             </td>
-                                                                            <td data-label="用户" className="whitespace-nowrap">
+                                                                            <td data-label="用户" className="inbounds-clients-col-email">
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
@@ -1197,7 +1320,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="ID / 密码" className="cell-mono whitespace-nowrap">
+                                                                            <td data-label="ID / 密码" className="cell-mono inbounds-clients-col-id">
                                                                                 <div className="inbounds-client-id-row">
                                                                                     <span className="inbounds-client-id-text">
                                                                                         {maskedCredential}
@@ -1219,7 +1342,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="已用流量" className="whitespace-nowrap">
+                                                                            <td data-label="已用流量" className="inbounds-clients-col-usage">
                                                                                 <div className="inbound-client-usage">
                                                                                     <div className="inbound-client-usage-head">
                                                                                         <span className="font-medium">{formatBytes(usedBytes)}</span>
@@ -1238,15 +1361,15 @@ export default function Inbounds() {
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="总量" className="whitespace-nowrap">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td data-label="IP 限制" className="whitespace-nowrap">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td data-label="上 / 下行" className="whitespace-nowrap">
+                                                                            <td data-label="总量" className="inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td data-label="IP 限制" className="inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
+                                                                            <td data-label="上 / 下行" className="inbounds-clients-col-traffic">
                                                                                 <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                 <span className="text-muted mx-1">/</span>
                                                                                 <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                             </td>
-                                                                            <td data-label="到期时间" className="whitespace-nowrap">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
-                                                                            <td data-label="状态" className="whitespace-nowrap">
+                                                                            <td data-label="到期时间" className="inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
+                                                                            <td data-label="状态" className="inbounds-clients-col-status">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
                                                                                         {cl.enable !== false ? '启用' : '禁用'}
@@ -1263,7 +1386,7 @@ export default function Inbounds() {
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="操作" className="whitespace-nowrap">
+                                                                            <td data-label="操作" className="inbounds-clients-col-actions">
                                                                                 <div className="inbounds-client-actions flex gap-2">
                                                                                     <button
                                                                                         type="button"

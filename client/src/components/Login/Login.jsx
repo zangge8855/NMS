@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -37,6 +38,7 @@ export default function Login() {
     const [regEmail, setRegEmail] = useState('');
     const [regPassword, setRegPassword] = useState('');
     const [regConfirm, setRegConfirm] = useState('');
+    const [inviteCode, setInviteCode] = useState('');
 
     // Verify fields
     const [verifyEmail, setVerifyEmailAddr] = useState('');
@@ -51,6 +53,11 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
     const [resetCooldown, setResetCooldown] = useState(0);
+    const [registrationStatus, setRegistrationStatus] = useState({
+        enabled: true,
+        inviteOnlyEnabled: false,
+        loading: true,
+    });
 
     const {
         login,
@@ -61,6 +68,40 @@ export default function Login() {
         resetPassword: resetPasswordFn,
     } = useAuth();
     const navigate = useNavigate();
+    const registrationEnabled = registrationStatus.enabled !== false;
+    const inviteOnlyEnabled = registrationStatus.inviteOnlyEnabled === true;
+
+    useEffect(() => {
+        let active = true;
+
+        const fetchRegistrationStatus = async () => {
+            try {
+                const res = await api.get('/auth/registration-status');
+                if (!active) return;
+                const payload = res.data?.obj || {};
+                const next = {
+                    enabled: payload.enabled !== false,
+                    inviteOnlyEnabled: payload.inviteOnlyEnabled === true,
+                    loading: false,
+                };
+                setRegistrationStatus(next);
+                if (!next.enabled) {
+                    setMode((prev) => (prev === MODE_REGISTER ? MODE_LOGIN : prev));
+                }
+            } catch {
+                if (!active) return;
+                setRegistrationStatus((prev) => ({
+                    ...prev,
+                    loading: false,
+                }));
+            }
+        };
+
+        fetchRegistrationStatus();
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const startCooldown = (setter, seconds = 60) => {
         setter(seconds);
@@ -118,11 +159,24 @@ export default function Login() {
 
         setLoading(true);
         try {
-            const result = await register(regUsername, regEmail, regPassword);
+            const result = await register(regUsername, regEmail, regPassword, inviteCode);
             if (result.success) {
-                setVerifyEmailAddr(result.email || regEmail);
-                setMode(MODE_VERIFY);
-                setSuccess('注册成功！请查收邮箱验证码');
+                setRegUsername('');
+                setRegEmail('');
+                setRegPassword('');
+                setRegConfirm('');
+                setInviteCode('');
+
+                if (result.requireEmailVerification === false) {
+                    setVerifyEmailAddr('');
+                    setVerifyCode('');
+                    setMode(MODE_LOGIN);
+                    setSuccess(result.msg || '注册成功！请等待管理员审核通过后再登录');
+                } else {
+                    setVerifyEmailAddr(result.email || regEmail);
+                    setMode(MODE_VERIFY);
+                    setSuccess(result.msg || '注册成功！请查收邮箱验证码');
+                }
                 setError('');
             } else {
                 setError(result.msg || '注册失败');
@@ -244,7 +298,11 @@ export default function Login() {
     };
 
     const switchMode = (newMode) => {
-        setMode(newMode === MODE_FORGOT && !SELF_SERVICE_PASSWORD_RESET_ENABLED ? MODE_LOGIN : newMode);
+        if (newMode === MODE_REGISTER && !registrationEnabled) {
+            setMode(MODE_LOGIN);
+        } else {
+            setMode(newMode === MODE_FORGOT && !SELF_SERVICE_PASSWORD_RESET_ENABLED ? MODE_LOGIN : newMode);
+        }
         setError('');
         setSuccess('');
     };
@@ -295,14 +353,16 @@ export default function Login() {
                             <img src="/nms-logo.png" alt="NMS" className="login-brand-mark" />
                             <div className="login-brand-copy">
                                 <span className="login-brand-name">NMS</span>
-                                <span className="login-brand-subtitle">{t('shell.brandSubtitle')}</span>
+                                {t('shell.brandSubtitle') ? (
+                                    <span className="login-brand-subtitle">{t('shell.brandSubtitle')}</span>
+                                ) : null}
                             </div>
                         </div>
                         <div className="login-form-heading">
                             <h1>{modeTitle}</h1>
                         </div>
 
-                        {(mode === MODE_LOGIN || mode === MODE_REGISTER) && (
+                        {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
                             <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
                                 <button
                                     type="button"
@@ -327,6 +387,9 @@ export default function Login() {
 
                         {success && <div className="success-alert">{success}</div>}
                         {error && <div className="error-alert">{error}</div>}
+                        {!registrationStatus.loading && !registrationEnabled && mode === MODE_LOGIN && (
+                            <div className="text-xs text-muted mb-3">{t('pages.login.registrationClosed')}</div>
+                        )}
 
                         {mode === MODE_LOGIN && (
                             <form onSubmit={handleLogin} className="auth-form">
@@ -415,6 +478,23 @@ export default function Login() {
                                     </div>
                                     <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
+                                {inviteOnlyEnabled && (
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.inviteCode')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineShieldCheck className="input-icon" />
+                                            <input
+                                                type="text"
+                                                className="form-input input-with-icon"
+                                                placeholder={t('pages.login.inviteCodePlaceholder')}
+                                                value={inviteCode}
+                                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                        <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
+                                    </div>
+                                )}
                                 <div className="form-group">
                                     <label className="form-label">{t('pages.login.confirmPassword')}</label>
                                     <div className="input-icon-wrapper">
@@ -435,7 +515,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm}
+                                    disabled={loading || !regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
                                 </button>

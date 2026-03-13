@@ -82,9 +82,9 @@ export function AuthProvider({ children }) {
     };
 
     /** 注册 */
-    const register = async (username, email, password) => {
+    const register = async (username, email, password, inviteCode = '') => {
         try {
-            const res = await api.post('/auth/register', { username, email, password });
+            const res = await api.post('/auth/register', { username, email, password, inviteCode });
             return res.data;
         } catch (err) {
             return err.response?.data || { success: false, msg: '注册失败' };

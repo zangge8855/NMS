@@ -65,3 +65,32 @@ test('serverHealthMonitor marks node unreachable and emits critical notification
     assert.equal(notifications[0].severity, 'critical');
     assert.deepEqual(updates, [{ id: 'srv-2', patch: { health: 'unreachable' } }]);
 });
+
+test('serverHealthMonitor tolerates panels that only expose POST server status', async () => {
+    const monitor = new ServerHealthMonitor();
+
+    const result = await monitor.runOnce({
+        listServers: async () => [{
+            id: 'srv-3',
+            name: 'Node C',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async () => {
+                throw new Error('method not allowed');
+            },
+            post: async () => ({
+                data: {
+                    obj: {
+                        xray: { state: 'running', errorMsg: '' },
+                    },
+                },
+            }),
+        }),
+        notify: () => {},
+        updateServer: () => {},
+    });
+
+    assert.equal(result.summary.healthy, 1);
+    assert.equal(result.summary.unreachable, 0);
+});

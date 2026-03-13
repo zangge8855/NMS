@@ -1,5 +1,5 @@
 /* ============================================
-   NMS — Node Management System Design System
+   NMS Design System
    ============================================ */
 
 /* --- CSS Custom Properties --- */
@@ -4038,7 +4038,7 @@ input[type="radio"]:focus-visible {
 }
 
 .inbound-client-usage {
-  min-width: 160px;
+  min-width: 140px;
 }
 
 .inbound-client-usage-head {
@@ -6114,7 +6114,7 @@ body::before {
 }
 
 .inbounds-table-shell .table {
-  min-width: 1080px;
+  min-width: 980px;
 }
 
 .inbounds-table-shell .table th {
@@ -6312,54 +6312,87 @@ body::before {
 }
 
 .inbounds-clients-table {
-  min-width: 1024px;
+  width: 100%;
+  min-width: 900px;
+  table-layout: fixed;
 }
 
 .inbounds-clients-table th,
 .inbounds-clients-table td {
-  font-size: 10px;
-  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.45;
+  vertical-align: top;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .inbounds-client-id-row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  max-width: min(100%, 220px);
+  max-width: 100%;
 }
 
 .inbounds-client-id-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .inbounds-client-email-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-
-.inbounds-client-status-stack {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-
-.inbounds-client-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
   flex-wrap: wrap;
 }
 
+.inbounds-client-status-stack {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inbounds-client-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .inbounds-client-actions .btn {
-  min-height: 32px;
-  white-space: nowrap;
+  min-height: 30px;
+  white-space: normal;
+}
+
+.inbounds-clients-col-email {
+  width: 16%;
+}
+
+.inbounds-clients-col-id {
+  width: 14%;
+}
+
+.inbounds-clients-col-usage {
+  width: 20%;
+}
+
+.inbounds-clients-col-total,
+.inbounds-clients-col-ip,
+.inbounds-clients-col-expiry {
+  width: 8%;
+}
+
+.inbounds-clients-col-traffic,
+.inbounds-clients-col-status {
+  width: 10%;
+}
+
+.inbounds-clients-col-actions {
+  width: 16%;
 }
 
 @media (max-width: 768px) {

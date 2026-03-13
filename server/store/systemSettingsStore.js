@@ -7,6 +7,9 @@ import { saveObjectAtomic } from './fileUtils.js';
 const SETTINGS_FILE = path.join(config.dataDir, 'system_settings.json');
 
 const ALLOWED_KEYS = {
+    registration: new Set([
+        'inviteOnlyEnabled',
+    ]),
     security: new Set([
         'requireHighRiskConfirmation',
         'mediumRiskMinTargets',
@@ -207,6 +210,9 @@ class SystemSettingsStore {
         const maxConcurrency = Math.max(1, Number(config.jobs?.maxConcurrency || 10));
         const defaultConcurrency = Math.min(5, maxConcurrency);
         return {
+            registration: {
+                inviteOnlyEnabled: false,
+            },
             security: {
                 requireHighRiskConfirmation: true,
                 mediumRiskMinTargets: 20,
@@ -235,6 +241,7 @@ class SystemSettingsStore {
                 timeoutMs: Math.max(200, Number(config.audit?.ipGeo?.timeoutMs || 3000)),
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
             },
+            serverOrder: [],
             inboundOrder: {},
             userOrder: [],
         };
@@ -254,6 +261,12 @@ class SystemSettingsStore {
             security.highRiskMinTargets = security.mediumRiskMinTargets;
         }
         return security;
+    }
+
+    _normalizeRegistration(input = {}, fallback) {
+        return {
+            inviteOnlyEnabled: normalizeBoolean(input.inviteOnlyEnabled, fallback.inviteOnlyEnabled),
+        };
     }
 
     _normalizeJobs(input = {}, fallback) {
@@ -305,28 +318,34 @@ class SystemSettingsStore {
         const fallbackRoot = fallbackSettings && typeof fallbackSettings === 'object' && !Array.isArray(fallbackSettings)
             ? fallbackSettings
             : defaults;
+        const registrationFallback = mergeSection(defaults.registration, fallbackRoot.registration);
         const securityFallback = mergeSection(defaults.security, fallbackRoot.security);
         const jobsFallback = mergeSection(defaults.jobs, fallbackRoot.jobs);
         const auditFallback = mergeSection(defaults.audit, fallbackRoot.audit);
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
+        const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
 
+        const registrationInput = mergeSection(defaults.registration, input.registration);
         const securityInput = mergeSection(defaults.security, input.security);
         const jobsInput = mergeSection(defaults.jobs, input.jobs);
         const auditInput = mergeSection(defaults.audit, input.audit);
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
+        const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
         const userOrderInput = normalizeIdList(input.userOrder);
 
         return {
+            registration: this._normalizeRegistration(registrationInput, registrationFallback),
             security: this._normalizeSecurity(securityInput, securityFallback),
             jobs: this._normalizeJobs(jobsInput, jobsFallback),
             audit: this._normalizeAudit(auditInput, auditFallback),
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
+            serverOrder: serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback,
             inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
             userOrder: userOrderInput.length > 0 ? userOrderInput : userOrderFallback,
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
@@ -367,6 +386,10 @@ class SystemSettingsStore {
         return this.getAll().security;
     }
 
+    getRegistration() {
+        return this.getAll().registration;
+    }
+
     getJobs() {
         return this.getAll().jobs;
     }
@@ -388,6 +411,10 @@ class SystemSettingsStore {
         const normalizedServerId = normalizeId(serverId);
         if (!normalizedServerId) return all;
         return Array.isArray(all[normalizedServerId]) ? [...all[normalizedServerId]] : [];
+    }
+
+    getServerOrder() {
+        return [...(this.getAll().serverOrder || [])];
     }
 
     getUserOrder() {
@@ -459,14 +486,30 @@ class SystemSettingsStore {
         return this.getUserOrder();
     }
 
+    setServerOrder(serverIds = []) {
+        if (!Array.isArray(serverIds)) {
+            throw new Error('serverIds must be an array');
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            serverOrder: normalizeIdList(serverIds),
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+        return this.getServerOrder();
+    }
+
     update(patch = {}) {
         this._assertAllowedPayload(patch);
         const candidate = {
+            registration: mergeSection(this.settings.registration, patch.registration),
             security: mergeSection(this.settings.security, patch.security),
             jobs: mergeSection(this.settings.jobs, patch.jobs),
             audit: mergeSection(this.settings.audit, patch.audit),
             subscription: mergeSection(this.settings.subscription, patch.subscription),
             auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
+            serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
             userOrder: this.settings.userOrder,
             updatedAt: new Date().toISOString(),

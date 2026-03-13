@@ -42,4 +42,23 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.deepEqual(inboundOrder, ['2', '1']);
         assert.deepEqual(systemSettingsStore.getUserOrder(), ['user-b', 'user-a']);
     });
+
+    it('persists server order arrays', () => {
+        const order = systemSettingsStore.setServerOrder([' server-b ', 'server-a', 'server-b']);
+        assert.deepEqual(order, ['server-b', 'server-a']);
+        assert.deepEqual(systemSettingsStore.getServerOrder(), ['server-b', 'server-a']);
+    });
+
+    it('defaults invite-only registration to disabled and persists updates', () => {
+        assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, false);
+
+        const updated = systemSettingsStore.update({
+            registration: {
+                inviteOnlyEnabled: true,
+            },
+        });
+
+        assert.equal(updated.registration.inviteOnlyEnabled, true);
+        assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, true);
+    });
 });

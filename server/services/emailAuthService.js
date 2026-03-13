@@ -3,6 +3,7 @@ import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
 import userRepository from '../repositories/userRepository.js';
+import inviteCodeStore from '../store/inviteCodeStore.js';
 
 function normalizeEmailInput(value) {
     return String(value || '').trim().toLowerCase();
@@ -20,9 +21,12 @@ async function registerUser(payload = {}, deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const emailSender = deps.mailer || mailer;
     const registrationConfig = deps.registrationConfig || config.registration;
+    const inviteStore = deps.inviteCodeStore || inviteCodeStore;
+    const inviteOnlyEnabled = deps.inviteOnlyEnabled === true;
     const username = String(payload?.username || '').trim();
     const password = String(payload?.password || '');
     const email = normalizeEmailInput(payload?.email);
+    const inviteCode = String(payload?.inviteCode || '').trim();
 
     if (!username || !password || !email) {
         throw createHttpError(400, '用户名、密码和邮箱不能为空');
@@ -36,15 +40,63 @@ async function registerUser(payload = {}, deps = {}) {
         throw createHttpError(400, passwordCheck.reason);
     }
 
+    if (inviteOnlyEnabled) {
+        if (!inviteCode) {
+            throw createHttpError(400, '邀请码不能为空');
+        }
+        try {
+            inviteStore.assertUsable(inviteCode);
+        } catch (error) {
+            throw createHttpError(400, error.message || '邀请码无效', {
+                code: 'INVITE_CODE_INVALID',
+                details: {
+                    username,
+                    email,
+                    inviteCodePresent: true,
+                },
+            });
+        }
+    }
+
     const user = userRepo.add({
         username,
         password,
         email,
         subscriptionEmail: '',
         role: registrationConfig.defaultRole,
-        emailVerified: false,
+        emailVerified: inviteOnlyEnabled,
         enabled: false,
     });
+
+    if (inviteOnlyEnabled) {
+        try {
+            inviteStore.consume(inviteCode, {
+                usedByUserId: user.id,
+                usedByUsername: user.username,
+            });
+        } catch (error) {
+            try {
+                userRepo.remove(user.id);
+            } catch {
+                // Ignore rollback failure and surface the invite error instead.
+            }
+            throw createHttpError(400, error.message || '邀请码无效', {
+                code: 'INVITE_CODE_INVALID',
+                details: {
+                    username,
+                    email,
+                    inviteCodePresent: true,
+                },
+            });
+        }
+
+        return {
+            user,
+            username,
+            email,
+            requireEmailVerification: false,
+        };
+    }
 
     const code = emailSender.generateVerifyCode();
     const expiresAt = buildExpiryIso(registrationConfig.verifyCodeTtlMinutes);
@@ -78,6 +130,7 @@ async function registerUser(payload = {}, deps = {}) {
         user,
         username,
         email,
+        requireEmailVerification: true,
     };
 }
 

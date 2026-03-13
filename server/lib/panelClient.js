@@ -9,6 +9,14 @@ function createPanelAuthError(code, message, cause) {
     return error;
 }
 
+export async function fetchPanelServerStatus(client) {
+    try {
+        return await client.get('/panel/api/server/status');
+    } catch {
+        return client.post('/panel/api/server/status');
+    }
+}
+
 /**
  * Create an axios instance configured for a specific 3x-ui panel server.
  * Handles session cookie management automatically.
@@ -77,7 +85,7 @@ export async function ensureAuthenticated(serverId, options = {}) {
     const existingSession = serverStore.getSession(serverId);
     if (existingSession && !forceLogin) {
         try {
-            const res = await client.get('/panel/api/server/status');
+            const res = await fetchPanelServerStatus(client);
             if (res.data && res.data.success !== false) {
                 return client;
             }

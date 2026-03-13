@@ -4,7 +4,7 @@ export const VALID_LOCALES = ['zh-CN', 'en-US'];
 const messages = {
   'zh-CN': {
     shell: {
-      brandSubtitle: '节点管理系统',
+      brandSubtitle: '',
       searchPlaceholder: '搜索页面...',
       searchAriaLabel: '全局页面搜索',
       searchEmpty: '没有匹配页面',
@@ -258,6 +258,10 @@ const messages = {
         verifyTitle: '邮箱验证',
         forgotTitle: '找回密码',
         subtitle: '统一访问节点管理后台',
+        registrationClosed: '当前已关闭自助注册',
+        inviteCode: '邀请码',
+        inviteCodePlaceholder: '请输入邀请码',
+        inviteOnlyHint: '当前为邀请注册模式，必须填写有效邀请码，无需邮箱验证。',
         username: '用户名',
         email: '邮箱',
         password: '密码',
@@ -573,7 +577,7 @@ const messages = {
   },
   'en-US': {
     shell: {
-      brandSubtitle: 'Node Management System',
+      brandSubtitle: '',
       searchPlaceholder: 'Search pages...',
       searchAriaLabel: 'Global page search',
       searchEmpty: 'No matching page',
@@ -827,6 +831,10 @@ const messages = {
         verifyTitle: 'Verify Email',
         forgotTitle: 'Reset Password',
         subtitle: 'Access the node management workspace',
+        registrationClosed: 'Self-service registration is currently disabled',
+        inviteCode: 'Invite code',
+        inviteCodePlaceholder: 'Enter the invite code',
+        inviteOnlyHint: 'Invite-only registration is enabled. A valid invite code is required and email verification is skipped.',
         username: 'Username',
         email: 'Email',
         password: 'Password',

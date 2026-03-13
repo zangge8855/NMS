@@ -176,3 +176,63 @@ test('resetPasswordWithCode updates password and clears reset code', () => {
     }]);
     assert.deepEqual(clears, ['user-4']);
 });
+
+test('registerUser consumes invite code and skips email verification in invite-only mode', async () => {
+    const consumed = [];
+    let sentVerificationEmail = false;
+    const repo = {
+        add(payload) {
+            assert.equal(payload.emailVerified, true);
+            return {
+                id: 'user-5',
+                username: payload.username,
+                email: payload.email,
+            };
+        },
+        remove() {
+            throw new Error('should not rollback');
+        },
+    };
+    const inviteStore = {
+        assertUsable(code) {
+            assert.equal(code, 'ABCD-EFGH-IJKL');
+        },
+        consume(code, options) {
+            consumed.push({ code, options });
+        },
+    };
+    const fakeMailer = {
+        generateVerifyCode() {
+            return '333333';
+        },
+        async sendVerificationEmail() {
+            sentVerificationEmail = true;
+        },
+    };
+
+    const result = await registerUser(
+        {
+            username: 'invite-user',
+            password: 'InvitePass123!',
+            email: 'invite@example.com',
+            inviteCode: 'ABCD-EFGH-IJKL',
+        },
+        {
+            userRepository: repo,
+            inviteCodeStore: inviteStore,
+            mailer: fakeMailer,
+            inviteOnlyEnabled: true,
+            registrationConfig: { defaultRole: 'user', verifyCodeTtlMinutes: 10 },
+        }
+    );
+
+    assert.equal(result.requireEmailVerification, false);
+    assert.equal(sentVerificationEmail, false);
+    assert.deepEqual(consumed, [{
+        code: 'ABCD-EFGH-IJKL',
+        options: {
+            usedByUserId: 'user-5',
+            usedByUsername: 'invite-user',
+        },
+    }]);
+});

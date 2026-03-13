@@ -516,6 +516,38 @@
   min-width: 0;
 }
 
+.settings-overview-header {
+  width: 100%;
+  align-items: flex-start;
+}
+
+.settings-overview-header .section-header-copy {
+  gap: 6px;
+  max-width: 760px;
+}
+
+.settings-overview-header .section-header-side {
+  margin-left: auto;
+  min-width: 220px;
+  gap: 14px;
+}
+
+.settings-overview-status,
+.settings-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-overview-status {
+  justify-content: flex-end;
+}
+
+.settings-overview-actions {
+  justify-content: flex-end;
+}
+
 .users-toolbar-summary {
   white-space: nowrap;
   padding-left: 0;
@@ -644,6 +676,14 @@
   .servers-filter-summary,
   .users-toolbar-summary {
     margin-left: 0;
+  }
+
+  .settings-overview-header .section-header-side,
+  .settings-overview-status,
+  .settings-overview-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
   }
 }
 

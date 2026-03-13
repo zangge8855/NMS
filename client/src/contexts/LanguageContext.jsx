@@ -32,7 +32,8 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    document.title = `NMS · ${getLocaleMessage(locale, 'shell.brandSubtitle')}`;
+    const subtitle = String(getLocaleMessage(locale, 'shell.brandSubtitle') || '').trim();
+    document.title = subtitle ? `NMS · ${subtitle}` : 'NMS';
   }, [locale]);
 
   const value = useMemo(() => ({
