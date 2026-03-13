@@ -60,6 +60,13 @@ function NodeTile({ server, serverData, trend = [] }) {
     const mem = serverData?.status?.mem;
     const memPercent = mem ? ((mem.current / mem.total) * 100) : 0;
     const traffic = (serverData?.up || 0) + (serverData?.down || 0);
+    const remarkPreview = Array.isArray(serverData?.nodeRemarkPreview)
+        ? serverData.nodeRemarkPreview
+        : Array.isArray(serverData?.nodeRemarks)
+            ? serverData.nodeRemarks.slice(0, 2)
+            : [];
+    const extraRemarkCount = Math.max(0, Number(serverData?.nodeRemarkCount || 0) - remarkPreview.length);
+    const remarksTitle = Array.isArray(serverData?.nodeRemarks) ? serverData.nodeRemarks.join(' / ') : '';
     const statusLabel = `${server.name} — ${color.label}`;
     const sparkline = buildSparkline(trend);
     const handleOpen = () => navigate('/settings?tab=console');
@@ -89,7 +96,23 @@ function NodeTile({ server, serverData, trend = [] }) {
                         ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
                         : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
                     }
-                    <span className="node-health-tile-name">{server.name}</span>
+                    <div className="node-health-tile-heading">
+                        <span className="node-health-tile-name">{server.name}</span>
+                        {remarkPreview.length > 0 && (
+                            <div className="node-health-tile-remarks" title={remarksTitle}>
+                                {remarkPreview.map((remark) => (
+                                    <span key={`${server.id}-${remark}`} className="node-health-tile-remark">
+                                        {remark}
+                                    </span>
+                                ))}
+                                {extraRemarkCount > 0 && (
+                                    <span className="node-health-tile-remark node-health-tile-remark-muted">
+                                        +{extraRemarkCount}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <span className="node-health-tone-pill">{color.label}</span>
             </div>

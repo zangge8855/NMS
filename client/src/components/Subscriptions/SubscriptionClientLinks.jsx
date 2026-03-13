@@ -70,11 +70,11 @@ export default function SubscriptionClientLinks({
         locale === 'en-US'
             ? {
                 sectionTitle: 'Pick one client for your device',
-                sectionCaption: 'Install it, then import the profile you selected above.',
+                sectionCaption: 'Install it, then import the config you selected above.',
                 chooseAny: 'Pick any mainstream client.',
                 importReady: 'After installation, you can import it directly.',
                 downloads: 'Client Downloads',
-                recommended: 'Recommended Profile',
+                recommended: 'Recommended Config',
                 chooseLabel: 'Use',
                 importMethod: 'Import Method',
                 copyAddress: 'If one-tap import is not available, just copy the address above.',
@@ -85,7 +85,7 @@ export default function SubscriptionClientLinks({
                 chooseAny: '选一个常用客户端。',
                 importReady: '装好后直接导入。',
                 downloads: '客户端下载',
-                recommended: '推荐类型',
+                recommended: '推荐配置文件',
                 chooseLabel: '选',
                 importMethod: '导入方式',
                 copyAddress: '复制上面的地址导入就行。',

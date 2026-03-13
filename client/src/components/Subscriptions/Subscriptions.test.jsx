@@ -73,6 +73,10 @@ describe('Subscriptions', () => {
                             total: 1,
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
+                            usedTrafficBytes: 1024,
+                            trafficLimitBytes: 4096,
+                            remainingTrafficBytes: 3072,
+                            expiryTime: new Date('2030-01-02T00:00:00Z').getTime(),
                         },
                     },
                 });
@@ -83,10 +87,13 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
-        expect(screen.getByText('当前类型')).toBeInTheDocument();
+        expect(screen.getByText('当前配置文件')).toBeInTheDocument();
         expect(screen.getByText('现在这样用')).toBeInTheDocument();
-        expect(screen.getByText('就记这一句：选类型 -> 导入客户端。')).toBeInTheDocument();
+        expect(screen.getByText('就记这一句：选配置文件 -> 导入客户端。')).toBeInTheDocument();
         expect(screen.getByText('软件下载地址')).toBeInTheDocument();
+        expect(screen.getByText('已用流量')).toBeInTheDocument();
+        expect(screen.getByText('可用流量')).toBeInTheDocument();
+        expect(screen.getByText('到期时间')).toBeInTheDocument();
         expect(screen.queryByText('你的订阅地址')).not.toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();

@@ -10,13 +10,16 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-subscription-routes';
 
 const {
+    buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
     buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
+    mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
+    summarizeSubscriptionUsage,
     sortInboundsForServer,
     sortServersForSubscription,
 } = await import('../routes/subscriptions.js');
@@ -91,6 +94,57 @@ describe('subscription ordering', () => {
         ]);
 
         assert.deepEqual(sorted.map((item) => item.id), ['server-b', 'server-a', 'server-c']);
+    });
+});
+
+describe('subscription usage summary', () => {
+    it('merges clientStats into inbound clients so used traffic follows the latest panel counters', () => {
+        const clients = mergeInboundClientEntries({
+            settings: JSON.stringify({
+                clients: [
+                    { id: 'uuid-a', email: 'alice@example.com', totalGB: 2048, expiryTime: 2000 },
+                ],
+            }),
+            clientStats: [
+                { id: 'uuid-a', email: 'alice@example.com', up: 300, down: 500 },
+            ],
+        });
+
+        assert.deepEqual(clients, [
+            {
+                id: 'uuid-a',
+                email: 'alice@example.com',
+                totalGB: 2048,
+                expiryTime: 2000,
+                up: 300,
+                down: 500,
+            },
+        ]);
+    });
+
+    it('builds used, remaining, and expiry summary from matched entries without affecting subscription urls', () => {
+        const summary = summarizeSubscriptionUsage([
+            { entry: { up: 300, down: 500, totalGB: 2048, expiryTime: 4000 } },
+            { entry: { up: 100, down: 200, totalGB: 1024, expiryTime: 3000 } },
+        ]);
+
+        assert.equal(summary.uploadTrafficBytes, 400);
+        assert.equal(summary.downloadTrafficBytes, 700);
+        assert.equal(summary.usedTrafficBytes, 1100);
+        assert.equal(summary.trafficLimitBytes, 3072);
+        assert.equal(summary.remainingTrafficBytes, 1972);
+        assert.equal(summary.expiryTime, 3000);
+    });
+
+    it('formats the standard subscription-userinfo header without changing the existing subscription url scheme', () => {
+        const header = buildSubscriptionUserInfoHeader({
+            uploadTrafficBytes: 400,
+            downloadTrafficBytes: 700,
+            trafficLimitBytes: 3072,
+            expiryTime: 3000,
+        });
+
+        assert.equal(header, 'upload=400; download=700; total=3072; expire=3');
     });
 });
 

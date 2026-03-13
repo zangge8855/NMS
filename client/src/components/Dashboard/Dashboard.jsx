@@ -6,7 +6,7 @@ import { formatBytes, formatUptime } from '../../utils/format.js';
 import useWebSocket from '../../hooks/useWebSocket.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
-import { mergeInboundClientStats } from '../../utils/inboundClients.js';
+import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
@@ -276,13 +276,24 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 const email = normalizeEmail(client?.email);
                 if (!email) return;
                 if (!clientsMap.has(email)) {
-                    clientsMap.set(email, { count: 0, onlineSessions: 0, servers: new Set(), nodeLabels: new Set() });
+                    clientsMap.set(email, {
+                        count: 0,
+                        totalUsed: 0,
+                        totalUp: 0,
+                        totalDown: 0,
+                        onlineSessions: 0,
+                        servers: new Set(),
+                        nodeLabels: new Set(),
+                    });
                 }
                 const entry = clientsMap.get(email);
                 const onlineSessions = buildClientOnlineKeys(client, protocol).reduce((total, key) => (
                     total + (onlineCounter.get(key) || 0)
                 ), 0);
                 entry.count += 1;
+                entry.totalUsed += resolveClientUsed(client);
+                entry.totalUp += safeNumber(client?.up);
+                entry.totalDown += safeNumber(client?.down);
                 entry.onlineSessions += onlineSessions;
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
@@ -320,6 +331,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 displayName,
                 label: resolvedEmail || displayName,
                 sessions,
+                clientData,
                 clientCount: clientData.count || 0,
                 enabled: user?.enabled !== false,
                 servers: matchedServers,
@@ -331,11 +343,56 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
             return String(left.displayName || left.label || '').localeCompare(String(right.displayName || right.label || ''));
         });
 
+    const totalUp = rows.reduce((sum, row) => sum + Number(row?.clientData?.totalUp || 0), 0);
+    const totalDown = rows.reduce((sum, row) => sum + Number(row?.clientData?.totalDown || 0), 0);
+
     return {
         rows,
         onlineRows: rows.filter((row) => row.sessions > 0),
         onlineSessionCount: rows.reduce((sum, row) => sum + Number(row.sessions || 0), 0),
         pendingCount: rows.filter((row) => row.enabled === false && row.clientCount === 0).length,
+        totalUp,
+        totalDown,
+        totalUsed: totalUp + totalDown,
+    };
+}
+
+function collectServerInboundRemarks(inbounds = [], serverName = '') {
+    const enabledRemarks = [];
+    const fallbackRemarks = [];
+    const seen = new Set();
+    const normalizedServerName = String(serverName || '').trim().toLowerCase();
+
+    const pushRemark = (list, remark) => {
+        const text = String(remark || '').trim();
+        if (!text) return;
+        const normalized = text.toLowerCase();
+        if (normalized === normalizedServerName) return;
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        list.push(text);
+    };
+
+    (Array.isArray(inbounds) ? inbounds : []).forEach((inbound) => {
+        const remark = String(inbound?.remark || '').trim();
+        if (!remark) return;
+        if (inbound?.enable === false) {
+            pushRemark(fallbackRemarks, remark);
+            return;
+        }
+        pushRemark(enabledRemarks, remark);
+    });
+
+    return enabledRemarks.length > 0 ? enabledRemarks : fallbackRemarks;
+}
+
+function withServerRemarkMeta(serverData, serverName = '') {
+    const nodeRemarks = collectServerInboundRemarks(serverData?.rawInbounds || [], serverName);
+    return {
+        ...serverData,
+        nodeRemarks,
+        nodeRemarkPreview: nodeRemarks.slice(0, 2),
+        nodeRemarkCount: nodeRemarks.length,
     };
 }
 
@@ -491,16 +548,11 @@ export default function Dashboard() {
         const statusMap = {};
         let derivedTotalInbounds = 0;
         let derivedActiveInbounds = 0;
-        let derivedTotalUp = 0;
-        let derivedTotalDown = 0;
-
         for (const [serverId, sData] of Object.entries(data.servers || {})) {
             statusMap[serverId] = sData;
             if (sData?.online) {
                 derivedTotalInbounds += Number(sData?.inboundCount || 0);
                 derivedActiveInbounds += Number(sData?.activeInbounds || 0);
-                derivedTotalUp += Number(sData?.up || sData?.status?.netTraffic?.sent || 0);
-                derivedTotalDown += Number(sData?.down || sData?.status?.netTraffic?.recv || 0);
             }
         }
 
@@ -510,27 +562,23 @@ export default function Dashboard() {
         const activeInbounds = Number.isFinite(Number(data.activeInbounds))
             ? Number(data.activeInbounds)
             : derivedActiveInbounds;
-        const totalUp = Number.isFinite(Number(data.totalUp))
-            ? Number(data.totalUp)
-            : derivedTotalUp;
-        const totalDown = Number.isFinite(Number(data.totalDown))
-            ? Number(data.totalDown)
-            : derivedTotalDown;
-
         setServerStatuses((previous) => {
             const next = {};
             Object.entries(statusMap).forEach(([serverId, serverData]) => {
                 next[serverId] = {
                     ...serverData,
                     managedOnlineCount: previous?.[serverId]?.managedOnlineCount ?? 0,
+                    nodeRemarks: previous?.[serverId]?.nodeRemarks || [],
+                    nodeRemarkPreview: previous?.[serverId]?.nodeRemarkPreview || [],
+                    nodeRemarkCount: previous?.[serverId]?.nodeRemarkCount || 0,
                 };
             });
             return next;
         });
         setServerTrendHistory((previous) => pushServerTrendSamples(previous, statusMap));
         setGlobalStats((previous) => ({
-            totalUp,
-            totalDown,
+            totalUp: previous.totalUp || 0,
+            totalDown: previous.totalDown || 0,
             totalOnline: previous.totalOnline || 0,
             totalInbounds,
             activeInbounds,
@@ -605,19 +653,15 @@ export default function Dashboard() {
                         const sInbounds = inboundsRes.data.obj || [];
                         const sOnlines = normalizeOnlineList(onlineRes.data?.obj || [], server.name);
 
-                        results[server.id] = {
+                        results[server.id] = withServerRemarkMeta({
                             online: true, status: sStatus, name: server.name,
                             inboundCount: sInbounds.length, onlineCount: sOnlines.length,
                             onlineUsers: sOnlines,
                             activeInbounds: sInbounds.filter(i => i.enable).length,
-                            up: sInbounds.reduce((a, b) => a + (b.up || 0), 0),
-                            down: sInbounds.reduce((a, b) => a + (b.down || 0), 0),
                             rawInbounds: sInbounds,
                             rawOnlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
-                        };
+                        }, server.name);
                         stats.onlineServers++;
-                        stats.totalUp += results[server.id].up;
-                        stats.totalDown += results[server.id].down;
                         stats.totalInbounds += results[server.id].inboundCount;
                         stats.activeInbounds += results[server.id].activeInbounds;
                     } catch (err) {
@@ -635,6 +679,8 @@ export default function Dashboard() {
                 }))
             );
             stats.totalOnline = presence.onlineRows.length;
+            stats.totalUp = presence.totalUp;
+            stats.totalDown = presence.totalDown;
             const managedOnlineCountByServer = new Map();
             presence.onlineRows.forEach((row) => {
                 row.servers.forEach((serverName) => {

@@ -91,11 +91,17 @@ export function createSiteCamouflageHtml() {
         }
 
         .nav {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
             align-items: center;
-            justify-content: space-between;
-            gap: 16px;
+            gap: 22px;
             margin-bottom: 28px;
+            padding: 14px 18px;
+            border-radius: 24px;
+            background: rgba(8, 18, 31, 0.58);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 16px 42px rgba(2, 9, 20, 0.24);
+            backdrop-filter: blur(18px);
         }
 
         .brand {
@@ -133,45 +139,66 @@ export function createSiteCamouflageHtml() {
         .brand-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
         .brand-sub strong { color: rgba(255, 255, 255, 0.94); font-weight: 600; }
 
-        .nav-badge {
-            display: inline-flex;
+        .nav-links {
+            display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
-            padding: 10px 14px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.10);
-            color: var(--text-muted);
-            font-size: 12px;
-            white-space: nowrap;
+            flex-wrap: wrap;
+            min-width: 0;
         }
 
-        .nav-links {
+        .nav-actions {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
             justify-content: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         .nav-link {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
+            justify-content: center;
+            padding: 10px 12px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: transparent;
+            border: 1px solid transparent;
             color: var(--text-muted);
             font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
             text-decoration: none;
-            transition: transform 160ms ease, border-color 160ms ease, color 160ms ease;
+            transition: transform 160ms ease, border-color 160ms ease, color 160ms ease, background 160ms ease;
         }
 
         .nav-link:hover {
             transform: translateY(-1px);
             color: var(--text);
-            border-color: rgba(255,255,255,0.16);
+            border-color: rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 999px;
+            text-decoration: none;
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #03111f;
+            background: linear-gradient(135deg, #d7f7ff, #8fe5ff);
+            box-shadow: 0 12px 28px rgba(89, 199, 255, 0.20);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 34px rgba(89, 199, 255, 0.26);
         }
 
         .lang-switch {
@@ -580,6 +607,19 @@ export function createSiteCamouflageHtml() {
         .footer-chip strong { color: var(--success); }
 
         @media (max-width: 1024px) {
+            .nav {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+
+            .nav-links {
+                justify-content: flex-start;
+            }
+
+            .nav-actions {
+                justify-content: space-between;
+            }
+
             .hero {
                 grid-template-columns: 1fr;
             }
@@ -608,6 +648,23 @@ export function createSiteCamouflageHtml() {
             .nav-links {
                 width: 100%;
                 justify-content: flex-start;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 2px;
+                scrollbar-width: none;
+            }
+
+            .nav-links::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .nav-cta {
+                flex: 1 1 auto;
             }
 
             .hero-main,
@@ -646,14 +703,6 @@ export function createSiteCamouflageHtml() {
                 </div>
             </div>
             <div class="nav-links">
-                <div class="nav-badge">
-                    <span class="lang-zh">企业展示站点</span>
-                    <span class="lang-en">Corporate Landing</span>
-                </div>
-                <div class="lang-switch" role="group" aria-label="Language switch">
-                    <button type="button" class="lang-switch-btn" data-lang-toggle="zh">中文</button>
-                    <button type="button" class="lang-switch-btn" data-lang-toggle="en">EN</button>
-                </div>
                 <a class="nav-link" href="#products">
                     <span class="lang-zh">产品矩阵</span>
                     <span class="lang-en">Products</span>
@@ -666,6 +715,16 @@ export function createSiteCamouflageHtml() {
                     <span class="lang-zh">质量体系</span>
                     <span class="lang-en">Assurance</span>
                 </a>
+            </div>
+            <div class="nav-actions">
+                <a class="nav-cta" href="#industries">
+                    <span class="lang-zh">查看行业方案</span>
+                    <span class="lang-en">Explore Solutions</span>
+                </a>
+                <div class="lang-switch" role="group" aria-label="Language switch">
+                    <button type="button" class="lang-switch-btn" data-lang-toggle="zh">中文</button>
+                    <button type="button" class="lang-switch-btn" data-lang-toggle="en">EN</button>
+                </div>
             </div>
         </div>
 

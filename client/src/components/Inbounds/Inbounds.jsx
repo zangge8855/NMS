@@ -1172,7 +1172,7 @@ export default function Inbounds() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td data-label="" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label="操作" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon inbounds-action-btn"
@@ -1180,6 +1180,7 @@ export default function Inbounds() {
                                                             onClick={() => handleEdit(ib)}
                                                         >
                                                             <HiOutlinePencilSquare />
+                                                            <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon inbounds-action-btn is-danger"
@@ -1187,6 +1188,7 @@ export default function Inbounds() {
                                                             onClick={() => handleDelete(ib)}
                                                         >
                                                             <HiOutlineTrash />
+                                                            <span className="inbounds-action-mobile-label">{t('comp.common.delete')}</span>
                                                         </button>
                                                     </div>
                                                 </td>

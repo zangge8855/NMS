@@ -178,6 +178,13 @@ function SettingsPanelHeader({ title, subtitle }) {
     );
 }
 
+function getSummaryToneBadgeMeta(tone) {
+    if (tone === 'success') return { className: 'badge-success', label: '正常' };
+    if (tone === 'warning') return { className: 'badge-warning', label: '关注' };
+    if (tone === 'danger') return { className: 'badge-danger', label: '关闭' };
+    return { className: 'badge-neutral', label: '待检查' };
+}
+
 function SettingsToggleCard({
     checked,
     onChange,
@@ -991,7 +998,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel settings-panel--span-6">
+            <div className="card p-4 settings-panel settings-panel--span-7">
                 <SettingsPanelHeader
                     title="任务中心参数"
                     subtitle="批量任务的保留、分页和并发策略。"
@@ -1025,7 +1032,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel settings-panel--span-6">
+            <div className="card p-4 settings-panel settings-panel--span-5">
                 <SettingsPanelHeader
                     title="风控确认"
                     subtitle="控制高风险批量动作的确认阈值和令牌时效。"
@@ -1110,7 +1117,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel settings-panel--span-6">
+            <div className="card p-4 settings-panel settings-panel--wide">
                 <SettingsPanelHeader
                     title="订阅地址"
                     subtitle="控制公开订阅域名和外部转换器地址。"
@@ -1832,25 +1839,18 @@ export default function SystemSettings() {
     const renderStatusContent = () => (
         <div className="settings-section-stack">
             <div className="settings-summary-grid settings-summary-grid--status">
-                {overviewCards.map((item) => (
-                    <div key={item.title} className="card settings-summary-card">
-                        <div className="settings-summary-label">{item.title}</div>
+                {overviewCards.map((item) => {
+                    const badgeMeta = getSummaryToneBadgeMeta(item.tone);
+                    return (
+                    <div key={item.title} className="card settings-summary-card" data-tone={item.tone || 'neutral'}>
+                        <div className="settings-summary-head">
+                            <div className="settings-summary-label">{item.title}</div>
+                            <span className={`badge settings-summary-badge ${badgeMeta.className}`}>{badgeMeta.label}</span>
+                        </div>
                         <div className="settings-summary-value">{item.value}</div>
                         <div className="settings-summary-detail">{item.detail}</div>
-                        <span className={`badge settings-summary-badge ${
-                            item.tone === 'success'
-                                ? 'badge-success'
-                                : item.tone === 'warning'
-                                    ? 'badge-warning'
-                                    : item.tone === 'danger'
-                                        ? 'badge-danger'
-                                        : 'badge-neutral'
-                        }`}
-                        >
-                            {item.tone === 'success' ? '正常' : item.tone === 'warning' ? '关注' : item.tone === 'danger' ? '关闭' : '待检查'}
-                        </span>
                     </div>
-                ))}
+                );})}
             </div>
         </div>
     );

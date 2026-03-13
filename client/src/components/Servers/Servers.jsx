@@ -745,7 +745,7 @@ export default function Servers() {
                                     className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
                                     onClick={() => selectServer(server.id)}
                                 >
-                                    <td className="table-cell-center" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             className="checkbox"
@@ -753,7 +753,7 @@ export default function Servers() {
                                             onChange={() => toggleSelect(server.id)}
                                         />
                                     </td>
-                                    <td className="table-cell-center servers-order-cell" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-center servers-order-cell" data-label="序号" onClick={(e) => e.stopPropagation()}>
                                         <div className="servers-order-stack">
                                             <span className="servers-order-number">{index + 1}</span>
                                             <div className="servers-order-actions">
@@ -780,7 +780,7 @@ export default function Servers() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="servers-name-cell">
+                                    <td className="servers-name-cell" data-label="服务器">
                                         <div className="servers-name-stack">
                                             <div className="servers-name-head">
                                                 <button
@@ -794,7 +794,7 @@ export default function Servers() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="servers-tags-cell">
+                                    <td className="servers-tags-cell" data-label="分组 / 标签">
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {server.group || t('comp.servers.ungrouped')}</span>
                                         {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
@@ -802,16 +802,16 @@ export default function Servers() {
                                         ))}
                                         </div>
                                     </td>
-                                    <td className="servers-account-cell">
+                                    <td className="servers-account-cell" data-label="账号">
                                         <div className="servers-account-stack">
                                             <span className="font-medium text-primary">{server.username}</span>
                                             <span className="text-xs text-muted">环境：{formatServerEnvironment(server.environment, locale)}</span>
                                         </div>
                                     </td>
-                                    <td className="servers-credential-cell">
+                                    <td className="servers-credential-cell" data-label="凭据">
                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                     </td>
-                                    <td className="servers-status-cell">
+                                    <td className="servers-status-cell" data-label="状态">
                                         <div className="servers-status-stack">
                                             <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{isActive ? '当前节点' : '已接入'}</span>
                                             <span className="text-xs text-muted servers-status-meta">
@@ -819,7 +819,7 @@ export default function Servers() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-actions" data-label="操作" onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
                                             <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
                                             <HiOutlineEye /> 详情
@@ -834,9 +834,11 @@ export default function Servers() {
                                         </button>
                                             <button className="btn btn-ghost btn-sm btn-icon servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
+                                                <span className="servers-row-action-mobile-label">{t('comp.common.edit')}</span>
                                             </button>
                                             <button className="btn btn-danger btn-sm btn-icon servers-row-action-icon" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
                                                 <HiOutlineTrash />
+                                                <span className="servers-row-action-mobile-label">{t('comp.common.delete')}</span>
                                             </button>
                                         </div>
                                     </td>

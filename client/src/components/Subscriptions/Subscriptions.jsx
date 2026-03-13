@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import { copyToClipboard } from '../../utils/format.js';
+import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
 import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
@@ -51,17 +51,17 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             inputEmailHint: 'Enter an email to load the subscription address',
             userTitle: 'Your Subscription',
             adminTitle: 'Subscription Address & Import',
-            userSubtitle: 'Choose a profile, then copy or scan it.',
+            userSubtitle: 'Choose a config, then copy or scan it.',
             adminSubtitle: 'For end users, these three steps are enough.',
             available: 'Subscription Ready',
             unavailable: 'Subscription Unavailable',
             nodeCount: `${nodeCount} nodes`,
-            currentProfileFallback: 'Choose a profile',
-            currentType: 'Current Profile',
+            currentProfileFallback: 'Choose a config',
+            currentType: 'Current Config',
             copyAddress: 'Copy Address',
             scanImport: 'Scan to Import',
             noQr: 'No QR code is available for this format.',
-            noQuickImport: 'This profile does not support one-tap import. Copy the address instead.',
+            noQuickImport: 'This config does not support one-tap import. Copy the address instead.',
             resetLink: 'Reset Subscription Link',
             passwordTitle: 'Current Login Password',
             currentPassword: 'Current Password',
@@ -74,28 +74,28 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
             userStepKicker: 'Use it like this',
-            userStepTitle: 'Choose a profile, then copy or scan it',
+            userStepTitle: 'Choose a config, then copy or scan it',
             userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
-            pickTypeTitle: 'Choose a profile',
-            pickTypeText: 'If you are unsure, follow the recommended profile on the device cards.',
+            pickTypeTitle: 'Choose a config',
+            pickTypeText: 'If you are unsure, follow the recommended config on the device cards.',
             copyOrScanTitle: 'Copy the address or scan it',
             copyOrScanText: 'Copy is the main action. The QR code and quick import stay right next to it.',
             deviceOpenTitle: 'Client Downloads',
-            deviceOpenText: 'Download by device and use the recommended profile below.',
+            deviceOpenText: 'Download by device and use the recommended config below.',
             resetRiskTitle: 'Reset only when the address is leaked',
             resetRiskText: 'After reset, the old address stops working immediately and the client must import the new address again.',
-            heroTitle: 'Choose a profile -> Copy the address -> Import into the client',
+            heroTitle: 'Choose a config -> Copy the address -> Import into the client',
             heroText: 'If you are unsure which one to choose, start with the device recommendation below.',
             manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
             adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
             goSettings: 'Change it in Settings',
             qrAriaLabel: 'Subscription QR code · {label}',
             quickImportHint: 'You can also use the quick import buttons below.',
-            adminQuickImportHint: 'Quick import buttons for the current profile stay here as well.',
-            simpleReminder: 'For beginners, just remember this: choose a profile, copy the address, and import it.',
+            adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
+            simpleReminder: 'For beginners, just remember this: choose a config, copy the address, and import it.',
             guideTitle: 'How to share it',
             guideSubtitle: 'Just explain these three steps.',
-            guideStep1Title: 'Choose a profile',
+            guideStep1Title: 'Choose a config',
             guideStep1Text: 'If they are unsure, tell them to start with the device recommendation.',
             guideStep2Title: 'Copy the address',
             guideStep2Text: 'If one-tap import is unavailable, copy the address above.',
@@ -111,6 +111,11 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             summaryMatched: 'Matched {active}/{raw}',
             summaryScope: 'Current Scope',
             summaryFilters: 'Expired {expired} / Disabled {disabled} / Policy {policy}',
+            usedTraffic: 'Used Traffic',
+            availableTraffic: 'Available Traffic',
+            expiryTime: 'Expiry Time',
+            unlimited: 'Unlimited',
+            permanent: 'Permanent',
         };
     }
 
@@ -129,17 +134,17 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         inputEmailHint: '输入邮箱后会自动加载订阅地址',
         userTitle: '你的订阅地址',
         adminTitle: '订阅地址与导入',
-        userSubtitle: '先选类型，再导入。',
+        userSubtitle: '先选配置文件，再导入。',
         adminSubtitle: '给用户时，直接按这三步说明就够了。',
         available: '订阅可用',
         unavailable: '订阅不可用',
         nodeCount: `${nodeCount} 个节点`,
         currentProfileFallback: '请选择订阅类型',
-        currentType: '当前类型',
+        currentType: '当前配置文件',
         copyAddress: '复制地址',
         scanImport: '扫码导入',
         noQr: '当前格式暂无二维码',
-        noQuickImport: '当前类型不支持一键导入，复制地址即可。',
+        noQuickImport: '当前配置文件不支持一键导入，复制地址即可。',
         resetLink: '重置订阅链接',
         passwordTitle: '当前登录账号密码',
         currentPassword: '当前密码',
@@ -152,29 +157,29 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         resetDetailsTarget: '目标邮箱',
         resetDetailsScope: '范围',
         userStepKicker: '现在这样用',
-        userStepTitle: '选类型 -> 导入客户端',
+        userStepTitle: '选配置文件 -> 导入客户端',
         userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
-        pickTypeTitle: '选类型',
+        pickTypeTitle: '选配置文件',
         pickTypeText: '不会选时，看下面设备推荐。',
         copyOrScanTitle: '订阅地址',
         copyOrScanText: '导入、复制、扫码都在这里。',
         deviceOpenTitle: '软件下载地址',
-        deviceOpenText: '按设备下载，推荐类型见下方。',
+        deviceOpenText: '按设备下载，推荐配置文件见下方。',
         resetRiskTitle: '只有地址泄露时，才需要重置',
         resetRiskText: '重置后旧地址会失效。',
-        heroTitle: '选类型 -> 复制地址 -> 导入客户端',
+        heroTitle: '选配置文件 -> 复制地址 -> 导入客户端',
         heroText: '不知道选哪个时，先看下面设备推荐。',
         manualImportHint: '不会导入时，直接复制这条地址。',
         adminConverterHint: '管理提示：专用订阅当前走外部转换器',
         goSettings: '去系统设置修改',
         qrAriaLabel: '订阅二维码 · {label}',
         quickImportHint: '也可以直接点导入按钮。',
-        adminQuickImportHint: '当前类型的快捷导入按钮也在这里。',
-        simpleReminder: '就记这一句：选类型 -> 导入客户端。',
+        adminQuickImportHint: '当前配置文件的快捷导入按钮也在这里。',
+        simpleReminder: '就记这一句：选配置文件 -> 导入客户端。',
         qrHint: '也可以扫码导入。',
         guideTitle: '怎么使用订阅',
         guideSubtitle: '就按这三步，不用讲别的。',
-        guideStep1Title: '选类型',
+        guideStep1Title: '选配置文件',
         guideStep1Text: '不知道怎么选，就先看设备推荐。',
         guideStep2Title: '复制地址',
         guideStep2Text: '不会一键导入时，就复制上面的地址。',
@@ -190,6 +195,11 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         summaryMatched: '已匹配 {active}/{raw}',
         summaryScope: '查看范围',
         summaryFilters: '过期 {expired} / 禁用 {disabled} / 限制 {policy}',
+        usedTraffic: '已用流量',
+        availableTraffic: '可用流量',
+        expiryTime: '到期时间',
+        unlimited: '不限',
+        permanent: '永久',
     };
 }
 
@@ -281,6 +291,13 @@ export default function Subscriptions() {
         ? ui.selectedNode.replace('{id}', selectedServerId)
         : ui.allNodes;
     const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ` · ${ui.adminRole}` : ''}`;
+    const usedTrafficLabel = formatBytes(Number(result?.usedTrafficBytes || 0));
+    const availableTrafficLabel = Number(result?.trafficLimitBytes || 0) > 0
+        ? formatBytes(Number(result?.remainingTrafficBytes || 0))
+        : ui.unlimited;
+    const expiryTimeLabel = Number(result?.expiryTime || 0) > 0
+        ? formatDateOnly(Number(result.expiryTime), locale)
+        : ui.permanent;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -354,6 +371,10 @@ export default function Subscriptions() {
                 filteredExpired: Number(payload.filteredExpired || 0),
                 filteredDisabled: Number(payload.filteredDisabled || 0),
                 filteredByPolicy: Number(payload.filteredByPolicy || 0),
+                usedTrafficBytes: Number(payload.usedTrafficBytes || 0),
+                trafficLimitBytes: Number(payload.trafficLimitBytes || 0),
+                remainingTrafficBytes: Number(payload.remainingTrafficBytes || 0),
+                expiryTime: Number(payload.expiryTime || 0),
                 matchedClientsRaw: Number(payload.matchedClientsRaw || 0),
                 matchedClientsActive: Number(payload.matchedClientsActive || 0),
                 scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
@@ -610,6 +631,20 @@ export default function Subscriptions() {
                                                         )}
                                                     </div>
                                                 )}
+                                                <div className="subscription-user-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                    <div className="subscription-user-status-card">
+                                                        <div className="subscription-user-status-label">{ui.usedTraffic}</div>
+                                                        <div className="subscription-user-status-value">{usedTrafficLabel}</div>
+                                                    </div>
+                                                    <div className="subscription-user-status-card">
+                                                        <div className="subscription-user-status-label">{ui.availableTraffic}</div>
+                                                        <div className="subscription-user-status-value">{availableTrafficLabel}</div>
+                                                    </div>
+                                                    <div className="subscription-user-status-card">
+                                                        <div className="subscription-user-status-label">{ui.expiryTime}</div>
+                                                        <div className="subscription-user-status-value">{expiryTimeLabel}</div>
+                                                    </div>
+                                                </div>
                                                 <div className="subscription-user-import-layout">
                                                     <div className="subscription-link-card subscription-link-card--user-focus">
                                                         <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
@@ -856,9 +891,9 @@ export default function Subscriptions() {
                                         title={ui.summaryTitle}
                                         subtitle={ui.summarySubtitle}
                                     />
-                                    <div className="subscription-summary-grid">
-                                        <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">{ui.summaryUser}</div>
+                                        <div className="subscription-summary-grid">
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.summaryUser}</div>
                                             {isAdmin ? (
                                                 <Link className="subscription-email-link" to={linkedUserHref}>
                                                     {result.email}
@@ -877,17 +912,29 @@ export default function Subscriptions() {
                                             <div className="subscription-summary-value">{result.total}</div>
                                             <div className="subscription-summary-meta">{ui.summaryMatched.replace('{active}', String(result.matchedClientsActive)).replace('{raw}', String(result.matchedClientsRaw))}</div>
                                         </div>
-                                        <div className="subscription-summary-item">
-                                            <div className="subscription-summary-label">{ui.summaryScope}</div>
-                                            <div className="subscription-summary-value">{summaryScopeLabel}</div>
-                                            <div className="subscription-summary-meta">
-                                                {ui.summaryFilters
-                                                    .replace('{expired}', String(result.filteredExpired))
-                                                    .replace('{disabled}', String(result.filteredDisabled))
-                                                    .replace('{policy}', String(result.filteredByPolicy))}
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.summaryScope}</div>
+                                                <div className="subscription-summary-value">{summaryScopeLabel}</div>
+                                                <div className="subscription-summary-meta">
+                                                    {ui.summaryFilters
+                                                        .replace('{expired}', String(result.filteredExpired))
+                                                        .replace('{disabled}', String(result.filteredDisabled))
+                                                        .replace('{policy}', String(result.filteredByPolicy))}
+                                                </div>
+                                            </div>
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.usedTraffic}</div>
+                                                <div className="subscription-summary-value">{usedTrafficLabel}</div>
+                                            </div>
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.availableTraffic}</div>
+                                                <div className="subscription-summary-value">{availableTrafficLabel}</div>
+                                            </div>
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.expiryTime}</div>
+                                                <div className="subscription-summary-value">{expiryTimeLabel}</div>
                                             </div>
                                         </div>
-                                    </div>
                                 </div>
 
                             </>

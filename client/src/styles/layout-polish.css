@@ -793,6 +793,10 @@
   justify-content: center;
 }
 
+.servers-row-action-mobile-label {
+  display: none;
+}
+
 @media (max-width: 1400px) {
   .servers-table {
     min-width: 980px;
@@ -811,6 +815,98 @@
   .servers-table th:nth-child(8),
   .servers-table td:nth-child(8) {
     width: 164px;
+  }
+}
+
+@media (max-width: 768px) {
+  .servers-table-shell {
+    overflow: visible;
+  }
+
+  .servers-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .servers-table tr {
+    padding: 18px 16px 14px;
+  }
+
+  .servers-table td {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .servers-table td::before {
+    width: 78px;
+    max-width: 78px;
+  }
+
+  .servers-name-cell {
+    display: block;
+    padding-top: 0;
+    padding-right: 40px;
+  }
+
+  .servers-name-cell::before {
+    display: none;
+  }
+
+  .server-card-name-trigger {
+    display: block;
+    width: 100%;
+  }
+
+  .server-card-name {
+    display: block;
+    font-size: 16px;
+    line-height: 1.4;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .servers-order-stack {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .servers-order-actions {
+    flex-direction: row;
+  }
+
+  .servers-account-stack,
+  .servers-status-stack {
+    gap: 4px;
+  }
+
+  .servers-status-cell,
+  .servers-tags-cell,
+  .servers-account-cell,
+  .servers-credential-cell {
+    align-items: flex-start;
+  }
+
+  .servers-row-actions {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .servers-row-actions .btn {
+    min-height: 40px;
+  }
+
+  .servers-row-action-icon {
+    gap: 6px;
+  }
+
+  .servers-row-action-mobile-label {
+    display: inline;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
   }
 }
 

@@ -53,6 +53,95 @@ function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
 }
 
+function normalizeNonNegativeNumber(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
+function buildSubscriptionClientKeys(client = {}) {
+    return Array.from(new Set(
+        [
+            client?.email,
+            client?.id,
+            client?.password,
+        ]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+    ));
+}
+
+function mergeInboundClientEntries(inbound = {}) {
+    const settings = parseJsonObjectLike(inbound.settings, {});
+    const clients = Array.isArray(settings.clients) ? settings.clients : [];
+    const stats = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
+    const statIndex = new Map();
+
+    stats.forEach((item) => {
+        buildSubscriptionClientKeys(item).forEach((key) => {
+            if (!statIndex.has(key)) {
+                statIndex.set(key, item);
+            }
+        });
+    });
+
+    return clients.map((entry) => {
+        const matchedStat = buildSubscriptionClientKeys(entry)
+            .map((key) => statIndex.get(key))
+            .find(Boolean);
+        if (!matchedStat) return entry;
+        return {
+            ...entry,
+            up: normalizeNonNegativeNumber(matchedStat.up),
+            down: normalizeNonNegativeNumber(matchedStat.down),
+        };
+    });
+}
+
+function summarizeSubscriptionUsage(entries = [], policy = {}) {
+    const summary = {
+        uploadTrafficBytes: 0,
+        downloadTrafficBytes: 0,
+        usedTrafficBytes: 0,
+        trafficLimitBytes: 0,
+        remainingTrafficBytes: 0,
+        expiryTime: 0,
+    };
+
+    (Array.isArray(entries) ? entries : []).forEach((item) => {
+        const entry = item?.entry || item || {};
+        summary.uploadTrafficBytes += normalizeNonNegativeNumber(entry.up);
+        summary.downloadTrafficBytes += normalizeNonNegativeNumber(entry.down);
+        summary.trafficLimitBytes += normalizeNonNegativeNumber(entry.totalGB);
+        const expiryTime = normalizeNonNegativeNumber(entry.expiryTime);
+        if (expiryTime > 0 && (summary.expiryTime === 0 || expiryTime < summary.expiryTime)) {
+            summary.expiryTime = expiryTime;
+        }
+    });
+
+    summary.usedTrafficBytes = summary.uploadTrafficBytes + summary.downloadTrafficBytes;
+
+    if (summary.trafficLimitBytes === 0) {
+        summary.trafficLimitBytes = normalizeNonNegativeNumber(policy?.trafficLimitBytes);
+    }
+    if (summary.expiryTime === 0) {
+        summary.expiryTime = normalizeNonNegativeNumber(policy?.expiryTime);
+    }
+    if (summary.trafficLimitBytes > 0) {
+        summary.remainingTrafficBytes = Math.max(summary.trafficLimitBytes - summary.usedTrafficBytes, 0);
+    }
+
+    return summary;
+}
+
+function buildSubscriptionUserInfoHeader(summary = {}) {
+    const upload = Math.max(0, Math.floor(normalizeNonNegativeNumber(summary.uploadTrafficBytes)));
+    const download = Math.max(0, Math.floor(normalizeNonNegativeNumber(summary.downloadTrafficBytes)));
+    const total = Math.max(0, Math.floor(normalizeNonNegativeNumber(summary.trafficLimitBytes)));
+    const expire = Math.max(0, Math.floor(normalizeNonNegativeNumber(summary.expiryTime) / 1000));
+    return `upload=${upload}; download=${download}; total=${total}; expire=${expire}`;
+}
+
 function normalizeMode(mode) {
     const normalized = String(mode || 'auto').trim().toLowerCase();
     return MODE_SET.has(normalized) ? normalized : 'auto';
@@ -648,6 +737,10 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
         filteredByPolicy: 0,
         nativeLinks: 0,
         reconstructedLinks: 0,
+        usedTrafficBytes: 0,
+        trafficLimitBytes: 0,
+        remainingTrafficBytes: 0,
+        expiryTime: 0,
         warnings: [],
     };
     const warnings = [];
@@ -702,7 +795,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
             const protocol = String(inbound.protocol || '').toLowerCase();
             const settings = parseJsonObjectLike(inbound.settings, {});
             const stream = parseJsonObjectLike(inbound.streamSettings, {});
-            const clients = Array.isArray(settings.clients) ? settings.clients : [];
+            const clients = mergeInboundClientEntries(inbound);
 
             for (const entry of clients) {
                 if (normalizeEmail(entry.email) !== normalizedEmail) continue;
@@ -738,6 +831,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
         }
 
         perServer.matchedClientsActive = matchedEntries.length;
+        Object.assign(perServer, summarizeSubscriptionUsage(matchedEntries));
 
         const shouldReconstruct = mode === 'auto' || mode === 'reconstructed';
 
@@ -931,6 +1025,20 @@ async function buildMergedLinksByEmail(email, options = {}) {
     const filteredExpired = perServer.reduce((sum, item) => sum + Number(item.filteredExpired || 0), 0);
     const filteredDisabled = perServer.reduce((sum, item) => sum + Number(item.filteredDisabled || 0), 0);
     const filteredByPolicy = perServer.reduce((sum, item) => sum + Number(item.filteredByPolicy || 0), 0);
+    const uploadTrafficBytes = perServer.reduce((sum, item) => sum + Number(item.uploadTrafficBytes || 0), 0);
+    const downloadTrafficBytes = perServer.reduce((sum, item) => sum + Number(item.downloadTrafficBytes || 0), 0);
+    const usedTrafficBytes = perServer.reduce((sum, item) => sum + Number(item.usedTrafficBytes || 0), 0);
+    const trafficLimitBytes = perServer.reduce((sum, item) => sum + Number(item.trafficLimitBytes || 0), 0)
+        || normalizeNonNegativeNumber(policy?.trafficLimitBytes);
+    const remainingTrafficBytes = trafficLimitBytes > 0
+        ? Math.max(trafficLimitBytes - usedTrafficBytes, 0)
+        : 0;
+    const expiryTime = perServer.reduce((earliest, item) => {
+        const value = normalizeNonNegativeNumber(item.expiryTime);
+        if (value <= 0) return earliest;
+        if (earliest === 0 || value < earliest) return value;
+        return earliest;
+    }, 0) || normalizeNonNegativeNumber(policy?.expiryTime);
 
     let sourceMode = 'none';
     if (nativeTotal > 0 && reconstructedTotal > 0) sourceMode = 'mixed';
@@ -960,6 +1068,12 @@ async function buildMergedLinksByEmail(email, options = {}) {
         filteredExpired,
         filteredDisabled,
         filteredByPolicy,
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        usedTrafficBytes,
+        trafficLimitBytes,
+        remainingTrafficBytes,
+        expiryTime,
         subscriptionActive: totalLinks > 0,
         inactiveReason,
         policy,
@@ -2941,7 +3055,15 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.status(403).send('invalid subscription token');
     }
 
-    const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
+    const {
+        links,
+        serverNotFound,
+        inactiveReason,
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        trafficLimitBytes,
+        expiryTime,
+    } = await buildMergedLinksByEmail(email, { mode, serverId });
     if (serverNotFound) {
         appendSubscriptionAccessAudit(req, {
             email,
@@ -2981,6 +3103,12 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Token-Id', tokenId);
+    res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        trafficLimitBytes,
+        expiryTime,
+    }));
     if (format === 'clash') {
         const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
         if (!yaml) {
@@ -3043,7 +3171,15 @@ router.get('/public/:email/:sig', async (req, res) => {
     }
 
     subscriptionTokenStore.migrateLegacySigToken(email, sig, { createdBy: 'legacy-signature' });
-    const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
+    const {
+        links,
+        serverNotFound,
+        inactiveReason,
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        trafficLimitBytes,
+        expiryTime,
+    } = await buildMergedLinksByEmail(email, { mode, serverId });
     if (serverNotFound) {
         appendSubscriptionAccessAudit(req, {
             email,
@@ -3082,6 +3218,12 @@ router.get('/public/:email/:sig', async (req, res) => {
     const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Legacy', '1');
+    res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        trafficLimitBytes,
+        expiryTime,
+    }));
     if (format === 'clash') {
         const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
         if (!yaml) {
@@ -3389,6 +3531,12 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         filteredExpired,
         filteredDisabled,
         filteredByPolicy,
+        uploadTrafficBytes,
+        downloadTrafficBytes,
+        usedTrafficBytes,
+        trafficLimitBytes,
+        remainingTrafficBytes,
+        expiryTime,
         subscriptionActive,
         inactiveReason,
         policy,
@@ -3468,6 +3616,12 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             filteredExpired,
             filteredDisabled,
             filteredByPolicy,
+            uploadTrafficBytes,
+            downloadTrafficBytes,
+            usedTrafficBytes,
+            trafficLimitBytes,
+            remainingTrafficBytes,
+            expiryTime,
             policy,
             raw,
             subscription: encoded,
@@ -3501,13 +3655,16 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
 
 export default router;
 export {
+    buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
     buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
+    mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
+    summarizeSubscriptionUsage,
     sortInboundsForServer,
     sortServersForSubscription,
 };

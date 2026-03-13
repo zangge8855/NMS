@@ -1059,7 +1059,7 @@ export default function UsersHub() {
                                         className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
                                         onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                     >
-                                        <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                        <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                         <td data-label="序号" onClick={(e) => e.stopPropagation()}>
                                             <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                         </td>
@@ -1112,6 +1112,7 @@ export default function UsersHub() {
                                             <div className="flex gap-2 flex-wrap users-row-actions">
                                                 <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
                                                     <HiOutlineEye />
+                                                    <span className="users-action-mobile-label">详情</span>
                                                 </button>
                                                 {/* Pending: Approve + Delete */}
                                                 {user.status.key === 'pending' && (
@@ -1123,6 +1124,7 @@ export default function UsersHub() {
                                                             onClick={() => handleSetEnabled(user, true)}
                                                         >
                                                             <HiOutlineCheck />
+                                                            <span className="users-action-mobile-label">通过</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
@@ -1131,6 +1133,7 @@ export default function UsersHub() {
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
+                                                            <span className="users-action-mobile-label">删除</span>
                                                         </button>
                                                     </>
                                                 )}
@@ -1145,6 +1148,7 @@ export default function UsersHub() {
                                                             onClick={() => openProvisionModal(user)}
                                                         >
                                                             <HiOutlinePlusCircle />
+                                                            <span className="users-action-mobile-label">开通</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn"
@@ -1153,6 +1157,7 @@ export default function UsersHub() {
                                                             onClick={() => openEditModal(user)}
                                                         >
                                                             <HiOutlinePencilSquare />
+                                                            <span className="users-action-mobile-label">编辑</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn"
@@ -1161,6 +1166,7 @@ export default function UsersHub() {
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
                                                             {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
@@ -1169,6 +1175,7 @@ export default function UsersHub() {
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
+                                                            <span className="users-action-mobile-label">删除</span>
                                                         </button>
                                                     </>
                                                 )}
@@ -1183,6 +1190,7 @@ export default function UsersHub() {
                                                             onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
                                                         >
                                                             <HiOutlineLink />
+                                                            <span className="users-action-mobile-label">订阅</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn"
@@ -1191,6 +1199,7 @@ export default function UsersHub() {
                                                             onClick={() => openEditModal(user)}
                                                         >
                                                             <HiOutlinePencilSquare />
+                                                            <span className="users-action-mobile-label">编辑</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn"
@@ -1199,6 +1208,7 @@ export default function UsersHub() {
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
                                                             {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
@@ -1207,6 +1217,7 @@ export default function UsersHub() {
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
+                                                            <span className="users-action-mobile-label">删除</span>
                                                         </button>
                                                     </>
                                                 )}
@@ -1221,6 +1232,7 @@ export default function UsersHub() {
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
                                                             {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
@@ -1229,6 +1241,7 @@ export default function UsersHub() {
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
+                                                            <span className="users-action-mobile-label">删除</span>
                                                         </button>
                                                     </>
                                                 )}

@@ -123,13 +123,19 @@ describe('Dashboard', () => {
                                 id: 'inbound-a',
                                 protocol: 'vless',
                                 enable: true,
-                                up: 100,
-                                down: 200,
+                                remark: '港口专线',
                                 settings: JSON.stringify({
                                     clients: [
                                         { id: 'uuid-a', email: 'alice@example.com' },
+                                        { id: 'uuid-x', email: 'outsider@example.com' },
                                     ],
                                 }),
+                                clientStats: [
+                                    { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                                    { id: 'uuid-x', email: 'outsider@example.com', up: 900, down: 1800 },
+                                ],
+                                up: 1000,
+                                down: 2000,
                             },
                         ],
                     },
@@ -143,13 +149,19 @@ describe('Dashboard', () => {
                                 id: 'inbound-b',
                                 protocol: 'vless',
                                 enable: true,
-                                up: 120,
-                                down: 240,
+                                remark: '实验楼节点',
                                 settings: JSON.stringify({
                                     clients: [
                                         { id: 'uuid-a', email: 'alice@example.com' },
+                                        { id: 'uuid-y', email: 'outsider@example.com' },
                                     ],
                                 }),
+                                clientStats: [
+                                    { id: 'uuid-a', email: 'alice@example.com', up: 120, down: 240 },
+                                    { id: 'uuid-y', email: 'outsider@example.com', up: 990, down: 1980 },
+                                ],
+                                up: 1110,
+                                down: 2220,
                             },
                         ],
                     },
@@ -185,6 +197,15 @@ describe('Dashboard', () => {
         renderWithRouter(<Dashboard />, { route: '/' });
 
         expect(await screen.findByText('总用户 2 · 待审核 1')).toBeInTheDocument();
+        expect(await screen.findByText('港口专线')).toBeInTheDocument();
+
+        const trafficCard = screen.getByText('集群总流量').closest('[role="button"]');
+        if (!trafficCard) throw new Error('Missing cluster traffic card');
+        await waitFor(() => {
+            expect(trafficCard).toHaveTextContent('660 B');
+            expect(trafficCard).toHaveTextContent(/↑\s*220 B/);
+            expect(trafficCard).toHaveTextContent(/↓\s*440 B/);
+        });
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
         if (!onlineCard) throw new Error('Missing online users card');
