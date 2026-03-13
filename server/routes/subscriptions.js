@@ -148,6 +148,29 @@ function sortInboundsForServer(serverId, inbounds = []) {
     return systemSettingsStore.sortInboundList(serverId, inbounds);
 }
 
+function sortServersForSubscription(servers = []) {
+    const rows = Array.isArray(servers) ? [...servers] : [];
+    const order = systemSettingsStore.getServerOrder();
+    const orderIndex = new Map(order.map((id, index) => [String(id || '').trim(), index]));
+
+    return rows.sort((left, right) => {
+        const leftId = String(left?.id || '').trim();
+        const rightId = String(right?.id || '').trim();
+        const leftIndex = orderIndex.get(leftId);
+        const rightIndex = orderIndex.get(rightId);
+        const leftKnown = Number.isInteger(leftIndex);
+        const rightKnown = Number.isInteger(rightIndex);
+
+        if (leftKnown && rightKnown) return leftIndex - rightIndex;
+        if (leftKnown) return -1;
+        if (rightKnown) return 1;
+
+        const leftLabel = String(left?.name || leftId);
+        const rightLabel = String(right?.name || rightId);
+        return leftLabel.localeCompare(rightLabel);
+    });
+}
+
 function rewriteLinkFragment(link, label) {
     const raw = String(link || '').trim();
     if (!raw || !label) return raw;
@@ -840,9 +863,10 @@ async function buildMergedLinksByEmail(email, options = {}) {
     const perServer = [];
 
     const allServers = serverStore.getAll();
-    const servers = requestedServerId
+    const scopedServers = requestedServerId
         ? allServers.filter((item) => item.id === requestedServerId)
         : allServers;
+    const servers = sortServersForSubscription(scopedServers);
     const serverNotFound = requestedServerId && servers.length === 0;
     const requestedBlockedByPolicy = requestedServerId
         && (
@@ -927,7 +951,7 @@ async function buildMergedLinksByEmail(email, options = {}) {
         links: Array.from(links),
         skipped,
         warnings,
-        perServer: perServer.sort((a, b) => String(a.server).localeCompare(String(b.server))),
+        perServer,
         sourceMode,
         mode,
         serverNotFound: false,
@@ -3484,4 +3508,6 @@ export {
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
+    sortInboundsForServer,
+    sortServersForSubscription,
 };

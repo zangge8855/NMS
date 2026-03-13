@@ -8,15 +8,27 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineBell, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
+import { formatRelativeTime } from '../../utils/format.js';
 
-function formatRelativeTime(isoString) {
-    if (!isoString) return '';
-    const diff = Date.now() - new Date(isoString).getTime();
-    if (diff < 60_000) return '刚刚';
-    if (diff < 3600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
-    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)} 小时前`;
-    return new Date(isoString).toLocaleDateString('zh-CN');
+const NOTIFICATION_COPY = {
+    'zh-CN': {
+        title: '通知',
+        markAllRead: '全部已读',
+        empty: '暂无通知',
+        triggerTitle: '通知',
+    },
+    'en-US': {
+        title: 'Notifications',
+        markAllRead: 'Mark all read',
+        empty: 'No notifications',
+        triggerTitle: 'Notifications',
+    },
+};
+
+function getNotificationCopy(locale = 'zh-CN') {
+    return NOTIFICATION_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
 }
 
 function severityTone(severity) {
@@ -36,6 +48,8 @@ export default function NotificationBell() {
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
     const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+    const { locale } = useI18n();
+    const copy = getNotificationCopy(locale);
 
     // 点击外部关闭
     useEffect(() => {
@@ -90,8 +104,8 @@ export default function NotificationBell() {
                 style={panelStyle}
             >
                 <div className="notification-dropdown-head">
-                    <span className="notification-dropdown-title">
-                        通知
+                        <span className="notification-dropdown-title">
+                        {copy.title}
                         {unreadCount > 0 && (
                             <span className="notification-dropdown-counter">
                                 {unreadCount}
@@ -104,7 +118,7 @@ export default function NotificationBell() {
                             onClick={markAllRead}
                         >
                             <HiOutlineCheckCircle style={{ fontSize: '14px' }} />
-                            全部已读
+                            {copy.markAllRead}
                         </button>
                     )}
                 </div>
@@ -112,7 +126,7 @@ export default function NotificationBell() {
                 <div className="notification-list">
                     {notifications.length === 0 ? (
                         <div className="notification-empty">
-                            暂无通知
+                            {copy.empty}
                         </div>
                     ) : (
                         notifications.slice(0, 30).map((n) => (
@@ -127,7 +141,7 @@ export default function NotificationBell() {
                                         {n.title}
                                     </span>
                                     <span className="notification-item-time">
-                                        {formatRelativeTime(n.createdAt)}
+                                        {formatRelativeTime(n.createdAt, locale)}
                                     </span>
                                 </div>
                                 {n.body && (
@@ -151,8 +165,8 @@ export default function NotificationBell() {
                 ref={triggerRef}
                 className="btn btn-secondary btn-icon notification-trigger"
                 onClick={() => setOpen(v => !v)}
-                title="通知"
-                aria-label="通知"
+                title={copy.triggerTitle}
+                aria-label={copy.triggerTitle}
                 aria-expanded={open}
             >
                 <HiOutlineBell style={{ fontSize: '18px' }} />

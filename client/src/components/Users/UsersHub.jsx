@@ -5,7 +5,7 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { copyToClipboard, formatBytes } from '../../utils/format.js';
+import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
@@ -70,10 +70,10 @@ function getUserStatus(user, clientCount) {
     return { key: 'unknown', label: '未知', badge: 'badge-neutral' };
 }
 
-function formatExpiryLabel(expiryValues) {
+function formatExpiryLabel(expiryValues, locale = 'zh-CN') {
     if (!expiryValues || expiryValues.length === 0) return '永久';
     const earliest = Math.min(...expiryValues);
-    return new Date(earliest).toLocaleDateString('zh-CN');
+    return formatDateOnly(earliest, locale);
 }
 
 function normalizeOnlineValue(value) {
@@ -155,7 +155,7 @@ function compareUsersFallback(a, b) {
 export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
@@ -1066,9 +1066,9 @@ export default function UsersHub() {
                                         <td
                                             data-label="到期时间"
                                             className="cell-mono users-expiry-cell"
-                                            title={user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}
+                                            title={user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues, locale) : '-'}
                                         >
-                                            {user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}
+                                            {user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues, locale) : '-'}
                                         </td>
                                         <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">
@@ -1522,7 +1522,7 @@ export default function UsersHub() {
                                                                     .filter((e) => e.expiryTime > Date.now())
                                                                     .slice(0, 6)
                                                                     .map((e, i) => {
-                                                                        const dateStr = new Date(e.expiryTime).toLocaleDateString('zh-CN');
+                                                                        const dateStr = formatDateOnly(e.expiryTime, locale);
                                                                         return (
                                                                             <button
                                                                                 key={i}
@@ -1597,7 +1597,7 @@ export default function UsersHub() {
                                                 ) : allInbounds.map((ib) => {
                                                     const checked = provisionSelectedInboundKeys.has(ib.key);
                                                     const expiryLabel = ib.expiryTime > 0
-                                                        ? new Date(ib.expiryTime).toLocaleDateString('zh-CN')
+                                                        ? formatDateOnly(ib.expiryTime, locale)
                                                         : '永久';
                                                     return (
                                                         <label

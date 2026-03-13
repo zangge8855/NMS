@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { copyToClipboard } from '../../utils/format.js';
+import { copyToClipboard, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
@@ -147,12 +147,13 @@ function resolveSettingsTab(value) {
     return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
 }
 
-function formatDateTime(value) {
-    return value ? new Date(value).toLocaleString('zh-CN') : '暂无';
+function formatDateTime(value, locale = 'zh-CN') {
+    if (!value) return locale === 'en-US' ? 'N/A' : '暂无';
+    return formatDateTimeValue(value, locale);
 }
 
 export default function SystemSettings() {
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const { user } = useAuth();
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
@@ -783,7 +784,7 @@ export default function SystemSettings() {
             title: '邮件诊断',
             value: emailStatus?.configured ? 'SMTP 已配置' : 'SMTP 未配置',
             detail: emailStatus?.lastVerification?.ts
-                ? `最近测试 ${formatDateTime(emailStatus.lastVerification.ts)}`
+                ? `最近测试 ${formatDateTime(emailStatus.lastVerification.ts, locale)}`
                 : '尚未执行连接测试。',
             tone: emailStatus?.configured ? (emailStatus?.lastVerification?.success === false ? 'warning' : 'success') : 'neutral',
         },
@@ -791,7 +792,7 @@ export default function SystemSettings() {
             title: '备份状态',
             value: backupStatus?.lastExport?.createdAt ? '已有导出快照' : '暂无备份快照',
             detail: backupStatus?.lastExport?.createdAt
-                ? `最近导出 ${formatDateTime(backupStatus.lastExport.createdAt)}`
+                ? `最近导出 ${formatDateTime(backupStatus.lastExport.createdAt, locale)}`
                 : '建议在改动前先导出一份系统快照。',
             tone: backupStatus?.lastExport?.createdAt ? 'success' : 'warning',
         },
@@ -799,7 +800,7 @@ export default function SystemSettings() {
             title: '节点监控',
             value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
             detail: monitorStatus?.healthMonitor?.lastRunAt
-                ? `最近巡检 ${formatDateTime(monitorStatus.healthMonitor.lastRunAt)}`
+                ? `最近巡检 ${formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale)}`
                 : '尚未执行节点健康巡检。',
             tone: monitorStatus?.healthMonitor?.running ? 'success' : 'neutral',
         },
@@ -1148,12 +1149,12 @@ export default function SystemSettings() {
                                             已用 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
                                             {invite.status === 'active' ? ` · 剩余 ${Number(invite.remainingUses || 0)}` : ''}
                                         </td>
-                                        <td data-label="创建时间">{formatDateTime(invite.createdAt)}</td>
+                                        <td data-label="创建时间">{formatDateTime(invite.createdAt, locale)}</td>
                                         <td data-label="使用情况" className="text-sm text-muted">
                                             {invite.usedAt
-                                                ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${formatDateTime(invite.usedAt)}`
+                                                ? `${invite.usedByUsername || invite.usedByUserId || '-'} · ${formatDateTime(invite.usedAt, locale)}`
                                                 : invite.revokedAt
-                                                    ? `已于 ${formatDateTime(invite.revokedAt)} 撤销`
+                                                    ? `已于 ${formatDateTime(invite.revokedAt, locale)} 撤销`
                                                     : '未使用'}
                                         </td>
                                         <td data-label="操作" className="table-cell-actions">
@@ -1245,7 +1246,7 @@ export default function SystemSettings() {
                                 <div className="text-sm font-medium">最近连接测试</div>
                                 <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
                             </div>
-                            <div className="text-sm">最近测试: {formatDateTime(emailStatus.lastVerification?.ts)}</div>
+                            <div className="text-sm">最近测试: {formatDateTime(emailStatus.lastVerification?.ts, locale)}</div>
                             <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
                             <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
                         </div>
@@ -1254,7 +1255,7 @@ export default function SystemSettings() {
                                 <div className="text-sm font-medium">最近发送结果</div>
                                 <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
                             </div>
-                            <div className="text-sm">最近发送: {formatDateTime(emailStatus.lastDelivery?.ts)}</div>
+                            <div className="text-sm">最近发送: {formatDateTime(emailStatus.lastDelivery?.ts, locale)}</div>
                             <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
                             <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
                             <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
@@ -1288,7 +1289,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">最近巡检</div>
-                        <div className="text-lg font-semibold">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt)}</div>
+                        <div className="text-lg font-semibold">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt, locale)}</div>
                         <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
                     </div>
                     <div className="card p-3 settings-mini-card">
@@ -1330,12 +1331,12 @@ export default function SystemSettings() {
                     </div>
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">最近导出</div>
-                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt)}</div>
+                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</div>
                         <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
                     </div>
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">最近恢复</div>
-                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt)}</div>
+                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
                         <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
                     </div>
                 </div>
@@ -1376,7 +1377,7 @@ export default function SystemSettings() {
                         <div className="settings-backup-inspection-grid">
                             <div className="settings-backup-inspection-item">
                                 <div className="text-xs text-muted">备份时间</div>
-                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt) : '未知'}</div>
+                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : '未知'}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
                                 <div className="text-xs text-muted">格式版本</div>
@@ -1469,7 +1470,7 @@ export default function SystemSettings() {
                                 <div className="text-lg font-semibold">
                                     成功 {dbStatus.writesSucceeded || 0} / 失败 {dbStatus.writesFailed || 0}
                                 </div>
-                                <div className="text-xs text-muted">最后写入: {formatDateTime(dbStatus.lastWriteAt)}</div>
+                                <div className="text-xs text-muted">最后写入: {formatDateTime(dbStatus.lastWriteAt, locale)}</div>
                             </div>
                         </div>
 
@@ -1589,7 +1590,7 @@ export default function SystemSettings() {
                                                 <tr key={item.store_key}>
                                                     <td data-label="Store">{item.store_key}</td>
                                                     <td data-label="大小">{item.payload_size || 0}</td>
-                                                    <td data-label="更新时间">{formatDateTime(item.updated_at)}</td>
+                                                    <td data-label="更新时间">{formatDateTime(item.updated_at, locale)}</td>
                                                 </tr>
                                             ))
                                         )}

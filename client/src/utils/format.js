@@ -1,6 +1,17 @@
 /**
  * Format bytes to human readable (KB, MB, GB, TB).
  */
+export function resolveLocaleTag(locale = 'zh-CN') {
+    return locale === 'en-US' ? 'en-US' : 'zh-CN';
+}
+
+function toValidDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+}
+
 export function formatBytes(bytes, decimals = 2) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -28,14 +39,66 @@ export function formatUptime(seconds) {
 /**
  * Format date to local string.
  */
-export function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString('zh-CN', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit',
+export function formatDate(dateStr, locale = 'zh-CN') {
+    const date = toValidDate(dateStr);
+    if (!date) return '-';
+    return date.toLocaleDateString(resolveLocaleTag(locale), {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
     });
+}
+
+export function formatDateTime(value, locale = 'zh-CN', options = {}) {
+    const date = toValidDate(value);
+    if (!date) return '-';
+    return date.toLocaleString(resolveLocaleTag(locale), {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+        hour12: false,
+        ...options,
+    });
+}
+
+export function formatDateOnly(value, locale = 'zh-CN', options = {}) {
+    const date = toValidDate(value);
+    if (!date) return '-';
+    return date.toLocaleDateString(resolveLocaleTag(locale), {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        ...options,
+    });
+}
+
+export function formatTimeOnly(value, locale = 'zh-CN', options = {}) {
+    const date = toValidDate(value);
+    if (!date) return '-';
+    return date.toLocaleTimeString(resolveLocaleTag(locale), {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        ...options,
+    });
+}
+
+export function formatRelativeTime(value, locale = 'zh-CN') {
+    const date = toValidDate(value);
+    if (!date) return '';
+    const diff = Date.now() - date.getTime();
+    const normalizedLocale = resolveLocaleTag(locale);
+    if (diff < 60_000) return normalizedLocale === 'en-US' ? 'Just now' : '刚刚';
+    if (diff < 3600_000) {
+        const minutes = Math.floor(diff / 60_000);
+        return normalizedLocale === 'en-US' ? `${minutes} min ago` : `${minutes} 分钟前`;
+    }
+    if (diff < 86400_000) {
+        const hours = Math.floor(diff / 3600_000);
+        return normalizedLocale === 'en-US' ? `${hours} hr ago` : `${hours} 小时前`;
+    }
+    return formatDateOnly(date, normalizedLocale);
 }
 
 /**

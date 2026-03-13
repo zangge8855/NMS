@@ -6,7 +6,7 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
-import { formatBytes, formatUptime } from '../../utils/format.js';
+import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
 import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import toast from 'react-hot-toast';
@@ -36,13 +36,12 @@ function StatMini({ label, value, suffix }) {
     );
 }
 
-function formatTime(ts) {
-    if (!ts) return '-';
-    return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+function formatTime(ts, locale = 'zh-CN') {
+    return formatDateTime(ts, locale);
 }
 
 export default function ServerDetail() {
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const { serverId } = useParams();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -564,7 +563,7 @@ export default function ServerDetail() {
                                                 <div className="timeline-content">
                                                     <div className="timeline-head">
                                                         <span className="font-medium">{e.eventType}</span>
-                                                        <span className="timeline-time">{formatTime(e.ts)}</span>
+                                                        <span className="timeline-time">{formatTime(e.ts, locale)}</span>
                                                     </div>
                                                     {e.actor && <div className="text-sm text-muted">操作者: {e.actor}</div>}
                                                     {e.path && <div className="text-xs text-muted truncate">{e.path}</div>}

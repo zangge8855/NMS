@@ -14,15 +14,60 @@ import {
     HiOutlineCog6Tooth,
 } from 'react-icons/hi2';
 import useTaskProgress from '../../hooks/useTaskProgress.js';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { formatTimeOnly } from '../../utils/format.js';
 import ModalShell from '../UI/ModalShell.jsx';
 
-const STATUS_CONFIG = {
-    pending: { label: '等待中', color: 'var(--text-muted)', icon: HiOutlineCog6Tooth },
-    running: { label: '运行中', color: 'var(--accent-primary)', icon: HiOutlineCog6Tooth },
-    completed: { label: '已完成', color: 'var(--accent-success)', icon: HiOutlineCheckCircle },
-    failed: { label: '失败', color: 'var(--accent-danger)', icon: HiOutlineXCircle },
-    cancelled: { label: '已取消', color: 'var(--text-muted)', icon: HiOutlineStopCircle },
+const TASK_PROGRESS_COPY = {
+    'zh-CN': {
+        title: '任务执行中',
+        statuses: {
+            pending: '等待中',
+            running: '运行中',
+            completed: '已完成',
+            failed: '失败',
+            cancelled: '已取消',
+        },
+        steps: '{step} / {total} 步',
+        error: '错误：',
+        cancelledSummary: '任务已被取消，已处理 {count} 项',
+        completedSummary: '完成 {total} 项，成功 {success} 项',
+        failedSuffix: '，失败 {failed} 项',
+        taskId: '任务 ID',
+        actor: '操作者',
+        startedAt: '开始时间',
+        completedAt: '完成时间',
+        cancel: '取消任务',
+        close: '关闭',
+        connecting: '正在连接任务状态...',
+    },
+    'en-US': {
+        title: 'Task in Progress',
+        statuses: {
+            pending: 'Pending',
+            running: 'Running',
+            completed: 'Completed',
+            failed: 'Failed',
+            cancelled: 'Cancelled',
+        },
+        steps: '{step} / {total} steps',
+        error: 'Error:',
+        cancelledSummary: 'Task was cancelled after processing {count} items',
+        completedSummary: 'Completed {total} items, {success} succeeded',
+        failedSuffix: ', {failed} failed',
+        taskId: 'Task ID',
+        actor: 'Actor',
+        startedAt: 'Started',
+        completedAt: 'Completed',
+        cancel: 'Cancel Task',
+        close: 'Close',
+        connecting: 'Connecting to task status...',
+    },
 };
+
+function getTaskProgressCopy(locale = 'zh-CN') {
+    return TASK_PROGRESS_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
+}
 
 function ProgressBar({ percent, color }) {
     return (
@@ -39,15 +84,34 @@ function ProgressBar({ percent, color }) {
     );
 }
 
-export default function TaskProgressModal({ taskId, title = '任务执行中', onClose }) {
+export default function TaskProgressModal({ taskId, title, onClose }) {
     const { task, cancel } = useTaskProgress(taskId, null);
+    const { locale } = useI18n();
+    const copy = getTaskProgressCopy(locale);
 
     if (!taskId) return null;
 
-    const statusConf = STATUS_CONFIG[task?.status] || STATUS_CONFIG.pending;
+    const status = task?.status || 'pending';
+    const statusConf = {
+        label: copy.statuses[status] || copy.statuses.pending,
+        color: status === 'running'
+            ? 'var(--accent-primary)'
+            : status === 'completed'
+                ? 'var(--accent-success)'
+                : status === 'failed'
+                    ? 'var(--accent-danger)'
+                    : 'var(--text-muted)',
+        icon: status === 'completed'
+            ? HiOutlineCheckCircle
+            : status === 'failed'
+                ? HiOutlineXCircle
+                : status === 'cancelled'
+                    ? HiOutlineStopCircle
+                    : HiOutlineCog6Tooth,
+    };
     const StatusIcon = statusConf.icon;
-    const isTerminal = ['completed', 'failed', 'cancelled'].includes(task?.status);
-    const isRunning = task?.status === 'running' || task?.status === 'pending';
+    const isTerminal = ['completed', 'failed', 'cancelled'].includes(status);
+    const isRunning = status === 'running' || status === 'pending';
 
     const handleCancel = async () => {
         await cancel();
@@ -60,7 +124,7 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                 onClick={e => e.stopPropagation()}
             >
                 <div className="modal-header">
-                    <h3 className="modal-title">{title}</h3>
+                    <h3 className="modal-title">{title || copy.title}</h3>
                     {isTerminal && (
                         <button className="modal-close" onClick={onClose}>
                             <HiOutlineXMark />
@@ -101,7 +165,9 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                         />
                         {task?.progress?.step !== undefined && task?.progress?.total !== undefined && (
                             <div className="text-xs text-muted mt-1.5 text-right">
-                                {task.progress.step} / {task.progress.total} 步
+                                {copy.steps
+                                    .replace('{step}', String(task.progress.step))
+                                    .replace('{total}', String(task.progress.total))}
                             </div>
                         )}
                     </div>
@@ -109,7 +175,7 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                     {/* 失败详情 */}
                     {task?.status === 'failed' && task?.error && (
                         <div className="bg-danger/5 border border-danger/15 rounded-md p-3 text-sm text-danger mb-4">
-                            <strong>错误：</strong>{task.error}
+                            <strong>{copy.error}</strong>{task.error}
                         </div>
                     )}
 
@@ -117,11 +183,13 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                     {task?.status === 'completed' && task?.result && (
                         <div className="bg-success/5 border border-success/15 rounded-md p-3 text-sm text-success mb-4">
                             {task.result.cancelled ? (
-                                <span>任务已被取消，已处理 {task.result.success || 0} 项</span>
+                                <span>{copy.cancelledSummary.replace('{count}', String(task.result.success || 0))}</span>
                             ) : (
                                 <span>
-                                    完成 {task.result.total || 0} 项，成功 {task.result.success || 0} 项
-                                    {task.result.failed > 0 && `，失败 ${task.result.failed} 项`}
+                                    {copy.completedSummary
+                                        .replace('{total}', String(task.result.total || 0))
+                                        .replace('{success}', String(task.result.success || 0))}
+                                    {task.result.failed > 0 && copy.failedSuffix.replace('{failed}', String(task.result.failed))}
                                 </span>
                             )}
                         </div>
@@ -129,13 +197,13 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
 
                     {/* 任务元信息 */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted">
-                        <div>任务 ID: <span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
-                        <div>操作者: {task?.actor || '-'}</div>
+                        <div>{copy.taskId}: <span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
+                        <div>{copy.actor}: {task?.actor || '-'}</div>
                         {task?.startedAt && (
-                            <div>开始时间: {new Date(task.startedAt).toLocaleTimeString('zh-CN')}</div>
+                            <div>{copy.startedAt}: {formatTimeOnly(task.startedAt, locale)}</div>
                         )}
                         {task?.completedAt && (
-                            <div>完成时间: {new Date(task.completedAt).toLocaleTimeString('zh-CN')}</div>
+                            <div>{copy.completedAt}: {formatTimeOnly(task.completedAt, locale)}</div>
                         )}
                     </div>
                 </div>
@@ -143,17 +211,17 @@ export default function TaskProgressModal({ taskId, title = '任务执行中', o
                 <div className="modal-footer">
                     {isRunning && (
                         <button className="btn btn-danger btn-sm" onClick={handleCancel}>
-                            <HiOutlineStopCircle /> 取消任务
+                            <HiOutlineStopCircle /> {copy.cancel}
                         </button>
                     )}
                     {isTerminal && (
                         <button className="btn btn-secondary btn-sm" onClick={onClose}>
-                            关闭
+                            {copy.close}
                         </button>
                     )}
                     {!task && (
                         <div className="text-muted text-sm">
-                            正在连接任务状态...
+                            {copy.connecting}
                         </div>
                     )}
                 </div>

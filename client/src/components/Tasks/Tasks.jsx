@@ -16,10 +16,81 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
+import { formatDateTime } from '../../utils/format.js';
+
+const TASKS_COPY = {
+    'zh-CN': {
+        loadFailed: '加载任务失败',
+        detailFailed: '获取任务详情失败',
+        clearFailed: '清空失败',
+        retryDone: '重试完成: {success}/{total} 成功',
+        retryFailed: '重试失败',
+        embeddedTitle: '批量操作历史',
+        embeddedSubtitle: '与上方操作审计配套，集中查看批量任务与重试结果',
+        pageTitle: '批量任务历史',
+        pageSubtitle: '记录批量用户/入站操作的执行结果',
+        refresh: '刷新',
+        clear: '清空',
+        allTypes: '全部类型',
+        allActions: '全部动作',
+        allServers: '全部节点',
+        failedOnly: '仅失败任务',
+        total: '共 {count} 条',
+        time: '时间',
+        typeAction: '类型 / 动作',
+        server: '节点',
+        totalCol: '总计',
+        successCol: '成功',
+        failedCol: '失败',
+        actions: '操作',
+        emptyTitle: '暂无批量任务',
+        emptySubtitle: '执行批量操作后将在此显示',
+        retained: '最近保留 {count} 条',
+        viewDetail: '查看详情',
+        retryFailedItems: '重试失败项',
+        detailTitle: '任务详情: {label}',
+    },
+    'en-US': {
+        loadFailed: 'Failed to load tasks',
+        detailFailed: 'Failed to load task detail',
+        clearFailed: 'Clear failed',
+        retryDone: 'Retry finished: {success}/{total} succeeded',
+        retryFailed: 'Retry failed',
+        embeddedTitle: 'Batch Operation History',
+        embeddedSubtitle: 'Review batch jobs and retry results together with the audit log',
+        pageTitle: 'Batch Task History',
+        pageSubtitle: 'Execution results for bulk user and inbound operations',
+        refresh: 'Refresh',
+        clear: 'Clear',
+        allTypes: 'All Types',
+        allActions: 'All Actions',
+        allServers: 'All Nodes',
+        failedOnly: 'Failed Only',
+        total: '{count} total',
+        time: 'Time',
+        typeAction: 'Type / Action',
+        server: 'Node',
+        totalCol: 'Total',
+        successCol: 'Succeeded',
+        failedCol: 'Failed',
+        actions: 'Actions',
+        emptyTitle: 'No batch tasks',
+        emptySubtitle: 'Batch task results will appear here after execution',
+        retained: '{count} retained',
+        viewDetail: 'View Detail',
+        retryFailedItems: 'Retry Failed Items',
+        detailTitle: 'Task Detail: {label}',
+    },
+};
+
+function getTasksCopy(locale = 'zh-CN') {
+    return TASKS_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
+}
 
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
+    const copy = getTasksCopy(locale);
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
@@ -36,7 +107,7 @@ export default function Tasks({ embedded = false }) {
             const res = await api.get('/jobs?page=1&pageSize=100&includeResults=true');
             setTasks(res.data?.obj?.items || []);
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '加载任务失败';
+            const msg = err.response?.data?.msg || err.message || copy.loadFailed;
             toast.error(msg);
         }
         setLoading(false);
@@ -96,7 +167,7 @@ export default function Tasks({ embedded = false }) {
             const res = await api.get(`/jobs/${id}`);
             setSelectedTask(res.data?.obj || null);
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '获取任务详情失败';
+            const msg = err.response?.data?.msg || err.message || copy.detailFailed;
             toast.error(msg);
         }
     };
@@ -116,7 +187,7 @@ export default function Tasks({ embedded = false }) {
             setTasks([]);
             setSelectedTask(null);
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '清空失败';
+            const msg = err.response?.data?.msg || err.message || copy.clearFailed;
             toast.error(msg);
         }
     };
@@ -145,10 +216,12 @@ export default function Tasks({ embedded = false }) {
                 });
             }
             const summary = output?.summary || { success: 0, total: 0, failed: 0 };
-            toast.success(`重试完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(copy.retryDone
+                .replace('{success}', String(summary.success))
+                .replace('{total}', String(summary.total)));
             await fetchTasks();
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '重试失败';
+            const msg = err.response?.data?.msg || err.message || copy.retryFailed;
             toast.error(msg);
         }
         setRetryingId('');
@@ -162,17 +235,17 @@ export default function Tasks({ embedded = false }) {
                     className={headClassName}
                     main={(
                         <div className="page-toolbar-copy tasks-page-copy">
-                            <div className="page-toolbar-title">{embedded ? '批量操作历史' : '批量任务历史'}</div>
-                            <div className="page-toolbar-subtitle">{embedded ? '与上方操作审计配套，集中查看批量任务与重试结果' : '记录批量用户/入站操作的执行结果'}</div>
+                            <div className="page-toolbar-title">{embedded ? copy.embeddedTitle : copy.pageTitle}</div>
+                            <div className="page-toolbar-subtitle">{embedded ? copy.embeddedSubtitle : copy.pageSubtitle}</div>
                         </div>
                     )}
                     actions={(
                         <div className="tasks-page-actions">
                             <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
-                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                             </button>
                             <button className="btn btn-danger btn-sm" onClick={handleClear}>
-                                <HiOutlineTrash /> 清空
+                                <HiOutlineTrash /> {copy.clear}
                             </button>
                         </div>
                     )}
@@ -181,15 +254,15 @@ export default function Tasks({ embedded = false }) {
                 <div className={filterCardClassName}>
                     <div className="tasks-filter-row audit-filter-bar">
                         <select className="form-select w-140" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                            <option value="all">全部类型</option>
+                            <option value="all">{copy.allTypes}</option>
                             {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                         </select>
                         <select className="form-select w-140" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-                            <option value="all">全部动作</option>
+                            <option value="all">{copy.allActions}</option>
                             {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                         </select>
                         <select className="form-select w-180" value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
-                            <option value="all">全部节点</option>
+                            <option value="all">{copy.allServers}</option>
                             {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                         </select>
                         <label className="toolbar-checkbox">
@@ -198,7 +271,7 @@ export default function Tasks({ embedded = false }) {
                                 checked={failedOnlyFilter}
                                 onChange={(e) => setFailedOnlyFilter(e.target.checked)}
                             />
-                            仅失败任务
+                            {copy.failedOnly}
                         </label>
                         <select className="form-select w-180" value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                             <option value="none">{formatRetryGroupLabel('none', locale)}</option>
@@ -207,7 +280,7 @@ export default function Tasks({ embedded = false }) {
                             <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
                         </select>
                         <div className="text-sm text-muted tasks-filter-meta">
-                            共 {filteredTasks.length} 条
+                            {copy.total.replace('{count}', String(filteredTasks.length))}
                         </div>
                     </div>
                 </div>
@@ -216,13 +289,13 @@ export default function Tasks({ embedded = false }) {
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>时间</th>
-                                <th>类型/动作</th>
-                                <th>节点</th>
-                                <th className="table-cell-right">总计</th>
-                                <th className="table-cell-right">成功</th>
-                                <th className="table-cell-right">失败</th>
-                                <th className="table-cell-actions">操作</th>
+                                <th>{copy.time}</th>
+                                <th>{copy.typeAction}</th>
+                                <th>{copy.server}</th>
+                                <th className="table-cell-right">{copy.totalCol}</th>
+                                <th className="table-cell-right">{copy.successCol}</th>
+                                <th className="table-cell-right">{copy.failedCol}</th>
+                                <th className="table-cell-actions">{copy.actions}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -235,15 +308,15 @@ export default function Tasks({ embedded = false }) {
                             ) : filteredTasks.length === 0 ? (
                                 <tr>
                                     <td colSpan={7}>
-                                        <EmptyState title="暂无批量任务" subtitle="执行批量操作后将在此显示" />
+                                        <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
                                     </td>
                                 </tr>
                             ) : (
                                 filteredTasks.map((task) => (
                                     <tr key={task.id}>
-                                        <td data-label="时间">{new Date(task.createdAt).toLocaleString('zh-CN')}</td>
-                                        <td data-label="类型 / 动作">{formatTaskActionPair(task.type, task.action, locale)}</td>
-                                        <td data-label="节点" className="text-sm text-muted">
+                                        <td data-label={copy.time}>{formatDateTime(task.createdAt, locale)}</td>
+                                        <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
+                                        <td data-label={copy.server} className="text-sm text-muted">
                                             {(() => {
                                                 const servers = getTaskServers(task);
                                                 if (servers.length === 0) return '-';
@@ -252,12 +325,12 @@ export default function Tasks({ embedded = false }) {
                                                 return `${head} +${servers.length - 2}`;
                                             })()}
                                         </td>
-                                        <td data-label="总计" className="table-cell-right">{task.summary?.total ?? '-'}</td>
-                                        <td data-label="成功" className="table-cell-right">{task.summary?.success ?? '-'}</td>
-                                        <td data-label="失败" className="table-cell-right">{task.summary?.failed ?? '-'}</td>
-                                        <td data-label="操作" className="table-cell-actions">
+                                        <td data-label={copy.totalCol} className="table-cell-right">{task.summary?.total ?? '-'}</td>
+                                        <td data-label={copy.successCol} className="table-cell-right">{task.summary?.success ?? '-'}</td>
+                                        <td data-label={copy.failedCol} className="table-cell-right">{task.summary?.failed ?? '-'}</td>
+                                        <td data-label={copy.actions} className="table-cell-actions">
                                             <div className="table-row-actions tasks-row-actions">
-                                            <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleView(task.id)} title="查看详情">
+                                            <button className="btn btn-secondary btn-sm btn-icon" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                                 <HiOutlineEye />
                                             </button>
                                             {Number(task.summary?.failed || 0) > 0 && (
@@ -265,7 +338,8 @@ export default function Tasks({ embedded = false }) {
                                                     className="btn btn-primary btn-sm btn-icon"
                                                     onClick={() => handleRetryFailed(task)}
                                                     disabled={retryingId === task.id}
-                                                    title="重试失败项"
+                                                    title={copy.retryFailedItems}
+                                                    aria-label={copy.retryFailedItems}
                                                 >
                                                     {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
                                                 </button>
@@ -280,14 +354,14 @@ export default function Tasks({ embedded = false }) {
                 </div>
 
                 <div className={paginationClassName}>
-                    <div className="page-pagination-meta">最近保留 {filteredTasks.length} 条</div>
+                    <div className="page-pagination-meta">{copy.retained.replace('{count}', String(filteredTasks.length))}</div>
                 </div>
             </div>
 
             <BatchResultModal
                 isOpen={!!selectedTask}
                 onClose={() => setSelectedTask(null)}
-                title={`任务详情: ${selectedTask ? formatAction(selectedTask.type, selectedTask.action) : ''}`}
+                title={copy.detailTitle.replace('{label}', selectedTask ? formatTaskActionPair(selectedTask.type, selectedTask.action, locale) : '')}
                 data={selectedTask ? { summary: selectedTask.summary, results: selectedTask.results || [] } : null}
             />
         </>

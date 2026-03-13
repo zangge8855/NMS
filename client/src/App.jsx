@@ -4,6 +4,7 @@ import { useAuth } from './contexts/AuthContext.jsx';
 import { ServerProvider } from './contexts/ServerContext.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import { NotificationProvider } from './contexts/NotificationContext.jsx';
+import { useI18n } from './contexts/LanguageContext.jsx';
 import { Toaster } from 'react-hot-toast';
 import { HiOutlineBars3 } from 'react-icons/hi2';
 
@@ -43,6 +44,7 @@ function LazyPage({ children }) {
 
 function ProtectedLayout() {
     const { user } = useAuth();
+    const { t } = useI18n();
     const isAdmin = user?.role === 'admin';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -93,7 +95,7 @@ function ProtectedLayout() {
                     <button
                         className="mobile-menu-btn"
                         onClick={() => setSidebarOpen(true)}
-                        aria-label="Open menu"
+                        aria-label={t('shell.expandSidebar')}
                     >
                         <HiOutlineBars3 />
                     </button>

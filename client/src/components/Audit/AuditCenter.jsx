@@ -22,7 +22,7 @@ import {
 } from 'recharts';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
-import { formatBytes } from '../../utils/format.js';
+import { formatBytes, formatDateOnly, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import toast from 'react-hot-toast';
 import Tasks from '../Tasks/Tasks.jsx';
@@ -35,11 +35,257 @@ import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 
-function formatDateTime(value) {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString('zh-CN', { hour12: false });
+const AUDIT_COPY = {
+    'zh-CN': {
+        tabs: {
+            events: '操作记录',
+            tasks: '批量任务',
+            traffic: '流量统计',
+            subscriptions: '订阅访问',
+            logs: '3x-ui 日志',
+        },
+        actions: {
+            query: '查询',
+            clear: '清空',
+            export: '导出',
+            previous: '上一页',
+            next: '下一页',
+            viewDetail: '查看详情',
+            refreshSample: '立即采样',
+        },
+        filters: {
+            keyword: '关键词',
+            eventType: '事件类型',
+            allResults: '全部结果',
+            allStatus: '全部状态',
+            success: '成功',
+            failed: '失败',
+            info: '信息',
+            denied: '已拒绝',
+            expired: '已过期',
+            revoked: '已撤销',
+            userOrEmail: '用户 / 邮箱',
+            serverId: '节点 ID',
+            userEmailFilter: '用户 / 邮箱过滤',
+            defaultPeriod: '默认统计周期：近一年',
+            autoGranularity: '自动粒度',
+            byHour: '按小时',
+            byDay: '按天',
+        },
+        tables: {
+            time: '时间',
+            event: '事件',
+            result: '结果',
+            actor: '操作者',
+            node: '节点',
+            user: '用户',
+            action: '操作',
+            realIp: '真实 IP',
+            locationCarrier: '归属地 / 运营商',
+            ua: 'UA',
+            traffic: '流量',
+        },
+        states: {
+            noAudit: '暂无审计记录',
+            noAuditSubtitle: '系统操作审计事件将在此显示',
+            noAccess: '暂无访问记录',
+            noAccessSubtitle: '订阅链接访问记录将在此显示',
+            noData: '暂无数据',
+            total: '共 {count} 条',
+        },
+        traffic: {
+            recentSample: '最近采样',
+            totalTraffic: '总流量',
+            activeAccounts: '活跃账号',
+            samplePoints: '采样点',
+            userTrend: '用户流量趋势',
+            serverTrend: '节点流量趋势',
+            selectUser: '请选择用户',
+            selectServer: '请选择节点',
+            userLevelUnsupported: '当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。',
+            userLevelNoCounts: '当前节点列表未提供用户级流量计数。',
+            topUsers: '流量 Top 用户',
+            topServers: '流量 Top 节点',
+            pv: '访问次数 (PV)',
+            uv: '独立 IP (UV)',
+            uniqueUsers: '访问用户数',
+        },
+        confirm: {
+            clearEventsTitle: '清空操作审计日志',
+            clearEventsMessage: '确认要清空全部操作审计记录吗？此操作不可恢复。',
+            clearAccessTitle: '清空订阅访问日志',
+            clearAccessMessage: '确认要清空全部订阅访问记录吗？此操作不可恢复。',
+            confirmText: '清空',
+        },
+        toast: {
+            auditLoadFailed: '审计日志加载失败',
+            trafficLoadFailed: '流量总览加载失败',
+            trafficSampleFailed: '有 {count} 个节点流量采样失败',
+            userTrendLoadFailed: '用户趋势加载失败',
+            serverTrendLoadFailed: '节点趋势加载失败',
+            accessLoadFailed: '订阅访问日志加载失败',
+            exportDone: '审计日志已导出',
+            exportFailed: '导出失败',
+            clearDone: '操作审计日志已清空',
+            clearAccessDone: '订阅访问日志已清空',
+            clearFailed: '清空失败',
+        },
+        detail: {
+            title: '审计事件详情',
+            eventType: '事件类型',
+            time: '时间',
+            actor: '操作者',
+            result: '结果',
+            ip: 'IP',
+            path: '路径',
+            node: '节点',
+            targetUser: '目标用户',
+            diff: '变更对比',
+            before: '变更前',
+            after: '变更后',
+            payload: '事件详情',
+        },
+        roles: {
+            admin: '管理员',
+            user: '用户',
+            anonymous: '未登录',
+        },
+        actorSource: {
+            publicSubscription: '公开订阅请求',
+            unauthenticated: '未登录请求',
+            system: '系统任务',
+            anonymous: '匿名请求',
+        },
+    },
+    'en-US': {
+        tabs: {
+            events: 'Events',
+            tasks: 'Tasks',
+            traffic: 'Traffic',
+            subscriptions: 'Subscription Access',
+            logs: '3x-ui Logs',
+        },
+        actions: {
+            query: 'Query',
+            clear: 'Clear',
+            export: 'Export',
+            previous: 'Previous',
+            next: 'Next',
+            viewDetail: 'View Detail',
+            refreshSample: 'Collect Now',
+        },
+        filters: {
+            keyword: 'Keyword',
+            eventType: 'Event Type',
+            allResults: 'All Outcomes',
+            allStatus: 'All Statuses',
+            success: 'Success',
+            failed: 'Failed',
+            info: 'Info',
+            denied: 'Denied',
+            expired: 'Expired',
+            revoked: 'Revoked',
+            userOrEmail: 'User / Email',
+            serverId: 'Node ID',
+            userEmailFilter: 'Filter by user / email',
+            defaultPeriod: 'Default range: last 1 year',
+            autoGranularity: 'Auto',
+            byHour: 'Hourly',
+            byDay: 'Daily',
+        },
+        tables: {
+            time: 'Time',
+            event: 'Event',
+            result: 'Outcome',
+            actor: 'Actor',
+            node: 'Node',
+            user: 'User',
+            action: 'Actions',
+            realIp: 'Real IP',
+            locationCarrier: 'Location / Carrier',
+            ua: 'UA',
+            traffic: 'Traffic',
+        },
+        states: {
+            noAudit: 'No audit records',
+            noAuditSubtitle: 'System audit events will appear here',
+            noAccess: 'No access records',
+            noAccessSubtitle: 'Subscription access records will appear here',
+            noData: 'No data',
+            total: '{count} total',
+        },
+        traffic: {
+            recentSample: 'Last Sample',
+            totalTraffic: 'Total Traffic',
+            activeAccounts: 'Active Accounts',
+            samplePoints: 'Samples',
+            userTrend: 'User Traffic Trend',
+            serverTrend: 'Node Traffic Trend',
+            selectUser: 'Select a user',
+            selectServer: 'Select a node',
+            userLevelUnsupported: 'Current 3x-ui data only supports node-level traffic and does not provide per-user traffic details.',
+            userLevelNoCounts: 'Current nodes do not provide per-user traffic counters.',
+            topUsers: 'Top Users by Traffic',
+            topServers: 'Top Nodes by Traffic',
+            pv: 'Page Views (PV)',
+            uv: 'Unique IPs (UV)',
+            uniqueUsers: 'Visited Users',
+        },
+        confirm: {
+            clearEventsTitle: 'Clear Audit Log',
+            clearEventsMessage: 'Clear all audit records? This action cannot be undone.',
+            clearAccessTitle: 'Clear Subscription Access Log',
+            clearAccessMessage: 'Clear all subscription access records? This action cannot be undone.',
+            confirmText: 'Clear',
+        },
+        toast: {
+            auditLoadFailed: 'Failed to load audit events',
+            trafficLoadFailed: 'Failed to load traffic overview',
+            trafficSampleFailed: '{count} nodes failed during traffic sampling',
+            userTrendLoadFailed: 'Failed to load user trend',
+            serverTrendLoadFailed: 'Failed to load node trend',
+            accessLoadFailed: 'Failed to load subscription access logs',
+            exportDone: 'Audit log exported',
+            exportFailed: 'Export failed',
+            clearDone: 'Audit log cleared',
+            clearAccessDone: 'Subscription access log cleared',
+            clearFailed: 'Clear failed',
+        },
+        detail: {
+            title: 'Audit Event Detail',
+            eventType: 'Event Type',
+            time: 'Time',
+            actor: 'Actor',
+            result: 'Outcome',
+            ip: 'IP',
+            path: 'Path',
+            node: 'Node',
+            targetUser: 'Target User',
+            diff: 'Diff',
+            before: 'Before',
+            after: 'After',
+            payload: 'Payload',
+        },
+        roles: {
+            admin: 'Admin',
+            user: 'User',
+            anonymous: 'Unauthenticated',
+        },
+        actorSource: {
+            publicSubscription: 'Public Subscription Request',
+            unauthenticated: 'Unauthenticated Request',
+            system: 'System Task',
+            anonymous: 'Anonymous Request',
+        },
+    },
+};
+
+function getAuditCopy(locale = 'zh-CN') {
+    return AUDIT_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
+}
+
+function formatDateTime(value, locale = 'zh-CN') {
+    return formatDateTimeValue(value, locale, { hour12: false });
 }
 
 function statusBadgeClass(status) {
@@ -56,25 +302,26 @@ function normalizeAuditStatus(value) {
     return normalized;
 }
 
-function formatAuditStatusLabel(value) {
+function formatAuditStatusLabel(value, locale = 'zh-CN') {
+    const copy = getAuditCopy(locale);
     const normalized = normalizeAuditStatus(value);
     if (!normalized) return '-';
-    if (normalized === 'success') return '成功';
-    if (normalized === 'failed') return '失败';
-    if (normalized === 'denied') return '已拒绝';
-    if (normalized === 'revoked') return '已撤销';
-    if (normalized === 'expired') return '已过期';
-    if (normalized === 'info') return '信息';
+    if (normalized === 'success') return copy.filters.success;
+    if (normalized === 'failed') return copy.filters.failed;
+    if (normalized === 'denied') return copy.filters.denied;
+    if (normalized === 'revoked') return copy.filters.revoked;
+    if (normalized === 'expired') return copy.filters.expired;
+    if (normalized === 'info') return copy.filters.info;
     return String(value || '-');
 }
 
-function trendLabel(value, granularity) {
+function trendLabel(value, granularity, locale = 'zh-CN') {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     if (granularity === 'day') {
-        return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+        return formatDateOnly(date, locale, { month: '2-digit', day: '2-digit' });
     }
-    return date.toLocaleString('zh-CN', {
+    return formatDateTimeValue(date, locale, {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -235,31 +482,34 @@ function formatAuditEventLabel(item, locale = 'zh-CN') {
 }
 
 function formatAuditActorLabel(item, locale = 'zh-CN') {
-    const normalizedLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
+    const copy = getAuditCopy(locale);
     const actor = String(item?.actor || '').trim();
     if (!actor) return '-';
     if (actor !== 'anonymous') return actor;
 
+    const actorSource = String(item?.actorSource || '').trim();
+    if (actorSource === 'public_subscription') return copy.actorSource.publicSubscription;
+    if (actorSource === 'unauthenticated') return copy.actorSource.unauthenticated;
+    if (actorSource === 'system') return copy.actorSource.system;
+
     const eventType = String(item?.eventType || '').trim();
-    if (eventType.startsWith('subscription_public_')) {
-        return normalizedLocale === 'en-US' ? 'Public Subscription Request' : '公开订阅请求';
-    }
+    if (eventType.startsWith('subscription_public_')) return copy.actorSource.publicSubscription;
     if (eventType.startsWith('login_')
         || eventType.startsWith('register_')
         || eventType.startsWith('verification_')
         || eventType.startsWith('password_reset_')) {
-        return normalizedLocale === 'en-US' ? 'Unauthenticated Request' : '未登录请求';
+        return copy.actorSource.unauthenticated;
     }
-    return normalizedLocale === 'en-US' ? 'Anonymous Request' : '匿名请求';
+    return copy.actorSource.anonymous;
 }
 
 function formatAuditActorRole(role, locale = 'zh-CN') {
-    const normalizedLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
+    const copy = getAuditCopy(locale);
     const value = String(role || '').trim();
     if (!value) return '';
-    if (value === 'admin') return normalizedLocale === 'en-US' ? 'Admin' : '管理员';
-    if (value === 'user') return normalizedLocale === 'en-US' ? 'User' : '用户';
-    if (value === 'anonymous') return normalizedLocale === 'en-US' ? 'Unauthenticated' : '未登录';
+    if (value === 'admin') return copy.roles.admin;
+    if (value === 'user') return copy.roles.user;
+    if (value === 'anonymous') return copy.roles.anonymous;
     return value;
 }
 
@@ -273,6 +523,7 @@ function resolveAuditTarget(item) {
 
 export default function AuditCenter() {
     const { locale, t } = useI18n();
+    const copy = getAuditCopy(locale);
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
     const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
@@ -334,7 +585,7 @@ export default function AuditCenter() {
             setEventsData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1 });
             setEventsPage(targetPage);
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '审计日志加载失败');
+            toast.error(err.response?.data?.msg || err.message || copy.toast.auditLoadFailed);
         }
         setEventsLoading(false);
     };
@@ -358,10 +609,10 @@ export default function AuditCenter() {
                 ? payload.collection.warnings.length
                 : 0;
             if (warningCount > 0) {
-                toast.error(`有 ${warningCount} 个节点流量采样失败`);
+                toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '流量总览加载失败');
+            toast.error(err.response?.data?.msg || err.message || copy.toast.trafficLoadFailed);
         }
         setTrafficLoading(false);
     };
@@ -378,7 +629,7 @@ export default function AuditCenter() {
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
             setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '用户趋势加载失败');
+            toast.error(err.response?.data?.msg || err.message || copy.toast.userTrendLoadFailed);
         }
     };
 
@@ -394,7 +645,7 @@ export default function AuditCenter() {
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
             setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '节点趋势加载失败');
+            toast.error(err.response?.data?.msg || err.message || copy.toast.serverTrendLoadFailed);
         }
     };
 
@@ -414,7 +665,7 @@ export default function AuditCenter() {
             setAccessSummary(summaryRes.data?.obj || { total: 0, uniqueIpCount: 0, uniqueUsers: 0, statusBreakdown: {}, topIps: [], from: '', to: '' });
             setAccessPage(targetPage);
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '订阅访问日志加载失败');
+            toast.error(err.response?.data?.msg || err.message || copy.toast.accessLoadFailed);
         }
         setAccessLoading(false);
     };
@@ -434,43 +685,43 @@ export default function AuditCenter() {
             a.download = `audit_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-            toast.success('审计日志已导出');
+            toast.success(copy.toast.exportDone);
         } catch {
-            toast.error('导出失败');
+            toast.error(copy.toast.exportFailed);
         }
     };
 
     const handleClearEvents = async () => {
         const ok = await confirm({
-            title: '清空操作审计日志',
-            message: '确认要清空全部操作审计记录吗？此操作不可恢复。',
-            confirmText: '清空',
+            title: copy.confirm.clearEventsTitle,
+            message: copy.confirm.clearEventsMessage,
+            confirmText: copy.confirm.confirmText,
             tone: 'danger',
         });
         if (!ok) return;
         try {
             await api.delete('/audit/events');
-            toast.success('操作审计日志已清空');
+            toast.success(copy.toast.clearDone);
             fetchEvents(1);
         } catch (err) {
-            toast.error(err.response?.data?.msg || '清空失败');
+            toast.error(err.response?.data?.msg || copy.toast.clearFailed);
         }
     };
 
     const handleClearAccessLogs = async () => {
         const ok = await confirm({
-            title: '清空订阅访问日志',
-            message: '确认要清空全部订阅访问记录吗？此操作不可恢复。',
-            confirmText: '清空',
+            title: copy.confirm.clearAccessTitle,
+            message: copy.confirm.clearAccessMessage,
+            confirmText: copy.confirm.confirmText,
             tone: 'danger',
         });
         if (!ok) return;
         try {
             await api.delete('/audit/subscription-access');
-            toast.success('订阅访问日志已清空');
+            toast.success(copy.toast.clearAccessDone);
             fetchAccess(1);
         } catch (err) {
-            toast.error(err.response?.data?.msg || '清空失败');
+            toast.error(err.response?.data?.msg || copy.toast.clearFailed);
         }
     };
 
@@ -507,19 +758,19 @@ export default function AuditCenter() {
             <div className="page-content page-enter page-content--wide">
                 <div className="tabs mb-8 audit-tabs">
                     <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
-                        {t('comp.audit.tabEvents') || '操作记录'}
+                        {copy.tabs.events}
                     </button>
                     <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
-                        {t('comp.audit.tabTasks') || '批量任务'}
+                        {copy.tabs.tasks}
                     </button>
                     <button className={`tab ${tab === 'traffic' ? 'active' : ''}`} onClick={() => setTab('traffic')}>
-                        流量统计
+                        {copy.tabs.traffic}
                     </button>
                     <button className={`tab ${tab === 'subscriptions' ? 'active' : ''}`} onClick={() => setTab('subscriptions')}>
-                        订阅访问
+                        {copy.tabs.subscriptions}
                     </button>
                     <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
-                        3x-ui 日志
+                        {copy.tabs.logs}
                     </button>
                 </div>
 
@@ -530,13 +781,13 @@ export default function AuditCenter() {
                                 <div className="audit-filter-bar flex gap-2 flex-wrap items-center">
                                     <input
                                         className="form-input w-180"
-                                        placeholder="关键词"
+                                        placeholder={copy.filters.keyword}
                                         value={eventFilters.q}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
                                     />
                                     <input
                                         className="form-input w-180"
-                                        placeholder="事件类型"
+                                        placeholder={copy.filters.eventType}
                                         value={eventFilters.eventType}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
                                     />
@@ -545,31 +796,31 @@ export default function AuditCenter() {
                                         value={eventFilters.outcome}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
                                     >
-                                        <option value="">全部结果</option>
-                                        <option value="success">成功</option>
-                                        <option value="failed">失败</option>
-                                        <option value="info">信息</option>
+                                        <option value="">{copy.filters.allResults}</option>
+                                        <option value="success">{copy.filters.success}</option>
+                                        <option value="failed">{copy.filters.failed}</option>
+                                        <option value="info">{copy.filters.info}</option>
                                     </select>
                                     <input
                                         className="form-input w-180"
-                                        placeholder="用户 / 邮箱"
+                                        placeholder={copy.filters.userOrEmail}
                                         value={eventFilters.targetEmail}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
                                     />
                                     <input
                                         className="form-input w-180"
-                                        placeholder="节点 ID"
+                                        placeholder={copy.filters.serverId}
                                         value={eventFilters.serverId}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
                                     />
                                     <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
-                                        <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> 查询
+                                        <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
                                     </button>
-                                    <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title="清空全部审计日志">
-                                        <HiOutlineTrash /> 清空
+                                    <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
+                                        <HiOutlineTrash /> {copy.actions.clear}
                                     </button>
-                                    <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="导出CSV">
-                                        <HiOutlineArrowDownTray /> 导出
+                                    <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
+                                        <HiOutlineArrowDownTray /> {copy.actions.export}
                                     </button>
                                 </div>
                             </div>
@@ -578,31 +829,31 @@ export default function AuditCenter() {
                                 <table className="table audit-events-table">
                                     <thead>
                                         <tr>
-                                            <th>时间</th>
-                                            <th>事件</th>
-                                            <th>结果</th>
-                                            <th>操作者</th>
-                                            <th>节点</th>
-                                            <th>用户</th>
-                                            <th>操作</th>
+                                            <th>{copy.tables.time}</th>
+                                            <th>{copy.tables.event}</th>
+                                            <th>{copy.tables.result}</th>
+                                            <th>{copy.tables.actor}</th>
+                                            <th>{copy.tables.node}</th>
+                                            <th>{copy.tables.user}</th>
+                                            <th>{copy.tables.action}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {eventsLoading ? (
                                             <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
                                         ) : eventsData.items.length === 0 ? (
-                                            <tr><td colSpan={7}><EmptyState title="暂无审计记录" subtitle="系统操作审计事件将在此显示" /></td></tr>
+                                            <tr><td colSpan={7}><EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} /></td></tr>
                                         ) : (
                                             eventsData.items.map((item) => (
                                                 <tr key={item.id}>
-                                                    <td data-label="时间">{formatDateTime(item.ts)}</td>
-                                                    <td data-label="事件">{formatAuditEventLabel(item, locale)}</td>
-                                                    <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome)}</span></td>
-                                                    <td data-label="操作者">{formatAuditActorLabel(item, locale)}</td>
-                                                    <td data-label="节点">{item.serverId || '-'}</td>
-                                                    <td data-label="用户">{resolveAuditTarget(item)}</td>
-                                                    <td data-label="操作" className="table-cell-actions">
-                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情" aria-label="查看详情">
+                                                    <td data-label={copy.tables.time}>{formatDateTime(item.ts, locale)}</td>
+                                                    <td data-label={copy.tables.event}>{formatAuditEventLabel(item, locale)}</td>
+                                                    <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
+                                                    <td data-label={copy.tables.actor}>{formatAuditActorLabel(item, locale)}</td>
+                                                    <td data-label={copy.tables.node}>{item.serverId || '-'}</td>
+                                                    <td data-label={copy.tables.user}>{resolveAuditTarget(item)}</td>
+                                                    <td data-label={copy.tables.action} className="table-cell-actions">
+                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title={copy.actions.viewDetail} aria-label={copy.actions.viewDetail}>
                                                             <HiOutlineEye />
                                                         </button>
                                                     </td>
@@ -614,13 +865,13 @@ export default function AuditCenter() {
                             </div>
 
                             <div className="audit-pagination page-pagination">
-                                <div className="page-pagination-meta">共 {eventsData.total || 0} 条</div>
+                                <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(eventsData.total || 0))}</div>
                                 <div className="audit-pagination-actions page-pagination-actions">
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>上一页</button>
+                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>{copy.actions.previous}</button>
                                     <span className="text-sm text-muted self-center">
                                         {eventsPage} / {eventsData.totalPages || 1}
                                     </span>
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>下一页</button>
+                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>{copy.actions.next}</button>
                                 </div>
                             </div>
                         </div>
@@ -639,9 +890,9 @@ export default function AuditCenter() {
                             className="audit-traffic-toolbar mb-6"
                             main={(
                                 <div className="audit-traffic-toolbar-copy">
-                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt)}>
-                                        <span className="audit-traffic-sample-label">最近采样</span>
-                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt)}</span>
+                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
+                                        <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
+                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
                                     </div>
                                 </div>
                             )}
@@ -652,12 +903,12 @@ export default function AuditCenter() {
                                         value={trafficGranularity}
                                         onChange={(e) => setTrafficGranularity(e.target.value)}
                                     >
-                                        <option value="auto">自动粒度</option>
-                                        <option value="hour">按小时</option>
-                                        <option value="day">按天</option>
+                                        <option value="auto">{copy.filters.autoGranularity}</option>
+                                        <option value="hour">{copy.filters.byHour}</option>
+                                        <option value="day">{copy.filters.byDay}</option>
                                     </select>
                                     <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> 立即采样
+                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
                                     </button>
                                 </>
                             )}
@@ -665,16 +916,16 @@ export default function AuditCenter() {
 
                         <div className="stats-grid mb-8 audit-stats-grid">
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">总流量</span><HiOutlineChartBarSquare /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.totalTraffic}</span><HiOutlineChartBarSquare /></div>
                                 <div className="card-value">{formatBytes(trafficOverview?.totals?.totalBytes || 0)}</div>
                                 <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.totals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.totals?.downBytes || 0)}</div>
                             </div>
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">活跃账号</span><HiOutlineUsers /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.activeAccounts}</span><HiOutlineUsers /></div>
                                 <div className="card-value">{trafficOverview?.activeUsers || 0}</div>
                             </div>
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">采样点</span><HiOutlineSignal /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.samplePoints}</span><HiOutlineSignal /></div>
                                 <div className="card-value">{trafficOverview?.sampleCount || 0}</div>
                             </div>
                         </div>
@@ -683,14 +934,14 @@ export default function AuditCenter() {
                             <div className="card audit-chart-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
-                                    title="用户流量趋势"
+                                    title={copy.traffic.userTrend}
                                     actions={(
                                         <select
                                             className="form-select w-220"
                                             value={selectedUser}
                                             onChange={(e) => setSelectedUser(e.target.value)}
                                         >
-                                            <option value="">请选择用户</option>
+                                            <option value="">{copy.traffic.selectUser}</option>
                                             {topUsers.map((item) => (
                                                 <option key={item.email} value={item.email}>
                                                     {formatTrafficUserLabel(item)} ({formatBytes(item.totalBytes)})
@@ -700,15 +951,15 @@ export default function AuditCenter() {
                                     )}
                                 />
                                 {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。</div>
+                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelUnsupported}</div>
                                 )}
                                 <div className="dashboard-chart">
                                     <ResponsiveContainer>
                                         <LineChart data={userTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity)} />
+                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
                                             <YAxis />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value)} />
+                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
                                             <Line type="monotone" dataKey="totalBytes" stroke="#6366f1" strokeWidth={2} dot={false} />
                                         </LineChart>
                                     </ResponsiveContainer>
@@ -718,14 +969,14 @@ export default function AuditCenter() {
                             <div className="card audit-chart-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
-                                    title="节点流量趋势"
+                                    title={copy.traffic.serverTrend}
                                     actions={(
                                         <select
                                             className="form-select w-220"
                                             value={selectedServerId}
                                             onChange={(e) => setSelectedServerId(e.target.value)}
                                         >
-                                            <option value="">请选择节点</option>
+                                            <option value="">{copy.traffic.selectServer}</option>
                                             {topServers.map((item) => (
                                                 <option key={item.serverId} value={item.serverId}>
                                                     {item.serverName} ({formatBytes(item.totalBytes)})
@@ -738,9 +989,9 @@ export default function AuditCenter() {
                                     <ResponsiveContainer>
                                         <LineChart data={serverTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity)} />
+                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
                                             <YAxis />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value)} />
+                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
                                             <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
                                         </LineChart>
                                     </ResponsiveContainer>
@@ -752,21 +1003,21 @@ export default function AuditCenter() {
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
-                                    title="流量 Top 用户"
+                                    title={copy.traffic.topUsers}
                                 />
                                 {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">当前节点列表未提供用户级流量计数。</div>
+                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelNoCounts}</div>
                                 )}
                                 <div className="table-container audit-nested-table-shell">
                                     <table className="table">
-                                        <thead><tr><th>用户</th><th className="table-cell-right">流量</th></tr></thead>
+                                        <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
                                         <tbody>
                                             {topUsers.length === 0 ? (
-                                                <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
+                                                <tr><td colSpan={2} className="text-center">{copy.states.noData}</td></tr>
                                             ) : topUsers.map((item) => (
                                                 <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
-                                                    <td data-label="用户">{formatTrafficUserLabel(item)}</td>
-                                                    <td data-label="流量" className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label={copy.tables.user}>{formatTrafficUserLabel(item)}</td>
+                                                    <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -776,18 +1027,18 @@ export default function AuditCenter() {
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
-                                    title="流量 Top 节点"
+                                    title={copy.traffic.topServers}
                                 />
                                 <div className="table-container audit-nested-table-shell">
                                     <table className="table">
-                                        <thead><tr><th>节点</th><th className="table-cell-right">流量</th></tr></thead>
+                                        <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
                                         <tbody>
                                             {topServers.length === 0 ? (
-                                                <tr><td colSpan={2} className="text-center">暂无数据</td></tr>
+                                                <tr><td colSpan={2} className="text-center">{copy.states.noData}</td></tr>
                                             ) : topServers.map((item) => (
                                                 <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
-                                                    <td data-label="节点">{item.serverName}</td>
-                                                    <td data-label="流量" className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                    <td data-label={copy.tables.node}>{item.serverName}</td>
+                                                    <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -804,7 +1055,7 @@ export default function AuditCenter() {
                             <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
                                 <input
                                     className="form-input w-220"
-                                    placeholder="用户 / 邮箱过滤"
+                                    placeholder={copy.filters.userEmailFilter}
                                     value={accessFilters.email}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
                                 />
@@ -813,38 +1064,38 @@ export default function AuditCenter() {
                                         value={accessFilters.status}
                                         onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
                                     >
-                                        <option value="">全部状态</option>
-                                        <option value="success">成功</option>
-                                        <option value="denied">已拒绝</option>
-                                        <option value="expired">已过期</option>
-                                        <option value="revoked">已撤销</option>
+                                        <option value="">{copy.filters.allStatus}</option>
+                                        <option value="success">{copy.filters.success}</option>
+                                        <option value="denied">{copy.filters.denied}</option>
+                                        <option value="expired">{copy.filters.expired}</option>
+                                        <option value="revoked">{copy.filters.revoked}</option>
                                     </select>
                                 <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
-                                    <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> 查询
+                                    <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
                                 </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title="清空全部访问日志">
-                                    <HiOutlineTrash /> 清空
+                                <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
+                                    <HiOutlineTrash /> {copy.actions.clear}
                                 </button>
-                                <span className="text-sm text-muted">默认统计周期：近一年</span>
+                                <span className="text-sm text-muted">{copy.filters.defaultPeriod}</span>
                             </div>
                         </div>
 
                         <div className="stats-grid mb-8 audit-stats-grid">
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">访问次数 (PV)</span><HiOutlineDocumentText /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.pv}</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.total || 0}</div>
                             </div>
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">独立 IP (UV)</span><HiOutlineDocumentText /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.uv}</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.uniqueIpCount || 0}</div>
                             </div>
                             <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">访问用户数</span><HiOutlineDocumentText /></div>
+                                <div className="card-header"><span className="card-title">{copy.traffic.uniqueUsers}</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.uniqueUsers || 0}</div>
                             </div>
                             {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
                                 <div className="card audit-stat-card" key={key}>
-                                    <div className="card-header"><span className="card-title">{formatAuditStatusLabel(key)}</span><HiOutlineDocumentText /></div>
+                                    <div className="card-header"><span className="card-title">{formatAuditStatusLabel(key, locale)}</span><HiOutlineDocumentText /></div>
                                     <div className="card-value">{value}</div>
                                 </div>
                             ))}
@@ -854,11 +1105,11 @@ export default function AuditCenter() {
                             <table className="table audit-subscriptions-table">
                                 <thead>
                                     <tr>
-                                        <th>时间</th>
-                                        <th>用户</th>
-                                        <th>状态</th>
-                                        <th>真实 IP</th>
-                                        <th>归属地 / 运营商</th>
+                                        <th>{copy.tables.time}</th>
+                                        <th>{copy.tables.user}</th>
+                                        <th>{copy.tables.result}</th>
+                                        <th>{copy.tables.realIp}</th>
+                                        <th>{copy.tables.locationCarrier}</th>
                                         <th>UA</th>
                                     </tr>
                                 </thead>
@@ -866,13 +1117,13 @@ export default function AuditCenter() {
                                     {accessLoading ? (
                                         <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
                                     ) : accessData.items.length === 0 ? (
-                                        <tr><td colSpan={6}><EmptyState title="暂无访问记录" subtitle="订阅链接访问记录将在此显示" /></td></tr>
+                                        <tr><td colSpan={6}><EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} /></td></tr>
                                     ) : accessData.items.map((item) => {
                                         const geoDisplay = resolveAccessGeoDisplay(item);
                                         return (
                                         <tr key={item.id}>
-                                            <td data-label="时间" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts)}</td>
-                                            <td data-label="用户">
+                                            <td data-label={copy.tables.time} style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
+                                            <td data-label={copy.tables.user}>
                                                 <div className="audit-access-user">
                                                     <span className="audit-access-user-label">{item.userLabel || item.username || item.email || '-'}</span>
                                                     {item.email && item.email !== (item.userLabel || '') && (
@@ -880,20 +1131,20 @@ export default function AuditCenter() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td data-label="状态"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status)}</span></td>
-                                            <td data-label="真实 IP" style={{ wordBreak: 'break-all' }}>
+                                            <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
+                                            <td data-label={copy.tables.realIp} style={{ wordBreak: 'break-all' }}>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
                                                     {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
                                                 </div>
                                             </td>
-                                            <td data-label="归属地 / 运营商" className="text-xs">
+                                            <td data-label={copy.tables.locationCarrier} className="text-xs">
                                                 <div className="audit-access-location">
                                                     <span>{geoDisplay.location}</span>
                                                     {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
                                                 </div>
                                             </td>
-                                            <td data-label="UA" className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
+                                            <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
                                         </tr>
                                         );
                                     })}
@@ -902,13 +1153,13 @@ export default function AuditCenter() {
                         </div>
 
                         <div className="audit-pagination page-pagination">
-                            <div className="page-pagination-meta">共 {accessData.total || 0} 条</div>
+                            <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(accessData.total || 0))}</div>
                             <div className="page-pagination-actions">
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>上一页</button>
+                                <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>{copy.actions.previous}</button>
                                 <span className="text-sm text-muted self-center">
                                     {accessPage} / {accessData.totalPages || 1}
                                 </span>
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage >= (accessData.totalPages || 1) || accessLoading} onClick={() => fetchAccess(accessPage + 1)}>下一页</button>
+                                <button className="btn btn-secondary btn-sm" disabled={accessPage >= (accessData.totalPages || 1) || accessLoading} onClick={() => fetchAccess(accessPage + 1)}>{copy.actions.next}</button>
                             </div>
                         </div>
                     </>
@@ -916,7 +1167,7 @@ export default function AuditCenter() {
 
                 {tab === 'logs' && (
                     <Suspense fallback={<div className="flex items-center justify-center" style={{ padding: '64px 0' }}><span className="spinner" /></div>}>
-                        <Logs embedded sourceMode="panel" displayLabel="3x-ui 日志" />
+                        <Logs embedded sourceMode="panel" displayLabel={copy.tabs.logs} />
                     </Suspense>
                 )}
             </div>
@@ -925,52 +1176,52 @@ export default function AuditCenter() {
                 <ModalShell isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)}>
                     <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">审计事件详情</h3>
+                            <h3 className="modal-title">{copy.detail.title}</h3>
                             <button className="modal-close" onClick={() => setSelectedEvent(null)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}
                             <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                                 <div>
-                                    <span className="text-muted">事件类型: </span>
+                                    <span className="text-muted">{copy.detail.eventType}: </span>
                                     <span className="font-semibold">{formatAuditEventLabel(selectedEvent, locale)}</span>
                                 </div>
                                 <div>
-                                    <span className="text-muted">时间: </span>
-                                    <span>{formatDateTime(selectedEvent.ts)}</span>
+                                    <span className="text-muted">{copy.detail.time}: </span>
+                                    <span>{formatDateTime(selectedEvent.ts, locale)}</span>
                                 </div>
                                 <div>
-                                    <span className="text-muted">操作者: </span>
+                                    <span className="text-muted">{copy.detail.actor}: </span>
                                     <span className="font-semibold">{formatAuditActorLabel(selectedEvent, locale)}</span>
                                     {selectedEvent.actorRole && (
                                         <span className="badge badge-neutral ml-2 text-xs">{formatAuditActorRole(selectedEvent.actorRole, locale)}</span>
                                     )}
                                 </div>
                                 <div>
-                                    <span className="text-muted">结果: </span>
-                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{formatAuditStatusLabel(selectedEvent.outcome)}</span>
+                                    <span className="text-muted">{copy.detail.result}: </span>
+                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{formatAuditStatusLabel(selectedEvent.outcome, locale)}</span>
                                 </div>
                                 {selectedEvent.ip && (
                                     <div>
-                                        <span className="text-muted">IP: </span>
+                                        <span className="text-muted">{copy.detail.ip}: </span>
                                         <span className="font-mono">{selectedEvent.ip}</span>
                                     </div>
                                 )}
                                 {selectedEvent.path && (
                                     <div>
-                                        <span className="text-muted">路径: </span>
+                                        <span className="text-muted">{copy.detail.path}: </span>
                                         <span className="font-mono">{selectedEvent.method} {selectedEvent.path}</span>
                                     </div>
                                 )}
                                 {selectedEvent.serverId && (
                                     <div>
-                                        <span className="text-muted">节点: </span>
+                                        <span className="text-muted">{copy.detail.node}: </span>
                                         <span>{selectedEvent.serverId}</span>
                                     </div>
                                 )}
                                 {resolveAuditTarget(selectedEvent) !== '-' && (
                                     <div>
-                                        <span className="text-muted">目标用户: </span>
+                                        <span className="text-muted">{copy.detail.targetUser}: </span>
                                         <span>{resolveAuditTarget(selectedEvent)}</span>
                                     </div>
                                 )}
@@ -979,11 +1230,11 @@ export default function AuditCenter() {
                             {/* 变更前后对比（如有） */}
                             {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
                                 <div className="mb-4">
-                                    <div className="font-semibold text-sm mb-2 text-primary">变更对比</div>
+                                    <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.diff}</div>
                                     <div className="grid grid-cols-2 gap-2">
                                         {selectedEvent.beforeSnapshot && (
                                             <div>
-                                                <div className="text-xs text-danger mb-1 font-semibold">变更前</div>
+                                                <div className="text-xs text-danger mb-1 font-semibold">{copy.detail.before}</div>
                                                 <pre className="log-viewer log-viewer-compact max-h-[200px] bg-danger/5 border border-danger/15">
                                                     {JSON.stringify(selectedEvent.beforeSnapshot, null, 2)}
                                                 </pre>
@@ -991,7 +1242,7 @@ export default function AuditCenter() {
                                         )}
                                         {selectedEvent.afterSnapshot && (
                                             <div>
-                                                <div className="text-xs text-success mb-1 font-semibold">变更后</div>
+                                                <div className="text-xs text-success mb-1 font-semibold">{copy.detail.after}</div>
                                                 <pre className="log-viewer log-viewer-compact max-h-[200px] bg-success/5 border border-success/15">
                                                     {JSON.stringify(selectedEvent.afterSnapshot, null, 2)}
                                                 </pre>
@@ -1003,7 +1254,7 @@ export default function AuditCenter() {
 
                             {/* 详细数据 */}
                             <div>
-                                <div className="font-semibold text-sm mb-2 text-primary">事件详情</div>
+                                <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.payload}</div>
                                 <pre className="log-viewer log-viewer-compact">
                                     {JSON.stringify(selectedEvent.details || {}, null, 2)}
                                 </pre>

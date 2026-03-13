@@ -17,7 +17,10 @@ const {
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
+    sortInboundsForServer,
+    sortServersForSubscription,
 } = await import('../routes/subscriptions.js');
+const { default: systemSettingsStore } = await import('../store/systemSettingsStore.js');
 
 const vmessPayload = Buffer.from(JSON.stringify({
     v: '2',
@@ -62,6 +65,32 @@ describe('subscription native fallback selection', () => {
             selectNativeSubIds('reconstructed', ['sub-a'], ['sub-b']),
             []
         );
+    });
+});
+
+describe('subscription ordering', () => {
+    it('sorts inbounds with the persisted inbound order so user subscriptions follow inbound management order', () => {
+        systemSettingsStore.setInboundOrder('server-a', ['inbound-2', 'inbound-1']);
+
+        const sorted = sortInboundsForServer('server-a', [
+            { id: 'inbound-1', remark: 'Node 1' },
+            { id: 'inbound-2', remark: 'Node 2' },
+            { id: 'inbound-3', remark: 'Node 3' },
+        ]);
+
+        assert.deepEqual(sorted.map((item) => item.id), ['inbound-2', 'inbound-1', 'inbound-3']);
+    });
+
+    it('sorts servers with the persisted server order before merging subscription links', () => {
+        systemSettingsStore.setServerOrder(['server-b', 'server-a']);
+
+        const sorted = sortServersForSubscription([
+            { id: 'server-a', name: 'Alpha' },
+            { id: 'server-b', name: 'Beta' },
+            { id: 'server-c', name: 'Gamma' },
+        ]);
+
+        assert.deepEqual(sorted.map((item) => item.id), ['server-b', 'server-a', 'server-c']);
     });
 });
 

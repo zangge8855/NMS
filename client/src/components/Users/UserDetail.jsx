@@ -7,7 +7,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
-import { formatBytes, copyToClipboard } from '../../utils/format.js';
+import { formatBytes, copyToClipboard, formatDateOnly, formatDateTime } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
@@ -51,9 +51,8 @@ function StatCard({ label, value }) {
     );
 }
 
-function formatTime(ts) {
-    if (!ts) return '-';
-    return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+function formatTime(ts, locale = 'zh-CN') {
+    return formatDateTime(ts, locale);
 }
 
 function timelineOutcomeClass(outcome) {
@@ -135,7 +134,7 @@ function normalizeDetailTab(value) {
 }
 
 export default function UserDetail() {
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const { userId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -331,7 +330,7 @@ export default function UserDetail() {
             if (details.targetUsername) summaryParts.push(`目标 ${details.targetUsername}`);
             if (details.subscriptionEmail && details.subscriptionEmail !== details.email) summaryParts.push(`订阅邮箱 ${details.subscriptionEmail}`);
             if (typeof details.enabled === 'boolean') summaryParts.push(details.enabled ? '状态 已启用' : '状态 已停用');
-            if (details.expiryTime > 0) summaryParts.push(`到期 ${new Date(details.expiryTime).toLocaleDateString('zh-CN')}`);
+            if (details.expiryTime > 0) summaryParts.push(`到期 ${formatDateOnly(details.expiryTime, locale)}`);
             if (typeof details.allowedServerCount === 'number') summaryParts.push(`服务器 ${details.allowedServerCount}`);
             if (typeof details.allowedProtocolCount === 'number') summaryParts.push(`协议 ${details.allowedProtocolCount}`);
             if (typeof details.limitIp === 'number' && details.limitIp > 0) summaryParts.push(`限 IP ${details.limitIp}`);
@@ -692,10 +691,10 @@ export default function UserDetail() {
                                     </button>
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineCalendarDays /> 注册: {formatTime(user.createdAt)}
+                                    <HiOutlineCalendarDays /> 注册: {formatTime(user.createdAt, locale)}
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineClock /> 最后登录: {formatTime(user.lastLoginAt)}
+                                    <HiOutlineClock /> 最后登录: {formatTime(user.lastLoginAt, locale)}
                                 </div>
                                 {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
                                     <div className="user-profile-meta-item">
@@ -911,7 +910,7 @@ export default function UserDetail() {
                                                         <td data-label="入站">{c.inboundRemark || c.inboundId}</td>
                                                         <td data-label="协议"><span className="badge badge-neutral">{c.protocol}</span></td>
                                                         <td data-label="流量">{formatBytes((c.up || 0) + (c.down || 0))}</td>
-                                                        <td data-label="到期时间">{c.expiryTime > 0 ? new Date(c.expiryTime).toLocaleDateString('zh-CN') : '永久'}</td>
+                                                        <td data-label="到期时间">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : '永久'}</td>
                                                         <td data-label="状态"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? '启用' : '禁用'}</span></td>
                                                         <td data-label="操作" className="table-cell-actions">
                                                             <button
@@ -972,9 +971,9 @@ export default function UserDetail() {
                                                                 {t.status === 'active' ? '有效' : t.status === 'revoked' ? '已撤销' : '已过期'}
                                                             </span>
                                                         </td>
-                                                        <td data-label="创建时间" className="text-sm text-muted">{formatTime(t.createdAt)}</td>
-                                                        <td data-label="过期时间" className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt) : '永久'}</td>
-                                                        <td data-label="最后使用" className="text-sm text-muted">{formatTime(t.lastUsedAt)}</td>
+                                                        <td data-label="创建时间" className="text-sm text-muted">{formatTime(t.createdAt, locale)}</td>
+                                                        <td data-label="过期时间" className="text-sm text-muted">{t.expiresAt ? formatTime(t.expiresAt, locale) : '永久'}</td>
+                                                        <td data-label="最后使用" className="text-sm text-muted">{formatTime(t.lastUsedAt, locale)}</td>
                                                         <td data-label="操作" className="table-cell-actions">
                                                             <div className="table-row-actions">
                                                                 <button
@@ -1017,7 +1016,7 @@ export default function UserDetail() {
                                                     <div className="timeline-content">
                                                     <div className="timeline-head">
                                                         <span className="font-medium">{formatTimelineTitle(item)}</span>
-                                                        <span className="timeline-time">{formatTime(item.ts)}</span>
+                                                        <span className="timeline-time">{formatTime(item.ts, locale)}</span>
                                                     </div>
                                                     <div className="flex gap-2 flex-wrap mt-2">
                                                         <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
