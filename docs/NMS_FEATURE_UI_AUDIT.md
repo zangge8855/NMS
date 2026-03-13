@@ -58,7 +58,9 @@ Audit date: 2026-03-11
 - The `Tools` page now exposes explicit next-step actions in empty states instead of passive copy only
 - The login page now exposes self-service password reset by email code, while the public response stays generic so the flow does not reveal whether an email is registered
 - The subscription page now centers the user flow around “choose profile -> copy address -> import client”, keeps the QR code beside the address, and switches quick-import actions with the selected profile
+- The end-user subscription page now keeps quick import, copy, QR code, and reset actions inside one primary import block, while device cards only show downloads and recommended profile types
 - Native select styling has been tightened again so the global dropdown menu no longer falls back to black native popups on Chromium
+- Server and inbound tables were tightened again so sidebar-expanded layouts keep more operational information visible before horizontal scrolling is needed
 
 ### Areas in good shape
 

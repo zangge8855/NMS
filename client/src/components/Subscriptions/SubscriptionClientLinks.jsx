@@ -63,6 +63,7 @@ export default function SubscriptionClientLinks({
     sections = ['devices'],
     compact = false,
     showHeading = true,
+    showImportMethods = true,
 }) {
     const { locale } = useI18n();
     const copy = useMemo(() => (
@@ -80,9 +81,9 @@ export default function SubscriptionClientLinks({
             }
             : {
                 sectionTitle: '按设备选一个客户端',
-                sectionCaption: '装好后，导入上面选好的类型就行。',
-                chooseAny: '任选一个主流客户端。',
-                importReady: '装好后可直接导入。',
+                sectionCaption: '下载一个常用客户端就行。',
+                chooseAny: '选一个常用客户端。',
+                importReady: '装好后直接导入。',
                 downloads: '客户端下载',
                 recommended: '推荐类型',
                 chooseLabel: '选',
@@ -211,22 +212,24 @@ export default function SubscriptionClientLinks({
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="subscription-device-block subscription-device-block--push">
-                                        <div className="subscription-device-block-label">{copy.importMethod}</div>
-                                        {quickItems.length > 0 ? (
-                                            <div className="subscription-device-actions">
-                                                {quickItems.map((action) => (
-                                                    <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
-                                                        {action.label}
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="subscription-device-empty">
-                                                {copy.copyAddress}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {showImportMethods && (
+                                        <div className="subscription-device-block subscription-device-block--push">
+                                            <div className="subscription-device-block-label">{copy.importMethod}</div>
+                                            {quickItems.length > 0 ? (
+                                                <div className="subscription-device-actions">
+                                                    {quickItems.map((action) => (
+                                                        <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
+                                                            {action.label}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="subscription-device-empty">
+                                                    {copy.copyAddress}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

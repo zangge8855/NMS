@@ -1304,9 +1304,10 @@ export default function Inbounds() {
                                                                             <td data-label="总量" className="inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
                                                                             <td data-label="IP 限制" className="inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
                                                                             <td data-label="上 / 下行" className="inbounds-clients-col-traffic">
-                                                                                <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
-                                                                                <span className="text-muted mx-1">/</span>
-                                                                                <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
+                                                                                <div className="inbounds-client-traffic-stack">
+                                                                                    <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
+                                                                                    <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
+                                                                                </div>
                                                                             </td>
                                                                             <td data-label="到期时间" className="inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
                                                                             <td data-label="状态" className="inbounds-clients-col-status">

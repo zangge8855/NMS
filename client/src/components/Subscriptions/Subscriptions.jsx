@@ -129,7 +129,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         inputEmailHint: '输入邮箱后会自动加载订阅地址',
         userTitle: '你的订阅地址',
         adminTitle: '订阅地址与导入',
-        userSubtitle: '先选类型，再复制或扫码导入。',
+        userSubtitle: '先选类型，再导入。',
         adminSubtitle: '给用户时，直接按这三步说明就够了。',
         available: '订阅可用',
         unavailable: '订阅不可用',
@@ -152,25 +152,26 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         resetDetailsTarget: '目标邮箱',
         resetDetailsScope: '范围',
         userStepKicker: '现在这样用',
-        userStepTitle: '选好类型后，直接复制或扫码导入',
-        userStepText: '先看下面设备推荐，选一个客户端；网址很长也不用看全，直接复制就行。',
-        pickTypeTitle: '选一个类型',
-        pickTypeText: '不会选时，就按设备卡片里的“推荐类型”来。',
-        copyOrScanTitle: '复制地址或扫码',
-        copyOrScanText: '只需要点复制，或者让客户端扫旁边这个码。',
+        userStepTitle: '选类型 -> 导入客户端',
+        userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
+        pickTypeTitle: '选类型',
+        pickTypeText: '不会选时，看下面设备推荐。',
+        copyOrScanTitle: '订阅地址',
+        copyOrScanText: '导入、复制、扫码都在这里。',
         deviceOpenTitle: '按你的设备打开',
-        deviceOpenText: '每个设备选一个主流客户端，装好后导入上面这条地址。',
+        deviceOpenText: '下方只放下载链接和推荐类型。',
         resetRiskTitle: '只有地址泄露时，才需要重置',
-        resetRiskText: '重置后旧订阅地址会立刻失效，客户端需要重新导入新地址。',
+        resetRiskText: '重置后旧地址会失效。',
         heroTitle: '选类型 -> 复制地址 -> 导入客户端',
         heroText: '不知道选哪个时，先看下面设备推荐。',
-        manualImportHint: '不会导入时，直接复制下面这条地址到客户端里就行。',
+        manualImportHint: '不会导入时，直接复制这条地址。',
         adminConverterHint: '管理提示：专用订阅当前走外部转换器',
         goSettings: '去系统设置修改',
         qrAriaLabel: '订阅二维码 · {label}',
-        quickImportHint: '也可以直接点下面的快捷导入。',
+        quickImportHint: '也可以直接点导入按钮。',
         adminQuickImportHint: '当前类型的快捷导入按钮也在这里。',
-        simpleReminder: '小白用户就记这一句：选类型 -> 复制地址 -> 导入客户端。',
+        simpleReminder: '就记这一句：选类型 -> 导入客户端。',
+        qrHint: '也可以扫码导入。',
         guideTitle: '怎么使用订阅',
         guideSubtitle: '就按这三步，不用讲别的。',
         guideStep1Title: '选类型',
@@ -542,119 +543,128 @@ export default function Subscriptions() {
                         ) : (
                             <>
                                 <div className="card subscription-primary-card">
-                                    <SectionHeader
-                                        className="card-header section-header section-header--compact"
-                                        title={isUserOnly ? ui.userTitle : ui.adminTitle}
-                                        subtitle={isUserOnly ? ui.userSubtitle : ui.adminSubtitle}
-                                        actions={!isUserOnly ? (
-                                            <button
-                                                className="btn btn-secondary btn-sm"
-                                                onClick={handleResetLink}
-                                                disabled={resetLoading || !normalizedEmail}
-                                            >
-                                                {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
-                                            </button>
-                                        ) : null}
-                                    />
+                                    {!isUserOnly && (
+                                        <SectionHeader
+                                            className="card-header section-header section-header--compact"
+                                            title={ui.adminTitle}
+                                            subtitle={ui.adminSubtitle}
+                                            actions={(
+                                                <button
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={handleResetLink}
+                                                    disabled={resetLoading || !normalizedEmail}
+                                                >
+                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
+                                                </button>
+                                            )}
+                                        />
+                                    )}
                                     {isUserOnly ? (
                                         <div className="subscription-user-flow">
-                                            <div className="subscription-user-hero">
-                                                <div className="subscription-user-step-head">
-                                                    <div className="subscription-user-step-kicker">{ui.userStepKicker}</div>
-                                                    <div className="subscription-user-step-title">{ui.userStepTitle}</div>
-                                                    <div className="subscription-user-step-text">{ui.userStepText}</div>
-                                                </div>
-                                                <div className="subscription-user-meta-badges">
-                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
-                                                    </span>
-                                                    <span className="badge badge-neutral">{ui.nodeCount}</span>
-                                                </div>
+                                            <div className="subscription-user-flow-note">
+                                                <span className="subscription-user-flow-label">{ui.userStepKicker}</span>
+                                                <span className="subscription-user-flow-text">{ui.simpleReminder}</span>
                                             </div>
 
-                                            <div className="subscription-user-main-grid">
-                                                <div className="subscription-user-panel subscription-user-panel--type">
-                                                    <div className="subscription-user-panel-title">{ui.pickTypeTitle}</div>
-                                                    <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
-                                                    <div className="subscription-profile-switches">
-                                                        {availableProfiles.map((item) => (
-                                                            <button
-                                                                key={item.key}
-                                                                type="button"
-                                                                className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                                                                onClick={() => setProfileKey(item.key)}
-                                                            >
-                                                                {item.label}
-                                                            </button>
-                                                        ))}
+                                            <div className="subscription-user-panel subscription-user-panel--import">
+                                                <div className="subscription-user-panel-topbar">
+                                                    <div className="subscription-user-panel-head">
+                                                        <div className="subscription-user-panel-title">{ui.pickTypeTitle}</div>
+                                                        <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
                                                     </div>
-                                                    {activeProfile?.label && (
-                                                        <div className="subscription-current-profile-card">
-                                                            <div className="subscription-current-profile-label">{ui.currentType}</div>
-                                                            <div className="subscription-current-profile-value">{activeProfile.label}</div>
-                                                            <div className="subscription-current-profile-hint">{activeProfile?.hint || ui.currentProfileFallback}</div>
-                                                        </div>
-                                                    )}
+                                                    <div className="subscription-user-meta-badges">
+                                                        <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                            {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                        </span>
+                                                        <span className="badge badge-neutral">{ui.nodeCount}</span>
+                                                    </div>
                                                 </div>
-
-                                                <div className="subscription-user-panel subscription-user-panel--link">
-                                                    <div className="subscription-user-panel-title">{ui.copyOrScanTitle}</div>
-                                                    <div className="subscription-user-panel-text">{ui.copyOrScanText}</div>
-                                                    <div className="subscription-link-with-qr subscription-link-with-qr--user">
-                                                        <div className="subscription-link-card">
-                                                            <div className="subscription-link-grid">
-                                                                <input
-                                                                    className="form-input font-mono text-xs subscription-url-input"
-                                                                    value={activeProfile?.url || ''}
-                                                                    readOnly
-                                                                    title={activeProfile?.url || ''}
-                                                                    dir="ltr"
-                                                                    spellCheck={false}
-                                                                />
-                                                                <button
-                                                                    className="btn btn-primary subscription-copy-btn"
-                                                                    onClick={handleCopy}
-                                                                    disabled={!activeProfile?.url || !result.subscriptionActive}
-                                                                >
-                                                                    <HiOutlineClipboard /> {ui.copyAddress}
-                                                                </button>
+                                                <div className="subscription-profile-switches">
+                                                    {availableProfiles.map((item) => (
+                                                        <button
+                                                            key={item.key}
+                                                            type="button"
+                                                            className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                            onClick={() => setProfileKey(item.key)}
+                                                        >
+                                                            {item.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {activeProfile?.label && (
+                                                    <div className="subscription-current-profile-card">
+                                                        <div className="subscription-current-profile-label">{ui.currentType}</div>
+                                                        <div className="subscription-current-profile-value">{activeProfile.label}</div>
+                                                        <div className="subscription-current-profile-hint">{activeProfile?.hint || ui.currentProfileFallback}</div>
+                                                    </div>
+                                                )}
+                                                <div className="subscription-user-import-layout">
+                                                    <div className="subscription-link-card subscription-link-card--user-focus">
+                                                        <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+                                                        <input
+                                                            className="form-input font-mono text-xs subscription-url-input"
+                                                            value={activeProfile?.url || ''}
+                                                            readOnly
+                                                            title={activeProfile?.url || ''}
+                                                            dir="ltr"
+                                                            spellCheck={false}
+                                                        />
+                                                        <div className="subscription-user-address-actions">
+                                                            {selectedImportActions.map((item) => (
+                                                                <a key={item.label} href={item.href} className="btn btn-primary btn-sm subscription-user-import-btn">
+                                                                    {item.label}
+                                                                </a>
+                                                            ))}
+                                                            <button
+                                                                className={`btn btn-sm ${selectedImportActions.length > 0 ? 'btn-secondary' : 'btn-primary'} subscription-user-copy-btn`}
+                                                                onClick={handleCopy}
+                                                                disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                            >
+                                                                <HiOutlineClipboard /> {ui.copyAddress}
+                                                            </button>
+                                                        </div>
+                                                        {selectedImportActions.length === 0 && (
+                                                            <div className="subscription-user-address-note">{ui.noQuickImport}</div>
+                                                        )}
+                                                        <div className="subscription-user-address-foot">
+                                                            <button
+                                                                className="btn btn-ghost btn-sm subscription-user-reset-inline-btn"
+                                                                onClick={handleResetLink}
+                                                                disabled={resetLoading || !normalizedEmail}
+                                                            >
+                                                                {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
+                                                            </button>
+                                                            <div className="subscription-user-reset-inline-copy">
+                                                                <div className="subscription-user-reset-inline-title">
+                                                                    <HiOutlineExclamationTriangle />
+                                                                    <span>{ui.resetRiskTitle}</span>
+                                                                </div>
+                                                                <div className="subscription-user-reset-inline-text">{ui.resetRiskText}</div>
                                                             </div>
                                                         </div>
-                                                        <div className="subscription-inline-qr">
-                                                            {activeProfile?.url && result.subscriptionActive ? (
-                                                                <>
-                                                                    <div className="subscription-inline-qr-title">{ui.scanImport}</div>
-                                                                    <div
-                                                                        className="qr-surface subscription-inline-qr-surface"
-                                                                        role="img"
-                                                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
-                                                                    >
-                                                                        <QRCodeSVG
-                                                                            value={activeProfile.url}
-                                                                            size={120}
-                                                                            level="M"
-                                                                            includeMargin={false}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="subscription-inline-qr-text">{ui.quickImportHint}</div>
-                                                                    {selectedImportActions.length > 0 ? (
-                                                                        <div className="subscription-inline-quick-actions">
-                                                                            <div className="subscription-inline-quick-list">
-                                                                                {selectedImportActions.map((item) => (
-                                                                                    <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-inline-quick-btn">
-                                                                                        {item.label}
-                                                                                    </a>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="subscription-inline-quick-hint">{ui.noQuickImport}</div>
-                                                                    )}
-                                                                </>
-                                                            ) : (
-                                                                <div className="text-sm text-muted">{ui.noQr}</div>
-                                                            )}
-                                                        </div>
+                                                    </div>
+
+                                                    <div className="subscription-inline-qr subscription-inline-qr--featured">
+                                                        {activeProfile?.url && result.subscriptionActive ? (
+                                                            <>
+                                                                <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                <div
+                                                                    className="qr-surface subscription-inline-qr-surface"
+                                                                    role="img"
+                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
+                                                                >
+                                                                    <QRCodeSVG
+                                                                        value={activeProfile.url}
+                                                                        size={128}
+                                                                        level="M"
+                                                                        includeMargin={false}
+                                                                    />
+                                                                </div>
+                                                                <div className="subscription-inline-qr-text">{ui.qrHint}</div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-muted">{ui.noQr}</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -664,26 +674,7 @@ export default function Subscriptions() {
                                                     <div className="subscription-user-panel-title">{ui.deviceOpenTitle}</div>
                                                     <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
                                                 </div>
-                                                <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} />
-                                            </div>
-
-                                            <div className="subscription-user-reset-callout">
-                                                    <div className="subscription-user-reset-copy">
-                                                        <div className="subscription-user-reset-title">
-                                                            <HiOutlineExclamationTriangle />
-                                                            <span>{ui.resetRiskTitle}</span>
-                                                        </div>
-                                                        <div className="subscription-user-reset-text">
-                                                            {ui.resetRiskText}
-                                                        </div>
-                                                    </div>
-                                                <button
-                                                    className="btn btn-secondary btn-sm subscription-user-reset-btn"
-                                                    onClick={handleResetLink}
-                                                    disabled={resetLoading || !normalizedEmail}
-                                                >
-                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
-                                                </button>
+                                                <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} showImportMethods={false} />
                                             </div>
                                         </div>
                                     ) : (

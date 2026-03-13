@@ -85,8 +85,9 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByText('当前类型')).toBeInTheDocument();
         expect(screen.getByText('现在这样用')).toBeInTheDocument();
-        expect(screen.getByText('选好类型后，直接复制或扫码导入')).toBeInTheDocument();
+        expect(screen.getByText('就记这一句：选类型 -> 导入客户端。')).toBeInTheDocument();
         expect(screen.getByText('按你的设备打开')).toBeInTheDocument();
+        expect(screen.queryByText('你的订阅地址')).not.toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');

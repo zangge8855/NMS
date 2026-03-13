@@ -1502,98 +1502,110 @@ export default function SystemSettings() {
 
                         <div className="settings-grid settings-db-grid">
                             <div className="card p-3 settings-mini-card settings-db-control-card">
-                                <h4 className="text-base font-semibold mb-2">切换读写模式</h4>
-                                <div className="text-xs text-muted mb-2">运行时切换数据源，无需重启。file=本地 JSON，db=PostgreSQL，dual=同时写两者。</div>
-                                <div className="form-group">
-                                    <label className="form-label">Read Mode</label>
-                                    <select
-                                        className="form-select"
-                                        value={dbModeDraft.readMode}
-                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
-                                        disabled={!isAdmin}
-                                    >
-                                        {(dbStatus.supportedModes?.readModes || ['file', 'db']).map((mode) => (
-                                            <option key={mode} value={mode}>{mode}</option>
-                                        ))}
-                                    </select>
+                                <div className="settings-db-card-head">
+                                    <h4 className="text-base font-semibold">切换读写模式</h4>
+                                    <div className="text-xs text-muted">运行时切换数据源，无需重启。file=本地 JSON，db=PostgreSQL，dual=同时写两者。</div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Write Mode</label>
-                                    <select
-                                        className="form-select"
-                                        value={dbModeDraft.writeMode}
-                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
-                                        disabled={!isAdmin}
-                                    >
-                                        {(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map((mode) => (
-                                            <option key={mode} value={mode}>{mode}</option>
-                                        ))}
-                                    </select>
+                                <div className="settings-db-card-body">
+                                    <div className="form-group">
+                                        <label className="form-label">Read Mode</label>
+                                        <select
+                                            className="form-select"
+                                            value={dbModeDraft.readMode}
+                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
+                                            disabled={!isAdmin}
+                                        >
+                                            {(dbStatus.supportedModes?.readModes || ['file', 'db']).map((mode) => (
+                                                <option key={mode} value={mode}>{mode}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Write Mode</label>
+                                        <select
+                                            className="form-select"
+                                            value={dbModeDraft.writeMode}
+                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
+                                            disabled={!isAdmin}
+                                        >
+                                            {(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map((mode) => (
+                                                <option key={mode} value={mode}>{mode}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                        <input
+                                            type="checkbox"
+                                            checked={dbModeDraft.hydrateOnReadDb}
+                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
+                                            disabled={!isAdmin}
+                                        />
+                                        read=db 时同步加载到内存缓存
+                                    </label>
                                 </div>
-                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit mb-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={dbModeDraft.hydrateOnReadDb}
-                                        onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
-                                        disabled={!isAdmin}
-                                    />
-                                    read=db 时同步加载到内存缓存
-                                </label>
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={switchDbMode}
-                                    disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                >
-                                    {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
-                                </button>
+                                <div className="settings-db-card-foot">
+                                    <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={switchDbMode}
+                                        disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
+                                    >
+                                        {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="card p-3 settings-mini-card settings-db-control-card">
-                                <h4 className="text-base font-semibold mb-2">Store 回填到数据库</h4>
-                                <div className="text-xs text-muted mb-2">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
-                                <div className="form-group">
-                                    <label className="form-label">Store Keys（逗号分隔，留空=全部）</label>
-                                    <input
-                                        className="form-input"
-                                        value={dbBackfillDraft.keysText}
-                                        onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
-                                        placeholder={(dbStatus.storeKeys || []).join(', ')}
-                                        disabled={!isAdmin}
-                                    />
-                                    <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
+                                <div className="settings-db-card-head">
+                                    <h4 className="text-base font-semibold">Store 回填到数据库</h4>
+                                    <div className="text-xs text-muted">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
                                 </div>
-                                <div className="flex gap-3 mb-3 flex-wrap">
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                <div className="settings-db-card-body">
+                                    <div className="form-group">
+                                        <label className="form-label">Store Keys（逗号分隔，留空=全部）</label>
                                         <input
-                                            type="checkbox"
-                                            checked={dbBackfillDraft.dryRun}
-                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
+                                            className="form-input"
+                                            value={dbBackfillDraft.keysText}
+                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
+                                            placeholder={(dbStatus.storeKeys || []).join(', ')}
                                             disabled={!isAdmin}
                                         />
-                                        Dry Run
-                                    </label>
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                        <input
-                                            type="checkbox"
-                                            checked={dbBackfillDraft.redact}
-                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
-                                            disabled={!isAdmin}
-                                        />
-                                        脱敏写入
-                                    </label>
-                                </div>
-                                <button
-                                    className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
-                                    onClick={runDbBackfill}
-                                    disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                >
-                                    {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
-                                </button>
-                                {dbBackfillResult && (
-                                    <div className="text-sm text-muted mt-3">
-                                        total: {dbBackfillResult.total || 0}，success: {dbBackfillResult.success || 0}，failed: {dbBackfillResult.failed || 0}
+                                        <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
                                     </div>
-                                )}
+                                    <div className="flex gap-3 flex-wrap">
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                            <input
+                                                type="checkbox"
+                                                checked={dbBackfillDraft.dryRun}
+                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
+                                                disabled={!isAdmin}
+                                            />
+                                            Dry Run
+                                        </label>
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                            <input
+                                                type="checkbox"
+                                                checked={dbBackfillDraft.redact}
+                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
+                                                disabled={!isAdmin}
+                                            />
+                                            脱敏写入
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="settings-db-card-foot">
+                                    <button
+                                        className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
+                                        onClick={runDbBackfill}
+                                        disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
+                                    >
+                                        {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
+                                    </button>
+                                    {dbBackfillResult && (
+                                        <div className="text-sm text-muted settings-db-card-result">
+                                            total: {dbBackfillResult.total || 0}，success: {dbBackfillResult.success || 0}，failed: {dbBackfillResult.failed || 0}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

@@ -844,21 +844,21 @@ export default function Servers() {
                                     </td>
                                     <td className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
-                                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
+                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
                                             <HiOutlineEye /> 详情
                                         </button>
                                         <button
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm servers-row-action-main"
                                             onClick={() => handleTest(server.id)}
                                             disabled={loading[`test-${server.id}`]}
                                         >
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
-                                            <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
+                                            <button className="btn btn-ghost btn-sm btn-icon servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
                                             </button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
+                                            <button className="btn btn-danger btn-sm btn-icon servers-row-action-icon" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
                                                 <HiOutlineTrash />
                                             </button>
                                         </div>

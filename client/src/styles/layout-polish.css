@@ -646,10 +646,12 @@
 
 .servers-table-shell {
   overflow: auto;
+  max-width: 100%;
 }
 
 .servers-table {
-  min-width: 1180px;
+  width: 100%;
+  min-width: 1040px;
   table-layout: fixed;
 }
 
@@ -661,42 +663,42 @@
 
 .servers-table th:nth-child(1),
 .servers-table td:nth-child(1) {
-  width: 56px;
+  width: 48px;
 }
 
 .servers-table th:nth-child(2),
 .servers-table td:nth-child(2) {
-  width: 88px;
+  width: 74px;
 }
 
 .servers-table th:nth-child(3),
 .servers-table td:nth-child(3) {
-  width: 29%;
+  width: auto;
 }
 
 .servers-table th:nth-child(4),
 .servers-table td:nth-child(4) {
-  width: 18%;
+  width: 152px;
 }
 
 .servers-table th:nth-child(5),
 .servers-table td:nth-child(5) {
-  width: 14%;
+  width: 124px;
 }
 
 .servers-table th:nth-child(6),
 .servers-table td:nth-child(6) {
-  width: 10%;
+  width: 100px;
 }
 
 .servers-table th:nth-child(7),
 .servers-table td:nth-child(7) {
-  width: 12%;
+  width: 104px;
 }
 
 .servers-table th:nth-child(8),
 .servers-table td:nth-child(8) {
-  width: 230px;
+  width: 176px;
 }
 
 .servers-order-cell,
@@ -756,6 +758,12 @@
   gap: 6px;
 }
 
+.servers-account-stack > span,
+.servers-status-meta {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .servers-status-meta {
   line-height: 1.45;
 }
@@ -767,14 +775,48 @@
 }
 
 .servers-row-actions {
-  justify-content: flex-start;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: stretch;
+  align-items: stretch;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .servers-row-actions .btn {
   min-height: 34px;
+  width: 100%;
+}
+
+.servers-row-action-main {
+  min-width: 0;
+  justify-content: center;
+}
+
+.servers-row-action-icon {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+}
+
+@media (max-width: 1400px) {
+  .servers-table {
+    min-width: 980px;
+  }
+
+  .servers-table th:nth-child(4),
+  .servers-table td:nth-child(4) {
+    width: 140px;
+  }
+
+  .servers-table th:nth-child(5),
+  .servers-table td:nth-child(5) {
+    width: 112px;
+  }
+
+  .servers-table th:nth-child(8),
+  .servers-table td:nth-child(8) {
+    width: 164px;
+  }
 }
 
 .audit-traffic-toolbar .page-toolbar-main {
@@ -1266,6 +1308,40 @@
   align-self: start;
 }
 
+.settings-db-control-card {
+  gap: 12px;
+  padding: 16px;
+}
+
+.settings-db-card-head,
+.settings-db-card-body,
+.settings-db-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-db-card-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--stroke-soft);
+}
+
+.settings-db-card-body {
+  gap: 12px;
+}
+
+.settings-db-card-foot {
+  margin-top: auto;
+  align-items: flex-start;
+  padding-top: 10px;
+  border-top: 1px solid var(--stroke-soft);
+}
+
+.settings-db-card-result {
+  overflow-wrap: anywhere;
+}
+
 .settings-mini-card .text-lg.font-semibold,
 .settings-db-control-card h4,
 .settings-backup-action-card .text-sm.font-medium {
@@ -1294,9 +1370,9 @@
     grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
   }
 
-  .settings-db-grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
-  }
+.settings-db-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+}
 
   .settings-panel--entry {
     grid-column: 1 / -1;
@@ -1333,6 +1409,8 @@
 
   .settings-db-grid > .settings-db-control-card {
     grid-column: span 6;
+    height: 100%;
+    align-self: stretch;
   }
 
   .settings-backup-actions {
