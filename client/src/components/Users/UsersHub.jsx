@@ -1076,22 +1076,24 @@ export default function UsersHub() {
                                         <td data-label="到期时间" className="cell-mono">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
                                         <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">
-                                                <button className="btn btn-secondary btn-sm btn-icon" title="详情" onClick={() => navigate(`/clients/${user.id}`)}>
+                                                <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
                                                     <HiOutlineEye />
                                                 </button>
                                                 {/* Pending: Approve + Delete */}
                                                 {user.status.key === 'pending' && (
                                                     <>
                                                         <button
-                                                            className="btn btn-success btn-sm"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
                                                             title="通过审核"
+                                                            aria-label="通过审核"
                                                             onClick={() => handleSetEnabled(user, true)}
                                                         >
-                                                            <HiOutlineCheck /> 通过
+                                                            <HiOutlineCheck />
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
                                                             title="删除"
+                                                            aria-label="删除"
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
@@ -1103,29 +1105,33 @@ export default function UsersHub() {
                                                 {user.status.key === 'enabled' && (
                                                     <>
                                                         <button
-                                                            className="btn btn-primary btn-sm"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
                                                             title="开通订阅"
+                                                            aria-label="开通订阅"
                                                             onClick={() => openProvisionModal(user)}
                                                         >
-                                                            <HiOutlinePlusCircle /> 开通订阅
+                                                            <HiOutlinePlusCircle />
                                                         </button>
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
                                                             title="编辑"
+                                                            aria-label="编辑"
                                                             onClick={() => openEditModal(user)}
                                                         >
                                                             <HiOutlinePencilSquare />
                                                         </button>
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
                                                             title={user.enabled !== false ? '停用' : '启用'}
+                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
                                                             {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
                                                             title="删除"
+                                                            aria-label="删除"
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
@@ -1137,7 +1143,7 @@ export default function UsersHub() {
                                                 {user.status.key === 'active' && (
                                                     <>
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
                                                             title="查看订阅"
                                                             aria-label="查看订阅"
                                                             onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
@@ -1145,22 +1151,25 @@ export default function UsersHub() {
                                                             <HiOutlineLink />
                                                         </button>
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
                                                             title="编辑"
+                                                            aria-label="编辑"
                                                             onClick={() => openEditModal(user)}
                                                         >
                                                             <HiOutlinePencilSquare />
                                                         </button>
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
                                                             title={user.enabled !== false ? '停用' : '启用'}
+                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
                                                             {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
                                                             title="删除"
+                                                            aria-label="删除"
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />
@@ -1172,15 +1181,17 @@ export default function UsersHub() {
                                                 {user.status.key === 'disabled' && (
                                                     <>
                                                         <button
-                                                            className="btn btn-success btn-sm"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
                                                             title={user.enabled !== false ? '停用' : '启用'}
+                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
                                                             onClick={() => handleSetEnabled(user, user.enabled === false)}
                                                         >
-                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />} {user.enabled !== false ? '停用' : '启用'}
+                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon"
+                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
                                                             title="删除"
+                                                            aria-label="删除"
                                                             onClick={() => handleDelete(user)}
                                                         >
                                                             <HiOutlineTrash />

@@ -11,6 +11,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 - Run NMS behind Nginx or Traefik for HTTPS termination and WebSocket forwarding
 - Keep `data/` and `logs/` on persistent storage, or connect PostgreSQL when you need DB-backed runtime modes
 - Store `.env` outside the repository lifecycle and back it up with the deployment
+- Keep `.env`, `data/*.json`, `logs/`, and build output outside Git; only templates and documentation should be committed
 - Set `SUB_PUBLIC_BASE_URL` to the real external domain before sharing subscription links
 - Enable SMTP only when you need registration, verification, or password reset mail
 
@@ -150,6 +151,7 @@ NMS is easier to operate in production because it already includes:
 - 用 Nginx 或 Traefik 放在 NMS 前面处理 HTTPS 和 WebSocket 转发
 - 将 `data/`、`logs/` 放到持久化存储；如果需要数据库运行模式，再接 PostgreSQL
 - 将 `.env` 放在仓库生命周期之外管理，并和部署一起备份
+- `.env`、`data/*.json`、`logs/` 和构建产物不要提交进 Git，仓库里只保留模板和文档
 - 在对外发放订阅链接前，先把 `SUB_PUBLIC_BASE_URL` 设置成真实公网域名
 - 只有在需要注册、验证邮件或找回密码时才开启 SMTP
 

@@ -49,6 +49,22 @@ export const footerNavItems = [];
 
 export const navItems = [...navSections.flatMap((section) => section.items), ...footerNavItems];
 
+export function getNavItemForPath(pathname) {
+    const currentPath = String(pathname || '').trim();
+    if (!currentPath) return null;
+    if (currentPath === '/') {
+        return navItems.find((item) => item.path === '/') || null;
+    }
+
+    const exactMatch = navItems.find((item) => item.path === currentPath);
+    if (exactMatch) return exactMatch;
+
+    return navItems
+        .filter((item) => item.path && item.path !== '/')
+        .sort((left, right) => right.path.length - left.path.length)
+        .find((item) => currentPath.startsWith(`${item.path}/`)) || null;
+}
+
 function shouldIncludeNavItem(item, { isAdmin, isGlobalView }) {
     if (!isAdmin) return item.path === '/subscriptions';
     if (item.userOnly && isAdmin) return false;

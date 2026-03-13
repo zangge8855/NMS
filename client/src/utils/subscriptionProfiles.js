@@ -114,7 +114,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Shadowrocket',
             platform: 'iPhone / iPad',
             href: buildShadowrocketImportUrl(v2raynUrl || importSourceUrl),
-            hint: '导入通用订阅链接',
+            hint: '导入通用订阅',
             siteUrl: TOOL_SITES.find((item) => item.key === 'shadowrocket')?.url || '',
         },
         {
@@ -122,7 +122,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Clash Verge Rev',
             platform: 'Desktop',
             href: buildClashImportUrl(clashUrl),
-            hint: '导入 Clash / Mihomo YAML 订阅',
+            hint: '导入 YAML 订阅',
             siteUrl: TOOL_SITES.find((item) => item.key === 'clash-verge')?.url || '',
         },
         {
@@ -130,7 +130,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Stash',
             platform: 'iPhone / iPad',
             href: buildStashImportUrl(clashUrl),
-            hint: '导入 Clash / Mihomo YAML 配置',
+            hint: '导入 YAML 配置',
             siteUrl: TOOL_SITES.find((item) => item.key === 'stash')?.url || '',
         },
         {
@@ -138,7 +138,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'Surge',
             platform: 'iPhone / iPad / Mac',
             href: buildSurgeImportUrl(surgeUrl),
-            hint: '导入 Surge 专用 INI 配置',
+            hint: '导入 Surge 配置',
             siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
         },
         {
@@ -146,7 +146,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             label: 'sing-box',
             platform: 'Desktop / Mobile',
             href: singboxImportUrl,
-            hint: '导入专用 Remote Profile',
+            hint: '导入 Remote Profile',
             siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
         },
     ].filter((item) => item.href);
@@ -156,31 +156,31 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             key: 'v2rayn',
             label: '通用链接',
             url: v2raynUrl,
-            hint: '适用于 v2rayN / v2rayNG / Shadowrocket',
+            hint: '给 v2rayN / v2rayNG / Shadowrocket',
         },
         {
             key: 'clash',
             label: 'Clash / Mihomo',
             url: clashUrl,
-            hint: '同一份 YAML，适用于 Clash / Mihomo / Stash 系列',
+            hint: '给 Clash / Mihomo / Stash',
         },
         {
             key: 'singbox',
             label: 'sing-box',
             url: singboxUrl,
-            hint: 'Remote Profile 配置地址',
+            hint: '给 sing-box',
         },
         {
             key: 'surge',
             label: 'Surge',
             url: surgeUrl,
-            hint: 'Surge 专用 INI 配置地址',
+            hint: '给 Surge',
         },
         {
             key: 'raw',
             label: 'Raw',
             url: rawUrl,
-            hint: '原始 URI 列表',
+            hint: '原始节点列表',
         },
     ];
 

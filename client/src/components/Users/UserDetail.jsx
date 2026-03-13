@@ -8,6 +8,7 @@ import ClientIpModal from '../UI/ClientIpModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard } from '../../utils/format.js';
+import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
@@ -111,10 +112,12 @@ function formatSummaryText(item) {
     const parts = [];
 
     if (item.type === 'access') {
+        const geoDisplay = resolveAccessGeoDisplay(item);
         if (item.reason) parts.push(item.reason);
         if (item.mode) parts.push(`模式 ${item.mode}`);
         if (item.format) parts.push(`格式 ${item.format}`);
-        if (item.cfCountry) parts.push(`地区 ${item.cfCountry}`);
+        if (geoDisplay.location && geoDisplay.location !== '-') parts.push(`地区 ${geoDisplay.location}`);
+        if (geoDisplay.carrier) parts.push(`运营商 ${geoDisplay.carrier}`);
         return parts.join(' · ');
     }
 
@@ -366,6 +369,8 @@ export default function UserDetail() {
                 tokenId: e.tokenId || '',
                 serverId: e.serverId || '',
                 userAgent: e.userAgent || '',
+                ipLocation: e.ipLocation || '',
+                ipCarrier: e.ipCarrier || '',
                 cfCountry: e.cfCountry || '',
                 mode: e.mode || '',
                 format: e.format || '',

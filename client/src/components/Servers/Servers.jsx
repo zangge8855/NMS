@@ -594,7 +594,14 @@ export default function Servers() {
                                                 <HiOutlineServerStack />
                                             </div>
                                             <div className="server-card-copy">
-                                                <div className={`server-card-name ${isActive ? 'text-glow' : ''} table-cell-link`} onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}>{server.name}</div>
+                                                <button
+                                                    type="button"
+                                                    className={`table-cell-link-button server-card-name-trigger ${isActive ? 'text-glow' : ''}`}
+                                                    title={server.name}
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
+                                                >
+                                                    <span className="server-card-name">{server.name}</span>
+                                                </button>
                                                 <div className="server-card-url-row">
                                                     <div className="text-sm text-muted font-mono mt-1 server-card-url" title={panelUrl}>{panelUrl}</div>
                                                     {panelUrl && (
@@ -602,6 +609,7 @@ export default function Servers() {
                                                             type="button"
                                                             className="btn btn-ghost btn-xs btn-icon server-card-copy-btn"
                                                             title="复制面板地址"
+                                                            aria-label="复制面板地址"
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
                                                                 await copyToClipboard(panelUrl);
@@ -615,10 +623,10 @@ export default function Servers() {
                                             </div>
                                         </div>
                                         <div className="server-card-controls" onClick={e => e.stopPropagation()}>
-                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title={t('comp.common.edit')}>
+                                            <button className="btn btn-ghost btn-xs btn-icon server-card-control-btn" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
                                             </button>
-                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')}>
+                                            <button className="btn btn-danger btn-xs btn-icon server-card-control-btn" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
                                                 <HiOutlineTrash />
                                             </button>
                                             <input
@@ -636,7 +644,7 @@ export default function Servers() {
                                             <span className="font-medium text-primary">{server.username}</span>
                                         </div>
                                         {isActive && (
-                                            <span className="badge badge-success px-2 py-0.5 text-xs">Active</span>
+                                            <span className="badge badge-success px-2 py-0.5 text-xs">当前节点</span>
                                         )}
                                     </div>
                                     <div className="flex flex-wrap gap-2 mb-4 text-xs server-card-tags">

@@ -73,14 +73,19 @@ router.post('/invite-codes', adminOnly, (req, res) => {
     try {
         const created = inviteCodeStore.create({
             createdBy: req.user?.username || req.user?.role || 'admin',
+            count: req.body?.count,
+            usageLimit: req.body?.usageLimit,
         });
         appendSecurityAudit('invite_code_created', req, {
-            inviteId: created.invite.id,
-            preview: created.invite.preview,
+            inviteId: created.invite?.id || '',
+            preview: created.invite?.preview || '',
+            count: created.count || 1,
+            usageLimit: created.usageLimit || 1,
         });
+        const createdCount = Number(created.count || created.codes?.length || 1);
         return res.json({
             success: true,
-            msg: '邀请码已创建',
+            msg: createdCount > 1 ? `已生成 ${createdCount} 个邀请码` : '邀请码已创建',
             obj: created,
         });
     } catch (error) {

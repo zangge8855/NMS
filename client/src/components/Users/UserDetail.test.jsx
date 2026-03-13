@@ -105,7 +105,8 @@ describe('UserDetail', () => {
                                         clientIp: '203.0.113.8',
                                         tokenId: 'token-1',
                                         userAgent: 'Mihomo',
-                                        cfCountry: 'CN',
+                                        ipLocation: '中国 浙江 杭州 电信',
+                                        ipCarrier: '电信',
                                         mode: 'auto',
                                         format: 'clash',
                                     },
@@ -136,6 +137,8 @@ describe('UserDetail', () => {
         expect(within(timelineRow).getByText('成功')).toBeInTheDocument();
         expect(within(timelineRow).queryByText('失败')).not.toBeInTheDocument();
         expect(within(timelineRow).getByText(/IP: 203.0.113.8/)).toBeInTheDocument();
+        expect(within(timelineRow).getByText(/地区 中国 浙江 杭州/)).toBeInTheDocument();
+        expect(within(timelineRow).getByText(/运营商 中国电信/)).toBeInTheDocument();
     });
 
     it('renders the subscription tab without crashing when opened directly from user management', async () => {

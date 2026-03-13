@@ -23,6 +23,12 @@ function toInt(value, fallback) {
     return Number.isInteger(parsed) ? parsed : fallback;
 }
 
+function toBoundedInt(value, fallback, min, max) {
+    const parsed = Number.parseInt(String(value), 10);
+    if (!Number.isInteger(parsed)) return fallback;
+    return Math.min(Math.max(parsed, min), max);
+}
+
 function parseStoreKeys(value) {
     return String(value || '')
         .split(',')
@@ -124,7 +130,15 @@ export default function SystemSettings() {
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
     const [inviteCodes, setInviteCodes] = useState([]);
-    const [latestInviteCode, setLatestInviteCode] = useState('');
+    const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
+        count: '1',
+        usageLimit: '1',
+    });
+    const [latestInviteCodes, setLatestInviteCodes] = useState([]);
+    const [latestInviteBatch, setLatestInviteBatch] = useState({
+        count: 0,
+        usageLimit: 1,
+    });
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
@@ -320,16 +334,28 @@ export default function SystemSettings() {
 
     const createInviteCode = async () => {
         if (!isAdmin) return;
+        const count = toBoundedInt(inviteGenerationDraft.count, 1, 1, 50);
+        const usageLimit = toBoundedInt(inviteGenerationDraft.usageLimit, 1, 1, 1000);
         setInviteCodeActionLoading(true);
         try {
-            const res = await api.post('/system/invite-codes', {});
-            const code = String(res.data?.obj?.code || '').trim();
-            setLatestInviteCode(code);
-            toast.success(res.data?.msg || '邀请码已创建');
+            const res = await api.post('/system/invite-codes', {
+                count,
+                usageLimit,
+            });
+            const payload = res.data?.obj || {};
+            const codes = Array.isArray(payload.codes)
+                ? payload.codes.map((item) => String(item || '').trim()).filter(Boolean)
+                : [String(payload.code || '').trim()].filter(Boolean);
+            setLatestInviteCodes(codes);
+            setLatestInviteBatch({
+                count: Number(payload.count || codes.length || 0),
+                usageLimit: Number(payload.usageLimit || usageLimit || 1),
+            });
+            toast.success(res.data?.msg || (codes.length > 1 ? `已生成 ${codes.length} 个邀请码` : '邀请码已创建'));
             await fetchInviteCodes({ quiet: true });
-            if (code) {
-                await copyToClipboard(code);
-                toast.success('邀请码已复制到剪贴板');
+            if (codes.length > 0) {
+                await copyToClipboard(codes.join('\n'));
+                toast.success(codes.length > 1 ? `${codes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
             }
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
@@ -342,7 +368,7 @@ export default function SystemSettings() {
         const ok = await confirmAction({
             title: '撤销邀请码',
             message: `确定撤销邀请码 ${invite.preview} 吗？`,
-            details: '撤销后该邀请码将不能再用于注册。',
+            details: `撤销后剩余 ${Math.max(0, Number(invite.remainingUses || 0))} 次将立即失效。`,
             confirmText: '确认撤销',
             tone: 'danger',
         });
@@ -796,13 +822,6 @@ export default function SystemSettings() {
                                         <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
                                             {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
                                         </button>
-                                        <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={createInviteCode}
-                                            disabled={inviteCodeActionLoading}
-                                        >
-                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
-                                        </button>
                                     </div>
                                 )}
                             />
@@ -833,20 +852,75 @@ export default function SystemSettings() {
                                     开启邀请注册
                                 </label>
                             </div>
-                            {latestInviteCode && (
+                            <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                                <div className="text-sm font-medium mb-2">生成参数</div>
+                                <div className="grid gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">本次生成数量</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={1}
+                                            max={50}
+                                            value={inviteGenerationDraft.count}
+                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                ...prev,
+                                                count: e.target.value,
+                                            }))}
+                                        />
+                                        <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">每个邀请码可用次数</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={1}
+                                            max={1000}
+                                            value={inviteGenerationDraft.usageLimit}
+                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                ...prev,
+                                                usageLimit: e.target.value,
+                                            }))}
+                                        />
+                                        <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
+                                    </div>
+                                    <div className="form-group mb-0" style={{ alignSelf: 'end' }}>
+                                        <button
+                                            className="btn btn-primary w-full"
+                                            type="button"
+                                            onClick={createInviteCode}
+                                            disabled={inviteCodeActionLoading}
+                                        >
+                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                                        </button>
+                                        <div className="text-xs text-muted mt-1">例如：生成 5 个邀请码，每个可注册 2 次。</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {latestInviteCodes.length > 0 && (
                                 <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                                    <div className="text-sm font-medium mb-2">最新生成的邀请码</div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <code className="font-mono">{latestInviteCode}</code>
+                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                        <div className="text-sm font-medium">本次生成的邀请码</div>
+                                        <span className="text-xs text-muted">
+                                            {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次
+                                        </span>
+                                    </div>
+                                    <div className="grid gap-2" style={{ display: 'grid', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                                        {latestInviteCodes.map((code) => (
+                                            <code key={code} className="font-mono">{code}</code>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap mt-3">
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm"
                                             onClick={async () => {
-                                                await copyToClipboard(latestInviteCode);
-                                                toast.success('邀请码已复制到剪贴板');
+                                                await copyToClipboard(latestInviteCodes.join('\n'));
+                                                toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
                                             }}
                                         >
-                                            复制
+                                            {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
                                         </button>
                                     </div>
                                     <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
@@ -858,6 +932,7 @@ export default function SystemSettings() {
                                         <tr>
                                             <th>预览</th>
                                             <th>状态</th>
+                                            <th>次数</th>
                                             <th>创建时间</th>
                                             <th>使用情况</th>
                                             <th>操作</th>
@@ -866,7 +941,7 @@ export default function SystemSettings() {
                                     <tbody>
                                         {inviteCodes.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="text-center text-muted">暂无邀请码</td>
+                                                <td colSpan={6} className="text-center text-muted">暂无邀请码</td>
                                             </tr>
                                         ) : (
                                             inviteCodes.map((invite) => (
@@ -876,6 +951,10 @@ export default function SystemSettings() {
                                                         <span className={`badge ${invite.status === 'active' ? 'badge-success' : invite.status === 'used' ? 'badge-neutral' : 'badge-danger'}`}>
                                                             {invite.status === 'active' ? '可用' : invite.status === 'used' ? '已使用' : '已撤销'}
                                                         </span>
+                                                    </td>
+                                                    <td data-label="次数" className="text-sm text-muted">
+                                                        已用 {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
+                                                        {invite.status === 'active' ? ` · 剩余 ${Number(invite.remainingUses || 0)}` : ''}
                                                     </td>
                                                     <td data-label="创建时间">{invite.createdAt ? new Date(invite.createdAt).toLocaleString('zh-CN') : '-'}</td>
                                                     <td data-label="使用情况" className="text-sm text-muted">

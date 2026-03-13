@@ -18,7 +18,7 @@
 
 ```env
 DB_ENABLED=true
-DB_URL=postgres://postgres:postgres@127.0.0.1:5432/nms_dev
+DB_URL=postgres://<db-user>:<db-password>@127.0.0.1:5432/nms_dev
 DB_SCHEMA=nms_dev
 DB_MIGRATION_AUTO=true
 STORE_READ_MODE=file
@@ -108,7 +108,7 @@ Add the following variables to `.env`:
 
 ```env
 DB_ENABLED=true
-DB_URL=postgres://postgres:postgres@127.0.0.1:5432/nms_dev
+DB_URL=postgres://<db-user>:<db-password>@127.0.0.1:5432/nms_dev
 DB_SCHEMA=nms_dev
 DB_MIGRATION_AUTO=true
 STORE_READ_MODE=file

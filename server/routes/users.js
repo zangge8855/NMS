@@ -5,6 +5,7 @@ import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { normalizeEmail } from '../lib/normalize.js';
+import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
 
 const router = Router();
 
@@ -47,7 +48,7 @@ function mergeAuditResults(results = [], pageSize = 50) {
 }
 
 // GET /api/users/:id/detail — aggregate user detail
-router.get('/:id/detail', (req, res) => {
+router.get('/:id/detail', async (req, res) => {
     const user = userStore.getById(req.params.id);
     if (!user) {
         return res.status(404).json({ success: false, msg: '用户不存在' });
@@ -100,7 +101,7 @@ router.get('/:id/detail', (req, res) => {
     let subscriptionAccess = { items: [], total: 0 };
     if (subscriptionEmail) {
         try {
-            subscriptionAccess = auditStore.querySubscriptionAccess({
+            subscriptionAccess = await querySubscriptionAccess({
                 email: subscriptionEmail,
                 pageSize: 50,
             });

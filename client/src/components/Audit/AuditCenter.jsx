@@ -33,6 +33,7 @@ import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -42,10 +43,29 @@ function formatDateTime(value) {
 }
 
 function statusBadgeClass(status) {
-    const normalized = String(status || '').toLowerCase();
+    const normalized = normalizeAuditStatus(status);
     if (normalized === 'success') return 'badge-success';
+    if (normalized === 'info') return 'badge-info';
     if (normalized === 'failed' || normalized === 'denied' || normalized === 'revoked' || normalized === 'expired') return 'badge-danger';
     return 'badge-neutral';
+}
+
+function normalizeAuditStatus(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'ok') return 'success';
+    return normalized;
+}
+
+function formatAuditStatusLabel(value) {
+    const normalized = normalizeAuditStatus(value);
+    if (!normalized) return '-';
+    if (normalized === 'success') return '成功';
+    if (normalized === 'failed') return '失败';
+    if (normalized === 'denied') return '已拒绝';
+    if (normalized === 'revoked') return '已撤销';
+    if (normalized === 'expired') return '已过期';
+    if (normalized === 'info') return '信息';
+    return String(value || '-');
 }
 
 function trendLabel(value, granularity) {
@@ -74,58 +94,6 @@ const AUDIT_EVENT_LABELS = {
     subscription_token_revoked: '撤销订阅链接',
     subscription_public_denied: '订阅访问被拒绝',
 };
-
-const CARRIER_ALIASES = [
-    { canonical: '中国电信', variants: ['中国电信', '电信'] },
-    { canonical: '中国联通', variants: ['中国联通', '联通'] },
-    { canonical: '中国移动', variants: ['中国移动', '移动'] },
-    { canonical: '中国广电', variants: ['中国广电', '广电'] },
-    { canonical: '中国教育网', variants: ['中国教育网', '教育网', 'CERNET'] },
-    { canonical: '长城宽带', variants: ['长城宽带', '长宽'] },
-];
-
-function normalizeCarrierLabel(value) {
-    const text = String(value || '').trim();
-    if (!text) return '';
-    const matched = CARRIER_ALIASES.find((item) => item.variants.some((variant) => text.includes(variant)));
-    return matched?.canonical || text;
-}
-
-function stripCarrierFromLocation(location, carrier) {
-    const text = String(location || '').trim();
-    const normalizedCarrier = normalizeCarrierLabel(carrier);
-    if (!text || !normalizedCarrier) return text;
-
-    const matched = CARRIER_ALIASES.find((item) => item.canonical === normalizedCarrier);
-    const variants = matched?.variants || [normalizedCarrier];
-
-    return variants.reduce((result, variant) => result.replaceAll(variant, ' '), text)
-        .replace(/[|/]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/^[,，\-\s]+|[,，\-\s]+$/g, '')
-        .trim();
-}
-
-function resolveAccessGeoDisplay(item) {
-    const rawLocation = String(item?.ipLocation || item?.cfCountry || '').trim();
-    const carrier = normalizeCarrierLabel(item?.ipCarrier || '');
-
-    if (!rawLocation) {
-        return { location: carrier || '-', carrier: '' };
-    }
-    if (!carrier) {
-        return { location: rawLocation, carrier: '' };
-    }
-
-    const strippedLocation = stripCarrierFromLocation(rawLocation, carrier);
-    if (!strippedLocation) {
-        return { location: rawLocation, carrier: '' };
-    }
-    if (strippedLocation !== rawLocation) {
-        return { location: strippedLocation, carrier };
-    }
-    return { location: rawLocation, carrier };
-}
 
 function formatAuditEventLabel(item) {
     return AUDIT_EVENT_LABELS[String(item?.eventType || '').trim()] || item?.eventType || '-';
@@ -414,9 +382,9 @@ export default function AuditCenter() {
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
                                     >
                                         <option value="">全部结果</option>
-                                        <option value="success">success</option>
-                                        <option value="failed">failed</option>
-                                        <option value="info">info</option>
+                                        <option value="success">成功</option>
+                                        <option value="failed">失败</option>
+                                        <option value="info">信息</option>
                                     </select>
                                     <input
                                         className="form-input w-180"
@@ -443,7 +411,7 @@ export default function AuditCenter() {
                             </div>
 
                             <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
-                                <table className="table">
+                                <table className="table audit-events-table">
                                     <thead>
                                         <tr>
                                             <th>时间</th>
@@ -465,12 +433,12 @@ export default function AuditCenter() {
                                                 <tr key={item.id}>
                                                     <td data-label="时间">{formatDateTime(item.ts)}</td>
                                                     <td data-label="事件">{formatAuditEventLabel(item)}</td>
-                                                    <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{item.outcome || '-'}</span></td>
+                                                    <td data-label="结果"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome)}</span></td>
                                                     <td data-label="操作者">{item.actor || '-'}</td>
                                                     <td data-label="节点">{item.serverId || '-'}</td>
                                                     <td data-label="用户">{resolveAuditTarget(item)}</td>
                                                     <td data-label="操作" className="table-cell-actions">
-                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情">
+                                                        <button className="btn btn-secondary btn-sm btn-icon" onClick={() => setSelectedEvent(item)} title="查看详情" aria-label="查看详情">
                                                             <HiOutlineEye />
                                                         </button>
                                                     </td>
@@ -671,15 +639,15 @@ export default function AuditCenter() {
                                 />
                                 <select
                                     className="form-select w-160"
-                                    value={accessFilters.status}
-                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
-                                >
-                                    <option value="">全部状态</option>
-                                    <option value="success">success</option>
-                                    <option value="denied">denied</option>
-                                    <option value="expired">expired</option>
-                                    <option value="revoked">revoked</option>
-                                </select>
+                                        value={accessFilters.status}
+                                        onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
+                                    >
+                                        <option value="">全部状态</option>
+                                        <option value="success">成功</option>
+                                        <option value="denied">已拒绝</option>
+                                        <option value="expired">已过期</option>
+                                        <option value="revoked">已撤销</option>
+                                    </select>
                                 <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
                                     <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> 查询
                                 </button>
@@ -705,22 +673,14 @@ export default function AuditCenter() {
                             </div>
                             {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
                                 <div className="card audit-stat-card" key={key}>
-                                    <div className="card-header"><span className="card-title">{key}</span><HiOutlineDocumentText /></div>
+                                    <div className="card-header"><span className="card-title">{formatAuditStatusLabel(key)}</span><HiOutlineDocumentText /></div>
                                     <div className="card-value">{value}</div>
                                 </div>
                             ))}
                         </div>
 
                         <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
-                            <table className="table" style={{ minWidth: '1160px' }}>
-                                <colgroup>
-                                    <col style={{ width: '220px' }} />
-                                    <col style={{ width: '180px' }} />
-                                    <col style={{ width: '80px' }} />
-                                    <col style={{ width: '180px' }} />
-                                    <col style={{ width: '120px' }} />
-                                    <col />
-                                </colgroup>
+                            <table className="table audit-subscriptions-table">
                                 <thead>
                                     <tr>
                                         <th>时间</th>
@@ -749,7 +709,7 @@ export default function AuditCenter() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td data-label="状态"><span className={`badge ${statusBadgeClass(item.status)}`}>{item.status}</span></td>
+                                            <td data-label="状态"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status)}</span></td>
                                             <td data-label="真实 IP" style={{ wordBreak: 'break-all' }}>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
@@ -817,7 +777,7 @@ export default function AuditCenter() {
                                 </div>
                                 <div>
                                     <span className="text-muted">结果: </span>
-                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{selectedEvent.outcome || '-'}</span>
+                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{formatAuditStatusLabel(selectedEvent.outcome)}</span>
                                 </div>
                                 {selectedEvent.ip && (
                                     <div>

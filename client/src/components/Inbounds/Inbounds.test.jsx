@@ -177,6 +177,8 @@ describe('Inbounds', () => {
 
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
         expect(within(aliceRow).getByRole('button', { name: /禁用/ })).toBeInTheDocument();
+        expect(within(aliceRow).getByRole('button', { name: '限制' })).toBeInTheDocument();
+        expect(within(aliceRow).queryByText('限定策略')).not.toBeInTheDocument();
 
         expect(within(bobRow).getByText('离线')).toBeInTheDocument();
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();

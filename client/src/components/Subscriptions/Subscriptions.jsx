@@ -445,11 +445,11 @@ export default function Subscriptions() {
                             </div>
                             <div className="text-xs text-muted mb-2">{activeProfile?.hint || '请选择订阅类型'}</div>
                             <div className="text-xs text-muted mb-2">
-                                v2rayN / v2rayNG / Shadowrocket 优先使用通用节点订阅；Clash / Mihomo / Stash 共用同一份 YAML；sing-box 和 Surge 使用各自专用配置。
+                                通用链接给 v2rayN / v2rayNG / Shadowrocket；Clash / Mihomo / Stash 选 YAML；sing-box 和 Surge 选专用。
                             </div>
                             {result.bundle?.externalConverterConfigured && (
                                 <div className="text-xs text-muted mb-2">
-                                    当前专用客户端订阅已切换到外部转换器：
+                                    当前专用订阅走外部转换器：
                                     {' '}
                                     <a
                                         href={result.bundle.externalConverterBaseUrl}
@@ -469,7 +469,7 @@ export default function Subscriptions() {
                                 </div>
                             )}
                             <div className="text-xs text-muted mb-3">
-                                如订阅地址疑似泄露，可直接重置。重置后旧链接会立即失效。
+                                不会用就先复制地址；怀疑泄露就重置链接。
                             </div>
                             <div className="subscription-link-grid grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                                 <input className="form-input font-mono text-xs" value={activeProfile?.url || ''} readOnly />
@@ -489,10 +489,7 @@ export default function Subscriptions() {
                                 <div className="flex flex-col gap-2">
                                     <div className="text-sm font-medium">订阅网址二维码</div>
                                     <div className="text-xs text-muted">
-                                        当前二维码内容就是 {activeProfile?.label || '当前订阅'} 的订阅网址，切换上方订阅类型后会立即更新。
-                                    </div>
-                                    <div className="text-xs text-muted">
-                                        这是订阅链接本身的二维码，不是快捷导入协议地址。
+                                        二维码就是当前这条订阅地址。先选类型，再扫码。
                                     </div>
                                     {result.email && (
                                         <div className="text-xs text-muted font-mono break-all">

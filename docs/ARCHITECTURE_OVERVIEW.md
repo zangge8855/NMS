@@ -6,7 +6,7 @@
 
 NMS 由三层组成：
 
-- 前端：`client/` 下的 React + Vite 单页应用，负责 Dashboard、Servers、Inbounds、Clients、Subscriptions、Audit、System Settings 等页面
+- 前端：`client/` 下的 React + Vite 单页应用，负责 Dashboard、Servers、Inbounds、Users、Subscriptions、Audit、System Settings 等页面
 - 后端：`server/index.js` 启动的 Express 应用，提供 REST API、WebSocket ticket、静态资源托管与统一错误处理
 - 数据层：默认使用 `data/` 下的文件存储，可按配置切换到 PostgreSQL 或文件 / 数据库双写模式
 
@@ -30,10 +30,10 @@ NMS 由三层组成：
 
 - 认证与安全：`auth`, `middleware/auth.js`, `services/authSessionService.js`
 - 节点与面板：`routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
-- 用户与客户端：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
-- 订阅中心：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
+- 用户与订阅管理：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
+- 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
-- 系统设置：`routes/system.js`, `repositories/systemSettingsRepository.js`
+- 系统设置与邀请码：`routes/system.js`, `repositories/systemSettingsRepository.js`, `store/inviteCodeStore.js`
 
 ### 存储模式
 
@@ -56,9 +56,9 @@ NMS 由三层组成：
 
 - Layout：Sidebar + Header + Content
 - 监控：Dashboard
-- 管理：Inbounds、Clients、Subscriptions、Node Console、3x-ui Capabilities、Node Tools
-- 运维：Audit、Settings
-- 系统入口：Servers
+- 管理：Inbounds、Users、Audit、Node Console、3x-ui Capabilities、Node Tools
+- 运维：Settings、Servers
+- 用户自助：Subscriptions
 
 ### 安全边界
 
@@ -86,7 +86,7 @@ NMS 由三层组成：
 
 NMS is built from three layers:
 
-- Frontend: a React + Vite SPA under `client/`, covering Dashboard, Servers, Inbounds, Clients, Subscriptions, Audit, and System Settings
+- Frontend: a React + Vite SPA under `client/`, covering Dashboard, Servers, Inbounds, Users, Subscriptions, Audit, and System Settings
 - Backend: an Express app started by `server/index.js`, exposing REST APIs, WebSocket ticket endpoints, static asset hosting, and global error handling
 - Data layer: file-backed stores under `data/` by default, with optional PostgreSQL or dual-write runtime modes
 
@@ -110,10 +110,10 @@ NMS is built from three layers:
 
 - Auth and security: `auth`, `middleware/auth.js`, `services/authSessionService.js`
 - Servers and panel access: `routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
-- Users and clients: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
-- Subscription center: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
+- Users and subscription administration: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
+- Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
-- System settings: `routes/system.js`, `repositories/systemSettingsRepository.js`
+- System settings and invite codes: `routes/system.js`, `repositories/systemSettingsRepository.js`, `store/inviteCodeStore.js`
 
 ### Storage modes
 
@@ -136,9 +136,9 @@ Related environment variables:
 
 - Layout: Sidebar + Header + Content
 - Monitor: Dashboard
-- Manage: Inbounds, Clients, Subscriptions, Node Console, 3x-ui Capabilities, Node Tools
-- Operate: Audit, Settings
-- System entry: Servers
+- Manage: Inbounds, Users, Audit, Node Console, 3x-ui Capabilities, Node Tools
+- Operate: Settings, Servers
+- End-user self-service: Subscriptions
 
 ### Security boundaries
 

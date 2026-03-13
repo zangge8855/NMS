@@ -70,6 +70,22 @@ function normalizeText(value) {
     return String(value || '').trim();
 }
 
+function normalizePositiveInt(value, fallback, options = {}) {
+    const parsed = Number.parseInt(String(value), 10);
+    let output = Number.isInteger(parsed) ? parsed : fallback;
+    if (Number.isInteger(options.min)) output = Math.max(options.min, output);
+    if (Number.isInteger(options.max)) output = Math.min(options.max, output);
+    return output;
+}
+
+function normalizeNonNegativeInt(value, fallback, options = {}) {
+    const parsed = Number.parseInt(String(value), 10);
+    let output = Number.isInteger(parsed) ? parsed : fallback;
+    output = Math.max(0, output);
+    if (Number.isInteger(options.max)) output = Math.min(options.max, output);
+    return output;
+}
+
 function normalizeRecord(input = {}) {
     const rawId = normalizeText(input.id);
     const id = rawId || crypto.randomUUID();
@@ -82,6 +98,12 @@ function normalizeRecord(input = {}) {
     const usedByUsername = normalizeText(input.usedByUsername);
     const revokedAt = normalizeText(input.revokedAt);
     const revokedBy = normalizeText(input.revokedBy);
+    const usageLimit = normalizePositiveInt(input.usageLimit, 1, { min: 1, max: 1000 });
+    const legacyUsedCount = usedAt ? 1 : 0;
+    const usedCount = Math.min(
+        usageLimit,
+        normalizeNonNegativeInt(input.usedCount, legacyUsedCount, { max: 1000 })
+    );
 
     return {
         id,
@@ -89,6 +111,8 @@ function normalizeRecord(input = {}) {
         preview,
         createdAt,
         createdBy,
+        usageLimit,
+        usedCount,
         usedAt: usedAt || null,
         usedByUserId: usedByUserId || '',
         usedByUsername: usedByUsername || '',
@@ -99,7 +123,7 @@ function normalizeRecord(input = {}) {
 
 function resolveStatus(record = {}) {
     if (record.revokedAt) return 'revoked';
-    if (record.usedAt) return 'used';
+    if (Number(record.usedCount || 0) >= Number(record.usageLimit || 1)) return 'used';
     return 'active';
 }
 
@@ -144,12 +168,20 @@ class InviteCodeStore {
     }
 
     _toPublicRecord(record = {}) {
+        const usageLimit = normalizePositiveInt(record.usageLimit, 1, { min: 1, max: 1000 });
+        const usedCount = Math.min(
+            usageLimit,
+            normalizeNonNegativeInt(record.usedCount, record.usedAt ? 1 : 0, { max: 1000 })
+        );
         return {
             id: record.id,
             preview: record.preview,
             status: resolveStatus(record),
             createdAt: record.createdAt,
             createdBy: record.createdBy || '',
+            usageLimit,
+            usedCount,
+            remainingUses: Math.max(0, usageLimit - usedCount),
             usedAt: record.usedAt || null,
             usedByUserId: record.usedByUserId || '',
             usedByUsername: record.usedByUsername || '',
@@ -165,21 +197,47 @@ class InviteCodeStore {
     }
 
     create(options = {}) {
-        const code = generateInviteCode();
-        const record = normalizeRecord({
-            id: crypto.randomUUID(),
-            codeHash: hashInviteCode(code),
-            preview: buildPreview(code),
-            createdAt: new Date().toISOString(),
-            createdBy: normalizeText(options.createdBy),
-        });
+        const count = normalizePositiveInt(options.count, 1, { min: 1, max: 50 });
+        const usageLimit = normalizePositiveInt(options.usageLimit, 1, { min: 1, max: 1000 });
+        const existingHashes = new Set(this.invites.map((item) => item.codeHash));
+        const createdHashes = new Set();
+        const codes = [];
+        const records = [];
+        let attempts = 0;
 
-        this.invites.unshift(record);
+        while (records.length < count && attempts < count * 40) {
+            attempts += 1;
+            const code = generateInviteCode();
+            const codeHash = hashInviteCode(code);
+            if (existingHashes.has(codeHash) || createdHashes.has(codeHash)) continue;
+
+            createdHashes.add(codeHash);
+            codes.push(code);
+            records.push(normalizeRecord({
+                id: crypto.randomUUID(),
+                codeHash,
+                preview: buildPreview(code),
+                createdAt: new Date().toISOString(),
+                createdBy: normalizeText(options.createdBy),
+                usageLimit,
+                usedCount: 0,
+            }));
+        }
+
+        if (records.length !== count) {
+            throw new Error('生成邀请码失败，请重试');
+        }
+
+        this.invites.unshift(...records);
         this._save();
 
         return {
-            code,
-            invite: this._toPublicRecord(record),
+            code: codes[0] || '',
+            codes,
+            count: codes.length,
+            usageLimit,
+            invite: this._toPublicRecord(records[0]),
+            invites: records.map((item) => this._toPublicRecord(item)),
         };
     }
 
@@ -191,8 +249,8 @@ class InviteCodeStore {
         if (record.revokedAt) {
             throw new Error('邀请码已失效');
         }
-        if (record.usedAt) {
-            throw new Error('邀请码已被使用');
+        if (Number(record.usedCount || 0) >= Number(record.usageLimit || 1)) {
+            throw new Error(Number(record.usageLimit || 1) > 1 ? '邀请码已用完' : '邀请码已被使用');
         }
         return this._toPublicRecord(record);
     }
@@ -205,10 +263,11 @@ class InviteCodeStore {
         if (record.revokedAt) {
             throw new Error('邀请码已失效');
         }
-        if (record.usedAt) {
-            throw new Error('邀请码已被使用');
+        if (Number(record.usedCount || 0) >= Number(record.usageLimit || 1)) {
+            throw new Error(Number(record.usageLimit || 1) > 1 ? '邀请码已用完' : '邀请码已被使用');
         }
 
+        record.usedCount = normalizeNonNegativeInt(record.usedCount, record.usedAt ? 1 : 0, { max: 1000 }) + 1;
         record.usedAt = new Date().toISOString();
         record.usedByUserId = normalizeText(options.usedByUserId);
         record.usedByUsername = normalizeText(options.usedByUsername);
@@ -221,11 +280,11 @@ class InviteCodeStore {
         if (!record) {
             throw new Error('邀请码不存在');
         }
-        if (record.usedAt) {
-            throw new Error('已使用的邀请码不能撤销');
-        }
         if (record.revokedAt) {
             return this._toPublicRecord(record);
+        }
+        if (Number(record.usedCount || 0) >= Number(record.usageLimit || 1)) {
+            throw new Error(Number(record.usageLimit || 1) > 1 ? '已用完的邀请码不能撤销' : '已使用的邀请码不能撤销');
         }
 
         record.revokedAt = new Date().toISOString();

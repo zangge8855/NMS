@@ -1249,7 +1249,7 @@ export default function Inbounds() {
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
-                                                                                        <span className="badge badge-warning">已限定</span>
+                                                                                        <span className="badge badge-warning">已限制</span>
                                                                                     )}
                                                                                 </div>
                                                                             </td>
@@ -1323,7 +1323,7 @@ export default function Inbounds() {
                                                                                 <div className="inbounds-client-actions flex gap-2">
                                                                                     <button
                                                                                         type="button"
-                                                                                        className={`btn btn-sm ${cl.enable !== false ? 'btn-danger' : 'btn-success'}`}
+                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
                                                                                         title={toggleTitle}
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
@@ -1338,19 +1338,19 @@ export default function Inbounds() {
                                                                                     </button>
                                                                                     <button
                                                                                         type="button"
-                                                                                        className={`btn btn-ghost btn-sm inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                                                                        title={hasOverride ? '已设置单独限定，点击修改' : '设置单独限定'}
+                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
+                                                                                        title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
                                                                                             openEntitlementModal(ib, cl);
                                                                                         }}
                                                                                     >
-                                                                                        {hasOverride ? '修改限定' : '限定策略'}
+                                                                                        限制
                                                                                     </button>
                                                                                     <button
                                                                                         type="button"
-                                                                                        className="btn btn-danger btn-sm btn-icon"
+                                                                                        className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
                                                                                         title="删除该用户"
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
@@ -1358,7 +1358,7 @@ export default function Inbounds() {
                                                                                             handleDeleteClient(ib, cl);
                                                                                         }}
                                                                                     >
-                                                                                        <HiOutlineTrash />
+                                                                                        <HiOutlineTrash /> 删除
                                                                                     </button>
                                                                                 </div>
                                                                             </td>
@@ -1427,7 +1427,7 @@ export default function Inbounds() {
                     <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">单独限定</h3>
+                                <h3 className="modal-title">单独限制</h3>
                                 <button className="modal-close" onClick={closeEntitlementModal}>
                                     <HiOutlineXMark />
                                 </button>
@@ -1482,7 +1482,7 @@ export default function Inbounds() {
                                         {entitlementSaving ? <span className="spinner" /> : '恢复统一策略'}
                                     </button>
                                     <button type="submit" className="btn btn-primary" disabled={entitlementSaving}>
-                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存限定</>}
+                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存限制</>}
                                     </button>
                                 </div>
                             </form>

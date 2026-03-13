@@ -1,6 +1,5 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { screen, waitFor, within } from '@testing-library/react';
 import api from '../../api/client.js';
 import { renderWithRouter } from '../../test/render.jsx';
 import AuditCenter from './AuditCenter.jsx';
@@ -13,7 +12,7 @@ vi.mock('../../api/client.js', () => ({
 }));
 
 vi.mock('../../contexts/ConfirmContext.jsx', () => ({
-    useConfirm: () => vi.fn(),
+    useConfirm: () => vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../Layout/Header.jsx', () => ({
@@ -21,11 +20,7 @@ vi.mock('../Layout/Header.jsx', () => ({
 }));
 
 vi.mock('../Tasks/Tasks.jsx', () => ({
-    default: () => <div>Tasks</div>,
-}));
-
-vi.mock('../Logs/Logs.jsx', () => ({
-    default: () => <div>Logs</div>,
+    default: () => <div>tasks</div>,
 }));
 
 vi.mock('react-hot-toast', () => ({
@@ -35,88 +30,115 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
-describe('AuditCenter', () => {
+describe('AuditCenter localization', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.delete.mockReset();
+    });
+
+    it('renders localized outcome labels in the events tab', async () => {
         api.get.mockImplementation((url) => {
-            if (String(url).startsWith('/audit/events?')) {
+            if (url.startsWith('/audit/events?')) {
                 return Promise.resolve({
                     data: {
                         obj: {
-                            items: [],
-                            total: 0,
-                            page: 1,
-                            totalPages: 1,
-                        },
-                    },
-                });
-            }
-            if (String(url).startsWith('/subscriptions/access/summary?')) {
-                return Promise.resolve({
-                    data: {
-                        obj: {
-                            total: 1,
-                            uniqueIpCount: 1,
-                            uniqueUsers: 1,
-                            statusBreakdown: { success: 1 },
-                            topIps: [{ ip: '203.0.113.9', count: 1 }],
-                            from: '',
-                            to: '',
-                        },
-                    },
-                });
-            }
-            if (String(url).startsWith('/subscriptions/access?')) {
-                return Promise.resolve({
-                    data: {
-                        obj: {
-                            items: [{
-                                id: 'access-1',
-                                ts: '2026-03-11T10:00:00.000Z',
-                                email: 'user@example.com',
-                                username: 'alice',
-                                userLabel: 'alice',
-                                status: 'success',
-                                clientIp: '203.0.113.9',
-                                proxyIp: '172.16.0.10',
-                                ipSource: 'x-forwarded-for',
-                                ipLocation: '中国 广东 广州 电信',
-                                ipCarrier: '中国电信',
-                                cfCountry: 'US',
-                                userAgent: 'Clash.Meta',
-                            }],
+                            items: [
+                                {
+                                    id: 'event-1',
+                                    ts: '2026-03-13T10:00:00.000Z',
+                                    eventType: 'login_success',
+                                    outcome: 'success',
+                                    actor: 'review-admin',
+                                    serverId: 'server-a',
+                                    details: {
+                                        email: 'alice@example.com',
+                                    },
+                                },
+                            ],
                             total: 1,
                             page: 1,
                             totalPages: 1,
-                            statusBreakdown: { success: 1 },
                         },
                     },
                 });
             }
             throw new Error(`Unexpected GET ${url}`);
         });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('登录成功')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: '成功' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: '失败' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: '信息' })).toBeInTheDocument();
+
+        const successBadge = screen.getAllByText('成功').find((node) => node.className.includes('badge'));
+        expect(successBadge).toBeTruthy();
+        expect(screen.queryByText('success')).not.toBeInTheDocument();
     });
 
-    it('shows only the real IP column in subscription access records', async () => {
-        const user = userEvent.setup();
-
-        renderWithRouter(<AuditCenter />);
-
-        await user.click(screen.getByRole('button', { name: '订阅访问' }));
-
-        await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith('/subscriptions/access?page=1&pageSize=30');
-            expect(api.get).toHaveBeenCalledWith('/subscriptions/access/summary?page=1&pageSize=30');
+    it('renders localized subscription access statuses in the subscriptions tab', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/subscriptions/access?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    id: 'access-1',
+                                    ts: '2026-03-13T10:00:00.000Z',
+                                    userLabel: 'Alice',
+                                    email: 'alice@example.com',
+                                    status: 'revoked',
+                                    clientIp: '203.0.113.1',
+                                    ipSource: 'real',
+                                    userAgent: 'Clash',
+                                },
+                            ],
+                            total: 1,
+                            page: 1,
+                            totalPages: 1,
+                            statusBreakdown: {
+                                revoked: 1,
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/subscriptions/access/summary?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            total: 1,
+                            uniqueIpCount: 1,
+                            uniqueUsers: 1,
+                            statusBreakdown: {
+                                revoked: 1,
+                            },
+                            topIps: [],
+                            from: '',
+                            to: '',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
         });
 
-        expect(await screen.findByRole('columnheader', { name: '真实 IP' })).toBeInTheDocument();
-        expect(screen.queryByRole('columnheader', { name: '代理 IP' })).not.toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: '用户' })).toBeInTheDocument();
-        expect(screen.getByText('alice')).toBeInTheDocument();
-        expect(screen.getByText('203.0.113.9')).toBeInTheDocument();
-        expect(screen.getByText('中国 广东 广州')).toBeInTheDocument();
-        expect(screen.getAllByText('中国电信')).toHaveLength(1);
-        expect(screen.queryByText('172.16.0.10')).not.toBeInTheDocument();
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
+
+        expect(await screen.findByText('Alice')).toBeInTheDocument();
+        expect(screen.queryByText('暂无访问记录')).not.toBeInTheDocument();
+        expect(screen.getByRole('option', { name: '已撤销' })).toBeInTheDocument();
+
+        const subscriptionsTable = document.querySelector('.audit-subscriptions-table');
+        if (!subscriptionsTable) throw new Error('Missing subscriptions table');
+        const tableUtils = within(subscriptionsTable);
+        expect(tableUtils.getByText('已撤销')).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(screen.getAllByText('已撤销').length).toBeGreaterThan(0);
+        });
+        expect(screen.queryByText('revoked')).not.toBeInTheDocument();
     });
 });

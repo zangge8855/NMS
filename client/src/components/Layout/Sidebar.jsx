@@ -341,15 +341,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                     </button>
                 </div>
             </nav>
-
-            <div className="sidebar-user">
-                <div className="sidebar-user-avatar">{user?.username?.[0]?.toUpperCase() || 'U'}</div>
-                <div className="sidebar-user-info">
-                    <div className="sidebar-user-name">{user?.username || t('shell.roleUser')}</div>
-                    <div className="sidebar-user-role">{isAdmin ? t('shell.roleAdmin') : t('shell.roleUser')}</div>
-                </div>
-            </div>
-
             {isAdmin && (
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (

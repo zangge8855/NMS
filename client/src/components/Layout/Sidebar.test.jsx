@@ -67,4 +67,10 @@ describe('Sidebar', () => {
             expect(flyout).toHaveTextContent('仪表盘');
         });
     });
+
+    it('does not render the old bottom-left account card anymore', () => {
+        const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
+
+        expect(container.querySelector('.sidebar-user')).toBeNull();
+    });
 });

@@ -64,4 +64,20 @@ describe('Header', () => {
 
         expect(screen.getByRole('heading', { name: '服务器 · 华东核心节点-A-超长名称' })).toHaveClass('header-title--wrap');
     });
+
+    it('shows the current user identity in the top-right action area', () => {
+        renderWithRouter(<Header title="订阅中心" />);
+
+        expect(screen.getByText('review-admin')).toBeInTheDocument();
+        expect(screen.getByText('管理员')).toBeInTheDocument();
+        expect(document.querySelector('.header-user-chip')).toBeInTheDocument();
+    });
+
+    it('reuses the sidebar navigation icon for top-level pages and nested detail pages', () => {
+        const { container: auditContainer } = renderWithRouter(<Header title="审计中心" />, { route: '/audit' });
+        expect(auditContainer.querySelector('.header-icon')).toBeInTheDocument();
+
+        const { container: detailContainer } = renderWithRouter(<Header title="用户详情 · alice" />, { route: '/clients/user-1' });
+        expect(detailContainer.querySelector('.header-icon')).toBeInTheDocument();
+    });
 });
