@@ -34,6 +34,7 @@ describe('AuditCenter localization', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.delete.mockReset();
+        window.localStorage.clear();
     });
 
     it('renders localized outcome labels in the events tab', async () => {
@@ -54,8 +55,30 @@ describe('AuditCenter localization', () => {
                                         email: 'alice@example.com',
                                     },
                                 },
+                                {
+                                    id: 'event-2',
+                                    ts: '2026-03-13T10:10:00.000Z',
+                                    eventType: 'user_subscription_provisioned',
+                                    outcome: 'success',
+                                    actor: 'review-admin',
+                                    serverId: 'server-a',
+                                    details: {
+                                        email: 'alice@example.com',
+                                    },
+                                },
+                                {
+                                    id: 'event-3',
+                                    ts: '2026-03-13T10:20:00.000Z',
+                                    eventType: 'user_enabled',
+                                    outcome: 'success',
+                                    actor: 'review-admin',
+                                    serverId: 'server-a',
+                                    details: {
+                                        email: 'alice@example.com',
+                                    },
+                                },
                             ],
-                            total: 1,
+                            total: 3,
                             page: 1,
                             totalPages: 1,
                         },
@@ -68,6 +91,8 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit' });
 
         expect(await screen.findByText('登录成功')).toBeInTheDocument();
+        expect(screen.getByText('开通订阅')).toBeInTheDocument();
+        expect(screen.getByText('启用用户')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '成功' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '失败' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '信息' })).toBeInTheDocument();
@@ -75,6 +100,8 @@ describe('AuditCenter localization', () => {
         const successBadge = screen.getAllByText('成功').find((node) => node.className.includes('badge'));
         expect(successBadge).toBeTruthy();
         expect(screen.queryByText('success')).not.toBeInTheDocument();
+        expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
+        expect(screen.queryByText('user_enabled')).not.toBeInTheDocument();
     });
 
     it('renders localized subscription access statuses in the subscriptions tab', async () => {
@@ -140,5 +167,103 @@ describe('AuditCenter localization', () => {
             expect(screen.getAllByText('已撤销').length).toBeGreaterThan(0);
         });
         expect(screen.queryByText('revoked')).not.toBeInTheDocument();
+    });
+
+    it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            sampleCount: 12,
+                            activeUsers: 1,
+                            userLevelSupported: true,
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                            topUsers: [
+                                {
+                                    email: 'alice@example.com',
+                                    username: 'alice',
+                                    displayLabel: 'alice · alice@example.com',
+                                    totalBytes: 2048,
+                                },
+                            ],
+                            topServers: [],
+                            collection: {
+                                warnings: [],
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/users/alice%40example.com/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'alice@example.com',
+                            username: 'alice',
+                            displayLabel: 'alice · alice@example.com',
+                            granularity: 'hour',
+                            points: [],
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        expect(await screen.findByText('活跃账号')).toBeInTheDocument();
+        expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
+        expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
+    });
+
+    it('switches audit event and actor labels with the selected locale', async () => {
+        window.localStorage.setItem('nms_locale', 'en-US');
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/audit/events?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    id: 'event-en-1',
+                                    ts: '2026-03-13T10:00:00.000Z',
+                                    eventType: 'user_subscription_provisioned',
+                                    outcome: 'success',
+                                    actor: 'anonymous',
+                                    actorRole: 'anonymous',
+                                    details: {
+                                        email: 'alice@example.com',
+                                    },
+                                },
+                            ],
+                            total: 1,
+                            page: 1,
+                            totalPages: 1,
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('Subscription Provisioned')).toBeInTheDocument();
+        expect(screen.getByText('Anonymous Request')).toBeInTheDocument();
+        expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
+        expect(screen.queryByText(/^anonymous$/)).not.toBeInTheDocument();
     });
 });

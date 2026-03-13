@@ -1004,21 +1004,20 @@ export default function UsersHub() {
                                         </span>
                                     </button>
                                 </th>
-                                <th className="users-name-column">用户名</th>
-                                <th className="users-email-column">邮箱</th>
+                                <th className="users-identity-column">账号</th>
                                 <th>状态</th>
                                 <th>在线状态</th>
                                 <th className="text-right">节点数</th>
                                 <th className="text-right">已用流量</th>
-                                <th>到期时间</th>
+                                <th className="users-expiry-column">到期时间</th>
                                 <th className="users-actions-column">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={10}><SkeletonTable rows={8} cols={10} colTemplate="40px 88px 1.1fr 1.3fr 120px 170px 90px 120px 140px 132px" /></td></tr>
+                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" /></td></tr>
                             ) : enrichedUsers.length === 0 ? (
-                                <tr><td colSpan={10}>
+                                <tr><td colSpan={9}>
                                     <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
                                 </td></tr>
                             ) : (
@@ -1026,6 +1025,7 @@ export default function UsersHub() {
                                     const sequenceNumber = sequenceDirection === 'asc'
                                         ? index + 1
                                         : enrichedUsers.length - index;
+                                    const displayEmail = user.email || user.subscriptionEmail || '';
                                     return (
                                     <tr
                                         key={user.id}
@@ -1037,30 +1037,20 @@ export default function UsersHub() {
                                             <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                         </td>
                                         <td
-                                            data-label="用户名"
-                                            className="users-name-cell"
+                                            data-label="账号"
+                                            className="users-identity-cell"
                                             onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
                                         >
-                                            <button type="button" className="table-cell-link table-cell-link-button users-name-link" title={user.username}>
-                                                <span className="font-medium">{user.username}</span>
+                                            <button
+                                                type="button"
+                                                className="table-cell-link table-cell-link-button users-identity-link"
+                                                title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                                            >
+                                                <span className="users-identity-primary">{user.username}</span>
+                                                <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
+                                                    {displayEmail || '未设置邮箱'}
+                                                </span>
                                             </button>
-                                        </td>
-                                        <td data-label="邮箱" className="text-sm users-email-cell">
-                                            {user.email || user.subscriptionEmail ? (
-                                                <button
-                                                    type="button"
-                                                    className="table-cell-link table-cell-link-button users-email-link"
-                                                    title={user.email || user.subscriptionEmail}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/clients/${user.id}?tab=subscription`);
-                                                    }}
-                                                >
-                                                    {user.email || user.subscriptionEmail}
-                                                </button>
-                                            ) : (
-                                                <span className="text-muted">-</span>
-                                            )}
                                         </td>
                                         <td data-label="状态">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
@@ -1073,7 +1063,13 @@ export default function UsersHub() {
                                         </td>
                                         <td data-label="节点数" className="cell-mono-right">{user.clientData.count || '-'}</td>
                                         <td data-label="已用流量" className="cell-mono-right">{user.clientData.totalUsed ? formatBytes(user.clientData.totalUsed) : '-'}</td>
-                                        <td data-label="到期时间" className="cell-mono">{user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}</td>
+                                        <td
+                                            data-label="到期时间"
+                                            className="cell-mono users-expiry-cell"
+                                            title={user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}
+                                        >
+                                            {user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues) : '-'}
+                                        </td>
                                         <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">
                                                 <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>

@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
 import serverStore from './serverStore.js';
+import userStore from './userStore.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
@@ -72,6 +73,72 @@ function normalizeClientId(value) {
 
 function normalizeClientEmail(value) {
     return String(value || '').trim().toLowerCase();
+}
+
+function hashMaskedEmailCandidate(text) {
+    return crypto.createHash('sha256').update(String(text || '').trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+function maskEmail(value) {
+    const normalized = normalizeClientEmail(value);
+    if (!normalized) return '';
+    return `${hashMaskedEmailCandidate(normalized)}@masked.local`;
+}
+
+function resolveMaskedEmail(email) {
+    const value = normalizeClientEmail(email);
+    if (!value.endsWith('@masked.local')) return value;
+    const hash = value.slice(0, value.indexOf('@masked.local'));
+    if (!hash) return value;
+
+    const candidates = new Set();
+    userStore.getAll().forEach((user) => {
+        const emailValue = normalizeClientEmail(user?.email);
+        const subscriptionEmail = normalizeClientEmail(user?.subscriptionEmail);
+        if (emailValue) candidates.add(emailValue);
+        if (subscriptionEmail) candidates.add(subscriptionEmail);
+    });
+
+    for (const candidate of candidates) {
+        if (hashMaskedEmailCandidate(candidate) === hash) {
+            return candidate;
+        }
+    }
+
+    return value;
+}
+
+function resolveTrafficUserInfo(email) {
+    const normalizedInput = normalizeClientEmail(email);
+    const resolvedEmail = resolveMaskedEmail(normalizedInput);
+    const user = userStore.getBySubscriptionEmail(resolvedEmail)
+        || userStore.getByEmail(resolvedEmail)
+        || null;
+
+    if (!user) return null;
+
+    const loginEmail = normalizeClientEmail(user?.email);
+    const subscriptionEmail = normalizeClientEmail(user?.subscriptionEmail || user?.email);
+    const canonicalEmail = subscriptionEmail || loginEmail || resolvedEmail;
+    const username = String(user?.username || '').trim();
+    const aliases = new Set(
+        [normalizedInput, resolvedEmail, loginEmail, subscriptionEmail]
+            .filter(Boolean)
+            .flatMap((value) => {
+                const masked = maskEmail(value);
+                return masked ? [value, masked] : [value];
+            })
+    );
+
+    return {
+        userId: String(user?.id || '').trim(),
+        username,
+        email: canonicalEmail,
+        displayLabel: username
+            ? `${username} · ${canonicalEmail || resolvedEmail || normalizedInput}`
+            : (canonicalEmail || resolvedEmail || normalizedInput),
+        aliases,
+    };
 }
 
 function collectStatsCandidates(inbound) {
@@ -456,7 +523,18 @@ class TrafficStatsStore {
 
             const email = String(item.email || '').trim().toLowerCase();
             if (email) {
-                users.set(email, (users.get(email) || 0) + toNonNegativeInt(item.totalBytes, 0));
+                const userInfo = resolveTrafficUserInfo(email);
+                if (userInfo?.email) {
+                    const current = users.get(userInfo.email) || {
+                        userId: userInfo.userId,
+                        username: userInfo.username,
+                        email: userInfo.email,
+                        displayLabel: userInfo.displayLabel,
+                        totalBytes: 0,
+                    };
+                    current.totalBytes += toNonNegativeInt(item.totalBytes, 0);
+                    users.set(userInfo.email, current);
+                }
             }
             const serverId = String(item.serverId || '');
             if (serverId) {
@@ -470,8 +548,7 @@ class TrafficStatsStore {
             }
         }
 
-        const topUsers = Array.from(users.entries())
-            .map(([email, totalBytes]) => ({ email, totalBytes }))
+        const topUsers = Array.from(users.values())
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 
@@ -493,10 +570,13 @@ class TrafficStatsStore {
     }
 
     getUserTrend(email, options = {}) {
-        const normalizedEmail = String(email || '').trim().toLowerCase();
-        if (!normalizedEmail) {
+        const userInfo = resolveTrafficUserInfo(email);
+        const normalizedEmail = String(userInfo?.email || '').trim().toLowerCase();
+        if (!normalizedEmail || !userInfo) {
             return {
                 email: normalizedEmail,
+                username: '',
+                displayLabel: normalizedEmail || '-',
                 granularity: 'hour',
                 from: null,
                 to: null,
@@ -513,8 +593,7 @@ class TrafficStatsStore {
         const samples = this._filterSamples({
             fromTs: range.fromTs,
             toTs: range.toTs,
-            email: normalizedEmail,
-        });
+        }).filter((item) => userInfo.aliases.has(normalizeClientEmail(item.email)));
         const points = this._aggregateTrend(samples, granularity);
         const totals = points.reduce((acc, item) => {
             acc.upBytes += item.upBytes;
@@ -525,6 +604,8 @@ class TrafficStatsStore {
 
         return {
             email: normalizedEmail,
+            username: userInfo.username,
+            displayLabel: userInfo.displayLabel,
             granularity,
             from: range.from,
             to: range.to,
@@ -586,4 +667,4 @@ class TrafficStatsStore {
 
 const trafficStatsStore = new TrafficStatsStore();
 export default trafficStatsStore;
-export { TrafficStatsStore, extractInboundClients, shouldUseInboundTotalFallback };
+export { TrafficStatsStore, extractInboundClients, resolveTrafficUserInfo, shouldUseInboundTotalFallback };

@@ -149,7 +149,9 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect((await screen.findAllByRole('link', { name: '快捷导入' })).length).toBeGreaterThan(0);
         expect(screen.getAllByText('Shadowrocket').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Clash Verge Rev').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Clash / Mihomo 系列').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Verge Rev').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Mihomo Party').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Surge').length).toBeGreaterThan(0);
         expect(screen.getAllByText('sing-box').length).toBeGreaterThan(0);

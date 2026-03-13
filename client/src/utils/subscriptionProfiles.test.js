@@ -18,8 +18,9 @@ describe('subscription profile bundle', () => {
         expect(bundle.surgeUrl).toBe('https://sub.example.com/base?format=surge');
         expect(bundle.singboxImportUrl).toContain('sing-box://import-remote-profile');
         expect(bundle.importActions.find((item) => item.key === 'shadowrocket')?.href).toContain('shadowrocket://add/');
-        expect(bundle.importActions.find((item) => item.key === 'clash-verge')?.href).toContain('clash://install-config');
-        expect(bundle.importActions.find((item) => item.key === 'stash')?.href).toContain('stash://install-config');
+        expect(bundle.importActions.find((item) => item.key === 'clash-family')?.actions?.find((item) => item.key === 'clash')?.href).toContain('clash://install-config');
+        expect(bundle.importActions.find((item) => item.key === 'clash-family')?.actions?.find((item) => item.key === 'stash')?.href).toContain('stash://install-config');
+        expect(bundle.importActions.find((item) => item.key === 'clash-family')?.siteLinks).toHaveLength(3);
         expect(bundle.importActions.find((item) => item.key === 'surge')?.href).toContain('surge:///install-config');
         expect(bundle.importActions.find((item) => item.key === 'singbox')?.href).toContain('sing-box://import-remote-profile');
         expect(findSubscriptionProfile(bundle, 'mihomo')?.label).toBe('Clash / Mihomo');

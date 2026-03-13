@@ -66,8 +66,11 @@ describe('Servers', () => {
         const nameTrigger = screen.getByRole('button', { name: longName });
         expect(nameTrigger).toHaveAttribute('title', longName);
         expect(screen.getByText('当前节点')).toBeInTheDocument();
+        expect(screen.getByText('当前视角')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '复制面板地址' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
+        expect(screen.queryByText('已注册的服务器')).not.toBeInTheDocument();
+        expect(screen.queryByText('管理您的 3x-ui 面板连接')).not.toBeInTheDocument();
     });
 });

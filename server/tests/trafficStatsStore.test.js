@@ -1,13 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.DATA_DIR = path.join(__dirname, '.test_data');
 process.env.NODE_ENV = 'test';
 
-const { shouldUseInboundTotalFallback } = await import('../store/trafficStatsStore.js');
+const { TrafficStatsStore, shouldUseInboundTotalFallback } = await import('../store/trafficStatsStore.js');
+const userStore = (await import('../store/userStore.js')).default;
+
+function maskEmail(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const hash = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+    return `${hash}@masked.local`;
+}
 
 describe('traffic stats inbound fallback', () => {
     it('uses inbound totals when client traffic is absent', () => {
@@ -21,5 +29,77 @@ describe('traffic stats inbound fallback', () => {
 
     it('skips inbound totals only when client traffic is both available and captured', () => {
         assert.equal(shouldUseInboundTotalFallback(true, true), false);
+    });
+
+    it('maps masked traffic samples back to registered users for overview and trend queries', () => {
+        const originalUsers = userStore.exportState();
+        try {
+            userStore.importState({
+                users: [
+                    {
+                        id: 'user-1',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const store = new TrafficStatsStore();
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-1',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: maskEmail('alice@example.com'),
+                        clientIdentifier: 'user-1',
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    {
+                        id: 'sample-2',
+                        ts: '2026-03-13T01:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'ghost@masked.local',
+                        clientIdentifier: 'ghost',
+                        upBytes: 500,
+                        downBytes: 500,
+                        totalBytes: 1000,
+                    },
+                ],
+                counters: {},
+                meta: { lastCollectionAt: '2026-03-13T01:00:00.000Z' },
+            });
+
+            const overview = store.getOverview({ days: 30, top: 10 });
+            assert.equal(overview.activeUsers, 1);
+            assert.equal(overview.topUsers.length, 1);
+            assert.equal(overview.topUsers[0].email, 'alice@example.com');
+            assert.equal(overview.topUsers[0].username, 'alice');
+            assert.equal(overview.topUsers[0].displayLabel, 'alice · alice@example.com');
+            assert.equal(overview.topUsers[0].totalBytes, 300);
+
+            const trend = store.getUserTrend('alice@example.com', { days: 30, granularity: 'hour' });
+            assert.equal(trend.email, 'alice@example.com');
+            assert.equal(trend.username, 'alice');
+            assert.equal(trend.displayLabel, 'alice · alice@example.com');
+            assert.equal(trend.totals.totalBytes, 300);
+            assert.equal(trend.points.length, 1);
+        } finally {
+            userStore.importState(originalUsers);
+        }
     });
 });

@@ -1,20 +1,8 @@
 import React from 'react';
 import { HiOutlineXMark } from 'react-icons/hi2';
 import ModalShell from '../UI/ModalShell.jsx';
-
-function labelByAction(action) {
-    const map = {
-        add: '新增',
-        update: '更新',
-        enable: '启用',
-        disable: '停用',
-        delete: '删除',
-        resetTraffic: '重置流量',
-        client_toggle: '启停同步',
-        client_deploy: '策略下发',
-    };
-    return map[action] || action || '-';
-}
+import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { formatTaskActionLabel } from '../../utils/taskLabels.js';
 
 function formatInboundLabel(item = {}) {
     const inboundId = item.inboundId ?? '';
@@ -33,6 +21,7 @@ function formatTargetLabel(item = {}) {
 }
 
 export default function BatchResultModal({ isOpen, onClose, title = '批量执行结果', data = null }) {
+    const { locale } = useI18n();
     if (!isOpen || !data) return null;
 
     const summary = data.summary || { total: 0, success: 0, failed: 0 };
@@ -84,7 +73,7 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                                                     {item.success ? '成功' : '失败'}
                                                 </span>
                                             </td>
-                                            <td data-label="操作">{labelByAction(item.action || item.stage)}</td>
+                                            <td data-label="操作">{formatTaskActionLabel(item.action || item.stage, locale)}</td>
                                             <td data-label="节点">{item.serverName || item.serverId || '-'}</td>
                                             <td data-label="入站">{formatInboundLabel(item)}</td>
                                             <td data-label="对象">{formatTargetLabel(item)}</td>

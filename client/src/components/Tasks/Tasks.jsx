@@ -5,19 +5,21 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
+import {
+    formatRetryGroupLabel,
+    formatTaskActionLabel,
+    formatTaskActionPair,
+    formatTaskTypeLabel,
+} from '../../utils/taskLabels.js';
 import toast from 'react-hot-toast';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 
-function formatAction(type, action) {
-    return `${type || '-'} / ${action || '-'}`;
-}
-
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
@@ -180,11 +182,11 @@ export default function Tasks({ embedded = false }) {
                     <div className="tasks-filter-row audit-filter-bar">
                         <select className="form-select w-140" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                             <option value="all">全部类型</option>
-                            {typeOptions.map((x) => <option key={x} value={x}>{x}</option>)}
+                            {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                         </select>
                         <select className="form-select w-140" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                             <option value="all">全部动作</option>
-                            {actionOptions.map((x) => <option key={x} value={x}>{x}</option>)}
+                            {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                         </select>
                         <select className="form-select w-180" value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                             <option value="all">全部节点</option>
@@ -199,10 +201,10 @@ export default function Tasks({ embedded = false }) {
                             仅失败任务
                         </label>
                         <select className="form-select w-180" value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
-                            <option value="none">重试策略: 全部失败项</option>
-                            <option value="server">重试策略: 按节点分组</option>
-                            <option value="error">重试策略: 按错误分组</option>
-                            <option value="server_error">重试策略: 节点+错误分组</option>
+                            <option value="none">{formatRetryGroupLabel('none', locale)}</option>
+                            <option value="server">{formatRetryGroupLabel('server', locale)}</option>
+                            <option value="error">{formatRetryGroupLabel('error', locale)}</option>
+                            <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
                         </select>
                         <div className="text-sm text-muted tasks-filter-meta">
                             共 {filteredTasks.length} 条
@@ -240,7 +242,7 @@ export default function Tasks({ embedded = false }) {
                                 filteredTasks.map((task) => (
                                     <tr key={task.id}>
                                         <td data-label="时间">{new Date(task.createdAt).toLocaleString('zh-CN')}</td>
-                                        <td data-label="类型 / 动作">{formatAction(task.type, task.action)}</td>
+                                        <td data-label="类型 / 动作">{formatTaskActionPair(task.type, task.action, locale)}</td>
                                         <td data-label="节点" className="text-sm text-muted">
                                             {(() => {
                                                 const servers = getTaskServers(task);

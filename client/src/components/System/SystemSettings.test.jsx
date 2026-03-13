@@ -93,6 +93,8 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
+        expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
+        expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
     });

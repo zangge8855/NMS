@@ -128,6 +128,7 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
+        expect(screen.getByRole('button', { name: '节点' })).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: '活动日志' }));
 
         const timelineItem = await screen.findByText('Token token-1');
@@ -213,5 +214,17 @@ describe('UserDetail', () => {
         expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
         expect(screen.getByText('subscription-client-links')).toBeInTheDocument();
         expect(screen.getByText('qr-code')).toBeInTheDocument();
+    });
+
+    it('uses node wording for the node tab and empty state', async () => {
+        const user = userEvent.setup();
+
+        renderWithRouter(<UserDetail />);
+
+        await screen.findByText('用户详情 · alice');
+        await user.click(screen.getByRole('button', { name: '节点' }));
+
+        expect(await screen.findByText('暂无节点记录')).toBeInTheDocument();
+        expect(screen.queryByText('暂无客户端')).not.toBeInTheDocument();
     });
 });

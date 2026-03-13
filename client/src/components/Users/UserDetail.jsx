@@ -646,7 +646,7 @@ export default function UserDetail() {
     const tabs = [
         { key: 'overview', label: '概览' },
         { key: 'subscription', label: '订阅' },
-        { key: 'clients', label: '客户端' },
+        { key: 'clients', label: '节点' },
         { key: 'tokens', label: '订阅令牌' },
         { key: 'activity', label: '活动日志' },
     ];
@@ -741,12 +741,12 @@ export default function UserDetail() {
                             <div>
                                 <div className="stat-mini-grid">
                                     <StatCard label="总流量" value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
-                                    <StatCard label="客户端数" value={clientSummaryLoading ? null : clientData.length} />
+                                    <StatCard label="节点数" value={clientSummaryLoading ? null : clientData.length} />
                                     <StatCard label="Token 数" value={tokens.length} />
                                     <StatCard label="审计记录" value={detail?.recentAudit?.total || 0} />
                                 </div>
                                 {clientSummaryLoading && (
-                                    <p className="text-muted text-sm mb-4">客户端汇总加载中...</p>
+                                    <p className="text-muted text-sm mb-4">节点汇总加载中...</p>
                                 )}
                                 {totalTraffic > 0 && (
                                     <p className="text-muted text-sm mb-4">总流量: {formatBytes(totalTraffic)}</p>
@@ -882,7 +882,7 @@ export default function UserDetail() {
                                 {clientsLoading ? (
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
-                                    <EmptyState title="暂无客户端" subtitle="该用户在各节点上没有客户端配置" />
+                                    <EmptyState title="暂无节点记录" subtitle="该用户在各节点上还没有关联配置" />
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">
@@ -903,7 +903,7 @@ export default function UserDetail() {
                                                     const clientIpUnsupported = supportState?.supported === false;
                                                     const clientIpDisabled = !c.email || clientIpUnsupported;
                                                     const clientIpTitle = !c.email
-                                                        ? '该客户端缺少邮箱标识'
+                                                        ? '该节点记录缺少邮箱标识'
                                                         : (clientIpUnsupported ? supportState.reason : '查看该用户在当前节点上的代理访问 IP');
                                                     return (
                                                     <tr key={i}>

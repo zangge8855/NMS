@@ -166,13 +166,33 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
     // Global mode: server selection
     const [selectedServerIds, setSelectedServerIds] = useState([]);
+    const hasInitializedGlobalSelectionRef = useRef(false);
 
-    // Initialize selected servers when entering global mode
+    // Only auto-select all servers the first time we enter global mode.
+    // After that, an empty selection is treated as an intentional filter state.
     useEffect(() => {
-        if (isGlobal && servers.length > 0 && selectedServerIds.length === 0) {
-            setSelectedServerIds(servers.map(s => s.id));
+        if (!isGlobal) {
+            hasInitializedGlobalSelectionRef.current = false;
+            return;
         }
-    }, [isGlobal, servers, selectedServerIds.length]);
+
+        const availableServerIds = servers.map((server) => server.id);
+        if (availableServerIds.length === 0) {
+            setSelectedServerIds([]);
+            return;
+        }
+
+        if (!hasInitializedGlobalSelectionRef.current) {
+            hasInitializedGlobalSelectionRef.current = true;
+            setSelectedServerIds((prev) => {
+                const preserved = prev.filter((id) => availableServerIds.includes(id));
+                return preserved.length > 0 ? preserved : availableServerIds;
+            });
+            return;
+        }
+
+        setSelectedServerIds((prev) => prev.filter((id) => availableServerIds.includes(id)));
+    }, [isGlobal, servers]);
 
     const logContainerRef = useRef(null);
     const resolvedSource = lockedSourceMode === 'auto'

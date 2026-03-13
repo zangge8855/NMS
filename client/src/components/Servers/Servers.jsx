@@ -26,7 +26,7 @@ const PANEL_AUTH_REPAIR_CODES = new Set([
 ]);
 
 export default function Servers() {
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const navigate = useNavigate();
     const {
         servers, activeServerId, selectServer,
@@ -489,6 +489,28 @@ export default function Servers() {
     }, [servers, searchKeyword, filterGroup, filterEnvironment, filterHealth]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
+    const activeServer = useMemo(
+        () => servers.find((item) => item.id === activeServerId) || null,
+        [servers, activeServerId]
+    );
+    const uiText = useMemo(() => (
+        locale === 'zh-CN'
+            ? {
+                total: '服务器',
+                groups: '分组',
+                current: '当前视角',
+                global: '全局视角',
+                filterSummary: `显示 ${filteredServers.length} / ${servers.length}`,
+            }
+            : {
+                total: 'Servers',
+                groups: 'Groups',
+                current: 'Current scope',
+                global: 'Global scope',
+                filterSummary: `Showing ${filteredServers.length} / ${servers.length}`,
+            }
+    ), [filteredServers.length, locale, servers.length]);
+    const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
 
     return (
         <>
@@ -497,7 +519,7 @@ export default function Servers() {
                 subtitle={t('pages.servers.subtitle')}
                 eyebrow={t('pages.servers.eyebrow')}
             />
-            <div className="page-content page-enter">
+            <div className="page-content page-content--wide page-enter">
                 <div className="servers-toolbar glass-panel mb-6">
                     {selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
@@ -514,9 +536,19 @@ export default function Servers() {
                         </div>
                     ) : (
                         <>
-                            <div className="servers-toolbar-copy">
-                                <h2 className="text-glow section-title">已注册的服务器</h2>
-                                <p className="text-muted mt-1 section-subtitle">管理您的 3x-ui 面板连接</p>
+                            <div className="servers-toolbar-summary" aria-label={uiText.current}>
+                                <div className="servers-summary-pill">
+                                    <span className="servers-summary-label">{uiText.total}</span>
+                                    <span className="servers-summary-value">{servers.length}</span>
+                                </div>
+                                <div className="servers-summary-pill">
+                                    <span className="servers-summary-label">{uiText.groups}</span>
+                                    <span className="servers-summary-value">{groupOptions.length}</span>
+                                </div>
+                                <div className="servers-summary-pill servers-summary-pill--wide">
+                                    <span className="servers-summary-label">{uiText.current}</span>
+                                    <span className="servers-summary-value" title={activeScopeLabel}>{activeScopeLabel}</span>
+                                </div>
                             </div>
                             <div className="servers-toolbar-actions">
                                 <button
@@ -537,20 +569,19 @@ export default function Servers() {
                 </div>
 
                 <div className="card mb-4 p-3 servers-filter-card">
-                    <div className="flex items-center gap-3 servers-filter-bar" style={{ flexWrap: 'wrap' }}>
+                    <div className="flex items-center gap-3 servers-filter-bar">
                         <input
                             className="form-input servers-filter-search"
-                            style={{ width: 'min(320px, 100%)' }}
                             placeholder="搜索名称 / URL / 标签"
                             value={searchKeyword}
                             onChange={(e) => setSearchKeyword(e.target.value)}
                         />
-                        <select className="form-select servers-filter-select" style={{ width: '160px' }} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                        <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
                             <option value="all">全部分组</option>
                             {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                         </select>
-                        <div className="text-sm text-muted servers-filter-summary" style={{ marginLeft: 'auto' }}>
-                            显示 {filteredServers.length} / {servers.length}
+                        <div className="text-sm text-muted servers-filter-summary">
+                            {uiText.filterSummary}
                         </div>
                     </div>
                 </div>

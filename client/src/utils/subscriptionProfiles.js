@@ -83,10 +83,16 @@ function buildSingboxImportUrl(sourceUrl, name = 'NMS') {
 const TOOL_SITES = [
     { key: 'v2rayn', label: 'v2rayN', url: 'https://github.com/2dust/v2rayN' },
     { key: 'v2rayng', label: 'v2rayNG', url: 'https://github.com/2dust/v2rayNG' },
-    { key: 'clash-verge', label: 'Clash Verge Rev', url: 'https://www.clashverge.dev/' },
-    { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
     { key: 'shadowrocket', label: 'Shadowrocket', url: 'https://apps.apple.com/app/shadowrocket/id932747118' },
-    { key: 'stash', label: 'Stash', url: 'https://stash.wiki/installation/' },
+    {
+        key: 'clash-family',
+        label: 'Clash / Mihomo 系列',
+        links: [
+            { key: 'clash-verge', label: 'Verge Rev', url: 'https://www.clashverge.dev/' },
+            { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
+            { key: 'stash', label: 'Stash', url: 'https://stash.wiki/installation/' },
+        ],
+    },
     { key: 'surge', label: 'Surge', url: 'https://nssurge.com/' },
     { key: 'singbox', label: 'sing-box', url: 'https://sing-box.sagernet.org/clients/' },
 ];
@@ -108,6 +114,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
     const externalConverterHost = extractUrlHost(externalConverterBaseUrl);
     const externalConverterConfigured = wrappedProfileUrls.length > 0 && !!externalConverterBaseUrl;
     const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
+    const clashFamilyLinks = TOOL_SITES.find((item) => item.key === 'clash-family')?.links || [];
     const importActions = [
         {
             key: 'shadowrocket',
@@ -118,20 +125,23 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             siteUrl: TOOL_SITES.find((item) => item.key === 'shadowrocket')?.url || '',
         },
         {
-            key: 'clash-verge',
-            label: 'Clash Verge Rev',
-            platform: 'Desktop',
-            href: buildClashImportUrl(clashUrl),
-            hint: '导入 YAML 订阅',
-            siteUrl: TOOL_SITES.find((item) => item.key === 'clash-verge')?.url || '',
-        },
-        {
-            key: 'stash',
-            label: 'Stash',
-            platform: 'iPhone / iPad',
-            href: buildStashImportUrl(clashUrl),
-            hint: '导入 YAML 配置',
-            siteUrl: TOOL_SITES.find((item) => item.key === 'stash')?.url || '',
+            key: 'clash-family',
+            label: 'Clash / Mihomo 系列',
+            platform: 'Desktop / iPhone / iPad',
+            hint: 'Verge Rev / Mihomo Party / Stash 共用这一组 YAML',
+            actions: [
+                {
+                    key: 'clash',
+                    label: 'Clash / Mihomo',
+                    href: buildClashImportUrl(clashUrl),
+                },
+                {
+                    key: 'stash',
+                    label: 'Stash',
+                    href: buildStashImportUrl(clashUrl),
+                },
+            ].filter((item) => item.href),
+            siteLinks: clashFamilyLinks,
         },
         {
             key: 'surge',
@@ -149,7 +159,7 @@ export function buildSubscriptionProfileBundle(payload = {}) {
             hint: '导入 Remote Profile',
             siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
         },
-    ].filter((item) => item.href);
+    ].filter((item) => item.href || (Array.isArray(item.actions) && item.actions.length > 0));
 
     const profiles = [
         {

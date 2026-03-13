@@ -931,17 +931,17 @@ export default function Inbounds() {
                                     />
                                 </th>
                                 <th className="inbounds-expand-col" aria-hidden="true" />
-                                <th>序号</th>
+                                <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>序号</th>
                                 {filterServerId === 'all' && (
-                                    <th>节点</th>
+                                    <th className="inbounds-node-col">节点</th>
                                 )}
-                                <th>备注</th>
-                                <th>协议</th>
-                                <th>监听:端口</th>
-                                <th>用户数</th>
-                                <th>流量 (上/下)</th>
-                                <th>状态</th>
-                                <th>操作</th>
+                                <th className="inbounds-remark-col">备注</th>
+                                <th className="inbounds-protocol-col">协议</th>
+                                <th className="inbounds-port-col">监听:端口</th>
+                                <th className="inbounds-users-col">用户数</th>
+                                <th className="inbounds-traffic-col">流量 (上/下)</th>
+                                <th className="inbounds-status-col">状态</th>
+                                <th className="inbounds-actions-col">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1005,7 +1005,11 @@ export default function Inbounds() {
                                                         <HiChevronRight />
                                                     </span>
                                                 </td>
-                                                <td data-label="序号" onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
+                                                <td
+                                                    data-label="序号"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className={`inbounds-sequence-cell-td${filterServerId === 'all' ? ' is-compact' : ''}`}
+                                                >
                                                     <div className="inbounds-sequence-cell">
                                                         {canAdjustOrder ? (
                                                             <input
@@ -1067,10 +1071,11 @@ export default function Inbounds() {
                                                     </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
-                                                    <td data-label="节点" onClick={(event) => event.stopPropagation()}>
-                                                        <div className="inbounds-sequence-cell">
-                                                            <span className="badge badge-neutral flex items-center gap-1 w-fit">
-                                                                <HiOutlineServer size={10} /> {ib.serverName}
+                                                    <td data-label="节点" onClick={(event) => event.stopPropagation()} className="inbounds-node-cell">
+                                                        <div className="inbounds-node-cell-inner">
+                                                            <span className="badge badge-neutral inbounds-node-badge">
+                                                                <HiOutlineServer size={10} />
+                                                                <span className="inbounds-node-name" title={ib.serverName}>{ib.serverName}</span>
                                                             </span>
                                                             {isFirstInServerGroup && (
                                                                 <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>

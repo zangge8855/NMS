@@ -5,7 +5,14 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import {
+    HiOutlineSun,
+    HiOutlineMoon,
+    HiOutlineComputerDesktop,
+    HiOutlineMagnifyingGlass,
+    HiOutlineShieldCheck,
+    HiOutlineUserCircle,
+} from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getNavItemForPath, getSearchableNavItems } from './navConfig.js';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
@@ -58,10 +65,10 @@ export default function Header({
     const isAdmin = user?.role === 'admin';
     const isGlobalView = activeServerId === 'global';
     const shortcutLabel = useMemo(() => getShortcutLabel(), []);
-    const userRoleLabel = isAdmin ? t('shell.roleAdmin') : t('shell.roleUser');
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
     const MatchedNavIcon = matchedNavItem?.icon || null;
     const resolvedHeaderIcon = MatchedNavIcon ? <MatchedNavIcon /> : icon;
+    const UserIdentityIcon = isAdmin ? HiOutlineShieldCheck : HiOutlineUserCircle;
     const themeLabels = useMemo(() => ({
         dark: t('shell.themeDark'),
         light: t('shell.themeLight'),
@@ -293,14 +300,11 @@ export default function Header({
                 </div>
                 {children}
                 {user?.username && (
-                    <div className="header-user-chip" title={`${user.username} · ${userRoleLabel}`}>
-                        <span className="header-user-avatar" aria-hidden="true">
-                            {user.username.charAt(0).toUpperCase() || 'U'}
+                    <div className="header-user-chip" title={user.username}>
+                        <span className="header-user-symbol" aria-hidden="true">
+                            <UserIdentityIcon />
                         </span>
-                        <span className="header-user-copy">
-                            <span className="header-user-name">{user.username}</span>
-                            <span className="header-user-role">{userRoleLabel}</span>
-                        </span>
+                        <span className="header-user-name">{user.username}</span>
                     </div>
                 )}
                 <button

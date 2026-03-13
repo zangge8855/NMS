@@ -119,31 +119,26 @@ const SETTINGS_TAB_CONFIG = [
     {
         id: 'basic',
         label: '系统参数',
-        description: '站点入口、注册、任务、订阅地址和审计归属地等全局参数。',
         icon: HiOutlineCog6Tooth,
     },
     {
         id: 'db',
         label: '数据库与存储',
-        description: '查看数据库状态、切换模式并执行回填。',
         icon: HiOutlineCircleStack,
     },
     {
         id: 'backup',
         label: '安全与备份',
-        description: '管理备份导入导出，以及凭据轮换等高风险操作。',
         icon: HiOutlineShieldCheck,
     },
     {
         id: 'monitor',
         label: '监控诊断',
-        description: '查看邮件、节点健康与运行诊断状态。',
         icon: HiOutlineServerStack,
     },
     {
         id: 'console',
         label: '节点控制台',
-        description: '在系统设置内直接执行节点维护和工具操作。',
         icon: HiOutlineCommandLine,
     },
 ];
@@ -241,7 +236,6 @@ export default function SystemSettings() {
     const siteAccessPath = normalizeSiteAccessPathInput(draft.site.accessPath, '/');
     const registrationEnabled = registrationRuntime?.enabled !== false;
     const activeTab = resolveSettingsTab(searchParams.get('tab'));
-    const activeTabMeta = SETTINGS_TAB_CONFIG.find((item) => item.id === activeTab) || SETTINGS_TAB_CONFIG[0];
     const siteEntryPreview = useMemo(() => {
         if (typeof window === 'undefined') return siteAccessPath;
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
@@ -1637,38 +1631,26 @@ export default function SystemSettings() {
             />
             <div className="page-content page-content--wide page-enter">
                 <div className="card mb-6 settings-toolbar settings-overview-card">
-                    <SectionHeader
-                        className="settings-overview-header"
-                        title="系统设置工作台"
-                        subtitle="统一管理注册、存储、备份、诊断和节点控制台，减少分散入口。"
-                        meta={(
-                            <div className="settings-overview-status" aria-live="polite">
-                                <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
-                                    {settings ? '配置快照已加载' : '等待加载配置'}
-                                </span>
-                                {saving ? <span className="badge badge-info">正在保存设置</span> : null}
-                            </div>
-                        )}
-                        actions={(
-                            <div className="settings-overview-actions settings-panel-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                    刷新
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                    {saving ? <span className="spinner" /> : '保存设置'}
-                                </button>
-                            </div>
-                        )}
-                    />
+                    <div className="settings-overview-bar">
+                        <div className="settings-overview-status" aria-live="polite">
+                            <span className={`badge ${settings ? 'badge-success' : 'badge-neutral'}`}>
+                                {settings ? '配置快照已加载' : '等待加载配置'}
+                            </span>
+                            {saving ? <span className="badge badge-info">正在保存设置</span> : null}
+                        </div>
+                        <div className="settings-overview-actions settings-panel-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
+                                刷新
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                {saving ? <span className="spinner" /> : '保存设置'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div className="settings-shell">
                     <aside className="card settings-nav">
-                        <div className="settings-nav-copy">
-                            <div className="settings-nav-eyebrow">设置分区</div>
-                            <div className="settings-nav-title">按主题管理系统能力</div>
-                            <div className="settings-nav-subtitle">把原来分散的设置、诊断和节点控制集中到一个工作台里。</div>
-                        </div>
                         <div className="settings-nav-list" role="tablist" aria-label="系统设置分区">
                             {SETTINGS_TAB_CONFIG.map((item) => {
                                 const Icon = item.icon;
@@ -1685,7 +1667,6 @@ export default function SystemSettings() {
                                         <span className="settings-nav-item-icon"><Icon /></span>
                                         <span className="settings-nav-item-copy">
                                             <span className="settings-nav-item-label">{item.label}</span>
-                                            <span className="settings-nav-item-description">{item.description}</span>
                                         </span>
                                     </button>
                                 );
@@ -1717,20 +1698,6 @@ export default function SystemSettings() {
                         </div>
 
                         <div className="card p-4 settings-panel settings-tab-panel">
-                            <SectionHeader
-                                className="mb-4"
-                                title={activeTabMeta.label}
-                                subtitle={activeTabMeta.description}
-                                meta={(
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className={`badge ${loading ? 'badge-neutral' : 'badge-success'}`}>
-                                            {loading ? '加载中' : '已就绪'}
-                                        </span>
-                                        {activeTab === 'console' ? <span className="badge badge-info">已并入系统设置</span> : null}
-                                    </div>
-                                )}
-                            />
-
                             {activeTab === 'console' ? (
                                 <div className="settings-console-host">
                                     <ServerManagement embedded />

@@ -76,6 +76,50 @@ describe('Logs', () => {
         expect(api.get).not.toHaveBeenCalled();
     });
 
+    it('allows clearing all servers and then selecting a single server in global mode', async () => {
+        const user = userEvent.setup();
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            activeServer: null,
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+                { id: 'server-b', name: 'Node B' },
+            ],
+        });
+
+        api.get.mockImplementation((url) => Promise.resolve({
+            data: {
+                obj: {
+                    lines: [`2026-03-09T00:00:00Z ${url}`],
+                    supported: true,
+                },
+            },
+        }));
+
+        renderWithRouter(<Logs embedded />);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledTimes(2);
+        });
+
+        await user.click(screen.getByRole('button', { name: '清空' }));
+
+        expect(await screen.findByText('请至少选择一个节点后再查看聚合日志')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledTimes(2);
+
+        await user.click(screen.getByLabelText('Node A'));
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledTimes(3);
+        });
+        expect(api.get).toHaveBeenLastCalledWith('/servers/server-a/logs', expect.objectContaining({
+            params: expect.objectContaining({
+                source: 'panel',
+            }),
+        }));
+    });
+
     it('filters log lines by level in single-server mode', async () => {
         const user = userEvent.setup();
 

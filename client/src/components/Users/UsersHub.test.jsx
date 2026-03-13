@@ -208,10 +208,15 @@ describe('UsersHub ordering', () => {
 
         renderWithRouter(<UsersHub />);
 
+        expect(screen.getByRole('columnheader', { name: '账号' })).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: '用户名' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: '邮箱' })).not.toBeInTheDocument();
+
         const aliceCell = await screen.findByText('alice');
         const aliceRow = aliceCell.closest('tr');
         if (!aliceRow) throw new Error('Missing Alice row');
 
+        expect(within(aliceRow).getByText('alice@example.com')).toBeInTheDocument();
         expect(within(aliceRow).getByText('30 B')).toBeInTheDocument();
         expect(within(aliceRow).queryByText(/ID user-a/i)).not.toBeInTheDocument();
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
