@@ -8,7 +8,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes } from '../../utils/format.js';
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
-import { normalizeEmail } from '../../utils/protocol.js';
+import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients.js';
@@ -76,21 +76,47 @@ function formatExpiryLabel(expiryValues) {
     return new Date(earliest).toLocaleDateString('zh-CN');
 }
 
-function formatUserShortId(userId) {
-    const text = String(userId || '').trim();
-    return text ? text.slice(0, 8) : '-';
+function normalizeOnlineValue(value) {
+    return String(value || '').trim().toLowerCase();
 }
 
-function normalizeOnlineEmail(item) {
+function normalizeOnlineKeys(item) {
     if (typeof item === 'string') {
-        return normalizeEmail(item);
+        const value = normalizeOnlineValue(item);
+        return value ? [value] : [];
     }
-    if (item && typeof item === 'object') {
-        return normalizeEmail(
-            item.email || item.user || item.username || item.clientEmail || item.client || item.remark || ''
-        );
+    if (!item || typeof item !== 'object') {
+        return [];
     }
-    return '';
+    return Array.from(new Set(
+        [
+            item.email,
+            item.user,
+            item.username,
+            item.clientEmail,
+            item.client,
+            item.remark,
+            item.id,
+            item.password,
+        ]
+            .map((value) => normalizeOnlineValue(value))
+            .filter(Boolean)
+    ));
+}
+
+function buildClientOnlineKeys(client, protocol) {
+    const keys = new Set();
+    const email = normalizeOnlineValue(client?.email);
+    const identifier = normalizeOnlineValue(getClientIdentifier(client, protocol));
+    const id = normalizeOnlineValue(client?.id);
+    const password = normalizeOnlineValue(client?.password);
+
+    if (email) keys.add(email);
+    if (identifier) keys.add(identifier);
+    if (id) keys.add(id);
+    if (password) keys.add(password);
+
+    return Array.from(keys);
 }
 
 function getOnlineStatus(clientCount, sessions) {
@@ -224,11 +250,16 @@ export default function UsersHub() {
                 const [inboundsRes, onlinesRes] = Array.isArray(result) ? result : [{ data: { obj: [] } }, { data: { obj: [] } }];
                 const inbounds = inboundsRes.data?.obj || [];
                 const onlines = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
+                const onlineCounter = new Map();
 
                 onlines.forEach((entry) => {
-                    const email = normalizeOnlineEmail(entry);
-                    if (!email) return;
-                    onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
+                    normalizeOnlineKeys(entry).forEach((key) => {
+                        onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+                    });
+                    const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
+                    if (email) {
+                        onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
+                    }
                 });
 
                 inbounds.forEach((ib) => {
@@ -272,11 +303,15 @@ export default function UsersHub() {
                         const email = normalizeEmail(cl.email);
                         if (!email) return;
                         if (!emailMap.has(email)) {
-                            emailMap.set(email, { count: 0, totalUsed: 0, expiryValues: [] });
+                            emailMap.set(email, { count: 0, totalUsed: 0, expiryValues: [], onlineSessions: 0 });
                         }
                         const entry = emailMap.get(email);
+                        const onlineSessions = buildClientOnlineKeys(cl, protocol).reduce((total, key) => (
+                            total + (onlineCounter.get(key) || 0)
+                        ), 0);
                         entry.count += 1;
                         entry.totalUsed += resolveClientUsed(cl);
+                        entry.onlineSessions += onlineSessions;
                         if (Number(cl.expiryTime || 0) > 0) {
                             entry.expiryValues.push(Number(cl.expiryTime));
                         }
@@ -303,8 +338,8 @@ export default function UsersHub() {
             .map((user) => {
                 const subEmail = normalizeEmail(user.subscriptionEmail);
                 const loginEmail = normalizeEmail(user.email);
-                const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, expiryValues: [] };
-                const onlineSessions = onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0;
+                const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, expiryValues: [], onlineSessions: 0 };
+                const onlineSessions = clientData.onlineSessions || onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0;
                 const status = getUserStatus(user, clientData.count);
                 const onlineStatus = getOnlineStatus(clientData.count, onlineSessions);
                 return { ...user, clientData, status, onlineSessions, onlineStatus };
@@ -1009,7 +1044,6 @@ export default function UsersHub() {
                                             <button type="button" className="table-cell-link table-cell-link-button users-name-link" title={user.username}>
                                                 <span className="font-medium">{user.username}</span>
                                             </button>
-                                            <div className="text-xs text-muted cell-mono mt-1 users-id-meta" title={user.id}>ID {formatUserShortId(user.id)}</div>
                                         </td>
                                         <td data-label="邮箱" className="text-sm users-email-cell">
                                             {user.email || user.subscriptionEmail ? (

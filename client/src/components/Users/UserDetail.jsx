@@ -10,10 +10,13 @@ import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard } from '../../utils/format.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
+import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
+import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import { QRCodeSVG } from 'qrcode.react';
 import {
     HiOutlineArrowLeft,
     HiOutlinePlusCircle,

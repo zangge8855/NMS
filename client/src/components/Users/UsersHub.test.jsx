@@ -195,6 +195,17 @@ describe('UsersHub ordering', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: ['uuid-1'],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
         renderWithRouter(<UsersHub />);
 
         const aliceCell = await screen.findByText('alice');
@@ -202,7 +213,9 @@ describe('UsersHub ordering', () => {
         if (!aliceRow) throw new Error('Missing Alice row');
 
         expect(within(aliceRow).getByText('30 B')).toBeInTheDocument();
-        expect(within(aliceRow).getByText(/ID user-a/i)).toBeInTheDocument();
+        expect(within(aliceRow).queryByText(/ID user-a/i)).not.toBeInTheDocument();
+        expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
+        expect(within(aliceRow).getByText('1 会话')).toBeInTheDocument();
         expect(within(aliceRow).getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
         expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
     });

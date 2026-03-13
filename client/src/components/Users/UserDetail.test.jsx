@@ -38,8 +38,16 @@ vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
 }));
 
+vi.mock('../Subscriptions/SubscriptionClientLinks.jsx', () => ({
+    default: () => <div>subscription-client-links</div>,
+}));
+
 vi.mock('../../hooks/useAnimatedCounter.js', () => ({
     default: (value) => value,
+}));
+
+vi.mock('qrcode.react', () => ({
+    QRCodeSVG: () => <div>qr-code</div>,
 }));
 
 vi.mock('react-hot-toast', () => ({
@@ -128,5 +136,79 @@ describe('UserDetail', () => {
         expect(within(timelineRow).getByText('成功')).toBeInTheDocument();
         expect(within(timelineRow).queryByText('失败')).not.toBeInTheDocument();
         expect(within(timelineRow).getByText(/IP: 203.0.113.8/)).toBeInTheDocument();
+    });
+
+    it('renders the subscription tab without crashing when opened directly from user management', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            user: {
+                                id: 'user-1',
+                                username: 'alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                emailVerified: true,
+                                role: 'user',
+                                enabled: true,
+                                createdAt: '2026-03-11T10:00:00.000Z',
+                                lastLoginAt: '2026-03-11T11:00:00.000Z',
+                            },
+                            policy: null,
+                            recentAudit: {
+                                items: [],
+                                total: 0,
+                            },
+                            subscriptionAccess: {
+                                items: [],
+                                total: 0,
+                            },
+                            tokens: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/subscriptions/alice%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'alice@example.com',
+                            subscriptionActive: true,
+                            total: 1,
+                            matchedClientsRaw: 1,
+                            matchedClientsActive: 1,
+                            sourceMode: 'builtin',
+                            subscriptionUrl: 'https://sub.example.com/merged',
+                            subscriptionUrlV2rayn: 'https://sub.example.com/v2rayn',
+                        },
+                    },
+                });
+            }
+            if (url === '/servers') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />, {
+            route: '/clients/user-1?tab=subscription',
+            initialEntries: ['/clients/user-1?tab=subscription'],
+        });
+
+        await screen.findByText('用户详情 · alice');
+        await user.click(screen.getByRole('button', { name: '订阅' }));
+
+        expect(await screen.findByText('订阅地址')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
+        expect(screen.getByText('subscription-client-links')).toBeInTheDocument();
+        expect(screen.getByText('qr-code')).toBeInTheDocument();
     });
 });
