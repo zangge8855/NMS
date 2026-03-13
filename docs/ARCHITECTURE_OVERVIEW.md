@@ -66,6 +66,7 @@ NMS 由三层组成：
 - 管理接口统一经过 `authMiddleware` 与 `adminOnly`
 - 订阅公开访问通过 token 校验，不复用管理员会话
 - 首页访问路径只影响前端页面入口，不改变 `/api/subscriptions/public/*` 的公开订阅地址
+- 订阅内容构建时会先按持久化的服务器顺序，再按每台服务器的入站顺序聚合链接；排序变化不会改写已签发的订阅 URL
 - 生产环境会强制检查弱口令、弱用户名与弱密钥
 - 面板凭据加密使用 `CREDENTIALS_SECRET`
 - 反向代理场景启用了可信代理设置，便于审计真实来源 IP
@@ -148,6 +149,7 @@ Related environment variables:
 - Admin routes are protected by `authMiddleware` and `adminOnly`
 - Public subscription access uses token validation, not admin sessions
 - The configurable homepage access path only changes where the UI is served; it does not rewrite `/api/subscriptions/public/*`
+- Subscription payloads are merged by persisted server order first and inbound order second; changing sort order does not rewrite issued subscription URLs
 - Production mode enforces checks against weak usernames, passwords, and secrets
 - Panel credentials are encrypted with `CREDENTIALS_SECRET`
 - Trusted proxy settings allow audit logs to record the correct client IP behind reverse proxies
