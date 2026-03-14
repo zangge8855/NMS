@@ -205,6 +205,100 @@ function shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured) 
     return !hasClientTraffic || !clientTrafficCaptured;
 }
 
+const REGISTERED_TRAFFIC_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
+
+function createRegisteredTotals(totalUsers = 0) {
+    return {
+        totalUsers: toNonNegativeInt(totalUsers, 0),
+        activeUsers: 0,
+        upBytes: 0,
+        downBytes: 0,
+        totalBytes: 0,
+    };
+}
+
+function normalizeRegisteredTotals(value, fallbackTotalUsers = 0) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return createRegisteredTotals(fallbackTotalUsers);
+    }
+    return {
+        totalUsers: toNonNegativeInt(value.totalUsers, fallbackTotalUsers),
+        activeUsers: toNonNegativeInt(value.activeUsers, 0),
+        upBytes: toNonNegativeInt(value.upBytes, 0),
+        downBytes: toNonNegativeInt(value.downBytes, 0),
+        totalBytes: toNonNegativeInt(value.totalBytes, toNonNegativeInt(value.upBytes, 0) + toNonNegativeInt(value.downBytes, 0)),
+    };
+}
+
+function hasRegisteredTotalsSnapshot(meta) {
+    return !!meta && typeof meta === 'object' && !Array.isArray(meta) && !!meta.registeredTotals;
+}
+
+function shouldTrackRegisteredTrafficInbound(inbound) {
+    const protocol = String(inbound?.protocol || '').trim().toLowerCase();
+    return REGISTERED_TRAFFIC_PROTOCOLS.has(protocol) && inbound?.enable !== false;
+}
+
+function buildTrafficUserDirectory(users = []) {
+    const aliasMap = new Map();
+    const registeredUsers = (Array.isArray(users) ? users : []).filter((user) => user?.role !== 'admin');
+
+    registeredUsers.forEach((user) => {
+        const loginEmail = normalizeClientEmail(user?.email);
+        const subscriptionEmail = normalizeClientEmail(user?.subscriptionEmail || user?.email);
+        const canonicalEmail = subscriptionEmail || loginEmail;
+        if (!canonicalEmail) return;
+
+        const entry = {
+            userId: String(user?.id || '').trim(),
+            username: String(user?.username || '').trim(),
+            email: canonicalEmail,
+        };
+        const aliases = new Set([loginEmail, subscriptionEmail].filter(Boolean));
+        aliases.forEach((alias) => {
+            aliasMap.set(alias, entry);
+            aliasMap.set(maskEmail(alias), entry);
+        });
+    });
+
+    return {
+        aliasMap,
+        totalUsers: registeredUsers.length,
+    };
+}
+
+function summarizeRegisteredTrafficTotals(users = [], serverPayloads = []) {
+    const { aliasMap, totalUsers } = buildTrafficUserDirectory(users);
+    const totals = createRegisteredTotals(totalUsers);
+    const activeUsers = new Set();
+
+    (Array.isArray(serverPayloads) ? serverPayloads : []).forEach((payload) => {
+        const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
+        inbounds.forEach((inbound) => {
+            if (!shouldTrackRegisteredTrafficInbound(inbound)) return;
+            const { clients } = extractInboundClients(inbound);
+            clients.forEach((client) => {
+                const email = normalizeClientEmail(client?.email);
+                if (!email) return;
+                const userInfo = aliasMap.get(email);
+                if (!userInfo) return;
+
+                const up = toNonNegativeInt(client?.up, 0);
+                const down = toNonNegativeInt(client?.down, 0);
+                totals.upBytes += up;
+                totals.downBytes += down;
+                totals.totalBytes += up + down;
+                if ((up + down) > 0) {
+                    activeUsers.add(userInfo.userId || userInfo.email);
+                }
+            });
+        });
+    });
+
+    totals.activeUsers = activeUsers.size;
+    return totals;
+}
+
 function calculateTrafficDelta(currentValue, previousValue) {
     const current = toNonNegativeInt(currentValue, 0);
     // First observation establishes the baseline only; otherwise the overview
@@ -255,7 +349,13 @@ class TrafficStatsStore {
         ensureDataDir();
         this.samples = loadArray(TRAFFIC_SAMPLES_FILE);
         this.counters = loadObject(TRAFFIC_COUNTERS_FILE, {});
-        this.meta = loadObject(TRAFFIC_META_FILE, { lastCollectionAt: null });
+        const loadedMeta = loadObject(TRAFFIC_META_FILE, { lastCollectionAt: null, registeredTotals: createRegisteredTotals() });
+        this.meta = {
+            ...loadedMeta,
+            registeredTotals: hasOwn(loadedMeta, 'registeredTotals')
+                ? normalizeRegisteredTotals(loadedMeta.registeredTotals)
+                : null,
+        };
         this.collectingPromise = null;
         this._prune();
     }
@@ -362,11 +462,12 @@ class TrafficStatsStore {
     }
 
     async _collectFromServer(serverMeta, collectedAtIso) {
-        const result = { samples: [], warning: null };
+        const result = { samples: [], warning: null, inbounds: [] };
         try {
             const client = await ensureAuthenticated(serverMeta.id);
             const listRes = await client.get('/panel/api/inbounds/list');
             const inbounds = Array.isArray(listRes.data?.obj) ? listRes.data.obj : [];
+            result.inbounds = inbounds;
 
             for (const inbound of inbounds) {
                 const { clients, hasClientTraffic } = extractInboundClients(inbound);
@@ -467,7 +568,10 @@ class TrafficStatsStore {
         const lastCollectionTs = this.meta?.lastCollectionAt
             ? new Date(this.meta.lastCollectionAt).getTime()
             : 0;
-        if (!force && lastCollectionTs && (Date.now() - lastCollectionTs) < this._sampleIntervalMs()) {
+        if (!force
+            && hasRegisteredTotalsSnapshot(this.meta)
+            && lastCollectionTs
+            && (Date.now() - lastCollectionTs) < this._sampleIntervalMs()) {
             return {
                 collected: false,
                 lastCollectionAt: this.meta.lastCollectionAt,
@@ -486,8 +590,10 @@ class TrafficStatsStore {
     async _collectNow() {
         const collectedAtIso = new Date().toISOString();
         const servers = serverStore.getAll();
+        const users = userStore.getAll();
         const warnings = [];
         const newSamples = [];
+        const serverPayloads = [];
 
         await runWithConcurrency(
             servers,
@@ -495,6 +601,9 @@ class TrafficStatsStore {
                 const result = await this._collectFromServer(serverMeta, collectedAtIso);
                 if (Array.isArray(result.samples) && result.samples.length > 0) {
                     newSamples.push(...result.samples);
+                }
+                if (Array.isArray(result.inbounds)) {
+                    serverPayloads.push({ inbounds: result.inbounds });
                 }
                 if (result.warning) warnings.push(result.warning);
             },
@@ -505,6 +614,7 @@ class TrafficStatsStore {
             this.samples.push(...newSamples);
         }
         this.meta.lastCollectionAt = collectedAtIso;
+        this.meta.registeredTotals = summarizeRegisteredTrafficTotals(users, serverPayloads);
         this._prune();
         this._persist();
 
@@ -572,6 +682,7 @@ class TrafficStatsStore {
             activeUsers: users.size,
             userLevelSupported: samples.some((item) => Boolean(String(item.email || '').trim())),
             totals,
+            registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),
             topUsers,
             topServers,
             lastCollectionAt: this.meta.lastCollectionAt || null,
@@ -668,12 +779,24 @@ class TrafficStatsStore {
             ? snapshot.counters
             : {};
         this.meta = snapshot?.meta && typeof snapshot.meta === 'object' && !Array.isArray(snapshot.meta)
-            ? snapshot.meta
-            : { lastCollectionAt: null };
+            ? {
+                ...snapshot.meta,
+                registeredTotals: hasOwn(snapshot.meta, 'registeredTotals')
+                    ? normalizeRegisteredTotals(snapshot?.meta?.registeredTotals)
+                    : null,
+            }
+            : { lastCollectionAt: null, registeredTotals: createRegisteredTotals() };
         this._prune();
     }
 }
 
 const trafficStatsStore = new TrafficStatsStore();
 export default trafficStatsStore;
-export { TrafficStatsStore, calculateTrafficDelta, extractInboundClients, resolveTrafficUserInfo, shouldUseInboundTotalFallback };
+export {
+    TrafficStatsStore,
+    calculateTrafficDelta,
+    extractInboundClients,
+    resolveTrafficUserInfo,
+    shouldUseInboundTotalFallback,
+    summarizeRegisteredTrafficTotals,
+};

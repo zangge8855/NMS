@@ -27,6 +27,11 @@ import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import { createBackupArchive, getBackupStatus, inspectBackupArchive, restoreBackupArchive } from '../lib/systemBackup.js';
 import { normalizeBoolean } from '../lib/normalize.js';
+import {
+    normalizeNoticeScope,
+    resolveRegisteredUserNoticeRecipients,
+    sendRegisteredUserNoticeCampaign,
+} from '../services/registeredUserNoticeService.js';
 
 const router = Router();
 const backupUpload = multer({
@@ -159,6 +164,153 @@ router.post('/email/test', adminOnly, async (req, res) => {
             },
         });
     }
+});
+
+router.post('/email/notice-users', adminOnly, async (req, res) => {
+    const subject = String(req.body?.subject || '').trim();
+    const message = String(req.body?.message || '').trim();
+    const actionUrl = String(req.body?.actionUrl || '').trim();
+    const actionLabel = String(req.body?.actionLabel || '').trim() || '查看详情';
+    const scope = normalizeNoticeScope(req.body?.scope);
+    const includeDisabled = normalizeBoolean(req.body?.includeDisabled, true);
+
+    if (!subject) {
+        return res.status(400).json({
+            success: false,
+            msg: '通知主题不能为空',
+        });
+    }
+    if (!message) {
+        return res.status(400).json({
+            success: false,
+            msg: '通知内容不能为空',
+        });
+    }
+    if (!getEmailStatus().configured) {
+        return res.status(400).json({
+            success: false,
+            msg: 'SMTP 未配置，无法发送变更通知',
+        });
+    }
+
+    const actor = req.user?.username || req.user?.userId || 'admin';
+    const preview = resolveRegisteredUserNoticeRecipients(userStore.getAll(), { scope, includeDisabled });
+    if (preview.recipients.length === 0) {
+        return res.status(400).json({
+            success: false,
+            msg: '没有可发送的已注册用户邮箱',
+            obj: {
+                recipientCount: 0,
+                skippedCount: preview.skipped.length,
+            },
+        });
+    }
+
+    const { taskId, signal } = taskQueue.create({
+        type: 'registered_user_notice',
+        actor,
+        meta: {
+            subject,
+            scope,
+            includeDisabled,
+            recipientCount: preview.recipients.length,
+            skippedCount: preview.skipped.length,
+        },
+    });
+    taskQueue.start(taskId);
+
+    void (async () => {
+        try {
+            const result = await sendRegisteredUserNoticeCampaign(
+                {
+                    subject,
+                    message,
+                    actionUrl,
+                    actionLabel,
+                    scope,
+                    includeDisabled,
+                },
+                {
+                    signal,
+                    onProgress: ({ step, total, label }) => {
+                        taskQueue.updateProgress(taskId, { step, total, label });
+                    },
+                }
+            );
+
+            taskQueue.complete(taskId, result);
+            notificationService.notify({
+                type: 'registered_user_notice',
+                severity: result.failed > 0 ? 'warning' : 'info',
+                title: result.failed > 0 ? '变更通知部分发送失败' : '变更通知已发送',
+                body: `成功 ${result.success}，失败 ${result.failed}，跳过 ${result.skipped}。`,
+                meta: {
+                    taskId,
+                    subject,
+                    ...result,
+                },
+            });
+            appendSecurityAudit('registered_user_notice', { user: { username: actor } }, {
+                subject,
+                scope,
+                includeDisabled,
+                recipientCount: result.total,
+                success: result.success,
+                failed: result.failed,
+                skipped: result.skipped,
+            }, {
+                outcome: result.failed > 0 ? 'failed' : 'success',
+            });
+        } catch (error) {
+            if (signal?.aborted || taskQueue.isCancelled(taskId)) {
+                notificationService.notify({
+                    type: 'registered_user_notice',
+                    severity: 'warning',
+                    title: '变更通知任务已取消',
+                    body: `任务 ${taskId.slice(0, 8)} 已取消。`,
+                    meta: { taskId, subject },
+                });
+                appendSecurityAudit('registered_user_notice', { user: { username: actor } }, {
+                    subject,
+                    scope,
+                    includeDisabled,
+                    cancelled: true,
+                }, {
+                    outcome: 'failed',
+                });
+                return;
+            }
+
+            taskQueue.fail(taskId, error);
+            notificationService.notify({
+                type: 'registered_user_notice',
+                severity: 'critical',
+                title: '变更通知发送失败',
+                body: error.message || '发送注册用户通知时发生错误',
+                meta: { taskId, subject },
+            });
+            appendSecurityAudit('registered_user_notice', { user: { username: actor } }, {
+                subject,
+                scope,
+                includeDisabled,
+                error: error.message || '发送失败',
+            }, {
+                outcome: 'failed',
+            });
+        }
+    })();
+
+    return res.json({
+        success: true,
+        msg: `通知发送任务已创建，目标 ${preview.recipients.length} 位用户`,
+        obj: {
+            taskId,
+            recipientCount: preview.recipients.length,
+            skippedCount: preview.skipped.length,
+            scope,
+            includeDisabled,
+        },
+    });
 });
 
 router.get('/backup/status', adminOnly, (req, res) => {

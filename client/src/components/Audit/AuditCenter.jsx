@@ -101,7 +101,7 @@ const AUDIT_COPY = {
             samplePoints: '采样点',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
-            totalTrafficScope: '最近 30 天 · 全部节点汇总',
+            totalTrafficScope: '当前累计 · 已注册用户总流量',
             activeAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
             userTrendScope: '当前所选用户 · 最近 14 天趋势',
@@ -230,7 +230,7 @@ const AUDIT_COPY = {
             samplePoints: 'Samples',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
-            totalTrafficScope: 'Last 30 days · all nodes combined',
+            totalTrafficScope: 'Current cumulative · registered user traffic',
             activeAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
             userTrendScope: 'Selected user · last 14 days',
@@ -385,6 +385,7 @@ const AUDIT_EVENT_LABELS = {
         invite_code_created: '创建邀请码',
         invite_code_revoked: '撤销邀请码',
         smtp_connection_verified: '验证 SMTP 连接',
+        registered_user_notice: '发送注册用户变更通知',
         system_backup_exported: '导出系统备份',
         system_backup_restored: '恢复系统备份',
         system_settings_updated: '更新系统设置',
@@ -452,6 +453,7 @@ const AUDIT_EVENT_LABELS = {
         invite_code_created: 'Invite Code Created',
         invite_code_revoked: 'Invite Code Revoked',
         smtp_connection_verified: 'SMTP Connection Verified',
+        registered_user_notice: 'Registered User Notice Sent',
         system_backup_exported: 'System Backup Exported',
         system_backup_restored: 'System Backup Restored',
         system_settings_updated: 'System Settings Updated',
@@ -941,8 +943,8 @@ export default function AuditCenter() {
                         <div className="stats-grid mb-8 audit-stats-grid">
                             <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">{copy.traffic.totalTraffic}</span><HiOutlineChartBarSquare /></div>
-                                <div className="card-value">{formatBytes(trafficOverview?.totals?.totalBytes || 0)}</div>
-                                <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.totals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.totals?.downBytes || 0)}</div>
+                                <div className="card-value">{formatBytes(trafficOverview?.registeredTotals?.totalBytes || 0)}</div>
+                                <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.registeredTotals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.registeredTotals?.downBytes || 0)}</div>
                                 <div className="audit-stat-note">{copy.traffic.totalTrafficScope}</div>
                             </div>
                             <div className="card audit-stat-card">

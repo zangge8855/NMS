@@ -206,6 +206,26 @@ function createDiagnosticError(diagnostic) {
     return wrapped;
 }
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderParagraphs(value) {
+    const blocks = String(value || '')
+        .split(/\n{2,}/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    if (blocks.length === 0) return '';
+    return blocks
+        .map((item) => `<p style="margin:0 0 16px;font-size:14px;line-height:1.75;color:#cbd5e1;">${escapeHtml(item).replace(/\n/g, '<br />')}</p>`)
+        .join('');
+}
+
 function getTransporter() {
     const smtp = resolveSmtpConfig();
     if (!isSmtpConfigured(smtp)) {
@@ -347,7 +367,7 @@ export async function sendVerificationEmail(toEmail, code, username = '') {
     const html = `
     <div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px 24px;text-align:center;">
-        <h1 style="margin:0;font-size:24px;color:#fff;">Node Management System (NMS)</h1>
+        <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
         <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">邮箱验证</p>
       </div>
       <div style="padding:32px 24px;">
@@ -359,7 +379,7 @@ export async function sendVerificationEmail(toEmail, code, username = '') {
         <p style="margin:0;font-size:12px;color:#64748b;">验证码将在 ${ttl} 分钟后过期。如果你没有请求此验证，请忽略本邮件。</p>
       </div>
       <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-        <p style="margin:0;font-size:11px;color:#475569;">© Node Management System (NMS) — 多节点统一管理面板</p>
+        <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
       </div>
     </div>`;
 
@@ -382,7 +402,7 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
     const html = `
     <div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#2563eb,#7c3aed);padding:32px 24px;text-align:center;">
-        <h1 style="margin:0;font-size:24px;color:#fff;">Node Management System (NMS)</h1>
+        <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
         <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">密码重置</p>
       </div>
       <div style="padding:32px 24px;">
@@ -394,7 +414,7 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
         <p style="margin:0;font-size:12px;color:#64748b;">验证码将在 ${ttl} 分钟后过期。如果这不是你的操作，请尽快修改邮箱密码并联系管理员。</p>
       </div>
       <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-        <p style="margin:0;font-size:11px;color:#475569;">© Node Management System (NMS) — 多节点统一管理面板</p>
+        <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
       </div>
     </div>`;
 
@@ -402,6 +422,53 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
         type: 'password_reset',
         toEmail,
         subject: `[NMS] 密码重置验证码: ${code}`,
+        html,
+    });
+}
+
+export async function sendOperationalNoticeEmail(toEmail, payload = {}) {
+    const subject = String(payload.subject || '').trim() || '[NMS] 服务通知';
+    const message = String(payload.message || '').trim();
+    const actionUrl = String(payload.actionUrl || '').trim();
+    const actionLabel = String(payload.actionLabel || '').trim() || '查看详情';
+    const username = String(payload.username || '').trim();
+    const intro = username
+        ? `你好 ${escapeHtml(username)}，以下是管理员发布的最新服务变更通知。`
+        : '你好，以下是管理员发布的最新服务变更通知。';
+
+    const actionHtml = actionUrl
+        ? `
+        <div style="margin-top:24px;">
+          <a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">
+            ${escapeHtml(actionLabel)}
+          </a>
+          <div style="margin-top:12px;font-size:12px;line-height:1.6;color:#64748b;word-break:break-all;">
+            如果按钮无法打开，请复制以下地址：<br />${escapeHtml(actionUrl)}
+          </div>
+        </div>`
+        : '';
+
+    const html = `
+    <div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:18px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0f766e,#2563eb);padding:32px 24px;text-align:center;">
+        <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.84);font-size:14px;">服务变更通知</p>
+      </div>
+      <div style="padding:32px 24px;">
+        <p style="margin:0 0 18px;font-size:14px;line-height:1.75;color:#94a3b8;">${intro}</p>
+        <h2 style="margin:0 0 20px;font-size:22px;line-height:1.35;color:#f8fafc;">${escapeHtml(subject)}</h2>
+        ${renderParagraphs(message)}
+        ${actionHtml}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+        <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
+      </div>
+    </div>`;
+
+    await sendTrackedEmail({
+        type: 'operational_notice',
+        toEmail,
+        subject,
         html,
     });
 }

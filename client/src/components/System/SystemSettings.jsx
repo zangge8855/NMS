@@ -126,6 +126,19 @@ function buildDraft(source = null) {
     };
 }
 
+function buildNoticeDraft(source = null, fallbackUrl = '') {
+    const publicBaseUrl = toText(source?.subscription?.publicBaseUrl, '');
+    const actionUrl = publicBaseUrl || toText(fallbackUrl, '');
+    return {
+        subject: '服务入口地址变更通知',
+        message: '服务入口地址已更新，请通过下方链接获取最新地址和订阅入口。\n\n如果旧域名已经失效，请尽快更新浏览器收藏、订阅管理器或客户端中的旧地址。',
+        actionUrl,
+        actionLabel: '查看最新地址',
+        scope: 'all',
+        includeDisabled: true,
+    };
+}
+
 const DEFAULT_SETTINGS_TAB = 'basic';
 const SETTINGS_TAB_CONFIG = [
     {
@@ -264,6 +277,10 @@ export default function SystemSettings() {
     const [emailStatusLoading, setEmailStatusLoading] = useState(false);
     const [emailTestLoading, setEmailTestLoading] = useState(false);
     const [emailStatus, setEmailStatus] = useState(null);
+    const [noticeModalOpen, setNoticeModalOpen] = useState(false);
+    const [noticeSending, setNoticeSending] = useState(false);
+    const [noticeTaskId, setNoticeTaskId] = useState(null);
+    const [noticeDraft, setNoticeDraft] = useState(buildNoticeDraft(null));
     const [backupLoading, setBackupLoading] = useState(false);
     const [backupStatusLoading, setBackupStatusLoading] = useState(false);
     const [backupStatus, setBackupStatus] = useState(null);
@@ -394,6 +411,44 @@ export default function SystemSettings() {
             toast.error(error.response?.data?.msg || error.message || 'SMTP 连接验证失败');
         }
         setEmailTestLoading(false);
+    };
+
+    const openNoticeModal = () => {
+        setNoticeDraft(buildNoticeDraft(settings, siteEntryPreview));
+        setNoticeModalOpen(true);
+    };
+
+    const sendRegisteredUserNotice = async () => {
+        if (!isAdmin) return;
+        if (!noticeDraft.subject.trim()) {
+            toast.error('通知主题不能为空');
+            return;
+        }
+        if (!noticeDraft.message.trim()) {
+            toast.error('通知内容不能为空');
+            return;
+        }
+
+        setNoticeSending(true);
+        try {
+            const res = await api.post('/system/email/notice-users', {
+                subject: noticeDraft.subject,
+                message: noticeDraft.message,
+                actionUrl: noticeDraft.actionUrl,
+                actionLabel: noticeDraft.actionLabel,
+                scope: noticeDraft.scope,
+                includeDisabled: noticeDraft.includeDisabled,
+            });
+            const payload = res.data?.obj || null;
+            if (payload?.taskId) {
+                setNoticeTaskId(payload.taskId);
+            }
+            setNoticeModalOpen(false);
+            toast.success(res.data?.msg || '通知发送任务已创建');
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '创建通知发送任务失败');
+        }
+        setNoticeSending(false);
     };
 
     const fetchBackupStatus = async (options = {}) => {
@@ -1421,6 +1476,9 @@ export default function SystemSettings() {
                             <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
                                 {emailTestLoading ? <span className="spinner" /> : '测试'}
                             </button>
+                            <button className="btn btn-primary btn-sm" onClick={openNoticeModal} disabled={!emailStatus?.configured || emailStatusLoading || emailTestLoading}>
+                                发送变更通知
+                            </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
                                 {emailStatusLoading ? <span className="spinner" /> : '刷新'}
                             </button>
@@ -1479,6 +1537,10 @@ export default function SystemSettings() {
                             <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
                             <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
                             <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
+                        </div>
+                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
+                            <div className="text-sm font-medium mb-2">运维通知建议</div>
+                            <div className="text-sm text-muted">当你更换站点入口、订阅域名或备用网址时，可以直接从这里给已注册用户群发变更通知。邮件会按单独收件人发送，不会暴露其他用户地址。</div>
                         </div>
                     </>
                 )}
@@ -1946,6 +2008,94 @@ export default function SystemSettings() {
                     </div>
                 </div>
             </div>
+            <ModalShell isOpen={noticeModalOpen} onClose={() => setNoticeModalOpen(false)}>
+                <div className="modal modal-lg" onClick={(event) => event.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">发送注册用户变更通知</h3>
+                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)}>
+                            <HiOutlineXMark />
+                        </button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="text-sm text-muted mb-4">
+                            该功能会给已注册用户逐个发送邮件。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。
+                        </div>
+                        <div className="grid-auto-220">
+                            <div className="form-group">
+                                <label className="form-label">通知主题</label>
+                                <input
+                                    className="form-input"
+                                    value={noticeDraft.subject}
+                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
+                                    placeholder="例如：服务入口地址变更通知"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">发送范围</label>
+                                <select
+                                    className="form-select"
+                                    value={noticeDraft.scope}
+                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
+                                >
+                                    <option value="all">全部有邮箱的注册用户</option>
+                                    <option value="verified">仅已验证邮箱用户</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">通知内容</label>
+                            <textarea
+                                rows={8}
+                                className="form-textarea"
+                                value={noticeDraft.message}
+                                onChange={(event) => setNoticeDraft((prev) => ({ ...prev, message: event.target.value }))}
+                                placeholder="说明新网址、新域名、生效时间，以及用户需要执行的替换动作。"
+                            />
+                        </div>
+                        <div className="grid-auto-220">
+                            <div className="form-group">
+                                <label className="form-label">按钮地址</label>
+                                <input
+                                    className="form-input"
+                                    value={noticeDraft.actionUrl}
+                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionUrl: event.target.value }))}
+                                    placeholder="https://example.com/subscription"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">按钮文案</label>
+                                <input
+                                    className="form-input"
+                                    value={noticeDraft.actionLabel}
+                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
+                                    placeholder="查看最新地址"
+                                />
+                            </div>
+                        </div>
+                        <label className="form-check-label w-fit mt-2">
+                            <input
+                                type="checkbox"
+                                checked={noticeDraft.includeDisabled}
+                                onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
+                            />
+                            <span>包含已停用账号</span>
+                        </label>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={() => setNoticeModalOpen(false)} disabled={noticeSending}>
+                            取消
+                        </button>
+                        <button type="button" className="btn btn-primary" onClick={sendRegisteredUserNotice} disabled={noticeSending || !emailStatus?.configured}>
+                            {noticeSending ? <span className="spinner" /> : '开始发送'}
+                        </button>
+                    </div>
+                </div>
+            </ModalShell>
+            <TaskProgressModal
+                taskId={noticeTaskId}
+                title="发送注册用户变更通知"
+                onClose={() => setNoticeTaskId(null)}
+            />
             <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>
                 <div className="modal modal-wide settings-restore-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">

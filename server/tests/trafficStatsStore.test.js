@@ -8,7 +8,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.DATA_DIR = path.join(__dirname, '.test_data');
 process.env.NODE_ENV = 'test';
 
-const { TrafficStatsStore, calculateTrafficDelta, shouldUseInboundTotalFallback } = await import('../store/trafficStatsStore.js');
+const {
+    TrafficStatsStore,
+    calculateTrafficDelta,
+    shouldUseInboundTotalFallback,
+    summarizeRegisteredTrafficTotals,
+} = await import('../store/trafficStatsStore.js');
 const userStore = (await import('../store/userStore.js')).default;
 
 function maskEmail(value) {
@@ -108,5 +113,88 @@ describe('traffic stats inbound fallback', () => {
         } finally {
             userStore.importState(originalUsers);
         }
+    });
+
+    it('reports current cumulative traffic for registered users separately from sampled overview totals', () => {
+        const totals = summarizeRegisteredTrafficTotals([
+            {
+                id: 'user-1',
+                username: 'alice',
+                email: 'alice@example.com',
+                subscriptionEmail: 'alice@example.com',
+                role: 'user',
+                enabled: true,
+            },
+            {
+                id: 'user-2',
+                username: 'bob',
+                email: 'bob@example.com',
+                subscriptionEmail: '',
+                role: 'user',
+                enabled: true,
+            },
+        ], [
+            {
+                inbounds: [
+                    {
+                        id: 1,
+                        protocol: 'vless',
+                        enable: true,
+                        settings: JSON.stringify({
+                            clients: [
+                                { email: 'alice@example.com', up: 100, down: 200 },
+                                { email: 'anonymous@example.com', up: 500, down: 600 },
+                            ],
+                        }),
+                    },
+                    {
+                        id: 2,
+                        protocol: 'vmess',
+                        enable: true,
+                        settings: JSON.stringify({
+                            clients: [
+                                { email: 'bob@example.com', up: 50, down: 25 },
+                            ],
+                        }),
+                    },
+                ],
+            },
+        ]);
+
+        assert.deepEqual(totals, {
+            totalUsers: 2,
+            activeUsers: 2,
+            upBytes: 150,
+            downBytes: 225,
+            totalBytes: 375,
+        });
+
+        const store = new TrafficStatsStore();
+        store.importState({
+            samples: [
+                {
+                    id: 'sample-1',
+                    ts: '2026-03-13T00:00:00.000Z',
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    inboundId: '1',
+                    inboundRemark: 'Main',
+                    email: 'alice@example.com',
+                    clientIdentifier: 'alice',
+                    upBytes: 10,
+                    downBytes: 20,
+                    totalBytes: 30,
+                },
+            ],
+            counters: {},
+            meta: {
+                lastCollectionAt: '2026-03-13T01:00:00.000Z',
+                registeredTotals: totals,
+            },
+        });
+
+        const overview = store.getOverview({ days: 30, top: 10 });
+        assert.equal(overview.totals.totalBytes, 30);
+        assert.deepEqual(overview.registeredTotals, totals);
     });
 });
