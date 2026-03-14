@@ -1,8 +1,16 @@
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import zlib from 'zlib';
+import config from '../config.js';
 import { collectStoreSnapshots, listStoreKeys, restoreStoreSnapshots } from '../store/storeRegistry.js';
 
 let lastExportMeta = null;
 let lastImportMeta = null;
+const ENCRYPTED_BACKUP_FORMAT = 'nms-backup-encrypted';
+const ENCRYPTED_BACKUP_VERSION = 2;
+const BACKUP_CIPHER = 'aes-256-gcm';
+const LOCAL_BACKUP_DIRNAME = 'backups';
 
 function normalizeStoreKeysInput(input) {
     if (typeof input === 'string') {
@@ -23,20 +31,28 @@ function normalizeStoreKeysInput(input) {
 
 function buildBackupFilename(date = new Date()) {
     const iso = date.toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '_');
-    return `nms_backup_${iso}.json.gz`;
+    return `nms_backup_${iso}.nmsbak`;
 }
 
-function parseBackupArchive(input, deps = {}) {
-    const gunzipSync = deps.gunzipSync || zlib.gunzipSync;
-    const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input || '');
+function backupDirPath(deps = {}) {
+    const target = String(deps.backupDir || '').trim();
+    return target || path.join(config.dataDir, LOCAL_BACKUP_DIRNAME);
+}
 
-    let payload;
-    try {
-        payload = JSON.parse(gunzipSync(buffer).toString('utf8'));
-    } catch {
-        throw new Error('备份文件解析失败，请确认上传的是 NMS 导出的 gzip 备份');
+function ensureBackupDirExists(deps = {}) {
+    const dir = backupDirPath(deps);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
     }
+    return dir;
+}
 
+function deriveBackupKey(deps = {}) {
+    const secret = String(deps.backupSecret || config.credentials.secret || config.jwt.secret || '').trim();
+    return crypto.createHash('sha256').update(secret).digest();
+}
+
+function normalizeBackupPayload(payload) {
     if (!payload || payload.format !== 'nms-backup') {
         throw new Error('备份格式不受支持');
     }
@@ -54,8 +70,83 @@ function parseBackupArchive(input, deps = {}) {
         payload,
         storeKeys: storeKeys.length > 0 ? storeKeys : fallbackKeys,
         snapshots: payload.snapshots,
-        bytes: buffer.byteLength,
     };
+}
+
+function parseLegacyBackupArchive(buffer, deps = {}) {
+    const gunzipSync = deps.gunzipSync || zlib.gunzipSync;
+    let payload;
+    try {
+        payload = JSON.parse(gunzipSync(buffer).toString('utf8'));
+    } catch {
+        throw new Error('备份文件解析失败，请确认上传的是 NMS 导出的 `.nmsbak` 加密备份或旧版 `.json.gz` 备份');
+    }
+
+    const parsed = normalizeBackupPayload(payload);
+    return {
+        ...parsed,
+        bytes: buffer.byteLength,
+        encrypted: false,
+        cipher: '',
+        keyHint: '',
+    };
+}
+
+function parseEncryptedBackupArchive(buffer, deps = {}) {
+    let envelope;
+    try {
+        envelope = JSON.parse(buffer.toString('utf8'));
+    } catch {
+        return null;
+    }
+
+    if (!envelope || envelope.format !== ENCRYPTED_BACKUP_FORMAT) {
+        return null;
+    }
+    if (Number(envelope.version) !== ENCRYPTED_BACKUP_VERSION) {
+        throw new Error('备份版本不受支持');
+    }
+    if (!envelope.iv || !envelope.tag || !envelope.ciphertext) {
+        throw new Error('加密备份结构无效');
+    }
+
+    let compressedPayload;
+    try {
+        const decipher = crypto.createDecipheriv(
+            BACKUP_CIPHER,
+            deriveBackupKey(deps),
+            Buffer.from(String(envelope.iv || ''), 'hex')
+        );
+        decipher.setAuthTag(Buffer.from(String(envelope.tag || ''), 'hex'));
+        compressedPayload = Buffer.concat([
+            decipher.update(Buffer.from(String(envelope.ciphertext || ''), 'base64')),
+            decipher.final(),
+        ]);
+    } catch {
+        throw new Error('备份文件无法解密，请确认当前 NMS 的 CREDENTIALS_SECRET 与备份创建时一致');
+    }
+
+    let payload;
+    try {
+        payload = JSON.parse((deps.gunzipSync || zlib.gunzipSync)(compressedPayload).toString('utf8'));
+    } catch {
+        throw new Error('备份文件解密成功，但内容已损坏');
+    }
+
+    const parsed = normalizeBackupPayload(payload);
+
+    return {
+        ...parsed,
+        bytes: buffer.byteLength,
+        encrypted: true,
+        cipher: String(envelope.cipher || BACKUP_CIPHER),
+        keyHint: String(envelope.keyHint || 'CREDENTIALS_SECRET'),
+    };
+}
+
+function parseBackupArchive(input, deps = {}) {
+    const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input || '');
+    return parseEncryptedBackupArchive(buffer, deps) || parseLegacyBackupArchive(buffer, deps);
 }
 
 function inspectBackupArchive(input, deps = {}) {
@@ -75,6 +166,9 @@ function inspectBackupArchive(input, deps = {}) {
         restorableKeys,
         missingKeys,
         unsupportedKeys,
+        encrypted: parsed.encrypted === true,
+        cipher: parsed.cipher || '',
+        keyHint: parsed.keyHint || '',
     };
 }
 
@@ -109,7 +203,7 @@ async function restoreBackupArchive(input, options = {}, deps = {}) {
     };
 }
 
-function createBackupArchive(options = {}) {
+function createBackupArchive(options = {}, deps = {}) {
     const requestedKeys = normalizeStoreKeysInput(options.keys);
     const storeKeys = requestedKeys.length > 0 ? requestedKeys : listStoreKeys();
     const createdAt = new Date().toISOString();
@@ -120,8 +214,23 @@ function createBackupArchive(options = {}) {
         storeKeys,
         snapshots: collectStoreSnapshots(storeKeys),
     };
-    const json = JSON.stringify(payload);
-    const buffer = zlib.gzipSync(Buffer.from(json, 'utf8'));
+    const compressedPayload = zlib.gzipSync(Buffer.from(JSON.stringify(payload), 'utf8'));
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv(BACKUP_CIPHER, deriveBackupKey(deps), iv);
+    const encryptedPayload = Buffer.concat([cipher.update(compressedPayload), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    const buffer = Buffer.from(JSON.stringify({
+        format: ENCRYPTED_BACKUP_FORMAT,
+        version: ENCRYPTED_BACKUP_VERSION,
+        createdAt,
+        storeKeys,
+        compression: 'gzip',
+        cipher: BACKUP_CIPHER,
+        keyHint: 'CREDENTIALS_SECRET',
+        iv: iv.toString('hex'),
+        tag: authTag.toString('hex'),
+        ciphertext: encryptedPayload.toString('base64'),
+    }), 'utf8');
     const filename = buildBackupFilename(new Date(createdAt));
 
     lastExportMeta = {
@@ -129,6 +238,9 @@ function createBackupArchive(options = {}) {
         filename,
         bytes: buffer.byteLength,
         storeKeys,
+        encrypted: true,
+        cipher: BACKUP_CIPHER,
+        keyHint: 'CREDENTIALS_SECRET',
     };
 
     return {
@@ -138,11 +250,109 @@ function createBackupArchive(options = {}) {
     };
 }
 
-function getBackupStatus() {
+function uniqueBackupFilePath(filename, deps = {}) {
+    const dir = ensureBackupDirExists(deps);
+    const ext = path.extname(filename);
+    const baseName = ext ? filename.slice(0, -ext.length) : filename;
+    let index = 0;
+    let candidate = filename;
+    while (fs.existsSync(path.join(dir, candidate))) {
+        index += 1;
+        candidate = `${baseName}_${index}${ext}`;
+    }
+    return path.join(dir, candidate);
+}
+
+function normalizeLocalBackupFilename(value) {
+    const text = String(value || '').trim();
+    const basename = path.basename(text);
+    if (!text || basename !== text || basename === '.' || basename === '..') {
+        throw new Error('备份文件名无效');
+    }
+    return basename;
+}
+
+function saveBackupArchiveLocally(options = {}, deps = {}) {
+    const archive = createBackupArchive(options, deps);
+    const filePath = uniqueBackupFilePath(archive.filename, deps);
+    const finalFilename = path.basename(filePath);
+    fs.writeFileSync(filePath, archive.buffer);
+    return {
+        ...archive,
+        filename: finalFilename,
+        meta: {
+            ...archive.meta,
+            filename: finalFilename,
+            filePath,
+        },
+    };
+}
+
+function listLocalBackups(deps = {}) {
+    const dir = backupDirPath(deps);
+    if (!fs.existsSync(dir)) return [];
+
+    return fs.readdirSync(dir)
+        .map((filename) => {
+            const filePath = path.join(dir, filename);
+            const stat = fs.statSync(filePath);
+            if (!stat.isFile()) return null;
+            let inspection = null;
+            try {
+                inspection = inspectBackupArchive(fs.readFileSync(filePath), deps);
+            } catch {
+                return null;
+            }
+            return {
+                filename,
+                bytes: stat.size,
+                createdAt: inspection.createdAt || stat.mtime.toISOString(),
+                storeKeys: inspection.storeKeys,
+                encrypted: inspection.encrypted === true,
+                cipher: inspection.cipher || '',
+                keyHint: inspection.keyHint || '',
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+}
+
+function readLocalBackupArchive(filename, deps = {}) {
+    const safeFilename = normalizeLocalBackupFilename(filename);
+    const filePath = path.join(backupDirPath(deps), safeFilename);
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        throw new Error('本机备份不存在');
+    }
+    return {
+        filename: safeFilename,
+        filePath,
+        buffer: fs.readFileSync(filePath),
+    };
+}
+
+function deleteLocalBackupArchive(filename, deps = {}) {
+    const entry = readLocalBackupArchive(filename, deps);
+    fs.rmSync(entry.filePath, { force: true });
+    return {
+        filename: entry.filename,
+    };
+}
+
+async function restoreLocalBackupArchive(filename, options = {}, deps = {}) {
+    const entry = readLocalBackupArchive(filename, deps);
+    return restoreBackupArchive(entry.buffer, {
+        filename: entry.filename,
+        keys: options.keys,
+    }, deps);
+}
+
+function getBackupStatus(deps = {}) {
     return {
         storeKeys: listStoreKeys(),
         lastExport: lastExportMeta ? { ...lastExportMeta } : null,
         lastImport: lastImportMeta ? { ...lastImportMeta } : null,
+        localBackupDir: backupDirPath(deps),
+        localBackups: listLocalBackups(deps),
     };
 }
 
@@ -153,9 +363,14 @@ function resetBackupStatusForTests() {
 
 export {
     createBackupArchive,
+    deleteLocalBackupArchive,
     inspectBackupArchive,
+    listLocalBackups,
     parseBackupArchive,
+    readLocalBackupArchive,
     restoreBackupArchive,
+    restoreLocalBackupArchive,
+    saveBackupArchiveLocally,
     getBackupStatus,
     resetBackupStatusForTests,
 };

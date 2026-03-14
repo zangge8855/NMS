@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { copyToClipboard, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
+import { copyToClipboard, formatBytes, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
@@ -145,31 +145,43 @@ const SETTINGS_TAB_CONFIG = [
         id: 'status',
         label: '系统状态',
         icon: HiOutlineChartBarSquare,
+        eyebrow: 'Overview',
+        summary: '先看入口、注册、数据库、备份和监控这些关键状态，再进入具体分区处理。',
     },
     {
         id: 'basic',
         label: '系统参数',
         icon: HiOutlineCog6Tooth,
+        eyebrow: 'Core Setup',
+        summary: '集中调整入口路径、公开订阅地址、审计参数、风险阈值和注册邀请码规则。',
     },
     {
         id: 'db',
         label: '数据库与存储',
         icon: HiOutlineCircleStack,
+        eyebrow: 'Storage',
+        summary: '查看数据库连接状态，切换读写模式，并决定是否把本地 store 回填到数据库。',
     },
     {
         id: 'backup',
         label: '安全与备份',
         icon: HiOutlineShieldCheck,
+        eyebrow: 'Backup',
+        summary: '管理加密备份、服务器本机留档和恢复流程，同时处理凭据轮换等高风险操作。',
     },
     {
         id: 'monitor',
         label: '监控诊断',
         icon: HiOutlineServerStack,
+        eyebrow: 'Diagnostics',
+        summary: '集中查看 SMTP 投递状态、连接测试结果和节点健康巡检信息。',
     },
     {
         id: 'console',
         label: '节点控制台',
         icon: HiOutlineCommandLine,
+        eyebrow: 'Console',
+        summary: '在系统设置内嵌视图里直接处理节点控制台相关操作，减少来回切换。',
     },
 ];
 
@@ -286,6 +298,8 @@ export default function SystemSettings() {
     const [backupStatus, setBackupStatus] = useState(null);
     const [backupInspectLoading, setBackupInspectLoading] = useState(false);
     const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
+    const [backupLocalSaving, setBackupLocalSaving] = useState(false);
+    const [backupLocalActionKey, setBackupLocalActionKey] = useState('');
     const [backupFile, setBackupFile] = useState(null);
     const [backupInspection, setBackupInspection] = useState(null);
     const [backupRestoreModalOpen, setBackupRestoreModalOpen] = useState(false);
@@ -336,6 +350,7 @@ export default function SystemSettings() {
     const siteAccessPath = normalizeSiteAccessPathInput(draft.site.accessPath, '/');
     const registrationEnabled = registrationRuntime?.enabled !== false;
     const activeTab = resolveSettingsTab(searchParams.get('tab'));
+    const activeTabMeta = SETTINGS_TAB_CONFIG.find((item) => item.id === activeTab) || SETTINGS_TAB_CONFIG[0];
     const siteEntryPreview = useMemo(() => {
         if (typeof window === 'undefined') return siteAccessPath;
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
@@ -774,6 +789,19 @@ export default function SystemSettings() {
         setDbBackfillLoading(false);
     };
 
+    const downloadBackupBlob = (response, fallbackName) => {
+        const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
+        const contentDisposition = String(response.headers?.['content-disposition'] || '');
+        const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+        const filename = match?.[1] || fallbackName;
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+    };
+
     const exportBackup = async () => {
         if (!isAdmin) return;
         setBackupLoading(true);
@@ -781,22 +809,96 @@ export default function SystemSettings() {
             const res = await api.get('/system/backup/export', {
                 responseType: 'blob',
             });
-            const blob = new Blob([res.data], { type: 'application/gzip' });
-            const url = window.URL.createObjectURL(blob);
-            const contentDisposition = String(res.headers?.['content-disposition'] || '');
-            const match = contentDisposition.match(/filename="?([^"]+)"?/i);
-            const filename = match?.[1] || 'nms_backup.json.gz';
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = filename;
-            anchor.click();
-            window.URL.revokeObjectURL(url);
-            toast.success('系统备份已导出');
+            downloadBackupBlob(res, 'nms_backup.nmsbak');
+            toast.success('加密备份已导出');
             fetchBackupStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '导出备份失败');
+            toast.error(error.response?.data?.msg || error.message || '导出加密备份失败');
         }
         setBackupLoading(false);
+    };
+
+    const saveBackupLocally = async () => {
+        if (!isAdmin) return;
+        setBackupLocalSaving(true);
+        try {
+            const res = await api.post('/system/backup/local');
+            toast.success(res.data?.msg || '加密备份已保存到服务器本机');
+            await fetchBackupStatus({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '保存本机备份失败');
+        }
+        setBackupLocalSaving(false);
+    };
+
+    const downloadLocalBackup = async (filename) => {
+        if (!isAdmin || !filename) return;
+        const actionKey = `download:${filename}`;
+        setBackupLocalActionKey(actionKey);
+        try {
+            const res = await api.get(`/system/backup/local/${encodeURIComponent(filename)}/download`, {
+                responseType: 'blob',
+            });
+            downloadBackupBlob(res, filename);
+            toast.success('本机加密备份已下载');
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '下载本机备份失败');
+        }
+        setBackupLocalActionKey('');
+    };
+
+    const restoreLocalBackup = async (filename) => {
+        if (!isAdmin || !filename) return;
+        const ok = await confirmAction({
+            title: '恢复本机加密备份',
+            message: `确定恢复本机备份 ${filename} 吗？`,
+            details: '备份会先解密校验，再覆盖当前同名 Store。请确认当前环境仍使用创建备份时的 CREDENTIALS_SECRET。',
+            confirmText: '确认恢复',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        const actionKey = `restore:${filename}`;
+        setBackupLocalActionKey(actionKey);
+        try {
+            const res = await api.post(`/system/backup/local/${encodeURIComponent(filename)}/restore`);
+            const payload = res.data?.obj || null;
+            setBackupInspection(payload?.inspection || null);
+            toast.success(res.data?.msg || '本机加密备份已恢复');
+            await Promise.all([
+                fetchSettings(),
+                fetchBackupStatus({ quiet: true }),
+                fetchDbStatus({ quiet: true }),
+                fetchEmailStatus({ quiet: true }),
+                fetchMonitorStatus({ quiet: true }),
+            ]);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '恢复本机备份失败');
+        }
+        setBackupLocalActionKey('');
+    };
+
+    const deleteLocalBackup = async (filename) => {
+        if (!isAdmin || !filename) return;
+        const ok = await confirmAction({
+            title: '删除本机备份',
+            message: `确定删除本机备份 ${filename} 吗？`,
+            details: '删除后将无法再通过系统设置直接下载或恢复这份备份。',
+            confirmText: '确认删除',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        const actionKey = `delete:${filename}`;
+        setBackupLocalActionKey(actionKey);
+        try {
+            const res = await api.delete(`/system/backup/local/${encodeURIComponent(filename)}`);
+            toast.success(res.data?.msg || '本机备份已删除');
+            await fetchBackupStatus({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '删除本机备份失败');
+        }
+        setBackupLocalActionKey('');
     };
 
     const setSelectedBackupFile = (file) => {
@@ -970,9 +1072,9 @@ export default function SystemSettings() {
         },
         {
             title: '备份状态',
-            value: backupStatus?.lastExport?.createdAt ? '已有导出快照' : '暂无备份快照',
+            value: backupStatus?.lastExport?.createdAt ? '已有备份快照' : '暂无备份快照',
             detail: backupStatus?.lastExport?.createdAt
-                ? `最近导出 ${formatDateTime(backupStatus.lastExport.createdAt, locale)}`
+                ? `最近生成 ${formatDateTime(backupStatus.lastExport.createdAt, locale)}`
                 : '建议在改动前先导出一份系统快照。',
             tone: backupStatus?.lastExport?.createdAt ? 'success' : 'warning',
         },
@@ -993,6 +1095,77 @@ export default function SystemSettings() {
         registrationEnabled,
         siteCamouflageEnabled,
         siteAccessPath,
+    ]);
+
+    const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
+    const latestLocalBackup = localBackups[0] || null;
+    const activeTabHighlights = useMemo(() => {
+        if (activeTab === 'status') {
+            return [
+                { label: '入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '已启用伪装' : '直接访问' },
+                { label: '注册', value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭', detail: registrationEnabled ? '可在参数页调整' : '由环境变量控制' },
+                { label: '备份', value: backupStatus?.lastExport?.filename || '暂无', detail: backupStatus?.lastExport?.createdAt ? formatDateTime(backupStatus.lastExport.createdAt, locale) : '建议先留快照' },
+                { label: '监控', value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '未运行', detail: monitorStatus?.healthMonitor?.lastRunAt ? formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale) : '尚未巡检' },
+            ];
+        }
+        if (activeTab === 'basic') {
+            return [
+                { label: '真实入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '根路径显示公开首页' : '根路径直接进入系统' },
+                { label: '订阅公网地址', value: draft.subscription.publicBaseUrl || '未配置', detail: draft.subscription.publicBaseUrl ? '订阅链接固定使用此地址' : '可能回落到当前访问地址' },
+                { label: '邀请码', value: `${inviteStatusSummary.active} 可用`, detail: `${inviteStatusSummary.used} 用完 · ${inviteStatusSummary.revoked} 撤销` },
+                { label: '审计地理查询', value: draft.auditIpGeo.enabled ? '已开启' : '已关闭', detail: draft.auditIpGeo.provider || '未设置服务商' },
+            ];
+        }
+        if (activeTab === 'monitor') {
+            return [
+                { label: 'SMTP', value: emailConfiguredLabel, detail: emailStatus?.from || '尚未配置发件人' },
+                { label: '连接测试', value: emailVerificationLabel, detail: emailStatus?.lastVerification?.ts ? formatDateTime(emailStatus.lastVerification.ts, locale) : '尚未测试' },
+                { label: '节点巡检', value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行', detail: `周期 ${Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟` },
+                { label: '告警', value: `未读 ${monitorStatus?.notifications?.unreadCount || 0}`, detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}` },
+            ];
+        }
+        if (activeTab === 'backup') {
+            return [
+                { label: '加密算法', value: 'AES-256-GCM', detail: '解密密钥来自 CREDENTIALS_SECRET' },
+                { label: '本机备份', value: `${localBackups.length} 份`, detail: latestLocalBackup?.filename || '尚未保存到服务器本机' },
+                { label: '最近生成', value: backupStatus?.lastExport?.filename || '暂无', detail: backupStatus?.lastExport?.createdAt ? formatDateTime(backupStatus.lastExport.createdAt, locale) : '尚无生成记录' },
+                { label: '最近恢复', value: backupStatus?.lastImport?.sourceFilename || '暂无', detail: backupStatus?.lastImport?.restoredAt ? formatDateTime(backupStatus.lastImport.restoredAt, locale) : '尚无恢复记录' },
+            ];
+        }
+        if (activeTab === 'db') {
+            return [
+                { label: '数据库连接', value: dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用', detail: dbStatus?.connection?.error || '无错误' },
+                { label: '当前模式', value: dbStatus ? `r=${dbStatus.currentModes?.readMode || 'file'} / w=${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测', detail: '支持 file / dual / db' },
+                { label: '待写入', value: `${dbStatus?.pendingWrites || 0}`, detail: `queued ${dbStatus?.writesQueued || 0}` },
+                { label: '快照数', value: `${(dbStatus?.snapshots || []).length}`, detail: dbStatus?.lastWriteAt ? `最后写入 ${formatDateTime(dbStatus.lastWriteAt, locale)}` : '尚无写入记录' },
+            ];
+        }
+        return [
+            { label: '模式', value: '内嵌控制台', detail: '保持当前系统设置上下文不跳转' },
+            { label: '适用场景', value: '节点运维', detail: '适合修改节点、诊断连接和查看状态' },
+            { label: '布局', value: 'PC 双栏 / 手机单列', detail: '跟随系统设置的整体响应式版式' },
+        ];
+    }, [
+        activeTab,
+        backupStatus,
+        dbStatus,
+        draft.auditIpGeo.enabled,
+        draft.auditIpGeo.provider,
+        draft.registration.inviteOnlyEnabled,
+        draft.subscription.publicBaseUrl,
+        emailConfiguredLabel,
+        emailStatus,
+        emailVerificationLabel,
+        inviteStatusSummary.active,
+        inviteStatusSummary.revoked,
+        inviteStatusSummary.used,
+        latestLocalBackup?.filename,
+        localBackups.length,
+        locale,
+        monitorStatus,
+        registrationEnabled,
+        siteAccessPath,
+        siteCamouflageEnabled,
     ]);
 
     const renderBasicContent = () => (
@@ -1597,44 +1770,73 @@ export default function SystemSettings() {
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="系统备份"
-                    subtitle="导出当前 NMS store 快照为 gzip 备份包；恢复前可先上传备份文件进行预览校验。"
+                    title="加密备份工作台"
+                    subtitle="新备份会统一使用当前 `CREDENTIALS_SECRET` 加密；导出、保存到服务器本机、预览和恢复都走同一套解密校验链路。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
                             {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
                         </button>
                     )}
                 />
-                <div className="settings-mini-grid mb-3">
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">可备份 Store</div>
-                        <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
-                        <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
+                <div className="settings-backup-hero">
+                    <div className="card p-3 settings-mini-card settings-backup-hero-card">
+                        <div className="settings-backup-hero-eyebrow">备份策略</div>
+                        <div className="settings-backup-hero-title">默认输出加密备份包，恢复前先解密再校验</div>
+                        <div className="text-sm text-muted">
+                            新备份文件统一为 `.nmsbak`。只要 `CREDENTIALS_SECRET` 不变，你可以选择导出下载，或直接在服务器本机留存并从列表里恢复。
+                        </div>
+                        <div className="settings-backup-badge-row">
+                            <span className="badge badge-success">AES-256-GCM</span>
+                            <span className="badge badge-neutral">密钥来源 CREDENTIALS_SECRET</span>
+                            <span className="badge badge-neutral">旧版 `.json.gz` 兼容恢复</span>
+                        </div>
                     </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">最近导出</div>
-                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</div>
-                        <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">最近恢复</div>
-                        <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
-                        <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
+                    <div className="settings-mini-grid settings-backup-summary-grid">
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">可备份 Store</div>
+                            <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
+                            <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">最近生成</div>
+                            <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</div>
+                            <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">本机备份</div>
+                            <div className="text-lg font-semibold">{localBackups.length}</div>
+                            <div className="text-xs text-muted mt-1">{latestLocalBackup?.filename || '服务器本机尚无备份'}</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">最近恢复</div>
+                            <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
+                            <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
+                        </div>
                     </div>
                 </div>
-                <div className="settings-backup-actions mt-3">
+
+                <div className="settings-backup-actions settings-backup-actions--triple mt-3">
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">导出当前快照</div>
-                        <div className="text-xs text-muted mt-1">下载当前系统 store 的 gzip 快照，适合在变更前留存一份回滚点。</div>
+                        <div className="text-sm font-medium">导出到浏览器</div>
+                        <div className="text-xs text-muted mt-1">下载一份加密备份包到当前浏览器所在设备，适合异地留存或手工归档。</div>
                         <div className="settings-backup-action-footer">
-                            <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading}>
-                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出 gzip 备份</>}
+                            <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
+                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出加密备份</>}
                             </button>
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">恢复已有备份</div>
-                        <div className="text-xs text-muted mt-1">通过恢复向导上传并预览 `.gzip` 备份包，再执行覆盖恢复，避免误触高风险动作。</div>
+                        <div className="text-sm font-medium">保存到服务器本机</div>
+                        <div className="text-xs text-muted mt-1">在 `NMS` 所在机器保存一份加密备份，后续可以直接从下面列表里下载、恢复或删除。</div>
+                        <div className="settings-backup-action-footer">
+                            <button className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
+                                {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck /> 保存本机备份</>}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-backup-action-card">
+                        <div className="text-sm font-medium">从文件恢复</div>
+                        <div className="text-xs text-muted mt-1">上传加密备份包或旧版 `.json.gz`，系统会先解密或解压校验，再执行覆盖恢复。</div>
                         <div className="settings-backup-action-footer">
                             <button
                                 className="btn btn-secondary btn-sm"
@@ -1643,18 +1845,79 @@ export default function SystemSettings() {
                                     setBackupRestoreConfirmed(false);
                                     setBackupUploadProgress(0);
                                 }}
-                                disabled={backupLoading || backupRestoreLoading}
+                                disabled={backupLoading || backupRestoreLoading || backupLocalSaving}
                             >
                                 <HiOutlineArrowUpTray /> 导入 / 恢复备份
                             </button>
                         </div>
                     </div>
                 </div>
+
+                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
+                    <div className="settings-backup-local-head">
+                        <div>
+                            <div className="text-sm font-medium">服务器本机加密备份</div>
+                            <div className="text-xs text-muted mt-1">保存目录: {backupStatus?.localBackupDir || '-'}</div>
+                        </div>
+                        <span className="badge badge-neutral">{localBackups.length} 份备份</span>
+                    </div>
+                    {localBackups.length === 0 ? (
+                        <div className="text-sm text-muted">还没有保存到服务器本机的备份。需要时可以先点上方“保存本机备份”。</div>
+                    ) : (
+                        <div className="settings-backup-local-grid">
+                            {localBackups.map((item) => (
+                                <div key={item.filename} className="settings-backup-local-item">
+                                    <div className="settings-backup-local-item-head">
+                                        <div className="settings-backup-local-name">{item.filename}</div>
+                                        <span className="badge badge-success">已加密</span>
+                                    </div>
+                                    <div className="settings-backup-local-meta">
+                                        <span>{formatDateTime(item.createdAt, locale)}</span>
+                                        <span>{formatBytes(item.bytes || 0)}</span>
+                                        <span>{(item.storeKeys || []).length} 个 Store</span>
+                                    </div>
+                                    <div className="text-xs text-muted">
+                                        解密密钥: {item.keyHint || 'CREDENTIALS_SECRET'} · 算法: {item.cipher || 'AES-256-GCM'}
+                                    </div>
+                                    <div className="settings-backup-local-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => downloadLocalBackup(item.filename)}
+                                            disabled={backupLocalActionKey === `download:${item.filename}`}
+                                        >
+                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : '下载'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => restoreLocalBackup(item.filename)}
+                                            disabled={backupLocalActionKey === `restore:${item.filename}`}
+                                        >
+                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : '恢复'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-danger btn-sm"
+                                            onClick={() => deleteLocalBackup(item.filename)}
+                                            disabled={backupLocalActionKey === `delete:${item.filename}`}
+                                        >
+                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : '删除'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {backupInspection && (
                     <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                             <div className="text-sm font-medium">备份预览</div>
-                            <span className="badge badge-success">可校验</span>
+                            <span className={`badge ${backupInspection.encrypted === false ? 'badge-warning' : 'badge-success'}`}>
+                                {backupInspection.encrypted === false ? '旧版明文兼容' : '已通过解密校验'}
+                            </span>
                         </div>
                         <div className="settings-backup-inspection-grid">
                             <div className="settings-backup-inspection-item">
@@ -1664,6 +1927,10 @@ export default function SystemSettings() {
                             <div className="settings-backup-inspection-item">
                                 <div className="text-xs text-muted">格式版本</div>
                                 <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
+                            </div>
+                            <div className="settings-backup-inspection-item">
+                                <div className="text-xs text-muted">加密状态</div>
+                                <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
                                 <div className="text-xs text-muted">可恢复 Store</div>
@@ -1676,6 +1943,11 @@ export default function SystemSettings() {
                         {(backupInspection.missingKeys || []).length > 0 && (
                             <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
                         )}
+                        <div className="text-sm text-muted mt-1">
+                            {backupInspection.encrypted === false
+                                ? '这是旧版未加密备份，仅保留恢复兼容。后续请重新导出新的加密备份。'
+                                : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
+                        </div>
                         <div className="settings-backup-inspection-actions">
                             <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
                                 {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
@@ -1990,6 +2262,22 @@ export default function SystemSettings() {
                     </div>
 
                     <div className="settings-main">
+                        <div className="card settings-tab-hero">
+                            <div className="settings-tab-hero-copy">
+                                <div className="settings-tab-hero-eyebrow">{activeTabMeta.eyebrow}</div>
+                                <div className="settings-tab-hero-title">{activeTabMeta.label}</div>
+                                <div className="settings-tab-hero-summary">{activeTabMeta.summary}</div>
+                            </div>
+                            <div className="settings-tab-hero-grid">
+                                {activeTabHighlights.map((item) => (
+                                    <div key={`${activeTabMeta.id}-${item.label}`} className="settings-tab-highlight-card">
+                                        <div className="settings-tab-highlight-label">{item.label}</div>
+                                        <div className="settings-tab-highlight-value">{item.value}</div>
+                                        <div className="settings-tab-highlight-detail">{item.detail}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                         <div className="settings-tab-panel">
                             {activeTab === 'console' ? (
                                 <div className="settings-console-host">
@@ -2109,7 +2397,7 @@ export default function SystemSettings() {
                             <HiOutlineExclamationTriangle className="settings-restore-warning-icon" />
                             <div className="settings-restore-warning-copy">
                                 <div className="settings-restore-warning-title">恢复会覆盖当前同名 Store</div>
-                                <div className="text-sm text-muted">建议先导出一份当前系统快照，再选择备份文件进行预览校验。恢复后，备份中包含的数据会替换当前运行数据。</div>
+                                <div className="text-sm text-muted">建议先导出一份当前系统快照，再选择备份文件进行预览校验。新备份会先按当前 `CREDENTIALS_SECRET` 解密，再执行恢复覆盖。</div>
                             </div>
                         </div>
 
@@ -2131,11 +2419,11 @@ export default function SystemSettings() {
                         >
                             <input
                                 type="file"
-                                accept=".gz,.json.gz,application/gzip"
+                                accept=".nmsbak,.gz,.json.gz,application/octet-stream,application/gzip"
                                 onChange={(event) => setSelectedBackupFile(event.target.files?.[0] || null)}
                             />
                             <div className="settings-restore-dropzone-title">拖拽备份文件到这里，或点击选择文件</div>
-                            <div className="settings-restore-dropzone-sub">支持 `NMS` 导出的 `.gz / .json.gz` 备份包</div>
+                            <div className="settings-restore-dropzone-sub">支持 `NMS` 导出的加密 `.nmsbak`，也兼容旧版 `.gz / .json.gz` 备份包</div>
                             <div className="settings-restore-file">{backupFile?.name || '尚未选择文件'}</div>
                         </label>
 
@@ -2167,6 +2455,10 @@ export default function SystemSettings() {
                                         <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
                                     </div>
                                     <div className="settings-backup-inspection-item">
+                                        <div className="text-xs text-muted">加密状态</div>
+                                        <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
+                                    </div>
+                                    <div className="settings-backup-inspection-item">
                                         <div className="text-xs text-muted">可恢复 Store</div>
                                         <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
                                     </div>
@@ -2177,6 +2469,11 @@ export default function SystemSettings() {
                                 {(backupInspection.missingKeys || []).length > 0 && (
                                     <div className="text-sm text-muted">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
                                 )}
+                                <div className="text-sm text-muted">
+                                    {backupInspection.encrypted === false
+                                        ? '这是旧版未加密备份，仅用于兼容恢复。建议恢复完成后立即重新导出新的加密备份。'
+                                        : `恢复时会使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
+                                </div>
                             </div>
                         )}
 

@@ -25,7 +25,16 @@ import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
-import { createBackupArchive, getBackupStatus, inspectBackupArchive, restoreBackupArchive } from '../lib/systemBackup.js';
+import {
+    createBackupArchive,
+    deleteLocalBackupArchive,
+    getBackupStatus,
+    inspectBackupArchive,
+    readLocalBackupArchive,
+    restoreBackupArchive,
+    restoreLocalBackupArchive,
+    saveBackupArchiveLocally,
+} from '../lib/systemBackup.js';
 import { normalizeBoolean } from '../lib/normalize.js';
 import {
     normalizeNoticeScope,
@@ -327,10 +336,111 @@ router.get('/backup/export', adminOnly, (req, res) => {
         filename,
         bytes: meta.bytes,
         storeCount: meta.storeKeys.length,
+        encrypted: true,
     });
-    res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send(buffer);
+});
+
+router.post('/backup/local', adminOnly, (req, res) => {
+    try {
+        const keys = normalizeStoreKeys(req.body?.keys);
+        const output = saveBackupArchiveLocally({ keys });
+        appendSecurityAudit('system_backup_saved_local', req, {
+            filename: output.filename,
+            bytes: output.meta.bytes,
+            storeCount: output.meta.storeKeys.length,
+            encrypted: true,
+        });
+        return res.json({
+            success: true,
+            msg: '加密备份已保存到服务器本机',
+            obj: {
+                ...output.meta,
+                filePath: output.meta.filePath,
+            },
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '保存本机备份失败',
+        });
+    }
+});
+
+router.get('/backup/local/:filename/download', adminOnly, (req, res) => {
+    try {
+        const output = readLocalBackupArchive(req.params.filename);
+        appendSecurityAudit('system_backup_downloaded_local', req, {
+            filename: output.filename,
+        });
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${output.filename}"`);
+        return res.send(output.buffer);
+    } catch (error) {
+        return res.status(404).json({
+            success: false,
+            msg: error.message || '本机备份不存在',
+        });
+    }
+});
+
+router.post('/backup/local/:filename/restore', adminOnly, async (req, res) => {
+    let keys = [];
+    try {
+        const rawKeys = req.body?.keys;
+        if (typeof rawKeys === 'string' && rawKeys.trim().startsWith('[')) {
+            keys = normalizeStoreKeys(JSON.parse(rawKeys));
+        } else {
+            keys = normalizeStoreKeys(rawKeys);
+        }
+    } catch {
+        return res.status(400).json({
+            success: false,
+            msg: '恢复范围参数无效',
+        });
+    }
+
+    try {
+        const output = await restoreLocalBackupArchive(req.params.filename, { keys });
+        appendSecurityAudit('system_backup_restored_local', req, {
+            filename: String(req.params.filename || '').trim(),
+            sourceCreatedAt: output.meta?.sourceCreatedAt || '',
+            storeCount: output.meta?.storeKeys?.length || 0,
+            restored: output.result?.restored || 0,
+            failed: output.result?.failed || 0,
+        });
+        return res.json({
+            success: true,
+            msg: '本机加密备份已恢复',
+            obj: output,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '恢复本机备份失败',
+        });
+    }
+});
+
+router.delete('/backup/local/:filename', adminOnly, (req, res) => {
+    try {
+        const output = deleteLocalBackupArchive(req.params.filename);
+        appendSecurityAudit('system_backup_deleted_local', req, {
+            filename: output.filename,
+        });
+        return res.json({
+            success: true,
+            msg: '本机备份已删除',
+            obj: output,
+        });
+    } catch (error) {
+        return res.status(404).json({
+            success: false,
+            msg: error.message || '删除本机备份失败',
+        });
+    }
 });
 
 router.post('/backup/inspect', adminOnly, backupUpload.single('file'), (req, res) => {

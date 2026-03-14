@@ -205,6 +205,9 @@ function shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured) 
     return !hasClientTraffic || !clientTrafficCaptured;
 }
 
+const SAMPLE_KIND_CLIENT_DELTA = 'client_delta';
+const SAMPLE_KIND_SERVER_SNAPSHOT = 'server_snapshot';
+
 const REGISTERED_TRAFFIC_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 
 function createRegisteredTotals(totalUsers = 0) {
@@ -232,6 +235,88 @@ function normalizeRegisteredTotals(value, fallbackTotalUsers = 0) {
 
 function hasRegisteredTotalsSnapshot(meta) {
     return !!meta && typeof meta === 'object' && !Array.isArray(meta) && !!meta.registeredTotals;
+}
+
+function createServerTotalEntry(entry = {}) {
+    const upBytes = toNonNegativeInt(entry.upBytes, 0);
+    const downBytes = toNonNegativeInt(entry.downBytes, 0);
+    return {
+        serverId: String(entry.serverId || '').trim(),
+        serverName: String(entry.serverName || '').trim(),
+        upBytes,
+        downBytes,
+        totalBytes: toNonNegativeInt(entry.totalBytes, upBytes + downBytes),
+    };
+}
+
+function normalizeServerTotals(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => createServerTotalEntry(item))
+        .filter((item) => item.serverId);
+}
+
+function hasServerTotalsSnapshot(meta) {
+    return !!meta && typeof meta === 'object' && !Array.isArray(meta) && Array.isArray(meta.serverTotals);
+}
+
+function normalizeSampleKind(value) {
+    return String(value || '').trim() === SAMPLE_KIND_SERVER_SNAPSHOT
+        ? SAMPLE_KIND_SERVER_SNAPSHOT
+        : SAMPLE_KIND_CLIENT_DELTA;
+}
+
+function resolveInboundTrafficSummary(inbound) {
+    const { clients } = extractInboundClients(inbound);
+    const hasPerClientTraffic = clients.some((client) => (
+        hasOwn(client, 'up') || hasOwn(client, 'down')
+    ));
+
+    if (hasPerClientTraffic) {
+        return clients.reduce((acc, client) => {
+            acc.upBytes += toNonNegativeInt(client?.up, 0);
+            acc.downBytes += toNonNegativeInt(client?.down, 0);
+            acc.totalBytes += toNonNegativeInt(client?.up, 0) + toNonNegativeInt(client?.down, 0);
+            return acc;
+        }, { upBytes: 0, downBytes: 0, totalBytes: 0 });
+    }
+
+    const upBytes = toNonNegativeInt(inbound?.up, 0);
+    const downBytes = toNonNegativeInt(inbound?.down, 0);
+    return {
+        upBytes,
+        downBytes,
+        totalBytes: upBytes + downBytes,
+    };
+}
+
+function summarizeServerTrafficTotals(serverPayloads = []) {
+    const totals = new Map();
+
+    (Array.isArray(serverPayloads) ? serverPayloads : []).forEach((payload) => {
+        const serverId = String(payload?.serverId || '').trim();
+        if (!serverId) return;
+
+        const current = totals.get(serverId) || createServerTotalEntry({
+            serverId,
+            serverName: payload?.serverName || serverId,
+        });
+        const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
+
+        inbounds.forEach((inbound) => {
+            const summary = resolveInboundTrafficSummary(inbound);
+            current.upBytes += summary.upBytes;
+            current.downBytes += summary.downBytes;
+            current.totalBytes += summary.totalBytes;
+        });
+
+        if (!current.serverName) {
+            current.serverName = String(payload?.serverName || serverId).trim();
+        }
+        totals.set(serverId, current);
+    });
+
+    return Array.from(totals.values());
 }
 
 function shouldTrackRegisteredTrafficInbound(inbound) {
@@ -349,11 +434,14 @@ class TrafficStatsStore {
         ensureDataDir();
         this.samples = loadArray(TRAFFIC_SAMPLES_FILE);
         this.counters = loadObject(TRAFFIC_COUNTERS_FILE, {});
-        const loadedMeta = loadObject(TRAFFIC_META_FILE, { lastCollectionAt: null, registeredTotals: createRegisteredTotals() });
+        const loadedMeta = loadObject(TRAFFIC_META_FILE, { lastCollectionAt: null, registeredTotals: createRegisteredTotals(), serverTotals: [] });
         this.meta = {
             ...loadedMeta,
             registeredTotals: hasOwn(loadedMeta, 'registeredTotals')
                 ? normalizeRegisteredTotals(loadedMeta.registeredTotals)
+                : null,
+            serverTotals: hasOwn(loadedMeta, 'serverTotals')
+                ? normalizeServerTotals(loadedMeta.serverTotals)
                 : null,
         };
         this.collectingPromise = null;
@@ -424,13 +512,15 @@ class TrafficStatsStore {
         };
     }
 
-    _filterSamples({ fromTs, toTs, email = '', serverId = '' }) {
+    _filterSamples({ fromTs, toTs, email = '', serverId = '', kind = SAMPLE_KIND_CLIENT_DELTA }) {
         const normalizedEmail = String(email || '').trim().toLowerCase();
         const normalizedServerId = String(serverId || '').trim();
+        const normalizedKind = normalizeSampleKind(kind);
 
         return this.samples.filter((item) => {
             const ts = new Date(item.ts).getTime();
             if (!Number.isFinite(ts) || ts < fromTs || ts > toTs) return false;
+            if (normalizeSampleKind(item?.kind) !== normalizedKind) return false;
             if (normalizedEmail && String(item.email || '').toLowerCase() !== normalizedEmail) return false;
             if (normalizedServerId && String(item.serverId || '') !== normalizedServerId) return false;
             return true;
@@ -459,6 +549,31 @@ class TrafficStatsStore {
         return Array.from(bucketMap.values()).sort((a, b) => (
             new Date(a.ts).getTime() - new Date(b.ts).getTime()
         ));
+    }
+
+    _aggregateSnapshotTrend(samples, granularity) {
+        const bucketMap = new Map();
+        for (const sample of samples) {
+            const sourceDate = new Date(sample.ts);
+            const sampleTs = sourceDate.getTime();
+            const bucketDate = granularity === 'day'
+                ? floorToDay(sourceDate)
+                : floorToHour(sourceDate);
+            const bucket = bucketDate.toISOString();
+            const current = bucketMap.get(bucket);
+            if (!current || sampleTs >= current._sampleTs) {
+                bucketMap.set(bucket, {
+                    ts: bucket,
+                    upBytes: toNonNegativeInt(sample.upBytes, 0),
+                    downBytes: toNonNegativeInt(sample.downBytes, 0),
+                    totalBytes: toNonNegativeInt(sample.totalBytes, 0),
+                    _sampleTs: sampleTs,
+                });
+            }
+        }
+        return Array.from(bucketMap.values())
+            .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+            .map(({ _sampleTs, ...item }) => item);
     }
 
     async _collectFromServer(serverMeta, collectedAtIso) {
@@ -501,6 +616,7 @@ class TrafficStatsStore {
                     clientTrafficCaptured = true;
                     result.samples.push({
                         id: crypto.randomUUID(),
+                        kind: SAMPLE_KIND_CLIENT_DELTA,
                         ts: collectedAtIso,
                         granularity: 'raw',
                         serverId: serverMeta.id,
@@ -541,6 +657,7 @@ class TrafficStatsStore {
                 if (deltaInboundTotal <= 0) continue;
                 result.samples.push({
                     id: crypto.randomUUID(),
+                    kind: SAMPLE_KIND_CLIENT_DELTA,
                     ts: collectedAtIso,
                     granularity: 'raw',
                     serverId: serverMeta.id,
@@ -570,6 +687,7 @@ class TrafficStatsStore {
             : 0;
         if (!force
             && hasRegisteredTotalsSnapshot(this.meta)
+            && hasServerTotalsSnapshot(this.meta)
             && lastCollectionTs
             && (Date.now() - lastCollectionTs) < this._sampleIntervalMs()) {
             return {
@@ -603,18 +721,42 @@ class TrafficStatsStore {
                     newSamples.push(...result.samples);
                 }
                 if (Array.isArray(result.inbounds)) {
-                    serverPayloads.push({ inbounds: result.inbounds });
+                    serverPayloads.push({
+                        serverId: serverMeta.id,
+                        serverName: serverMeta.name,
+                        inbounds: result.inbounds,
+                    });
                 }
                 if (result.warning) warnings.push(result.warning);
             },
             this._collectorConcurrency()
         );
 
+        const serverTotals = summarizeServerTrafficTotals(serverPayloads);
+        if (serverTotals.length > 0) {
+            newSamples.push(...serverTotals.map((item) => ({
+                id: crypto.randomUUID(),
+                kind: SAMPLE_KIND_SERVER_SNAPSHOT,
+                ts: collectedAtIso,
+                granularity: 'raw',
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: '',
+                inboundRemark: '',
+                email: '',
+                clientIdentifier: '__server_total__',
+                upBytes: item.upBytes,
+                downBytes: item.downBytes,
+                totalBytes: item.totalBytes,
+            })));
+        }
+
         if (newSamples.length > 0) {
             this.samples.push(...newSamples);
         }
         this.meta.lastCollectionAt = collectedAtIso;
         this.meta.registeredTotals = summarizeRegisteredTrafficTotals(users, serverPayloads);
+        this.meta.serverTotals = serverTotals;
         this._prune();
         this._persist();
 
@@ -633,7 +775,6 @@ class TrafficStatsStore {
 
         const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
         const users = new Map();
-        const servers = new Map();
 
         for (const item of samples) {
             totals.upBytes += toNonNegativeInt(item.upBytes, 0);
@@ -655,23 +796,13 @@ class TrafficStatsStore {
                     users.set(userInfo.email, current);
                 }
             }
-            const serverId = String(item.serverId || '');
-            if (serverId) {
-                const current = servers.get(serverId) || {
-                    serverId,
-                    serverName: item.serverName || serverId,
-                    totalBytes: 0,
-                };
-                current.totalBytes += toNonNegativeInt(item.totalBytes, 0);
-                servers.set(serverId, current);
-            }
         }
 
         const topUsers = Array.from(users.values())
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 
-        const topServers = Array.from(servers.values())
+        const topServers = normalizeServerTotals(this.meta?.serverTotals)
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 
@@ -683,6 +814,7 @@ class TrafficStatsStore {
             userLevelSupported: samples.some((item) => Boolean(String(item.email || '').trim())),
             totals,
             registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),
+            serverTotals: normalizeServerTotals(this.meta?.serverTotals),
             topUsers,
             topServers,
             lastCollectionAt: this.meta.lastCollectionAt || null,
@@ -746,14 +878,15 @@ class TrafficStatsStore {
             fromTs: range.fromTs,
             toTs: range.toTs,
             serverId: normalizedServerId,
+            kind: SAMPLE_KIND_SERVER_SNAPSHOT,
         });
-        const points = this._aggregateTrend(samples, granularity);
-        const totals = points.reduce((acc, item) => {
-            acc.upBytes += item.upBytes;
-            acc.downBytes += item.downBytes;
-            acc.totalBytes += item.totalBytes;
-            return acc;
-        }, { upBytes: 0, downBytes: 0, totalBytes: 0 });
+        const points = this._aggregateSnapshotTrend(samples, granularity);
+        const latestPoint = points.length > 0 ? points[points.length - 1] : { upBytes: 0, downBytes: 0, totalBytes: 0 };
+        const totals = {
+            upBytes: toNonNegativeInt(latestPoint.upBytes, 0),
+            downBytes: toNonNegativeInt(latestPoint.downBytes, 0),
+            totalBytes: toNonNegativeInt(latestPoint.totalBytes, 0),
+        };
 
         return {
             serverId: normalizedServerId,
@@ -784,8 +917,11 @@ class TrafficStatsStore {
                 registeredTotals: hasOwn(snapshot.meta, 'registeredTotals')
                     ? normalizeRegisteredTotals(snapshot?.meta?.registeredTotals)
                     : null,
+                serverTotals: hasOwn(snapshot.meta, 'serverTotals')
+                    ? normalizeServerTotals(snapshot?.meta?.serverTotals)
+                    : null,
             }
-            : { lastCollectionAt: null, registeredTotals: createRegisteredTotals() };
+            : { lastCollectionAt: null, registeredTotals: createRegisteredTotals(), serverTotals: [] };
         this._prune();
     }
 }
@@ -799,4 +935,5 @@ export {
     resolveTrafficUserInfo,
     shouldUseInboundTotalFallback,
     summarizeRegisteredTrafficTotals,
+    summarizeServerTrafficTotals,
 };
