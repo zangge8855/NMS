@@ -1169,461 +1169,562 @@ export default function SystemSettings() {
     ]);
 
     const renderBasicContent = () => (
-        <div className="settings-grid settings-grid--basic">
-            <div className="card p-4 settings-panel settings-panel--wide settings-panel--entry">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="站点入口"
-                    subtitle="控制登录页、管理后台和用户自助页从哪个路径进入，并决定未命中真实入口时是否展示公开首页。"
-                />
-                <div className="settings-inline-grid">
-                    <div className="form-group mb-0">
-                        <label className="form-label">首页访问路径</label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                className="form-input font-mono"
-                                placeholder="/"
-                                value={draft.site.accessPath}
-                                onChange={(e) => patchField('site', 'accessPath', e.target.value)}
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={applyRandomSiteAccessPath}
-                            >
-                                随机路径
-                            </button>
+        <div className="settings-section-stack">
+            <div className="settings-mini-grid settings-basic-summary-grid">
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">当前入口</div>
+                    <div className="text-lg font-semibold font-mono">{siteEntryPreview}</div>
+                    <div className="text-xs text-muted">{siteCamouflageEnabled ? '伪装首页已开启，根路径不会直接暴露后台。' : '根路径按默认路由处理，后台入口由上方路径决定。'}</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">注册模式</div>
+                    <div className="text-lg font-semibold">{registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'}</div>
+                    <div className="text-xs text-muted">邀请码 {inviteCodes.length} 个，可用 {inviteStatusSummary.active} 个。</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">任务策略</div>
+                    <div className="text-lg font-semibold">保留 {draft.jobs.retentionDays} 天</div>
+                    <div className="text-xs text-muted">默认并发 {draft.jobs.defaultConcurrency}，上限 {draft.jobs.maxConcurrency}。</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">审计归属地</div>
+                    <div className="text-lg font-semibold">{draft.auditIpGeo.enabled ? '已启用' : '未启用'}</div>
+                    <div className="text-xs text-muted">{draft.auditIpGeo.provider || '未设置服务提供方'} · 缓存 {draft.auditIpGeo.cacheTtlSeconds}s</div>
+                </div>
+            </div>
+
+            <div className="settings-grid settings-grid--basic">
+                <div className="card p-4 settings-panel settings-panel--wide settings-panel--entry">
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title="站点入口"
+                        subtitle="控制登录页、管理后台和用户自助页从哪个路径进入，并决定未命中真实入口时是否展示公开首页。"
+                    />
+                    <div className="settings-inline-grid settings-basic-entry-grid">
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">入口路径</div>
+                                <div className="settings-form-cluster-title">对外访问的真实入口</div>
+                                <div className="settings-form-cluster-note">保存后旧路径将不再提供页面，不要使用 `/api`、`/assets`、`/ws` 这类系统保留路径。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">首页访问路径</label>
+                                <div className="settings-inline-action-row">
+                                    <input
+                                        className="form-input font-mono"
+                                        placeholder="/"
+                                        value={draft.site.accessPath}
+                                        onChange={(e) => patchField('site', 'accessPath', e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={applyRandomSiteAccessPath}
+                                    >
+                                        随机路径
+                                    </button>
+                                </div>
+                                <div className="text-xs text-muted mt-1">例如 `/portal` 或 `/office/nms`。</div>
+                            </div>
                         </div>
-                        <div className="text-xs text-muted mt-1">例如 `/portal` 或 `/office/nms`。保存后旧路径将不再提供页面。</div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
+                            <div className="text-sm text-muted">当前入口预览</div>
+                            <div className="text-base font-semibold font-mono mt-2 break-all">{siteEntryPreview}</div>
+                            <div className="settings-basic-note-list mt-2">
+                                <span className="badge badge-neutral">登录页 / 后台 / 自助页共用入口</span>
+                                <span className="badge badge-neutral">支持多级路径</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="card p-3 settings-mini-card settings-detail-card mb-0">
-                        <div className="text-sm text-muted">当前入口预览</div>
-                        <div className="text-base font-semibold font-mono mt-2 break-all">{siteEntryPreview}</div>
-                        <div className="text-xs text-muted mt-2">不要使用 `/api`、`/assets`、`/ws` 这类系统保留路径。</div>
+                    <div className="settings-field-grid settings-field-grid--compact mt-4">
+                        <div className="form-group mb-0">
+                            <SettingsToggleCard
+                                checked={draft.site.camouflageEnabled}
+                                onChange={(e) => handleCamouflageToggle(e.target.checked)}
+                                label="站点伪装首页"
+                                description="开启后，首页和错误路径将展示公开首页；只有输入真实入口路径才能进入 NMS。"
+                                activeLabel="已开启"
+                                inactiveLabel="已关闭"
+                            />
+                        </div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
+                            <div className="text-sm text-muted">公开首页预览</div>
+                            <div className="text-base font-semibold font-mono mt-2 break-all">{camouflagePreview}</div>
+                            <div className="text-xs text-muted mt-2">
+                                {siteCamouflageEnabled
+                                    ? '访问根路径或错误路径时，将展示高科技设备公司的公开首页。'
+                                    : '关闭时，错误路径将按默认 404 / 前端路由处理。'}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="settings-field-grid settings-field-grid--compact mt-4">
-                    <div className="form-group mb-0">
+
+                <div className="card p-4 settings-panel settings-panel--span-7 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="任务中心参数"
+                        subtitle="批量任务的保留、分页和并发策略。"
+                    />
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">保留策略</div>
+                            <div className="settings-form-cluster-title">先定义历史记录和分页上限</div>
+                            <div className="settings-form-cluster-note">面向任务列表本身的容量控制，避免页面和存储一起膨胀。</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">任务保留天数</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
+                                <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">任务分页最大条数</label>
+                                <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
+                                <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">任务最大保留记录</label>
+                                <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
+                                <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">执行策略</div>
+                            <div className="settings-form-cluster-title">控制新任务默认并发和最高并发</div>
+                            <div className="settings-form-cluster-note">上限过高会放大批量操作的资源消耗，建议和节点规模一起调整。</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">批量并发上限</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
+                                <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">默认并发</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
+                                <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="风控确认"
+                        subtitle="控制高风险批量动作的确认阈值和令牌时效。"
+                    />
+                    <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
-                            checked={draft.site.camouflageEnabled}
-                            onChange={(e) => handleCamouflageToggle(e.target.checked)}
-                            label="站点伪装首页"
-                            description="开启后，首页和错误路径将展示公开首页；只有输入真实入口路径才能进入 NMS。"
-                            activeLabel="已开启"
-                            inactiveLabel="已关闭"
+                            checked={draft.security.requireHighRiskConfirmation}
+                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                            label="高风险操作二次确认"
+                            description="批量动作达到高风险阈值后，执行前必须再次确认。"
                         />
                     </div>
-                    <div className="card p-3 settings-mini-card settings-detail-card mb-0">
-                        <div className="text-sm text-muted">公开首页预览</div>
-                        <div className="text-base font-semibold font-mono mt-2 break-all">{camouflagePreview}</div>
-                        <div className="text-xs text-muted mt-2">
-                            {siteCamouflageEnabled
-                                ? '访问根路径或错误路径时，将展示高科技设备公司的公开首页。'
-                                : '关闭时，错误路径将按默认 404 / 前端路由处理。'}
+                    <div className="settings-basic-note-strip">
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
+                            <div className="text-sm text-muted">当前高风险线</div>
+                            <div className="text-lg font-semibold">{draft.security.highRiskMinTargets} 个目标</div>
+                            <div className="text-xs text-muted">达到后必须二次确认。</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
+                            <div className="text-sm text-muted">确认有效期</div>
+                            <div className="text-lg font-semibold">{draft.security.riskTokenTtlSeconds} 秒</div>
+                            <div className="text-xs text-muted">超时后需重新确认。</div>
+                        </div>
+                    </div>
+                    <div className="settings-field-grid settings-field-grid--compact">
+                        <div className="form-group">
+                            <label className="form-label">中风险阈值</label>
+                            <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                            <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">高风险阈值</label>
+                            <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                            <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">确认令牌有效期（秒）</label>
+                            <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                            <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="card p-4 settings-panel settings-panel--span-7">
-                <SettingsPanelHeader
-                    title="任务中心参数"
-                    subtitle="批量任务的保留、分页和并发策略。"
-                />
-                <div className="settings-field-grid settings-field-grid--compact">
-                    <div className="form-group">
-                        <label className="form-label">任务保留天数</label>
-                        <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
-                        <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">任务分页最大条数</label>
-                        <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
-                        <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">任务最大保留记录</label>
-                        <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
-                        <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">批量并发上限</label>
-                        <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
-                        <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">默认并发</label>
-                        <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
-                        <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="card p-4 settings-panel settings-panel--span-5">
-                <SettingsPanelHeader
-                    title="风控确认"
-                    subtitle="控制高风险批量动作的确认阈值和令牌时效。"
-                />
-                <div className="form-group settings-checkbox-row">
-                    <SettingsToggleCard
-                        checked={draft.security.requireHighRiskConfirmation}
-                        onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                        label="高风险操作二次确认"
-                        description="批量动作达到高风险阈值后，执行前必须再次确认。"
+                <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="审计参数"
+                        subtitle="控制操作日志的保留周期和分页上限。"
                     />
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">保留窗口</div>
+                            <div className="settings-form-cluster-title">审计日志多久清理一次</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">审计保留天数</label>
+                                <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">审计分页最大条数</label>
+                                <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="settings-field-grid settings-field-grid--triple settings-field-grid--compact">
-                    <div className="form-group">
-                        <label className="form-label">中风险阈值</label>
-                        <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                        <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">高风险阈值</label>
-                        <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                        <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
-                    </div>
-                    <div className="form-group mb-0">
-                        <label className="form-label">确认令牌有效期（秒）</label>
-                        <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                        <div className="text-xs text-muted mt-1">超时后需重新确认。</div>
-                    </div>
-                </div>
-            </div>
 
-            <div className="card p-4 settings-panel settings-panel--span-4">
-                <SettingsPanelHeader
-                    title="审计参数"
-                    subtitle="控制操作日志的保留周期和分页上限。"
-                />
-                <div className="settings-field-grid settings-field-grid--compact">
-                    <div className="form-group">
-                        <label className="form-label">审计保留天数</label>
-                        <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                        <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
-                    </div>
-                    <div className="form-group mb-0">
-                        <label className="form-label">审计分页最大条数</label>
-                        <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                        <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="card p-4 settings-panel settings-panel--span-8">
-                <SettingsPanelHeader
-                    title="审计归属地查询"
-                    subtitle="控制订阅访问日志里的地区与运营商查询服务。"
-                />
-                <div className="form-group settings-checkbox-row">
-                    <SettingsToggleCard
-                        checked={draft.auditIpGeo.enabled}
-                        onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                        label="归属地查询"
-                        description="为订阅访问日志补充地区和运营商信息。"
+                <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="审计归属地查询"
+                        subtitle="控制订阅访问日志里的地区与运营商查询服务。"
                     />
-                </div>
-                <div className="form-group">
-                    <label className="form-label">查询地址模板</label>
-                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
-                    <div className="text-xs text-muted mt-1">使用 `{`ip`}` 作为 IP 占位符。</div>
-                </div>
-                <div className="settings-field-grid settings-field-grid--compact">
-                    <div className="form-group">
-                        <label className="form-label">服务提供方</label>
-                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                    <div className="form-group settings-checkbox-row">
+                        <SettingsToggleCard
+                            checked={draft.auditIpGeo.enabled}
+                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                            label="归属地查询"
+                            description="为订阅访问日志补充地区和运营商信息。"
+                        />
                     </div>
-                    <div className="form-group">
-                        <label className="form-label">超时（毫秒）</label>
-                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
-                    </div>
-                    <div className="form-group mb-0">
-                        <label className="form-label">缓存时长（秒）</label>
-                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                    <div className="settings-basic-geo-grid">
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">查询地址</div>
+                                <div className="settings-form-cluster-title">IP 查询模板</div>
+                                <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">查询地址模板</label>
+                                <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">服务参数</div>
+                                <div className="settings-form-cluster-title">提供方、超时和缓存</div>
+                            </div>
+                            <div className="settings-field-grid settings-field-grid--compact">
+                                <div className="form-group">
+                                    <label className="form-label">服务提供方</label>
+                                    <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">超时（毫秒）</label>
+                                    <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">缓存时长（秒）</label>
+                                    <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="card p-4 settings-panel settings-panel--wide">
-                <SettingsPanelHeader
-                    title="订阅地址"
-                    subtitle="控制公开订阅域名和外部转换器地址。"
-                />
-                <div className="form-group">
-                    <label className="form-label">订阅公网地址（可选，建议配置）</label>
-                    <input
-                        className="form-input"
-                        placeholder="https://nms.example.com"
-                        value={draft.subscription.publicBaseUrl}
-                        onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="订阅地址"
+                        subtitle="控制公开订阅域名和外部转换器地址。"
                     />
-                    <div className="text-xs text-muted mt-1">配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。</div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">外部订阅转换器地址（可选）</label>
-                    <input
-                        className="form-input"
-                        placeholder="https://converter.example.com"
-                        value={converterBaseUrl}
-                        onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
-                    />
-                    <div className="text-xs text-muted mt-1">配置后 Clash / Mihomo / Sing-box / Surge 快捷方式会自动切换到外部转换器。</div>
-                    <div className="flex gap-2 flex-wrap mt-2">
-                        <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => patchField('subscription', 'converterBaseUrl', '')}
-                            disabled={!converterBaseUrl}
-                        >
-                            清空
-                        </button>
-                        <a
-                            href={converterBaseUrl || undefined}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
-                            aria-disabled={!converterBaseUrl}
-                            onClick={(event) => {
-                                if (!converterBaseUrl) event.preventDefault();
-                            }}
-                        >
-                            打开链接
-                        </a>
+                    <div className="settings-basic-address-grid">
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">公网输出</div>
+                                <div className="settings-form-cluster-title">固定订阅链接的公开域名</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">订阅公网地址（可选，建议配置）</label>
+                                <input
+                                    className="form-input"
+                                    placeholder="https://nms.example.com"
+                                    value={draft.subscription.publicBaseUrl}
+                                    onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                                />
+                                <div className="text-xs text-muted mt-1">配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。</div>
+                            </div>
+                        </div>
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">外部转换</div>
+                                <div className="settings-form-cluster-title">Clash / Mihomo / Surge 使用的转换器</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">外部订阅转换器地址（可选）</label>
+                                <input
+                                    className="form-input"
+                                    placeholder="https://converter.example.com"
+                                    value={converterBaseUrl}
+                                    onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                                />
+                                <div className="text-xs text-muted mt-1">配置后快捷方式会自动切换到外部转换器。</div>
+                                <div className="flex gap-2 flex-wrap mt-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => patchField('subscription', 'converterBaseUrl', '')}
+                                        disabled={!converterBaseUrl}
+                                    >
+                                        清空
+                                    </button>
+                                    <a
+                                        href={converterBaseUrl || undefined}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
+                                        aria-disabled={!converterBaseUrl}
+                                        onClick={(event) => {
+                                            if (!converterBaseUrl) event.preventDefault();
+                                        }}
+                                    >
+                                        打开链接
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
+                            <div className="text-sm text-muted">当前输出策略</div>
+                            <div className="text-base font-semibold break-all">{draft.subscription.publicBaseUrl || '未固定公网域名'}</div>
+                            <div className="text-xs text-muted mt-1">{converterBaseUrl ? `转换器 ${converterBaseUrl}` : '未配置外部转换器时，仍使用 NMS 内置专用配置生成逻辑。'}</div>
+                        </div>
                     </div>
                 </div>
-                <div className="text-xs text-muted">未配置转换器时，仍使用 NMS 内置专用配置生成逻辑。</div>
-            </div>
 
-            <div className="card p-4 settings-panel settings-panel--wide">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="注册与邀请码"
-                    subtitle="支持邀请注册、批量生成邀请码，并兼容已存在的单次邀请码数据。"
-                    actions={(
-                        <div className="settings-panel-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
-                                {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
-                            </button>
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title="注册与邀请码"
+                        subtitle="支持邀请注册、批量生成邀请码，并兼容已存在的单次邀请码数据。"
+                        actions={(
+                            <div className="settings-panel-actions">
+                                <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
+                                    {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
+                                </button>
+                            </div>
+                        )}
+                    />
+                    <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">当前注册状态</div>
+                            <div className="text-lg font-semibold">{registrationEnabled ? '允许注册' : '已关闭注册'}</div>
+                            <div className="text-xs text-muted mt-1">全局开关来自环境变量 `REGISTRATION_ENABLED`。</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">注册模式</div>
+                            <div className="text-lg font-semibold">{draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}</div>
+                            <div className="text-xs text-muted mt-1">邀请模式下注册页必须填写有效邀请码。</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card">
+                            <div className="text-sm text-muted">邀请码情况</div>
+                            <div className="text-lg font-semibold">{inviteCodes.length}</div>
+                            <div className="text-xs text-muted mt-1">可用 {inviteStatusSummary.active} · 用完 {inviteStatusSummary.used} · 撤销 {inviteStatusSummary.revoked}</div>
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <SettingsToggleCard
+                            checked={draft.registration.inviteOnlyEnabled}
+                            onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                            disabled={!registrationEnabled}
+                            label="开启邀请注册"
+                            description={registrationEnabled
+                                ? '开启后，注册页必须填写有效邀请码；注册成功后可直接登录，后台自动按邀请码开通全部节点订阅。'
+                                : '当前环境已关闭自助注册，这里的邀请模式配置会保留，但不会开放注册入口。'}
+                            activeLabel="邀请模式"
+                            inactiveLabel="普通模式"
+                        />
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                        <div className="text-sm font-medium mb-2">生成参数</div>
+                        <div className="text-xs text-muted mb-3">邀请码注册会默认开通全部节点和全部协议；这里主要控制可用次数和开通时长。</div>
+                        <div className="settings-inline-grid settings-inline-grid--triple">
+                            <div className="form-group mb-0">
+                                <label className="form-label">本次生成数量</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    min={1}
+                                    max={50}
+                                    value={inviteGenerationDraft.count}
+                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                        ...prev,
+                                        count: e.target.value,
+                                    }))}
+                                />
+                                <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">每个邀请码可用次数</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    min={1}
+                                    max={1000}
+                                    value={inviteGenerationDraft.usageLimit}
+                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                        ...prev,
+                                        usageLimit: e.target.value,
+                                    }))}
+                                />
+                                <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">开通时长（天）</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    min={0}
+                                    max={3650}
+                                    value={inviteGenerationDraft.subscriptionDays}
+                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                        ...prev,
+                                        subscriptionDays: e.target.value,
+                                    }))}
+                                />
+                                <div className="text-xs text-muted mt-1">填 0 表示不限时，例如 30 / 90 / 365 天。</div>
+                            </div>
+                            <div className="form-group mb-0 settings-form-actions">
+                                <button
+                                    className="btn btn-primary w-full"
+                                    type="button"
+                                    onClick={createInviteCode}
+                                    disabled={inviteCodeActionLoading}
+                                >
+                                    {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                                </button>
+                                <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次，并自动开通 30 天。</div>
+                            </div>
+                        </div>
+                    </div>
+                    {latestInviteCodes.length > 0 && (
+                        <div className="card p-3 settings-mini-card settings-detail-card mb-3">
+                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                <div className="text-sm font-medium">本次生成的邀请码</div>
+                                <span className="text-xs text-muted">
+                                    {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
+                                </span>
+                            </div>
+                            <div className="settings-code-list">
+                                {latestInviteCodes.map((code) => (
+                                    <code key={code} className="font-mono">{code}</code>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap mt-3">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={async () => {
+                                        await copyToClipboard(latestInviteCodes.join('\n'));
+                                        toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                                    }}
+                                >
+                                    {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
+                                </button>
+                            </div>
+                            <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                         </div>
                     )}
-                />
-                <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">当前注册状态</div>
-                        <div className="text-lg font-semibold">{registrationEnabled ? '允许注册' : '已关闭注册'}</div>
-                        <div className="text-xs text-muted mt-1">全局开关来自环境变量 `REGISTRATION_ENABLED`。</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">注册模式</div>
-                        <div className="text-lg font-semibold">{draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}</div>
-                        <div className="text-xs text-muted mt-1">邀请模式下注册页必须填写有效邀请码。</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">邀请码情况</div>
-                        <div className="text-lg font-semibold">{inviteCodes.length}</div>
-                        <div className="text-xs text-muted mt-1">可用 {inviteStatusSummary.active} · 用完 {inviteStatusSummary.used} · 撤销 {inviteStatusSummary.revoked}</div>
-                    </div>
-                </div>
-                <div className="form-group">
-                    <SettingsToggleCard
-                        checked={draft.registration.inviteOnlyEnabled}
-                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                        disabled={!registrationEnabled}
-                        label="开启邀请注册"
-                        description={registrationEnabled
-                            ? '开启后，注册页必须填写有效邀请码；注册成功后可直接登录，后台自动按邀请码开通全部节点订阅。'
-                            : '当前环境已关闭自助注册，这里的邀请模式配置会保留，但不会开放注册入口。'}
-                        activeLabel="邀请模式"
-                        inactiveLabel="普通模式"
-                    />
-                </div>
-                <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                    <div className="text-sm font-medium mb-2">生成参数</div>
-                    <div className="text-xs text-muted mb-3">邀请码注册会默认开通全部节点和全部协议；这里主要控制可用次数和开通时长。</div>
-                    <div className="settings-inline-grid settings-inline-grid--triple">
-                        <div className="form-group mb-0">
-                            <label className="form-label">本次生成数量</label>
-                            <input
-                                className="form-input"
-                                type="number"
-                                min={1}
-                                max={50}
-                                value={inviteGenerationDraft.count}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                    ...prev,
-                                    count: e.target.value,
-                                }))}
-                            />
-                            <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
-                        </div>
-                        <div className="form-group mb-0">
-                            <label className="form-label">每个邀请码可用次数</label>
-                            <input
-                                className="form-input"
-                                type="number"
-                                min={1}
-                                max={1000}
-                                value={inviteGenerationDraft.usageLimit}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                    ...prev,
-                                    usageLimit: e.target.value,
-                                }))}
-                            />
-                            <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
-                        </div>
-                        <div className="form-group mb-0">
-                            <label className="form-label">开通时长（天）</label>
-                            <input
-                                className="form-input"
-                                type="number"
-                                min={0}
-                                max={3650}
-                                value={inviteGenerationDraft.subscriptionDays}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                    ...prev,
-                                    subscriptionDays: e.target.value,
-                                }))}
-                            />
-                            <div className="text-xs text-muted mt-1">填 0 表示不限时，例如 30 / 90 / 365 天。</div>
-                        </div>
-                        <div className="form-group mb-0 settings-form-actions">
-                            <button
-                                className="btn btn-primary w-full"
-                                type="button"
-                                onClick={createInviteCode}
-                                disabled={inviteCodeActionLoading}
-                            >
-                                {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
-                            </button>
-                            <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次，并自动开通 30 天。</div>
-                        </div>
-                    </div>
-                </div>
-                {latestInviteCodes.length > 0 && (
-                    <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                            <div className="text-sm font-medium">本次生成的邀请码</div>
-                            <span className="text-xs text-muted">
-                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
-                            </span>
-                        </div>
-                        <div className="settings-code-list">
-                            {latestInviteCodes.map((code) => (
-                                <code key={code} className="font-mono">{code}</code>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap mt-3">
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={async () => {
-                                    await copyToClipboard(latestInviteCodes.join('\n'));
-                                    toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
-                                }}
-                            >
-                                {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
-                            </button>
-                        </div>
-                        <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
-                    </div>
-                )}
-                <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
-                    <table className="table settings-invite-table">
-                        <thead>
-                            <tr>
-                                <th>预览</th>
-                                <th>状态</th>
-                                <th>次数</th>
-                                <th>开通时长</th>
-                                <th>创建时间</th>
-                                <th>使用情况</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {inviteCodes.length === 0 ? (
+                    <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                        <table className="table settings-invite-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
+                                    <th>预览</th>
+                                    <th>状态</th>
+                                    <th>次数</th>
+                                    <th>开通时长</th>
+                                    <th>创建时间</th>
+                                    <th>使用情况</th>
+                                    <th>操作</th>
                                 </tr>
-                            ) : (
-                                inviteCodes.map((invite) => (
-                                    <tr key={invite.id}>
-                                        <td data-label="预览" className="cell-mono settings-invite-preview-cell">
-                                            <div className="settings-invite-preview">
-                                                <span className="settings-invite-preview-code">{invite.preview}</span>
-                                                <span className="settings-invite-preview-note">
-                                                    {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td data-label="状态" className="table-cell-stack settings-invite-cell">
-                                            <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
-                                                {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
-                                            </span>
-                                            <span className="settings-invite-status-note">
-                                                {resolveInviteState(invite) === 'active'
-                                                    ? `剩余 ${Number(invite.remainingUses || 0)} 次`
-                                                    : resolveInviteState(invite) === 'used'
-                                                        ? '已达到使用上限'
-                                                        : '已停止使用'}
-                                            </span>
-                                        </td>
-                                        <td data-label="次数" className="table-cell-stack settings-invite-cell">
-                                            <span className="settings-invite-usage-main">
-                                                {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
-                                            </span>
-                                            <span className="settings-invite-usage-note">
-                                                已用 {Number(invite.usedCount || 0)} 次
-                                            </span>
-                                        </td>
-                                        <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
-                                            <span className="settings-invite-usage-main">
-                                                {formatInviteDuration(invite.subscriptionDays)}
-                                            </span>
-                                            <span className="settings-invite-usage-note">
-                                                {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
-                                            </span>
-                                        </td>
-                                        <td data-label="创建时间" className="settings-invite-created-cell">
-                                            <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
-                                        </td>
-                                        <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
-                                            <span className="settings-invite-history-main">
-                                                {invite.revokedAt
-                                                    ? '手动撤销'
-                                                    : invite.usedAt
-                                                        ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
-                                                        : '暂无使用记录'}
-                                            </span>
-                                            <span className="settings-invite-history-note">
-                                                {invite.revokedAt
-                                                    ? formatDateTime(invite.revokedAt, locale)
-                                                    : invite.usedAt
-                                                        ? formatDateTime(invite.usedAt, locale)
-                                                        : '等待首次使用'}
-                                            </span>
-                                        </td>
-                                        <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
-                                            {resolveInviteState(invite) === 'active' ? (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-danger btn-sm settings-invite-revoke-btn"
-                                                    onClick={() => revokeInviteCode(invite)}
-                                                    disabled={inviteCodeActionLoading}
-                                                >
-                                                    撤销
-                                                </button>
-                                            ) : (
-                                                <span className="text-xs text-muted">-</span>
-                                            )}
-                                        </td>
+                            </thead>
+                            <tbody>
+                                {inviteCodes.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    inviteCodes.map((invite) => (
+                                        <tr key={invite.id}>
+                                            <td data-label="预览" className="cell-mono settings-invite-preview-cell">
+                                                <div className="settings-invite-preview">
+                                                    <span className="settings-invite-preview-code">{invite.preview}</span>
+                                                    <span className="settings-invite-preview-note">
+                                                        {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td data-label="状态" className="table-cell-stack settings-invite-cell">
+                                                <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
+                                                    {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
+                                                </span>
+                                                <span className="settings-invite-status-note">
+                                                    {resolveInviteState(invite) === 'active'
+                                                        ? `剩余 ${Number(invite.remainingUses || 0)} 次`
+                                                        : resolveInviteState(invite) === 'used'
+                                                            ? '已达到使用上限'
+                                                            : '已停止使用'}
+                                                </span>
+                                            </td>
+                                            <td data-label="次数" className="table-cell-stack settings-invite-cell">
+                                                <span className="settings-invite-usage-main">
+                                                    {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
+                                                </span>
+                                                <span className="settings-invite-usage-note">
+                                                    已用 {Number(invite.usedCount || 0)} 次
+                                                </span>
+                                            </td>
+                                            <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
+                                                <span className="settings-invite-usage-main">
+                                                    {formatInviteDuration(invite.subscriptionDays)}
+                                                </span>
+                                                <span className="settings-invite-usage-note">
+                                                    {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
+                                                </span>
+                                            </td>
+                                            <td data-label="创建时间" className="settings-invite-created-cell">
+                                                <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
+                                            </td>
+                                            <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
+                                                <span className="settings-invite-history-main">
+                                                    {invite.revokedAt
+                                                        ? '手动撤销'
+                                                        : invite.usedAt
+                                                            ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
+                                                            : '暂无使用记录'}
+                                                </span>
+                                                <span className="settings-invite-history-note">
+                                                    {invite.revokedAt
+                                                        ? formatDateTime(invite.revokedAt, locale)
+                                                        : invite.usedAt
+                                                            ? formatDateTime(invite.usedAt, locale)
+                                                            : '等待首次使用'}
+                                                </span>
+                                            </td>
+                                            <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
+                                                {resolveInviteState(invite) === 'active' ? (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-danger btn-sm settings-invite-revoke-btn"
+                                                        onClick={() => revokeInviteCode(invite)}
+                                                        disabled={inviteCodeActionLoading}
+                                                    >
+                                                        撤销
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-xs text-muted">-</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1662,7 +1763,26 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
                 ) : (
                     <>
-                        <div className="settings-mini-grid mb-3">
+                        <div className="settings-monitor-hero">
+                            <div className="card p-3 settings-mini-card settings-monitor-hero-main">
+                                <div className="settings-monitor-hero-eyebrow">当前邮件链路</div>
+                                <div className="settings-monitor-hero-title">{emailStatus.from || '未设置发件人'}</div>
+                                <div className="settings-monitor-hero-detail">
+                                    {(emailStatus.host || '未配置服务器')} · port {emailStatus.port || '-'} · {emailStatus.service || '自定义 SMTP'}
+                                </div>
+                                <div className="settings-basic-note-list">
+                                    <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                                    <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                    <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                                </div>
+                            </div>
+                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-hero-side">
+                                <div className="text-sm font-medium">运维通知建议</div>
+                                <div className="text-sm text-muted">更换站点入口、订阅域名或备用网址时，可以直接从这里给已注册用户发送变更通知。邮件会逐个单发，不会暴露其他用户地址。</div>
+                                <div className="text-xs text-muted">建议在改域名前先做一次连接测试，再发通知。</div>
+                            </div>
+                        </div>
+                        <div className="settings-mini-grid settings-monitor-summary-grid mb-3">
                             <div className="card p-3 settings-mini-card">
                                 <div className="text-sm text-muted">配置状态</div>
                                 <div className="mt-2">
@@ -1680,40 +1800,63 @@ export default function SystemSettings() {
                                 <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
                             </div>
                             <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">发件人</div>
-                                <div className="text-lg font-semibold">{emailStatus.from || '-'}</div>
-                                <div className="text-xs text-muted">账号 {emailStatus.userMasked || '-'}</div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
                                 <div className="text-sm text-muted">加密模式</div>
                                 <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
                                 <div className="text-xs text-muted">
                                     {emailStatus.requireTLS ? 'requireTLS' : (emailStatus.ignoreTLS ? 'ignoreTLS' : 'auto TLS')}
                                 </div>
                             </div>
-                        </div>
-                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
-                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                <div className="text-sm font-medium">最近连接测试</div>
-                                <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                            <div className="card p-3 settings-mini-card">
+                                <div className="text-sm text-muted">发件账号</div>
+                                <div className="text-lg font-semibold">{emailStatus.userMasked || '-'}</div>
+                                <div className="text-xs text-muted">{emailStatus.authMethod || 'AUTO'} 认证</div>
                             </div>
-                            <div className="text-sm">最近测试: {formatDateTime(emailStatus.lastVerification?.ts, locale)}</div>
-                            <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastVerification?.error || '-'}</div>
-                            <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastVerification?.hint || '-'}</div>
                         </div>
-                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
-                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                <div className="text-sm font-medium">最近发送结果</div>
-                                <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                        <div className="settings-monitor-detail-grid">
+                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                    <div className="text-sm font-medium">最近连接测试</div>
+                                    <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                                </div>
+                                <div className="settings-monitor-log-meta">
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">最近测试</span>
+                                        <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastVerification?.ts, locale)}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">错误摘要</span>
+                                        <span className="settings-monitor-log-value">{emailStatus.lastVerification?.error || '-'}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">诊断建议</span>
+                                        <span className="settings-monitor-log-value">{emailStatus.lastVerification?.hint || '-'}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-sm">最近发送: {formatDateTime(emailStatus.lastDelivery?.ts, locale)}</div>
-                            <div className="text-sm text-muted mt-1">发送类型: {emailStatus.lastDelivery?.type || '-'}</div>
-                            <div className="text-sm text-muted mt-1">错误摘要: {emailStatus.lastDelivery?.error || '-'}</div>
-                            <div className="text-sm text-muted mt-1">诊断建议: {emailStatus.lastDelivery?.hint || '-'}</div>
-                        </div>
-                        <div className="card p-3 mt-3 settings-mini-card settings-detail-card">
-                            <div className="text-sm font-medium mb-2">运维通知建议</div>
-                            <div className="text-sm text-muted">当你更换站点入口、订阅域名或备用网址时，可以直接从这里给已注册用户群发变更通知。邮件会按单独收件人发送，不会暴露其他用户地址。</div>
+                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                    <div className="text-sm font-medium">最近发送结果</div>
+                                    <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                                </div>
+                                <div className="settings-monitor-log-meta">
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">最近发送</span>
+                                        <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastDelivery?.ts, locale)}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">发送类型</span>
+                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.type || '-'}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">错误摘要</span>
+                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.error || '-'}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">诊断建议</span>
+                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.hint || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}
@@ -1736,7 +1879,7 @@ export default function SystemSettings() {
                         </div>
                     )}
                 />
-                <div className="settings-mini-grid mb-3">
+                <div className="settings-mini-grid settings-monitor-health-grid mb-3">
                     <div className="card p-3 settings-mini-card">
                         <div className="text-sm text-muted">监控状态</div>
                         <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
@@ -1758,6 +1901,25 @@ export default function SystemSettings() {
                         <div className="text-sm text-muted">告警状态</div>
                         <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
                         <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
+                    </div>
+                </div>
+                <div className="settings-monitor-detail-grid settings-monitor-detail-grid--single">
+                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                        <div className="text-sm font-medium">通知中心</div>
+                        <div className="settings-monitor-log-meta">
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">未读告警</span>
+                                <span className="settings-monitor-log-value">{monitorStatus?.notifications?.unreadCount || 0}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">维护节点</span>
+                                <span className="settings-monitor-log-value">{monitorStatus?.healthMonitor?.summary?.maintenance || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                        <div className="text-sm font-medium">巡检说明</div>
+                        <div className="text-sm text-muted">系统会按设定周期巡检节点，异常和恢复状态会同步投递到右上角通知中心。手动点击“立即巡检”时，会按当前配置立刻重跑一次健康检查。</div>
                     </div>
                 </div>
             </div>
