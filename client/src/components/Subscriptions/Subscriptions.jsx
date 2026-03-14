@@ -278,6 +278,12 @@ export default function Subscriptions() {
         () => findSubscriptionProfile(result?.bundle, profileKey),
         [result, profileKey]
     );
+    const activeProfileSupportedClients = useMemo(
+        () => (Array.isArray(activeProfile?.supportedClients) ? activeProfile.supportedClients : []),
+        [activeProfile]
+    );
+    const shouldShowUserProfileHint = activeProfileSupportedClients.length === 0
+        && !!String(activeProfile?.hint || '').trim();
     const availableProfiles = useMemo(
         () => (Array.isArray(result?.bundle?.availableProfiles) ? result.bundle.availableProfiles : []),
         [result]
@@ -616,14 +622,16 @@ export default function Subscriptions() {
                                                     <div className="subscription-current-profile-card">
                                                         <div className="subscription-current-profile-label">{ui.currentType}</div>
                                                         <div className="subscription-current-profile-value">{activeProfile.label}</div>
-                                                        <div className="subscription-current-profile-hint">{activeProfile?.hint || ui.currentProfileFallback}</div>
-                                                        {Array.isArray(activeProfile?.supportedClients) && activeProfile.supportedClients.length > 0 && (
+                                                        {shouldShowUserProfileHint && (
+                                                            <div className="subscription-current-profile-hint">{activeProfile.hint}</div>
+                                                        )}
+                                                        {activeProfileSupportedClients.length > 0 && (
                                                             <div className="subscription-current-profile-tools">
                                                                 <span className="subscription-current-profile-tools-label">
                                                                     {activeProfile.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件')}
                                                                 </span>
                                                                 <div className="subscription-current-profile-tools-list">
-                                                                    {activeProfile.supportedClients.map((client) => (
+                                                                    {activeProfileSupportedClients.map((client) => (
                                                                         <span key={client} className="badge badge-neutral">{client}</span>
                                                                     ))}
                                                                 </div>

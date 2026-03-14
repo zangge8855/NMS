@@ -91,6 +91,9 @@ describe('Subscriptions', () => {
         expect(screen.getByText('现在这样用')).toBeInTheDocument();
         expect(screen.getByText('就记这一句：选配置文件 -> 导入客户端。')).toBeInTheDocument();
         expect(screen.getByText('软件下载地址')).toBeInTheDocument();
+        expect(screen.getByText('适用软件')).toBeInTheDocument();
+        expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
+        expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();
         expect(screen.getByText('已用流量')).toBeInTheDocument();
         expect(screen.getByText('可用流量')).toBeInTheDocument();
         expect(screen.getByText('到期时间')).toBeInTheDocument();
@@ -98,6 +101,52 @@ describe('Subscriptions', () => {
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
+    });
+
+    it('hides redundant compatibility hint copy in the user current-profile card for every profile', async () => {
+        const user = userEvent.setup();
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 2,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await screen.findByDisplayValue('https://sub.example.com/base');
+        expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
+        expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.queryByText('给 Clash / Mihomo / Stash')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'sing-box' }));
+        expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.queryByText('给 sing-box')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Surge' }));
+        expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(screen.queryByText('给 Surge')).not.toBeInTheDocument();
     });
 
     it('shows a manual-input hint when the admin cannot access the global user list', async () => {

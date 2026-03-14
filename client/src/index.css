@@ -10001,27 +10001,27 @@ input[type="radio"]:focus-visible {
 .subscription-user-flow-note {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 6px 8px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(99, 102, 241, 0.14);
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.03));
+  border: 1px solid var(--stroke-soft);
+  background: var(--surface-soft);
 }
 
 .subscription-user-flow-label {
-  font-size: 11px;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
-  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .subscription-user-flow-text {
   font-size: 13px;
-  line-height: 1.45;
-  color: var(--text-primary);
+  line-height: 1.5;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -10197,11 +10197,11 @@ input[type="radio"]:focus-visible {
 .subscription-user-reset-inline-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.35;
-  font-weight: 700;
-  color: var(--accent-danger);
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .subscription-user-reset-inline-title svg {
@@ -10214,7 +10214,7 @@ input[type="radio"]:focus-visible {
 .subscription-user-reset-inline-text {
   font-size: 12px;
   line-height: 1.55;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .subscription-user-step {
@@ -11066,10 +11066,21 @@ input[type="radio"]:focus-visible {
     flex-direction: column;
   }
 
-  .subscription-user-import-layout,
-  .subscription-user-address-foot {
-    grid-template-columns: 1fr;
+  .subscription-user-import-layout {
+    display: flex;
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .subscription-user-address-foot {
+    flex-direction: column;
+  }
+
+  .subscription-inline-qr--featured {
+    min-height: 0;
+    justify-content: flex-start;
+    align-items: stretch;
+    align-self: stretch;
   }
 
   .subscription-link-card--user-focus {
@@ -11083,6 +11094,11 @@ input[type="radio"]:focus-visible {
   .subscription-user-reset-callout {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .subscription-user-reset-inline-copy {
+    flex: 0 0 auto;
+    width: 100%;
   }
 
   .subscription-user-step {
@@ -11136,6 +11152,7 @@ input[type="radio"]:focus-visible {
     border-radius: 14px;
   }
 
+  .subscription-user-flow-label,
   .subscription-user-flow-text {
     font-size: 12px;
     line-height: 1.5;
@@ -11238,25 +11255,25 @@ input[type="radio"]:focus-visible {
     padding-top: 8px;
   }
 
-  .subscription-user-reset-inline-title {
-    font-size: 12px;
-  }
-
+  .subscription-user-reset-inline-title,
   .subscription-user-reset-inline-text {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.5;
   }
 
   .subscription-inline-qr--featured {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    min-height: 0;
   }
 
   .subscription-inline-qr--featured .subscription-inline-qr-surface {
     grid-row: 1 / span 2;
+    padding: 4px;
   }
 
   .subscription-inline-qr-title {
@@ -11319,10 +11336,13 @@ input[type="radio"]:focus-visible {
   .subscription-inline-qr--featured {
     grid-template-columns: 1fr;
     justify-items: center;
+    gap: 8px;
+    padding: 10px;
   }
 
   .subscription-inline-qr--featured .subscription-inline-qr-surface {
     grid-row: auto;
+    padding: 6px;
   }
 
   .subscription-inline-qr-title,
