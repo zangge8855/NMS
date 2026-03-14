@@ -1053,6 +1053,12 @@ export default function UsersHub() {
                                         ? index + 1
                                         : enrichedUsers.length - index;
                                     const displayEmail = user.email || user.subscriptionEmail || '';
+                                    const userExpiryLabel = user.clientData.count > 0
+                                        ? formatExpiryLabel(user.clientData.expiryValues, locale)
+                                        : '未开通';
+                                    const userTrafficSummary = user.clientData.totalUsed
+                                        ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
+                                        : '未使用流量';
                                     return (
                                     <tr
                                         key={user.id}
@@ -1078,17 +1084,31 @@ export default function UsersHub() {
                                                     {displayEmail || '未设置邮箱'}
                                                 </span>
                                             </button>
+                                            <div className="users-mobile-summary">
+                                                <div className="users-mobile-summary-row">
+                                                    <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                                    <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                                                    {user.onlineStatus.detail ? (
+                                                        <span className="users-mobile-meta-pill">{user.onlineStatus.detail}</span>
+                                                    ) : null}
+                                                </div>
+                                                <div className="users-mobile-summary-row">
+                                                    <span className="users-mobile-meta-pill">节点 {user.clientData.count || 0}</span>
+                                                    <span className="users-mobile-meta-pill">{userTrafficSummary}</span>
+                                                    <span className="users-mobile-meta-pill">{userExpiryLabel}</span>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td data-label="状态">
+                                        <td data-label="状态" className="users-status-cell">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                                         </td>
-                                        <td data-label="在线状态">
+                                        <td data-label="在线状态" className="users-online-cell">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
                                                 {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                             </div>
                                         </td>
-                                        <td data-label="节点数" className="cell-mono-right">{user.clientData.count || '-'}</td>
+                                        <td data-label="节点数" className="cell-mono-right users-node-count-cell">{user.clientData.count || '-'}</td>
                                         <td
                                             data-label="已用流量"
                                             className="users-traffic-cell"
@@ -1104,9 +1124,9 @@ export default function UsersHub() {
                                         <td
                                             data-label="到期时间"
                                             className="cell-mono users-expiry-cell"
-                                            title={user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues, locale) : '-'}
+                                            title={user.clientData.count > 0 ? userExpiryLabel : '-'}
                                         >
-                                            {user.clientData.count > 0 ? formatExpiryLabel(user.clientData.expiryValues, locale) : '-'}
+                                            {user.clientData.count > 0 ? userExpiryLabel : '-'}
                                         </td>
                                         <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex gap-2 flex-wrap users-row-actions">

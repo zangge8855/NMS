@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.DATA_DIR = path.join(__dirname, '.test_data');
 process.env.NODE_ENV = 'test';
 
-const { TrafficStatsStore, shouldUseInboundTotalFallback } = await import('../store/trafficStatsStore.js');
+const { TrafficStatsStore, calculateTrafficDelta, shouldUseInboundTotalFallback } = await import('../store/trafficStatsStore.js');
 const userStore = (await import('../store/userStore.js')).default;
 
 function maskEmail(value) {
@@ -29,6 +29,13 @@ describe('traffic stats inbound fallback', () => {
 
     it('skips inbound totals only when client traffic is both available and captured', () => {
         assert.equal(shouldUseInboundTotalFallback(true, true), false);
+    });
+
+    it('treats the first observed counter value as a baseline instead of historical traffic', () => {
+        assert.equal(calculateTrafficDelta(1024, undefined), 0);
+        assert.equal(calculateTrafficDelta(2048, null), 0);
+        assert.equal(calculateTrafficDelta(4096, 1024), 3072);
+        assert.equal(calculateTrafficDelta(512, 2048), 512);
     });
 
     it('maps masked traffic samples back to registered users for overview and trend queries', () => {

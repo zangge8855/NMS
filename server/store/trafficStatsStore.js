@@ -205,6 +205,15 @@ function shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured) 
     return !hasClientTraffic || !clientTrafficCaptured;
 }
 
+function calculateTrafficDelta(currentValue, previousValue) {
+    const current = toNonNegativeInt(currentValue, 0);
+    // First observation establishes the baseline only; otherwise the overview
+    // backfills each user's historical cumulative traffic into the recent window.
+    if (previousValue === undefined || previousValue === null) return 0;
+    const previous = toNonNegativeInt(previousValue, 0);
+    return current >= previous ? (current - previous) : current;
+}
+
 async function runWithConcurrency(items, worker, concurrency = 3) {
     const list = Array.isArray(items) ? items : [];
     if (list.length === 0) return [];
@@ -373,8 +382,8 @@ class TrafficStatsStore {
                     const total = up + down;
                     const counterKey = `${serverMeta.id}|${String(inbound.id || '')}|${identifier}`;
                     const prev = this.counters[counterKey];
-                    const deltaUp = !prev ? up : (up >= prev.up ? (up - prev.up) : up);
-                    const deltaDown = !prev ? down : (down >= prev.down ? (down - prev.down) : down);
+                    const deltaUp = calculateTrafficDelta(up, prev?.up);
+                    const deltaDown = calculateTrafficDelta(down, prev?.down);
                     const deltaTotal = deltaUp + deltaDown;
 
                     this.counters[counterKey] = {
@@ -414,8 +423,8 @@ class TrafficStatsStore {
                 const inboundTotal = inboundUp + inboundDown;
                 const inboundCounterKey = `${serverMeta.id}|${String(inbound.id || '')}|__inbound_total__`;
                 const prevInbound = this.counters[inboundCounterKey];
-                const deltaInboundUp = !prevInbound ? inboundUp : (inboundUp >= prevInbound.up ? (inboundUp - prevInbound.up) : inboundUp);
-                const deltaInboundDown = !prevInbound ? inboundDown : (inboundDown >= prevInbound.down ? (inboundDown - prevInbound.down) : inboundDown);
+                const deltaInboundUp = calculateTrafficDelta(inboundUp, prevInbound?.up);
+                const deltaInboundDown = calculateTrafficDelta(inboundDown, prevInbound?.down);
                 const deltaInboundTotal = deltaInboundUp + deltaInboundDown;
 
                 this.counters[inboundCounterKey] = {
@@ -667,4 +676,4 @@ class TrafficStatsStore {
 
 const trafficStatsStore = new TrafficStatsStore();
 export default trafficStatsStore;
-export { TrafficStatsStore, extractInboundClients, resolveTrafficUserInfo, shouldUseInboundTotalFallback };
+export { TrafficStatsStore, calculateTrafficDelta, extractInboundClients, resolveTrafficUserInfo, shouldUseInboundTotalFallback };

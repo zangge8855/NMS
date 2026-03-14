@@ -734,6 +734,21 @@ export default function Servers() {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
                             const credentialStatus = String(server.credentialStatus || 'configured');
+                            const serverGroup = server.group || t('comp.servers.ungrouped');
+                            const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
+                            const serverEnvironment = formatServerEnvironment(server.environment, locale);
+                            const testState = testResults[server.id];
+                            const testStateText = testState === 'success'
+                                ? t('comp.servers.testOk')
+                                : testState === 'error'
+                                    ? t('comp.servers.testFail')
+                                    : '未测试';
+                            const testStateBadge = testState === 'success'
+                                ? 'badge-success'
+                                : testState === 'error'
+                                    ? 'badge-danger'
+                                    : 'badge-neutral';
+                            const serverStateText = isActive ? '当前节点' : '已接入';
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
                                 : (credentialStatus === 'missing'
@@ -792,12 +807,29 @@ export default function Servers() {
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
                                             </div>
+                                            <div className="servers-mobile-summary">
+                                                <div className="servers-mobile-summary-row">
+                                                    <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
+                                                    <span className="badge badge-info">{serverEnvironment}</span>
+                                                    {serverTags.slice(0, 2).map((tag) => (
+                                                        <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
+                                                    ))}
+                                                </div>
+                                                <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
+                                                    <span className="servers-mobile-account-name">{server.username}</span>
+                                                    <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                                                </div>
+                                                <div className="servers-mobile-summary-row">
+                                                    <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                                                    <span className={`badge ${testStateBadge}`}>{testStateText}</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="servers-tags-cell" data-label="分组 / 标签">
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
-                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {server.group || t('comp.servers.ungrouped')}</span>
-                                        {Array.isArray(server.tags) && server.tags.slice(0, 3).map((tag) => (
+                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
+                                        {serverTags.map((tag) => (
                                             <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
                                         ))}
                                         </div>
@@ -805,7 +837,7 @@ export default function Servers() {
                                     <td className="servers-account-cell" data-label="账号">
                                         <div className="servers-account-stack">
                                             <span className="font-medium text-primary">{server.username}</span>
-                                            <span className="text-xs text-muted">环境：{formatServerEnvironment(server.environment, locale)}</span>
+                                            <span className="text-xs text-muted">环境：{serverEnvironment}</span>
                                         </div>
                                     </td>
                                     <td className="servers-credential-cell" data-label="凭据">
@@ -813,9 +845,9 @@ export default function Servers() {
                                     </td>
                                     <td className="servers-status-cell" data-label="状态">
                                         <div className="servers-status-stack">
-                                            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{isActive ? '当前节点' : '已接入'}</span>
+                                            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
                                             <span className="text-xs text-muted servers-status-meta">
-                                                {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : '未测试'}
+                                                {testStateText}
                                             </span>
                                         </div>
                                     </td>
@@ -830,7 +862,7 @@ export default function Servers() {
                                             disabled={loading[`test-${server.id}`]}
                                         >
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
-                                            {testResults[server.id] === 'success' ? t('comp.servers.testOk') : testResults[server.id] === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
+                                            {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
                                             <button className="btn btn-ghost btn-sm btn-icon servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
