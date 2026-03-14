@@ -555,6 +555,19 @@ router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, re
                 syncHistoryId: historyEntry.id,
             };
         });
+        result.results.forEach((item) => {
+            if (!item?.success || !item.target) return;
+            const syncFailureCount = Number(item.clientSync?.failed || 0) + Number(item.deployment?.failed || 0);
+            appendSecurityAudit(item.enabled ? 'user_enabled' : 'user_disabled', req, buildUserAuditDetails(item.target, {
+                targetUserId: item.target.id,
+                targetUsername: item.target.username,
+                enabled: item.enabled,
+                subscriptionEmail: item.subscriptionEmail,
+                syncFailureCount,
+                syncHistoryId: item.syncHistoryId || '',
+                viaBulkAction: true,
+            }));
+        });
         const summaryMessage = result.partialFailureCount > 0
             ? `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常，可在任务历史中重试`
             : `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`;
