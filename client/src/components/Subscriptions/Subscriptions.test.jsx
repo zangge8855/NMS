@@ -88,9 +88,9 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByText('当前配置文件')).toBeInTheDocument();
-        expect(screen.getByText('现在这样用')).toBeInTheDocument();
-        expect(screen.getByText('就记这一句：选配置文件 -> 导入客户端。')).toBeInTheDocument();
-        expect(screen.getByText('软件下载地址')).toBeInTheDocument();
+        expect(screen.getByText('使用顺序')).toBeInTheDocument();
+        expect(screen.getByText('选配置文件 -> 复制/扫码 -> 导入')).toBeInTheDocument();
+        expect(screen.getByText('软件下载')).toBeInTheDocument();
         expect(screen.getByText('适用软件')).toBeInTheDocument();
         expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
         expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();

@@ -34,6 +34,50 @@ function normalizeInactiveReason(reason, locale = 'zh-CN') {
     return reason;
 }
 
+function clampProgress(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(100, numeric));
+}
+
+function pickProgressTone(progress, { inverse = false } = {}) {
+    if (!inverse) {
+        if (progress >= 85) return 'danger';
+        if (progress >= 60) return 'warning';
+        return 'info';
+    }
+    if (progress <= 15) return 'danger';
+    if (progress <= 40) return 'warning';
+    return 'success';
+}
+
+function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
+    const timestamp = Number(expiryTime || 0);
+    if (!(timestamp > 0)) {
+        return {
+            progress: 100,
+            tone: 'success',
+            meta: locale === 'en-US' ? '∞' : '永久',
+        };
+    }
+
+    const remainingMs = timestamp - Date.now();
+    if (remainingMs <= 0) {
+        return {
+            progress: 0,
+            tone: 'danger',
+            meta: locale === 'en-US' ? 'Expired' : '已到期',
+        };
+    }
+
+    const remainingDays = Math.max(1, Math.ceil(remainingMs / 86400000));
+    return {
+        progress: clampProgress((remainingDays / 30) * 100),
+        tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
+        meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays}天`,
+    };
+}
+
 function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } = {}) {
     if (locale === 'en-US') {
         return {
@@ -73,30 +117,30 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             currentNode: 'Current node ({id})',
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
-            userStepKicker: 'Use it like this',
+            userStepKicker: 'Flow',
             userStepTitle: 'Choose a config, then copy or scan it',
             userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
             pickTypeTitle: 'Choose a config',
-            pickTypeText: 'If you are unsure, follow the recommended config on the device cards.',
+            pickTypeText: '',
             copyOrScanTitle: 'Copy the address or scan it',
             copyOrScanText: 'Copy is the main action. The QR code and quick import stay right next to it.',
-            deviceOpenTitle: 'Client Downloads',
-            deviceOpenText: 'Download by device and use the recommended config below.',
-            resetRiskTitle: 'Reset only when the address is leaked',
-            resetRiskText: 'After reset, the old address stops working immediately and the client must import the new address again.',
+            deviceOpenTitle: 'Downloads',
+            deviceOpenText: '',
+            resetRiskTitle: 'Reset only if leaked',
+            resetRiskText: 'The old link stops working immediately.',
             heroTitle: 'Choose a config -> Copy the address -> Import into the client',
-            heroText: 'If you are unsure which one to choose, start with the device recommendation below.',
+            heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
             manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
             adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
             goSettings: 'Change it in Settings',
             qrAriaLabel: 'Subscription QR code · {label}',
             quickImportHint: 'You can also use the quick import buttons below.',
             adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
-            simpleReminder: 'For beginners, just remember this: choose a config, copy the address, and import it.',
+            simpleReminder: 'Choose a config -> Copy or scan -> Import',
             guideTitle: 'How to share it',
             guideSubtitle: 'Just explain these three steps.',
             guideStep1Title: 'Choose a config',
-            guideStep1Text: 'If they are unsure, tell them to start with the device recommendation.',
+            guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
             guideStep2Title: 'Copy the address',
             guideStep2Text: 'If one-tap import is unavailable, copy the address above.',
             guideStep3Title: 'Import it into the client',
@@ -156,31 +200,31 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         currentNode: '当前节点 ({id})',
         resetDetailsTarget: '目标邮箱',
         resetDetailsScope: '范围',
-        userStepKicker: '现在这样用',
+        userStepKicker: '使用顺序',
         userStepTitle: '选配置文件 -> 导入客户端',
         userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
         pickTypeTitle: '选配置文件',
-        pickTypeText: '不会选时，看下面设备推荐。',
+        pickTypeText: '',
         copyOrScanTitle: '订阅地址',
         copyOrScanText: '导入、复制、扫码都在这里。',
-        deviceOpenTitle: '软件下载地址',
-        deviceOpenText: '按设备下载，推荐配置文件见下方。',
-        resetRiskTitle: '只有地址泄露时，才需要重置',
-        resetRiskText: '重置后旧地址会失效。',
+        deviceOpenTitle: '软件下载',
+        deviceOpenText: '',
+        resetRiskTitle: '地址泄露再重置',
+        resetRiskText: '重置后旧地址立即失效。',
         heroTitle: '选配置文件 -> 复制地址 -> 导入客户端',
-        heroText: '不知道选哪个时，先看下面设备推荐。',
+        heroText: '不知道选哪个时，先在下面下载适合自己设备的软件。',
         manualImportHint: '不会导入时，直接复制这条地址。',
         adminConverterHint: '管理提示：专用订阅当前走外部转换器',
         goSettings: '去系统设置修改',
         qrAriaLabel: '订阅二维码 · {label}',
         quickImportHint: '也可以直接点导入按钮。',
         adminQuickImportHint: '当前配置文件的快捷导入按钮也在这里。',
-        simpleReminder: '就记这一句：选配置文件 -> 导入客户端。',
+        simpleReminder: '选配置文件 -> 复制/扫码 -> 导入',
         qrHint: '也可以扫码导入。',
         guideTitle: '怎么使用订阅',
         guideSubtitle: '就按这三步，不用讲别的。',
         guideStep1Title: '选配置文件',
-        guideStep1Text: '不知道怎么选，就先看设备推荐。',
+        guideStep1Text: '不知道怎么选，就先按设备下载软件，再选对应配置文件。',
         guideStep2Title: '复制地址',
         guideStep2Text: '不会一键导入时，就复制上面的地址。',
         guideStep3Title: '导入客户端',
@@ -292,18 +336,55 @@ export default function Subscriptions() {
         () => buildSelectedImportActions(result?.bundle, profileKey, locale),
         [result, profileKey, locale]
     );
+    const hasFeaturedQr = Boolean(activeProfile?.url && result?.subscriptionActive);
     const linkedUserHref = normalizedEmail ? `/clients?q=${encodeURIComponent(normalizedEmail)}` : '';
     const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
         ? ui.selectedNode.replace('{id}', selectedServerId)
         : ui.allNodes;
     const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ` · ${ui.adminRole}` : ''}`;
-    const usedTrafficLabel = formatBytes(Number(result?.usedTrafficBytes || 0));
-    const availableTrafficLabel = Number(result?.trafficLimitBytes || 0) > 0
-        ? formatBytes(Number(result?.remainingTrafficBytes || 0))
+    const usedTrafficBytes = Number(result?.usedTrafficBytes || 0);
+    const trafficLimitBytes = Number(result?.trafficLimitBytes || 0);
+    const remainingTrafficBytes = Number(result?.remainingTrafficBytes || 0);
+    const usedTrafficLabel = formatBytes(usedTrafficBytes);
+    const availableTrafficLabel = trafficLimitBytes > 0
+        ? formatBytes(remainingTrafficBytes)
         : ui.unlimited;
     const expiryTimeLabel = Number(result?.expiryTime || 0) > 0
         ? formatDateOnly(Number(result.expiryTime), locale)
         : ui.permanent;
+    const usedTrafficProgress = trafficLimitBytes > 0
+        ? clampProgress((usedTrafficBytes / trafficLimitBytes) * 100)
+        : 100;
+    const availableTrafficProgress = trafficLimitBytes > 0
+        ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
+        : 100;
+    const expiryProgressState = buildExpiryProgress(result?.expiryTime, locale);
+    const statusCards = [
+        {
+            key: 'used',
+            label: ui.usedTraffic,
+            value: usedTrafficLabel,
+            meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
+            progress: usedTrafficProgress,
+            tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
+        },
+        {
+            key: 'available',
+            label: ui.availableTraffic,
+            value: availableTrafficLabel,
+            meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
+            progress: availableTrafficProgress,
+            tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
+        },
+        {
+            key: 'expiry',
+            label: ui.expiryTime,
+            value: expiryTimeLabel,
+            meta: expiryProgressState.meta,
+            progress: expiryProgressState.progress,
+            tone: expiryProgressState.tone,
+        },
+    ];
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -589,15 +670,21 @@ export default function Subscriptions() {
                                     {isUserOnly ? (
                                         <div className="subscription-user-flow">
                                             <div className="subscription-user-flow-note">
-                                                <span className="subscription-user-flow-label">{ui.userStepKicker}</span>
-                                                <span className="subscription-user-flow-text">{ui.simpleReminder}</span>
+                                                {ui.userStepKicker && (
+                                                    <span className="subscription-user-flow-label">{ui.userStepKicker}</span>
+                                                )}
+                                                {ui.simpleReminder && (
+                                                    <span className="subscription-user-flow-text">{ui.simpleReminder}</span>
+                                                )}
                                             </div>
 
                                             <div className="subscription-user-panel subscription-user-panel--import">
                                                 <div className="subscription-user-panel-topbar">
                                                     <div className="subscription-user-panel-head">
                                                         <div className="subscription-user-panel-title">{ui.pickTypeTitle}</div>
-                                                        <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
+                                                        {ui.pickTypeText && (
+                                                            <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
+                                                        )}
                                                     </div>
                                                     <div className="subscription-user-meta-badges">
                                                         <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
@@ -640,20 +727,23 @@ export default function Subscriptions() {
                                                     </div>
                                                 )}
                                                 <div className="subscription-user-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                                                    <div className="subscription-user-status-card">
-                                                        <div className="subscription-user-status-label">{ui.usedTraffic}</div>
-                                                        <div className="subscription-user-status-value">{usedTrafficLabel}</div>
-                                                    </div>
-                                                    <div className="subscription-user-status-card">
-                                                        <div className="subscription-user-status-label">{ui.availableTraffic}</div>
-                                                        <div className="subscription-user-status-value">{availableTrafficLabel}</div>
-                                                    </div>
-                                                    <div className="subscription-user-status-card">
-                                                        <div className="subscription-user-status-label">{ui.expiryTime}</div>
-                                                        <div className="subscription-user-status-value">{expiryTimeLabel}</div>
-                                                    </div>
+                                                    {statusCards.map((item) => (
+                                                        <div key={item.key} className="subscription-user-status-card">
+                                                            <div className="subscription-user-status-head">
+                                                                <div className="subscription-user-status-label">{item.label}</div>
+                                                                <div className="subscription-user-status-meta">{item.meta}</div>
+                                                            </div>
+                                                            <div className="subscription-user-status-value">{item.value}</div>
+                                                            <div className={`subscription-user-status-meter subscription-user-status-meter--${item.tone}`} aria-hidden="true">
+                                                                <span
+                                                                    className="subscription-user-status-meter-bar"
+                                                                    style={{ width: `${item.progress}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className="subscription-user-import-layout">
+                                                <div className={`subscription-user-import-layout${hasFeaturedQr ? ' subscription-user-import-layout--paired' : ''}`}>
                                                     <div className="subscription-link-card subscription-link-card--user-focus">
                                                         <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
                                                         <input
@@ -727,7 +817,9 @@ export default function Subscriptions() {
                                             <div className="subscription-user-panel subscription-user-panel--clients">
                                                 <div className="subscription-user-panel-head">
                                                     <div className="subscription-user-panel-title">{ui.deviceOpenTitle}</div>
-                                                    <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
+                                                    {ui.deviceOpenText && (
+                                                        <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
+                                                    )}
                                                 </div>
                                                 <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} showImportMethods={false} />
                                             </div>
