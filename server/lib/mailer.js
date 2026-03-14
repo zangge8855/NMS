@@ -426,7 +426,7 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
     });
 }
 
-export async function sendOperationalNoticeEmail(toEmail, payload = {}) {
+export function buildOperationalNoticeEmail(payload = {}) {
     const subject = String(payload.subject || '').trim() || '[NMS] 服务通知';
     const message = String(payload.message || '').trim();
     const actionUrl = String(payload.actionUrl || '').trim();
@@ -465,6 +465,14 @@ export async function sendOperationalNoticeEmail(toEmail, payload = {}) {
       </div>
     </div>`;
 
+    return {
+        subject,
+        html,
+    };
+}
+
+export async function sendOperationalNoticeEmail(toEmail, payload = {}) {
+    const { subject, html } = buildOperationalNoticeEmail(payload);
     await sendTrackedEmail({
         type: 'operational_notice',
         toEmail,

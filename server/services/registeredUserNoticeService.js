@@ -1,5 +1,5 @@
 import userStore from '../store/userStore.js';
-import { sendOperationalNoticeEmail } from '../lib/mailer.js';
+import { buildOperationalNoticeEmail, sendOperationalNoticeEmail } from '../lib/mailer.js';
 
 const NOTICE_SCOPE = {
     ALL: 'all',
@@ -73,6 +73,46 @@ export function resolveRegisteredUserNoticeRecipients(users = [], options = {}) 
         includeDisabled,
         recipients,
         skipped,
+    };
+}
+
+export function buildRegisteredUserNoticePreview(payload = {}, deps = {}) {
+    const subject = String(payload.subject || '').trim();
+    const message = String(payload.message || '').trim();
+    const actionUrl = String(payload.actionUrl || '').trim();
+    const actionLabel = String(payload.actionLabel || '').trim() || '查看详情';
+    const scope = normalizeNoticeScope(payload.scope);
+    const includeDisabled = payload.includeDisabled !== false;
+    const users = Array.isArray(deps.users) ? deps.users : userStore.getAll();
+    const resolved = resolveRegisteredUserNoticeRecipients(users, { scope, includeDisabled });
+    const sampleRecipient = resolved.recipients[0] || {
+        username: '示例用户',
+        email: '',
+        emailVerified: false,
+        enabled: true,
+    };
+    const emailPreview = buildOperationalNoticeEmail({
+        subject,
+        message,
+        actionUrl,
+        actionLabel,
+        username: sampleRecipient.username || '示例用户',
+    });
+
+    return {
+        scope,
+        includeDisabled,
+        recipientCount: resolved.recipients.length,
+        skippedCount: resolved.skipped.length,
+        singleRecipientMode: true,
+        sampleRecipient: {
+            username: sampleRecipient.username || '示例用户',
+            email: sampleRecipient.email || '',
+            emailVerified: sampleRecipient.emailVerified === true,
+            enabled: sampleRecipient.enabled !== false,
+        },
+        subject: emailPreview.subject,
+        html: emailPreview.html,
     };
 }
 

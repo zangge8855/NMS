@@ -37,6 +37,7 @@ import {
 } from '../lib/systemBackup.js';
 import { normalizeBoolean } from '../lib/normalize.js';
 import {
+    buildRegisteredUserNoticePreview,
     normalizeNoticeScope,
     resolveRegisteredUserNoticeRecipients,
     sendRegisteredUserNoticeCampaign,
@@ -173,6 +174,27 @@ router.post('/email/test', adminOnly, async (req, res) => {
             },
         });
     }
+});
+
+router.post('/email/notice-users/preview', adminOnly, (req, res) => {
+    const subject = String(req.body?.subject || '').trim();
+    const message = String(req.body?.message || '').trim();
+    const actionUrl = String(req.body?.actionUrl || '').trim();
+    const actionLabel = String(req.body?.actionLabel || '').trim() || '查看详情';
+    const scope = normalizeNoticeScope(req.body?.scope);
+    const includeDisabled = normalizeBoolean(req.body?.includeDisabled, true);
+
+    return res.json({
+        success: true,
+        obj: buildRegisteredUserNoticePreview({
+            subject,
+            message,
+            actionUrl,
+            actionLabel,
+            scope,
+            includeDisabled,
+        }),
+    });
 });
 
 router.post('/email/notice-users', adminOnly, async (req, res) => {

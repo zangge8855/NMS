@@ -9,6 +9,7 @@ process.env.NODE_ENV = 'test';
 
 const userStore = (await import('../store/userStore.js')).default;
 const {
+    buildRegisteredUserNoticePreview,
     normalizeNoticeScope,
     resolveRegisteredUserNoticeRecipients,
     sendRegisteredUserNoticeCampaign,
@@ -79,6 +80,31 @@ describe('registeredUserNoticeService', () => {
         assert.equal(result.failures[0].email, 'bob@example.com');
         assert.equal(sent.length, 2);
         assert.equal(sent[0].payload.subject, '域名变更通知');
+    });
+
+    it('builds notice preview with rendered html and recipient stats', () => {
+        const preview = buildRegisteredUserNoticePreview({
+            subject: '域名切换通知',
+            message: '请更新最新地址。\n\n旧地址即将停用。',
+            actionUrl: 'https://example.com/new',
+            actionLabel: '查看最新地址',
+            scope: 'all',
+            includeDisabled: false,
+        }, {
+            users: [
+                { id: 'u-1', role: 'user', username: 'alice', email: 'alice@example.com', subscriptionEmail: '', emailVerified: true, enabled: true },
+                { id: 'u-2', role: 'user', username: 'bob', email: '', subscriptionEmail: '', emailVerified: false, enabled: true },
+            ],
+        });
+
+        assert.equal(preview.recipientCount, 1);
+        assert.equal(preview.skippedCount, 1);
+        assert.equal(preview.singleRecipientMode, true);
+        assert.equal(preview.sampleRecipient.username, 'alice');
+        assert.equal(preview.subject, '域名切换通知');
+        assert.match(preview.html, /域名切换通知/);
+        assert.match(preview.html, /alice/);
+        assert.match(preview.html, /https:\/\/example\.com\/new/);
     });
 
     it('uses live user store data when deps.users is omitted', async () => {

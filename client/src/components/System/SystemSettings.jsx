@@ -293,6 +293,9 @@ export default function SystemSettings() {
     const [noticeSending, setNoticeSending] = useState(false);
     const [noticeTaskId, setNoticeTaskId] = useState(null);
     const [noticeDraft, setNoticeDraft] = useState(buildNoticeDraft(null));
+    const [noticePreviewLoading, setNoticePreviewLoading] = useState(false);
+    const [noticePreviewError, setNoticePreviewError] = useState('');
+    const [noticePreview, setNoticePreview] = useState(null);
     const [backupLoading, setBackupLoading] = useState(false);
     const [backupStatusLoading, setBackupStatusLoading] = useState(false);
     const [backupStatus, setBackupStatus] = useState(null);
@@ -430,6 +433,8 @@ export default function SystemSettings() {
 
     const openNoticeModal = () => {
         setNoticeDraft(buildNoticeDraft(settings, siteEntryPreview));
+        setNoticePreview(null);
+        setNoticePreviewError('');
         setNoticeModalOpen(true);
     };
 
@@ -464,6 +469,27 @@ export default function SystemSettings() {
             toast.error(error.response?.data?.msg || error.message || '创建通知发送任务失败');
         }
         setNoticeSending(false);
+    };
+
+    const fetchNoticePreview = async (draftInput) => {
+        const payload = draftInput || noticeDraft;
+        setNoticePreviewLoading(true);
+        try {
+            const res = await api.post('/system/email/notice-users/preview', {
+                subject: payload.subject,
+                message: payload.message,
+                actionUrl: payload.actionUrl,
+                actionLabel: payload.actionLabel,
+                scope: payload.scope,
+                includeDisabled: payload.includeDisabled,
+            });
+            setNoticePreview(res.data?.obj || null);
+            setNoticePreviewError('');
+        } catch (error) {
+            setNoticePreview(null);
+            setNoticePreviewError(error.response?.data?.msg || error.message || '加载邮件预览失败');
+        }
+        setNoticePreviewLoading(false);
     };
 
     const fetchBackupStatus = async (options = {}) => {
@@ -530,6 +556,46 @@ export default function SystemSettings() {
         fetchRegistrationRuntime();
         fetchInviteCodes({ quiet: true });
     }, [isAdmin]);
+
+    useEffect(() => {
+        if (!noticeModalOpen) return undefined;
+
+        let active = true;
+        const timer = window.setTimeout(async () => {
+            try {
+                setNoticePreviewLoading(true);
+                const res = await api.post('/system/email/notice-users/preview', {
+                    subject: noticeDraft.subject,
+                    message: noticeDraft.message,
+                    actionUrl: noticeDraft.actionUrl,
+                    actionLabel: noticeDraft.actionLabel,
+                    scope: noticeDraft.scope,
+                    includeDisabled: noticeDraft.includeDisabled,
+                });
+                if (!active) return;
+                setNoticePreview(res.data?.obj || null);
+                setNoticePreviewError('');
+            } catch (error) {
+                if (!active) return;
+                setNoticePreview(null);
+                setNoticePreviewError(error.response?.data?.msg || error.message || '加载邮件预览失败');
+            }
+            if (active) setNoticePreviewLoading(false);
+        }, 240);
+
+        return () => {
+            active = false;
+            window.clearTimeout(timer);
+        };
+    }, [
+        noticeModalOpen,
+        noticeDraft.subject,
+        noticeDraft.message,
+        noticeDraft.actionUrl,
+        noticeDraft.actionLabel,
+        noticeDraft.scope,
+        noticeDraft.includeDisabled,
+    ]);
 
     const setActiveTab = (nextTab) => {
         const resolvedTab = resolveSettingsTab(nextTab);
@@ -1738,27 +1804,25 @@ export default function SystemSettings() {
                     compact
                     title="SMTP 诊断"
                     subtitle="SMTP 配置来自服务端 `.env`，这里只展示诊断结果，不回显明文密码。"
-                    meta={emailStatus && (
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                        </div>
-                    )}
-                    actions={(
-                        <div className="settings-panel-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                {emailTestLoading ? <span className="spinner" /> : '测试'}
-                            </button>
-                            <button className="btn btn-primary btn-sm" onClick={openNoticeModal} disabled={!emailStatus?.configured || emailStatusLoading || emailTestLoading}>
-                                发送变更通知
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
-                                {emailStatusLoading ? <span className="spinner" /> : '刷新'}
-                            </button>
-                        </div>
-                    )}
                 />
+                <div className="settings-monitor-toolbar">
+                    <div className="settings-monitor-toolbar-status">
+                        <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                        <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                        <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                    </div>
+                    <div className="settings-monitor-toolbar-actions">
+                        <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                            {emailTestLoading ? <span className="spinner" /> : '测试'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
+                            {emailStatusLoading ? <span className="spinner" /> : '刷新'}
+                        </button>
+                        <button className="btn btn-primary btn-sm" onClick={openNoticeModal} disabled={!emailStatus?.configured || emailStatusLoading || emailTestLoading}>
+                            发送变更通知
+                        </button>
+                    </div>
+                </div>
                 {!emailStatus ? (
                     <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
                 ) : (
@@ -2459,7 +2523,7 @@ export default function SystemSettings() {
                 </div>
             </div>
             <ModalShell isOpen={noticeModalOpen} onClose={() => setNoticeModalOpen(false)}>
-                <div className="modal modal-lg" onClick={(event) => event.stopPropagation()}>
+                <div className="modal modal-wide settings-notice-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
                         <h3 className="modal-title">发送注册用户变更通知</h3>
                         <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)}>
@@ -2467,69 +2531,127 @@ export default function SystemSettings() {
                         </button>
                     </div>
                     <div className="modal-body">
-                        <div className="text-sm text-muted mb-4">
-                            该功能会给已注册用户逐个发送邮件。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。
-                        </div>
-                        <div className="grid-auto-220">
-                            <div className="form-group">
-                                <label className="form-label">通知主题</label>
-                                <input
-                                    className="form-input"
-                                    value={noticeDraft.subject}
-                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
-                                    placeholder="例如：服务入口地址变更通知"
-                                />
+                        <div className="settings-notice-shell">
+                            <div className="settings-notice-editor">
+                                <div className="text-sm text-muted mb-4">
+                                    该功能会按单个收件人逐封发送邮件，不会把其他用户邮箱放在同一封邮件里。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。
+                                </div>
+                                <div className="grid-auto-220">
+                                    <div className="form-group">
+                                        <label className="form-label">通知主题</label>
+                                        <input
+                                            className="form-input"
+                                            value={noticeDraft.subject}
+                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
+                                            placeholder="例如：服务入口地址变更通知"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">发送范围</label>
+                                        <select
+                                            className="form-select"
+                                            value={noticeDraft.scope}
+                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
+                                        >
+                                            <option value="all">全部有邮箱的注册用户</option>
+                                            <option value="verified">仅已验证邮箱用户</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">通知内容</label>
+                                    <textarea
+                                        rows={8}
+                                        className="form-textarea"
+                                        value={noticeDraft.message}
+                                        onChange={(event) => setNoticeDraft((prev) => ({ ...prev, message: event.target.value }))}
+                                        placeholder="说明新网址、新域名、生效时间，以及用户需要执行的替换动作。"
+                                    />
+                                </div>
+                                <div className="grid-auto-220">
+                                    <div className="form-group">
+                                        <label className="form-label">按钮地址</label>
+                                        <input
+                                            className="form-input"
+                                            value={noticeDraft.actionUrl}
+                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionUrl: event.target.value }))}
+                                            placeholder="https://example.com/subscription"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">按钮文案</label>
+                                        <input
+                                            className="form-input"
+                                            value={noticeDraft.actionLabel}
+                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
+                                            placeholder="查看最新地址"
+                                        />
+                                    </div>
+                                </div>
+                                <label className="form-check-label w-fit mt-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={noticeDraft.includeDisabled}
+                                        onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
+                                    />
+                                    <span>包含已停用账号</span>
+                                </label>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">发送范围</label>
-                                <select
-                                    className="form-select"
-                                    value={noticeDraft.scope}
-                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
-                                >
-                                    <option value="all">全部有邮箱的注册用户</option>
-                                    <option value="verified">仅已验证邮箱用户</option>
-                                </select>
+                            <div className="settings-notice-preview-panel">
+                                <div className="settings-notice-preview-head">
+                                    <div>
+                                        <div className="text-sm font-medium">邮件正文预览</div>
+                                        <div className="text-xs text-muted mt-1">按示例用户渲染，实际发送时仍会逐个单发，不会泄露其他用户邮箱地址。</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => fetchNoticePreview(noticeDraft)}
+                                        disabled={noticePreviewLoading}
+                                    >
+                                        {noticePreviewLoading ? <span className="spinner" /> : '刷新预览'}
+                                    </button>
+                                </div>
+                                <div className="settings-notice-preview-meta">
+                                    <span className="badge badge-neutral">预计发送 {noticePreview?.recipientCount ?? 0} 人</span>
+                                    <span className="badge badge-neutral">跳过 {noticePreview?.skippedCount ?? 0} 人</span>
+                                    <span className="badge badge-success">逐个单发</span>
+                                </div>
+                                {noticePreview?.sampleRecipient?.username || noticePreview?.sampleRecipient?.email ? (
+                                    <div className="text-xs text-muted">
+                                        示例收件人: {noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
+                                    </div>
+                                ) : null}
+                                {noticePreviewError ? (
+                                    <div className="settings-notice-preview-empty">
+                                        <div className="text-sm font-medium">预览加载失败</div>
+                                        <div className="text-sm text-muted">{noticePreviewError}</div>
+                                    </div>
+                                ) : null}
+                                {!noticePreviewError && noticePreviewLoading && !noticePreview ? (
+                                    <div className="settings-notice-preview-empty">
+                                        <div className="text-sm font-medium">正在生成邮件预览</div>
+                                        <div className="text-sm text-muted">正在按实际邮件模板渲染正文。</div>
+                                    </div>
+                                ) : null}
+                                {!noticePreviewError && noticePreview?.html ? (
+                                    <div className="settings-notice-preview-frame-shell">
+                                        <iframe
+                                            title="注册用户通知邮件预览"
+                                            className="settings-notice-preview-frame"
+                                            sandbox=""
+                                            srcDoc={noticePreview.html}
+                                        />
+                                    </div>
+                                ) : null}
+                                {!noticePreviewError && !noticePreviewLoading && !noticePreview?.html ? (
+                                    <div className="settings-notice-preview-empty">
+                                        <div className="text-sm font-medium">还没有可用预览</div>
+                                        <div className="text-sm text-muted">填写主题、正文或按钮地址后，这里会显示最终邮件样式。</div>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">通知内容</label>
-                            <textarea
-                                rows={8}
-                                className="form-textarea"
-                                value={noticeDraft.message}
-                                onChange={(event) => setNoticeDraft((prev) => ({ ...prev, message: event.target.value }))}
-                                placeholder="说明新网址、新域名、生效时间，以及用户需要执行的替换动作。"
-                            />
-                        </div>
-                        <div className="grid-auto-220">
-                            <div className="form-group">
-                                <label className="form-label">按钮地址</label>
-                                <input
-                                    className="form-input"
-                                    value={noticeDraft.actionUrl}
-                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionUrl: event.target.value }))}
-                                    placeholder="https://example.com/subscription"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">按钮文案</label>
-                                <input
-                                    className="form-input"
-                                    value={noticeDraft.actionLabel}
-                                    onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
-                                    placeholder="查看最新地址"
-                                />
-                            </div>
-                        </div>
-                        <label className="form-check-label w-fit mt-2">
-                            <input
-                                type="checkbox"
-                                checked={noticeDraft.includeDisabled}
-                                onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
-                            />
-                            <span>包含已停用账号</span>
-                        </label>
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={() => setNoticeModalOpen(false)} disabled={noticeSending}>
