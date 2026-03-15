@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -29,13 +29,44 @@
             justify-content: center;
             padding: 20px;
         }
+        [data-lang][hidden] { display: none !important; }
         .{{class:page}} {
-            width: min(980px, 100%);
+            width: min(1040px, 100%);
             padding: 28px;
             border-radius: 24px;
             border: 1px solid var(--border);
             background: var(--panel);
             box-shadow: 0 28px 80px rgba(2, 6, 23, 0.5);
+        }
+        .{{class:site-nav}} {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .{{class:lang-switch}} {
+            display: inline-flex;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .{{class:lang-button}} {
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .{{class:lang-button}}[aria-pressed="true"] {
+            background: rgba(34, 197, 94, 0.18);
+            color: var(--text);
         }
         .{{class:eyebrow}} {
             display: inline-block;
@@ -52,14 +83,14 @@
             line-height: 1.05;
             letter-spacing: -0.04em;
         }
-        .{{class:lead}}, .{{class:muted}}, .{{class:terminal-line}} {
+        .{{class:lead}}, .{{class:muted}}, .{{class:terminal-line}}, .{{class:footer-note}} {
             color: var(--muted);
             line-height: 1.75;
             font-size: 14px;
         }
         .{{class:grid-two}} {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
             gap: 16px;
             margin-top: 20px;
         }
@@ -74,13 +105,26 @@
             font-size: 16px;
             color: var(--text);
         }
-        .{{class:terminal-line}} { margin: 0; }
+        .{{class:terminal-line}} { margin: 0 0 8px; }
+        .{{class:terminal-line}}:last-child { margin-bottom: 0; }
         .{{class:inline-code}} {
             display: inline-block;
             padding: 2px 6px;
             border-radius: 10px;
             background: rgba(255,255,255,0.06);
             color: var(--text);
+        }
+        .{{class:image-frame}} {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            margin-bottom: 14px;
+            background: rgba(255,255,255,0.02);
+        }
+        .{{class:hero-image}} {
+            display: block;
+            width: 100%;
+            height: auto;
         }
         .{{class:footer}} {
             margin-top: 16px;
@@ -91,35 +135,99 @@
             color: var(--muted);
             font-size: 12px;
         }
-        @media (max-width: 720px) {
+        @media (max-width: 840px) {
             .{{class:page}} { padding: 18px; }
+            .{{class:site-nav}} { flex-direction: column; align-items: flex-start; }
             .{{class:grid-two}} { grid-template-columns: 1fr; }
         }
     </style>
 </head>
-<body>
+<body data-page-title-zh="{{pageTitleZh}}" data-page-title-en="{{pageTitleEn}}" data-description-zh="{{descriptionZh}}" data-description-en="{{descriptionEn}}">
     <main class="{{class:page}}">
-        <span class="{{class:eyebrow}}">edge delivery node</span>
-        <h1 class="{{class:headline}}">{{title}}</h1>
-        <p class="{{class:lead}}">Public edge node directory for mirrored content, release notes and maintenance advisories.</p>
+        <div class="{{class:site-nav}}">
+            <div>
+                <span class="{{class:eyebrow}}"><span data-lang="zh-CN">公开边缘节点</span><span data-lang="en-US" hidden>Edge delivery node</span></span>
+                <h1 class="{{class:headline}}">{{title}}</h1>
+            </div>
+            <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="en-US" aria-pressed="false">English</button>
+            </div>
+        </div>
+        <div data-lang="zh-CN">
+            <p class="{{class:lead}}">公开边缘节点用于发布镜像目录、维护公告和协作说明，不承载内部控制面板或未授权接口。</p>
+        </div>
+        <div data-lang="en-US" hidden>
+            <p class="{{class:lead}}">Public edge node for mirrored content, maintenance notices and coordination documents. Internal operator surfaces and restricted interfaces are not published here.</p>
+        </div>
         <div class="{{class:grid-two}}">
             <section class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}">Directory status</h2>
-                <p class="{{class:muted}}">Request <span class="{{class:inline-code}}">{{requestMethod}}</span> for <span class="{{class:inline-code}}">{{requestPath}}</span> completed with status <span class="{{class:inline-code}}">{{statusCode}}</span>.</p>
-                <p class="{{class:muted}}">Restricted paths are not published through the public delivery node.</p>
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">目录状态</span><span data-lang="en-US" hidden>Directory status</span></h2>
+                <p class="{{class:muted}}">
+                    <span data-lang="zh-CN">请求 <span class="{{class:inline-code}}">{{requestMethod}}</span> 访问 <span class="{{class:inline-code}}">{{requestPath}}</span>，公开目录返回状态 <span class="{{class:inline-code}}">{{statusCode}}</span>。</span>
+                    <span data-lang="en-US" hidden>Request <span class="{{class:inline-code}}">{{requestMethod}}</span> for <span class="{{class:inline-code}}">{{requestPath}}</span> completed with status <span class="{{class:inline-code}}">{{statusCode}}</span>.</span>
+                </p>
+                <p class="{{class:muted}}">
+                    <span data-lang="zh-CN">受限路径与控制接口不会通过该节点公开发布。</span>
+                    <span data-lang="en-US" hidden>Restricted paths and control interfaces are intentionally kept off the public delivery node.</span>
+                </p>
             </section>
             <section class="{{class:terminal}}">
-                <h2 class="{{class:card-title}}">Node bulletin</h2>
-                <p class="{{class:terminal-line}}">origin: public-edge-02</p>
-                <p class="{{class:terminal-line}}">cache-control: public, max-age=86400</p>
-                <p class="{{class:terminal-line}}">generated-at: {{generatedAt}}</p>
-                <p class="{{class:terminal-line}}">contact: directory-support@{{title}}</p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">节点公告</span><span data-lang="en-US" hidden>Node bulletin</span></h2>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">节点标识：public-edge-02</span><span data-lang="en-US" hidden>origin: public-edge-02</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">缓存策略：public, max-age=86400</span><span data-lang="en-US" hidden>cache-control: public, max-age=86400</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">生成时间：{{generatedAt}}</span><span data-lang="en-US" hidden>generated-at: {{generatedAt}}</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">当前标签：{{statusLabelZh}}</span><span data-lang="en-US" hidden>current label: {{statusLabelEn}}</span></p>
             </section>
         </div>
         <footer class="{{class:footer}}">
-            <span>{{title}} public delivery node</span>
-            <span>{{currentYear}}</span>
+            <span><span data-lang="zh-CN">{{title}} 公开分发节点</span><span data-lang="en-US" hidden>{{title}} public delivery node</span></span>
+            <span class="{{class:footer-note}}">{{currentYear}}</span>
         </footer>
     </main>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const body = document.body;
+            const descriptionTag = document.querySelector('meta[name="description"]');
+            const buttons = Array.from(document.querySelectorAll('[data-lang-toggle]'));
+            const allowed = ['zh-CN', 'en-US'];
+            const storageKey = '{{languageStorageKey}}';
+
+            const setLanguage = (next) => {
+                const lang = allowed.includes(next) ? next : 'zh-CN';
+                root.lang = lang;
+                document.querySelectorAll('[data-lang]').forEach((node) => {
+                    node.hidden = node.getAttribute('data-lang') !== lang;
+                });
+                buttons.forEach((button) => {
+                    const active = button.getAttribute('data-lang-toggle') === lang;
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                const pageTitle = body.getAttribute(lang === 'zh-CN' ? 'data-page-title-zh' : 'data-page-title-en');
+                const description = body.getAttribute(lang === 'zh-CN' ? 'data-description-zh' : 'data-description-en');
+                if (pageTitle) document.title = pageTitle;
+                if (descriptionTag && description) descriptionTag.setAttribute('content', description);
+                try { localStorage.setItem(storageKey, lang); } catch {}
+            };
+
+            let initial = 'zh-CN';
+            try {
+                const stored = localStorage.getItem(storageKey);
+                if (allowed.includes(stored)) initial = stored;
+            } catch {}
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setLanguage(button.getAttribute('data-lang-toggle') || 'zh-CN');
+                });
+            });
+
+            setLanguage(initial);
+        })();
+    </script>
 </body>
 </html>

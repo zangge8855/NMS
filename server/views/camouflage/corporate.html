@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -41,6 +41,7 @@
             opacity: 0.15;
             pointer-events: none;
         }
+        [data-lang][hidden] { display: none !important; }
         .{{class:page}} {
             width: min(1180px, calc(100vw - 32px));
             margin: 0 auto;
@@ -59,8 +60,8 @@
         }
         .{{class:site-nav}} {
             display: grid;
-            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
-            gap: 18px;
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto auto;
+            gap: 16px;
             align-items: center;
             padding: 16px 18px;
             border-radius: 22px;
@@ -96,6 +97,7 @@
         .{{class:nav-chip}} {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             min-height: 34px;
             padding: 0 12px;
@@ -132,9 +134,33 @@
             border-color: rgba(255,255,255,0.12);
             background: rgba(255,255,255,0.04);
         }
+        .{{class:lang-switch}} {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .{{class:lang-button}} {
+            min-height: 34px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .{{class:lang-button}}[aria-pressed="true"] {
+            background: linear-gradient(135deg, #d7f7ff, #7dd3fc);
+            color: #03111f;
+        }
         .{{class:hero}} {
             display: grid;
-            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
             gap: 18px;
             margin-bottom: 18px;
         }
@@ -145,7 +171,7 @@
         .{{class:hero-copy}} {
             padding: 26px;
             background:
-                linear-gradient(180deg, rgba(7, 17, 31, 0.1), rgba(7, 17, 31, 0.56)),
+                linear-gradient(180deg, rgba(7, 17, 31, 0.16), rgba(7, 17, 31, 0.62)),
                 url("{{asset:heroTexture}}");
             background-size: cover;
             background-position: center;
@@ -223,7 +249,7 @@
             gap: 14px;
         }
         .{{class:meta-grid}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .{{class:status-strip}} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .{{class:status-strip}} { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 18px; }
         .{{class:section-grid}} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .{{class:grid-two}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .{{class:meta-card}}, .{{class:status-item}} {
@@ -262,6 +288,17 @@
             line-height: 1.75;
             font-size: 14px;
         }
+        .{{class:image-frame}} {
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+        }
+        .{{class:hero-image}} {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
         .{{class:footer}} {
             border-radius: 24px;
             margin-top: 18px;
@@ -271,70 +308,102 @@
             justify-content: space-between;
             gap: 12px;
         }
+        @media (max-width: 1080px) {
+            .{{class:site-nav}} { grid-template-columns: minmax(0, 1fr) auto; }
+            .{{class:nav-links}} { grid-column: 1 / -1; justify-content: flex-start; }
+        }
         @media (max-width: 980px) {
-            .{{class:site-nav}},
             .{{class:hero}},
             .{{class:section-grid}},
             .{{class:grid-two}} { grid-template-columns: 1fr; }
-            .{{class:nav-links}} { justify-content: flex-start; }
+            .{{class:meta-grid}} { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 720px) {
             .{{class:page}} { width: min(100vw - 20px, 1180px); }
             .{{class:site-nav}}, .{{class:hero-copy}}, .{{class:stack}}, .{{class:section-card}}, .{{class:footer}} {
                 padding: 16px;
             }
+            .{{class:site-nav}} { grid-template-columns: 1fr; }
+            .{{class:lang-switch}} { justify-content: center; }
             .{{class:meta-grid}}, .{{class:status-strip}} { grid-template-columns: 1fr; }
             .{{class:footer}} { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
-<body>
+<body data-page-title-zh="{{pageTitleZh}}" data-page-title-en="{{pageTitleEn}}" data-description-zh="{{descriptionZh}}" data-description-en="{{descriptionEn}}">
     <div class="{{class:page}}">
         <header class="{{class:site-nav}}">
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
                 <div class="{{class:brand-copy}}">
                     <div><strong>{{title}}</strong></div>
-                    <div class="{{class:muted}}">Industrial edge instrumentation and telemetry services</div>
+                    <div class="{{class:muted}}">
+                        <span data-lang="zh-CN">工业边缘检测与遥测服务目录</span>
+                        <span data-lang="en-US" hidden>Industrial edge inspection and telemetry directory</span>
+                    </div>
                 </div>
             </div>
             <nav class="{{class:nav-links}}" aria-label="Primary">
-                <a class="{{class:nav-link}}" href="/">Overview</a>
-                <a class="{{class:nav-link}}" href="/operations">Operations</a>
-                <a class="{{class:nav-link}}" href="/products">Product Lines</a>
-                <a class="{{class:nav-link}}" href="/support">Support</a>
+                <a class="{{class:nav-link}}" href="/"><span data-lang="zh-CN">概览</span><span data-lang="en-US" hidden>Overview</span></a>
+                <a class="{{class:nav-link}}" href="/operations"><span data-lang="zh-CN">运营</span><span data-lang="en-US" hidden>Operations</span></a>
+                <a class="{{class:nav-link}}" href="/products"><span data-lang="zh-CN">产品线</span><span data-lang="en-US" hidden>Programs</span></a>
+                <a class="{{class:nav-link}}" href="/support"><span data-lang="zh-CN">支持</span><span data-lang="en-US" hidden>Support</span></a>
             </nav>
-            <div class="{{class:nav-chip}}">Status {{statusCode}}</div>
+            <div class="{{class:nav-chip}}">
+                <span data-lang="zh-CN">目录状态 {{statusCode}}</span>
+                <span data-lang="en-US" hidden>Status {{statusCode}}</span>
+            </div>
+            <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="en-US" aria-pressed="false">English</button>
+            </div>
         </header>
 
         <main class="{{class:hero}}">
             <section class="{{class:hero-panel}}">
                 <div class="{{class:hero-copy}}">
-                    <span class="{{class:eyebrow}}">Field Systems Directory</span>
-                    <h1 class="{{class:headline}}">{{title}} maintains resilient edge platforms for manufacturing, inspection and remote telemetry.</h1>
-                    <p class="{{class:lead}}">This public directory is used to publish operating summaries, program milestones and regional support contacts for approved customers and field teams.</p>
-                    <div class="{{class:button-row}}">
-                        <a class="{{class:button}}" href="/contact">Contact coordination desk</a>
-                        <a class="{{class:button}} {{class:button-muted}}" href="/status">View network summary</a>
+                    <div data-lang="zh-CN">
+                        <span class="{{class:eyebrow}}">现场系统目录</span>
+                        <h1 class="{{class:headline}}">{{title}} 面向制造检测、设备接入与远程遥测场景提供稳定的边缘协作平台。</h1>
+                        <p class="{{class:lead}}">当前公开页面仅展示对外目录、项目摘要与区域支持信息。未授权路由不会暴露内部控制界面或运维入口。</p>
+                        <div class="{{class:button-row}}">
+                            <a class="{{class:button}}" href="/contact">联系协调窗口</a>
+                            <a class="{{class:button}} {{class:button-muted}}" href="/status">查看公开摘要</a>
+                        </div>
+                    </div>
+                    <div data-lang="en-US" hidden>
+                        <span class="{{class:eyebrow}}">Field Systems Directory</span>
+                        <h1 class="{{class:headline}}">{{title}} operates resilient edge platforms for manufacturing inspection, device intake and regional telemetry support.</h1>
+                        <p class="{{class:lead}}">This public page publishes program summaries, service notes and regional contacts without exposing internal control surfaces or operator entry points.</p>
+                        <div class="{{class:button-row}}">
+                            <a class="{{class:button}}" href="/contact">Contact coordination</a>
+                            <a class="{{class:button}} {{class:button-muted}}" href="/status">View directory summary</a>
+                        </div>
                     </div>
                 </div>
             </section>
             <aside class="{{class:hero-panel}}">
                 <div class="{{class:stack}}">
+                    <div class="{{class:image-frame}}">
+                        <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
+                    </div>
                     <div>
-                        <span class="{{class:eyebrow}}">Request Trace</span>
-                        <div class="{{class:notice}}">The requested path <span class="{{class:inline-code}}">{{requestPath}}</span> returned directory status <span class="{{class:inline-code}}">{{statusCode}}</span> for method <span class="{{class:inline-code}}">{{requestMethod}}</span>.</div>
+                        <span class="{{class:eyebrow}}"><span data-lang="zh-CN">请求记录</span><span data-lang="en-US" hidden>Request trace</span></span>
+                        <div class="{{class:notice}}">
+                            <span data-lang="zh-CN">请求路径 <span class="{{class:inline-code}}">{{requestPath}}</span> 以 <span class="{{class:inline-code}}">{{requestMethod}}</span> 方式访问，公开目录返回状态 <span class="{{class:inline-code}}">{{statusCode}}</span>。</span>
+                            <span data-lang="en-US" hidden>Request <span class="{{class:inline-code}}">{{requestMethod}}</span> to <span class="{{class:inline-code}}">{{requestPath}}</span> returned public directory status <span class="{{class:inline-code}}">{{statusCode}}</span>.</span>
+                        </div>
                     </div>
                     <div class="{{class:meta-grid}}">
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}">Publishing Window</span>
-                            <div class="{{class:meta-value}}">24h cache</div>
-                            <div class="{{class:muted}}">Static site mode for public discovery endpoints.</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">公开缓存</span><span data-lang="en-US" hidden>Publishing window</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">24 小时</span><span data-lang="en-US" hidden>24h cache</span></div>
+                            <div class="{{class:muted}}"><span data-lang="zh-CN">对外目录使用静态站点分发策略。</span><span data-lang="en-US" hidden>Public directory endpoints operate in static-site mode.</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}">Coverage</span>
-                            <div class="{{class:meta-value}}">17 regions</div>
-                            <div class="{{class:muted}}">Support, logistics and integration operations.</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务覆盖</span><span data-lang="en-US" hidden>Coverage</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">17 个区域</span><span data-lang="en-US" hidden>17 regions</span></div>
+                            <div class="{{class:muted}}"><span data-lang="zh-CN">包含集成、售后与区域运维支持。</span><span data-lang="en-US" hidden>Support covers integration, logistics and field operations.</span></div>
                         </div>
                     </div>
                 </div>
@@ -343,50 +412,43 @@
 
         <section class="{{class:status-strip}}">
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}">Primary focus</span>
-                <div class="{{class:status-value}}">Inspection hardware</div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">当前重点</span><span data-lang="en-US" hidden>Primary focus</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">视觉检测终端</span><span data-lang="en-US" hidden>Inspection appliances</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}">Current bulletin</span>
-                <div class="{{class:status-value}}">Scheduled directory sync</div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">最新通告</span><span data-lang="en-US" hidden>Current bulletin</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">目录同步窗口</span><span data-lang="en-US" hidden>Scheduled directory sync</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}">Last generated</span>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">生成时间</span><span data-lang="en-US" hidden>Generated at</span></span>
                 <div class="{{class:status-value}}">{{generatedAt}}</div>
             </div>
         </section>
 
         <section class="{{class:section-grid}}">
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}">Programs</h2>
-                <p class="{{class:card-copy}}">Cross-functional delivery for industrial vision, sensing and on-site data gateways.</p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开项目</span><span data-lang="en-US" hidden>Programs</span></h2>
+                <p class="{{class:card-copy}}"><span data-lang="zh-CN">面向工业视觉、传感接入与现场数据汇聚的公开项目摘要。</span><span data-lang="en-US" hidden>Cross-functional delivery for industrial vision, sensing intake and field data aggregation.</span></p>
                 <ul class="{{class:list}}">
-                    <li>Factory inspection cells</li>
-                    <li>Remote telemetry concentrators</li>
-                    <li>Signal capture and replay tooling</li>
+                    <li><span data-lang="zh-CN">产线视觉检测单元</span><span data-lang="en-US" hidden>Factory inspection cells</span></li>
+                    <li><span data-lang="zh-CN">远程遥测汇聚节点</span><span data-lang="en-US" hidden>Remote telemetry concentrators</span></li>
+                    <li><span data-lang="zh-CN">边缘采集与回放工具</span><span data-lang="en-US" hidden>Signal capture and replay tooling</span></li>
                 </ul>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}">Operations</h2>
-                <p class="{{class:card-copy}}">Public pages expose only directory metadata. Program-specific workspaces require internal routing and issued credentials.</p>
-                <div class="{{class:grid-two}}">
-                    <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}">Release channel</span>
-                        <div class="{{class:meta-value}}">Quarterly</div>
-                    </div>
-                    <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}">Availability</span>
-                        <div class="{{class:meta-value}}">99.95%</div>
-                    </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场概览</span><span data-lang="en-US" hidden>Field snapshot</span></h2>
+                <div class="{{class:image-frame}}" style="margin-bottom: 14px;">
+                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
                 </div>
+                <p class="{{class:card-copy}}"><span data-lang="zh-CN">公开页面只暴露目录级元信息，项目级数据、截图与设备控制界面都位于内部协作路由。</span><span data-lang="en-US" hidden>Public pages expose directory-level metadata only. Project data, snapshots and device controls remain behind internal routing.</span></p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}">Field Notes</h2>
-                <p class="{{class:card-copy}}">Request access through your account liaison if you need restricted dashboards, telemetry snapshots or commissioning records.</p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">协作说明</span><span data-lang="en-US" hidden>Coordination notes</span></h2>
+                <p class="{{class:card-copy}}"><span data-lang="zh-CN">如需受限面板、遥测快照或调试记录，请通过项目对接窗口发起请求，不要在公开表单中提交现场凭据。</span><span data-lang="en-US" hidden>Request restricted dashboards, telemetry snapshots or commissioning records through your program liaison. Do not submit field credentials through public forms.</span></p>
                 <ul class="{{class:list}}">
-                    <li>Reference the published contact channel</li>
-                    <li>Include program identifier and region</li>
-                    <li>Do not submit field credentials through public forms</li>
+                    <li><span data-lang="zh-CN">注明项目编号与区域</span><span data-lang="en-US" hidden>Reference program identifier and region</span></li>
+                    <li><span data-lang="zh-CN">使用已发布的支持通道</span><span data-lang="en-US" hidden>Use the published support channel</span></li>
+                    <li><span data-lang="zh-CN">仅共享必要的目录信息</span><span data-lang="en-US" hidden>Share directory-level details only</span></li>
                 </ul>
             </article>
         </section>
@@ -394,10 +456,51 @@
         <footer class="{{class:footer}}">
             <div>
                 <strong>{{title}}</strong>
-                <div class="{{class:footer-note}}">Public directory for edge instrumentation programs. Copyright {{currentYear}}.</div>
+                <div class="{{class:footer-note}}"><span data-lang="zh-CN">工业边缘协作公开目录，{{currentYear}}。</span><span data-lang="en-US" hidden>Public directory for industrial edge collaboration, {{currentYear}}.</span></div>
             </div>
-            <div class="{{class:footer-note}}">Route: {{requestPath}}</div>
+            <div class="{{class:footer-note}}"><span data-lang="zh-CN">当前路由：{{requestPath}}</span><span data-lang="en-US" hidden>Route: {{requestPath}}</span></div>
         </footer>
     </div>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const body = document.body;
+            const descriptionTag = document.querySelector('meta[name="description"]');
+            const buttons = Array.from(document.querySelectorAll('[data-lang-toggle]'));
+            const allowed = ['zh-CN', 'en-US'];
+            const storageKey = '{{languageStorageKey}}';
+
+            const setLanguage = (next) => {
+                const lang = allowed.includes(next) ? next : 'zh-CN';
+                root.lang = lang;
+                document.querySelectorAll('[data-lang]').forEach((node) => {
+                    node.hidden = node.getAttribute('data-lang') !== lang;
+                });
+                buttons.forEach((button) => {
+                    const active = button.getAttribute('data-lang-toggle') === lang;
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                const pageTitle = body.getAttribute(lang === 'zh-CN' ? 'data-page-title-zh' : 'data-page-title-en');
+                const description = body.getAttribute(lang === 'zh-CN' ? 'data-description-zh' : 'data-description-en');
+                if (pageTitle) document.title = pageTitle;
+                if (descriptionTag && description) descriptionTag.setAttribute('content', description);
+                try { localStorage.setItem(storageKey, lang); } catch {}
+            };
+
+            let initial = 'zh-CN';
+            try {
+                const stored = localStorage.getItem(storageKey);
+                if (allowed.includes(stored)) initial = stored;
+            } catch {}
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setLanguage(button.getAttribute('data-lang-toggle') || 'zh-CN');
+                });
+            });
+
+            setLanguage(initial);
+        })();
+    </script>
 </body>
 </html>

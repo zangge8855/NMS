@@ -4,7 +4,7 @@ import { createSiteCamouflageHtml, getCamouflageRuntime } from '../lib/siteCamou
 import { createCamouflageNotFoundMiddleware } from '../middleware/siteCamouflage.js';
 
 describe('site camouflage renderer', () => {
-    it('renders configured templates with inline assets and startup-randomized classes', () => {
+    it('renders configured templates with chinese-first bilingual content, inline assets and startup-randomized classes', () => {
         const runtime = getCamouflageRuntime();
         const html = createSiteCamouflageHtml({
             siteConfig: {
@@ -17,10 +17,14 @@ describe('site camouflage renderer', () => {
         });
 
         assert.match(html, /Northline Field Journal/);
+        assert.match(html, /中文/);
+        assert.match(html, /English/);
+        assert.match(html, /公开札记、维护随笔与现场协作记录/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
         assert.doesNotMatch(html, /pexels\.com/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
         assert.match(html, /\/wp-admin/);
+        assert.match(html, /nms_camouflage_lang/);
     });
 
     it('falls back to the corporate template for unknown template values', () => {
@@ -34,7 +38,8 @@ describe('site camouflage renderer', () => {
         });
 
         assert.match(html, /Fallback Labs/);
-        assert.match(html, /Industrial edge instrumentation/);
+        assert.match(html, /工业边缘检测与遥测服务目录/);
+        assert.match(html, /面向制造检测、设备接入与远程遥测场景提供稳定的边缘协作平台/);
     });
 });
 
@@ -90,6 +95,8 @@ describe('camouflage middleware', () => {
         assert.deepEqual(calls[1], ['type', 'html']);
         assert.match(calls[2][1], /Aperture Relay/);
         assert.match(calls[2][1], /\/wp-admin/);
+        assert.match(calls[2][1], /中文/);
+        assert.match(calls[2][1], /公开边缘节点/);
     });
 
     it('redirects asset-like probes back to the camouflage home path', () => {

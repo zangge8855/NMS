@@ -243,8 +243,12 @@ describe('client build helpers', () => {
             statusCode: 200,
         });
         assert.match(html, /Edge Precision Systems/);
+        assert.match(html, /中文/);
+        assert.match(html, /English/);
+        assert.match(html, /工业边缘检测与遥测服务目录/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /cache/i);
+        assert.match(html, /24 小时/);
+        assert.match(html, /nms_camouflage_lang/);
         assert.doesNotMatch(html, /pexels\.com/i);
     });
 });

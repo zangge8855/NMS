@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,6 +14,7 @@
             --text: #0f172a;
             --muted: rgba(15, 23, 42, 0.66);
             --accent: #2563eb;
+            --accent-soft: rgba(37, 99, 235, 0.08);
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -22,16 +23,17 @@
             color: var(--text);
             font-family: Georgia, "Times New Roman", serif;
             background:
-                linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)),
+                linear-gradient(rgba(255,255,255,0.84), rgba(255,255,255,0.84)),
                 url("{{asset:dotTexture}}");
             background-size: auto, 160px 160px;
         }
+        [data-lang][hidden] { display: none !important; }
         .{{class:page}} {
             width: min(1080px, calc(100vw - 32px));
             margin: 0 auto;
             padding: 28px 0 40px;
         }
-        .{{class:site-nav}}, .{{class:section-card}}, .{{class:footer}} {
+        .{{class:site-nav}}, .{{class:section-card}}, .{{class:footer}}, .{{class:hero-panel}} {
             border-radius: 22px;
             border: 1px solid var(--border);
             background: rgba(255,255,255,0.94);
@@ -39,8 +41,8 @@
         }
         .{{class:site-nav}} {
             padding: 16px 18px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
             align-items: center;
             gap: 16px;
             margin-bottom: 18px;
@@ -49,12 +51,36 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            justify-content: center;
         }
         .{{class:nav-link}} {
             text-decoration: none;
             color: var(--muted);
             font-size: 13px;
             font-weight: 600;
+        }
+        .{{class:lang-switch}} {
+            display: inline-flex;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.04);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        .{{class:lang-button}} {
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .{{class:lang-button}}[aria-pressed="true"] {
+            background: #0f172a;
+            color: #ffffff;
         }
         .{{class:hero}} {
             display: grid;
@@ -64,9 +90,6 @@
         }
         .{{class:hero-panel}}, .{{class:section-card}} {
             padding: 22px;
-            border-radius: 22px;
-            border: 1px solid var(--border);
-            background: rgba(255,255,255,0.96);
         }
         .{{class:eyebrow}} {
             display: inline-block;
@@ -83,10 +106,34 @@
             line-height: 1.08;
             letter-spacing: -0.04em;
         }
-        .{{class:lead}}, .{{class:card-copy}}, .{{class:muted}} {
+        .{{class:lead}}, .{{class:card-copy}}, .{{class:muted}}, .{{class:footer-note}} {
             color: var(--muted);
             line-height: 1.75;
             font-size: 15px;
+        }
+        .{{class:button-row}} {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .{{class:button}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: #0f172a;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .{{class:button-muted}} {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
         }
         .{{class:blog-list}} {
             display: grid;
@@ -106,7 +153,7 @@
         .{{class:notice}} {
             padding: 14px 16px;
             border-radius: 16px;
-            background: rgba(37, 99, 235, 0.08);
+            background: var(--accent-soft);
             border: 1px solid rgba(37, 99, 235, 0.14);
             color: var(--text);
             font-size: 14px;
@@ -118,6 +165,24 @@
             border-radius: 10px;
             background: rgba(15, 23, 42, 0.06);
         }
+        .{{class:image-frame}} {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+            background: #eef2ff;
+        }
+        .{{class:hero-image}} {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .{{class:grid-two}} {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 18px;
+        }
         .{{class:footer}} {
             padding: 16px 18px;
             display: flex;
@@ -125,65 +190,142 @@
             gap: 12px;
             flex-wrap: wrap;
         }
-        @media (max-width: 860px) {
-            .{{class:hero}} { grid-template-columns: 1fr; }
+        @media (max-width: 960px) {
+            .{{class:site-nav}} { grid-template-columns: 1fr; }
+            .{{class:nav-links}} { justify-content: flex-start; }
+            .{{class:hero}}, .{{class:grid-two}} { grid-template-columns: 1fr; }
         }
         @media (max-width: 640px) {
             .{{class:page}} { width: min(100vw - 20px, 1080px); }
             .{{class:site-nav}}, .{{class:hero-panel}}, .{{class:section-card}}, .{{class:footer}} { padding: 16px; }
-            .{{class:site-nav}} { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
-<body>
+<body data-page-title-zh="{{pageTitleZh}}" data-page-title-en="{{pageTitleEn}}" data-description-zh="{{descriptionZh}}" data-description-en="{{descriptionEn}}">
     <div class="{{class:page}}">
         <header class="{{class:site-nav}}">
             <div>
                 <strong>{{title}}</strong>
-                <div class="{{class:muted}}">Dispatch notes, manufacturing journals and field stories</div>
+                <div class="{{class:muted}}">
+                    <span data-lang="zh-CN">公开札记、维护随笔与现场协作记录</span>
+                    <span data-lang="en-US" hidden>Dispatch notes, maintenance essays and field collaboration records</span>
+                </div>
             </div>
             <nav class="{{class:nav-links}}" aria-label="Primary">
-                <a class="{{class:nav-link}}" href="/">Home</a>
-                <a class="{{class:nav-link}}" href="/journal">Journal</a>
-                <a class="{{class:nav-link}}" href="/about">About</a>
+                <a class="{{class:nav-link}}" href="/"><span data-lang="zh-CN">首页</span><span data-lang="en-US" hidden>Home</span></a>
+                <a class="{{class:nav-link}}" href="/journal"><span data-lang="zh-CN">归档</span><span data-lang="en-US" hidden>Journal</span></a>
+                <a class="{{class:nav-link}}" href="/about"><span data-lang="zh-CN">关于</span><span data-lang="en-US" hidden>About</span></a>
             </nav>
+            <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
+                <button class="{{class:lang-button}}" type="button" data-lang-toggle="en-US" aria-pressed="false">English</button>
+            </div>
         </header>
 
         <main class="{{class:hero}}">
             <section class="{{class:hero-panel}}">
-                <span class="{{class:eyebrow}}">editorial notes</span>
-                <h1 class="{{class:headline}}">A public-facing journal for teams building practical systems at the network edge.</h1>
-                <p class="{{class:lead}}">This archive collects maintenance notes, deployment essays and manufacturing observations shared with partners, vendors and customers.</p>
-                <div class="{{class:notice}}">The requested route <span class="{{class:inline-code}}">{{requestPath}}</span> is not part of the published archive. Directory status: <span class="{{class:inline-code}}">{{statusCode}}</span>.</div>
+                <div data-lang="zh-CN">
+                    <span class="{{class:eyebrow}}">公开专栏</span>
+                    <h1 class="{{class:headline}}">面向合作方开放的工程札记，用来记录边缘部署、现场排障与制造维护经验。</h1>
+                    <p class="{{class:lead}}">公开归档只保留可共享的过程观察、运维摘要与供应链协作文档。受限后台、调试接口和内部工单不会通过这里发布。</p>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="/journal">查看最新札记</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">联系编辑窗口</a>
+                    </div>
+                </div>
+                <div data-lang="en-US" hidden>
+                    <span class="{{class:eyebrow}}">Editorial notes</span>
+                    <h1 class="{{class:headline}}">A public journal for partners tracking edge deployments, field maintenance and practical manufacturing systems.</h1>
+                    <p class="{{class:lead}}">The archive keeps shareable observations, support summaries and vendor-facing records only. Restricted consoles, operator tools and internal tickets remain off the public journal.</p>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="/journal">Browse entries</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">Contact editor desk</a>
+                    </div>
+                </div>
             </section>
             <aside class="{{class:hero-panel}}">
-                <span class="{{class:eyebrow}}">recent entries</span>
-                <div class="{{class:blog-list}}">
-                    <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}">March issue</span>
-                        <strong>Thermal margins in compact inspection systems</strong>
-                    </article>
-                    <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}">Field memo</span>
-                        <strong>Why telemetry collection fails in noisy power environments</strong>
-                    </article>
-                    <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}">Operations</span>
-                        <strong>Documenting support pathways without exposing control surfaces</strong>
-                    </article>
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
+                </div>
+                <div class="{{class:notice}}">
+                    <span data-lang="zh-CN">请求路径 <span class="{{class:inline-code}}">{{requestPath}}</span> 未在公开归档内发布，当前目录状态为 <span class="{{class:inline-code}}">{{statusCode}}</span>。</span>
+                    <span data-lang="en-US" hidden>The requested path <span class="{{class:inline-code}}">{{requestPath}}</span> is not part of the published archive. Directory status: <span class="{{class:inline-code}}">{{statusCode}}</span>.</span>
                 </div>
             </aside>
         </main>
 
-        <section class="{{class:section-card}}">
-            <h2 class="{{class:card-title}}">Archive summary</h2>
-            <p class="{{class:card-copy}}">Published articles focus on hardware reliability, field process improvements and support documentation. Restricted workspaces are intentionally kept outside the public archive.</p>
+        <section class="{{class:grid-two}}">
+            <section class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">最近文章</span><span data-lang="en-US" hidden>Recent entries</span></h2>
+                <div class="{{class:blog-list}}">
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">三月专栏</span><span data-lang="en-US" hidden>March issue</span></span>
+                        <strong><span data-lang="zh-CN">紧凑型检测设备的热稳定窗口</span><span data-lang="en-US" hidden>Thermal margins in compact inspection systems</span></strong>
+                    </article>
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">现场备忘</span><span data-lang="en-US" hidden>Field memo</span></span>
+                        <strong><span data-lang="zh-CN">噪声供电环境下遥测采集为何会失败</span><span data-lang="en-US" hidden>Why telemetry collection fails in noisy power environments</span></strong>
+                    </article>
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">运营整理</span><span data-lang="en-US" hidden>Operations</span></span>
+                        <strong><span data-lang="zh-CN">如何公开记录支持流程而不暴露控制界面</span><span data-lang="en-US" hidden>Documenting support pathways without exposing control surfaces</span></strong>
+                    </article>
+                </div>
+            </section>
+            <section class="{{class:section-card}}">
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">归档摘要</span><span data-lang="en-US" hidden>Archive summary</span></h2>
+                <p class="{{class:card-copy}}"><span data-lang="zh-CN">公开内容主要围绕硬件可靠性、流程改进和支持协作文档。内部工作空间、调试数据与生产控制界面被明确隔离在公开归档之外。</span><span data-lang="en-US" hidden>Published articles focus on hardware reliability, process improvements and support documentation. Internal workspaces, debug data and production controls are intentionally separated from the public archive.</span></p>
+            </section>
         </section>
 
         <footer class="{{class:footer}}">
             <span>{{title}}</span>
-            <span class="{{class:muted}}">Generated {{generatedAt}}</span>
+            <span class="{{class:footer-note}}"><span data-lang="zh-CN">生成时间 {{generatedAt}}</span><span data-lang="en-US" hidden>Generated {{generatedAt}}</span></span>
         </footer>
     </div>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const body = document.body;
+            const descriptionTag = document.querySelector('meta[name="description"]');
+            const buttons = Array.from(document.querySelectorAll('[data-lang-toggle]'));
+            const allowed = ['zh-CN', 'en-US'];
+            const storageKey = '{{languageStorageKey}}';
+
+            const setLanguage = (next) => {
+                const lang = allowed.includes(next) ? next : 'zh-CN';
+                root.lang = lang;
+                document.querySelectorAll('[data-lang]').forEach((node) => {
+                    node.hidden = node.getAttribute('data-lang') !== lang;
+                });
+                buttons.forEach((button) => {
+                    const active = button.getAttribute('data-lang-toggle') === lang;
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                const pageTitle = body.getAttribute(lang === 'zh-CN' ? 'data-page-title-zh' : 'data-page-title-en');
+                const description = body.getAttribute(lang === 'zh-CN' ? 'data-description-zh' : 'data-description-en');
+                if (pageTitle) document.title = pageTitle;
+                if (descriptionTag && description) descriptionTag.setAttribute('content', description);
+                try { localStorage.setItem(storageKey, lang); } catch {}
+            };
+
+            let initial = 'zh-CN';
+            try {
+                const stored = localStorage.getItem(storageKey);
+                if (allowed.includes(stored)) initial = stored;
+            } catch {}
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setLanguage(button.getAttribute('data-lang-toggle') || 'zh-CN');
+                });
+            });
+
+            setLanguage(initial);
+        })();
+    </script>
 </body>
 </html>

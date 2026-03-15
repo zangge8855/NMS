@@ -247,17 +247,31 @@ function createRenderModel(options = {}) {
     const requestPath = String(options.requestPath || '/').trim() || '/';
     const requestMethod = String(options.requestMethod || 'GET').trim().toUpperCase() || 'GET';
     const now = new Date();
-    const statusLabel = statusCode === 200 ? 'Service directory' : 'Resource not published';
+    const statusLabelZh = statusCode === 200 ? '公开目录' : '资源未发布';
+    const statusLabelEn = statusCode === 200 ? 'Service directory' : 'Resource not published';
+    const pageTitleZh = `${title} | ${statusLabelZh}`;
+    const pageTitleEn = `${title} | ${statusLabelEn}`;
+    const descriptionZh = `${title} 提供工业边缘检测、设备接入与遥测支持服务，公开目录仅展示对外说明与协作信息。`;
+    const descriptionEn = `${title} operates industrial edge inspection, device integration and telemetry support services through a public-facing directory.`;
 
     return {
         templateName,
         title,
-        pageTitle: `${title} | ${statusLabel}`,
-        description: `${title} operates industrial edge systems, inspection devices and field telemetry services for research and manufacturing environments.`,
+        defaultLanguage: 'zh-CN',
+        alternateLanguage: 'en-US',
+        languageStorageKey: 'nms_camouflage_lang',
+        pageTitle: pageTitleZh,
+        pageTitleZh,
+        pageTitleEn,
+        description: descriptionZh,
+        descriptionZh,
+        descriptionEn,
         requestPath,
         requestMethod,
         statusCode: String(statusCode),
-        statusLabel,
+        statusLabel: statusLabelZh,
+        statusLabelZh,
+        statusLabelEn,
         currentYear: String(now.getUTCFullYear()),
         generatedAt: now.toUTCString(),
         classes: CLASS_MAP,
