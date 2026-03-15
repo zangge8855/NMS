@@ -6,6 +6,7 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
 import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
@@ -40,8 +41,78 @@ function formatTime(ts, locale = 'zh-CN') {
     return formatDateTime(ts, locale);
 }
 
+function ServerDetailInboundMobileList({ inbounds = [] }) {
+    return (
+        <div className="server-detail-mobile-list">
+            {inbounds.map((ib) => {
+                let clients = 0;
+                try {
+                    const settings = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
+                    clients = (settings.clients || []).length;
+                } catch {}
+                return (
+                    <div key={ib.id} className="server-detail-mobile-card">
+                        <div className="server-detail-mobile-card-head">
+                            <div className="server-detail-mobile-card-copy">
+                                <div className="server-detail-mobile-card-title">{ib.remark || '-'}</div>
+                                <div className="server-detail-mobile-card-subtitle">
+                                    <span className="badge badge-neutral">{ib.protocol}</span>
+                                    <span className="server-detail-mobile-card-port">:{ib.port}</span>
+                                </div>
+                            </div>
+                            <span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>
+                                {ib.enable !== false ? '启用' : '禁用'}
+                            </span>
+                        </div>
+                        <div className="server-detail-mobile-card-grid">
+                            <div className="server-detail-mobile-card-item">
+                                <span className="server-detail-mobile-card-label">客户端数</span>
+                                <span className="server-detail-mobile-card-value">{clients}</span>
+                            </div>
+                            <div className="server-detail-mobile-card-item">
+                                <span className="server-detail-mobile-card-label">流量</span>
+                                <span className="server-detail-mobile-card-value">{formatBytes((ib.up || 0) + (ib.down || 0))}</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function ServerDetailOnlineMobileList({ onlineUsers = [], onLoadClientIps, clientIpSupport }) {
+    return (
+        <div className="server-detail-mobile-list">
+            {onlineUsers.map((item, index) => (
+                <div key={item.email} className="server-detail-mobile-card">
+                    <div className="server-detail-mobile-card-head">
+                        <div className="server-detail-mobile-card-copy">
+                            <div className="server-detail-mobile-card-title">{item.email}</div>
+                            <div className="server-detail-mobile-card-subtitle">#{index + 1}</div>
+                        </div>
+                        <span className="badge badge-success">{item.sessions} 会话</span>
+                    </div>
+                    <div className="server-detail-mobile-card-actions">
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => onLoadClientIps(item.email)}
+                            disabled={clientIpSupport.supported === false}
+                            title={clientIpSupport.supported === false ? clientIpSupport.reason : '查看该用户在当前节点上的代理访问 IP'}
+                        >
+                            <HiOutlineGlobeAlt /> 节点 IP
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function ServerDetail() {
     const { locale, t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const { serverId } = useParams();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -425,7 +496,7 @@ export default function ServerDetail() {
                             <div>
                                 <div className="card mb-4">
                                     <h4 className="card-title mb-3">服务器信息</h4>
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
                                         <div><span className="text-muted">名称:</span> {server.name}</div>
                                         <div><span className="text-muted">URL:</span> <span className="font-mono">{server.url}</span></div>
                                         <div><span className="text-muted">用户名:</span> {server.username}</div>
@@ -443,7 +514,7 @@ export default function ServerDetail() {
                                 {status && (
                                     <div className="card">
                                         <h4 className="card-title mb-3">Xray 状态</h4>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
                                             <div><span className="text-muted">Xray 版本:</span> {status.xray?.version || '-'}</div>
                                             <div><span className="text-muted">运行时间:</span> {formatUptime(status.uptime, locale)}</div>
                                             <div><span className="text-muted">CPU:</span> {status.cpu?.toFixed(1)}%</div>
@@ -461,6 +532,8 @@ export default function ServerDetail() {
                             <div>
                                 {inbounds.length === 0 ? (
                                     <EmptyState title="暂无入站规则" subtitle="该服务器未配置入站" />
+                                ) : isCompactLayout ? (
+                                    <ServerDetailInboundMobileList inbounds={inbounds} />
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">
@@ -520,6 +593,12 @@ export default function ServerDetail() {
                                     <SkeletonTable rows={4} cols={3} />
                                 ) : onlineUsers.length === 0 ? (
                                     <EmptyState title="当前无在线用户" subtitle="该服务器暂无活跃连接" />
+                                ) : isCompactLayout ? (
+                                    <ServerDetailOnlineMobileList
+                                        onlineUsers={onlineUsers}
+                                        onLoadClientIps={loadClientIps}
+                                        clientIpSupport={clientIpSupport}
+                                    />
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">

@@ -61,6 +61,16 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Inbounds', () => {
     beforeEach(() => {
+        window.matchMedia.mockImplementation((query) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
@@ -182,6 +192,34 @@ describe('Inbounds', () => {
 
         expect(within(bobRow).getByText('离线')).toBeInTheDocument();
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
+    });
+
+    it('renders compact user cards instead of the wide user table on mobile', async () => {
+        window.matchMedia.mockImplementation((query) => ({
+            matches: query.includes('max-width: 768px'),
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        const user = userEvent.setup();
+        const { container } = renderWithRouter(<Inbounds />);
+
+        const inboundName = await screen.findByText('Main Inbound');
+        const summaryRow = inboundName.closest('tr');
+        if (!summaryRow) throw new Error('Missing inbound summary row');
+        await user.click(summaryRow);
+
+        const aliceCard = (await screen.findByText('alice@example.com')).closest('.inbounds-client-mobile-card');
+        if (!aliceCard) throw new Error('Missing Alice mobile card');
+
+        expect(container.querySelector('.inbounds-clients-table')).toBeNull();
+        expect(within(aliceCard).getByText('在线')).toBeInTheDocument();
+        expect(within(aliceCard).getByRole('button', { name: /禁用/ })).toBeInTheDocument();
     });
 
     it('prefers the expanded user-list traffic totals over stale inbound aggregate counters', async () => {

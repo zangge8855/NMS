@@ -33,6 +33,7 @@ import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -624,8 +625,97 @@ function countActiveFilters(filters = {}) {
     }, 0);
 }
 
+function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
+    return (
+        <div className="audit-mobile-list">
+            {items.map((item) => (
+                <div key={item.id} className="audit-mobile-card">
+                    <div className="audit-mobile-card-head">
+                        <div className="audit-mobile-card-copy">
+                            <div className="audit-mobile-card-title">{formatAuditEventLabel(item, locale)}</div>
+                            <div className="audit-mobile-card-subtitle">{formatDateTime(item.ts, locale)}</div>
+                        </div>
+                        <span className={`badge ${statusBadgeClass(item.outcome)}`}>
+                            {formatAuditStatusLabel(item.outcome, locale)}
+                        </span>
+                    </div>
+                    <div className="audit-mobile-card-grid">
+                        <div className="audit-mobile-card-item">
+                            <span className="audit-mobile-card-label">{copy.tables.actor}</span>
+                            <span className="audit-mobile-card-value">{formatAuditActorLabel(item, locale)}</span>
+                        </div>
+                        <div className="audit-mobile-card-item">
+                            <span className="audit-mobile-card-label">{copy.tables.node}</span>
+                            <span className="audit-mobile-card-value">{item.serverId || '-'}</span>
+                        </div>
+                        <div className="audit-mobile-card-item audit-mobile-card-item--full">
+                            <span className="audit-mobile-card-label">{copy.tables.user}</span>
+                            <span className="audit-mobile-card-value">{resolveAuditTarget(item)}</span>
+                        </div>
+                    </div>
+                    <div className="audit-mobile-card-actions">
+                        <button
+                            className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
+                            onClick={() => onSelect(item)}
+                            title={copy.actions.viewDetail}
+                            aria-label={copy.actions.viewDetail}
+                        >
+                            <HiOutlineEye className="audit-action-btn-icon" />
+                            <span>{copy.actions.detail}</span>
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function AuditAccessMobileList({ items = [], copy, locale }) {
+    return (
+        <div className="audit-mobile-list">
+            {items.map((item) => {
+                const geoDisplay = resolveAccessGeoDisplay(item);
+                return (
+                    <div key={item.id} className="audit-mobile-card">
+                        <div className="audit-mobile-card-head">
+                            <div className="audit-mobile-card-copy">
+                                <div className="audit-mobile-card-title">{item.userLabel || item.username || item.email || '-'}</div>
+                                <div className="audit-mobile-card-subtitle">{formatDateTime(item.ts, locale)}</div>
+                            </div>
+                            <span className={`badge ${statusBadgeClass(item.status)}`}>
+                                {formatAuditStatusLabel(item.status, locale)}
+                            </span>
+                        </div>
+                        {item.email && item.email !== (item.userLabel || '') ? (
+                            <div className="audit-mobile-inline-note">{item.email}</div>
+                        ) : null}
+                        <div className="audit-mobile-card-grid">
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.tables.realIp}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{item.clientIp || item.ip || '-'}</span>
+                            </div>
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
+                                <span className="audit-mobile-card-value">
+                                    {geoDisplay.location}
+                                    {geoDisplay.carrier ? ` · ${geoDisplay.carrier}` : ''}
+                                </span>
+                            </div>
+                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
+                                <span className="audit-mobile-card-label">{copy.tables.ua}</span>
+                                <span className="audit-mobile-card-value">{item.userAgent || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function AuditCenter() {
     const { locale, t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getAuditCopy(locale);
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
@@ -1135,26 +1225,45 @@ export default function AuditCenter() {
                                 </div>
                             </div>
 
-                            <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
-                                <table className="table audit-events-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{copy.tables.time}</th>
-                                            <th>{copy.tables.event}</th>
-                                            <th>{copy.tables.result}</th>
-                                            <th>{copy.tables.actor}</th>
-                                            <th>{copy.tables.node}</th>
-                                            <th>{copy.tables.user}</th>
-                                            <th>{copy.tables.action}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {eventsLoading ? (
+                            {eventsLoading ? (
+                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
+                                    <table className="table audit-events-table">
+                                        <tbody>
                                             <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
-                                        ) : eventsData.items.length === 0 ? (
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : eventsData.items.length === 0 ? (
+                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
+                                    <table className="table audit-events-table">
+                                        <tbody>
                                             <tr><td colSpan={7}><EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} /></td></tr>
-                                        ) : (
-                                            eventsData.items.map((item) => (
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : isCompactLayout ? (
+                                <AuditEventsMobileList
+                                    items={eventsData.items}
+                                    copy={copy}
+                                    locale={locale}
+                                    onSelect={setSelectedEvent}
+                                />
+                            ) : (
+                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
+                                    <table className="table audit-events-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{copy.tables.time}</th>
+                                                <th>{copy.tables.event}</th>
+                                                <th>{copy.tables.result}</th>
+                                                <th>{copy.tables.actor}</th>
+                                                <th>{copy.tables.node}</th>
+                                                <th>{copy.tables.user}</th>
+                                                <th>{copy.tables.action}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {eventsData.items.map((item) => (
                                                 <tr key={item.id}>
                                                     <td data-label={copy.tables.time}>{formatDateTime(item.ts, locale)}</td>
                                                     <td data-label={copy.tables.event}>{formatAuditEventLabel(item, locale)}</td>
@@ -1176,11 +1285,11 @@ export default function AuditCenter() {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
 
                             <div className="audit-pagination page-pagination">
                                 <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(eventsData.total || 0))}</div>
@@ -1477,56 +1586,72 @@ export default function AuditCenter() {
                             ))}
                         </div>
 
-                        <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
-                            <table className="table audit-subscriptions-table">
-                                <thead>
-                                    <tr>
-                                        <th>{copy.tables.time}</th>
-                                        <th>{copy.tables.user}</th>
-                                        <th>{copy.tables.result}</th>
-                                        <th>{copy.tables.realIp}</th>
-                                        <th>{copy.tables.locationCarrier}</th>
-                                        <th>UA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {accessLoading ? (
+                        {accessLoading ? (
+                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
+                                <table className="table audit-subscriptions-table">
+                                    <tbody>
                                         <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
-                                    ) : accessData.items.length === 0 ? (
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : accessData.items.length === 0 ? (
+                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
+                                <table className="table audit-subscriptions-table">
+                                    <tbody>
                                         <tr><td colSpan={6}><EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} /></td></tr>
-                                    ) : accessData.items.map((item) => {
-                                        const geoDisplay = resolveAccessGeoDisplay(item);
-                                        return (
-                                        <tr key={item.id}>
-                                            <td data-label={copy.tables.time} style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
-                                            <td data-label={copy.tables.user}>
-                                                <div className="audit-access-user">
-                                                    <span className="audit-access-user-label">{item.userLabel || item.username || item.email || '-'}</span>
-                                                    {item.email && item.email !== (item.userLabel || '') && (
-                                                        <span className="audit-access-user-meta">{item.email}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
-                                            <td data-label={copy.tables.realIp} style={{ wordBreak: 'break-all' }}>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
-                                                    {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
-                                                </div>
-                                            </td>
-                                            <td data-label={copy.tables.locationCarrier} className="text-xs">
-                                                <div className="audit-access-location">
-                                                    <span>{geoDisplay.location}</span>
-                                                    {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
-                                                </div>
-                                            </td>
-                                            <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : isCompactLayout ? (
+                            <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />
+                        ) : (
+                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
+                                <table className="table audit-subscriptions-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{copy.tables.time}</th>
+                                            <th>{copy.tables.user}</th>
+                                            <th>{copy.tables.result}</th>
+                                            <th>{copy.tables.realIp}</th>
+                                            <th>{copy.tables.locationCarrier}</th>
+                                            <th>UA</th>
                                         </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {accessData.items.map((item) => {
+                                            const geoDisplay = resolveAccessGeoDisplay(item);
+                                            return (
+                                            <tr key={item.id}>
+                                                <td data-label={copy.tables.time} style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
+                                                <td data-label={copy.tables.user}>
+                                                    <div className="audit-access-user">
+                                                        <span className="audit-access-user-label">{item.userLabel || item.username || item.email || '-'}</span>
+                                                        {item.email && item.email !== (item.userLabel || '') && (
+                                                            <span className="audit-access-user-meta">{item.email}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
+                                                <td data-label={copy.tables.realIp} style={{ wordBreak: 'break-all' }}>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
+                                                        {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
+                                                    </div>
+                                                </td>
+                                                <td data-label={copy.tables.locationCarrier} className="text-xs">
+                                                    <div className="audit-access-location">
+                                                        <span>{geoDisplay.location}</span>
+                                                        {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
+                                                    </div>
+                                                </td>
+                                                <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
+                                            </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
                         <div className="audit-pagination page-pagination">
                             <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(accessData.total || 0))}</div>

@@ -18,6 +18,7 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { QRCodeSVG } from 'qrcode.react';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 import {
     HiOutlineArrowLeft,
     HiOutlineClipboard,
@@ -410,6 +411,7 @@ function normalizeDetailTab(value) {
 export default function UserDetail() {
     const { locale, t } = useI18n();
     const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const { userId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -906,6 +908,26 @@ export default function UserDetail() {
         { key: 'activity', label: copy.tabs.activity },
     ];
 
+    const renderClientActionButton = (client, supportState) => {
+        const clientIpUnsupported = supportState?.supported === false;
+        const clientIpDisabled = !client.email || clientIpUnsupported;
+        const clientIpTitle = !client.email
+            ? copy.labels.missingEmailForClient
+            : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
+
+        return (
+            <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => loadClientIps(client)}
+                disabled={clientIpDisabled}
+                title={clientIpTitle}
+            >
+                <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
+            </button>
+        );
+    };
+
     return (
         <>
             <Header
@@ -1233,6 +1255,44 @@ export default function UserDetail() {
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
                                     <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />
+                                ) : isCompactLayout ? (
+                                    <div className="user-detail-client-list">
+                                        {clientData.map((client, index) => {
+                                            const supportState = clientIpSupportByServer[client.serverId];
+                                            return (
+                                                <div key={`${client.serverId}-${client.inboundId || index}`} className="user-detail-client-card">
+                                                    <div className="user-detail-client-head">
+                                                        <div className="user-detail-client-copy">
+                                                            <div className="user-detail-client-title">{client.serverName}</div>
+                                                            <div className="user-detail-client-subtitle">{client.inboundRemark || client.inboundId}</div>
+                                                        </div>
+                                                        <span className={`badge ${client.enable ? 'badge-success' : 'badge-danger'}`}>
+                                                            {client.enable ? copy.labels.enabled : copy.labels.disabled}
+                                                        </span>
+                                                    </div>
+                                                    <div className="user-detail-client-meta">
+                                                        <span className="badge badge-neutral">{client.protocol}</span>
+                                                        <span className="user-detail-client-meta-pill">:{client.port}</span>
+                                                    </div>
+                                                    <div className="user-detail-client-metrics">
+                                                        <div className="user-detail-client-metric">
+                                                            <span className="user-detail-client-metric-label">{copy.labels.traffic}</span>
+                                                            <span className="user-detail-client-metric-value">{formatBytes((client.up || 0) + (client.down || 0))}</span>
+                                                        </div>
+                                                        <div className="user-detail-client-metric">
+                                                            <span className="user-detail-client-metric-label">{copy.labels.expiryTime}</span>
+                                                            <span className="user-detail-client-metric-value">
+                                                                {client.expiryTime > 0 ? formatDateOnly(client.expiryTime, locale) : copy.labels.permanent}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="user-detail-client-actions">
+                                                        {renderClientActionButton(client, supportState)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 ) : (
                                     <div className="table-container">
                                         <table className="table">
@@ -1250,11 +1310,6 @@ export default function UserDetail() {
                                             <tbody>
                                                 {clientData.map((c, i) => {
                                                     const supportState = clientIpSupportByServer[c.serverId];
-                                                    const clientIpUnsupported = supportState?.supported === false;
-                                                    const clientIpDisabled = !c.email || clientIpUnsupported;
-                                                    const clientIpTitle = !c.email
-                                                        ? copy.labels.missingEmailForClient
-                                                        : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
                                                     return (
                                                     <tr key={i}>
                                                         <td data-label={copy.labels.server}>{c.serverName}</td>
@@ -1264,15 +1319,7 @@ export default function UserDetail() {
                                                         <td data-label={copy.labels.expiryTime}>{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
                                                         <td data-label={copy.labels.status}><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
                                                         <td data-label={copy.labels.actions} className="table-cell-actions">
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-secondary btn-sm"
-                                                                onClick={() => loadClientIps(c)}
-                                                                disabled={clientIpDisabled}
-                                                                title={clientIpTitle}
-                                                            >
-                                                                <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
-                                                            </button>
+                                                            {renderClientActionButton(c, supportState)}
                                                         </td>
                                                     </tr>
                                                 );

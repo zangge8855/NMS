@@ -39,11 +39,25 @@ vi.mock('../Layout/Header.jsx', () => ({
     ),
 }));
 
+function mockMatchMedia(matches = false) {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+}
+
 describe('Dashboard', () => {
     beforeEach(() => {
         localStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
+        mockMatchMedia(false);
         useServer.mockReturnValue({
             activeServerId: null,
             panelApi: vi.fn(),
@@ -245,5 +259,84 @@ describe('Dashboard', () => {
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
+    });
+
+    it('renders stacked online-user cards on mobile instead of the global table', async () => {
+        mockMatchMedia(true);
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            { id: 'user-a', role: 'user', username: 'Alice', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+                        ],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/server/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            cpu: 10,
+                            mem: { current: 256, total: 1024 },
+                            uptime: 3600,
+                            netTraffic: { sent: 1000, recv: 2000 },
+                        },
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'inbound-a',
+                                protocol: 'vless',
+                                enable: true,
+                                remark: 'Node A Link',
+                                settings: JSON.stringify({
+                                    clients: [{ id: 'uuid-a', email: 'alice@example.com' }],
+                                }),
+                                clientStats: [{ id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 }],
+                                up: 1000,
+                                down: 2000,
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = await screen.findByText('总在线用户');
+        fireEvent.click(onlineCard.closest('[role="button"]'));
+
+        await screen.findByText('在线用户明细');
+        expect(document.querySelector('.dashboard-online-mobile-card')).toBeTruthy();
+        expect(document.querySelector('.dashboard-online-table')).toBeFalsy();
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+        expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     });
 });

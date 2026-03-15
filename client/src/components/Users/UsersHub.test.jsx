@@ -54,12 +54,26 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
+function mockMatchMedia(matches = false) {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+}
+
 describe('UsersHub ordering', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
         api.delete.mockReset();
+        mockMatchMedia(false);
         useServer.mockReset();
         useServer.mockReturnValue({
             servers: [{ id: 'server-a', name: 'Node A' }],
@@ -224,5 +238,70 @@ describe('UsersHub ordering', () => {
         expect(within(aliceRow).getByText('1 会话')).toBeInTheDocument();
         expect(within(aliceRow).getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
         expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
+    });
+
+    it('switches to stacked mobile cards on narrow screens', async () => {
+        mockMatchMedia(true);
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'user-a',
+                                username: 'alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                role: 'user',
+                                enabled: true,
+                                createdAt: '2026-03-10T00:00:00.000Z',
+                            },
+                        ],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [{ id: 'uuid-1', email: 'alice@example.com', expiryTime: 0, enable: true }],
+                            }),
+                            clientStats: [{
+                                id: 'uuid-1',
+                                email: 'alice@example.com',
+                                up: 10,
+                                down: 20,
+                            }],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: ['uuid-1'],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('alice')).toBeInTheDocument();
+        expect(document.querySelector('.users-mobile-card')).toBeTruthy();
+        expect(document.querySelector('.users-table')).toBeFalsy();
+        expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+        expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
     });
 });

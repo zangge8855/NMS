@@ -147,7 +147,7 @@ function buildNoticeDraft(source = null, fallbackUrl = '') {
     };
 }
 
-const DEFAULT_SETTINGS_TAB = 'basic';
+const DEFAULT_SETTINGS_TAB = 'access';
 const SETTINGS_TAB_CONFIG = [
     {
         id: 'status',
@@ -157,11 +157,18 @@ const SETTINGS_TAB_CONFIG = [
         summary: '先看入口、注册、数据库、备份和监控这些关键状态，再进入具体分区处理。',
     },
     {
-        id: 'basic',
-        label: '系统参数',
+        id: 'access',
+        label: '入口与订阅',
         icon: HiOutlineCog6Tooth,
-        eyebrow: 'Core Setup',
-        summary: '集中调整入口路径、公开订阅地址、审计参数、风险阈值和注册邀请码规则。',
+        eyebrow: 'Access',
+        summary: '集中处理真实入口、伪装首页、公开订阅地址，以及注册和邀请码这些面向外部访问的配置。',
+    },
+    {
+        id: 'policy',
+        label: '策略与审计',
+        icon: HiOutlineShieldCheck,
+        eyebrow: 'Policy',
+        summary: '把批量任务容量、风控确认、审计保留和归属地查询归到同一层，方便统一调整治理策略。',
     },
     {
         id: 'db',
@@ -173,7 +180,7 @@ const SETTINGS_TAB_CONFIG = [
     {
         id: 'backup',
         label: '安全与备份',
-        icon: HiOutlineShieldCheck,
+        icon: HiOutlineArrowDownTray,
         eyebrow: 'Backup',
         summary: '管理加密备份、服务器本机留档和恢复流程，同时处理凭据轮换等高风险操作。',
     },
@@ -194,6 +201,7 @@ const SETTINGS_TAB_CONFIG = [
 ];
 
 function resolveSettingsTab(value) {
+    if (value === 'basic') return 'access';
     return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
 }
 
@@ -1214,12 +1222,20 @@ export default function SystemSettings() {
                 { label: '监控', value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '未运行', detail: monitorStatus?.healthMonitor?.lastRunAt ? formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale) : '尚未巡检' },
             ];
         }
-        if (activeTab === 'basic') {
+        if (activeTab === 'access') {
             return [
                 { label: '真实入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '根路径显示公开首页' : '根路径直接进入系统' },
                 { label: '伪装站点', value: draft.site.camouflageTitle || '未设置', detail: `模板 ${draft.site.camouflageTemplate}` },
                 { label: '订阅公网地址', value: draft.subscription.publicBaseUrl || '未配置', detail: draft.subscription.publicBaseUrl ? '订阅链接固定使用此地址' : '可能回落到当前访问地址' },
                 { label: '邀请码', value: `${inviteStatusSummary.active} 可用`, detail: `${inviteStatusSummary.used} 用完 · ${inviteStatusSummary.revoked} 撤销` },
+            ];
+        }
+        if (activeTab === 'policy') {
+            return [
+                { label: '任务保留', value: `${draft.jobs.retentionDays} 天`, detail: `分页 ${draft.jobs.maxPageSize} · 记录上限 ${draft.jobs.maxRecords}` },
+                { label: '批量并发', value: `${draft.jobs.defaultConcurrency} / ${draft.jobs.maxConcurrency}`, detail: '默认并发 / 最大并发' },
+                { label: '风控确认', value: draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭', detail: `中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets}` },
+                { label: '审计归属地', value: draft.auditIpGeo.enabled ? '已启用' : '未启用', detail: `${draft.audit.retentionDays} 天 · ${draft.auditIpGeo.provider || '未设置服务商'}` },
             ];
         }
         if (activeTab === 'monitor') {
@@ -1276,7 +1292,7 @@ export default function SystemSettings() {
         siteCamouflageEnabled,
     ]);
 
-    const renderBasicContent = () => (
+    const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-mini-grid settings-basic-summary-grid">
                 <div className="card p-3 settings-mini-card settings-basic-summary-card">
@@ -1285,19 +1301,19 @@ export default function SystemSettings() {
                     <div className="text-xs text-muted">{siteCamouflageEnabled ? `${draft.site.camouflageTitle} · ${draft.site.camouflageTemplate}` : '根路径按默认路由处理，后台入口由上方路径决定。'}</div>
                 </div>
                 <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">伪装站点</div>
+                    <div className="text-lg font-semibold">{draft.site.camouflageTitle}</div>
+                    <div className="text-xs text-muted">模板 {draft.site.camouflageTemplate} · {siteCamouflageEnabled ? '伪装已启用' : '伪装未启用'}</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">订阅公网地址</div>
+                    <div className="text-lg font-semibold break-all">{draft.subscription.publicBaseUrl || '未配置'}</div>
+                    <div className="text-xs text-muted">{converterBaseUrl ? `转换器 ${converterBaseUrl}` : '当前未启用外部转换器。'}</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
                     <div className="text-sm text-muted">注册模式</div>
                     <div className="text-lg font-semibold">{registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'}</div>
                     <div className="text-xs text-muted">邀请码 {inviteCodes.length} 个，可用 {inviteStatusSummary.active} 个。</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">任务策略</div>
-                    <div className="text-lg font-semibold">保留 {draft.jobs.retentionDays} 天</div>
-                    <div className="text-xs text-muted">默认并发 {draft.jobs.defaultConcurrency}，上限 {draft.jobs.maxConcurrency}。</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">审计归属地</div>
-                    <div className="text-lg font-semibold">{draft.auditIpGeo.enabled ? '已启用' : '未启用'}</div>
-                    <div className="text-xs text-muted">{draft.auditIpGeo.provider || '未设置服务提供方'} · 缓存 {draft.auditIpGeo.cacheTtlSeconds}s</div>
                 </div>
             </div>
 
@@ -1399,187 +1415,6 @@ export default function SystemSettings() {
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--span-7 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="任务中心参数"
-                        subtitle="批量任务的保留、分页和并发策略。"
-                    />
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">保留策略</div>
-                            <div className="settings-form-cluster-title">先定义历史记录和分页上限</div>
-                            <div className="settings-form-cluster-note">面向任务列表本身的容量控制，避免页面和存储一起膨胀。</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">任务保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
-                                <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务最大保留记录</label>
-                                <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
-                                <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">执行策略</div>
-                            <div className="settings-form-cluster-title">控制新任务默认并发和最高并发</div>
-                            <div className="settings-form-cluster-note">上限过高会放大批量操作的资源消耗，建议和节点规模一起调整。</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">批量并发上限</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
-                                <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">默认并发</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
-                                <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="风控确认"
-                        subtitle="控制高风险批量动作的确认阈值和令牌时效。"
-                    />
-                    <div className="form-group settings-checkbox-row">
-                        <SettingsToggleCard
-                            checked={draft.security.requireHighRiskConfirmation}
-                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                            label="高风险操作二次确认"
-                            description="批量动作达到高风险阈值后，执行前必须再次确认。"
-                        />
-                    </div>
-                    <div className="settings-basic-note-strip">
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
-                            <div className="text-sm text-muted">当前高风险线</div>
-                            <div className="text-lg font-semibold">{draft.security.highRiskMinTargets} 个目标</div>
-                            <div className="text-xs text-muted">达到后必须二次确认。</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
-                            <div className="text-sm text-muted">确认有效期</div>
-                            <div className="text-lg font-semibold">{draft.security.riskTokenTtlSeconds} 秒</div>
-                            <div className="text-xs text-muted">超时后需重新确认。</div>
-                        </div>
-                    </div>
-                    <SettingsDisclosure
-                        title="阈值与令牌时效"
-                        subtitle={`中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets} · 有效期 ${draft.security.riskTokenTtlSeconds}s`}
-                        tone="warning"
-                        defaultOpen={draft.security.requireHighRiskConfirmation}
-                    >
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">中风险阈值</label>
-                                <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                                <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">高风险阈值</label>
-                                <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                                <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">确认令牌有效期（秒）</label>
-                                <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                                <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
-                            </div>
-                        </div>
-                    </SettingsDisclosure>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="审计参数"
-                        subtitle="控制操作日志的保留周期和分页上限。"
-                    />
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">保留窗口</div>
-                            <div className="settings-form-cluster-title">审计日志多久清理一次</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">审计保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                                <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">审计分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="审计归属地查询"
-                        subtitle="控制订阅访问日志里的地区与运营商查询服务。"
-                    />
-                    <div className="form-group settings-checkbox-row">
-                        <SettingsToggleCard
-                            checked={draft.auditIpGeo.enabled}
-                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                            label="归属地查询"
-                            description="为订阅访问日志补充地区和运营商信息。"
-                        />
-                    </div>
-                    <SettingsDisclosure
-                        title="服务配置"
-                        subtitle={`${draft.auditIpGeo.provider || '未设置服务商'} · 超时 ${draft.auditIpGeo.timeoutMs}ms · 缓存 ${draft.auditIpGeo.cacheTtlSeconds}s`}
-                        tone={draft.auditIpGeo.enabled ? 'success' : 'neutral'}
-                        defaultOpen={draft.auditIpGeo.enabled}
-                    >
-                        <div className="settings-basic-geo-grid">
-                            <div className="settings-form-cluster">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">查询地址</div>
-                                    <div className="settings-form-cluster-title">IP 查询模板</div>
-                                    <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">查询地址模板</label>
-                                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="settings-form-cluster">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">服务参数</div>
-                                    <div className="settings-form-cluster-title">提供方、超时和缓存</div>
-                                </div>
-                                <div className="settings-field-grid settings-field-grid--compact">
-                                    <div className="form-group">
-                                        <label className="form-label">服务提供方</label>
-                                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">超时（毫秒）</label>
-                                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">缓存时长（秒）</label>
-                                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </SettingsDisclosure>
                 </div>
 
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
@@ -1786,7 +1621,7 @@ export default function SystemSettings() {
                     )}
                     <SettingsDisclosure
                         title="邀请码历史"
-                        subtitle={`总计 ${inviteCodes.length} 个 · 可用 ${inviteStatusSummary.active} · 用完 ${inviteStatusSummary.used} · 撤销 ${inviteStatusSummary.revoked}`}
+                        subtitle={`总计 ${inviteCodes.length} 个 · 可用 ${inviteStatusSummary.active} 个 · 用完 ${inviteStatusSummary.used} 个 · 撤销 ${inviteStatusSummary.revoked} 个`}
                         badge={<span className="badge badge-neutral">可按需展开</span>}
                     >
                         <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
@@ -1884,6 +1719,216 @@ export default function SystemSettings() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </SettingsDisclosure>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderPolicyContent = () => (
+        <div className="settings-section-stack">
+            <div className="settings-mini-grid settings-basic-summary-grid">
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">任务保留策略</div>
+                    <div className="text-lg font-semibold">保留 {draft.jobs.retentionDays} 天</div>
+                    <div className="text-xs text-muted">分页 {draft.jobs.maxPageSize} · 记录上限 {draft.jobs.maxRecords}</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">批量并发</div>
+                    <div className="text-lg font-semibold">{draft.jobs.defaultConcurrency} / {draft.jobs.maxConcurrency}</div>
+                    <div className="text-xs text-muted">默认并发 / 最大并发</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">风控确认</div>
+                    <div className="text-lg font-semibold">{draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭'}</div>
+                    <div className="text-xs text-muted">中风险 {draft.security.mediumRiskMinTargets} · 高风险 {draft.security.highRiskMinTargets}</div>
+                </div>
+                <div className="card p-3 settings-mini-card settings-basic-summary-card">
+                    <div className="text-sm text-muted">审计归属地</div>
+                    <div className="text-lg font-semibold">{draft.auditIpGeo.enabled ? '已启用' : '未启用'}</div>
+                    <div className="text-xs text-muted">{draft.audit.retentionDays} 天保留 · {draft.auditIpGeo.provider || '未设置服务提供方'}</div>
+                </div>
+            </div>
+
+            <div className="settings-grid settings-grid--basic">
+                <div className="card p-4 settings-panel settings-panel--span-7 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="任务中心参数"
+                        subtitle="批量任务的保留、分页和并发策略。"
+                    />
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">保留策略</div>
+                            <div className="settings-form-cluster-title">先定义历史记录和分页上限</div>
+                            <div className="settings-form-cluster-note">面向任务列表本身的容量控制，避免页面和存储一起膨胀。</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">任务保留天数</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
+                                <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">任务分页最大条数</label>
+                                <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
+                                <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">任务最大保留记录</label>
+                                <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
+                                <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">执行策略</div>
+                            <div className="settings-form-cluster-title">控制新任务默认并发和最高并发</div>
+                            <div className="settings-form-cluster-note">上限过高会放大批量操作的资源消耗，建议和节点规模一起调整。</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">批量并发上限</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
+                                <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">默认并发</label>
+                                <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
+                                <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="风控确认"
+                        subtitle="控制高风险批量动作的确认阈值和令牌时效。"
+                    />
+                    <div className="form-group settings-checkbox-row">
+                        <SettingsToggleCard
+                            checked={draft.security.requireHighRiskConfirmation}
+                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                            label="高风险操作二次确认"
+                            description="批量动作达到高风险阈值后，执行前必须再次确认。"
+                        />
+                    </div>
+                    <div className="settings-basic-note-strip">
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
+                            <div className="text-sm text-muted">当前高风险线</div>
+                            <div className="text-lg font-semibold">{draft.security.highRiskMinTargets} 个目标</div>
+                            <div className="text-xs text-muted">达到后必须二次确认。</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
+                            <div className="text-sm text-muted">确认有效期</div>
+                            <div className="text-lg font-semibold">{draft.security.riskTokenTtlSeconds} 秒</div>
+                            <div className="text-xs text-muted">超时后需重新确认。</div>
+                        </div>
+                    </div>
+                    <SettingsDisclosure
+                        title="阈值与令牌时效"
+                        subtitle={`中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets} · 有效期 ${draft.security.riskTokenTtlSeconds}s`}
+                        tone="warning"
+                        defaultOpen={draft.security.requireHighRiskConfirmation}
+                    >
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">中风险阈值</label>
+                                <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">高风险阈值</label>
+                                <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">确认令牌有效期（秒）</label>
+                                <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
+                            </div>
+                        </div>
+                    </SettingsDisclosure>
+                </div>
+
+                <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="审计参数"
+                        subtitle="控制操作日志的保留周期和分页上限。"
+                    />
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">保留窗口</div>
+                            <div className="settings-form-cluster-title">审计日志多久清理一次</div>
+                        </div>
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">审计保留天数</label>
+                                <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">审计分页最大条数</label>
+                                <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
+                    <SettingsPanelHeader
+                        title="审计归属地查询"
+                        subtitle="控制订阅访问日志里的地区与运营商查询服务。"
+                    />
+                    <div className="form-group settings-checkbox-row">
+                        <SettingsToggleCard
+                            checked={draft.auditIpGeo.enabled}
+                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                            label="归属地查询"
+                            description="为订阅访问日志补充地区和运营商信息。"
+                        />
+                    </div>
+                    <SettingsDisclosure
+                        title="服务配置"
+                        subtitle={`${draft.auditIpGeo.provider || '未设置服务商'} · 超时 ${draft.auditIpGeo.timeoutMs}ms · 缓存 ${draft.auditIpGeo.cacheTtlSeconds}s`}
+                        tone={draft.auditIpGeo.enabled ? 'success' : 'neutral'}
+                        defaultOpen={draft.auditIpGeo.enabled}
+                    >
+                        <div className="settings-basic-geo-grid">
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">查询地址</div>
+                                    <div className="settings-form-cluster-title">IP 查询模板</div>
+                                    <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">查询地址模板</label>
+                                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">服务参数</div>
+                                    <div className="settings-form-cluster-title">提供方、超时和缓存</div>
+                                </div>
+                                <div className="settings-field-grid settings-field-grid--compact">
+                                    <div className="form-group">
+                                        <label className="form-label">服务提供方</label>
+                                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">超时（毫秒）</label>
+                                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">缓存时长（秒）</label>
+                                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </SettingsDisclosure>
                 </div>
@@ -2612,7 +2657,8 @@ export default function SystemSettings() {
                             ) : (
                                 <fieldset className="settings-fieldset">
                                     {activeTab === 'status' ? renderStatusContent() : null}
-                                    {activeTab === 'basic' ? renderBasicContent() : null}
+                                    {activeTab === 'access' ? renderAccessContent() : null}
+                                    {activeTab === 'policy' ? renderPolicyContent() : null}
                                     {activeTab === 'monitor' ? renderMonitorContent() : null}
                                     {activeTab === 'backup' ? renderBackupContent() : null}
                                     {activeTab === 'db' ? renderDatabaseContent() : null}

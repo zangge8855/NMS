@@ -42,11 +42,25 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
+function mockMatchMedia(matches = false) {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+}
+
 describe('AuditCenter localization', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.delete.mockReset();
         window.localStorage.clear();
+        mockMatchMedia(false);
     });
 
     it('renders localized outcome labels in the events tab', async () => {
@@ -277,5 +291,45 @@ describe('AuditCenter localization', () => {
         expect(screen.getByText('Anonymous Request')).toBeInTheDocument();
         expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
         expect(screen.queryByText(/^anonymous$/)).not.toBeInTheDocument();
+    });
+
+    it('renders audit events as stacked cards on mobile', async () => {
+        mockMatchMedia(true);
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/audit/events?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    id: 'event-mobile-1',
+                                    ts: '2026-03-13T10:00:00.000Z',
+                                    eventType: 'login_success',
+                                    outcome: 'success',
+                                    actor: 'review-admin',
+                                    serverId: 'server-a',
+                                    details: {
+                                        email: 'alice@example.com',
+                                    },
+                                },
+                            ],
+                            total: 1,
+                            page: 1,
+                            totalPages: 1,
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('登录成功')).toBeInTheDocument();
+        expect(document.querySelector('.audit-mobile-card')).toBeTruthy();
+        expect(document.querySelector('.audit-events-table')).toBeFalsy();
+        expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '查看详情' })).toBeInTheDocument();
     });
 });

@@ -66,12 +66,26 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+function mockMatchMedia(matches = false) {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+}
+
 describe('UserDetail', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.put.mockReset();
         api.post.mockReset();
         api.delete.mockReset();
+        mockMatchMedia(false);
 
         api.get.mockImplementation((url) => {
             if (url === '/users/user-1/detail') {
@@ -229,5 +243,83 @@ describe('UserDetail', () => {
 
         expect(await screen.findByText('暂无节点记录')).toBeInTheDocument();
         expect(screen.queryByText('暂无客户端')).not.toBeInTheDocument();
+    });
+
+    it('switches the node list to compact cards on mobile', async () => {
+        mockMatchMedia(true);
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            user: {
+                                id: 'user-1',
+                                username: 'alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                emailVerified: true,
+                                role: 'user',
+                                enabled: true,
+                                createdAt: '2026-03-11T10:00:00.000Z',
+                                lastLoginAt: '2026-03-11T11:00:00.000Z',
+                            },
+                            policy: null,
+                            recentAudit: { items: [], total: 0 },
+                            subscriptionAccess: { items: [], total: 0 },
+                            tokens: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/servers') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{ id: 'server-1', name: 'Tokyo Node' }],
+                    },
+                });
+            }
+            if (url === '/panel/server-1/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'inbound-1',
+                                remark: 'JP Relay',
+                                protocol: 'vless',
+                                port: 443,
+                                settings: JSON.stringify({
+                                    clients: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                                }),
+                                clientStats: [
+                                    {
+                                        email: 'alice@example.com',
+                                        id: 'uuid-a',
+                                        up: 1024,
+                                        down: 2048,
+                                        expiryTime: 0,
+                                        enable: true,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />, {
+            route: '/clients/user-1?tab=clients',
+            initialEntries: ['/clients/user-1?tab=clients'],
+        });
+
+        await screen.findByText('用户详情 · alice');
+        expect(await screen.findByText('Tokyo Node')).toBeInTheDocument();
+        expect(document.querySelector('.user-detail-client-card')).toBeTruthy();
+        expect(document.querySelector('.table-container table')).toBeFalsy();
+        expect(screen.getByText('JP Relay')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /节点 IP/ })).toBeInTheDocument();
     });
 });

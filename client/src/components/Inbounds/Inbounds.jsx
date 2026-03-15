@@ -47,6 +47,7 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -136,6 +137,7 @@ function buildClientOnlineKeys(client, protocol) {
 export default function Inbounds() {
     const { servers, activeServerId } = useServer();
     const { t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const resolvedActiveFilterServerId = activeServerId && activeServerId !== 'global' ? activeServerId : 'all';
@@ -846,6 +848,157 @@ export default function Inbounds() {
         }
     };
 
+    const renderMobileClientCards = (ib, clients = []) => (
+        <div className="inbounds-client-mobile-list">
+            {clients.map((cl, idx) => {
+                const usedBytes = resolveClientUsed(cl);
+                const totalBytes = resolveClientQuota(cl);
+                const usagePercent = resolveUsagePercent(usedBytes, totalBytes);
+                const usageTone = resolveUsageTone(usagePercent);
+                const remainingBytes = totalBytes > 0
+                    ? Math.max(0, totalBytes - usedBytes)
+                    : 0;
+                const clientIdentifier = String(getClientIdentifier(cl, ib.protocol) || '').trim();
+                const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
+                const rowActionKey = buildClientActionKey(ib.serverId, ib.id, clientIdentifier);
+                const isActioning = clientActionKey === rowActionKey;
+                const rawCredential = cl.id || cl.password || '';
+                const maskedCredential = maskSensitiveValue(rawCredential);
+                const toggleLabel = cl.enable !== false ? t('comp.common.disable') : t('comp.common.enable');
+                const toggleTitle = cl.enable !== false ? t('comp.inbounds.disableUser') : t('comp.inbounds.enableUser');
+                const selectionKey = buildInboundClientSelectionKey(ib.serverId, ib.id, clientIdentifier);
+                const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
+
+                return (
+                    <article key={`${clientIdentifier || cl.email || 'client'}-${idx}`} className={`inbounds-client-mobile-card${isClientSelected ? ' is-selected' : ''}`}>
+                        <div className="inbounds-client-mobile-head">
+                            <label className="inbounds-client-mobile-check">
+                                <input
+                                    type="checkbox"
+                                    checked={isClientSelected}
+                                    onChange={() => toggleClientSelect(selectionKey)}
+                                    className="cursor-pointer"
+                                />
+                            </label>
+                            <div className="inbounds-client-mobile-copy">
+                                <div className="inbounds-client-mobile-email">
+                                    <span>{cl.email || '-'}</span>
+                                    {hasOverride ? <span className="badge badge-warning">已限制</span> : null}
+                                </div>
+                                <div className="inbounds-client-mobile-credential cell-mono">
+                                    <span>{maskedCredential}</span>
+                                    {rawCredential ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-xs btn-icon"
+                                            title="复制完整 ID / 密码"
+                                            disabled={isActioning}
+                                            onClick={async () => {
+                                                await copyToClipboard(rawCredential);
+                                                toast.success(t('comp.inbounds.idCopied'));
+                                            }}
+                                        >
+                                            <HiOutlineClipboard />
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="inbound-client-usage inbounds-client-mobile-usage">
+                            <div className="inbound-client-usage-head">
+                                <span className="font-medium">{formatBytes(usedBytes)}</span>
+                                <span className={`inbound-client-usage-badge ${usageTone}`}>
+                                    {usagePercent === null ? t('comp.common.unlimited') : `${usagePercent}%`}
+                                </span>
+                            </div>
+                            <div className="inbound-client-usage-track">
+                                <div
+                                    className={`inbound-client-usage-fill ${usageTone}`}
+                                    style={{ width: `${usagePercent === null ? 18 : usagePercent}%` }}
+                                />
+                            </div>
+                            <div className="inbound-client-usage-meta">
+                                {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
+                            </div>
+                        </div>
+
+                        <div className="inbounds-client-mobile-metrics">
+                            <div className="inbounds-client-mobile-metric">
+                                <span className="inbounds-client-mobile-label">总量</span>
+                                <span>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</span>
+                            </div>
+                            <div className="inbounds-client-mobile-metric">
+                                <span className="inbounds-client-mobile-label">IP 限制</span>
+                                <span>{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</span>
+                            </div>
+                            <div className="inbounds-client-mobile-metric">
+                                <span className="inbounds-client-mobile-label">到期时间</span>
+                                <span>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</span>
+                            </div>
+                            <div className="inbounds-client-mobile-metric">
+                                <span className="inbounds-client-mobile-label">上 / 下行</span>
+                                <span className="inbounds-client-traffic-stack">
+                                    <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
+                                    <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="inbounds-client-mobile-status">
+                            <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
+                                {cl.enable !== false ? '启用' : '禁用'}
+                            </span>
+                            <span
+                                className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
+                                title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
+                            >
+                                <span className="inbounds-client-online-dot-shell" aria-hidden="true">
+                                    <span className="inbounds-client-online-dot-ping" />
+                                    <span className="inbounds-client-online-dot" />
+                                </span>
+                                {cl.isOnline ? '在线' : '离线'}
+                            </span>
+                        </div>
+
+                        <div className="inbounds-client-actions inbounds-client-mobile-actions">
+                            <button
+                                type="button"
+                                className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
+                                title={toggleTitle}
+                                disabled={isActioning}
+                                onClick={() => handleToggleClientEnabled(ib, cl)}
+                            >
+                                {isActioning
+                                    ? <span className="spinner" />
+                                    : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
+                                {toggleLabel}
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
+                                title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
+                                disabled={isActioning}
+                                onClick={() => openEntitlementModal(ib, cl)}
+                            >
+                                限制
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
+                                title="删除该用户"
+                                disabled={isActioning}
+                                onClick={() => handleDeleteClient(ib, cl)}
+                            >
+                                <HiOutlineTrash /> 删除
+                            </button>
+                        </div>
+                    </article>
+                );
+            })}
+        </div>
+    );
+
     const filteredInbounds = filterServerId === 'all'
         ? inbounds
         : inbounds.filter(i => i.serverId === filterServerId);
@@ -1227,6 +1380,7 @@ export default function Inbounds() {
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                            {isCompactLayout ? renderMobileClientCards(ib, clients) : (
                                                             <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
@@ -1401,6 +1555,7 @@ export default function Inbounds() {
                                                                     })}
                                                                 </tbody>
                                                             </table>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

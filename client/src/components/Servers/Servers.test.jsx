@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import Servers from './Servers.jsx';
@@ -33,6 +33,16 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Servers', () => {
     beforeEach(() => {
+        window.matchMedia.mockImplementation((query) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
         useServer.mockReset();
     });
 
@@ -73,5 +83,50 @@ describe('Servers', () => {
         expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
         expect(screen.queryByText('已注册的服务器')).not.toBeInTheDocument();
         expect(screen.queryByText('管理您的 3x-ui 面板连接')).not.toBeInTheDocument();
+    });
+
+    it('switches to stacked mobile cards on narrow screens', async () => {
+        window.matchMedia.mockImplementation((query) => ({
+            matches: query.includes('max-width: 768px'),
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: '新加坡边缘节点',
+                url: 'https://panel.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'production',
+                environment: 'prod',
+                health: 'healthy',
+                tags: ['edge', 'vip'],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        const { container } = renderWithRouter(<Servers />);
+
+        expect(container.querySelector('.servers-table')).toBeNull();
+        const mobileCard = container.querySelector('.servers-mobile-card');
+        expect(mobileCard).not.toBeNull();
+        expect(within(mobileCard).getByText('新加坡边缘节点')).toBeInTheDocument();
+        expect(within(mobileCard).getByText('账号')).toBeInTheDocument();
+        expect(within(mobileCard).getByRole('button', { name: '详情' })).toBeInTheDocument();
     });
 });

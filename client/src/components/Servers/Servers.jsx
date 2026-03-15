@@ -627,6 +627,141 @@ export default function Servers() {
         setLoading((prev) => ({ ...prev, serverOrder: false }));
     };
 
+    const renderMobileServerCard = (server, index) => {
+        const isSelected = selectedIds.has(server.id);
+        const isActive = server.id === activeServerId;
+        const credentialStatus = String(server.credentialStatus || 'configured');
+        const serverGroup = server.group || t('comp.servers.ungrouped');
+        const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
+        const serverEnvironment = formatServerEnvironment(server.environment, locale);
+        const testState = testResults[server.id];
+        const testStateText = testState === 'success'
+            ? t('comp.servers.testOk')
+            : testState === 'error'
+                ? t('comp.servers.testFail')
+                : '未测试';
+        const testStateBadge = testState === 'success'
+            ? 'badge-success'
+            : testState === 'error'
+                ? 'badge-danger'
+                : 'badge-neutral';
+        const serverStateText = isActive ? '当前节点' : '已接入';
+        const credentialBadge = credentialStatus === 'unreadable'
+            ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
+            : (credentialStatus === 'missing'
+                ? { cls: 'badge-warning', text: t('comp.servers.credMissing') }
+                : { cls: 'badge-success', text: t('comp.servers.credSaved') });
+
+        return (
+            <article
+                key={server.id}
+                className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
+                onClick={() => selectServer(server.id)}
+            >
+                <div className="servers-mobile-card-top">
+                    <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
+                        <input
+                            type="checkbox"
+                            className="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(server.id)}
+                        />
+                    </label>
+                    <div className="servers-mobile-order">
+                        <span className="servers-mobile-order-number">#{index + 1}</span>
+                        <div className="servers-mobile-order-actions">
+                            <button
+                                type="button"
+                                className="btn btn-ghost btn-xs btn-icon"
+                                aria-label={`上移服务器 ${server.name}`}
+                                title="上移"
+                                disabled={index === 0 || loading.serverOrder}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveServer(server.id, -1);
+                                }}
+                            >
+                                <HiOutlineArrowUp />
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost btn-xs btn-icon"
+                                aria-label={`下移服务器 ${server.name}`}
+                                title="下移"
+                                disabled={index === filteredServers.length - 1 || loading.serverOrder}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveServer(server.id, 1);
+                                }}
+                            >
+                                <HiOutlineArrowDown />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="servers-mobile-card-main">
+                    <button
+                        type="button"
+                        className={`table-cell-link-button servers-mobile-title ${isActive ? 'text-glow' : ''}`}
+                        title={server.name}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
+                    >
+                        {server.name}
+                    </button>
+                    <div className="servers-mobile-url">{getPanelUrl(server)}</div>
+                </div>
+
+                <div className="servers-mobile-badges">
+                    <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
+                    <span className="badge badge-info">{serverEnvironment}</span>
+                    <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                    <span className={`badge ${testStateBadge}`}>{testStateText}</span>
+                    <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                </div>
+
+                <div className="servers-mobile-meta">
+                    <div className="servers-mobile-meta-item">
+                        <span className="servers-mobile-meta-label">账号</span>
+                        <span className="servers-mobile-meta-value">{server.username}</span>
+                    </div>
+                    <div className="servers-mobile-meta-item">
+                        <span className="servers-mobile-meta-label">环境</span>
+                        <span className="servers-mobile-meta-value">{serverEnvironment}</span>
+                    </div>
+                </div>
+
+                {serverTags.length > 0 ? (
+                    <div className="servers-mobile-tags">
+                        {serverTags.map((tag) => (
+                            <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
+                        ))}
+                    </div>
+                ) : null}
+
+                <div className="servers-mobile-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
+                        <HiOutlineEye /> 详情
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleTest(server.id)}
+                        disabled={loading[`test-${server.id}`]}
+                    >
+                        {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
+                        {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')}>
+                        <HiOutlinePencilSquare /> {t('comp.common.edit')}
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')}>
+                        <HiOutlineTrash /> {t('comp.common.delete')}
+                    </button>
+                </div>
+            </article>
+        );
+    };
+
     return (
         <>
             <Header
@@ -716,6 +851,10 @@ export default function Servers() {
                         size="compact"
                         surface
                     />
+                ) : isCompactLayout ? (
+                    <div className="servers-mobile-list">
+                        {filteredServers.map((server, index) => renderMobileServerCard(server, index))}
+                    </div>
                 ) : (
                     <div className="table-container servers-table-shell">
                         <table className="table servers-table">

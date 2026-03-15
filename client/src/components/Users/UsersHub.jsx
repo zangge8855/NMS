@@ -492,6 +492,211 @@ export default function UsersHub() {
         }
     };
 
+    const renderUserActionButtons = (user) => (
+        <>
+            <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
+                <HiOutlineEye />
+                <span className="users-action-mobile-label">详情</span>
+            </button>
+            {user.status.key === 'pending' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
+                        title="通过审核"
+                        aria-label="通过审核"
+                        onClick={() => handleSetEnabled(user, true)}
+                    >
+                        <HiOutlineCheck />
+                        <span className="users-action-mobile-label">通过</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'enabled' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
+                        title="开通订阅"
+                        aria-label="开通订阅"
+                        onClick={() => openProvisionModal(user)}
+                    >
+                        <HiOutlinePlusCircle />
+                        <span className="users-action-mobile-label">开通</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
+                        title="编辑"
+                        aria-label="编辑"
+                        onClick={() => openEditModal(user)}
+                    >
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
+                        title={user.enabled !== false ? '停用' : '启用'}
+                        aria-label={user.enabled !== false ? '停用' : '启用'}
+                        onClick={() => handleSetEnabled(user, user.enabled === false)}
+                    >
+                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'active' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
+                        title="查看订阅"
+                        aria-label="查看订阅"
+                        onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
+                    >
+                        <HiOutlineLink />
+                        <span className="users-action-mobile-label">订阅</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
+                        title="编辑"
+                        aria-label="编辑"
+                        onClick={() => openEditModal(user)}
+                    >
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
+                        title={user.enabled !== false ? '停用' : '启用'}
+                        aria-label={user.enabled !== false ? '停用' : '启用'}
+                        onClick={() => handleSetEnabled(user, user.enabled === false)}
+                    >
+                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'disabled' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
+                        title={user.enabled !== false ? '停用' : '启用'}
+                        aria-label={user.enabled !== false ? '停用' : '启用'}
+                        onClick={() => handleSetEnabled(user, user.enabled === false)}
+                    >
+                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
+                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+        </>
+    );
+
+    const renderMobileUserCard = (user, index) => {
+        const sequenceNumber = sequenceDirection === 'asc'
+            ? index + 1
+            : enrichedUsers.length - index;
+        const displayEmail = user.email || user.subscriptionEmail || '';
+        const userExpiryLabel = user.clientData.count > 0
+            ? formatExpiryLabel(user.clientData.expiryValues, locale)
+            : '未开通';
+        const userTrafficSummary = user.clientData.totalUsed
+            ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
+            : '未使用流量';
+
+        return (
+            <div
+                key={user.id}
+                className={`users-mobile-card ${selectedIds.has(user.id) ? 'users-mobile-card--selected' : ''}`}
+            >
+                <div className="users-mobile-card-head">
+                    <label className="users-mobile-check">
+                        <input
+                            type="checkbox"
+                            checked={selectedIds.has(user.id)}
+                            onChange={() => toggleSelect(user.id)}
+                        />
+                        <span className="users-mobile-sequence">#{sequenceNumber}</span>
+                    </label>
+                    <div className="users-mobile-card-badges">
+                        <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                        <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    className="users-mobile-identity"
+                    onClick={() => navigate(`/clients/${user.id}`)}
+                    title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                >
+                    <span className="users-mobile-name">{user.username}</span>
+                    <span className={`users-mobile-email${displayEmail ? '' : ' is-empty'}`}>
+                        {displayEmail || '未设置邮箱'}
+                    </span>
+                </button>
+
+                <div className="users-mobile-metrics">
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">在线状态</span>
+                        <span className="users-mobile-metric-value">
+                            {user.onlineStatus.detail || user.onlineStatus.label}
+                        </span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">节点数</span>
+                        <span className="users-mobile-metric-value">{user.clientData.count || 0}</span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">流量</span>
+                        <span className="users-mobile-metric-value">{userTrafficSummary}</span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">到期时间</span>
+                        <span className="users-mobile-metric-value">{userExpiryLabel}</span>
+                    </div>
+                </div>
+
+                <div className="users-row-actions users-row-actions--mobile-card">
+                    {renderUserActionButtons(user)}
+                </div>
+            </div>
+        );
+    };
+
     // --- Provision modal ---
     const closeProvisionModal = () => {
         setProvisionOpen(false);
@@ -1013,271 +1218,156 @@ export default function UsersHub() {
                     </div>
                 )}
 
-                <div className="table-container glass-panel users-table-shell">
-                    <table className="table users-table">
-                        <thead>
-                            <tr>
-                                <th style={{ width: 40 }}>
-                                    <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
-                                </th>
-                                <th>
-                                    <button
-                                        type="button"
-                                        className="table-sort-button users-sequence-sort-button"
-                                        onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                                        aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
-                                    >
-                                        <span>序号</span>
-                                        <span className="table-sort-button-icon" aria-hidden="true">
-                                            {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
-                                        </span>
-                                    </button>
-                                </th>
-                                <th className="users-identity-column">账号</th>
-                                <th>状态</th>
-                                <th>在线状态</th>
-                                <th className="text-right">节点数</th>
-                                <th className="text-right users-traffic-column">已用流量</th>
-                                <th className="users-expiry-column">到期时间</th>
-                                <th className="users-actions-column">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" /></td></tr>
-                            ) : enrichedUsers.length === 0 ? (
-                                <tr><td colSpan={9}>
-                                    <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
-                                </td></tr>
-                            ) : (
-                                enrichedUsers.map((user, index) => {
-                                    const sequenceNumber = sequenceDirection === 'asc'
-                                        ? index + 1
-                                        : enrichedUsers.length - index;
-                                    const displayEmail = user.email || user.subscriptionEmail || '';
-                                    const userExpiryLabel = user.clientData.count > 0
-                                        ? formatExpiryLabel(user.clientData.expiryValues, locale)
-                                        : '未开通';
-                                    const userTrafficSummary = user.clientData.totalUsed
-                                        ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
-                                        : '未使用流量';
-                                    return (
-                                    <tr
-                                        key={user.id}
-                                        className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
-                                        onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
-                                    >
-                                        <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
-                                        <td data-label="序号" onClick={(e) => e.stopPropagation()}>
-                                            <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
-                                        </td>
-                                        <td
-                                            data-label="账号"
-                                            className="users-identity-cell"
-                                            onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
+                {isCompactLayout ? (
+                    <div className="users-mobile-list">
+                        <div className="users-mobile-list-head glass-panel">
+                            <label className="users-mobile-list-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
+                                    onChange={toggleSelectAll}
+                                />
+                                <span>全选当前列表</span>
+                            </label>
+                            <button
+                                type="button"
+                                className="table-sort-button users-sequence-sort-button"
+                                onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
+                            >
+                                <span>序号</span>
+                                <span className="table-sort-button-icon" aria-hidden="true">
+                                    {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                </span>
+                            </button>
+                        </div>
+                        {loading ? (
+                            <div className="glass-panel p-4"><SkeletonTable rows={5} cols={1} /></div>
+                        ) : enrichedUsers.length === 0 ? (
+                            <div className="glass-panel p-4">
+                                <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
+                            </div>
+                        ) : (
+                            enrichedUsers.map((user, index) => renderMobileUserCard(user, index))
+                        )}
+                    </div>
+                ) : (
+                    <div className="table-container glass-panel users-table-shell">
+                        <table className="table users-table">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: 40 }}>
+                                        <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
+                                    </th>
+                                    <th>
+                                        <button
+                                            type="button"
+                                            className="table-sort-button users-sequence-sort-button"
+                                            onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                            aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
                                         >
-                                            <button
-                                                type="button"
-                                                className="table-cell-link table-cell-link-button users-identity-link"
-                                                title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                                            <span>序号</span>
+                                            <span className="table-sort-button-icon" aria-hidden="true">
+                                                {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                            </span>
+                                        </button>
+                                    </th>
+                                    <th className="users-identity-column">账号</th>
+                                    <th>状态</th>
+                                    <th>在线状态</th>
+                                    <th className="text-right">节点数</th>
+                                    <th className="text-right users-traffic-column">已用流量</th>
+                                    <th className="users-expiry-column">到期时间</th>
+                                    <th className="users-actions-column">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" /></td></tr>
+                                ) : enrichedUsers.length === 0 ? (
+                                    <tr><td colSpan={9}>
+                                        <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
+                                    </td></tr>
+                                ) : (
+                                    enrichedUsers.map((user, index) => {
+                                        const sequenceNumber = sequenceDirection === 'asc'
+                                            ? index + 1
+                                            : enrichedUsers.length - index;
+                                        const displayEmail = user.email || user.subscriptionEmail || '';
+                                        const userExpiryLabel = user.clientData.count > 0
+                                            ? formatExpiryLabel(user.clientData.expiryValues, locale)
+                                            : '未开通';
+                                        const userTrafficSummary = user.clientData.totalUsed
+                                            ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
+                                            : '未使用流量';
+                                        return (
+                                            <tr
+                                                key={user.id}
+                                                className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
+                                                onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                             >
-                                                <span className="users-identity-primary">{user.username}</span>
-                                                <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
-                                                    {displayEmail || '未设置邮箱'}
-                                                </span>
-                                            </button>
-                                            {isCompactLayout ? (
-                                                <div className="users-mobile-summary">
-                                                    <div className="users-mobile-summary-row">
-                                                        <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                                <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                                <td data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                                    <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
+                                                </td>
+                                                <td
+                                                    data-label="账号"
+                                                    className="users-identity-cell"
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className="table-cell-link table-cell-link-button users-identity-link"
+                                                        title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                                                    >
+                                                        <span className="users-identity-primary">{user.username}</span>
+                                                        <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
+                                                            {displayEmail || '未设置邮箱'}
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                                <td data-label="状态" className="users-status-cell">
+                                                    <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                                </td>
+                                                <td data-label="在线状态" className="users-online-cell">
+                                                    <div className="flex items-center gap-2 flex-wrap">
                                                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
-                                                        {user.onlineStatus.detail ? (
-                                                            <span className="users-mobile-meta-pill">{user.onlineStatus.detail}</span>
-                                                        ) : null}
+                                                        {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
-                                                    <div className="users-mobile-summary-row">
-                                                        <span className="users-mobile-meta-pill">节点 {user.clientData.count || 0}</span>
-                                                        <span className="users-mobile-meta-pill">{userTrafficSummary}</span>
-                                                        <span className="users-mobile-meta-pill">{userExpiryLabel}</span>
+                                                </td>
+                                                <td data-label="节点数" className="cell-mono-right users-node-count-cell">{user.clientData.count || '-'}</td>
+                                                <td
+                                                    data-label="已用流量"
+                                                    className="users-traffic-cell"
+                                                    title={user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-'}
+                                                >
+                                                    {user.clientData.totalUsed ? (
+                                                        <div className="users-traffic-stack">
+                                                            <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
+                                                            <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
+                                                        </div>
+                                                    ) : '-'}
+                                                </td>
+                                                <td
+                                                    data-label="到期时间"
+                                                    className="cell-mono users-expiry-cell"
+                                                    title={user.clientData.count > 0 ? userExpiryLabel : '-'}
+                                                >
+                                                    {user.clientData.count > 0 ? userExpiryLabel : '-'}
+                                                </td>
+                                                <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex gap-2 flex-wrap users-row-actions">
+                                                        {renderUserActionButtons(user)}
                                                     </div>
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td data-label="状态" className="users-status-cell">
-                                            <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
-                                        </td>
-                                        <td data-label="在线状态" className="users-online-cell">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
-                                                {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
-                                            </div>
-                                        </td>
-                                        <td data-label="节点数" className="cell-mono-right users-node-count-cell">{user.clientData.count || '-'}</td>
-                                        <td
-                                            data-label="已用流量"
-                                            className="users-traffic-cell"
-                                            title={user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-'}
-                                        >
-                                            {user.clientData.totalUsed ? (
-                                                <div className="users-traffic-stack">
-                                                    <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
-                                                    <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
-                                                </div>
-                                            ) : '-'}
-                                        </td>
-                                        <td
-                                            data-label="到期时间"
-                                            className="cell-mono users-expiry-cell"
-                                            title={user.clientData.count > 0 ? userExpiryLabel : '-'}
-                                        >
-                                            {user.clientData.count > 0 ? userExpiryLabel : '-'}
-                                        </td>
-                                        <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex gap-2 flex-wrap users-row-actions">
-                                                <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
-                                                    <HiOutlineEye />
-                                                    <span className="users-action-mobile-label">详情</span>
-                                                </button>
-                                                {/* Pending: Approve + Delete */}
-                                                {user.status.key === 'pending' && (
-                                                    <>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
-                                                            title="通过审核"
-                                                            aria-label="通过审核"
-                                                            onClick={() => handleSetEnabled(user, true)}
-                                                        >
-                                                            <HiOutlineCheck />
-                                                            <span className="users-action-mobile-label">通过</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
-                                                            title="删除"
-                                                            aria-label="删除"
-                                                            onClick={() => handleDelete(user)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="users-action-mobile-label">删除</span>
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                                {/* Enabled (no subscription): Provision + Edit + Disable + Delete */}
-                                                {user.status.key === 'enabled' && (
-                                                    <>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
-                                                            title="开通订阅"
-                                                            aria-label="开通订阅"
-                                                            onClick={() => openProvisionModal(user)}
-                                                        >
-                                                            <HiOutlinePlusCircle />
-                                                            <span className="users-action-mobile-label">开通</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                                                            title="编辑"
-                                                            aria-label="编辑"
-                                                            onClick={() => openEditModal(user)}
-                                                        >
-                                                            <HiOutlinePencilSquare />
-                                                            <span className="users-action-mobile-label">编辑</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                                                            title={user.enabled !== false ? '停用' : '启用'}
-                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
-                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
-                                                        >
-                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
-                                                            title="删除"
-                                                            aria-label="删除"
-                                                            onClick={() => handleDelete(user)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="users-action-mobile-label">删除</span>
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                                {/* Active (has subscription): Subscription Link + Edit + Disable + Delete */}
-                                                {user.status.key === 'active' && (
-                                                    <>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
-                                                            title="查看订阅"
-                                                            aria-label="查看订阅"
-                                                            onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
-                                                        >
-                                                            <HiOutlineLink />
-                                                            <span className="users-action-mobile-label">订阅</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                                                            title="编辑"
-                                                            aria-label="编辑"
-                                                            onClick={() => openEditModal(user)}
-                                                        >
-                                                            <HiOutlinePencilSquare />
-                                                            <span className="users-action-mobile-label">编辑</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                                                            title={user.enabled !== false ? '停用' : '启用'}
-                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
-                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
-                                                        >
-                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
-                                                            title="删除"
-                                                            aria-label="删除"
-                                                            onClick={() => handleDelete(user)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="users-action-mobile-label">删除</span>
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                                {/* Disabled: Enable + Delete */}
-                                                {user.status.key === 'disabled' && (
-                                                    <>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
-                                                            title={user.enabled !== false ? '停用' : '启用'}
-                                                            aria-label={user.enabled !== false ? '停用' : '启用'}
-                                                            onClick={() => handleSetEnabled(user, user.enabled === false)}
-                                                        >
-                                                            {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                                                            <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
-                                                            title="删除"
-                                                            aria-label="删除"
-                                                            onClick={() => handleDelete(user)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="users-action-mobile-label">删除</span>
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Create User Modal */}

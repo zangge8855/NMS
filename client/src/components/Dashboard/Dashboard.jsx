@@ -30,6 +30,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -165,6 +166,90 @@ function QuickActionGrid({ actions = [] }) {
                         <HiOutlineArrowRight />
                     </span>
                 </button>
+            ))}
+        </div>
+    );
+}
+
+function OnlineUsersMobileList({ rows = [], showNodes = false, limit, t, keyPrefix = 'online' }) {
+    return (
+        <div className="dashboard-online-mobile-list">
+            {rows.slice(0, limit).map((row, index) => (
+                <div key={`${keyPrefix}-${row.userId || row.label || index}`} className="dashboard-online-mobile-card">
+                    <div className="dashboard-online-mobile-head">
+                        <div className="dashboard-online-mobile-copy">
+                            <div className="dashboard-online-mobile-name">{row.displayName}</div>
+                            {row.email && row.email !== row.displayName && (
+                                <div className="dashboard-online-mobile-email">{row.email}</div>
+                            )}
+                        </div>
+                        <div className="dashboard-online-mobile-meta">
+                            <span className="dashboard-online-mobile-meta-label">{t('pages.dashboardCommon.sessions')}</span>
+                            <span className="badge badge-success">{row.sessions}</span>
+                        </div>
+                    </div>
+
+                    {showNodes ? (
+                        <div className="dashboard-online-mobile-nodes">
+                            {row.nodeLabels.length === 0 ? (
+                                <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                            ) : (
+                                row.nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                    <span key={`${row.userId || row.label || index}-${nodeLabel}`} className="badge badge-info">
+                                        {nodeLabel}
+                                    </span>
+                                ))
+                            )}
+                            {row.nodeLabels.length > 4 ? (
+                                <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+            ))}
+            {rows.length > limit ? (
+                <div className="dashboard-online-mobile-note">{t('pages.dashboardCommon.limitNote', { count: limit })}</div>
+            ) : null}
+        </div>
+    );
+}
+
+function InboundSummaryMobileList({ inbounds = [], loading, t }) {
+    return (
+        <div className="dashboard-inbound-mobile-list">
+            {inbounds.slice(0, 10).map((ib) => (
+                <div key={ib.id} className="dashboard-inbound-mobile-card">
+                    <div className="dashboard-inbound-mobile-head">
+                        <div className="dashboard-inbound-mobile-copy">
+                            <div className="dashboard-inbound-mobile-title">{ib.remark || '-'}</div>
+                            <div className="dashboard-inbound-mobile-kicker">
+                                <span className="badge badge-info">{ib.protocol}</span>
+                                <span className="dashboard-inbound-mobile-port">:{ib.port}</span>
+                            </div>
+                        </div>
+                        <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
+                            {ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}
+                        </span>
+                    </div>
+                    <div className="dashboard-inbound-mobile-stats">
+                        <div className="dashboard-inbound-mobile-stat">
+                            <span className="dashboard-inbound-mobile-label">{t('pages.dashboardNode.tableUp')}</span>
+                            <span className="dashboard-inbound-mobile-value">
+                                {loading
+                                    ? <span className="skeleton dashboard-inline-skeleton" />
+                                    : formatBytes(ib.up)}
+                            </span>
+                        </div>
+                        <div className="dashboard-inbound-mobile-stat">
+                            <span className="dashboard-inbound-mobile-label">{t('pages.dashboardNode.tableDown')}</span>
+                            <span className="dashboard-inbound-mobile-value">
+                                {loading
+                                    ? <span className="skeleton dashboard-inline-skeleton" />
+                                    : formatBytes(ib.down)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
             ))}
         </div>
     );
@@ -523,6 +608,7 @@ export default function Dashboard() {
     const { token } = useAuth();
     const { t, locale } = useI18n();
     const navigate = useNavigate();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
 
@@ -993,47 +1079,57 @@ export default function Dashboard() {
                                     hideIcon
                                 />
                             ) : (
-                                <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
-                                    <table className="table dashboard-online-table">
-                                        <thead>
-                                            <tr>
-                                                <th>{t('pages.dashboardCommon.userIdentifier')}</th>
-                                                <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
-                                                <th className="text-right">{t('pages.dashboardCommon.sessions')}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
-                                                <tr key={`global-online-${row.userId || row.label}`}>
-                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
-                                                        <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                            <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
-                                                            {row.email && row.email !== row.displayName && (
-                                                                <div className="dashboard-online-email">{row.email}</div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {row.nodeLabels.length === 0 ? (
-                                                                <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
-                                                            ) : (
-                                                                row.nodeLabels.slice(0, 4).map((nodeLabel) => (
-                                                                    <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
-                                                                ))
-                                                            )}
-                                                            {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                isCompactLayout ? (
+                                    <OnlineUsersMobileList
+                                        rows={globalOnlineUsers}
+                                        showNodes
+                                        limit={MAX_GLOBAL_ONLINE_ROWS}
+                                        t={t}
+                                        keyPrefix="global-online"
+                                    />
+                                ) : (
+                                    <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
+                                        <table className="table dashboard-online-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>{t('pages.dashboardCommon.userIdentifier')}</th>
+                                                    <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
+                                                    <th className="text-right">{t('pages.dashboardCommon.sessions')}</th>
                                                 </tr>
-                                            ))}
-                                            {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
-                                                <tr><td colSpan={3} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
+                                                    <tr key={`global-online-${row.userId || row.label}`}>
+                                                        <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                            <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                                <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                                {row.email && row.email !== row.displayName && (
+                                                                    <div className="dashboard-online-email">{row.email}</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {row.nodeLabels.length === 0 ? (
+                                                                    <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                                                                ) : (
+                                                                    row.nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                                                        <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
+                                                                    ))
+                                                                )}
+                                                                {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                    </tr>
+                                                ))}
+                                                {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
+                                                    <tr><td colSpan={3} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )
                             )}
                         </div>
                     )}
@@ -1183,29 +1279,38 @@ export default function Dashboard() {
                                 hideIcon
                             />
                         ) : (
-                            <div className="table-container table-scroll table-scroll-md overflow-x-auto">
-                                <table className="table dashboard-online-table">
-                                    <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
-                                    <tbody>
-                                            {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
-                                                <tr key={`single-online-${row.userId || row.label}`}>
-                                                    <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
-                                                        <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                            <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
-                                                            {row.email && row.email !== row.displayName && (
-                                                                <div className="dashboard-online-email">{row.email}</div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
-                                            </tr>
-                                        ))}
-                                        {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (
-                                            <tr><td colSpan={2} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                            isCompactLayout ? (
+                                <OnlineUsersMobileList
+                                    rows={onlineUsers}
+                                    limit={MAX_SINGLE_ONLINE_ROWS}
+                                    t={t}
+                                    keyPrefix="single-online"
+                                />
+                            ) : (
+                                <div className="table-container table-scroll table-scroll-md overflow-x-auto">
+                                    <table className="table dashboard-online-table">
+                                        <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
+                                        <tbody>
+                                                {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
+                                                    <tr key={`single-online-${row.userId || row.label}`}>
+                                                        <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                            <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                                <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                                {row.email && row.email !== row.displayName && (
+                                                                    <div className="dashboard-online-email">{row.email}</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                </tr>
+                                            ))}
+                                            {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (
+                                                <tr><td colSpan={2} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
                         )}
                     </div>
                 )}
@@ -1227,23 +1332,31 @@ export default function Dashboard() {
                         subtitle={t('pages.dashboardNode.inboundsSubtitle')}
                         meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
                     />
-                    <div className="table-container border-none overflow-x-auto">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>{t('pages.dashboardNode.tableRemark')}</th>
-                                    <th>{t('pages.dashboardNode.tableProtocol')}</th>
-                                    <th className="text-right">{t('pages.dashboardNode.tablePort')}</th>
-                                    <th className="text-center">{t('pages.dashboardNode.tableStatus')}</th>
-                                    <th className="text-right">{t('pages.dashboardNode.tableUp')}</th>
-                                    <th className="text-right">{t('pages.dashboardNode.tableDown')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {inbounds.length === 0 ? (
+                    {inbounds.length === 0 ? (
+                        <div className="table-container border-none overflow-x-auto">
+                            <table className="table">
+                                <tbody>
                                     <tr><td colSpan={6} className="table-empty">{t('pages.dashboardNode.inboundsEmpty')}</td></tr>
-                                ) : (
-                                    inbounds.slice(0, 10).map((ib) => (
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : isCompactLayout ? (
+                        <InboundSummaryMobileList inbounds={inbounds} loading={loading} t={t} />
+                    ) : (
+                        <div className="table-container border-none overflow-x-auto">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>{t('pages.dashboardNode.tableRemark')}</th>
+                                        <th>{t('pages.dashboardNode.tableProtocol')}</th>
+                                        <th className="text-right">{t('pages.dashboardNode.tablePort')}</th>
+                                        <th className="text-center">{t('pages.dashboardNode.tableStatus')}</th>
+                                        <th className="text-right">{t('pages.dashboardNode.tableUp')}</th>
+                                        <th className="text-right">{t('pages.dashboardNode.tableDown')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inbounds.slice(0, 10).map((ib) => (
                                         <tr key={ib.id}>
                                             <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-white truncate max-w-[200px]">{ib.remark || '-'}</td>
                                             <td data-label={t('pages.dashboardNode.tableProtocol')}><span className="badge badge-info">{ib.protocol}</span></td>
@@ -1258,11 +1371,11 @@ export default function Dashboard() {
                                                 {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.down)}
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 {/* CPU History Chart */}
