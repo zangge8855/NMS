@@ -6,6 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
+import { buildSiteAssetPath } from '../../utils/sitePath.js';
 
 const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
@@ -14,6 +15,7 @@ const MODE_FORGOT = 'forgot';
 const SELF_SERVICE_PASSWORD_RESET_ENABLED = true;
 
 export default function Login() {
+    const logoSrc = buildSiteAssetPath('/nms-logo.png');
     const [mode, setMode] = useState(MODE_LOGIN);
     const { mode: themeMode, cycleTheme } = useTheme();
     const { t, toggleLocale, locale } = useI18n();
@@ -372,10 +374,10 @@ export default function Login() {
 
             <div className="login-shell">
                 <div className="login-card-column">
-                    <div className="login-card">
-                        <div className="login-card-border" />
+                        <div className="login-card">
+                            <div className="login-card-border" />
                         <div className="login-brand-row">
-                            <img src="/nms-logo.png" alt="NMS" className="login-brand-mark" />
+                            <img src={logoSrc} alt="NMS" className="login-brand-mark" />
                             <div className="login-brand-copy">
                                 <span className="login-brand-name">NMS</span>
                                 {t('shell.brandSubtitle') ? (

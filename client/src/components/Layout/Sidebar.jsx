@@ -14,6 +14,7 @@ import {
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
+import { buildSiteAssetPath } from '../../utils/sitePath.js';
 
 function isUnsupportedPathInGlobal(pathname) {
     if (!pathname) return false;
@@ -29,6 +30,7 @@ function clamp(value, min, max) {
 }
 
 export default function Sidebar({ collapsed, open = false, isMobile = false, onClose, onToggle }) {
+    const logoSrc = buildSiteAssetPath('/nms-logo.png');
     const { servers, activeServer, activeServerId, selectServer } = useServer();
     const { logout, user } = useAuth();
     const { locale, t } = useI18n();
@@ -248,7 +250,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">
-                    <img src="/nms-logo.png" alt="NMS" className="sidebar-logo-image" />
+                    <img src={logoSrc} alt="NMS" className="sidebar-logo-image" />
                 </div>
                 <div className="sidebar-logo-copy">
                     <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
