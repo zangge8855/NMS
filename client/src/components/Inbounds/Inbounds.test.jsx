@@ -288,6 +288,8 @@ describe('Inbounds', () => {
         expect(within(mainRow).queryByRole('spinbutton', { name: '设置节点 Node A 的排序序号' })).not.toBeInTheDocument();
         expect(within(mainRow).getByRole('button', { name: '上移节点 Node A' })).toBeDisabled();
         expect(within(mainRow).getByRole('button', { name: '下移节点 Node A' })).toBeDisabled();
+        expect(mainRow.querySelector('.inbounds-expand-cell .inbounds-node-order-actions')).toBeTruthy();
+        expect(mainRow.querySelector('.inbounds-node-cell .inbounds-node-order-actions')).toBeFalsy();
         expect(within(backupRow).queryByRole('button', { name: '上移节点 Node A' })).not.toBeInTheDocument();
         expect(within(backupRow).queryByRole('button', { name: '下移节点 Node A' })).not.toBeInTheDocument();
     });

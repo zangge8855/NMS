@@ -5,7 +5,6 @@ import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
-import ModalShell from '../UI/ModalShell.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard, formatDateOnly, formatDateTime } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';

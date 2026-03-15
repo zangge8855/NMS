@@ -1162,6 +1162,40 @@ export default function Inbounds() {
                                         .filter(Boolean);
                                     const selectedClientCount = selectableClientKeys.filter((key) => selectedClientKeys.has(key)).length;
                                     const allInboundClientsSelected = selectableClientKeys.length > 0 && selectedClientCount === selectableClientKeys.length;
+                                    const showNodeMoveControls = filterServerId === 'all' && isFirstInServerGroup;
+                                    const renderNodeMoveControls = (layout = 'row') => (
+                                        <div className={`inbounds-node-order-actions${layout === 'column' ? ' is-inline' : ''}`}>
+                                            <div
+                                                className={`inbounds-sequence-actions${layout === 'column' ? ' is-vertical' : ''}`}
+                                                aria-label={`调整节点 ${ib.serverName} 的序号`}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="inbounds-sequence-btn"
+                                                    aria-label={`上移节点 ${ib.serverName}`}
+                                                    disabled={!canMoveServerUp}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
+                                                    }}
+                                                >
+                                                    <HiOutlineChevronUp />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="inbounds-sequence-btn"
+                                                    aria-label={`下移节点 ${ib.serverName}`}
+                                                    disabled={!canMoveServerDown}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
+                                                    }}
+                                                >
+                                                    <HiOutlineChevronDown />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
@@ -1176,10 +1210,17 @@ export default function Inbounds() {
                                                         className="cursor-pointer"
                                                     />
                                                 </td>
-                                                <td className="inbounds-expand-cell" data-label="" aria-hidden="true">
-                                                    <span className={`inbounds-expand-indicator transition-transform duration-200${isExpanded ? ' rotate-90' : ''}`}>
-                                                        <HiChevronRight />
-                                                    </span>
+                                                <td
+                                                    className="inbounds-expand-cell"
+                                                    data-label=""
+                                                    aria-hidden={showNodeMoveControls && !isCompactLayout ? undefined : 'true'}
+                                                >
+                                                    <div className="inbounds-expand-stack">
+                                                        <span className={`inbounds-expand-indicator transition-transform duration-200${isExpanded ? ' rotate-90' : ''}`}>
+                                                            <HiChevronRight />
+                                                        </span>
+                                                        {showNodeMoveControls && !isCompactLayout && renderNodeMoveControls('column')}
+                                                    </div>
                                                 </td>
                                                 <td
                                                     data-label="序号"
@@ -1253,36 +1294,7 @@ export default function Inbounds() {
                                                                 <HiOutlineServer size={10} />
                                                                 <span className="inbounds-node-name" title={ib.serverName}>{ib.serverName}</span>
                                                             </span>
-                                                            {isFirstInServerGroup && (
-                                                                <div className="inbounds-node-order-actions">
-                                                                    <div className="inbounds-sequence-actions" aria-label={`调整节点 ${ib.serverName} 的序号`}>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="inbounds-sequence-btn"
-                                                                            aria-label={`上移节点 ${ib.serverName}`}
-                                                                            disabled={!canMoveServerUp}
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
-                                                                            }}
-                                                                        >
-                                                                            <HiOutlineChevronUp />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="inbounds-sequence-btn"
-                                                                            aria-label={`下移节点 ${ib.serverName}`}
-                                                                            disabled={!canMoveServerDown}
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
-                                                                            }}
-                                                                        >
-                                                                            <HiOutlineChevronDown />
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            )}
+                                                            {showNodeMoveControls && isCompactLayout && renderNodeMoveControls('row')}
                                                         </div>
                                                     </td>
                                                 )}

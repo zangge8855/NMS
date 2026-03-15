@@ -7,7 +7,7 @@ import Header from '../Layout/Header.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
-import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
+import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
 import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
@@ -34,7 +34,6 @@ import {
     HiOutlinePlayCircle,
     HiOutlineArrowDownTray,
 } from 'react-icons/hi2';
-import { QRCodeSVG } from 'qrcode.react';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
@@ -46,15 +45,20 @@ const PROTOCOL_OPTIONS = [
     { key: 'shadowsocks', label: 'Shadowsocks' },
 ];
 
-function buildProvisionSuccessMessage(deployment) {
+function buildProvisionSuccessMessage(deployment, locale = 'zh-CN') {
     const dep = deployment && typeof deployment === 'object' ? deployment : {};
+    const isEnglish = locale === 'en-US';
     if (Number(dep.failed || 0) > 0) {
-        return `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 更新 ${dep.updated || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
+        return isEnglish
+            ? `Subscription enabled, but node sync partially failed (created ${dep.created || 0} / updated ${dep.updated || 0} / skipped ${dep.skipped || 0} / failed ${dep.failed || 0})`
+            : `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 更新 ${dep.updated || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
     }
     if (Number(dep.created || 0) > 0 || Number(dep.updated || 0) > 0) {
-        return `订阅已开通，已同步 ${Number(dep.created || 0) + Number(dep.updated || 0)} 个客户端到节点`;
+        return isEnglish
+            ? `Subscription enabled and synced ${Number(dep.created || 0) + Number(dep.updated || 0)} clients to nodes`
+            : `订阅已开通，已同步 ${Number(dep.created || 0) + Number(dep.updated || 0)} 个客户端到节点`;
     }
-    return '订阅已开通，链接已生成';
+    return isEnglish ? 'Subscription enabled and links are ready' : '订阅已开通，链接已生成';
 }
 
 function toLocalDateTimeString(timestamp) {
@@ -153,11 +157,37 @@ function compareUsersFallback(a, b) {
     return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
 }
 
+function getUsersHubCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            provisionAction: 'Enable Subscription',
+            viewSubscription: 'View Subscription',
+            unsetEmail: 'No email set',
+            postCreateNoEmail: 'User created, but no email is set so provisioning cannot start yet',
+            provisionLoadFailed: 'Subscription enabled, but subscription details failed to load. Refresh and check later.',
+            createProvisionToggle: 'Open provisioning right after create',
+            provisionModalTitle: 'Enable Subscription',
+            passwordCopied: 'Password copied to clipboard',
+        };
+    }
+    return {
+        provisionAction: '开通订阅',
+        viewSubscription: '查看订阅',
+        unsetEmail: '未设置邮箱',
+        postCreateNoEmail: '用户已创建，但未设置邮箱，无法立即分配节点',
+        provisionLoadFailed: '订阅已开通，但订阅详情加载失败，可稍后刷新查看',
+        createProvisionToggle: '创建后立即进入"开通订阅/分配节点"',
+        provisionModalTitle: '开通订阅',
+        passwordCopied: '密码已复制到剪贴板',
+    };
+}
+
 export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
@@ -213,14 +243,6 @@ export default function UsersHub() {
     const [createPassword, setCreatePassword] = useState('');
     const [showCreatePassword, setShowCreatePassword] = useState(true);
     const [createProvisionAfterCreate, setCreateProvisionAfterCreate] = useState(true);
-
-    // Subscription modal
-    const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
-    const [subscriptionEmail, setSubscriptionEmail] = useState('');
-    const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-    const [subscriptionResult, setSubscriptionResult] = useState(null);
-    const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
-    const [subscriptionResetLoading, setSubscriptionResetLoading] = useState(false);
 
     useEffect(() => {
         const queryValue = String(searchParams.get('q') || '').trim();
@@ -524,8 +546,8 @@ export default function UsersHub() {
                 <>
                     <button
                         className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
-                        title="开通订阅"
-                        aria-label="开通订阅"
+                        title={copy.provisionAction}
+                        aria-label={copy.provisionAction}
                         onClick={() => openProvisionModal(user)}
                     >
                         <HiOutlinePlusCircle />
@@ -564,8 +586,8 @@ export default function UsersHub() {
                 <>
                     <button
                         className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
-                        title="查看订阅"
-                        aria-label="查看订阅"
+                        title={copy.viewSubscription}
+                        aria-label={copy.viewSubscription}
                         onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
                     >
                         <HiOutlineLink />
@@ -665,7 +687,7 @@ export default function UsersHub() {
                 >
                     <span className="users-mobile-name">{user.username}</span>
                     <span className={`users-mobile-email${displayEmail ? '' : ' is-empty'}`}>
-                        {displayEmail || '未设置邮箱'}
+                        {displayEmail || copy.unsetEmail}
                     </span>
                 </button>
 
@@ -798,7 +820,7 @@ export default function UsersHub() {
                 return;
             }
             const dep = res.data?.obj?.deployment || null;
-            const successMessage = buildProvisionSuccessMessage(dep);
+            const successMessage = buildProvisionSuccessMessage(dep, locale);
             toast.success(successMessage);
 
             const boundEmail = normalizeEmail(res.data?.obj?.subscription?.email || provisionNormalizedEmail);
@@ -807,7 +829,7 @@ export default function UsersHub() {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
             } catch {
-                toast('订阅已开通，但订阅详情加载失败，可稍后刷新查看', { icon: '⚠️' });
+                toast(copy.provisionLoadFailed, { icon: '⚠️' });
             }
 
             setProvisionResult({
@@ -1065,7 +1087,7 @@ export default function UsersHub() {
             if (createProvisionAfterCreate) {
                 const targetEmail = normalizeEmail(createdUser.subscriptionEmail || createdUser.email);
                 if (!targetEmail) {
-                    toast('用户已创建，但未设置邮箱，无法立即分配节点');
+                    toast(copy.postCreateNoEmail);
                 } else {
                     openProvisionModal(createdUser);
                 }
@@ -1075,46 +1097,6 @@ export default function UsersHub() {
             setCreateSaving(false);
         }
     };
-
-    // --- Subscription modal ---
-    const openSubscriptionModal = (email) => {
-        const normalized = normalizeEmail(email);
-        if (!normalized) {
-            toast.error('该用户没有订阅邮箱');
-            return;
-        }
-        setSubscriptionEmail(normalized);
-        setSubscriptionResult(null);
-        setSubscriptionModalOpen(true);
-    };
-
-    const loadSubscription = async (email) => {
-        if (!email) return;
-        setSubscriptionLoading(true);
-        try {
-            const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
-            const subPayload = res.data?.obj || {};
-            const bundle = buildSubscriptionProfileBundle(subPayload, locale);
-            setSubscriptionResult({
-                email: subPayload.email || email,
-                bundle,
-                subscriptionActive: subPayload.subscriptionActive !== false,
-            });
-            if (bundle.defaultProfileKey) {
-                setSubscriptionProfileKey(bundle.defaultProfileKey);
-            }
-        } catch (error) {
-            setSubscriptionResult(null);
-            toast.error(error.response?.data?.msg || error.message || '订阅加载失败');
-        }
-        setSubscriptionLoading(false);
-    };
-
-    useEffect(() => {
-        if (subscriptionModalOpen && subscriptionEmail) {
-            loadSubscription(subscriptionEmail);
-        }
-    }, [subscriptionModalOpen, subscriptionEmail]);
 
     // Auto-open edit modal from URL query param
     useEffect(() => {
@@ -1127,43 +1109,6 @@ export default function UsersHub() {
             }
         }
     }, [users, loading, searchParams]);
-
-    const activeSubscriptionProfile = useMemo(
-        () => findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey),
-        [subscriptionResult, subscriptionProfileKey]
-    );
-
-    const handleCopySubscription = async () => {
-        const profile = findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey);
-        if (!profile?.url) {
-            toast.error('暂无可复制地址');
-            return;
-        }
-        await copyToClipboard(profile.url);
-        toast.success(`${profile.label} 订阅地址已复制`);
-    };
-
-    const handleResetSubscription = async () => {
-        if (!subscriptionEmail) return;
-        const ok = await confirmAction({
-            title: '重置订阅链接',
-            message: '重置后当前展示的订阅地址会失效，需要把新地址重新发给用户。',
-            details: `目标用户: ${subscriptionEmail}`,
-            confirmText: '确认重置',
-            tone: 'danger',
-        });
-        if (!ok) return;
-
-        setSubscriptionResetLoading(true);
-        try {
-            await api.post(`/subscriptions/${encodeURIComponent(subscriptionEmail)}/reset-link`, {});
-            toast.success('订阅链接已重置，旧地址已失效');
-            await loadSubscription(subscriptionEmail);
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '重置订阅链接失败');
-        }
-        setSubscriptionResetLoading(false);
-    };
 
     return (
         <>
@@ -1297,9 +1242,6 @@ export default function UsersHub() {
                                         const userExpiryLabel = user.clientData.count > 0
                                             ? formatExpiryLabel(user.clientData.expiryValues, locale)
                                             : '未开通';
-                                        const userTrafficSummary = user.clientData.totalUsed
-                                            ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
-                                            : '未使用流量';
                                         return (
                                             <tr
                                                 key={user.id}
@@ -1322,7 +1264,7 @@ export default function UsersHub() {
                                                     >
                                                         <span className="users-identity-primary">{user.username}</span>
                                                         <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
-                                                            {displayEmail || '未设置邮箱'}
+                                                            {displayEmail || copy.unsetEmail}
                                                         </span>
                                                     </button>
                                                 </td>
@@ -1421,7 +1363,7 @@ export default function UsersHub() {
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm"
-                                            onClick={() => { copyToClipboard(createPassword); toast.success('密码已复制到剪贴板'); }}
+                                            onClick={() => { copyToClipboard(createPassword); toast.success(copy.passwordCopied); }}
                                             title="复制密码"
                                         >
                                             <HiOutlineClipboard />
@@ -1443,7 +1385,7 @@ export default function UsersHub() {
                                             checked={createProvisionAfterCreate}
                                             onChange={(e) => setCreateProvisionAfterCreate(e.target.checked)}
                                         />
-                                        创建后立即进入"开通订阅/分配节点"
+                                        {copy.createProvisionToggle}
                                     </label>
                                 </div>
                             </div>
@@ -1646,7 +1588,7 @@ export default function UsersHub() {
                 <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">开通订阅 - {provisionTargetUser.username}</h3>
+                            <h3 className="modal-title">{copy.provisionModalTitle} - {provisionTargetUser.username}</h3>
                             <button type="button" className="modal-close" onClick={closeProvisionModal}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitProvision}>
@@ -1840,92 +1782,6 @@ export default function UsersHub() {
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </ModalShell>
-            )}
-
-            {/* Subscription Modal */}
-            {subscriptionModalOpen && (
-                <ModalShell isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)}>
-                    <div className="modal modal-wide glass-panel" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">订阅链接 - {subscriptionEmail}</h3>
-                            <button type="button" className="modal-close" onClick={() => setSubscriptionModalOpen(false)}><HiOutlineXMark /></button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="grid-auto-160 mb-4">
-                                <button type="button" className="btn btn-secondary" onClick={() => loadSubscription(subscriptionEmail)} disabled={subscriptionLoading}>
-                                    {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 刷新</>}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={handleResetSubscription}
-                                    disabled={subscriptionResetLoading || !subscriptionEmail}
-                                >
-                                    {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重置链接</>}
-                                </button>
-                                <button type="button" className="btn btn-primary" onClick={handleCopySubscription} disabled={!activeSubscriptionProfile?.url || subscriptionResult?.subscriptionActive === false}>
-                                    <HiOutlineClipboard /> 复制
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => navigate(`/clients?q=${encodeURIComponent(subscriptionEmail)}`)}
-                                >
-                                    打开用户管理
-                                </button>
-                            </div>
-
-                            {!subscriptionResult ? (
-                                <div className="text-center p-6"><span className="spinner" /></div>
-                            ) : (
-                                <div className="grid-auto-240 items-start">
-                                    <div className="flex flex-col gap-3">
-                                        <div className="text-sm text-muted">
-                                            状态：{subscriptionResult.subscriptionActive ? '可用' : '失效'}
-                                        </div>
-                                        <div
-                                            className="grid gap-2"
-                                            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}
-                                        >
-                                            {(subscriptionResult.bundle?.availableProfiles || []).map((item) => (
-                                                <button
-                                                    key={item.key}
-                                                    type="button"
-                                                    className={`btn btn-sm ${subscriptionProfileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                                                    onClick={() => setSubscriptionProfileKey(item.key)}
-                                                >
-                                                    {item.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="text-xs text-muted">
-                                            {activeSubscriptionProfile?.hint || '请选择订阅类型'}
-                                        </div>
-                                        <input className="form-input font-mono text-xs" value={activeSubscriptionProfile?.url || ''} readOnly />
-                                        <SubscriptionClientLinks bundle={subscriptionResult.bundle} />
-                                    </div>
-                                    <div className="flex justify-center">
-                                        {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
-                                            <div className="qr-surface">
-                                                <QRCodeSVG
-                                                    value={activeSubscriptionProfile.url}
-                                                    size={240}
-                                                    level="M"
-                                                    includeMargin={false}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-muted">当前用户暂无可用订阅二维码</div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={() => setSubscriptionModalOpen(false)}>关闭</button>
-                        </div>
                     </div>
                 </ModalShell>
             )}

@@ -252,6 +252,13 @@ function normalizeProfileKey(profileKey) {
     return String(profileKey || '').trim() === 'mihomo' ? 'clash' : String(profileKey || '').trim();
 }
 
+function getUserFacingProfileLabel(profile) {
+    if (String(profile?.key || '').trim() !== 'v2rayn') {
+        return String(profile?.label || '').trim();
+    }
+    return 'v2rayN / Shadowrocket';
+}
+
 function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN') {
     const normalizedProfileKey = normalizeProfileKey(profileKey);
     const importActions = Array.isArray(bundle?.importActions) ? bundle.importActions : [];
@@ -327,11 +334,26 @@ export default function Subscriptions() {
         () => (Array.isArray(activeProfile?.supportedClients) ? activeProfile.supportedClients : []),
         [activeProfile]
     );
+    const activeProfileLabel = useMemo(
+        () => (isUserOnly ? getUserFacingProfileLabel(activeProfile) : String(activeProfile?.label || '').trim()),
+        [activeProfile, isUserOnly]
+    );
     const shouldShowUserProfileHint = activeProfileSupportedClients.length === 0
         && !!String(activeProfile?.hint || '').trim();
     const availableProfiles = useMemo(
         () => (Array.isArray(result?.bundle?.availableProfiles) ? result.bundle.availableProfiles : []),
         [result]
+    );
+    const displayedProfiles = useMemo(
+        () => availableProfiles.map((item) => ({
+            ...item,
+            label: isUserOnly ? getUserFacingProfileLabel(item) : item.label,
+        })),
+        [availableProfiles, isUserOnly]
+    );
+    const userProfileLabelOverrides = useMemo(
+        () => (isUserOnly ? { v2rayn: getUserFacingProfileLabel({ key: 'v2rayn' }) } : {}),
+        [isUserOnly]
     );
     const selectedImportActions = useMemo(
         () => buildSelectedImportActions(result?.bundle, profileKey, locale),
@@ -504,7 +526,7 @@ export default function Subscriptions() {
             return;
         }
         await copyToClipboard(activeProfile.url);
-        toast.success(ui.copiedAddress.replace('{label}', activeProfile.label));
+        toast.success(ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile.label));
     };
 
     const handleResetLink = async () => {
@@ -679,7 +701,7 @@ export default function Subscriptions() {
                                                     <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
                                                         {result.subscriptionActive ? ui.available : ui.unavailable}
                                                     </span>
-                                                    <span className="badge badge-neutral">{activeProfile?.label || ui.currentProfileFallback}</span>
+                                                    <span className="badge badge-neutral">{activeProfileLabel || ui.currentProfileFallback}</span>
                                                     <span className="badge badge-neutral">{ui.nodeCount}</span>
                                                 </div>
                                             </div>
@@ -718,7 +740,7 @@ export default function Subscriptions() {
                                                     </div>
                                                 </div>
                                                 <div className="subscription-profile-switches">
-                                                    {availableProfiles.map((item) => (
+                                                    {displayedProfiles.map((item) => (
                                                         <button
                                                             key={item.key}
                                                             type="button"
@@ -732,7 +754,7 @@ export default function Subscriptions() {
                                                 {activeProfile?.label && (
                                                     <div className="subscription-current-profile-card">
                                                         <div className="subscription-current-profile-label">{ui.currentType}</div>
-                                                        <div className="subscription-current-profile-value">{activeProfile.label}</div>
+                                                        <div className="subscription-current-profile-value">{activeProfileLabel}</div>
                                                         {shouldShowUserProfileHint && (
                                                             <div className="subscription-current-profile-hint">{activeProfile.hint}</div>
                                                         )}
@@ -772,7 +794,7 @@ export default function Subscriptions() {
                                                         <div className="subscription-user-address-head">
                                                             <div className="subscription-user-address-copy">
                                                                 <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
-                                                                <div className="subscription-user-address-kicker">{activeProfile?.label || ui.currentProfileFallback}</div>
+                                                                <div className="subscription-user-address-kicker">{activeProfileLabel || ui.currentProfileFallback}</div>
                                                             </div>
                                                             <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
                                                                 {result.subscriptionActive ? ui.available : ui.unavailable}
@@ -828,7 +850,7 @@ export default function Subscriptions() {
                                                                 <div
                                                                     className="qr-surface subscription-inline-qr-surface"
                                                                     role="img"
-                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
+                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
                                                                 >
                                                                     <QRCodeSVG
                                                                         value={activeProfile.url}
@@ -853,7 +875,13 @@ export default function Subscriptions() {
                                                         <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
                                                     )}
                                                 </div>
-                                                <SubscriptionClientLinks bundle={result.bundle} compact showHeading={false} showImportMethods={false} />
+                                                <SubscriptionClientLinks
+                                                    bundle={result.bundle}
+                                                    compact
+                                                    showHeading={false}
+                                                    showImportMethods={false}
+                                                    profileLabelOverrides={userProfileLabelOverrides}
+                                                />
                                             </div>
                                         </div>
                                     ) : (

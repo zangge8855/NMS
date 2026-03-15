@@ -20,6 +20,20 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: false,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) return undefined;
+                    if (id.includes('/recharts/') || id.includes('/victory-vendor/')) return 'charts-vendor';
+                    if (id.includes('/react-hot-toast/') || id.includes('/qrcode.react/')) return 'ui-vendor';
+                    if (id.includes('/react-icons/')) return 'icons-vendor';
+                    if (id.includes('/react-dom/') || id.includes('/react-router-dom/') || id.includes('/react/')) {
+                        return 'react-vendor';
+                    }
+                    return undefined;
+                },
+            },
+        },
     },
     test: {
         environment: 'jsdom',

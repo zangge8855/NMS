@@ -6379,6 +6379,14 @@ body::before {
   color: var(--text-muted);
 }
 
+.inbounds-expand-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .inbounds-row td {
   vertical-align: middle;
 }
@@ -6445,6 +6453,11 @@ body::before {
   width: 100%;
 }
 
+.inbounds-node-order-actions.is-inline {
+  justify-content: center;
+  width: auto;
+}
+
 .inbounds-remark-cell {
   display: -webkit-box;
   max-width: 100%;
@@ -6463,6 +6476,10 @@ body::before {
   align-items: center;
   justify-content: center;
   gap: 4px;
+}
+
+.inbounds-sequence-actions.is-vertical {
+  flex-direction: column;
 }
 
 .inbounds-row:hover td {

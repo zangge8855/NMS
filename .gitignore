@@ -44,6 +44,9 @@ Thumbs.db
 output/
 .playwright-cli/
 server/tests/.test_data/
+server/tests/.invite_code_store_test_data/
+server/tests/.system_settings_test_data/
+server/views/camouflage/assets/
 
 # ---- Certificates / keys ----
 *.pem

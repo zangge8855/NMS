@@ -28,7 +28,6 @@ import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
-import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 
@@ -619,6 +618,7 @@ export default function Dashboard() {
     const [onlineCount, setOnlineCount] = useState(0);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [onlineSessionCount, setOnlineSessionCount] = useState(0);
+    const [singleServerTrafficTotals, setSingleServerTrafficTotals] = useState({ totalUp: 0, totalDown: 0 });
 
     // Global State
     const [globalStats, setGlobalStats] = useState({
@@ -776,8 +776,13 @@ export default function Dashboard() {
             setOnlineUsers(presence.onlineRows);
             setOnlineSessionCount(presence.onlineSessionCount);
             setOnlineCount(presence.onlineRows.length);
+            setSingleServerTrafficTotals({
+                totalUp: presence.totalUp,
+                totalDown: presence.totalDown,
+            });
         } catch (err) {
             console.error('Dashboard fetch error:', err);
+            setSingleServerTrafficTotals({ totalUp: 0, totalDown: 0 });
         }
         setLoading(false);
     }, [activeServer?.name, activeServerId, panelApi]);
@@ -1159,8 +1164,8 @@ export default function Dashboard() {
     }
 
     // ── Single Server Dashboard ──────────────────────────
-    const totalUp = inbounds.reduce((a, b) => a + (b.up || 0), 0);
-    const totalDown = inbounds.reduce((a, b) => a + (b.down || 0), 0);
+    const totalUp = Number(singleServerTrafficTotals.totalUp || 0);
+    const totalDown = Number(singleServerTrafficTotals.totalDown || 0);
     const activeInbounds = inbounds.filter(i => i.enable).length;
 
     const statCards = [

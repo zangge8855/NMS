@@ -7,6 +7,7 @@ import { NotificationProvider } from './contexts/NotificationContext.jsx';
 import { useI18n } from './contexts/LanguageContext.jsx';
 import { Toaster } from 'react-hot-toast';
 import { HiOutlineBars3 } from 'react-icons/hi2';
+import useMediaQuery from './hooks/useMediaQuery.js';
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
@@ -48,23 +49,13 @@ function ProtectedLayout() {
     const isAdmin = user?.role === 'admin';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(
-        typeof window !== 'undefined' ? window.innerWidth <= 768 : false
-    );
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     useEffect(() => {
-        const handleResize = () => {
-            const mobile = window.innerWidth <= 768;
-            setIsMobile(mobile);
-            if (!mobile) {
-                setSidebarOpen(false);
-            }
-        };
-
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        if (!isMobile) {
+            setSidebarOpen(false);
+        }
+    }, [isMobile]);
 
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
 

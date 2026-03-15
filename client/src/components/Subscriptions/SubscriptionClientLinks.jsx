@@ -26,9 +26,15 @@ function buildToolLookup(items = []) {
     return map;
 }
 
-function buildProfileLookup(bundle) {
+function buildProfileLookup(bundle, labelOverrides = {}) {
     const profiles = Array.isArray(bundle?.availableProfiles) ? bundle.availableProfiles : [];
-    return new Map(profiles.map((item) => [item.key, item]));
+    return new Map(profiles.map((item) => [
+        item.key,
+        {
+            ...item,
+            label: labelOverrides[item.key] || item.label,
+        },
+    ]));
 }
 
 function buildQuickActionLookup(items = []) {
@@ -64,6 +70,7 @@ export default function SubscriptionClientLinks({
     compact = false,
     showHeading = true,
     showImportMethods = true,
+    profileLabelOverrides = {},
 }) {
     const { locale } = useI18n();
     const copy = useMemo(() => (
@@ -105,7 +112,10 @@ export default function SubscriptionClientLinks({
         : [];
     const toolLookup = useMemo(() => buildToolLookup(toolSites), [toolSites]);
     const quickActionLookup = useMemo(() => buildQuickActionLookup(quickActions), [quickActions]);
-    const profileLookup = useMemo(() => buildProfileLookup(bundle), [bundle]);
+    const profileLookup = useMemo(
+        () => buildProfileLookup(bundle, profileLabelOverrides),
+        [bundle, profileLabelOverrides]
+    );
 
     const deviceGuides = useMemo(() => ([
         {

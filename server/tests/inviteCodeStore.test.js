@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
@@ -6,31 +6,54 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DATA_DIR = path.join(__dirname, '.invite_code_store_test_data');
+const BOOTSTRAP_DATA_DIR = path.join(TEST_DATA_DIR, '__bootstrap__');
+const TEST_CASES_DIR = path.join(TEST_DATA_DIR, 'cases');
 
-function cleanTestData() {
-    if (fs.existsSync(TEST_DATA_DIR)) {
-        fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+function cleanTestData(target = TEST_DATA_DIR) {
+    if (fs.existsSync(target)) {
+        fs.rmSync(target, { recursive: true, force: true });
     }
 }
 
-process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.NODE_ENV = 'test';
 
 describe('InviteCodeStore', { concurrency: false }, () => {
     let InviteCodeStore;
 
+    function getCaseDataDir(name) {
+        return path.join(TEST_CASES_DIR, name);
+    }
+
+    function createStore(name) {
+        return new InviteCodeStore({ dataDir: getCaseDataDir(name) });
+    }
+
     before(async () => {
         cleanTestData();
-        const module = await import('../store/inviteCodeStore.js');
-        InviteCodeStore = module.InviteCodeStore;
+        const previousDataDir = process.env.DATA_DIR;
+        process.env.DATA_DIR = BOOTSTRAP_DATA_DIR;
+        try {
+            const module = await import('../store/inviteCodeStore.js');
+            InviteCodeStore = module.InviteCodeStore;
+        } finally {
+            if (previousDataDir === undefined) {
+                delete process.env.DATA_DIR;
+            } else {
+                process.env.DATA_DIR = previousDataDir;
+            }
+        }
     });
 
     after(() => {
         cleanTestData();
     });
 
+    beforeEach(() => {
+        cleanTestData(TEST_CASES_DIR);
+    });
+
     it('creates single-use invite codes compatibly with the existing flow', () => {
-        const store = new InviteCodeStore();
+        const store = createStore('single-use');
         const created = store.create({ createdBy: 'admin' });
 
         assert.match(created.code, /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
@@ -51,7 +74,7 @@ describe('InviteCodeStore', { concurrency: false }, () => {
     });
 
     it('supports multi-use batch invite generation without breaking old records', () => {
-        const store = new InviteCodeStore();
+        const store = createStore('multi-use');
         const created = store.create({
             createdBy: 'admin',
             count: 2,
@@ -98,8 +121,9 @@ describe('InviteCodeStore', { concurrency: false }, () => {
     });
 
     it('hydrates legacy single-use invite records from disk', () => {
-        const legacyFile = path.join(TEST_DATA_DIR, 'invite_codes.json');
-        fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
+        const legacyDataDir = getCaseDataDir('legacy-hydrate');
+        const legacyFile = path.join(legacyDataDir, 'invite_codes.json');
+        fs.mkdirSync(legacyDataDir, { recursive: true });
         fs.writeFileSync(legacyFile, JSON.stringify([
             {
                 id: 'legacy-1',
@@ -112,7 +136,7 @@ describe('InviteCodeStore', { concurrency: false }, () => {
             },
         ], null, 2));
 
-        const store = new InviteCodeStore();
+        const store = createStore('legacy-hydrate');
         const [legacyInvite] = store.list();
 
         assert.equal(legacyInvite.id, 'legacy-1');

@@ -84,6 +84,105 @@ describe('Dashboard', () => {
         expect(screen.getByRole('button', { name: 'Go to Servers' })).toBeInTheDocument();
     });
 
+    it('uses managed-user traffic totals in the single-server traffic card', async () => {
+        const panelApi = vi.fn((method, path) => {
+            if (method === 'get' && path === '/panel/api/server/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            cpu: 12.5,
+                            mem: { current: 256, total: 1024 },
+                            uptime: 3600,
+                        },
+                    },
+                });
+            }
+            if (method === 'get' && path === '/panel/api/server/cpuHistory/30') {
+                return Promise.resolve({
+                    data: {
+                        obj: [10, 12, 9],
+                    },
+                });
+            }
+            if (method === 'get' && path === '/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'inbound-a',
+                                protocol: 'vless',
+                                enable: true,
+                                remark: 'Node A Link',
+                                settings: JSON.stringify({
+                                    clients: [
+                                        { id: 'uuid-a', email: 'alice@example.com' },
+                                        { id: 'uuid-x', email: 'outsider@example.com' },
+                                    ],
+                                }),
+                                clientStats: [
+                                    { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                                    { id: 'uuid-x', email: 'outsider@example.com', up: 900, down: 1800 },
+                                ],
+                                up: 1000,
+                                down: 2000,
+                            },
+                        ],
+                    },
+                });
+            }
+            if (method === 'post' && path === '/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected panelApi call: ${method} ${path}`);
+        });
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            panelApi,
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'user-a',
+                                role: 'user',
+                                username: 'Alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                enabled: true,
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        await waitFor(() => {
+            expect(panelApi).toHaveBeenCalled();
+        });
+
+        const trafficCard = screen.getByText('总流量').closest('.dashboard-stat-card');
+        if (!trafficCard) throw new Error('Missing single-server traffic card');
+
+        await waitFor(() => {
+            expect(trafficCard).toHaveTextContent('300 B');
+            expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
+            expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
+        });
+    });
+
     it('counts online users by matched managed accounts instead of raw online sessions', async () => {
         useServer.mockReturnValue({
             activeServerId: 'global',

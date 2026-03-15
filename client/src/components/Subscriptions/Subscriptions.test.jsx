@@ -90,6 +90,8 @@ describe('Subscriptions', () => {
         expect(screen.getByText('选配置文件 -> 复制地址 -> 导入客户端')).toBeInTheDocument();
         expect(screen.getByText('当前配置文件')).toBeInTheDocument();
         expect(screen.getByLabelText('订阅导入步骤')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'v2rayN / Shadowrocket' })).toBeInTheDocument();
+        expect(screen.queryByText('通用链接')).not.toBeInTheDocument();
         expect(screen.getAllByText('软件下载').length).toBeGreaterThan(0);
         expect(screen.getByText('适用软件')).toBeInTheDocument();
         expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
@@ -220,6 +222,8 @@ describe('Subscriptions', () => {
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
         expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(1);
         expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(1);
+        expect(screen.getByRole('button', { name: '通用链接' })).toBeInTheDocument();
+        expect(screen.queryByText('v2rayN / Shadowrocket')).not.toBeInTheDocument();
         expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
         expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Sparkle').length).toBeGreaterThan(0);
