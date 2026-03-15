@@ -16353,9 +16353,13 @@ input[type="radio"]:focus-visible {
 .login-brand-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 14px;
   text-align: left;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .login-brand-mark {
@@ -16390,7 +16394,7 @@ input[type="radio"]:focus-visible {
 
 @media (max-width: 768px) {
   .login-brand-row {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .login-brand-mark {
