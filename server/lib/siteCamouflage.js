@@ -27,6 +27,8 @@ const CLASS_TOKENS = [
     'button-row',
     'button',
     'button-muted',
+    'lang-switch',
+    'lang-button',
     'meta-grid',
     'meta-card',
     'meta-label',
@@ -51,6 +53,8 @@ const CLASS_TOKENS = [
     'inline-code',
     'stack',
     'grid-two',
+    'image-frame',
+    'hero-image',
     'muted',
 ];
 
@@ -171,6 +175,64 @@ function createInlineAssets(title) {
                     <circle cx="18" cy="142" r="2.2"/>
                     <circle cx="80" cy="142" r="2.2"/>
                     <circle cx="142" cy="142" r="2.2"/>
+                </g>
+            </svg>
+        `),
+        inspectionImage: createSvgDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
+                <defs>
+                    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#08111f"/>
+                        <stop offset="100%" stop-color="#143454"/>
+                    </linearGradient>
+                    <linearGradient id="rack" x1="0" x2="1" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#0f172a"/>
+                        <stop offset="100%" stop-color="#1e293b"/>
+                    </linearGradient>
+                </defs>
+                <rect width="960" height="640" rx="28" fill="url(#bg)"/>
+                <circle cx="170" cy="118" r="120" fill="#38bdf8" fill-opacity="0.16"/>
+                <circle cx="810" cy="110" r="126" fill="#34d399" fill-opacity="0.12"/>
+                <rect x="104" y="180" width="290" height="240" rx="24" fill="url(#rack)" stroke="rgba(255,255,255,0.14)"/>
+                <rect x="142" y="220" width="210" height="54" rx="12" fill="#0b1220" stroke="rgba(56,189,248,0.34)"/>
+                <rect x="142" y="302" width="210" height="34" rx="10" fill="rgba(255,255,255,0.08)"/>
+                <rect x="142" y="350" width="210" height="34" rx="10" fill="rgba(255,255,255,0.08)"/>
+                <circle cx="470" cy="232" r="56" fill="#0f172a" stroke="rgba(255,255,255,0.14)"/>
+                <circle cx="470" cy="232" r="22" fill="#38bdf8"/>
+                <path d="M470 288v108" stroke="rgba(255,255,255,0.26)" stroke-width="8" stroke-linecap="round"/>
+                <path d="M470 312c44 0 80 36 80 80" stroke="rgba(56,189,248,0.34)" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <path d="M470 312c-44 0-80 36-80 80" stroke="rgba(52,211,153,0.28)" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <rect x="604" y="172" width="214" height="292" rx="24" fill="url(#rack)" stroke="rgba(255,255,255,0.14)"/>
+                <rect x="640" y="214" width="144" height="126" rx="18" fill="#0b1220" stroke="rgba(52,211,153,0.28)"/>
+                <path d="M660 318l20-32 32 24 28-48 24 18" stroke="#7dd3fc" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="644" y="368" width="134" height="18" rx="9" fill="rgba(255,255,255,0.1)"/>
+                <rect x="644" y="400" width="96" height="18" rx="9" fill="rgba(255,255,255,0.1)"/>
+                <text x="106" y="530" fill="rgba(255,255,255,0.82)" font-size="24" font-family="Arial, Helvetica, sans-serif">${safeTitle}</text>
+                <text x="106" y="564" fill="rgba(255,255,255,0.58)" font-size="14" font-family="Arial, Helvetica, sans-serif">machine vision inspection / edge appliance / local telemetry</text>
+            </svg>
+        `),
+        telemetryImage: createSvgDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
+                <defs>
+                    <linearGradient id="bg2" x1="0" x2="1" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#091524"/>
+                        <stop offset="100%" stop-color="#102b45"/>
+                    </linearGradient>
+                </defs>
+                <rect width="960" height="640" rx="28" fill="url(#bg2)"/>
+                <rect x="84" y="126" width="792" height="360" rx="28" fill="rgba(9,18,32,0.78)" stroke="rgba(255,255,255,0.12)"/>
+                <rect x="126" y="170" width="318" height="182" rx="20" fill="#0b1220" stroke="rgba(56,189,248,0.28)"/>
+                <rect x="486" y="170" width="318" height="182" rx="20" fill="#0b1220" stroke="rgba(52,211,153,0.28)"/>
+                <path d="M156 312c26-58 56-88 96-88s68 26 94 74 44 58 74 58" stroke="#38bdf8" stroke-width="10" fill="none" stroke-linecap="round"/>
+                <path d="M514 314c34-28 72-44 114-44 44 0 82 16 116 46" stroke="#34d399" stroke-width="10" fill="none" stroke-linecap="round"/>
+                <circle cx="208" cy="252" r="18" fill="#38bdf8"/>
+                <circle cx="602" cy="252" r="18" fill="#34d399"/>
+                <rect x="164" y="392" width="632" height="46" rx="16" fill="rgba(255,255,255,0.08)"/>
+                <rect x="164" y="456" width="418" height="22" rx="11" fill="rgba(255,255,255,0.08)"/>
+                <rect x="600" y="456" width="196" height="22" rx="11" fill="rgba(255,255,255,0.08)"/>
+                <g fill="rgba(255,255,255,0.82)" font-family="Arial, Helvetica, sans-serif">
+                    <text x="90" y="84" font-size="26">${safeTitle}</text>
+                    <text x="90" y="112" font-size="14" opacity="0.62">telemetry wall / regional support / operations visibility</text>
                 </g>
             </svg>
         `),
