@@ -4,8 +4,11 @@ import {
     CLIENT_STATIC_OPTIONS,
     DEFAULT_MISSING_CLIENT_BUILD_MESSAGE,
     createClientBuildFallbackHandler,
+    createClientStaticHandler,
     injectClientBasePath,
     normalizeClientBasePath,
+    rewriteClientAssetPaths,
+    stripClientBasePath,
     shouldServeCamouflageRequest,
     shouldServeClientRequest,
 } from '../lib/clientBuild.js';
@@ -145,37 +148,24 @@ describe('createClientBuildFallbackHandler', () => {
         assert.equal(nextCalled, true);
     });
 
-    it('serves the camouflage site for requests outside the configured access path when enabled', () => {
-        const calls = [];
+    it('skips the SPA fallback for requests outside the configured access path', () => {
+        let nextCalled = false;
         const handler = createClientBuildFallbackHandler({
             clientIndexFile: '/tmp/client/dist/index.html',
             hasClientIndex: true,
             getSiteConfig: () => ({
                 accessPath: '/portal',
-                camouflageEnabled: true,
             }),
             readClientIndexFile() {
                 throw new Error('should not read index file');
             },
         });
-        const res = {
-            type(value) {
-                calls.push(['type', value]);
-                return this;
-            },
-            send(body) {
-                calls.push(['send', body]);
-                return this;
-            },
-        };
 
-        handler({ path: '/', method: 'GET' }, res, () => {
-            throw new Error('next should not be called');
+        handler({ path: '/', method: 'GET' }, {}, () => {
+            nextCalled = true;
         });
 
-        assert.equal(calls[0][1], 'html');
-        assert.match(calls[1][1], /曜衡智能设备/);
-        assert.doesNotMatch(calls[1][1], /window\.__NMS_SITE_BASE_PATH__/);
+        assert.equal(nextCalled, true);
     });
 });
 
@@ -186,6 +176,12 @@ describe('client build helpers', () => {
         assert.equal(normalizeClientBasePath(' /portal/team/ '), '/portal/team');
         assert.equal(normalizeClientBasePath('/'), '/');
         assert.equal(normalizeClientBasePath('/../bad', '/'), '/');
+    });
+
+    it('strips the configured base path from client asset requests', () => {
+        assert.equal(stripClientBasePath('/portal/assets/index.js', '/portal'), '/assets/index.js');
+        assert.equal(stripClientBasePath('/portal', '/portal'), '/');
+        assert.equal(stripClientBasePath('/other', '/portal'), null);
     });
 
     it('matches only requests inside a non-root base path', () => {
@@ -208,16 +204,47 @@ describe('client build helpers', () => {
         assert.match(output, /<\/script><\/head>/);
     });
 
+    it('rewrites client asset urls under a non-root access path', () => {
+        const output = rewriteClientAssetPaths('<link href=\"/assets/index.css\"><script src=\"/assets/index.js\"></script>', '/portal');
+        assert.match(output, /href=\"\/portal\/assets\/index\.css\"/);
+        assert.match(output, /src=\"\/portal\/assets\/index\.js\"/);
+    });
+
     it('disables static index auto-serving so root requests still honor the access-path gate', () => {
         assert.equal(CLIENT_STATIC_OPTIONS.index, false);
     });
 
+    it('only serves static assets when they are requested under the configured access path', () => {
+        const calls = [];
+        const handler = createClientStaticHandler({
+            clientBuild: '/tmp/client/dist',
+            getSiteConfig: () => ({
+                accessPath: '/portal',
+            }),
+        });
+
+        handler({
+            path: '/other/assets/index.js',
+            url: '/other/assets/index.js',
+        }, {}, () => {
+            calls.push('next');
+        });
+
+        assert.deepEqual(calls, ['next']);
+    });
+
     it('renders the camouflage site with browser-language switching support', () => {
-        const html = createSiteCamouflageHtml();
-        assert.match(html, /data-lang-toggle="zh"/);
-        assert.match(html, /data-lang-toggle="en"/);
-        assert.match(html, /navigator\.languages/);
-        assert.match(html, /nms-camouflage-lang/);
-        assert.match(html, /html\[data-lang="zh"\] \.lang-en/);
+        const html = createSiteCamouflageHtml({
+            siteConfig: {
+                camouflageTemplate: 'corporate',
+                camouflageTitle: 'Edge Precision Systems',
+            },
+            requestPath: '/',
+            statusCode: 200,
+        });
+        assert.match(html, /Edge Precision Systems/);
+        assert.match(html, /data:image\/svg\+xml;base64,/);
+        assert.match(html, /cache/i);
+        assert.doesNotMatch(html, /pexels\.com/i);
     });
 });

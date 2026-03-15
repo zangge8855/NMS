@@ -74,6 +74,8 @@ describe('SystemSettings', () => {
                             site: {
                                 accessPath: '/portal',
                                 camouflageEnabled: true,
+                                camouflageTemplate: 'nginx',
+                                camouflageTitle: 'Northline Relay',
                             },
                             security: {},
                             jobs: {},
@@ -96,6 +98,8 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('button', { name: '随机路径' })).toBeInTheDocument();
         expect(screen.getByText('站点伪装首页')).toBeInTheDocument();
         expect(screen.getByText('公开首页预览')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue('Northline Relay')).toBeInTheDocument();
+        expect(screen.getAllByText('模板 nginx').length).toBeGreaterThan(0);
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
         expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
         expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();

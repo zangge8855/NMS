@@ -10,6 +10,8 @@ const ALLOWED_KEYS = {
     site: new Set([
         'accessPath',
         'camouflageEnabled',
+        'camouflageTemplate',
+        'camouflageTitle',
     ]),
     registration: new Set([
         'inviteOnlyEnabled',
@@ -45,9 +47,12 @@ const ALLOWED_KEYS = {
 };
 
 const GEO_PROVIDERS = new Set(['ip_api', 'ipip_myip']);
+const CAMOUFLAGE_TEMPLATES = new Set(['corporate', 'nginx', 'blog']);
 const RESERVED_SITE_ACCESS_PATHS = ['/api', '/assets', '/ws'];
 const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
+const DEFAULT_CAMOUFLAGE_TEMPLATE = 'corporate';
+const DEFAULT_CAMOUFLAGE_TITLE = 'Edge Precision Systems';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
     ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
     : 'ip_api';
@@ -206,6 +211,20 @@ function normalizeHttpTemplateUrl(value, fallback = '') {
     }
 }
 
+function normalizeCamouflageTemplate(value, fallback = DEFAULT_CAMOUFLAGE_TEMPLATE) {
+    const candidate = String(value || '').trim().toLowerCase();
+    return CAMOUFLAGE_TEMPLATES.has(candidate) ? candidate : fallback;
+}
+
+function normalizeCamouflageTitle(value, fallback = DEFAULT_CAMOUFLAGE_TITLE) {
+    const text = String(value || '')
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!text) return fallback;
+    return text.slice(0, 96);
+}
+
 function mergeSection(base, patch) {
     const next = { ...base };
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
@@ -240,6 +259,8 @@ class SystemSettingsStore {
             site: {
                 accessPath: '/',
                 camouflageEnabled: false,
+                camouflageTemplate: DEFAULT_CAMOUFLAGE_TEMPLATE,
+                camouflageTitle: DEFAULT_CAMOUFLAGE_TITLE,
             },
             registration: {
                 inviteOnlyEnabled: false,
@@ -305,6 +326,8 @@ class SystemSettingsStore {
         return {
             accessPath: isReservedSiteAccessPath(accessPath) ? fallback.accessPath : accessPath,
             camouflageEnabled: normalizeBoolean(input.camouflageEnabled, fallback.camouflageEnabled),
+            camouflageTemplate: normalizeCamouflageTemplate(input.camouflageTemplate, fallback.camouflageTemplate),
+            camouflageTitle: normalizeCamouflageTitle(input.camouflageTitle, fallback.camouflageTitle),
         };
     }
 

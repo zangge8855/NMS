@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{pageTitle}}</title>
+    <meta name="description" content="{{description}}" />
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --border: rgba(15, 23, 42, 0.08);
+            --text: #0f172a;
+            --muted: rgba(15, 23, 42, 0.66);
+            --accent: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Georgia, "Times New Roman", serif;
+            background:
+                linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)),
+                url("{{asset:dotTexture}}");
+            background-size: auto, 160px 160px;
+        }
+        .{{class:page}} {
+            width: min(1080px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 28px 0 40px;
+        }
+        .{{class:site-nav}}, .{{class:section-card}}, .{{class:footer}} {
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.94);
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+        }
+        .{{class:site-nav}} {
+            padding: 16px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .{{class:nav-links}} {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .{{class:nav-link}} {
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .{{class:hero}} {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+        .{{class:hero-panel}}, .{{class:section-card}} {
+            padding: 22px;
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.96);
+        }
+        .{{class:eyebrow}} {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: var(--accent);
+            font-size: 11px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .{{class:headline}} {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1.08;
+            letter-spacing: -0.04em;
+        }
+        .{{class:lead}}, .{{class:card-copy}}, .{{class:muted}} {
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 15px;
+        }
+        .{{class:blog-list}} {
+            display: grid;
+            gap: 12px;
+        }
+        .{{class:blog-item}} {
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .{{class:blog-item}}:last-child { border-bottom: none; padding-bottom: 0; }
+        .{{class:blog-meta}} {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .{{class:notice}} {
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.14);
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .{{class:inline-code}} {
+            font-family: "SFMono-Regular", Consolas, monospace;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.06);
+        }
+        .{{class:footer}} {
+            padding: 16px 18px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 860px) {
+            .{{class:hero}} { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .{{class:page}} { width: min(100vw - 20px, 1080px); }
+            .{{class:site-nav}}, .{{class:hero-panel}}, .{{class:section-card}}, .{{class:footer}} { padding: 16px; }
+            .{{class:site-nav}} { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="{{class:page}}">
+        <header class="{{class:site-nav}}">
+            <div>
+                <strong>{{title}}</strong>
+                <div class="{{class:muted}}">Dispatch notes, manufacturing journals and field stories</div>
+            </div>
+            <nav class="{{class:nav-links}}" aria-label="Primary">
+                <a class="{{class:nav-link}}" href="/">Home</a>
+                <a class="{{class:nav-link}}" href="/journal">Journal</a>
+                <a class="{{class:nav-link}}" href="/about">About</a>
+            </nav>
+        </header>
+
+        <main class="{{class:hero}}">
+            <section class="{{class:hero-panel}}">
+                <span class="{{class:eyebrow}}">editorial notes</span>
+                <h1 class="{{class:headline}}">A public-facing journal for teams building practical systems at the network edge.</h1>
+                <p class="{{class:lead}}">This archive collects maintenance notes, deployment essays and manufacturing observations shared with partners, vendors and customers.</p>
+                <div class="{{class:notice}}">The requested route <span class="{{class:inline-code}}">{{requestPath}}</span> is not part of the published archive. Directory status: <span class="{{class:inline-code}}">{{statusCode}}</span>.</div>
+            </section>
+            <aside class="{{class:hero-panel}}">
+                <span class="{{class:eyebrow}}">recent entries</span>
+                <div class="{{class:blog-list}}">
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}">March issue</span>
+                        <strong>Thermal margins in compact inspection systems</strong>
+                    </article>
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}">Field memo</span>
+                        <strong>Why telemetry collection fails in noisy power environments</strong>
+                    </article>
+                    <article class="{{class:blog-item}}">
+                        <span class="{{class:blog-meta}}">Operations</span>
+                        <strong>Documenting support pathways without exposing control surfaces</strong>
+                    </article>
+                </div>
+            </aside>
+        </main>
+
+        <section class="{{class:section-card}}">
+            <h2 class="{{class:card-title}}">Archive summary</h2>
+            <p class="{{class:card-copy}}">Published articles focus on hardware reliability, field process improvements and support documentation. Restricted workspaces are intentionally kept outside the public archive.</p>
+        </section>
+
+        <footer class="{{class:footer}}">
+            <span>{{title}}</span>
+            <span class="{{class:muted}}">Generated {{generatedAt}}</span>
+        </footer>
+    </div>
+</body>
+</html>

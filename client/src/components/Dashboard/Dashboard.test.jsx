@@ -30,10 +30,11 @@ vi.mock('../../hooks/useWebSocket.js', () => ({
 }));
 
 vi.mock('../Layout/Header.jsx', () => ({
-    default: ({ title, subtitle }) => (
+    default: ({ title, subtitle, children }) => (
         <div>
             <h1>{title}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
+            {children}
         </div>
     ),
 }));
@@ -79,6 +80,8 @@ describe('Dashboard', () => {
                 { id: 'server-b', name: 'Node B' },
             ],
         });
+        let serverAStatusCalls = 0;
+        let serverBStatusCalls = 0;
 
         api.get.mockImplementation((url) => {
             if (url === '/auth/users') {
@@ -92,25 +95,31 @@ describe('Dashboard', () => {
                 });
             }
             if (url === '/panel/server-a/panel/api/server/status') {
+                serverAStatusCalls += 1;
                 return Promise.resolve({
                     data: {
                         obj: {
                             cpu: 12.5,
                             mem: { current: 256, total: 1024 },
                             uptime: 3600,
-                            netTraffic: { sent: 0, recv: 0 },
+                            netTraffic: serverAStatusCalls > 1
+                                ? { sent: 3000, recv: 6000 }
+                                : { sent: 0, recv: 0 },
                         },
                     },
                 });
             }
             if (url === '/panel/server-b/panel/api/server/status') {
+                serverBStatusCalls += 1;
                 return Promise.resolve({
                     data: {
                         obj: {
                             cpu: 18.2,
                             mem: { current: 512, total: 2048 },
                             uptime: 7200,
-                            netTraffic: { sent: 0, recv: 0 },
+                            netTraffic: serverBStatusCalls > 1
+                                ? { sent: 6000, recv: 3000 }
+                                : { sent: 0, recv: 0 },
                         },
                     },
                 });
@@ -199,12 +208,11 @@ describe('Dashboard', () => {
         expect(await screen.findByText('总用户 2 · 待审核 1')).toBeInTheDocument();
         expect(await screen.findByText('港口专线')).toBeInTheDocument();
 
-        const trafficCard = screen.getByText('集群总流量').closest('[role="button"]');
-        if (!trafficCard) throw new Error('Missing cluster traffic card');
+        const overviewCard = screen.getByText('集群概览').closest('[role="button"]');
+        if (!overviewCard) throw new Error('Missing cluster overview card');
         await waitFor(() => {
-            expect(trafficCard).toHaveTextContent('660 B');
-            expect(trafficCard).toHaveTextContent(/↑\s*220 B/);
-            expect(trafficCard).toHaveTextContent(/↓\s*440 B/);
+            expect(overviewCard).toHaveTextContent('2 / 2');
+            expect(overviewCard).toHaveTextContent('入站 2 / 2 已启用');
         });
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
@@ -212,6 +220,25 @@ describe('Dashboard', () => {
         await waitFor(() => {
             expect(onlineCard).toHaveTextContent('1');
         });
+
+        fireEvent.click(screen.getByRole('button', { name: /自动 ON/ }));
+        fireEvent.click(screen.getByRole('button', { name: /自动 OFF/ }));
+
+        const throughputCard = screen.getByText('当前总吞吐').closest('[role="button"]');
+        if (!throughputCard) throw new Error('Missing throughput card');
+        await waitFor(() => {
+            expect(throughputCard).not.toHaveTextContent('等待下一次采样');
+            expect(throughputCard).toHaveTextContent(/\/s/);
+        });
+
+        const trafficCard = screen.getByText('累计流量').closest('[role="button"]');
+        if (!trafficCard) throw new Error('Missing cumulative traffic card');
+        await waitFor(() => {
+            expect(trafficCard).toHaveTextContent('660 B');
+            expect(trafficCard).toHaveTextContent(/↑\s*220 B/);
+            expect(trafficCard).toHaveTextContent(/↓\s*440 B/);
+        });
+
         fireEvent.click(onlineCard);
 
         expect(await screen.findByText('在线用户明细')).toBeInTheDocument();

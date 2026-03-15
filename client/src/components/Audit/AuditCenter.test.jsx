@@ -235,7 +235,7 @@ describe('AuditCenter localization', () => {
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
-        expect(await screen.findByText('活跃账号')).toBeInTheDocument();
+        expect((await screen.findAllByText('活跃账号')).length).toBeGreaterThan(0);
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });

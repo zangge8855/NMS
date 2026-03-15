@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{pageTitle}}</title>
+    <meta name="description" content="{{description}}" />
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1120;
+            --panel: rgba(15, 23, 42, 0.92);
+            --border: rgba(148, 163, 184, 0.16);
+            --text: #e2e8f0;
+            --muted: rgba(226, 232, 240, 0.68);
+            --accent: #22c55e;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            color: var(--text);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            background:
+                radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 25%),
+                linear-gradient(180deg, #020617 0%, #0b1120 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .{{class:page}} {
+            width: min(980px, 100%);
+            padding: 28px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            box-shadow: 0 28px 80px rgba(2, 6, 23, 0.5);
+        }
+        .{{class:eyebrow}} {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: var(--accent);
+            font-size: 12px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .{{class:headline}} {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+        }
+        .{{class:lead}}, .{{class:muted}}, .{{class:terminal-line}} {
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 14px;
+        }
+        .{{class:grid-two}} {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .{{class:section-card}}, .{{class:terminal}} {
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: rgba(2, 6, 23, 0.45);
+            padding: 18px;
+        }
+        .{{class:card-title}} {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: var(--text);
+        }
+        .{{class:terminal-line}} { margin: 0; }
+        .{{class:inline-code}} {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+        }
+        .{{class:footer}} {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        @media (max-width: 720px) {
+            .{{class:page}} { padding: 18px; }
+            .{{class:grid-two}} { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="{{class:page}}">
+        <span class="{{class:eyebrow}}">edge delivery node</span>
+        <h1 class="{{class:headline}}">{{title}}</h1>
+        <p class="{{class:lead}}">Public edge node directory for mirrored content, release notes and maintenance advisories.</p>
+        <div class="{{class:grid-two}}">
+            <section class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}">Directory status</h2>
+                <p class="{{class:muted}}">Request <span class="{{class:inline-code}}">{{requestMethod}}</span> for <span class="{{class:inline-code}}">{{requestPath}}</span> completed with status <span class="{{class:inline-code}}">{{statusCode}}</span>.</p>
+                <p class="{{class:muted}}">Restricted paths are not published through the public delivery node.</p>
+            </section>
+            <section class="{{class:terminal}}">
+                <h2 class="{{class:card-title}}">Node bulletin</h2>
+                <p class="{{class:terminal-line}}">origin: public-edge-02</p>
+                <p class="{{class:terminal-line}}">cache-control: public, max-age=86400</p>
+                <p class="{{class:terminal-line}}">generated-at: {{generatedAt}}</p>
+                <p class="{{class:terminal-line}}">contact: directory-support@{{title}}</p>
+            </section>
+        </div>
+        <footer class="{{class:footer}}">
+            <span>{{title}} public delivery node</span>
+            <span>{{currentYear}}</span>
+        </footer>
+    </main>
+</body>
+</html>

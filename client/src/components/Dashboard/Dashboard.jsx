@@ -11,6 +11,7 @@ import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
     HiOutlineArrowsUpDown,
+    HiOutlineChartBarSquare,
     HiOutlineClock,
     HiOutlineCog6Tooth,
     HiOutlineUsers,
@@ -400,19 +401,36 @@ function pushServerTrendSamples(previous, serverMap) {
     const next = {};
     for (const [serverId, serverData] of Object.entries(serverMap || {})) {
         const current = Array.isArray(previous?.[serverId]) ? previous[serverId] : [];
+        const now = Date.now();
         const mem = serverData?.status?.mem;
         const memPercent = mem?.total ? Math.max(0, Math.min(100, (Number(mem.current || 0) / Number(mem.total || 1)) * 100)) : 0;
+        const { sentTotal, recvTotal } = resolveNetTrafficTotals(serverData);
+        const last = current[current.length - 1];
+        const elapsedSeconds = last ? Math.max(1, (now - Number(last.ts || 0)) / 1000) : 0;
+        const upPerSecond = last && sentTotal >= Number(last.sentTotal || 0)
+            ? Math.max(0, (sentTotal - Number(last.sentTotal || 0)) / elapsedSeconds)
+            : 0;
+        const downPerSecond = last && recvTotal >= Number(last.recvTotal || 0)
+            ? Math.max(0, (recvTotal - Number(last.recvTotal || 0)) / elapsedSeconds)
+            : 0;
         const sample = {
-            ts: Date.now(),
+            ts: now,
             cpu: Math.max(0, Math.min(100, Number(serverData?.status?.cpu || 0))),
             mem: memPercent,
             online: serverData?.online !== false,
+            sentTotal,
+            recvTotal,
+            upPerSecond,
+            downPerSecond,
+            throughputPerSecond: upPerSecond + downPerSecond,
+            hasThroughputSample: Boolean(last),
         };
-        const last = current[current.length - 1];
         const merged = last
             && last.cpu === sample.cpu
             && last.mem === sample.mem
             && last.online === sample.online
+            && last.sentTotal === sample.sentTotal
+            && last.recvTotal === sample.recvTotal
             ? [...current.slice(0, -1), { ...last, ts: sample.ts }]
             : [...current, sample];
         next[serverId] = merged.slice(-MAX_NODE_TREND_POINTS);
@@ -439,6 +457,55 @@ function buildClusterTrend(historyMap, selector) {
     }
 
     return points;
+}
+
+function buildClusterAggregateTrend(historyMap, selector, mode = 'avg') {
+    const histories = Object.values(historyMap || {})
+        .filter((value) => Array.isArray(value) && value.length > 0);
+    if (histories.length === 0) return [];
+
+    const maxLength = Math.max(...histories.map((items) => items.length));
+    const points = [];
+
+    for (let index = 0; index < maxLength; index += 1) {
+        const values = histories
+            .map((items) => items[items.length - maxLength + index] || null)
+            .filter(Boolean)
+            .map((item) => selector(item))
+            .filter((value) => Number.isFinite(value));
+        if (values.length === 0) continue;
+        const total = values.reduce((sum, value) => sum + value, 0);
+        points.push(mode === 'sum' ? total : (total / values.length));
+    }
+
+    return points;
+}
+
+function resolveNetTrafficTotals(serverData) {
+    const netTraffic = serverData?.status?.netTraffic || {};
+    const sentTotal = Number(netTraffic.sent ?? netTraffic.up ?? netTraffic.upload ?? 0);
+    const recvTotal = Number(netTraffic.recv ?? netTraffic.down ?? netTraffic.download ?? 0);
+
+    return {
+        sentTotal: Number.isFinite(sentTotal) ? sentTotal : 0,
+        recvTotal: Number.isFinite(recvTotal) ? recvTotal : 0,
+    };
+}
+
+function summarizeClusterThroughput(historyMap) {
+    const histories = Object.values(historyMap || {}).filter((items) => Array.isArray(items) && items.length > 0);
+    return histories.reduce((summary, items) => {
+        const latest = items[items.length - 1] || null;
+        if (!latest) return summary;
+        const ready = items.length > 1 || latest.hasThroughputSample === true;
+        summary.up += Number(latest.upPerSecond || 0);
+        summary.down += Number(latest.downPerSecond || 0);
+        summary.total += Number(latest.throughputPerSecond || 0);
+        if (ready) {
+            summary.ready = true;
+        }
+        return summary;
+    }, { up: 0, down: 0, total: 0, ready: false });
 }
 
 // ── WebSocket URL builder ────────────────────────────────
@@ -487,12 +554,16 @@ export default function Dashboard() {
         () => cpuHistory.map((item) => Number(item?.cpu)).filter((value) => Number.isFinite(value)),
         [cpuHistory]
     );
-    const clusterCpuSparkline = useMemo(
-        () => buildClusterTrend(serverTrendHistory, (item) => Number(item?.cpu)),
-        [serverTrendHistory]
-    );
     const clusterOnlineSparkline = useMemo(
         () => buildClusterTrend(serverTrendHistory, (item) => (item?.online === false ? 0 : 1)),
+        [serverTrendHistory]
+    );
+    const clusterThroughputSparkline = useMemo(
+        () => buildClusterAggregateTrend(serverTrendHistory, (item) => Number(item?.throughputPerSecond), 'sum'),
+        [serverTrendHistory]
+    );
+    const clusterThroughput = useMemo(
+        () => summarizeClusterThroughput(serverTrendHistory),
         [serverTrendHistory]
     );
 
@@ -773,9 +844,14 @@ export default function Dashboard() {
     if (activeServerId === 'global') {
         const globalCards = [
             {
-                icon: HiOutlineServerStack, label: t('pages.dashboardGlobal.cards.nodeStatus'),
+                icon: HiOutlineServerStack, label: t('pages.dashboardGlobal.cards.clusterOverview'),
                 value: `${globalStats.onlineServers} / ${globalStats.serverCount}`,
-                sub: t('pages.dashboardCommon.onlineTotal'), ...DASHBOARD_ACCENT.primary,
+                kicker: t('pages.dashboardCommon.onlineTotal'),
+                sub: t('pages.dashboardGlobal.inboundSummary', {
+                    active: globalStats.activeInbounds,
+                    total: globalStats.totalInbounds,
+                }),
+                ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/servers'),
                 skeletonWidth: '9rem',
                 sparkline: clusterOnlineSparkline,
@@ -797,14 +873,22 @@ export default function Dashboard() {
                 sparklineDomain: [0, 1],
             },
             {
-                icon: HiOutlineSignal, label: t('pages.dashboardGlobal.cards.totalInbounds'),
-                value: `${globalStats.activeInbounds} / ${globalStats.totalInbounds}`,
-                sub: t('pages.dashboardCommon.enabledTotal'), ...DASHBOARD_ACCENT.warning,
-                onClick: () => navigate('/inbounds'),
-                skeletonWidth: '8rem',
+                icon: HiOutlineArrowsUpDown,
+                label: t('pages.dashboardGlobal.cards.liveThroughput'),
+                value: clusterThroughput.ready ? formatBytes(clusterThroughput.total) : '--',
+                sub: clusterThroughput.ready
+                    ? t('pages.dashboardCommon.throughputSplit', {
+                        up: formatBytes(clusterThroughput.up),
+                        down: formatBytes(clusterThroughput.down),
+                    })
+                    : t('pages.dashboardCommon.throughputPending'),
+                ...DASHBOARD_ACCENT.warning,
+                onClick: () => navigate('/audit?tab=traffic'),
+                skeletonWidth: '9rem',
+                sparkline: clusterThroughputSparkline,
             },
             {
-                icon: HiOutlineArrowsUpDown, label: t('pages.dashboardGlobal.cards.clusterTraffic'),
+                icon: HiOutlineChartBarSquare, label: t('pages.dashboardGlobal.cards.cumulativeTraffic'),
                 animateValue: globalStats.totalUp + globalStats.totalDown,
                 renderAnimatedValue: (value) => formatBytes(value),
                 sub: t('pages.dashboardCommon.trafficSplit', {
@@ -812,10 +896,8 @@ export default function Dashboard() {
                     down: formatBytes(globalStats.totalDown),
                 }),
                 ...DASHBOARD_ACCENT.primary,
-                onClick: () => navigate('/audit'),
+                onClick: () => navigate('/audit?tab=traffic'),
                 skeletonWidth: '8.5rem',
-                sparkline: clusterCpuSparkline,
-                sparklineDomain: [0, 100],
             },
         ];
         const globalQuickActions = [

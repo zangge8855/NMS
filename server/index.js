@@ -25,6 +25,7 @@ import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
+import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
 
 const app = express();
@@ -36,6 +37,7 @@ initWebSocket(httpServer);
 // Middleware
 // Trust reverse proxies on loopback/private networks so req.ip reflects real client IP.
 app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+app.disable('x-powered-by');
 app.use(cors({
     origin: config.nodeEnv === 'development' ? 'http://localhost:5173' : false,
     credentials: true,
@@ -83,15 +85,6 @@ app.use('/api/system', authMiddleware, adminOnly, systemRoutes);
 // Subscriptions: public /sub/ endpoint has its own token auth, management is admin-only
 app.use('/api/subscriptions', subscriptionRoutes);
 
-// Keep API behavior consistent: unknown API routes should return JSON 404
-// instead of falling through to the SPA index.html handler.
-app.use('/api', (req, res) => {
-    res.status(404).json({
-        success: false,
-        msg: 'API route not found',
-    });
-});
-
 // Serve React build in production (or when explicitly enabled)
 const shouldServeClientBuild = config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';
 if (shouldServeClientBuild) {
@@ -99,6 +92,22 @@ if (shouldServeClientBuild) {
         getSiteConfig: () => systemSettingsStore.getSite(),
     });
 }
+
+app.use(createCamouflageNotFoundMiddleware({
+    getSiteConfig: () => systemSettingsStore.getSite(),
+}));
+
+// Keep API behavior consistent for non-document probes and programmatic callers.
+app.use('/api', (req, res) => {
+    res.status(404).json({
+        success: false,
+        msg: 'API route not found',
+    });
+});
+
+app.use((req, res) => {
+    res.status(404).type('text/plain').send('Not Found');
+});
 
 // ── Global Error Handler ───────────────────────────────────
 // eslint-disable-next-line no-unused-vars

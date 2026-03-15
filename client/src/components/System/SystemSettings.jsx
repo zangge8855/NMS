@@ -83,6 +83,12 @@ function generateRandomSiteAccessPath() {
     return `/${randomWord()}-${randomWord()}/${randomToken}`;
 }
 
+const CAMOUFLAGE_TEMPLATE_OPTIONS = [
+    { value: 'corporate', label: 'Corporate' },
+    { value: 'nginx', label: 'Nginx' },
+    { value: 'blog', label: 'Blog' },
+];
+
 function buildDraft(source = null) {
     const settings = source || {};
     const defaultAuditIpGeoProvider = 'ip_api';
@@ -91,6 +97,8 @@ function buildDraft(source = null) {
         site: {
             accessPath: normalizeSiteAccessPathInput(settings.site?.accessPath, '/'),
             camouflageEnabled: settings.site?.camouflageEnabled === true,
+            camouflageTemplate: toText(settings.site?.camouflageTemplate, 'corporate'),
+            camouflageTitle: toText(settings.site?.camouflageTitle, 'Edge Precision Systems'),
         },
         registration: {
             inviteOnlyEnabled: settings.registration?.inviteOnlyEnabled === true,
@@ -241,6 +249,38 @@ function SettingsToggleCard({
                 </span>
             </div>
         </label>
+    );
+}
+
+function SettingsDisclosure({
+    title,
+    subtitle,
+    badge = null,
+    tone = 'neutral',
+    defaultOpen = false,
+    children,
+}) {
+    const [open, setOpen] = useState(defaultOpen);
+
+    return (
+        <div className={`settings-disclosure${open ? ' is-open' : ''}`} data-tone={tone}>
+            <button
+                type="button"
+                className="settings-disclosure-summary"
+                onClick={() => setOpen((prev) => !prev)}
+                aria-expanded={open}
+            >
+                <span className="settings-disclosure-copy">
+                    <span className="settings-disclosure-title">{title}</span>
+                    {subtitle ? <span className="settings-disclosure-subtitle">{subtitle}</span> : null}
+                </span>
+                <span className="settings-disclosure-side">
+                    {badge}
+                    <span className="settings-disclosure-indicator" aria-hidden="true" />
+                </span>
+            </button>
+            {open ? <div className="settings-disclosure-body">{children}</div> : null}
+        </div>
     );
 }
 
@@ -1168,7 +1208,7 @@ export default function SystemSettings() {
     const activeTabHighlights = useMemo(() => {
         if (activeTab === 'status') {
             return [
-                { label: '入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '已启用伪装' : '直接访问' },
+                { label: '入口', value: siteAccessPath, detail: siteCamouflageEnabled ? `${draft.site.camouflageTitle} · ${draft.site.camouflageTemplate}` : '直接访问' },
                 { label: '注册', value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭', detail: registrationEnabled ? '可在参数页调整' : '由环境变量控制' },
                 { label: '备份', value: backupStatus?.lastExport?.filename || '暂无', detail: backupStatus?.lastExport?.createdAt ? formatDateTime(backupStatus.lastExport.createdAt, locale) : '建议先留快照' },
                 { label: '监控', value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '未运行', detail: monitorStatus?.healthMonitor?.lastRunAt ? formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale) : '尚未巡检' },
@@ -1177,9 +1217,9 @@ export default function SystemSettings() {
         if (activeTab === 'basic') {
             return [
                 { label: '真实入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '根路径显示公开首页' : '根路径直接进入系统' },
+                { label: '伪装站点', value: draft.site.camouflageTitle || '未设置', detail: `模板 ${draft.site.camouflageTemplate}` },
                 { label: '订阅公网地址', value: draft.subscription.publicBaseUrl || '未配置', detail: draft.subscription.publicBaseUrl ? '订阅链接固定使用此地址' : '可能回落到当前访问地址' },
                 { label: '邀请码', value: `${inviteStatusSummary.active} 可用`, detail: `${inviteStatusSummary.used} 用完 · ${inviteStatusSummary.revoked} 撤销` },
-                { label: '审计地理查询', value: draft.auditIpGeo.enabled ? '已开启' : '已关闭', detail: draft.auditIpGeo.provider || '未设置服务商' },
             ];
         }
         if (activeTab === 'monitor') {
@@ -1218,6 +1258,8 @@ export default function SystemSettings() {
         draft.auditIpGeo.enabled,
         draft.auditIpGeo.provider,
         draft.registration.inviteOnlyEnabled,
+        draft.site.camouflageTemplate,
+        draft.site.camouflageTitle,
         draft.subscription.publicBaseUrl,
         emailConfiguredLabel,
         emailStatus,
@@ -1240,7 +1282,7 @@ export default function SystemSettings() {
                 <div className="card p-3 settings-mini-card settings-basic-summary-card">
                     <div className="text-sm text-muted">当前入口</div>
                     <div className="text-lg font-semibold font-mono">{siteEntryPreview}</div>
-                    <div className="text-xs text-muted">{siteCamouflageEnabled ? '伪装首页已开启，根路径不会直接暴露后台。' : '根路径按默认路由处理，后台入口由上方路径决定。'}</div>
+                    <div className="text-xs text-muted">{siteCamouflageEnabled ? `${draft.site.camouflageTitle} · ${draft.site.camouflageTemplate}` : '根路径按默认路由处理，后台入口由上方路径决定。'}</div>
                 </div>
                 <div className="card p-3 settings-mini-card settings-basic-summary-card">
                     <div className="text-sm text-muted">注册模式</div>
@@ -1300,6 +1342,39 @@ export default function SystemSettings() {
                             <div className="settings-basic-note-list mt-2">
                                 <span className="badge badge-neutral">登录页 / 后台 / 自助页共用入口</span>
                                 <span className="badge badge-neutral">支持多级路径</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="settings-field-grid settings-field-grid--compact mt-4">
+                        <div className="form-group mb-0">
+                            <label className="form-label">伪装模板</label>
+                            <select
+                                className="form-select"
+                                value={draft.site.camouflageTemplate}
+                                onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
+                            >
+                                {CAMOUFLAGE_TEMPLATE_OPTIONS.map((item) => (
+                                    <option key={item.value} value={item.value}>{item.label}</option>
+                                ))}
+                            </select>
+                            <div className="text-xs text-muted mt-1">可切换 `corporate`、`nginx` 或 `blog` 风格。</div>
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">伪装站点标题</label>
+                            <input
+                                className="form-input"
+                                value={draft.site.camouflageTitle}
+                                onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
+                                placeholder="Edge Precision Systems"
+                            />
+                            <div className="text-xs text-muted mt-1">会同步出现在伪装页标题、品牌区和部分文案中。</div>
+                        </div>
+                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
+                            <div className="text-sm text-muted">当前伪装策略</div>
+                            <div className="text-base font-semibold mt-2 break-all">{draft.site.camouflageTitle}</div>
+                            <div className="settings-basic-note-list mt-2">
+                                <span className="badge badge-neutral">模板 {draft.site.camouflageTemplate}</span>
+                                <span className="badge badge-neutral">{siteCamouflageEnabled ? '伪装已启用' : '伪装未启用'}</span>
                             </div>
                         </div>
                     </div>
@@ -1401,23 +1476,30 @@ export default function SystemSettings() {
                             <div className="text-xs text-muted">超时后需重新确认。</div>
                         </div>
                     </div>
-                    <div className="settings-field-grid settings-field-grid--compact">
-                        <div className="form-group">
-                            <label className="form-label">中风险阈值</label>
-                            <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                            <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
+                    <SettingsDisclosure
+                        title="阈值与令牌时效"
+                        subtitle={`中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets} · 有效期 ${draft.security.riskTokenTtlSeconds}s`}
+                        tone="warning"
+                        defaultOpen={draft.security.requireHighRiskConfirmation}
+                    >
+                        <div className="settings-field-grid settings-field-grid--compact">
+                            <div className="form-group">
+                                <label className="form-label">中风险阈值</label>
+                                <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">高风险阈值</label>
+                                <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label className="form-label">确认令牌有效期（秒）</label>
+                                <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
+                            </div>
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">高风险阈值</label>
-                            <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                            <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
-                        </div>
-                        <div className="form-group mb-0">
-                            <label className="form-label">确认令牌有效期（秒）</label>
-                            <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                            <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
-                        </div>
-                    </div>
+                    </SettingsDisclosure>
                 </div>
 
                 <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
@@ -1458,39 +1540,46 @@ export default function SystemSettings() {
                             description="为订阅访问日志补充地区和运营商信息。"
                         />
                     </div>
-                    <div className="settings-basic-geo-grid">
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">查询地址</div>
-                                <div className="settings-form-cluster-title">IP 查询模板</div>
-                                <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">查询地址模板</label>
-                                <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">服务参数</div>
-                                <div className="settings-form-cluster-title">提供方、超时和缓存</div>
-                            </div>
-                            <div className="settings-field-grid settings-field-grid--compact">
-                                <div className="form-group">
-                                    <label className="form-label">服务提供方</label>
-                                    <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">超时（毫秒）</label>
-                                    <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                    <SettingsDisclosure
+                        title="服务配置"
+                        subtitle={`${draft.auditIpGeo.provider || '未设置服务商'} · 超时 ${draft.auditIpGeo.timeoutMs}ms · 缓存 ${draft.auditIpGeo.cacheTtlSeconds}s`}
+                        tone={draft.auditIpGeo.enabled ? 'success' : 'neutral'}
+                        defaultOpen={draft.auditIpGeo.enabled}
+                    >
+                        <div className="settings-basic-geo-grid">
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">查询地址</div>
+                                    <div className="settings-form-cluster-title">IP 查询模板</div>
+                                    <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">缓存时长（秒）</label>
-                                    <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                                    <label className="form-label">查询地址模板</label>
+                                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">服务参数</div>
+                                    <div className="settings-form-cluster-title">提供方、超时和缓存</div>
+                                </div>
+                                <div className="settings-field-grid settings-field-grid--compact">
+                                    <div className="form-group">
+                                        <label className="form-label">服务提供方</label>
+                                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">超时（毫秒）</label>
+                                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">缓存时长（秒）</label>
+                                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </SettingsDisclosure>
                 </div>
 
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
@@ -1695,102 +1784,108 @@ export default function SystemSettings() {
                             <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                         </div>
                     )}
-                    <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
-                        <table className="table settings-invite-table">
-                            <thead>
-                                <tr>
-                                    <th>预览</th>
-                                    <th>状态</th>
-                                    <th>次数</th>
-                                    <th>开通时长</th>
-                                    <th>创建时间</th>
-                                    <th>使用情况</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {inviteCodes.length === 0 ? (
+                    <SettingsDisclosure
+                        title="邀请码历史"
+                        subtitle={`总计 ${inviteCodes.length} 个 · 可用 ${inviteStatusSummary.active} · 用完 ${inviteStatusSummary.used} · 撤销 ${inviteStatusSummary.revoked}`}
+                        badge={<span className="badge badge-neutral">可按需展开</span>}
+                    >
+                        <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                            <table className="table settings-invite-table">
+                                <thead>
                                     <tr>
-                                        <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
+                                        <th>预览</th>
+                                        <th>状态</th>
+                                        <th>次数</th>
+                                        <th>开通时长</th>
+                                        <th>创建时间</th>
+                                        <th>使用情况</th>
+                                        <th>操作</th>
                                     </tr>
-                                ) : (
-                                    inviteCodes.map((invite) => (
-                                        <tr key={invite.id}>
-                                            <td data-label="预览" className="cell-mono settings-invite-preview-cell">
-                                                <div className="settings-invite-preview">
-                                                    <span className="settings-invite-preview-code">{invite.preview}</span>
-                                                    <span className="settings-invite-preview-note">
-                                                        {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td data-label="状态" className="table-cell-stack settings-invite-cell">
-                                                <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
-                                                    {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
-                                                </span>
-                                                <span className="settings-invite-status-note">
-                                                    {resolveInviteState(invite) === 'active'
-                                                        ? `剩余 ${Number(invite.remainingUses || 0)} 次`
-                                                        : resolveInviteState(invite) === 'used'
-                                                            ? '已达到使用上限'
-                                                            : '已停止使用'}
-                                                </span>
-                                            </td>
-                                            <td data-label="次数" className="table-cell-stack settings-invite-cell">
-                                                <span className="settings-invite-usage-main">
-                                                    {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
-                                                </span>
-                                                <span className="settings-invite-usage-note">
-                                                    已用 {Number(invite.usedCount || 0)} 次
-                                                </span>
-                                            </td>
-                                            <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
-                                                <span className="settings-invite-usage-main">
-                                                    {formatInviteDuration(invite.subscriptionDays)}
-                                                </span>
-                                                <span className="settings-invite-usage-note">
-                                                    {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
-                                                </span>
-                                            </td>
-                                            <td data-label="创建时间" className="settings-invite-created-cell">
-                                                <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
-                                            </td>
-                                            <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
-                                                <span className="settings-invite-history-main">
-                                                    {invite.revokedAt
-                                                        ? '手动撤销'
-                                                        : invite.usedAt
-                                                            ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
-                                                            : '暂无使用记录'}
-                                                </span>
-                                                <span className="settings-invite-history-note">
-                                                    {invite.revokedAt
-                                                        ? formatDateTime(invite.revokedAt, locale)
-                                                        : invite.usedAt
-                                                            ? formatDateTime(invite.usedAt, locale)
-                                                            : '等待首次使用'}
-                                                </span>
-                                            </td>
-                                            <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
-                                                {resolveInviteState(invite) === 'active' ? (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-danger btn-sm settings-invite-revoke-btn"
-                                                        onClick={() => revokeInviteCode(invite)}
-                                                        disabled={inviteCodeActionLoading}
-                                                    >
-                                                        撤销
-                                                    </button>
-                                                ) : (
-                                                    <span className="text-xs text-muted">-</span>
-                                                )}
-                                            </td>
+                                </thead>
+                                <tbody>
+                                    {inviteCodes.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ) : (
+                                        inviteCodes.map((invite) => (
+                                            <tr key={invite.id}>
+                                                <td data-label="预览" className="cell-mono settings-invite-preview-cell">
+                                                    <div className="settings-invite-preview">
+                                                        <span className="settings-invite-preview-code">{invite.preview}</span>
+                                                        <span className="settings-invite-preview-note">
+                                                            {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td data-label="状态" className="table-cell-stack settings-invite-cell">
+                                                    <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
+                                                        {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
+                                                    </span>
+                                                    <span className="settings-invite-status-note">
+                                                        {resolveInviteState(invite) === 'active'
+                                                            ? `剩余 ${Number(invite.remainingUses || 0)} 次`
+                                                            : resolveInviteState(invite) === 'used'
+                                                                ? '已达到使用上限'
+                                                                : '已停止使用'}
+                                                    </span>
+                                                </td>
+                                                <td data-label="次数" className="table-cell-stack settings-invite-cell">
+                                                    <span className="settings-invite-usage-main">
+                                                        {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
+                                                    </span>
+                                                    <span className="settings-invite-usage-note">
+                                                        已用 {Number(invite.usedCount || 0)} 次
+                                                    </span>
+                                                </td>
+                                                <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
+                                                    <span className="settings-invite-usage-main">
+                                                        {formatInviteDuration(invite.subscriptionDays)}
+                                                    </span>
+                                                    <span className="settings-invite-usage-note">
+                                                        {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
+                                                    </span>
+                                                </td>
+                                                <td data-label="创建时间" className="settings-invite-created-cell">
+                                                    <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
+                                                </td>
+                                                <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
+                                                    <span className="settings-invite-history-main">
+                                                        {invite.revokedAt
+                                                            ? '手动撤销'
+                                                            : invite.usedAt
+                                                                ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
+                                                                : '暂无使用记录'}
+                                                    </span>
+                                                    <span className="settings-invite-history-note">
+                                                        {invite.revokedAt
+                                                            ? formatDateTime(invite.revokedAt, locale)
+                                                            : invite.usedAt
+                                                                ? formatDateTime(invite.usedAt, locale)
+                                                                : '等待首次使用'}
+                                                    </span>
+                                                </td>
+                                                <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
+                                                    {resolveInviteState(invite) === 'active' ? (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-danger btn-sm settings-invite-revoke-btn"
+                                                            onClick={() => revokeInviteCode(invite)}
+                                                            disabled={inviteCodeActionLoading}
+                                                        >
+                                                            撤销
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-muted">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SettingsDisclosure>
                 </div>
             </div>
         </div>
@@ -2364,31 +2459,36 @@ export default function SystemSettings() {
                         </div>
 
                         <div className="mt-4 settings-snapshot-section">
-                            <h4 className="text-base font-semibold mb-2">数据库快照</h4>
-                            <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>store</th>
-                                            <th>size(bytes)</th>
-                                            <th>updated_at</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(dbStatus.snapshots || []).length === 0 ? (
-                                            <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
-                                        ) : (
-                                            (dbStatus.snapshots || []).map((item) => (
-                                                <tr key={item.store_key}>
-                                                    <td data-label="Store">{item.store_key}</td>
-                                                    <td data-label="大小">{item.payload_size || 0}</td>
-                                                    <td data-label="更新时间">{formatDateTime(item.updated_at, locale)}</td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <SettingsDisclosure
+                                title="数据库快照"
+                                subtitle={`当前 ${(dbStatus.snapshots || []).length} 条快照记录`}
+                                badge={<span className="badge badge-neutral">只读信息</span>}
+                            >
+                                <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>store</th>
+                                                <th>size(bytes)</th>
+                                                <th>updated_at</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(dbStatus.snapshots || []).length === 0 ? (
+                                                <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
+                                            ) : (
+                                                (dbStatus.snapshots || []).map((item) => (
+                                                    <tr key={item.store_key}>
+                                                        <td data-label="Store">{item.store_key}</td>
+                                                        <td data-label="大小">{item.payload_size || 0}</td>
+                                                        <td data-label="更新时间">{formatDateTime(item.updated_at, locale)}</td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </SettingsDisclosure>
                         </div>
                     </>
                 )}

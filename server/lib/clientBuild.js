@@ -2,7 +2,6 @@ import express from 'express';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, extname, resolve } from 'path';
-import { createSiteCamouflageHtml } from './siteCamouflage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -22,7 +21,7 @@ export function normalizeClientBasePath(value, fallback = '/') {
     const fallbackValue = String(fallback || '/').trim() || '/';
     const text = String(value || '').trim();
     if (!text) return fallbackValue;
-    if (/[\s?#]/.test(text)) return fallbackValue;
+    if (/\s|[?#]/.test(text)) return fallbackValue;
 
     const segments = text
         .split('/')
@@ -43,6 +42,15 @@ export function shouldServeClientRequest(pathname = '/', basePath = '/') {
     return normalizedPathname === normalizedBasePath || normalizedPathname.startsWith(`${normalizedBasePath}/`);
 }
 
+export function stripClientBasePath(pathname = '/', basePath = '/') {
+    const normalizedPathname = String(pathname || '/').trim() || '/';
+    const normalizedBasePath = normalizeClientBasePath(basePath, '/');
+    if (normalizedBasePath === '/') return normalizedPathname;
+    if (normalizedPathname === normalizedBasePath) return '/';
+    if (!normalizedPathname.startsWith(`${normalizedBasePath}/`)) return null;
+    return normalizedPathname.slice(normalizedBasePath.length) || '/';
+}
+
 export function shouldServeCamouflageRequest(req = {}) {
     const method = String(req.method || 'GET').toUpperCase();
     const pathname = String(req.path || '/').trim() || '/';
@@ -51,13 +59,49 @@ export function shouldServeCamouflageRequest(req = {}) {
     return true;
 }
 
+export function rewriteClientAssetPaths(html, basePath = '/') {
+    const normalizedBasePath = normalizeClientBasePath(basePath, '/');
+    if (normalizedBasePath === '/') return html;
+
+    return html.replace(/((?:src|href)=["'])\/assets\//g, `$1${normalizedBasePath}/assets/`);
+}
+
 export function injectClientBasePath(html, basePath = '/') {
     const normalizedBasePath = normalizeClientBasePath(basePath, '/');
+    const withAssetPaths = rewriteClientAssetPaths(html, normalizedBasePath);
     const snippet = `<script>window.__NMS_SITE_BASE_PATH__=${JSON.stringify(normalizedBasePath)};</script>`;
-    if (!html.includes('</head>')) {
-        return `${snippet}${html}`;
+    if (!withAssetPaths.includes('</head>')) {
+        return `${snippet}${withAssetPaths}`;
     }
-    return html.replace('</head>', `${snippet}</head>`);
+    return withAssetPaths.replace('</head>', `${snippet}</head>`);
+}
+
+export function createClientStaticHandler({
+    clientBuild,
+    getSiteAccessPath = () => '/',
+    getSiteConfig = null,
+}) {
+    const staticHandler = express.static(clientBuild, CLIENT_STATIC_OPTIONS);
+
+    return (req, res, next) => {
+        const siteConfig = typeof getSiteConfig === 'function'
+            ? (getSiteConfig() || {})
+            : { accessPath: typeof getSiteAccessPath === 'function' ? getSiteAccessPath() : getSiteAccessPath };
+        const siteAccessPath = normalizeClientBasePath(siteConfig.accessPath, '/');
+        const relativePath = stripClientBasePath(req.path, siteAccessPath);
+        if (!relativePath || relativePath === '/' || !extname(relativePath)) {
+            return next();
+        }
+
+        const originalUrl = req.url;
+        const queryIndex = originalUrl.indexOf('?');
+        const query = queryIndex >= 0 ? originalUrl.slice(queryIndex) : '';
+        req.url = `${relativePath}${query}`;
+        return staticHandler(req, res, (error) => {
+            req.url = originalUrl;
+            return next(error);
+        });
+    };
 }
 
 export function createClientBuildFallbackHandler({
@@ -73,14 +117,12 @@ export function createClientBuildFallbackHandler({
             ? (getSiteConfig() || {})
             : { accessPath: typeof getSiteAccessPath === 'function' ? getSiteAccessPath() : getSiteAccessPath };
         const siteAccessPath = normalizeClientBasePath(siteConfig.accessPath, '/');
-        const camouflageEnabled = siteConfig.camouflageEnabled === true;
+        const relativePath = stripClientBasePath(req.path, siteAccessPath);
 
         if (!shouldServeClientRequest(req.path, siteAccessPath)) {
-            if (camouflageEnabled && shouldServeCamouflageRequest(req)) {
-                return res.type('html').send(createSiteCamouflageHtml({
-                    requestPath: req.path,
-                }));
-            }
+            return next();
+        }
+        if (relativePath && relativePath !== '/' && !!extname(relativePath)) {
             return next();
         }
 
@@ -113,9 +155,11 @@ export function registerClientBuildRoutes(app, options = {}) {
         console.warn(`[Client] Build file not found: ${clientIndexFile}`);
     }
 
-    // Keep document requests under the access-path gate. Static assets remain public,
-    // but "/" must not auto-serve dist/index.html before the fallback handler runs.
-    app.use(express.static(clientBuild, CLIENT_STATIC_OPTIONS));
+    app.use(createClientStaticHandler({
+        clientBuild,
+        getSiteAccessPath,
+        getSiteConfig,
+    }));
     app.get('*', createClientBuildFallbackHandler({
         clientIndexFile,
         hasClientIndex: () => fs.existsSync(clientIndexFile),

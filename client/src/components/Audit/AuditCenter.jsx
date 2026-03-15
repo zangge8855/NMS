@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     HiOutlineArrowPath,
+    HiOutlineCommandLine,
     HiOutlineEye,
     HiOutlineChartBarSquare,
     HiOutlineUsers,
-    HiOutlineSignal,
     HiOutlineDocumentText,
     HiOutlineTrash,
     HiOutlineArrowDownTray,
@@ -31,7 +31,6 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 
@@ -73,6 +72,42 @@ const AUDIT_COPY = {
             byHour: '按小时',
             byDay: '按天',
         },
+        workspace: {
+            navLabel: '审计分区',
+            ready: '已同步',
+            loading: '加载中',
+            eventsEyebrow: 'Operations',
+            eventsSummary: '按事件、结果、目标用户和节点回看系统操作历史，优先定位敏感变更。',
+            tasksEyebrow: 'Batch',
+            tasksSummary: '批量任务、重试和取消记录集中在这里，方便追踪执行链路。',
+            trafficEyebrow: 'Traffic',
+            trafficSummary: '先看累计流量和采样状态，再下钻到用户趋势、节点趋势和排行榜。',
+            subscriptionsEyebrow: 'Access',
+            subscriptionsSummary: '筛选订阅访问、真实 IP、归属地和状态分布，快速定位异常访问。',
+            logsEyebrow: 'Panel Logs',
+            logsSummary: '在当前工作台里直接查看 3x-ui 节点日志，不用来回切页。',
+            eventsFiltersTitle: '筛选操作记录',
+            eventsFiltersSubtitle: '按关键词、事件类型、结果、目标用户和节点缩小范围。',
+            subscriptionsFiltersTitle: '筛选订阅访问',
+            subscriptionsFiltersSubtitle: '先看整体访问规模，再按用户和状态定位异常请求。',
+            recordCount: '记录总数',
+            filterState: '筛选状态',
+            currentPage: '当前页',
+            range: '统计范围',
+            sampleStatus: '采样状态',
+            warningNodes: '异常节点',
+            currentSelection: '当前选中',
+            noFilters: '未设置筛选',
+            filtersActive: '已启用 {count} 项',
+            dataWindowYear: '近一年',
+            dataWindow30d: '近 30 天',
+            dataWindow14d: '近 14 天',
+            noUserSelected: '未选择用户',
+            noServerSelected: '未选择节点',
+            userTrafficSupport: '用户流量明细',
+            supportReady: '支持用户级明细',
+            supportLimited: '仅支持节点级流量',
+        },
         tables: {
             time: '时间',
             event: '事件',
@@ -97,6 +132,8 @@ const AUDIT_COPY = {
         traffic: {
             recentSample: '最近采样',
             totalTraffic: '总流量',
+            uploadTraffic: '上行流量',
+            downloadTraffic: '下行流量',
             activeAccounts: '活跃账号',
             samplePoints: '采样点',
             userTrend: '用户流量趋势',
@@ -202,6 +239,42 @@ const AUDIT_COPY = {
             byHour: 'Hourly',
             byDay: 'Daily',
         },
+        workspace: {
+            navLabel: 'Audit Sections',
+            ready: 'Synced',
+            loading: 'Loading',
+            eventsEyebrow: 'Operations',
+            eventsSummary: 'Review system operations by event, outcome, target user, and node to spot sensitive changes first.',
+            tasksEyebrow: 'Batch',
+            tasksSummary: 'Batch history, retries, and cancellations stay in one place for easier traceability.',
+            trafficEyebrow: 'Traffic',
+            trafficSummary: 'Start from cumulative traffic and sample health, then drill into user trends, node trends, and rankings.',
+            subscriptionsEyebrow: 'Access',
+            subscriptionsSummary: 'Filter subscription access, real IP, geo, and status distribution to find abnormal requests quickly.',
+            logsEyebrow: 'Panel Logs',
+            logsSummary: 'Inspect 3x-ui logs directly inside the audit workspace without switching pages.',
+            eventsFiltersTitle: 'Filter Events',
+            eventsFiltersSubtitle: 'Narrow the result by keyword, event type, outcome, target user, and node.',
+            subscriptionsFiltersTitle: 'Filter Subscription Access',
+            subscriptionsFiltersSubtitle: 'Review the overall access volume first, then narrow down by user and status.',
+            recordCount: 'Records',
+            filterState: 'Filters',
+            currentPage: 'Page',
+            range: 'Range',
+            sampleStatus: 'Sample State',
+            warningNodes: 'Warning Nodes',
+            currentSelection: 'Current Selection',
+            noFilters: 'No filters',
+            filtersActive: '{count} active',
+            dataWindowYear: 'Last 1 year',
+            dataWindow30d: 'Last 30 days',
+            dataWindow14d: 'Last 14 days',
+            noUserSelected: 'No user selected',
+            noServerSelected: 'No node selected',
+            userTrafficSupport: 'User Traffic Detail',
+            supportReady: 'User-level detail available',
+            supportLimited: 'Node-level traffic only',
+        },
         tables: {
             time: 'Time',
             event: 'Event',
@@ -226,6 +299,8 @@ const AUDIT_COPY = {
         traffic: {
             recentSample: 'Last Sample',
             totalTraffic: 'Total Traffic',
+            uploadTraffic: 'Upload',
+            downloadTraffic: 'Download',
             activeAccounts: 'Active Accounts',
             samplePoints: 'Samples',
             userTrend: 'User Traffic Trend',
@@ -539,6 +614,16 @@ function resolveAuditTarget(item) {
         || '-';
 }
 
+function countActiveFilters(filters = {}) {
+    return Object.values(filters).reduce((count, value) => {
+        if (value === undefined || value === null) return count;
+        if (typeof value === 'string') {
+            return String(value).trim() ? count + 1 : count;
+        }
+        return count + 1;
+    }, 0);
+}
+
 export default function AuditCenter() {
     const { locale, t } = useI18n();
     const copy = getAuditCopy(locale);
@@ -765,6 +850,160 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
+    const trafficTotals = trafficOverview?.registeredTotals || trafficOverview?.totals || {
+        upBytes: 0,
+        downBytes: 0,
+        totalBytes: 0,
+    };
+    const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
+        ? trafficOverview.collection.warnings.length
+        : 0;
+    const activeEventFilterCount = useMemo(() => countActiveFilters(eventFilters), [eventFilters]);
+    const activeAccessFilterCount = useMemo(() => countActiveFilters(accessFilters), [accessFilters]);
+    const selectedTrafficUser = useMemo(
+        () => topUsers.find((item) => item.email === selectedUser) || null,
+        [selectedUser, topUsers]
+    );
+    const selectedTrafficServer = useMemo(
+        () => topServers.find((item) => item.serverId === selectedServerId) || null,
+        [selectedServerId, topServers]
+    );
+    const auditTabs = useMemo(() => ([
+        {
+            id: 'events',
+            label: copy.tabs.events,
+            eyebrow: copy.workspace.eventsEyebrow,
+            summary: copy.workspace.eventsSummary,
+            icon: HiOutlineDocumentText,
+        },
+        {
+            id: 'tasks',
+            label: copy.tabs.tasks,
+            eyebrow: copy.workspace.tasksEyebrow,
+            summary: copy.workspace.tasksSummary,
+            icon: HiOutlineArrowPath,
+        },
+        {
+            id: 'traffic',
+            label: copy.tabs.traffic,
+            eyebrow: copy.workspace.trafficEyebrow,
+            summary: copy.workspace.trafficSummary,
+            icon: HiOutlineChartBarSquare,
+        },
+        {
+            id: 'subscriptions',
+            label: copy.tabs.subscriptions,
+            eyebrow: copy.workspace.subscriptionsEyebrow,
+            summary: copy.workspace.subscriptionsSummary,
+            icon: HiOutlineUsers,
+        },
+        {
+            id: 'logs',
+            label: copy.tabs.logs,
+            eyebrow: copy.workspace.logsEyebrow,
+            summary: copy.workspace.logsSummary,
+            icon: HiOutlineCommandLine,
+        },
+    ]), [copy]);
+    const activeTabMeta = auditTabs.find((item) => item.id === tab) || auditTabs[0];
+    const currentTabBusy = (
+        (tab === 'events' && eventsLoading)
+        || (tab === 'traffic' && trafficLoading)
+        || (tab === 'subscriptions' && accessLoading)
+    );
+    const activeTabHighlights = useMemo(() => {
+        if (tab === 'events') {
+            return [
+                {
+                    label: copy.workspace.recordCount,
+                    value: String(eventsData.total || 0),
+                    detail: copy.workspace.dataWindowYear,
+                },
+                {
+                    label: copy.workspace.filterState,
+                    value: activeEventFilterCount > 0
+                        ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
+                        : copy.workspace.noFilters,
+                    detail: copy.workspace.range,
+                },
+                {
+                    label: copy.workspace.currentPage,
+                    value: `${eventsPage} / ${eventsData.totalPages || 1}`,
+                    detail: copy.tabs.events,
+                },
+            ];
+        }
+        if (tab === 'traffic') {
+            return [
+                {
+                    label: copy.traffic.totalTraffic,
+                    value: formatBytes(trafficTotals.totalBytes || 0),
+                    detail: copy.traffic.totalTrafficScope,
+                },
+                {
+                    label: copy.traffic.activeAccounts,
+                    value: String(trafficOverview?.activeUsers || 0),
+                    detail: copy.traffic.activeAccountsScope,
+                },
+                {
+                    label: copy.workspace.sampleStatus,
+                    value: trafficOverview?.lastCollectionAt
+                        ? formatDateTime(trafficOverview.lastCollectionAt, locale)
+                        : copy.workspace.loading,
+                    detail: copy.traffic.samplePointsScope,
+                },
+                {
+                    label: copy.workspace.warningNodes,
+                    value: String(trafficWarningCount),
+                    detail: trafficOverview?.userLevelSupported === false
+                        ? copy.workspace.supportLimited
+                        : copy.workspace.supportReady,
+                },
+            ];
+        }
+        if (tab === 'subscriptions') {
+            return [
+                {
+                    label: copy.traffic.pv,
+                    value: String(accessSummary.total || 0),
+                    detail: copy.workspace.dataWindowYear,
+                },
+                {
+                    label: copy.traffic.uv,
+                    value: String(accessSummary.uniqueIpCount || 0),
+                    detail: copy.tables.realIp,
+                },
+                {
+                    label: copy.traffic.uniqueUsers,
+                    value: String(accessSummary.uniqueUsers || 0),
+                    detail: copy.tables.user,
+                },
+                {
+                    label: copy.workspace.filterState,
+                    value: activeAccessFilterCount > 0
+                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
+                        : copy.workspace.noFilters,
+                    detail: copy.filters.defaultPeriod,
+                },
+            ];
+        }
+        return [];
+    }, [
+        accessSummary.total,
+        accessSummary.uniqueIpCount,
+        accessSummary.uniqueUsers,
+        activeAccessFilterCount,
+        activeEventFilterCount,
+        copy,
+        eventsData.total,
+        eventsData.totalPages,
+        eventsPage,
+        locale,
+        tab,
+        trafficOverview,
+        trafficTotals.totalBytes,
+        trafficWarningCount,
+    ]);
 
     return (
         <>
@@ -774,29 +1013,80 @@ export default function AuditCenter() {
                 eyebrow={t('pages.audit.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide">
-                <div className="tabs mb-8 audit-tabs">
-                    <button className={`tab ${tab === 'events' ? 'active' : ''}`} onClick={() => setTab('events')}>
-                        {copy.tabs.events}
-                    </button>
-                    <button className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
-                        {copy.tabs.tasks}
-                    </button>
-                    <button className={`tab ${tab === 'traffic' ? 'active' : ''}`} onClick={() => setTab('traffic')}>
-                        {copy.tabs.traffic}
-                    </button>
-                    <button className={`tab ${tab === 'subscriptions' ? 'active' : ''}`} onClick={() => setTab('subscriptions')}>
-                        {copy.tabs.subscriptions}
-                    </button>
-                    <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
-                        {copy.tabs.logs}
-                    </button>
-                </div>
+                <div className="audit-shell">
+                    <div className="card audit-nav">
+                        <div className="audit-nav-head">
+                            <div className="audit-nav-copy">
+                                <div className="audit-nav-label">{copy.workspace.navLabel}</div>
+                                <div className="audit-nav-summary">{activeTabMeta.summary}</div>
+                            </div>
+                            <div className={`audit-nav-status-chip${currentTabBusy ? ' is-loading' : ' is-ready'}`}>
+                                {currentTabBusy ? <span className="spinner spinner-16" /> : null}
+                                <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
+                            </div>
+                        </div>
+                        <div className="tabs audit-tabs" role="tablist" aria-label={copy.workspace.navLabel}>
+                            {auditTabs.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = tab === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        className={`tab ${isActive ? 'active' : ''}`}
+                                        onClick={() => setTab(item.id)}
+                                        role="tab"
+                                        aria-selected={isActive}
+                                    >
+                                        <span className="audit-tab-icon" aria-hidden="true"><Icon /></span>
+                                        <span className="audit-tab-label">{item.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
 
+                    <div className="audit-main">
+                        <div className="card audit-tab-hero">
+                            <div className="audit-tab-hero-copy">
+                                <div className="audit-tab-hero-eyebrow">{activeTabMeta.eyebrow}</div>
+                                <div className="audit-tab-hero-title">{activeTabMeta.label}</div>
+                                <div className="audit-tab-hero-summary">{activeTabMeta.summary}</div>
+                            </div>
+                            {activeTabHighlights.length > 0 && (
+                                <div className="audit-tab-hero-grid">
+                                    {activeTabHighlights.map((item) => (
+                                        <div key={`${tab}-${item.label}`} className="audit-tab-highlight-card">
+                                            <div className="audit-tab-highlight-label">{item.label}</div>
+                                            <div className="audit-tab-highlight-value">{item.value}</div>
+                                            <div className="audit-tab-highlight-detail">{item.detail}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="audit-tab-panel">
                 {tab === 'events' && (
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
-                            <div className="card mb-6 p-3 audit-filter-card audit-filter-card-events">
-                                <div className="audit-filter-bar flex gap-2 flex-wrap items-center">
+                            <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
+                                <div className="audit-control-head">
+                                    <div className="audit-control-copy">
+                                        <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
+                                        <div className="audit-control-text">{copy.workspace.eventsFiltersSubtitle}</div>
+                                    </div>
+                                    <div className="audit-control-meta">
+                                        <span className="badge badge-neutral">
+                                            {copy.states.total.replace('{count}', String(eventsData.total || 0))}
+                                        </span>
+                                        <span className="badge badge-neutral">
+                                            {activeEventFilterCount > 0
+                                                ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
+                                                : copy.workspace.noFilters}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="audit-filter-grid audit-filter-grid--events">
                                     <input
                                         className="form-input w-180"
                                         placeholder={copy.filters.keyword}
@@ -831,6 +1121,8 @@ export default function AuditCenter() {
                                         value={eventFilters.serverId}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
                                     />
+                                </div>
+                                <div className="audit-control-actions">
                                     <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
                                         <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
                                     </button>
@@ -912,18 +1204,18 @@ export default function AuditCenter() {
 
                 {tab === 'traffic' && (
                     <>
-                        <PageToolbar
-                            className="audit-traffic-toolbar mb-6"
-                            main={(
-                                <div className="audit-traffic-toolbar-copy">
+                        <div className="card mb-8 audit-traffic-overview">
+                            <div className="audit-traffic-overview-head">
+                                <div className="audit-traffic-overview-copy">
+                                    <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
+                                    <div className="audit-traffic-overview-title">{copy.traffic.totalTraffic}</div>
+                                    <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
+                                </div>
+                                <div className="audit-traffic-overview-actions">
                                     <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
                                         <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
                                     </div>
-                                </div>
-                            )}
-                            actions={(
-                                <>
                                     <select
                                         className="form-select w-130"
                                         value={trafficGranularity}
@@ -936,26 +1228,47 @@ export default function AuditCenter() {
                                     <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
                                         <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
                                     </button>
-                                </>
-                            )}
-                        />
-
-                        <div className="stats-grid mb-8 audit-stats-grid">
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.totalTraffic}</span><HiOutlineChartBarSquare /></div>
-                                <div className="card-value">{formatBytes(trafficOverview?.registeredTotals?.totalBytes || 0)}</div>
-                                <div className="text-sm text-muted">↑ {formatBytes(trafficOverview?.registeredTotals?.upBytes || 0)} / ↓ {formatBytes(trafficOverview?.registeredTotals?.downBytes || 0)}</div>
-                                <div className="audit-stat-note">{copy.traffic.totalTrafficScope}</div>
+                                </div>
                             </div>
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.activeAccounts}</span><HiOutlineUsers /></div>
-                                <div className="card-value">{trafficOverview?.activeUsers || 0}</div>
-                                <div className="audit-stat-note">{copy.traffic.activeAccountsScope}</div>
-                            </div>
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.samplePoints}</span><HiOutlineSignal /></div>
-                                <div className="card-value">{trafficOverview?.sampleCount || 0}</div>
-                                <div className="audit-stat-note">{copy.traffic.samplePointsScope}</div>
+                            <div className="audit-traffic-overview-body">
+                                <div className="audit-traffic-total-card">
+                                    <div className="audit-traffic-total-label">{copy.traffic.totalTrafficScope}</div>
+                                    <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
+                                    <div className="audit-traffic-total-note">{copy.workspace.dataWindow30d}</div>
+                                    <div className="audit-traffic-split-grid">
+                                        <div className="audit-traffic-split-card audit-traffic-split-card--up">
+                                            <div className="audit-traffic-split-label">{copy.traffic.uploadTraffic}</div>
+                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.upBytes || 0)}</div>
+                                        </div>
+                                        <div className="audit-traffic-split-card audit-traffic-split-card--down">
+                                            <div className="audit-traffic-split-label">{copy.traffic.downloadTraffic}</div>
+                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.downBytes || 0)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="audit-traffic-mini-grid">
+                                    <div className="audit-traffic-mini-card">
+                                        <div className="audit-traffic-mini-label">{copy.traffic.activeAccounts}</div>
+                                        <div className="audit-traffic-mini-value">{trafficOverview?.activeUsers || 0}</div>
+                                        <div className="audit-traffic-mini-note">{copy.traffic.activeAccountsScope}</div>
+                                    </div>
+                                    <div className="audit-traffic-mini-card">
+                                        <div className="audit-traffic-mini-label">{copy.traffic.samplePoints}</div>
+                                        <div className="audit-traffic-mini-value">{trafficOverview?.sampleCount || 0}</div>
+                                        <div className="audit-traffic-mini-note">{copy.traffic.samplePointsScope}</div>
+                                    </div>
+                                    <div className="audit-traffic-mini-card">
+                                        <div className="audit-traffic-mini-label">{copy.workspace.userTrafficSupport}</div>
+                                        <div className="audit-traffic-mini-value">
+                                            {trafficOverview?.userLevelSupported === false ? copy.workspace.supportLimited : copy.workspace.supportReady}
+                                        </div>
+                                        <div className="audit-traffic-mini-note">
+                                            {trafficWarningCount > 0
+                                                ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
+                                                : copy.workspace.dataWindow14d}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -983,6 +1296,12 @@ export default function AuditCenter() {
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">{copy.traffic.userLevelUnsupported}</div>
                                 )}
+                                <div className="audit-chart-selection">
+                                    <span className="audit-chart-selection-label">{copy.workspace.currentSelection}</span>
+                                    <span className="audit-chart-selection-value">
+                                        {selectedTrafficUser ? formatTrafficUserLabel(selectedTrafficUser) : copy.workspace.noUserSelected}
+                                    </span>
+                                </div>
                                 <div className="dashboard-chart audit-chart-body">
                                     <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                                         <LineChart data={userTrend.points || []}>
@@ -1016,6 +1335,12 @@ export default function AuditCenter() {
                                         </select>
                                     )}
                                 />
+                                <div className="audit-chart-selection">
+                                    <span className="audit-chart-selection-label">{copy.workspace.currentSelection}</span>
+                                    <span className="audit-chart-selection-value">
+                                        {selectedTrafficServer?.serverName || copy.workspace.noServerSelected}
+                                    </span>
+                                </div>
                                 <div className="dashboard-chart audit-chart-body">
                                     <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                                         <LineChart data={serverTrend.points || []}>
@@ -1084,8 +1409,24 @@ export default function AuditCenter() {
 
                 {tab === 'subscriptions' && (
                     <>
-                        <div className="card mb-8 p-3 audit-filter-card audit-filter-card-subscriptions">
-                            <div className="flex gap-2 items-center flex-wrap audit-filter-bar">
+                        <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
+                            <div className="audit-control-head">
+                                <div className="audit-control-copy">
+                                    <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
+                                    <div className="audit-control-text">{copy.workspace.subscriptionsFiltersSubtitle}</div>
+                                </div>
+                                <div className="audit-control-meta">
+                                    <span className="badge badge-neutral">
+                                        {copy.states.total.replace('{count}', String(accessData.total || 0))}
+                                    </span>
+                                    <span className="badge badge-neutral">
+                                        {activeAccessFilterCount > 0
+                                            ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
+                                            : copy.workspace.noFilters}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <input
                                     className="form-input w-220"
                                     placeholder={copy.filters.userEmailFilter}
@@ -1103,6 +1444,8 @@ export default function AuditCenter() {
                                         <option value="expired">{copy.filters.expired}</option>
                                         <option value="revoked">{copy.filters.revoked}</option>
                                     </select>
+                            </div>
+                            <div className="audit-control-actions">
                                 <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
                                     <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
                                 </button>
@@ -1203,6 +1546,9 @@ export default function AuditCenter() {
                         <Logs embedded sourceMode="panel" displayLabel={copy.tabs.logs} />
                     </Suspense>
                 )}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {selectedEvent && (

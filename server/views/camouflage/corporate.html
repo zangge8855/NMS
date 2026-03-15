@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{pageTitle}}</title>
+    <meta name="description" content="{{description}}" />
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #07111f;
+            --bg-soft: rgba(7, 17, 31, 0.82);
+            --panel: rgba(10, 24, 41, 0.78);
+            --panel-border: rgba(255,255,255,0.1);
+            --text: #f5f7fb;
+            --muted: rgba(226, 232, 240, 0.72);
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.18);
+            --success: #34d399;
+            --radius-xl: 26px;
+            --radius-lg: 18px;
+            --shadow: 0 22px 72px rgba(2, 8, 20, 0.42);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            color: var(--text);
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.14), transparent 30%),
+                radial-gradient(circle at 85% 10%, rgba(52, 211, 153, 0.12), transparent 28%),
+                linear-gradient(165deg, #06101d 0%, #09182b 45%, #07111f 100%);
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: url("{{asset:gridTexture}}");
+            background-size: 180px 180px;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .{{class:page}} {
+            width: min(1180px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 28px 0 40px;
+            position: relative;
+            z-index: 1;
+        }
+        .{{class:site-nav}},
+        .{{class:hero-panel}},
+        .{{class:section-card}},
+        .{{class:footer}} {
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+        }
+        .{{class:site-nav}} {
+            display: grid;
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: center;
+            padding: 16px 18px;
+            border-radius: 22px;
+            margin-bottom: 22px;
+        }
+        .{{class:brand}} {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            min-width: 0;
+        }
+        .{{class:brand-mark}} {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background:
+                linear-gradient(145deg, rgba(56, 189, 248, 0.24), rgba(52, 211, 153, 0.18)),
+                rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.14);
+            position: relative;
+            flex: 0 0 48px;
+        }
+        .{{class:brand-mark}}::before,
+        .{{class:brand-mark}}::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #d7f7ff, #7dd3fc);
+        }
+        .{{class:brand-mark}}::before { width: 26px; height: 6px; top: 14px; left: 11px; }
+        .{{class:brand-mark}}::after { width: 18px; height: 6px; top: 28px; left: 18px; }
+        .{{class:brand-copy}} { min-width: 0; }
+        .{{class:nav-chip}} {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(52, 211, 153, 0.18);
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .{{class:nav-links}} {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .{{class:nav-link}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .{{class:nav-link}}:hover {
+            color: var(--text);
+            border-color: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+        }
+        .{{class:hero}} {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+        .{{class:hero-panel}} {
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+        }
+        .{{class:hero-copy}} {
+            padding: 26px;
+            background:
+                linear-gradient(180deg, rgba(7, 17, 31, 0.1), rgba(7, 17, 31, 0.56)),
+                url("{{asset:heroTexture}}");
+            background-size: cover;
+            background-position: center;
+            min-height: 100%;
+        }
+        .{{class:eyebrow}} {
+            display: inline-block;
+            margin-bottom: 12px;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #d7f7ff;
+            font-weight: 700;
+        }
+        .{{class:headline}} {
+            margin: 0;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+        }
+        .{{class:lead}}, .{{class:card-copy}}, .{{class:footer-note}}, .{{class:muted}} {
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        .{{class:button-row}} {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .{{class:button}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #d7f7ff, #7dd3fc);
+            color: #03111f;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .{{class:button-muted}} {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text);
+        }
+        .{{class:stack}} {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            min-height: 100%;
+        }
+        .{{class:notice}} {
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.18);
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .{{class:inline-code}} {
+            font-family: "JetBrains Mono", "Fira Code", monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.08);
+        }
+        .{{class:meta-grid}}, .{{class:status-strip}}, .{{class:section-grid}}, .{{class:grid-two}} {
+            display: grid;
+            gap: 14px;
+        }
+        .{{class:meta-grid}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .{{class:status-strip}} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .{{class:section-grid}} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .{{class:grid-two}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .{{class:meta-card}}, .{{class:status-item}} {
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .{{class:meta-label}}, .{{class:status-label}} {
+            display: block;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(226, 232, 240, 0.62);
+            margin-bottom: 8px;
+        }
+        .{{class:meta-value}}, .{{class:status-value}} {
+            font-size: 19px;
+            line-height: 1.2;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .{{class:section-card}} {
+            border-radius: 24px;
+            padding: 22px;
+        }
+        .{{class:card-title}} {
+            margin: 0 0 10px;
+            font-size: 18px;
+            line-height: 1.3;
+        }
+        .{{class:list}} {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 14px;
+        }
+        .{{class:footer}} {
+            border-radius: 24px;
+            margin-top: 18px;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        @media (max-width: 980px) {
+            .{{class:site-nav}},
+            .{{class:hero}},
+            .{{class:section-grid}},
+            .{{class:grid-two}} { grid-template-columns: 1fr; }
+            .{{class:nav-links}} { justify-content: flex-start; }
+        }
+        @media (max-width: 720px) {
+            .{{class:page}} { width: min(100vw - 20px, 1180px); }
+            .{{class:site-nav}}, .{{class:hero-copy}}, .{{class:stack}}, .{{class:section-card}}, .{{class:footer}} {
+                padding: 16px;
+            }
+            .{{class:meta-grid}}, .{{class:status-strip}} { grid-template-columns: 1fr; }
+            .{{class:footer}} { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="{{class:page}}">
+        <header class="{{class:site-nav}}">
+            <div class="{{class:brand}}">
+                <div class="{{class:brand-mark}}" aria-hidden="true"></div>
+                <div class="{{class:brand-copy}}">
+                    <div><strong>{{title}}</strong></div>
+                    <div class="{{class:muted}}">Industrial edge instrumentation and telemetry services</div>
+                </div>
+            </div>
+            <nav class="{{class:nav-links}}" aria-label="Primary">
+                <a class="{{class:nav-link}}" href="/">Overview</a>
+                <a class="{{class:nav-link}}" href="/operations">Operations</a>
+                <a class="{{class:nav-link}}" href="/products">Product Lines</a>
+                <a class="{{class:nav-link}}" href="/support">Support</a>
+            </nav>
+            <div class="{{class:nav-chip}}">Status {{statusCode}}</div>
+        </header>
+
+        <main class="{{class:hero}}">
+            <section class="{{class:hero-panel}}">
+                <div class="{{class:hero-copy}}">
+                    <span class="{{class:eyebrow}}">Field Systems Directory</span>
+                    <h1 class="{{class:headline}}">{{title}} maintains resilient edge platforms for manufacturing, inspection and remote telemetry.</h1>
+                    <p class="{{class:lead}}">This public directory is used to publish operating summaries, program milestones and regional support contacts for approved customers and field teams.</p>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="/contact">Contact coordination desk</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/status">View network summary</a>
+                    </div>
+                </div>
+            </section>
+            <aside class="{{class:hero-panel}}">
+                <div class="{{class:stack}}">
+                    <div>
+                        <span class="{{class:eyebrow}}">Request Trace</span>
+                        <div class="{{class:notice}}">The requested path <span class="{{class:inline-code}}">{{requestPath}}</span> returned directory status <span class="{{class:inline-code}}">{{statusCode}}</span> for method <span class="{{class:inline-code}}">{{requestMethod}}</span>.</div>
+                    </div>
+                    <div class="{{class:meta-grid}}">
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}">Publishing Window</span>
+                            <div class="{{class:meta-value}}">24h cache</div>
+                            <div class="{{class:muted}}">Static site mode for public discovery endpoints.</div>
+                        </div>
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}">Coverage</span>
+                            <div class="{{class:meta-value}}">17 regions</div>
+                            <div class="{{class:muted}}">Support, logistics and integration operations.</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <section class="{{class:status-strip}}">
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}">Primary focus</span>
+                <div class="{{class:status-value}}">Inspection hardware</div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}">Current bulletin</span>
+                <div class="{{class:status-value}}">Scheduled directory sync</div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}">Last generated</span>
+                <div class="{{class:status-value}}">{{generatedAt}}</div>
+            </div>
+        </section>
+
+        <section class="{{class:section-grid}}">
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}">Programs</h2>
+                <p class="{{class:card-copy}}">Cross-functional delivery for industrial vision, sensing and on-site data gateways.</p>
+                <ul class="{{class:list}}">
+                    <li>Factory inspection cells</li>
+                    <li>Remote telemetry concentrators</li>
+                    <li>Signal capture and replay tooling</li>
+                </ul>
+            </article>
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}">Operations</h2>
+                <p class="{{class:card-copy}}">Public pages expose only directory metadata. Program-specific workspaces require internal routing and issued credentials.</p>
+                <div class="{{class:grid-two}}">
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}">Release channel</span>
+                        <div class="{{class:meta-value}}">Quarterly</div>
+                    </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}">Availability</span>
+                        <div class="{{class:meta-value}}">99.95%</div>
+                    </div>
+                </div>
+            </article>
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}">Field Notes</h2>
+                <p class="{{class:card-copy}}">Request access through your account liaison if you need restricted dashboards, telemetry snapshots or commissioning records.</p>
+                <ul class="{{class:list}}">
+                    <li>Reference the published contact channel</li>
+                    <li>Include program identifier and region</li>
+                    <li>Do not submit field credentials through public forms</li>
+                </ul>
+            </article>
+        </section>
+
+        <footer class="{{class:footer}}">
+            <div>
+                <strong>{{title}}</strong>
+                <div class="{{class:footer-note}}">Public directory for edge instrumentation programs. Copyright {{currentYear}}.</div>
+            </div>
+            <div class="{{class:footer-note}}">Route: {{requestPath}}</div>
+        </footer>
+    </div>
+</body>
+</html>
