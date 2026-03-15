@@ -247,20 +247,30 @@ function createRenderModel(options = {}) {
     const requestPath = String(options.requestPath || '/').trim() || '/';
     const requestMethod = String(options.requestMethod || 'GET').trim().toUpperCase() || 'GET';
     const now = new Date();
-    const statusLabelZh = statusCode === 200 ? '公开目录' : '资源未发布';
-    const statusLabelEn = statusCode === 200 ? 'Service directory' : 'Resource not published';
-    const directoryBadgeZh = statusCode === 200 ? '公开目录可用' : '内容未公开发布';
-    const directoryBadgeEn = statusCode === 200 ? 'Public directory available' : 'Content not published';
-    const requestNoticeZh = statusCode === 200 ? '已收录于公开目录。' : '当前未在公开目录发布。';
-    const requestNoticeEn = statusCode === 200 ? 'is available through the public directory.' : 'is not published in the public directory.';
-    const archiveNoticeZh = statusCode === 200 ? '已收录于公开归档，可供查阅。' : '未在公开归档中收录。';
-    const archiveNoticeEn = statusCode === 200 ? 'is listed in the public archive.' : 'is not part of the public archive.';
-    const deliveryNoticeZh = statusCode === 200 ? '可通过公开分发节点访问。' : '当前未通过公开分发节点发布。';
-    const deliveryNoticeEn = statusCode === 200 ? 'is available through the public delivery node.' : 'is not published through the public delivery node.';
+    const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const year = String(now.getUTCFullYear());
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    const statusLabelZh = '官方网站';
+    const statusLabelEn = 'Official site';
+    const directoryBadgeZh = '官方网站';
+    const directoryBadgeEn = 'Official site';
+    const accessNoteZh = statusCode === 200
+        ? '欢迎浏览产品资料、行业方案与服务信息。'
+        : '您访问的页面暂时不可用，请查看产品、方案或服务栏目。';
+    const accessNoteEn = statusCode === 200
+        ? 'Browse product details, industry solutions and service information on the official site.'
+        : 'This page is temporarily unavailable. Continue through the product, solutions or service sections.';
+    const archiveNoticeZh = statusCode === 200 ? '当前内容已发布在新闻中心。' : '该内容暂未在新闻中心发布，请查看最新动态。';
+    const archiveNoticeEn = statusCode === 200 ? 'This content is published in the newsroom.' : 'This content is not currently published in the newsroom. Please review the latest updates.';
+    const deliveryNoticeZh = statusCode === 200 ? '当前页面提供服务资料、下载说明与联络信息。' : '您访问的页面暂未开放，请查看服务与支持栏目。';
+    const deliveryNoticeEn = statusCode === 200 ? 'This page provides service documents, download notes and contact information.' : 'This page is not currently available. Please continue through the service and support section.';
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
-    const descriptionZh = `${title} 提供工业边缘检测、设备接入与遥测支持服务，公开目录仅展示对外说明与协作信息。`;
-    const descriptionEn = `${title} operates industrial edge inspection, device integration and telemetry support services through a public-facing directory.`;
+    const descriptionZh = `${title} 是一家专注工业检测设备、视觉终端与自动化解决方案的设备制造商，官网提供产品资料、行业方案与服务支持信息。`;
+    const descriptionEn = `${title} is a device manufacturer focused on industrial inspection equipment, vision terminals and automation solutions, with product, industry and support information on the official site.`;
+    const generatedDateZh = `${year}年${month}月${day}日`;
+    const generatedDateEn = `${monthNamesEn[now.getUTCMonth()]} ${Number(day)}, ${year}`;
 
     return {
         templateName,
@@ -282,13 +292,15 @@ function createRenderModel(options = {}) {
         statusLabelEn,
         directoryBadgeZh,
         directoryBadgeEn,
-        requestNoticeZh,
-        requestNoticeEn,
+        accessNoteZh,
+        accessNoteEn,
         archiveNoticeZh,
         archiveNoticeEn,
         deliveryNoticeZh,
         deliveryNoticeEn,
         currentYear: String(now.getUTCFullYear()),
+        generatedDateZh,
+        generatedDateEn,
         generatedAt: now.toUTCString(),
         classes: CLASS_MAP,
         assets: createInlineAssets(title),

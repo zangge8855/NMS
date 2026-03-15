@@ -19,13 +19,13 @@ describe('site camouflage renderer', () => {
         assert.match(html, /Northline Field Journal/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /公开札记、维护随笔与现场协作记录/);
-        assert.match(html, /未在公开归档中收录/);
+        assert.match(html, /新闻中心、技术文章与案例动态/);
+        assert.match(html, /该内容暂未在新闻中心发布/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
         assert.doesNotMatch(html, /pexels\.com/i);
         assert.doesNotMatch(html, /Directory status:/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
-        assert.match(html, /\/wp-admin/);
+        assert.doesNotMatch(html, /\/wp-admin/);
         assert.match(html, /site_lang_pref/);
         assert.doesNotMatch(html, /nms/i);
     });
@@ -41,9 +41,10 @@ describe('site camouflage renderer', () => {
         });
 
         assert.match(html, /Fallback Labs/);
-        assert.match(html, /工业边缘检测与遥测服务目录/);
-        assert.match(html, /面向制造检测、设备接入与远程遥测场景提供稳定的边缘协作平台/);
-        assert.match(html, /公开目录可用/);
+        assert.match(html, /工业检测设备与自动化解决方案/);
+        assert.match(html, /工业视觉检测设备、测量终端与自动化集成方案/);
+        assert.match(html, /官方网站/);
+        assert.match(html, /持续更新/);
         assert.doesNotMatch(html, /目录状态 200/);
     });
 });
@@ -99,10 +100,10 @@ describe('camouflage middleware', () => {
         assert.deepEqual(calls[0], ['status', 404]);
         assert.deepEqual(calls[1], ['type', 'html']);
         assert.match(calls[2][1], /Aperture Relay/);
-        assert.match(calls[2][1], /\/wp-admin/);
         assert.match(calls[2][1], /中文/);
-        assert.match(calls[2][1], /公开边缘节点/);
-        assert.match(calls[2][1], /当前未通过公开分发节点发布/);
+        assert.match(calls[2][1], /服务与支持/);
+        assert.match(calls[2][1], /您访问的页面暂未开放，请查看服务与支持栏目/);
+        assert.doesNotMatch(calls[2][1], /\/wp-admin/);
         assert.doesNotMatch(calls[2][1], /completed with status/i);
         assert.doesNotMatch(calls[2][1], /nms/i);
     });

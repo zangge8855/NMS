@@ -207,13 +207,13 @@
             <div>
                 <strong>{{title}}</strong>
                 <div class="{{class:muted}}">
-                    <span data-lang="zh-CN">公开札记、维护随笔与现场协作记录</span>
-                    <span data-lang="en-US" hidden>Dispatch notes, maintenance essays and field collaboration records</span>
+                    <span data-lang="zh-CN">新闻中心、技术文章与案例动态</span>
+                    <span data-lang="en-US" hidden>Newsroom, technical articles and case updates</span>
                 </div>
             </div>
             <nav class="{{class:nav-links}}" aria-label="Primary">
-                <a class="{{class:nav-link}}" href="/"><span data-lang="zh-CN">首页</span><span data-lang="en-US" hidden>Home</span></a>
-                <a class="{{class:nav-link}}" href="/journal"><span data-lang="zh-CN">归档</span><span data-lang="en-US" hidden>Journal</span></a>
+                <a class="{{class:nav-link}}" href="/"><span data-lang="zh-CN">新闻</span><span data-lang="en-US" hidden>News</span></a>
+                <a class="{{class:nav-link}}" href="/journal"><span data-lang="zh-CN">文章</span><span data-lang="en-US" hidden>Articles</span></a>
                 <a class="{{class:nav-link}}" href="/about"><span data-lang="zh-CN">关于</span><span data-lang="en-US" hidden>About</span></a>
             </nav>
             <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
@@ -225,21 +225,21 @@
         <main class="{{class:hero}}">
             <section class="{{class:hero-panel}}">
                 <div data-lang="zh-CN">
-                    <span class="{{class:eyebrow}}">公开专栏</span>
-                    <h1 class="{{class:headline}}">面向合作方开放的工程札记，用来记录边缘部署、现场排障与制造维护经验。</h1>
-                    <p class="{{class:lead}}">公开归档只保留可共享的过程观察、运维摘要与供应链协作文档。受限后台、调试接口和内部工单不会通过这里发布。</p>
+                    <span class="{{class:eyebrow}}">新闻中心</span>
+                    <h1 class="{{class:headline}}">了解产品发布、技术文章与设备应用案例的最新动态。</h1>
+                    <p class="{{class:lead}}">新闻中心面向客户、合作伙伴与行业用户，持续更新公司动态、解决方案文章和服务信息。</p>
                     <div class="{{class:button-row}}">
-                        <a class="{{class:button}}" href="/journal">查看最新札记</a>
-                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">联系编辑窗口</a>
+                        <a class="{{class:button}}" href="/journal">查看最新动态</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">联系市场团队</a>
                     </div>
                 </div>
                 <div data-lang="en-US" hidden>
-                    <span class="{{class:eyebrow}}">Editorial notes</span>
-                    <h1 class="{{class:headline}}">A public journal for partners tracking edge deployments, field maintenance and practical manufacturing systems.</h1>
-                    <p class="{{class:lead}}">The archive keeps shareable observations, support summaries and vendor-facing records only. Restricted consoles, operator tools and internal tickets remain off the public journal.</p>
+                    <span class="{{class:eyebrow}}">Newsroom</span>
+                    <h1 class="{{class:headline}}">Follow product launches, technical articles and application stories from the device team.</h1>
+                    <p class="{{class:lead}}">The newsroom keeps customers and partners updated on company news, solution articles and service information.</p>
                     <div class="{{class:button-row}}">
-                        <a class="{{class:button}}" href="/journal">Browse entries</a>
-                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">Contact editor desk</a>
+                        <a class="{{class:button}}" href="/journal">Browse updates</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/contact">Contact marketing</a>
                     </div>
                 </div>
             </section>
@@ -248,8 +248,8 @@
                     <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
                 </div>
                 <div class="{{class:notice}}">
-                    <span data-lang="zh-CN">请求路径 <span class="{{class:inline-code}}">{{requestPath}}</span> {{archiveNoticeZh}}</span>
-                    <span data-lang="en-US" hidden>The requested path <span class="{{class:inline-code}}">{{requestPath}}</span> {{archiveNoticeEn}}</span>
+                    <span data-lang="zh-CN">{{archiveNoticeZh}}</span>
+                    <span data-lang="en-US" hidden>{{archiveNoticeEn}}</span>
                 </div>
             </aside>
         </main>
@@ -259,16 +259,16 @@
                 <h2 class="{{class:card-title}}"><span data-lang="zh-CN">最近文章</span><span data-lang="en-US" hidden>Recent entries</span></h2>
                 <div class="{{class:blog-list}}">
                     <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">三月专栏</span><span data-lang="en-US" hidden>March issue</span></span>
-                        <strong><span data-lang="zh-CN">紧凑型检测设备的热稳定窗口</span><span data-lang="en-US" hidden>Thermal margins in compact inspection systems</span></strong>
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">新品发布</span><span data-lang="en-US" hidden>Product launch</span></span>
+                        <strong><span data-lang="zh-CN">新一代高速视觉检测平台正式发布</span><span data-lang="en-US" hidden>Next-generation high-speed inspection platform released</span></strong>
                     </article>
                     <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">现场备忘</span><span data-lang="en-US" hidden>Field memo</span></span>
-                        <strong><span data-lang="zh-CN">噪声供电环境下遥测采集为何会失败</span><span data-lang="en-US" hidden>Why telemetry collection fails in noisy power environments</span></strong>
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">技术文章</span><span data-lang="en-US" hidden>Technical article</span></span>
+                        <strong><span data-lang="zh-CN">如何提升精密装配场景的光学稳定性</span><span data-lang="en-US" hidden>Improving optical stability for precision assembly lines</span></strong>
                     </article>
                     <article class="{{class:blog-item}}">
-                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">运营整理</span><span data-lang="en-US" hidden>Operations</span></span>
-                        <strong><span data-lang="zh-CN">如何公开记录支持流程而不暴露控制界面</span><span data-lang="en-US" hidden>Documenting support pathways without exposing control surfaces</span></strong>
+                        <span class="{{class:blog-meta}}"><span data-lang="zh-CN">服务动态</span><span data-lang="en-US" hidden>Service update</span></span>
+                        <strong><span data-lang="zh-CN">华东区域交付与培训服务完成升级</span><span data-lang="en-US" hidden>Eastern region delivery and training service upgraded</span></strong>
                     </article>
                 </div>
             </section>
@@ -276,14 +276,14 @@
                 <div class="{{class:image-frame}}">
                     <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
                 </div>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">归档摘要</span><span data-lang="en-US" hidden>Archive summary</span></h2>
-                <p class="{{class:card-copy}}"><span data-lang="zh-CN">公开内容主要围绕硬件可靠性、流程改进和支持协作文档。内部工作空间、调试数据与生产控制界面被明确隔离在公开归档之外。</span><span data-lang="en-US" hidden>Published articles focus on hardware reliability, process improvements and support documentation. Internal workspaces, debug data and production controls are intentionally separated from the public archive.</span></p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">栏目摘要</span><span data-lang="en-US" hidden>Section overview</span></h2>
+                <p class="{{class:card-copy}}"><span data-lang="zh-CN">新闻中心围绕产品发布、行业应用、客户交付与服务更新进行整理，帮助访客快速了解公司动态与设备能力。</span><span data-lang="en-US" hidden>The newsroom covers launches, industry applications, customer delivery stories and service updates so visitors can quickly understand the company and its device capabilities.</span></p>
             </section>
         </section>
 
         <footer class="{{class:footer}}">
             <span>{{title}}</span>
-            <span class="{{class:footer-note}}"><span data-lang="zh-CN">生成时间 {{generatedAt}}</span><span data-lang="en-US" hidden>Generated {{generatedAt}}</span></span>
+            <span class="{{class:footer-note}}"><span data-lang="zh-CN">最近整理 {{generatedDateZh}}</span><span data-lang="en-US" hidden>Updated {{generatedDateEn}}</span></span>
         </footer>
     </div>
     <script>
