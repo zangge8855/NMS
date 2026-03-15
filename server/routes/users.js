@@ -3,11 +3,16 @@ import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { normalizeEmail } from '../lib/normalize.js';
 import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
+import ipGeoResolver, { normalizeIpAddress } from '../lib/ipGeoResolver.js';
+import ipIspResolver from '../lib/ipIspResolver.js';
 
 const router = Router();
+const MASKED_IP_PATTERN = /^ip_[0-9a-f]{16}$/i;
+const MASKED_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
 function collectUserEmails(user) {
     return Array.from(new Set([
@@ -45,6 +50,66 @@ function mergeAuditResults(results = [], pageSize = 50) {
         items: items.slice(0, pageSize),
         total: items.length,
     };
+}
+
+function normalizeAuditIp(value) {
+    const text = String(value || '').trim();
+    if (!text || text === 'unknown') return '';
+    if (MASKED_IP_PATTERN.test(text)) return '';
+    return normalizeIpAddress(text) || text;
+}
+
+function normalizeAuditUserAgent(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (MASKED_UA_PATTERN.test(text)) return '';
+    return text;
+}
+
+async function enrichAuditEvents(items = []) {
+    const rows = Array.isArray(items) ? items : [];
+    if (rows.length === 0) return [];
+
+    const auditIpGeo = systemSettingsStore.getAuditIpGeo();
+    ipGeoResolver.configure(auditIpGeo);
+    ipIspResolver.configure(auditIpGeo);
+
+    const geoEnabled = ipGeoResolver.isEnabled();
+    const ispEnabled = typeof ipIspResolver.isEnabled === 'function' && ipIspResolver.isEnabled();
+    const ipCandidates = rows.map((item) => normalizeAuditIp(item?.ip)).filter(Boolean);
+
+    let geoMap = new Map();
+    let ispMap = new Map();
+    if (geoEnabled) {
+        try {
+            geoMap = await ipGeoResolver.lookupMany(ipCandidates);
+        } catch {
+            geoMap = new Map();
+        }
+    }
+    if (ispEnabled) {
+        try {
+            ispMap = await ipIspResolver.lookupMany(ipCandidates);
+        } catch {
+            ispMap = new Map();
+        }
+    }
+
+    return rows.map((item) => {
+        const rawIp = String(item?.ip || '').trim();
+        const rawUserAgent = String(item?.details?.userAgent || item?.userAgent || '').trim();
+        const ip = normalizeAuditIp(rawIp);
+        const userAgent = normalizeAuditUserAgent(rawUserAgent);
+        return {
+            ...item,
+            ip,
+            ipMasked: !ip && MASKED_IP_PATTERN.test(rawIp),
+            userAgent,
+            userAgentMasked: !userAgent && MASKED_UA_PATTERN.test(rawUserAgent),
+            ipLocation: geoEnabled ? ipGeoResolver.pickFromMap(geoMap, ip) : '',
+            ipCarrier: ispEnabled ? ipIspResolver.pickFromMap(ispMap, ip) : '',
+        };
+    });
 }
 
 // GET /api/users/:id/detail — aggregate user detail
@@ -95,6 +160,10 @@ router.get('/:id/detail', async (req, res) => {
             auditQueries,
             50
         );
+        recentAudit = {
+            ...recentAudit,
+            items: await enrichAuditEvents(recentAudit.items),
+        };
     } catch (e) { console.error(`[Users Route] Failed to query audit events:`, e.message); }
 
     // Subscription access logs

@@ -73,4 +73,11 @@ describe('Sidebar', () => {
 
         expect(container.querySelector('.sidebar-user')).toBeNull();
     });
+
+    it('renders logout in the fixed footer area instead of the scrollable nav list', () => {
+        const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
+
+        expect(container.querySelector('.sidebar-footer-nav .sidebar-logout')).not.toBeNull();
+        expect(container.querySelector('.sidebar-nav .sidebar-logout')).toBeNull();
+    });
 });

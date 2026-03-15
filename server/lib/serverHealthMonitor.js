@@ -1,12 +1,17 @@
 import notificationService, { SEVERITY } from './notifications.js';
 import serverStore from '../store/serverStore.js';
-import { ensureAuthenticated, fetchPanelServerStatus } from './panelClient.js';
+import {
+    collectClusterStatusSnapshot,
+    HEALTHY,
+    DEGRADED,
+    UNREACHABLE,
+    MAINTENANCE,
+    STATUS_REASON,
+    getCachedClusterStatusSnapshot,
+    resetClusterStatusSnapshotCache,
+} from './serverStatusService.js';
 
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
-const HEALTHY = 'healthy';
-const DEGRADED = 'degraded';
-const UNREACHABLE = 'unreachable';
-const MAINTENANCE = 'maintenance';
 
 function startBackgroundInterval(fn, delayMs) {
     const timer = setInterval(fn, delayMs);
@@ -16,27 +21,123 @@ function startBackgroundInterval(fn, delayMs) {
     return timer;
 }
 
-function normalizeErrorMessage(error) {
-    return String(
-        error?.response?.data?.msg
-        || error?.message
-        || error
-        || ''
-    ).trim();
-}
-
-function deriveHealthFromStatus(statusPayload) {
-    const xrayState = String(statusPayload?.obj?.xray?.state || '').trim().toLowerCase();
-    if (!xrayState || xrayState === 'running') {
+function buildNotificationForState(previous, next) {
+    if (next.health === HEALTHY && previous.health !== HEALTHY) {
         return {
-            health: HEALTHY,
-            detail: '',
+            type: 'server_health_recovered',
+            severity: SEVERITY.INFO,
+            title: `节点已恢复: ${next.name}`,
+            body: `节点 ${next.name} 已恢复可用状态`,
+            dedupKey: `server_health:${next.serverId}:healthy`,
         };
     }
-    return {
-        health: DEGRADED,
-        detail: statusPayload?.obj?.xray?.errorMsg || `xray=${xrayState}`,
-    };
+
+    if (next.health === DEGRADED && previous.reasonCode === next.reasonCode && previous.health === DEGRADED) {
+        return null;
+    }
+
+    if (next.health === DEGRADED) {
+        if (next.reasonCode === STATUS_REASON.CREDENTIALS_MISSING) {
+            return {
+                type: 'server_health_credentials_missing',
+                severity: SEVERITY.WARNING,
+                title: `节点凭据缺失: ${next.name}`,
+                body: `节点 ${next.name} 缺少可用的面板账号或密码，请补全后再巡检: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:credentials_missing`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.CREDENTIALS_UNREADABLE) {
+            return {
+                type: 'server_health_credentials_unreadable',
+                severity: SEVERITY.WARNING,
+                title: `节点凭据不可解密: ${next.name}`,
+                body: `节点 ${next.name} 的面板凭据无法解密，请确认 CREDENTIALS_SECRET 未变更并重新保存节点凭据: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:credentials_unreadable`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.AUTH_FAILED) {
+            return {
+                type: 'server_health_auth_failed',
+                severity: SEVERITY.WARNING,
+                title: `节点认证失败: ${next.name}`,
+                body: `节点 ${next.name} 无法通过当前凭据登录 3x-ui: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:auth_failed`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.STATUS_UNSUPPORTED) {
+            return {
+                type: 'server_health_status_unsupported',
+                severity: SEVERITY.WARNING,
+                title: `节点接口不兼容: ${next.name}`,
+                body: `节点 ${next.name} 当前 3x-ui 版本不支持兼容的状态接口，请检查面板版本或 BasePath: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:status_unsupported`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.XRAY_NOT_RUNNING) {
+            return {
+                type: 'server_health_xray_not_running',
+                severity: SEVERITY.WARNING,
+                title: `节点状态异常: ${next.name}`,
+                body: `节点 ${next.name} 返回异常状态: ${next.reasonMessage || 'xray not running'}`,
+                dedupKey: `server_health:${next.serverId}:xray_not_running`,
+            };
+        }
+        return {
+            type: 'server_health_request_failed',
+            severity: SEVERITY.WARNING,
+            title: `节点检查失败: ${next.name}`,
+            body: `节点 ${next.name} 状态检查失败: ${next.reasonMessage}`,
+            dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'panel_request_failed'}`,
+        };
+    }
+
+    if (next.health === UNREACHABLE && (previous.health !== UNREACHABLE || previous.reasonCode !== next.reasonCode)) {
+        if (next.reasonCode === STATUS_REASON.DNS_ERROR) {
+            return {
+                type: 'server_health_dns_error',
+                severity: SEVERITY.CRITICAL,
+                title: `节点域名解析失败: ${next.name}`,
+                body: `节点 ${next.name} 的面板地址无法完成 DNS 解析，请检查节点 URL 或 DNS 配置: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:dns_error`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.CONNECT_TIMEOUT) {
+            return {
+                type: 'server_health_connect_timeout',
+                severity: SEVERITY.CRITICAL,
+                title: `节点连接超时: ${next.name}`,
+                body: `节点 ${next.name} 连接 3x-ui 超时，请检查网络路径、防火墙或面板负载: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:connect_timeout`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.CONNECTION_REFUSED) {
+            return {
+                type: 'server_health_connection_refused',
+                severity: SEVERITY.CRITICAL,
+                title: `节点拒绝连接: ${next.name}`,
+                body: `节点 ${next.name} 拒绝了 3x-ui 连接，请确认面板端口和服务进程是否正常监听: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:connection_refused`,
+            };
+        }
+        if (next.reasonCode === STATUS_REASON.NETWORK_ERROR) {
+            return {
+                type: 'server_health_network_error',
+                severity: SEVERITY.CRITICAL,
+                title: `节点网络异常: ${next.name}`,
+                body: `节点 ${next.name} 与 3x-ui 的网络链路异常，请检查路由、主机连通性或中间代理: ${next.reasonMessage}`,
+                dedupKey: `server_health:${next.serverId}:network_error`,
+            };
+        }
+        return {
+            type: 'server_health_unreachable',
+            severity: SEVERITY.CRITICAL,
+            title: `节点连接失败: ${next.name}`,
+            body: `节点 ${next.name} 无法连接到 3x-ui: ${next.reasonMessage}`,
+            dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'unreachable'}`,
+        };
+    }
+
+    return null;
 }
 
 class ServerHealthMonitor {
@@ -79,107 +180,60 @@ class ServerHealthMonitor {
         const serverList = typeof deps.listServers === 'function'
             ? await deps.listServers()
             : serverStore.getAll();
-        const auth = deps.ensureAuthenticated || ensureAuthenticated;
         const notify = deps.notify || ((payload) => notificationService.notify(payload));
         const updater = deps.updateServer || ((serverId, patch) => serverStore.update(serverId, patch));
-        const results = [];
+        const collector = deps.collectClusterStatusSnapshot || collectClusterStatusSnapshot;
+        const forceRefresh = deps.force === true
+            || typeof deps.listServers === 'function'
+            || typeof deps.ensureAuthenticated === 'function'
+            || typeof deps.collectClusterStatusSnapshot === 'function';
+        const snapshot = await collector({
+            servers: serverList,
+            includeDetails: false,
+            ensureAuthenticated: deps.ensureAuthenticated,
+            force: forceRefresh,
+            maxAgeMs: forceRefresh ? 0 : (Number(deps.maxAgeMs || 0) || 20_000),
+        });
+        const results = Array.isArray(snapshot?.items) ? snapshot.items : [];
+        const summary = snapshot?.summary || {
+            total: 0,
+            healthy: 0,
+            degraded: 0,
+            unreachable: 0,
+            maintenance: 0,
+            checkedAt: new Date().toISOString(),
+            byReason: {},
+        };
 
-        for (const server of serverList) {
+        for (const result of results) {
+            const server = serverList.find((item) => item.id === result.serverId) || { id: result.serverId, name: result.name };
             const previous = this.serverStates.get(server.id) || {
                 health: String(server.health || 'unknown').trim().toLowerCase() || 'unknown',
+                reasonCode: '',
                 error: '',
                 checkedAt: null,
             };
+            this.serverStates.set(server.id, result);
 
-            if (previous.health === MAINTENANCE || String(server.health || '').trim().toLowerCase() === MAINTENANCE) {
-                const maintenanceResult = {
-                    serverId: server.id,
-                    name: server.name,
-                    health: MAINTENANCE,
-                    error: '',
-                    checkedAt: new Date().toISOString(),
-                };
-                this.serverStates.set(server.id, maintenanceResult);
-                results.push(maintenanceResult);
-                continue;
+            const notification = buildNotificationForState(previous, result);
+            if (notification) {
+                notify({
+                    ...notification,
+                    meta: {
+                        serverId: result.serverId,
+                        previousHealth: previous.health,
+                        currentHealth: result.health,
+                        reasonCode: result.reasonCode,
+                        reasonMessage: result.reasonMessage,
+                        retryable: result.retryable,
+                    },
+                });
             }
 
-            try {
-                const client = await auth(server.id);
-                const response = await fetchPanelServerStatus(client);
-                const next = deriveHealthFromStatus(response?.data || response);
-                const checkedAt = new Date().toISOString();
-                const result = {
-                    serverId: server.id,
-                    name: server.name,
-                    health: next.health,
-                    error: next.detail,
-                    checkedAt,
-                };
-                this.serverStates.set(server.id, result);
-                results.push(result);
-
-                if (next.health !== previous.health && next.health === HEALTHY) {
-                    notify({
-                        type: 'server_health_recovered',
-                        severity: SEVERITY.INFO,
-                        title: `节点已恢复: ${server.name}`,
-                        body: `节点 ${server.name} 已恢复可用状态`,
-                        meta: { serverId: server.id, previousHealth: previous.health, currentHealth: next.health },
-                        dedupKey: `server_health:${server.id}:healthy`,
-                    });
-                } else if (next.health !== previous.health && next.health === DEGRADED) {
-                    notify({
-                        type: 'server_health_degraded',
-                        severity: SEVERITY.WARNING,
-                        title: `节点状态异常: ${server.name}`,
-                        body: `节点 ${server.name} 返回异常状态: ${next.detail || 'xray not running'}`,
-                        meta: { serverId: server.id, previousHealth: previous.health, currentHealth: next.health, error: next.detail || '' },
-                        dedupKey: `server_health:${server.id}:degraded`,
-                    });
-                }
-
-                if (next.health !== previous.health) {
-                    updater(server.id, { health: next.health });
-                }
-            } catch (error) {
-                const checkedAt = new Date().toISOString();
-                const message = normalizeErrorMessage(error) || 'panel-unreachable';
-                const result = {
-                    serverId: server.id,
-                    name: server.name,
-                    health: UNREACHABLE,
-                    error: message,
-                    checkedAt,
-                };
-                this.serverStates.set(server.id, result);
-                results.push(result);
-
-                if (previous.health !== UNREACHABLE) {
-                    notify({
-                        type: 'server_health_unreachable',
-                        severity: SEVERITY.CRITICAL,
-                        title: `节点不可达: ${server.name}`,
-                        body: `节点 ${server.name} 无法访问 3x-ui: ${message}`,
-                        meta: { serverId: server.id, previousHealth: previous.health, currentHealth: UNREACHABLE, error: message },
-                        dedupKey: `server_health:${server.id}:unreachable`,
-                    });
-                }
-
-                if (previous.health !== UNREACHABLE) {
-                    updater(server.id, { health: UNREACHABLE });
-                }
+            if (result.health !== previous.health) {
+                updater(server.id, { health: result.health });
             }
         }
-
-        const summary = {
-            total: results.length,
-            healthy: results.filter((item) => item.health === HEALTHY).length,
-            degraded: results.filter((item) => item.health === DEGRADED).length,
-            unreachable: results.filter((item) => item.health === UNREACHABLE).length,
-            maintenance: results.filter((item) => item.health === MAINTENANCE).length,
-            checkedAt: new Date().toISOString(),
-        };
 
         this.lastRunAt = summary.checkedAt;
         this.lastSummary = summary;
@@ -191,12 +245,15 @@ class ServerHealthMonitor {
     }
 
     getStatus() {
+        const cachedSnapshot = getCachedClusterStatusSnapshot();
         return {
             running: this.running,
             intervalMs: this.intervalMs,
-            lastRunAt: this.lastRunAt,
-            summary: this.lastSummary,
-            items: Array.from(this.serverStates.values()),
+            lastRunAt: this.lastRunAt || cachedSnapshot?.summary?.checkedAt || null,
+            summary: this.lastSummary || cachedSnapshot?.summary || null,
+            items: Array.from(this.serverStates.values()).length > 0
+                ? Array.from(this.serverStates.values())
+                : (cachedSnapshot?.items || []),
         };
     }
 
@@ -206,6 +263,7 @@ class ServerHealthMonitor {
         this.lastRunAt = null;
         this.lastSummary = null;
         this.serverStates.clear();
+        resetClusterStatusSnapshotCache();
     }
 }
 

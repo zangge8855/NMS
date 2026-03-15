@@ -233,6 +233,15 @@ const config = {
         backfillDryRunDefault: parseBoolean(process.env.DB_BACKFILL_DRY_RUN, true),
         privacyMode: String(process.env.DB_PRIVACY_MODE || (isDevelopment ? 'strict' : 'standard')).trim().toLowerCase() || 'standard',
     },
+    telegram: {
+        enabled: parseBoolean(process.env.TELEGRAM_ALERTS_ENABLED, false),
+        botToken: String(process.env.TELEGRAM_BOT_TOKEN || '').trim(),
+        chatId: String(process.env.TELEGRAM_CHAT_ID || '').trim(),
+        apiBaseUrl: parseHttpUrl(process.env.TELEGRAM_API_BASE_URL) || 'https://api.telegram.org',
+        alertSeverities: parseStringList(process.env.TELEGRAM_ALERT_SEVERITIES || 'warning,critical'),
+        auditEvents: parseStringList(process.env.TELEGRAM_AUDIT_EVENTS),
+        dedupWindowMs: parsePositiveInt(process.env.TELEGRAM_ALERT_DEDUP_MS, 2 * 60 * 1000),
+    },
     port: parseInt(process.env.PORT, 10) || 3001,
     nodeEnv,
     // Path to store server registry

@@ -38,7 +38,7 @@ describe('capabilities payload alignment', () => {
 
         assert.equal(databaseManagement?.status, 'integrated');
         assert.equal(databaseManagement?.supportedByNms, true);
-        assert.equal(telegramBot?.status, 'guided_only');
-        assert.equal(telegramBot?.supportedByNms, false);
+        assert.equal(telegramBot?.status, 'integrated');
+        assert.equal(telegramBot?.supportedByNms, true);
     });
 });

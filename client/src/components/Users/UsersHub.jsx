@@ -12,6 +12,7 @@ import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
+import { fetchManagedUsers, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -168,6 +169,9 @@ function getUsersHubCopy(locale = 'zh-CN') {
             createProvisionToggle: 'Open provisioning right after create',
             provisionModalTitle: 'Enable Subscription',
             passwordCopied: 'Password copied to clipboard',
+            userListLoadFailedTitle: 'Failed to load user list',
+            degradedDataTitle: 'Node data partially unavailable',
+            degradedDataIntro: 'The user list is available, but some node data failed to load. Traffic and online status may be incomplete.',
         };
     }
     return {
@@ -179,7 +183,41 @@ function getUsersHubCopy(locale = 'zh-CN') {
         createProvisionToggle: '创建后立即进入"开通订阅/分配节点"',
         provisionModalTitle: '开通订阅',
         passwordCopied: '密码已复制到剪贴板',
+        userListLoadFailedTitle: '用户列表加载失败',
+        degradedDataTitle: '节点数据已降级显示',
+        degradedDataIntro: '基础用户列表已加载，但部分节点的入站配置或在线状态读取失败，流量和在线统计可能不完整。',
     };
+}
+
+function summarizePartialErrors(partialErrors, locale = 'zh-CN') {
+    if (!Array.isArray(partialErrors) || partialErrors.length === 0) return '';
+
+    const inboundsServers = partialErrors
+        .filter((item) => item.kind === 'inbounds')
+        .map((item) => item.serverName);
+    const presenceServers = partialErrors
+        .filter((item) => item.kind === 'presence')
+        .map((item) => item.serverName);
+
+    if (locale === 'en-US') {
+        const parts = [];
+        if (inboundsServers.length > 0) {
+            parts.push(`inbounds unavailable on ${inboundsServers.join(', ')}`);
+        }
+        if (presenceServers.length > 0) {
+            parts.push(`online presence unavailable on ${presenceServers.join(', ')}`);
+        }
+        return parts.join('; ');
+    }
+
+    const parts = [];
+    if (inboundsServers.length > 0) {
+        parts.push(`入站配置失败: ${inboundsServers.join('、')}`);
+    }
+    if (presenceServers.length > 0) {
+        parts.push(`在线状态失败: ${presenceServers.join('、')}`);
+    }
+    return parts.join('；');
 }
 
 export default function UsersHub() {
@@ -193,6 +231,8 @@ export default function UsersHub() {
     const [clientsMap, setClientsMap] = useState(new Map());
     const [onlineMap, setOnlineMap] = useState(new Map());
     const [loading, setLoading] = useState(true);
+    const [primaryError, setPrimaryError] = useState('');
+    const [partialErrors, setPartialErrors] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const navigate = useNavigate();
@@ -250,31 +290,60 @@ export default function UsersHub() {
         setSearchTerm(queryValue);
     }, [searchParams]);
 
-    const fetchData = async () => {
+    const fetchData = async (options = {}) => {
+        const forceUsers = options.forceUsers === true;
         setLoading(true);
+        setPrimaryError('');
+        setPartialErrors([]);
         try {
-            const [usersRes, ...serverResults] = await Promise.all([
-                api.get('/auth/users'),
-                ...servers.map((s) =>
-                    Promise.all([
-                        api.get(`/panel/${s.id}/panel/api/inbounds/list`).catch(() => ({ data: { obj: [] } })),
-                        api.post(`/panel/${s.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
-                    ])
-                ),
-            ]);
-            const userList = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
-            setUsers(userList.filter((u) => u.role !== 'admin'));
+            const userList = await fetchManagedUsers(api, { force: forceUsers });
+            setUsers(userList);
+            setSelectedIds((previous) => new Set(
+                Array.from(previous).filter((id) => userList.some((user) => user.id === id))
+            ));
 
-            // Build email → client data map + collect inbound info
+            const nextPartialErrors = [];
+            const serverResults = await Promise.all(
+                servers.map(async (server) => {
+                    let inbounds = [];
+                    let onlines = [];
+
+                    try {
+                        const inboundsRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
+                        inbounds = Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [];
+                    } catch (error) {
+                        nextPartialErrors.push({
+                            kind: 'inbounds',
+                            serverId: server.id,
+                            serverName: server.name,
+                            message: error?.response?.data?.msg || error?.message || 'inbounds unavailable',
+                        });
+                    }
+
+                    try {
+                        const onlinesRes = await api.post(`/panel/${server.id}/panel/api/inbounds/onlines`);
+                        onlines = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
+                    } catch (error) {
+                        nextPartialErrors.push({
+                            kind: 'presence',
+                            serverId: server.id,
+                            serverName: server.name,
+                            message: error?.response?.data?.msg || error?.message || 'presence unavailable',
+                        });
+                    }
+
+                    return { server, inbounds, onlines };
+                })
+            );
+
             const emailMap = new Map();
             const onlineEmailMap = new Map();
             const expiryRef = [];
             const inboundList = [];
-            serverResults.forEach((result, idx) => {
-                const server = servers[idx];
-                const [inboundsRes, onlinesRes] = Array.isArray(result) ? result : [{ data: { obj: [] } }, { data: { obj: [] } }];
-                const inbounds = inboundsRes.data?.obj || [];
-                const onlines = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
+            serverResults.forEach((result) => {
+                const server = result.server;
+                const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+                const onlines = Array.isArray(result?.onlines) ? result.onlines : [];
                 const onlineCounter = new Map();
 
                 onlines.forEach((entry) => {
@@ -293,13 +362,10 @@ export default function UsersHub() {
                     if (ib.enable === false) return;
 
                     const ibClients = mergeInboundClientStats(ib);
-
                     const ibKey = `${server.id}:${ib.id}`;
-
-                    // Collect representative expiry for this inbound
                     const ibExpiries = ibClients
                         .map((cl) => Number(cl.expiryTime || 0))
-                        .filter((t) => t > 0);
+                        .filter((value) => value > 0);
                     let representativeExpiry = 0;
                     if (ibExpiries.length > 0) {
                         ibExpiries.sort((a, b) => a - b);
@@ -345,12 +411,22 @@ export default function UsersHub() {
                     });
                 });
             });
+
             setClientsMap(emailMap);
             setOnlineMap(onlineEmailMap);
             setInboundExpiries(expiryRef);
             setAllInbounds(inboundList);
+            setPartialErrors(nextPartialErrors);
         } catch (err) {
             console.error('Failed to fetch users data', err);
+            const message = err?.response?.data?.msg || err?.message || t('comp.users.loadFailed');
+            setPrimaryError(message);
+            setUsers([]);
+            setSelectedIds(new Set());
+            setClientsMap(new Map());
+            setOnlineMap(new Map());
+            setInboundExpiries([]);
+            setAllInbounds([]);
             toast.error(t('comp.users.loadFailed'));
         }
         setLoading(false);
@@ -419,7 +495,8 @@ export default function UsersHub() {
                 } else {
                     toast.success(message);
                 }
-                await fetchData();
+                invalidateManagedUsersCache();
+                await fetchData({ forceUsers: true });
             } else {
                 toast.error(res.data?.msg || t('comp.common.operationFailed'));
             }
@@ -443,7 +520,8 @@ export default function UsersHub() {
             const res = await api.delete(`/auth/users/${encodeURIComponent(user.id)}`);
             if (res.data?.success) {
                 toast.success(`用户 ${user.username} 已删除`);
-                await fetchData();
+                invalidateManagedUsersCache();
+                await fetchData({ forceUsers: true });
             } else {
                 toast.error(res.data?.msg || t('comp.common.deleteFailed'));
             }
@@ -472,7 +550,8 @@ export default function UsersHub() {
                     toast.success(res.data.msg);
                 }
                 setSelectedIds(new Set());
-                await fetchData();
+                invalidateManagedUsersCache();
+                await fetchData({ forceUsers: true });
             } else {
                 toast.error(res.data?.msg || t('comp.common.operationFailed'));
             }
@@ -840,7 +919,8 @@ export default function UsersHub() {
             });
 
             try {
-                await fetchData();
+                invalidateManagedUsersCache();
+                await fetchData({ forceUsers: true });
             } catch (refreshErr) {
                 console.error('Failed to refresh users hub after provisioning:', refreshErr);
             }
@@ -1027,7 +1107,8 @@ export default function UsersHub() {
             }
 
             closeEditModal();
-            await fetchData();
+            invalidateManagedUsersCache();
+            await fetchData({ forceUsers: true });
         } catch (err) {
             toast.error(err.response?.data?.msg || err.message || t('comp.users.updateFailed'));
         }
@@ -1082,7 +1163,8 @@ export default function UsersHub() {
             const createdUser = res.data.obj;
             toast.success(`用户 ${createdUser.username || username} 已创建`);
             closeCreateModal();
-            await fetchData();
+            invalidateManagedUsersCache();
+            await fetchData({ forceUsers: true });
 
             if (createProvisionAfterCreate) {
                 const targetEmail = normalizeEmail(createdUser.subscriptionEmail || createdUser.email);
@@ -1142,7 +1224,7 @@ export default function UsersHub() {
                         <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
                             <HiOutlineArrowDownTray /> 导出
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={fetchData} title="刷新">
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title="刷新">
                             <HiOutlineArrowPath /> 刷新
                         </button>
                         <button className="btn btn-primary btn-sm" onClick={openCreateModal} title="添加账号">
@@ -1150,6 +1232,21 @@ export default function UsersHub() {
                         </button>
                     </div>
                 </div>
+
+                {primaryError && !loading && (
+                    <div className="glass-panel mb-4" role="alert">
+                        <div className="text-sm font-semibold">{copy.userListLoadFailedTitle}</div>
+                        <div className="text-sm text-muted mt-1">{primaryError}</div>
+                    </div>
+                )}
+
+                {partialErrors.length > 0 && !primaryError && !loading && (
+                    <div className="glass-panel mb-4" role="status">
+                        <div className="text-sm font-semibold">{copy.degradedDataTitle}</div>
+                        <div className="text-sm text-muted mt-1">{copy.degradedDataIntro}</div>
+                        <div className="text-xs text-muted mt-2">{summarizePartialErrors(partialErrors, locale)}</div>
+                    </div>
+                )}
 
                 {selectedIds.size > 0 && (
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
@@ -1188,6 +1285,10 @@ export default function UsersHub() {
                         </div>
                         {loading ? (
                             <div className="glass-panel p-4"><SkeletonTable rows={5} cols={1} /></div>
+                        ) : primaryError ? (
+                            <div className="glass-panel p-4">
+                                <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                            </div>
                         ) : enrichedUsers.length === 0 ? (
                             <div className="glass-panel p-4">
                                 <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
@@ -1229,6 +1330,10 @@ export default function UsersHub() {
                             <tbody>
                                 {loading ? (
                                     <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" /></td></tr>
+                                ) : primaryError ? (
+                                    <tr><td colSpan={9}>
+                                        <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                                    </td></tr>
                                 ) : enrichedUsers.length === 0 ? (
                                     <tr><td colSpan={9}>
                                         <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />

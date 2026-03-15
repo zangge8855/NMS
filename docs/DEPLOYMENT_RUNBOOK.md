@@ -40,7 +40,7 @@ Install server dependencies and start:
 ```bash
 cd ../server
 npm ci
-NODE_ENV=production node index.js
+NODE_ENV=production node scripts/start_production.js
 ```
 
 To keep the process supervised:
@@ -49,6 +49,8 @@ To keep the process supervised:
 pm2 start ecosystem.config.cjs
 pm2 save
 ```
+
+The production startup entry now runs a preflight that fails fast when `.env` is unsafe or `client/dist/index.html` is missing.
 
 ### Option 2: Docker Deployment
 
@@ -189,7 +191,7 @@ npm run build
 ```bash
 cd ../server
 npm ci
-NODE_ENV=production node index.js
+NODE_ENV=production node scripts/start_production.js
 ```
 
 如需进程托管:
@@ -198,6 +200,8 @@ NODE_ENV=production node index.js
 pm2 start ecosystem.config.cjs
 pm2 save
 ```
+
+新的生产启动入口会先执行 preflight；如果 `.env` 不安全或 `client/dist/index.html` 缺失，会在真正启动前直接失败并输出修复提示。
 
 ### 方式二: Docker 部署
 

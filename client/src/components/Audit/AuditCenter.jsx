@@ -128,6 +128,7 @@ const AUDIT_COPY = {
             noAccess: '暂无访问记录',
             noAccessSubtitle: '订阅链接访问记录将在此显示',
             noData: '暂无数据',
+            maskedUser: '已脱敏用户',
             total: '共 {count} 条',
         },
         traffic: {
@@ -295,6 +296,7 @@ const AUDIT_COPY = {
             noAccess: 'No access records',
             noAccessSubtitle: 'Subscription access records will appear here',
             noData: 'No data',
+            maskedUser: 'Masked user',
             total: '{count} total',
         },
         traffic: {
@@ -428,6 +430,36 @@ function formatTrafficUserLabel(item) {
     const email = String(item?.email || '').trim();
     if (username && email) return `${username} · ${email}`;
     return username || email || '-';
+}
+
+function isMaskedAccessEmail(value) {
+    return String(value || '').trim().toLowerCase().endsWith('@masked.local');
+}
+
+function formatAccessUserLabel(item, copy) {
+    const userLabel = String(item?.userLabel || '').trim();
+    if (userLabel && !isMaskedAccessEmail(userLabel)) return userLabel;
+
+    const username = String(item?.username || '').trim();
+    if (username) return username;
+
+    const userEmail = String(item?.userEmail || '').trim();
+    if (userEmail && !isMaskedAccessEmail(userEmail)) return userEmail;
+
+    const email = String(item?.email || '').trim();
+    if (email && !isMaskedAccessEmail(email)) return email;
+
+    return copy.states.maskedUser;
+}
+
+function formatAccessUserMeta(item, copy) {
+    const primaryLabel = formatAccessUserLabel(item, copy);
+    const candidates = [
+        String(item?.userEmail || '').trim(),
+        String(item?.email || '').trim(),
+    ];
+
+    return candidates.find((candidate) => candidate && !isMaskedAccessEmail(candidate) && candidate !== primaryLabel) || '';
 }
 
 const AUDIT_EVENT_LABELS = {
@@ -675,19 +707,21 @@ function AuditAccessMobileList({ items = [], copy, locale }) {
         <div className="audit-mobile-list">
             {items.map((item) => {
                 const geoDisplay = resolveAccessGeoDisplay(item);
+                const userLabel = formatAccessUserLabel(item, copy);
+                const userMeta = formatAccessUserMeta(item, copy);
                 return (
                     <div key={item.id} className="audit-mobile-card">
                         <div className="audit-mobile-card-head">
                             <div className="audit-mobile-card-copy">
-                                <div className="audit-mobile-card-title">{item.userLabel || item.username || item.email || '-'}</div>
+                                <div className="audit-mobile-card-title">{userLabel}</div>
                                 <div className="audit-mobile-card-subtitle">{formatDateTime(item.ts, locale)}</div>
                             </div>
                             <span className={`badge ${statusBadgeClass(item.status)}`}>
                                 {formatAuditStatusLabel(item.status, locale)}
                             </span>
                         </div>
-                        {item.email && item.email !== (item.userLabel || '') ? (
-                            <div className="audit-mobile-inline-note">{item.email}</div>
+                        {userMeta ? (
+                            <div className="audit-mobile-inline-note">{userMeta}</div>
                         ) : null}
                         <div className="audit-mobile-card-grid">
                             <div className="audit-mobile-card-item">
@@ -1620,14 +1654,16 @@ export default function AuditCenter() {
                                     <tbody>
                                         {accessData.items.map((item) => {
                                             const geoDisplay = resolveAccessGeoDisplay(item);
+                                            const userLabel = formatAccessUserLabel(item, copy);
+                                            const userMeta = formatAccessUserMeta(item, copy);
                                             return (
                                             <tr key={item.id}>
                                                 <td data-label={copy.tables.time} style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
                                                 <td data-label={copy.tables.user}>
                                                     <div className="audit-access-user">
-                                                        <span className="audit-access-user-label">{item.userLabel || item.username || item.email || '-'}</span>
-                                                        {item.email && item.email !== (item.userLabel || '') && (
-                                                            <span className="audit-access-user-meta">{item.email}</span>
+                                                        <span className="audit-access-user-label">{userLabel}</span>
+                                                        {userMeta && (
+                                                            <span className="audit-access-user-meta">{userMeta}</span>
                                                         )}
                                                     </div>
                                                 </td>

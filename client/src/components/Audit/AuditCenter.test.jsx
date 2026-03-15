@@ -195,6 +195,60 @@ describe('AuditCenter localization', () => {
         expect(screen.queryByText('revoked')).not.toBeInTheDocument();
     });
 
+    it('hides masked subscription identifiers behind a localized user label', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/subscriptions/access?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    id: 'access-masked',
+                                    ts: '2026-03-13T10:00:00.000Z',
+                                    userLabel: 'dd43f8a31ad7ff43@masked.local',
+                                    email: 'dd43f8a31ad7ff43@masked.local',
+                                    status: 'success',
+                                    clientIp: '203.0.113.8',
+                                    ipSource: 'real',
+                                    userAgent: 'Clash',
+                                },
+                            ],
+                            total: 1,
+                            page: 1,
+                            totalPages: 1,
+                            statusBreakdown: {
+                                success: 1,
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/subscriptions/access/summary?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            total: 1,
+                            uniqueIpCount: 1,
+                            uniqueUsers: 1,
+                            statusBreakdown: {
+                                success: 1,
+                            },
+                            topIps: [],
+                            from: '',
+                            to: '',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
+
+        expect(await screen.findByText('已脱敏用户')).toBeInTheDocument();
+        expect(screen.queryByText('dd43f8a31ad7ff43@masked.local')).not.toBeInTheDocument();
+    });
+
     it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {
         api.get.mockImplementation((url) => {
             if (url.startsWith('/traffic/overview?')) {

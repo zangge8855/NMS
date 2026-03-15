@@ -151,9 +151,88 @@ describe('UserDetail', () => {
 
         expect(within(timelineRow).getByText('成功')).toBeInTheDocument();
         expect(within(timelineRow).queryByText('失败')).not.toBeInTheDocument();
-        expect(within(timelineRow).getByText(/IP: 203.0.113.8/)).toBeInTheDocument();
-        expect(within(timelineRow).getByText(/地区 中国 浙江 杭州/)).toBeInTheDocument();
-        expect(within(timelineRow).getByText(/运营商 中国电信/)).toBeInTheDocument();
+        expect(within(timelineRow).getByText('IP')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('203.0.113.8')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('地区')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('中国 浙江 杭州')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('运营商')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('中国电信')).toBeInTheDocument();
+    });
+
+    it('renders audit events with structured facts and hides masked audit values', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            user: {
+                                id: 'user-1',
+                                username: 'alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                emailVerified: true,
+                                role: 'user',
+                                enabled: true,
+                                createdAt: '2026-03-11T10:00:00.000Z',
+                                lastLoginAt: '2026-03-11T11:00:00.000Z',
+                            },
+                            policy: null,
+                            recentAudit: {
+                                items: [
+                                    {
+                                        id: 'audit-1',
+                                        ts: '2026-03-11T12:10:00.000Z',
+                                        eventType: 'login_success',
+                                        actor: 'alice',
+                                        outcome: 'success',
+                                        method: 'POST',
+                                        path: '/api/auth/login',
+                                        ip: '',
+                                        ipMasked: true,
+                                        userAgent: '',
+                                        userAgentMasked: true,
+                                        resourceType: 'session',
+                                        resourceId: 'session-1',
+                                        details: {
+                                            userAgent: 'ua_1234567890abcdef',
+                                        },
+                                    },
+                                ],
+                                total: 1,
+                            },
+                            subscriptionAccess: {
+                                items: [],
+                                total: 0,
+                            },
+                            tokens: [],
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />);
+
+        await screen.findByText('用户详情 · alice');
+        await user.click(screen.getByRole('button', { name: '活动日志' }));
+
+        const timelineItem = await screen.findByText('登录成功');
+        const timelineRow = timelineItem.closest('.timeline-item');
+        if (!timelineRow) throw new Error('Missing audit timeline row');
+
+        expect(within(timelineRow).getByText('方法')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('POST')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('路径')).toBeInTheDocument();
+        expect(within(timelineRow).getAllByText('/api/auth/login').length).toBeGreaterThanOrEqual(1);
+        expect(within(timelineRow).getByText('资源')).toBeInTheDocument();
+        expect(within(timelineRow).getByText('session / session-1')).toBeInTheDocument();
+        expect(within(timelineRow).getAllByText('已脱敏').length).toBeGreaterThanOrEqual(2);
+        expect(within(timelineRow).queryByText(/ip_1b2b75909e944f4e/i)).not.toBeInTheDocument();
+        expect(within(timelineRow).queryByText(/ua_1234567890abcdef/i)).not.toBeInTheDocument();
     });
 
     it('renders the subscription tab without crashing when opened directly from user management', async () => {

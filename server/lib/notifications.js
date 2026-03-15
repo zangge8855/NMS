@@ -13,6 +13,7 @@ import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
+import telegramAlertService from './telegramAlertService.js';
 
 export const SEVERITY = {
     INFO: 'info',
@@ -111,6 +112,7 @@ class NotificationService extends EventEmitter {
 
         // 触发事件，让 WebSocket 层监听并广播
         this.emit('notification', notification);
+        void telegramAlertService.notifyNotification(notification);
 
         this._scheduleSave();
         return notification;

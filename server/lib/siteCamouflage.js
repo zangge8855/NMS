@@ -470,8 +470,8 @@ function createRenderModel(options = {}) {
     const deliveryNoticeEn = statusCode === 200 ? 'This page provides service documents, download notes and contact information.' : 'This page is not currently available. Please continue through the service and support section.';
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
-    const descriptionZh = `${title} 是一家专注工业检测设备、视觉终端与自动化解决方案的设备制造商，官网提供产品资料、行业方案与服务支持信息。`;
-    const descriptionEn = `${title} is a device manufacturer focused on industrial inspection equipment, vision terminals and automation solutions, with product, industry and support information on the official site.`;
+    const descriptionZh = `${title} 官方网站，提供公开页面与基础导航信息。`;
+    const descriptionEn = `${title} official website with public pages and core navigation information.`;
     const generatedDateZh = `${year}年${month}月${day}日`;
     const generatedDateEn = `${monthNamesEn[now.getUTCMonth()]} ${Number(day)}, ${year}`;
 

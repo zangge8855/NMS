@@ -305,8 +305,9 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         </div>
                     );
                 })}
-
-                <div className="nav-section nav-section-footer" style={{ marginTop: 'auto' }}>
+            </nav>
+            <div className="sidebar-footer-nav">
+                <div className="nav-section nav-section-footer">
                     {footerTitle && <div className="nav-section-title">{footerTitle}</div>}
                     {visibleFooterItems.map((item) => (
                         <NavLink
@@ -342,7 +343,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         <span className="nav-label">{t('shell.logout')}</span>
                     </button>
                 </div>
-            </nav>
+            </div>
             {isAdmin && (
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (

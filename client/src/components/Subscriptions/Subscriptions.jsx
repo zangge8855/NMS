@@ -136,7 +136,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
                 qrAriaLabel: 'Subscription QR code · {label}',
                 quickImportHint: 'You can also use the quick import buttons below.',
                 adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
-                simpleReminder: 'Choose a config -> Copy, scan or import',
+                simpleReminder: 'Choose a config -> Copy or import',
                 qrHint: 'You can also scan the QR code.',
                 guideTitle: 'How to share it',
                 guideSubtitle: 'Just explain these two steps.',
@@ -218,7 +218,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         qrAriaLabel: '订阅二维码 · {label}',
         quickImportHint: '也可以直接点导入按钮。',
         adminQuickImportHint: '当前配置文件的快捷导入按钮也在这里。',
-        simpleReminder: '选配置文件 -> 复制、扫码或直接导入',
+        simpleReminder: '选配置文件 -> 复制或导入',
         qrHint: '也可以扫码导入。',
         guideTitle: '怎么使用订阅',
         guideSubtitle: '就按这两步，不用讲别的。',
@@ -688,35 +688,8 @@ export default function Subscriptions() {
                                     )}
                                     {isUserOnly ? (
                                         <div className="subscription-user-flow">
-                                            <div className="subscription-user-hero">
-                                                <div className="subscription-hero-copy">
-                                                    <div className="subscription-hero-title">{ui.heroTitle}</div>
-                                                    <div className="subscription-hero-text">{ui.heroText}</div>
-                                                </div>
-                                                <div className="subscription-hero-badges">
-                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
-                                                    </span>
-                                                    <span className="badge badge-neutral">{activeProfileLabel || ui.currentProfileFallback}</span>
-                                                    <span className="badge badge-neutral">{ui.nodeCount}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="subscription-focus-steps" aria-label={locale === 'en-US' ? 'Subscription import steps' : '订阅导入步骤'}>
-                                                <div className="subscription-focus-step">
-                                                    <span className="subscription-focus-step-index">1</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{ui.pickTypeTitle}</div>
-                                                        <div className="subscription-focus-step-text">{ui.guideStep1Text}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="subscription-focus-step subscription-focus-step--highlight">
-                                                    <span className="subscription-focus-step-index">2</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{ui.guideStep2Title}</div>
-                                                        <div className="subscription-focus-step-text">{ui.guideStep2Text}</div>
-                                                    </div>
-                                                </div>
+                                            <div className="subscription-user-flow-note" role="note">
+                                                <span className="subscription-user-flow-text">{ui.simpleReminder}</span>
                                             </div>
 
                                             <div className="subscription-user-panel subscription-user-panel--import">

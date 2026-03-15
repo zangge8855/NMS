@@ -1,0 +1,126 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+    collectClusterStatusSnapshot,
+    collectServerStatusSnapshot,
+    resetClusterStatusSnapshotCache,
+} from '../lib/serverStatusService.js';
+
+test.afterEach(() => {
+    resetClusterStatusSnapshotCache();
+});
+
+test('collectServerStatusSnapshot classifies DNS failures with a dedicated reason code', async () => {
+    const error = new Error('getaddrinfo ENOTFOUND panel.example.com');
+    error.code = 'ENOTFOUND';
+
+    const result = await collectServerStatusSnapshot({
+        id: 'srv-dns',
+        name: 'DNS Node',
+        health: 'healthy',
+    }, {
+        ensureAuthenticated: async () => {
+            throw error;
+        },
+    });
+
+    assert.equal(result.health, 'unreachable');
+    assert.equal(result.reasonCode, 'dns_error');
+    assert.equal(result.retryable, true);
+});
+
+test('collectClusterStatusSnapshot keeps healthy nodes online when detail endpoints fail', async () => {
+    const snapshot = await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: true,
+        servers: [{
+            id: 'srv-partial',
+            name: 'Partial Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async (path) => {
+                if (path === '/panel/api/server/status') {
+                    return {
+                        data: {
+                            obj: {
+                                cpu: 10,
+                                mem: { current: 128, total: 256 },
+                                uptime: 300,
+                                xray: { state: 'running', errorMsg: '' },
+                                netTraffic: { sent: 10, recv: 20 },
+                            },
+                        },
+                    };
+                }
+                throw new Error('detail list failed');
+            },
+            post: async (path) => {
+                if (path === '/panel/api/inbounds/onlines') {
+                    throw new Error('detail online failed');
+                }
+                return {
+                    data: {
+                        obj: {
+                            xray: { state: 'running', errorMsg: '' },
+                        },
+                    },
+                };
+            },
+        }),
+    });
+
+    assert.equal(snapshot.summary.healthy, 1);
+    assert.equal(snapshot.summary.unreachable, 0);
+    assert.equal(snapshot.items[0].online, true);
+    assert.equal(snapshot.items[0].collectionIssues.length, 2);
+    assert.equal(snapshot.items[0].collectionIssues[0].source, 'inbounds');
+    assert.equal(snapshot.items[0].collectionIssues[1].source, 'online_users');
+});
+
+test('collectServerStatusSnapshot keeps inbound traffic totals at zero when counters are present', async () => {
+    const result = await collectServerStatusSnapshot({
+        id: 'srv-zero-traffic',
+        name: 'Zero Traffic Node',
+        health: 'healthy',
+    }, {
+        ensureAuthenticated: async () => ({
+            get: async (path) => {
+                if (path === '/panel/api/inbounds/list') {
+                    return {
+                        data: {
+                            obj: [
+                                { id: 1, enable: true, up: 0, down: 0 },
+                            ],
+                        },
+                    };
+                }
+                throw new Error(`unexpected get ${path}`);
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') {
+                    return {
+                        data: {
+                            obj: {
+                                xray: { state: 'running', errorMsg: '' },
+                                netTraffic: { sent: 98765, recv: 43210 },
+                            },
+                        },
+                    };
+                }
+                if (path === '/panel/api/inbounds/onlines') {
+                    return {
+                        data: {
+                            obj: [],
+                        },
+                    };
+                }
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    assert.equal(result.online, true);
+    assert.equal(result.up, 0);
+    assert.equal(result.down, 0);
+});

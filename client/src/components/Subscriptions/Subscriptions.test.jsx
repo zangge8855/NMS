@@ -88,7 +88,7 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByText('选配置文件 -> 复制或导入')).toBeInTheDocument();
-        expect(screen.getByLabelText('订阅导入步骤')).toBeInTheDocument();
+        expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'v2rayN / Shadowrocket' })).toBeInTheDocument();
         expect(screen.queryByText('通用链接')).not.toBeInTheDocument();
         expect(screen.getAllByText('软件下载').length).toBeGreaterThan(0);

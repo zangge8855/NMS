@@ -131,6 +131,15 @@ function buildDraft(source = null) {
             timeoutMs: toInt(settings.auditIpGeo?.timeoutMs, 1500),
             cacheTtlSeconds: toInt(settings.auditIpGeo?.cacheTtlSeconds, 21600),
         },
+        telegram: {
+            enabled: settings.telegram?.enabled === true,
+            botToken: '',
+            clearBotToken: false,
+            chatId: toText(settings.telegram?.chatId, ''),
+            sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
+            sendSecurityAudit: settings.telegram?.sendSecurityAudit !== false,
+            sendEmergencyAlerts: settings.telegram?.sendEmergencyAlerts !== false,
+        },
     };
 }
 
@@ -224,6 +233,20 @@ function getSummaryToneBadgeMeta(tone) {
     if (tone === 'warning') return { className: 'badge-warning', label: '关注' };
     if (tone === 'danger') return { className: 'badge-danger', label: '关闭' };
     return { className: 'badge-neutral', label: '待检查' };
+}
+
+function getMonitorReasonLabel(reasonCode) {
+    if (reasonCode === 'dns_error') return 'DNS';
+    if (reasonCode === 'connect_timeout') return '超时';
+    if (reasonCode === 'connection_refused') return '拒绝连接';
+    if (reasonCode === 'network_error') return '网络异常';
+    if (reasonCode === 'auth_failed') return '认证失败';
+    if (reasonCode === 'credentials_missing') return '凭据缺失';
+    if (reasonCode === 'credentials_unreadable') return '凭据不可解密';
+    if (reasonCode === 'status_unsupported') return '接口不兼容';
+    if (reasonCode === 'xray_not_running') return 'Xray 未运行';
+    if (reasonCode === 'panel_request_failed') return '请求失败';
+    return '';
 }
 
 function SettingsToggleCard({
@@ -360,6 +383,7 @@ export default function SystemSettings() {
     const [monitorLoading, setMonitorLoading] = useState(false);
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
+    const [telegramTestLoading, setTelegramTestLoading] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
@@ -678,6 +702,28 @@ export default function SystemSettings() {
         }));
     };
 
+    const patchTelegramToken = (value) => {
+        setDraft((prev) => ({
+            ...prev,
+            telegram: {
+                ...prev.telegram,
+                botToken: value,
+                clearBotToken: false,
+            },
+        }));
+    };
+
+    const clearSavedTelegramToken = () => {
+        setDraft((prev) => ({
+            ...prev,
+            telegram: {
+                ...prev.telegram,
+                botToken: '',
+                clearBotToken: true,
+            },
+        }));
+    };
+
     const applyRandomSiteAccessPath = () => {
         patchField('site', 'accessPath', generateRandomSiteAccessPath());
     };
@@ -721,6 +767,7 @@ export default function SystemSettings() {
             const next = res.data?.obj || payload;
             setSettings(next);
             setDraft(buildDraft(next));
+            await fetchMonitorStatus({ quiet: true });
             await fetchRegistrationRuntime();
             toast.success('系统设置已更新');
             const nextSiteAccessPath = normalizeSiteAccessPathInput(next.site?.accessPath, '/');
@@ -1143,6 +1190,29 @@ export default function SystemSettings() {
         setMonitorLoading(false);
     };
 
+    const testTelegramAlert = async () => {
+        if (!isAdmin) return;
+        setTelegramTestLoading(true);
+        try {
+            const res = await api.post('/system/telegram/test');
+            setMonitorStatus((prev) => ({
+                ...(prev || {}),
+                telegram: res.data?.obj || prev?.telegram || null,
+            }));
+            toast.success(res.data?.msg || 'Telegram 测试通知已发送');
+        } catch (error) {
+            const payload = error.response?.data?.obj || null;
+            if (payload) {
+                setMonitorStatus((prev) => ({
+                    ...(prev || {}),
+                    telegram: payload,
+                }));
+            }
+            toast.error(error.response?.data?.msg || error.message || 'Telegram 测试通知发送失败');
+        }
+        setTelegramTestLoading(false);
+    };
+
     const inviteStatusSummary = useMemo(() => (
         inviteCodes.reduce((acc, invite) => {
             const state = resolveInviteState(invite);
@@ -1200,6 +1270,18 @@ export default function SystemSettings() {
                 : '尚未执行节点健康巡检。',
             tone: monitorStatus?.healthMonitor?.running ? 'success' : 'neutral',
         },
+        {
+            title: 'Telegram',
+            value: monitorStatus?.telegram?.enabled
+                ? '机器人已启用'
+                : monitorStatus?.telegram?.configured
+                    ? '已配置待启用'
+                    : '未配置',
+            detail: monitorStatus?.telegram?.lastSentAt
+                ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}`
+                : (monitorStatus?.telegram?.lastError || '可推送系统状态、审计告警和紧急异常。'),
+            tone: monitorStatus?.telegram?.enabled ? 'success' : monitorStatus?.telegram?.configured ? 'warning' : 'neutral',
+        },
     ]), [
         backupStatus?.lastExport?.createdAt,
         dbStatus,
@@ -1222,101 +1304,33 @@ export default function SystemSettings() {
                 { label: '监控', value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '未运行', detail: monitorStatus?.healthMonitor?.lastRunAt ? formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale) : '尚未巡检' },
             ];
         }
-        if (activeTab === 'access') {
-            return [
-                { label: '真实入口', value: siteAccessPath, detail: siteCamouflageEnabled ? '根路径显示公开首页' : '根路径直接进入系统' },
-                { label: '伪装站点', value: draft.site.camouflageTitle || '未设置', detail: `模板 ${draft.site.camouflageTemplate}` },
-                { label: '订阅公网地址', value: draft.subscription.publicBaseUrl || '未配置', detail: draft.subscription.publicBaseUrl ? '订阅链接固定使用此地址' : '可能回落到当前访问地址' },
-                { label: '邀请码', value: `${inviteStatusSummary.active} 可用`, detail: `${inviteStatusSummary.used} 用完 · ${inviteStatusSummary.revoked} 撤销` },
-            ];
-        }
-        if (activeTab === 'policy') {
-            return [
-                { label: '任务保留', value: `${draft.jobs.retentionDays} 天`, detail: `分页 ${draft.jobs.maxPageSize} · 记录上限 ${draft.jobs.maxRecords}` },
-                { label: '批量并发', value: `${draft.jobs.defaultConcurrency} / ${draft.jobs.maxConcurrency}`, detail: '默认并发 / 最大并发' },
-                { label: '风控确认', value: draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭', detail: `中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets}` },
-                { label: '审计归属地', value: draft.auditIpGeo.enabled ? '已启用' : '未启用', detail: `${draft.audit.retentionDays} 天 · ${draft.auditIpGeo.provider || '未设置服务商'}` },
-            ];
-        }
-        if (activeTab === 'monitor') {
-            return [
-                { label: 'SMTP', value: emailConfiguredLabel, detail: emailStatus?.from || '尚未配置发件人' },
-                { label: '连接测试', value: emailVerificationLabel, detail: emailStatus?.lastVerification?.ts ? formatDateTime(emailStatus.lastVerification.ts, locale) : '尚未测试' },
-                { label: '节点巡检', value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行', detail: `周期 ${Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟` },
-                { label: '告警', value: `未读 ${monitorStatus?.notifications?.unreadCount || 0}`, detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}` },
-            ];
-        }
-        if (activeTab === 'backup') {
-            return [
-                { label: '加密算法', value: 'AES-256-GCM', detail: '解密密钥来自 CREDENTIALS_SECRET' },
-                { label: '本机备份', value: `${localBackups.length} 份`, detail: latestLocalBackup?.filename || '尚未保存到服务器本机' },
-                { label: '最近生成', value: backupStatus?.lastExport?.filename || '暂无', detail: backupStatus?.lastExport?.createdAt ? formatDateTime(backupStatus.lastExport.createdAt, locale) : '尚无生成记录' },
-                { label: '最近恢复', value: backupStatus?.lastImport?.sourceFilename || '暂无', detail: backupStatus?.lastImport?.restoredAt ? formatDateTime(backupStatus.lastImport.restoredAt, locale) : '尚无恢复记录' },
-            ];
-        }
-        if (activeTab === 'db') {
-            return [
-                { label: '数据库连接', value: dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用', detail: dbStatus?.connection?.error || '无错误' },
-                { label: '当前模式', value: dbStatus ? `r=${dbStatus.currentModes?.readMode || 'file'} / w=${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测', detail: '支持 file / dual / db' },
-                { label: '待写入', value: `${dbStatus?.pendingWrites || 0}`, detail: `queued ${dbStatus?.writesQueued || 0}` },
-                { label: '快照数', value: `${(dbStatus?.snapshots || []).length}`, detail: dbStatus?.lastWriteAt ? `最后写入 ${formatDateTime(dbStatus.lastWriteAt, locale)}` : '尚无写入记录' },
-            ];
-        }
-        return [
-            { label: '模式', value: '内嵌控制台', detail: '保持当前系统设置上下文不跳转' },
-            { label: '适用场景', value: '节点运维', detail: '适合修改节点、诊断连接和查看状态' },
-            { label: '布局', value: 'PC 双栏 / 手机单列', detail: '跟随系统设置的整体响应式版式' },
-        ];
+        return [];
     }, [
         activeTab,
         backupStatus,
-        dbStatus,
-        draft.auditIpGeo.enabled,
-        draft.auditIpGeo.provider,
         draft.registration.inviteOnlyEnabled,
         draft.site.camouflageTemplate,
         draft.site.camouflageTitle,
-        draft.subscription.publicBaseUrl,
-        emailConfiguredLabel,
-        emailStatus,
-        emailVerificationLabel,
-        inviteStatusSummary.active,
-        inviteStatusSummary.revoked,
-        inviteStatusSummary.used,
-        latestLocalBackup?.filename,
-        localBackups.length,
         locale,
         monitorStatus,
         registrationEnabled,
         siteAccessPath,
         siteCamouflageEnabled,
     ]);
+    const showTabHighlights = activeTab === 'status' && activeTabHighlights.length > 0;
+    const monitorReasonSummary = useMemo(() => {
+        const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
+            .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
+            .map(([reasonCode, count]) => {
+                const label = getMonitorReasonLabel(reasonCode);
+                return label ? `${label} ${count}` : '';
+            })
+            .filter(Boolean);
+        return entries.length > 0 ? entries.slice(0, 3).join(' · ') : '最近未记录节点异常原因';
+    }, [monitorStatus]);
 
     const renderAccessContent = () => (
         <div className="settings-section-stack">
-            <div className="settings-mini-grid settings-basic-summary-grid">
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">当前入口</div>
-                    <div className="text-lg font-semibold font-mono">{siteEntryPreview}</div>
-                    <div className="text-xs text-muted">{siteCamouflageEnabled ? `${draft.site.camouflageTitle} · ${draft.site.camouflageTemplate}` : '根路径按默认路由处理，后台入口由上方路径决定。'}</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">伪装站点</div>
-                    <div className="text-lg font-semibold">{draft.site.camouflageTitle}</div>
-                    <div className="text-xs text-muted">模板 {draft.site.camouflageTemplate} · {siteCamouflageEnabled ? '伪装已启用' : '伪装未启用'}</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">订阅公网地址</div>
-                    <div className="text-lg font-semibold break-all">{draft.subscription.publicBaseUrl || '未配置'}</div>
-                    <div className="text-xs text-muted">{converterBaseUrl ? `转换器 ${converterBaseUrl}` : '当前未启用外部转换器。'}</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">注册模式</div>
-                    <div className="text-lg font-semibold">{registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'}</div>
-                    <div className="text-xs text-muted">邀请码 {inviteCodes.length} 个，可用 {inviteStatusSummary.active} 个。</div>
-                </div>
-            </div>
-
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--wide settings-panel--entry">
                     <SectionHeader
@@ -1499,22 +1513,8 @@ export default function SystemSettings() {
                             </div>
                         )}
                     />
-                    <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">当前注册状态</div>
-                            <div className="text-lg font-semibold">{registrationEnabled ? '允许注册' : '已关闭注册'}</div>
-                            <div className="text-xs text-muted mt-1">全局开关来自环境变量 `REGISTRATION_ENABLED`。</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">注册模式</div>
-                            <div className="text-lg font-semibold">{draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册'}</div>
-                            <div className="text-xs text-muted mt-1">邀请模式下注册页必须填写有效邀请码。</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">邀请码情况</div>
-                            <div className="text-lg font-semibold">{inviteCodes.length}</div>
-                            <div className="text-xs text-muted mt-1">可用 {inviteStatusSummary.active} · 用完 {inviteStatusSummary.used} · 撤销 {inviteStatusSummary.revoked}</div>
-                        </div>
+                    <div className="settings-panel-subtitle mb-4">
+                        当前注册开关、模式和邀请码库存统一收口到顶部状态卡，这里只保留模式切换和邀请码生成/撤销操作。
                     </div>
                     <div className="form-group">
                         <SettingsToggleCard
@@ -1728,29 +1728,6 @@ export default function SystemSettings() {
 
     const renderPolicyContent = () => (
         <div className="settings-section-stack">
-            <div className="settings-mini-grid settings-basic-summary-grid">
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">任务保留策略</div>
-                    <div className="text-lg font-semibold">保留 {draft.jobs.retentionDays} 天</div>
-                    <div className="text-xs text-muted">分页 {draft.jobs.maxPageSize} · 记录上限 {draft.jobs.maxRecords}</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">批量并发</div>
-                    <div className="text-lg font-semibold">{draft.jobs.defaultConcurrency} / {draft.jobs.maxConcurrency}</div>
-                    <div className="text-xs text-muted">默认并发 / 最大并发</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">风控确认</div>
-                    <div className="text-lg font-semibold">{draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭'}</div>
-                    <div className="text-xs text-muted">中风险 {draft.security.mediumRiskMinTargets} · 高风险 {draft.security.highRiskMinTargets}</div>
-                </div>
-                <div className="card p-3 settings-mini-card settings-basic-summary-card">
-                    <div className="text-sm text-muted">审计归属地</div>
-                    <div className="text-lg font-semibold">{draft.auditIpGeo.enabled ? '已启用' : '未启用'}</div>
-                    <div className="text-xs text-muted">{draft.audit.retentionDays} 天保留 · {draft.auditIpGeo.provider || '未设置服务提供方'}</div>
-                </div>
-            </div>
-
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--span-7 settings-basic-workbench">
                     <SettingsPanelHeader
@@ -1986,36 +1963,6 @@ export default function SystemSettings() {
                                 <div className="text-xs text-muted">建议在改域名前先做一次连接测试，再发通知。</div>
                             </div>
                         </div>
-                        <div className="settings-mini-grid settings-monitor-summary-grid mb-3">
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">配置状态</div>
-                                <div className="mt-2">
-                                    <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                                </div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">SMTP 服务</div>
-                                <div className="text-lg font-semibold">{emailStatus.service || '-'}</div>
-                                <div className="text-xs text-muted">auth {emailStatus.authMethod || 'AUTO'}</div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">服务器</div>
-                                <div className="text-lg font-semibold">{emailStatus.host || '-'}</div>
-                                <div className="text-xs text-muted">port {emailStatus.port || '-'}</div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">加密模式</div>
-                                <div className="text-lg font-semibold">{emailStatus.secure ? 'SSL/TLS' : 'STARTTLS/Plain'}</div>
-                                <div className="text-xs text-muted">
-                                    {emailStatus.requireTLS ? 'requireTLS' : (emailStatus.ignoreTLS ? 'ignoreTLS' : 'auto TLS')}
-                                </div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">发件账号</div>
-                                <div className="text-lg font-semibold">{emailStatus.userMasked || '-'}</div>
-                                <div className="text-xs text-muted">{emailStatus.authMethod || 'AUTO'} 认证</div>
-                            </div>
-                        </div>
                         <div className="settings-monitor-detail-grid">
                             <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
                                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -2083,47 +2030,208 @@ export default function SystemSettings() {
                         </div>
                     )}
                 />
-                <div className="settings-mini-grid settings-monitor-health-grid mb-3">
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">监控状态</div>
-                        <div className="text-lg font-semibold">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
-                        <div className="text-xs text-muted mt-1">周期 {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">最近巡检</div>
-                        <div className="text-lg font-semibold">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt, locale)}</div>
-                        <div className="text-xs text-muted mt-1">节点 {monitorStatus?.healthMonitor?.summary?.total || 0}</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">健康统计</div>
-                        <div className="text-lg font-semibold">
-                            正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
-                        </div>
-                        <div className="text-xs text-muted mt-1">维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0}</div>
-                    </div>
-                    <div className="card p-3 settings-mini-card">
-                        <div className="text-sm text-muted">告警状态</div>
-                        <div className="text-lg font-semibold">未读 {monitorStatus?.notifications?.unreadCount || 0}</div>
-                        <div className="text-xs text-muted mt-1">DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</div>
-                    </div>
-                </div>
                 <div className="settings-monitor-detail-grid settings-monitor-detail-grid--single">
                     <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="text-sm font-medium">通知中心</div>
+                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                            <div className="text-sm font-medium">巡检摘要</div>
+                            <span className={`badge ${monitorStatus?.healthMonitor?.running ? 'badge-success' : 'badge-neutral'}`}>
+                                {monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}
+                            </span>
+                        </div>
                         <div className="settings-monitor-log-meta">
                             <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">未读告警</span>
-                                <span className="settings-monitor-log-value">{monitorStatus?.notifications?.unreadCount || 0}</span>
+                                <span className="settings-monitor-log-label">最近巡检</span>
+                                <span className="settings-monitor-log-value">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt, locale)}</span>
                             </div>
                             <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">维护节点</span>
-                                <span className="settings-monitor-log-value">{monitorStatus?.healthMonitor?.summary?.maintenance || 0}</span>
+                                <span className="settings-monitor-log-label">巡检周期</span>
+                                <span className="settings-monitor-log-value">
+                                    {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟
+                                </span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">健康统计</span>
+                                <span className="settings-monitor-log-value">
+                                    正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
+                                </span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">异常分布</span>
+                                <span className="settings-monitor-log-value">{monitorReasonSummary}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">通知中心</span>
+                                <span className="settings-monitor-log-value">
+                                    未读 {monitorStatus?.notifications?.unreadCount || 0} · 维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}
+                                </span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">Telegram 告警</span>
+                                <span className="settings-monitor-log-value">
+                                    {monitorStatus?.telegram?.enabled
+                                        ? `已启用 · ${monitorStatus.telegram.chatIdPreview || '已配置目标'}`
+                                        : monitorStatus?.telegram?.configured
+                                        ? '已配置但未启用'
+                                        : '未配置'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="settings-basic-note-list mt-2">
+                            <span className="badge badge-neutral">状态摘要统一收口到系统状态卡片</span>
+                            <span className="badge badge-neutral">异常与恢复会同步投递到通知中心</span>
+                            <span className="badge badge-neutral">手动巡检会刷新最新节点快照</span>
+                            <span className="badge badge-neutral">可通过 Telegram Bot 接收紧急系统告警</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="card p-4 settings-panel settings-panel--wide">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="Telegram 机器人"
+                    subtitle="把系统状态、高风险审计和紧急告警推到固定 chat，并允许通过 Telegram 执行只读和低风险命令。"
+                    actions={(
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={testTelegramAlert}
+                            disabled={telegramTestLoading || !draft.telegram.enabled}
+                        >
+                            {telegramTestLoading ? <span className="spinner" /> : '发送测试通知'}
+                        </button>
+                    )}
+                />
+                <div className="settings-basic-note-list mb-3">
+                    <span className={`badge ${monitorStatus?.telegram?.enabled ? 'badge-success' : 'badge-neutral'}`}>
+                        {monitorStatus?.telegram?.enabled ? '已启用' : monitorStatus?.telegram?.configured ? '已配置未启用' : '未配置'}
+                    </span>
+                    <span className="badge badge-neutral">
+                        {monitorStatus?.telegram?.commandsEnabled ? '命令轮询已开启' : '命令轮询未开启'}
+                    </span>
+                    <span className="badge badge-neutral">
+                        {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
+                    </span>
+                </div>
+                <div className="grid-auto-220 items-start">
+                    <div className="form-group">
+                        <label className="form-label" htmlFor="telegram-chat-id">Chat ID / 群组 ID</label>
+                        <input
+                            id="telegram-chat-id"
+                            className="form-input"
+                            value={draft.telegram.chatId}
+                            onChange={(event) => patchField('telegram', 'chatId', event.target.value)}
+                            placeholder="-1001234567890"
+                        />
+                        <div className="text-xs text-muted mt-1">
+                            推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor="telegram-bot-token">Bot Token</label>
+                        <input
+                            id="telegram-bot-token"
+                            className="form-input"
+                            type="password"
+                            value={draft.telegram.botToken}
+                            onChange={(event) => patchTelegramToken(event.target.value)}
+                            placeholder={settings?.telegram?.botTokenConfigured ? `当前已保存 ${settings.telegram.botTokenPreview}` : '123456:ABCDEF...'}
+                            autoComplete="new-password"
+                        />
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                            <div className="text-xs text-muted">
+                                {draft.telegram.clearBotToken
+                                    ? '本次保存会清空服务器端已保存 Token。'
+                                    : settings?.telegram?.botTokenConfigured
+                                    ? `当前已保存 Token：${settings.telegram.botTokenPreview || '已配置'}。留空保存会继续使用当前 Token。`
+                                    : '首次启用时请输入 Telegram Bot Token。'}
+                            </div>
+                            {settings?.telegram?.botTokenConfigured ? (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-xs"
+                                    onClick={clearSavedTelegramToken}
+                                >
+                                    清空已保存 Token
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+                <div className="settings-field-grid settings-field-grid--compact mt-3">
+                    <SettingsToggleCard
+                        checked={draft.telegram.enabled}
+                        onChange={(event) => patchField('telegram', 'enabled', event.target.checked)}
+                        label="启用 Telegram 告警"
+                        description="启用后，通知中心里的系统状态告警和高风险审计事件会按分类推送到 Telegram。"
+                        activeLabel="已启用"
+                        inactiveLabel="未启用"
+                    />
+                    <SettingsToggleCard
+                        checked={draft.telegram.sendSystemStatus}
+                        onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
+                        label="系统状态"
+                        description="推送节点健康、DB 连续失败、通知中心系统告警等状态类消息。"
+                        activeLabel="推送"
+                        inactiveLabel="不推送"
+                    />
+                    <SettingsToggleCard
+                        checked={draft.telegram.sendSecurityAudit}
+                        onChange={(event) => patchField('telegram', 'sendSecurityAudit', event.target.checked)}
+                        label="审计告警"
+                        description="推送登录限流、公开订阅异常访问、批量高风险操作等安全审计事件。"
+                        activeLabel="推送"
+                        inactiveLabel="不推送"
+                    />
+                    <SettingsToggleCard
+                        checked={draft.telegram.sendEmergencyAlerts}
+                        onChange={(event) => patchField('telegram', 'sendEmergencyAlerts', event.target.checked)}
+                        label="紧急告警"
+                        description="critical 级别事件会直接升级到紧急通道，适合陌生人攻击或节点大面积异常。"
+                        activeLabel="推送"
+                        inactiveLabel="不推送"
+                    />
+                </div>
+                <div className="settings-monitor-detail-grid mt-3">
+                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                        <div className="text-sm font-medium">机器人状态</div>
+                        <div className="settings-monitor-log-meta">
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">目标</span>
+                                <span className="settings-monitor-log-value">{monitorStatus?.telegram?.chatIdPreview || draft.telegram.chatId || '-'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近发送</span>
+                                <span className="settings-monitor-log-value">{formatDateTime(monitorStatus?.telegram?.lastSentAt, locale)}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近发送错误</span>
+                                <span className="settings-monitor-log-value">{monitorStatus?.telegram?.lastError || '-'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近命令</span>
+                                <span className="settings-monitor-log-value">
+                                    {monitorStatus?.telegram?.lastCommand
+                                        ? `${monitorStatus.telegram.lastCommand} · ${formatDateTime(monitorStatus?.telegram?.lastCommandAt, locale)}`
+                                        : '暂无'}
+                                </span>
                             </div>
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="text-sm font-medium">巡检说明</div>
-                        <div className="text-sm text-muted">系统会按设定周期巡检节点，异常和恢复状态会同步投递到右上角通知中心。手动点击“立即巡检”时，会按当前配置立刻重跑一次健康检查。</div>
+                        <div className="text-sm font-medium">Telegram 可用命令</div>
+                        <div className="text-sm text-muted">这些命令都限制在当前配置的 chat id 内，只开放查看和低风险动作。</div>
+                        <div className="settings-basic-note-list mt-2">
+                            <span className="badge badge-neutral">/help</span>
+                            <span className="badge badge-neutral">/status</span>
+                            <span className="badge badge-neutral">/online</span>
+                            <span className="badge badge-neutral">/traffic</span>
+                            <span className="badge badge-neutral">/alerts</span>
+                            <span className="badge badge-neutral">/monitor</span>
+                        </div>
+                        <div className="text-xs text-muted mt-2">
+                            `/monitor` 会触发一次手动节点巡检；其余命令只读，适合不登录网站时快速看在线人数、流量和最近告警。
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2157,26 +2265,25 @@ export default function SystemSettings() {
                             <span className="badge badge-neutral">旧版 `.json.gz` 兼容恢复</span>
                         </div>
                     </div>
-                    <div className="settings-mini-grid settings-backup-summary-grid">
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">可备份 Store</div>
-                            <div className="text-lg font-semibold">{backupStatus?.storeKeys?.length || 0}</div>
-                            <div className="text-xs text-muted mt-1">{(backupStatus?.storeKeys || []).join(', ') || '暂无'}</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">最近生成</div>
-                            <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</div>
-                            <div className="text-xs text-muted mt-1">{backupStatus?.lastExport?.filename || '-'}</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">本机备份</div>
-                            <div className="text-lg font-semibold">{localBackups.length}</div>
-                            <div className="text-xs text-muted mt-1">{latestLocalBackup?.filename || '服务器本机尚无备份'}</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card">
-                            <div className="text-sm text-muted">最近恢复</div>
-                            <div className="text-lg font-semibold">{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
-                            <div className="text-xs text-muted mt-1">{backupStatus?.lastImport?.sourceFilename || '-'}</div>
+                    <div className="card p-3 settings-mini-card settings-detail-card">
+                        <div className="text-sm font-medium">备份摘要</div>
+                        <div className="settings-monitor-log-meta">
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">可备份 Store</span>
+                                <span className="settings-monitor-log-value">{backupStatus?.storeKeys?.length || 0} · {(backupStatus?.storeKeys || []).join(', ') || '暂无'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近生成</span>
+                                <span className="settings-monitor-log-value">{backupStatus?.lastExport?.filename || '-'} · {formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">本机备份</span>
+                                <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '服务器本机尚无备份'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近恢复</span>
+                                <span className="settings-monitor-log-value">{backupStatus?.lastImport?.sourceFilename || '-'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2633,21 +2740,23 @@ export default function SystemSettings() {
                     </div>
 
                     <div className="settings-main">
-                        <div className="card settings-tab-hero">
+                        <div className={`card settings-tab-hero${showTabHighlights ? '' : ' is-compact'}`}>
                             <div className="settings-tab-hero-copy">
                                 <div className="settings-tab-hero-eyebrow">{activeTabMeta.eyebrow}</div>
                                 <div className="settings-tab-hero-title">{activeTabMeta.label}</div>
                                 <div className="settings-tab-hero-summary">{activeTabMeta.summary}</div>
                             </div>
-                            <div className="settings-tab-hero-grid">
-                                {activeTabHighlights.map((item) => (
-                                    <div key={`${activeTabMeta.id}-${item.label}`} className="settings-tab-highlight-card">
-                                        <div className="settings-tab-highlight-label">{item.label}</div>
-                                        <div className="settings-tab-highlight-value">{item.value}</div>
-                                        <div className="settings-tab-highlight-detail">{item.detail}</div>
-                                    </div>
-                                ))}
-                            </div>
+                            {showTabHighlights ? (
+                                <div className="settings-tab-hero-grid">
+                                    {activeTabHighlights.map((item) => (
+                                        <div key={`${activeTabMeta.id}-${item.label}`} className="settings-tab-highlight-card">
+                                            <div className="settings-tab-highlight-label">{item.label}</div>
+                                            <div className="settings-tab-highlight-value">{item.value}</div>
+                                            <div className="settings-tab-highlight-detail">{item.detail}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
                         </div>
                         <div className="settings-tab-panel">
                             {activeTab === 'console' ? (

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
@@ -44,6 +45,15 @@ const ALLOWED_KEYS = {
         'timeoutMs',
         'cacheTtlSeconds',
     ]),
+    telegram: new Set([
+        'enabled',
+        'botToken',
+        'clearBotToken',
+        'chatId',
+        'sendSystemStatus',
+        'sendSecurityAudit',
+        'sendEmergencyAlerts',
+    ]),
 };
 
 const GEO_PROVIDERS = new Set(['ip_api', 'ipip_myip']);
@@ -53,6 +63,8 @@ const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const DEFAULT_CAMOUFLAGE_TEMPLATE = 'corporate';
 const DEFAULT_CAMOUFLAGE_TITLE = 'Edge Precision Systems';
+const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
+const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
     ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
     : 'ip_api';
@@ -114,13 +126,24 @@ function ensureDataDir() {
     }
 }
 
-function loadObject(file) {
+function loadObjectDetailed(file) {
     try {
-        if (!fs.existsSync(file)) return {};
+        if (!fs.existsSync(file)) {
+            return {
+                value: {},
+                error: null,
+            };
+        }
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    } catch {
-        return {};
+        return {
+            value: parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {},
+            error: null,
+        };
+    } catch (error) {
+        return {
+            value: {},
+            error,
+        };
     }
 }
 
@@ -225,6 +248,19 @@ function normalizeCamouflageTitle(value, fallback = DEFAULT_CAMOUFLAGE_TITLE) {
     return text.slice(0, 96);
 }
 
+function normalizeTelegramChatId(value, fallback = '') {
+    const text = String(value || '').trim();
+    if (!text) return String(fallback || '').trim();
+    return text.replace(/\s+/g, '').slice(0, 160);
+}
+
+function maskTelegramTokenPreview(value) {
+    const token = String(value || '').trim();
+    if (!token) return '';
+    if (token.length <= 10) return `${token.slice(0, 3)}...`;
+    return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
 function mergeSection(base, patch) {
     const next = { ...base };
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
@@ -241,15 +277,124 @@ function shouldUpgradeLegacyAuditIpGeo(provider, endpoint) {
         && String(endpoint || '').trim() === LEGACY_AUDIT_IP_GEO_ENDPOINT;
 }
 
-class SystemSettingsStore {
+export class SystemSettingsStore {
     constructor() {
         ensureDataDir();
-        this.settings = this._normalizeSettings(loadObject(SETTINGS_FILE));
+        const loaded = loadObjectDetailed(SETTINGS_FILE);
+        this.settings = this._normalizeSettings(loaded.value);
+        this.startupLoadError = loaded.error?.message || '';
+        if (loaded.error) {
+            console.warn(`Failed to load system settings at startup: ${loaded.error.message}`);
+            return;
+        }
         try {
             this._save();
         } catch (error) {
             console.warn('Failed to persist system settings at startup:', error.message);
         }
+    }
+
+    _credentialSecrets() {
+        const primary = String(config.credentials?.secret || '').trim();
+        const legacy = Array.isArray(config.credentials?.legacySecrets)
+            ? config.credentials.legacySecrets
+            : [];
+        const jwtSecret = String(config.jwt?.secret || '').trim();
+        return Array.from(new Set([primary, ...legacy, jwtSecret].map((item) => String(item || '').trim()).filter(Boolean)));
+    }
+
+    _credentialKeyFromSecret(secret) {
+        return crypto.createHash('sha256').update(String(secret || '')).digest();
+    }
+
+    _credentialKey() {
+        const [primary] = this._credentialSecrets();
+        return this._credentialKeyFromSecret(primary || config.jwt?.secret || '');
+    }
+
+    _credentialKeys() {
+        const secrets = this._credentialSecrets();
+        if (secrets.length === 0) {
+            return [this._credentialKeyFromSecret(config.jwt?.secret || '')];
+        }
+        return secrets.map((secret) => this._credentialKeyFromSecret(secret));
+    }
+
+    _isEncryptedTelegramToken(value) {
+        return typeof value === 'string' && value.startsWith(`${TELEGRAM_TOKEN_ENC_PREFIX}:`);
+    }
+
+    _encryptTelegramToken(token) {
+        const text = String(token || '').trim();
+        if (!text) return '';
+        if (this._isEncryptedTelegramToken(text)) return text;
+
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv(TELEGRAM_TOKEN_ENC_ALGO, this._credentialKey(), iv);
+        const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        return `${TELEGRAM_TOKEN_ENC_PREFIX}:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+    }
+
+    _decryptTelegramTokenDetailed(payload) {
+        const text = String(payload || '').trim();
+        if (!text) {
+            return { value: '', status: 'missing' };
+        }
+        if (!this._isEncryptedTelegramToken(text)) {
+            return { value: text, status: 'plaintext' };
+        }
+
+        const parts = text.split(':');
+        if (parts.length < 5) {
+            return { value: '', status: 'unreadable' };
+        }
+
+        const prefix = `${parts[0]}:${parts[1]}`;
+        if (prefix !== TELEGRAM_TOKEN_ENC_PREFIX) {
+            return { value: '', status: 'unreadable' };
+        }
+
+        const ivHex = parts[2];
+        const tagHex = parts[3];
+        const encryptedHex = parts.slice(4).join(':');
+        for (const key of this._credentialKeys()) {
+            try {
+                const decipher = crypto.createDecipheriv(
+                    TELEGRAM_TOKEN_ENC_ALGO,
+                    key,
+                    Buffer.from(ivHex, 'hex')
+                );
+                decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+                const decrypted = Buffer.concat([
+                    decipher.update(Buffer.from(encryptedHex, 'hex')),
+                    decipher.final(),
+                ]);
+                return {
+                    value: decrypted.toString('utf8'),
+                    status: 'ok',
+                };
+            } catch {
+                // Try next key.
+            }
+        }
+
+        return { value: '', status: 'unreadable' };
+    }
+
+    _buildPublicTelegram(section = {}) {
+        const decrypted = this._decryptTelegramTokenDetailed(section.botTokenEnc);
+        const botToken = String(decrypted.value || '').trim();
+        return {
+            enabled: section.enabled === true,
+            botToken: '',
+            botTokenConfigured: !!botToken,
+            botTokenPreview: maskTelegramTokenPreview(botToken),
+            chatId: String(section.chatId || '').trim(),
+            sendSystemStatus: section.sendSystemStatus !== false,
+            sendSecurityAudit: section.sendSecurityAudit !== false,
+            sendEmergencyAlerts: section.sendEmergencyAlerts !== false,
+        };
     }
 
     _defaults() {
@@ -292,6 +437,14 @@ class SystemSettingsStore {
                 endpoint: MODERN_AUDIT_IP_GEO_ENDPOINT,
                 timeoutMs: Math.max(200, Number(config.audit?.ipGeo?.timeoutMs || 3000)),
                 cacheTtlSeconds: Math.max(30, Number(config.audit?.ipGeo?.cacheTtlSeconds || 21600)),
+            },
+            telegram: {
+                enabled: false,
+                botTokenEnc: '',
+                chatId: '',
+                sendSystemStatus: true,
+                sendSecurityAudit: true,
+                sendEmergencyAlerts: true,
             },
             serverOrder: [],
             inboundOrder: {},
@@ -375,6 +528,31 @@ class SystemSettingsStore {
         };
     }
 
+    _normalizeTelegram(input = {}, fallback) {
+        const rawBotToken = String(input.botToken || '').trim();
+        const rawBotTokenEnc = String(input.botTokenEnc || '').trim();
+        const fallbackBotTokenEnc = String(fallback.botTokenEnc || '').trim();
+        const clearBotToken = normalizeBoolean(input.clearBotToken, false);
+
+        let botTokenEnc = fallbackBotTokenEnc;
+        if (rawBotToken) {
+            botTokenEnc = this._encryptTelegramToken(rawBotToken);
+        } else if (clearBotToken) {
+            botTokenEnc = '';
+        } else if (rawBotTokenEnc) {
+            botTokenEnc = rawBotTokenEnc;
+        }
+
+        return {
+            enabled: normalizeBoolean(input.enabled, fallback.enabled),
+            botTokenEnc,
+            chatId: normalizeTelegramChatId(input.chatId, fallback.chatId),
+            sendSystemStatus: normalizeBoolean(input.sendSystemStatus, fallback.sendSystemStatus),
+            sendSecurityAudit: normalizeBoolean(input.sendSecurityAudit, fallback.sendSecurityAudit),
+            sendEmergencyAlerts: normalizeBoolean(input.sendEmergencyAlerts, fallback.sendEmergencyAlerts),
+        };
+    }
+
     _normalizeSettings(input = {}, fallbackSettings = null) {
         const defaults = this._defaults();
         const fallbackRoot = fallbackSettings && typeof fallbackSettings === 'object' && !Array.isArray(fallbackSettings)
@@ -387,6 +565,7 @@ class SystemSettingsStore {
         const auditFallback = mergeSection(defaults.audit, fallbackRoot.audit);
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
+        const telegramFallback = mergeSection(defaults.telegram, fallbackRoot.telegram);
         const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
@@ -398,6 +577,7 @@ class SystemSettingsStore {
         const auditInput = mergeSection(defaults.audit, input.audit);
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
+        const telegramInput = mergeSection(defaults.telegram, input.telegram);
         const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
         const userOrderInput = normalizeIdList(input.userOrder);
@@ -410,6 +590,7 @@ class SystemSettingsStore {
             audit: this._normalizeAudit(auditInput, auditFallback),
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
+            telegram: this._normalizeTelegram(telegramInput, telegramFallback),
             serverOrder: serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback,
             inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
             userOrder: userOrderInput.length > 0 ? userOrderInput : userOrderFallback,
@@ -444,7 +625,9 @@ class SystemSettingsStore {
     }
 
     getAll() {
-        return safeClone(this.settings) || this._normalizeSettings();
+        const snapshot = safeClone(this.settings) || this._normalizeSettings();
+        snapshot.telegram = this._buildPublicTelegram(this.settings?.telegram || {});
+        return snapshot;
     }
 
     getSecurity() {
@@ -473,6 +656,23 @@ class SystemSettingsStore {
 
     getAuditIpGeo() {
         return this.getAll().auditIpGeo;
+    }
+
+    getTelegram() {
+        const section = this.settings?.telegram || this._defaults().telegram;
+        const decrypted = this._decryptTelegramTokenDetailed(section.botTokenEnc);
+        const botToken = String(decrypted.value || '').trim();
+        return {
+            enabled: section.enabled === true,
+            botToken,
+            botTokenStatus: decrypted.status,
+            botTokenConfigured: !!botToken,
+            botTokenPreview: maskTelegramTokenPreview(botToken),
+            chatId: String(section.chatId || '').trim(),
+            sendSystemStatus: section.sendSystemStatus !== false,
+            sendSecurityAudit: section.sendSecurityAudit !== false,
+            sendEmergencyAlerts: section.sendEmergencyAlerts !== false,
+        };
     }
 
     getInboundOrder(serverId = '') {
@@ -588,6 +788,7 @@ class SystemSettingsStore {
             audit: mergeSection(this.settings.audit, patch.audit),
             subscription: mergeSection(this.settings.subscription, patch.subscription),
             auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
+            telegram: mergeSection(this.settings.telegram, patch.telegram),
             serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
             userOrder: this.settings.userOrder,
@@ -599,6 +800,15 @@ class SystemSettingsStore {
             throw new Error('site.camouflageEnabled requires a non-root site.accessPath');
         }
         this.settings = this._normalizeSettings(candidate, this.settings);
+        if (this.settings.telegram?.enabled === true) {
+            const telegram = this.getTelegram();
+            if (!telegram.botTokenConfigured) {
+                throw new Error('telegram.botToken is required when Telegram alerts are enabled');
+            }
+            if (!telegram.chatId) {
+                throw new Error('telegram.chatId is required when Telegram alerts are enabled');
+            }
+        }
         this._save();
         return this.getAll();
     }

@@ -86,8 +86,6 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 cleanupError: 'Cleanup Error',
                 mode: 'Mode',
                 format: 'Format',
-                location: 'Location',
-                carrier: 'Carrier',
                 userId: 'User ID',
                 registeredAt: 'Registered',
                 lastLoginAt: 'Last Sign-in',
@@ -178,6 +176,12 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 node: 'Node',
                 ip: 'IP',
                 ua: 'UA',
+                location: 'Location',
+                carrier: 'Carrier',
+                requestPath: 'Path',
+                requestMethod: 'Method',
+                resource: 'Resource',
+                redacted: 'Redacted',
             },
         };
     }
@@ -233,8 +237,6 @@ function getUserDetailCopy(locale = 'zh-CN') {
             cleanupError: '清理异常',
             mode: '模式',
             format: '格式',
-            location: '地区',
-            carrier: '运营商',
             userId: '用户 ID',
             registeredAt: '注册',
             lastLoginAt: '最后登录',
@@ -325,6 +327,12 @@ function getUserDetailCopy(locale = 'zh-CN') {
             node: '节点',
             ip: 'IP',
             ua: 'UA',
+            location: '地区',
+            carrier: '运营商',
+            requestPath: '路径',
+            requestMethod: '方法',
+            resource: '资源',
+            redacted: '已脱敏',
         },
     };
 }
@@ -397,6 +405,55 @@ function formatSummaryText(item, copy) {
     if (item.summary) parts.push(item.summary);
     if (item.path) parts.push(item.path);
     return parts.join(' · ');
+}
+
+function formatTimelineIp(item, copy) {
+    if (item.ip) return item.ip;
+    if (item.ipMasked) return copy.labels.redacted;
+    return '-';
+}
+
+function formatTimelineUserAgent(item, copy) {
+    if (item.userAgent) return item.userAgent;
+    if (item.userAgentMasked) return copy.labels.redacted;
+    return '';
+}
+
+function buildTimelineFacts(item, copy) {
+    const facts = [];
+    const geoDisplay = resolveAccessGeoDisplay(item);
+    const userAgent = formatTimelineUserAgent(item, copy);
+    const resource = [item.resourceType, item.resourceId].filter(Boolean).join(' / ');
+
+    facts.push({ label: copy.labels.ip, value: formatTimelineIp(item, copy) });
+    if (geoDisplay.location && geoDisplay.location !== '-') {
+        facts.push({ label: copy.labels.location, value: geoDisplay.location });
+    }
+    if (geoDisplay.carrier) {
+        facts.push({ label: copy.labels.carrier, value: geoDisplay.carrier });
+    }
+    if (item.actor) {
+        facts.push({ label: copy.labels.actor, value: item.actor });
+    }
+    if (item.serverId) {
+        facts.push({ label: copy.labels.node, value: item.serverId });
+    }
+    if (item.method) {
+        facts.push({ label: copy.labels.requestMethod, value: item.method });
+    }
+    if (item.path) {
+        facts.push({ label: copy.labels.requestPath, value: item.path });
+    }
+    if (resource) {
+        facts.push({ label: copy.labels.resource, value: resource });
+    }
+    if (item.tokenId) {
+        facts.push({ label: 'Token', value: item.tokenId });
+    }
+    if (userAgent) {
+        facts.push({ label: copy.labels.ua, value: userAgent });
+    }
+    return facts;
 }
 
 function normalizeDetailTab(value) {
@@ -608,6 +665,7 @@ export default function UserDetail() {
         const items = [];
         recentAudit.forEach(e => {
             const details = e.details || {};
+            const auditUserAgent = typeof e.userAgent === 'string' ? e.userAgent : '';
             const summaryParts = [];
             if (details.targetUsername) summaryParts.push(`${copy.labels.target} ${details.targetUsername}`);
             if (details.subscriptionEmail && details.subscriptionEmail !== details.email) summaryParts.push(`${copy.labels.subscriptionEmail} ${details.subscriptionEmail}`);
@@ -629,11 +687,18 @@ export default function UserDetail() {
                 eventKey: e.eventType,
                 outcome: e.outcome,
                 path: e.path || '',
-                ip: e.ip,
+                method: e.method || '',
+                ip: typeof e.ip === 'string' ? e.ip : '',
+                ipMasked: e.ipMasked === true,
                 actor: e.actor || '',
                 serverId: e.serverId || '',
                 tokenId: details.publicTokenId || details.tokenId || '',
-                userAgent: details.userAgent || '',
+                userAgent: auditUserAgent || (e.userAgentMasked === true ? '' : (details.userAgent || '')),
+                userAgentMasked: e.userAgentMasked === true,
+                ipLocation: e.ipLocation || '',
+                ipCarrier: e.ipCarrier || '',
+                resourceType: e.resourceType || '',
+                resourceId: e.resourceId || '',
                 summary: summaryParts.join(' · '),
             });
         });
@@ -1357,9 +1422,13 @@ export default function UserDetail() {
                                                         {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
                                                     </div>
                                                     {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
-                                                    <div className="text-xs text-muted mt-1">
-                                                        {item.ip ? `${copy.labels.ip}: ${item.ip}` : `${copy.labels.ip}: -`}
-                                                        {item.userAgent ? ` · ${copy.labels.ua}: ${item.userAgent}` : ''}
+                                                    <div className="timeline-fact-grid mt-3">
+                                                        {buildTimelineFacts(item, copy).map((fact) => (
+                                                            <div key={`${item.id}-${fact.label}`} className="timeline-fact-card">
+                                                                <div className="timeline-fact-label">{fact.label}</div>
+                                                                <div className="timeline-fact-value">{fact.value}</div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             </div>

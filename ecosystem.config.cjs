@@ -2,7 +2,7 @@ module.exports = {
     apps: [
         {
             name: 'nms',
-            script: './server/index.js',
+            script: './server/scripts/start_production.js',
             cwd: __dirname,
             env: {
                 NODE_ENV: 'production',

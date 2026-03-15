@@ -201,13 +201,13 @@ const SYSTEM_MODULES = [
     {
         key: 'telegramBot',
         label: 'Telegram Bot Settings',
-        status: 'guided_only',
+        status: 'integrated',
         supportedBy3xui: true,
-        supportedByNms: false,
-        uiAction: 'panel_only',
-        uiActionLabel: '3x-ui 面板',
+        supportedByNms: true,
+        uiAction: 'system_settings',
+        uiActionLabel: '系统设置',
         docs: 'https://github.com/MHSanaei/3x-ui/wiki/Configuration',
-        note: 'Official panel workflow exists, but no stable documented write API is used by NMS.',
+        note: 'NMS can configure Telegram alerts and accepts low-risk bot commands from system settings.',
     },
     {
         key: 'panelWebBasePath',

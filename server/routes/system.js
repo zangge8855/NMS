@@ -25,6 +25,7 @@ import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
+import telegramAlertService from '../lib/telegramAlertService.js';
 import {
     createBackupArchive,
     deleteLocalBackupArchive,
@@ -545,6 +546,7 @@ router.get('/monitor/status', adminOnly, (req, res) => {
         obj: {
             healthMonitor: serverHealthMonitor.getStatus(),
             dbAlerts: alertEngine.getStats(),
+            telegram: telegramAlertService.getStatus(),
             notifications: {
                 unreadCount: notificationService.unreadCount(),
             },
@@ -554,13 +556,14 @@ router.get('/monitor/status', adminOnly, (req, res) => {
 
 router.post('/monitor/run', adminOnly, async (req, res) => {
     try {
-        const result = await serverHealthMonitor.runOnce();
+        const result = await serverHealthMonitor.runOnce({ force: true });
         appendSecurityAudit('server_health_monitor_run', req, {
             total: result.summary.total,
             healthy: result.summary.healthy,
             degraded: result.summary.degraded,
             unreachable: result.summary.unreachable,
             maintenance: result.summary.maintenance,
+            reasonCounts: result.summary.reasonCounts || {},
         });
         return res.json({
             success: true,
@@ -570,6 +573,37 @@ router.post('/monitor/run', adminOnly, async (req, res) => {
         return res.status(500).json({
             success: false,
             msg: error.message || '节点健康巡检失败',
+        });
+    }
+});
+
+router.post('/telegram/test', adminOnly, async (req, res) => {
+    try {
+        const sent = await telegramAlertService.sendTestMessage(req.user?.username || 'admin');
+        if (!sent) {
+            throw new Error('Telegram 未启用或配置不完整');
+        }
+        appendSecurityAudit('telegram_test_message_sent', req, {
+            chatIdPreview: telegramAlertService.getStatus().chatIdPreview,
+        }, {
+            outcome: 'success',
+        });
+        return res.json({
+            success: true,
+            msg: 'Telegram 测试通知已发送',
+            obj: telegramAlertService.getStatus(),
+        });
+    } catch (error) {
+        appendSecurityAudit('telegram_test_message_sent', req, {
+            chatIdPreview: telegramAlertService.getStatus().chatIdPreview,
+            error: error.message || 'telegram-test-failed',
+        }, {
+            outcome: 'failed',
+        });
+        return res.status(400).json({
+            success: false,
+            msg: error.message || 'Telegram 测试通知发送失败',
+            obj: telegramAlertService.getStatus(),
         });
     }
 });

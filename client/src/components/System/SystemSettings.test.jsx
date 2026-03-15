@@ -1,5 +1,6 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
 import api from '../../api/client.js';
@@ -44,6 +45,190 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
+function mockAdminBootstrap(overrides = {}) {
+    const defaultResponses = {
+        '/system/settings': {
+            data: {
+                obj: {
+                    site: {
+                        accessPath: '/portal',
+                        camouflageEnabled: true,
+                        camouflageTemplate: 'nginx',
+                        camouflageTitle: 'Northline Relay',
+                    },
+                    registration: {
+                        inviteOnlyEnabled: true,
+                    },
+                    security: {
+                        requireHighRiskConfirmation: true,
+                        mediumRiskMinTargets: 20,
+                        highRiskMinTargets: 100,
+                        riskTokenTtlSeconds: 180,
+                    },
+                    jobs: {
+                        retentionDays: 90,
+                        maxPageSize: 200,
+                        maxRecords: 2000,
+                        maxConcurrency: 10,
+                        defaultConcurrency: 5,
+                    },
+                    audit: {
+                        retentionDays: 365,
+                        maxPageSize: 200,
+                    },
+                    subscription: {
+                        publicBaseUrl: 'https://nms.example.com',
+                        converterBaseUrl: 'https://converter.example.com',
+                    },
+                    auditIpGeo: {
+                        enabled: true,
+                        provider: 'ip_api',
+                        endpoint: 'http://ip-api.com/json/{ip}',
+                        timeoutMs: 1500,
+                        cacheTtlSeconds: 21600,
+                    },
+                    telegram: {
+                        enabled: true,
+                        botTokenConfigured: true,
+                        botTokenPreview: '1234...ABCD',
+                        chatId: '-1001234567890',
+                        sendSystemStatus: true,
+                        sendSecurityAudit: true,
+                        sendEmergencyAlerts: true,
+                    },
+                },
+            },
+        },
+        '/system/db/status': {
+            data: {
+                obj: {
+                    connection: {
+                        enabled: true,
+                        ready: true,
+                        error: '',
+                    },
+                    currentModes: {
+                        readMode: 'file',
+                        writeMode: 'dual',
+                    },
+                    pendingWrites: 2,
+                    writesQueued: 1,
+                    snapshots: [{ id: 'snap-1' }],
+                    lastWriteAt: '2026-03-15T01:00:00.000Z',
+                    defaults: {
+                        dryRun: true,
+                    },
+                },
+            },
+        },
+        '/system/email/status': {
+            data: {
+                obj: {
+                    configured: true,
+                    from: 'ops@nms.example.com',
+                    host: 'smtp.example.com',
+                    port: 587,
+                    service: 'SMTP',
+                    lastVerification: {
+                        success: true,
+                        ts: '2026-03-15T02:00:00.000Z',
+                        error: '',
+                        hint: '使用 TLS 验证通过',
+                    },
+                    lastDelivery: {
+                        success: true,
+                        ts: '2026-03-15T03:00:00.000Z',
+                        type: 'notice',
+                        error: '',
+                        hint: '最近一次通知发送成功',
+                    },
+                },
+            },
+        },
+        '/system/backup/status': {
+            data: {
+                obj: {
+                    storeKeys: ['users', 'servers', 'notifications'],
+                    lastExport: {
+                        filename: 'nms-20260315.nmsbak',
+                        createdAt: '2026-03-15T04:00:00.000Z',
+                    },
+                    lastImport: {
+                        sourceFilename: 'nms-restore.nmsbak',
+                        restoredAt: '2026-03-15T05:00:00.000Z',
+                    },
+                    localBackups: [
+                        {
+                            filename: 'local-20260315.nmsbak',
+                            createdAt: '2026-03-15T04:30:00.000Z',
+                        },
+                    ],
+                },
+            },
+        },
+        '/system/monitor/status': {
+            data: {
+                obj: {
+                    healthMonitor: {
+                        running: true,
+                        intervalMs: 300000,
+                        lastRunAt: '2026-03-15T06:00:00.000Z',
+                        summary: {
+                            healthy: 2,
+                            degraded: 1,
+                            unreachable: 1,
+                            maintenance: 0,
+                            byReason: {
+                                dns_error: 1,
+                                auth_failed: 1,
+                                none: 2,
+                            },
+                        },
+                    },
+                    notifications: {
+                        unreadCount: 3,
+                    },
+                    dbAlerts: {
+                        consecutiveFailures: 2,
+                    },
+                    telegram: {
+                        enabled: true,
+                        configured: true,
+                        commandsEnabled: true,
+                        chatIdPreview: '********7890',
+                        botTokenPreview: '1234...ABCD',
+                        lastSentAt: '2026-03-15T06:30:00.000Z',
+                        lastError: '',
+                        lastCommandAt: '2026-03-15T06:35:00.000Z',
+                        lastCommand: '/status',
+                    },
+                },
+            },
+        },
+        '/auth/registration-status': {
+            data: {
+                obj: {
+                    enabled: true,
+                },
+            },
+        },
+        '/system/invite-codes': {
+            data: {
+                obj: [
+                    {
+                        id: 'invite-1',
+                        status: 'active',
+                        remainingUses: 3,
+                        usedCount: 0,
+                    },
+                ],
+            },
+        },
+    };
+
+    api.get.mockImplementation((url) => Promise.resolve(overrides[url] || defaultResponses[url] || { data: { obj: {} } }));
+}
+
 describe('SystemSettings', () => {
     beforeEach(() => {
         useAuthMock.mockReset();
@@ -66,31 +251,7 @@ describe('SystemSettings', () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
-        api.get.mockImplementation((url) => {
-            if (url === '/system/settings') {
-                return Promise.resolve({
-                    data: {
-                        obj: {
-                            site: {
-                                accessPath: '/portal',
-                                camouflageEnabled: true,
-                                camouflageTemplate: 'nginx',
-                                camouflageTitle: 'Northline Relay',
-                            },
-                            security: {},
-                            jobs: {},
-                            audit: {},
-                            subscription: {
-                                publicBaseUrl: 'https://nms.example.com',
-                                converterBaseUrl: 'https://converter.example.com',
-                            },
-                            auditIpGeo: {},
-                        },
-                    },
-                });
-            }
-            return Promise.resolve({ data: { obj: {} } });
-        });
+        mockAdminBootstrap();
 
         renderWithRouter(<SystemSettings />);
 
@@ -107,11 +268,104 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
     });
 
+    it('keeps top status highlight cards inside the status tab only', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/system/settings') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            site: {
+                                accessPath: '/portal',
+                                camouflageEnabled: true,
+                                camouflageTemplate: 'nginx',
+                                camouflageTitle: 'Northline Relay',
+                            },
+                            registration: {
+                                inviteOnlyEnabled: true,
+                            },
+                            security: {},
+                            jobs: {},
+                            audit: {},
+                            subscription: {
+                                publicBaseUrl: 'https://nms.example.com',
+                            },
+                            auditIpGeo: {},
+                        },
+                    },
+                });
+            }
+            return Promise.resolve({ data: { obj: {} } });
+        });
+
+        renderWithRouter(<SystemSettings />);
+
+        await screen.findByDisplayValue('/portal');
+        expect(document.querySelectorAll('.settings-tab-highlight-card').length).toBe(0);
+
+        await user.click(screen.getByRole('tab', { name: '系统状态' }));
+
+        expect(await screen.findByText('站点入口')).toBeInTheDocument();
+        expect(document.querySelectorAll('.settings-tab-highlight-card').length).toBeGreaterThan(0);
+    });
+
+    it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+
+        renderWithRouter(<SystemSettings />);
+
+        expect(await screen.findByText('注册与邀请码')).toBeInTheDocument();
+        expect(screen.getByText('当前注册开关、模式和邀请码库存统一收口到顶部状态卡，这里只保留模式切换和邀请码生成/撤销操作。')).toBeInTheDocument();
+        expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
+        expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
+    });
+
+    it('shows consolidated monitor summaries inside the monitor tab', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
+
+        expect(await screen.findByText('SMTP 诊断')).toBeInTheDocument();
+        expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
+        expect(screen.getByText('状态摘要统一收口到系统状态卡片')).toBeInTheDocument();
+        expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
+        expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
+        expect(screen.getByText('Telegram 可用命令')).toBeInTheDocument();
+        expect(screen.getByText('/monitor')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('-1001234567890')).toBeInTheDocument();
+        expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
+        expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
+    });
+
+    it('shows a compact backup summary card in the backup tab', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=backup' });
+
+        expect(await screen.findByText('加密备份工作台')).toBeInTheDocument();
+        expect(screen.getByText('备份摘要')).toBeInTheDocument();
+        expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
+    });
+
     it('opens the embedded node console when the console tab is selected via query string', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
-        api.get.mockResolvedValue({ data: { obj: {} } });
+        mockAdminBootstrap();
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=console' });
 

@@ -27,7 +27,9 @@ import systemSettingsStore from './store/systemSettingsStore.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
 import { createCamouflageAssetMiddleware } from './lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
+import { createSearchBotProtectionMiddleware } from './middleware/searchBotProtection.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
+import telegramAlertService from './lib/telegramAlertService.js';
 import { pathToFileURL } from 'url';
 import { resolve } from 'path';
 
@@ -43,6 +45,7 @@ export function createApp(options = {}) {
     // Trust reverse proxies on loopback/private networks so req.ip reflects real client IP.
     app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
     app.disable('x-powered-by');
+    app.use(createSearchBotProtectionMiddleware());
     app.use(cors({
         origin: config.nodeEnv === 'development' ? 'http://localhost:5173' : false,
         credentials: true,
@@ -189,6 +192,7 @@ export async function startServer(options = {}) {
         enableWebSocket: options.enableWebSocket,
     });
     serverHealthMonitor.start();
+    telegramAlertService.start();
 
     await new Promise((resolvePromise, rejectPromise) => {
         httpServer.once('error', rejectPromise);

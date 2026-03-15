@@ -30,6 +30,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import { fetchManagedUsers } from '../../utils/managedUsersCache.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const MAX_SINGLE_ONLINE_ROWS = 120;
@@ -754,7 +755,7 @@ export default function Dashboard() {
                 panelApi('get', '/panel/api/server/cpuHistory/30'),
                 panelApi('get', '/panel/api/inbounds/list'),
                 panelApi('post', '/panel/api/inbounds/onlines').catch(() => ({ data: { obj: [] } })),
-                api.get('/auth/users').catch(() => ({ data: { obj: [] } })),
+                fetchManagedUsers(api).catch(() => []),
             ]);
             if (statusRes.data?.obj) setStatus(statusRes.data.obj);
             if (cpuRes.data?.obj) {
@@ -765,7 +766,7 @@ export default function Dashboard() {
             }
             const singleInbounds = Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [];
             const singleOnlines = Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [];
-            const users = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
+            const users = Array.isArray(usersRes) ? usersRes : [];
             setInbounds(singleInbounds);
 
             const presence = buildManagedOnlineSummary(users, [{
@@ -803,7 +804,7 @@ export default function Dashboard() {
                 serverCount: servers.length, onlineServers: 0,
             };
             const [usersRes] = await Promise.all([
-                api.get('/auth/users').catch(() => ({ data: { obj: [] } })),
+                fetchManagedUsers(api).catch(() => []),
                 ...servers.map(async (server) => {
                     try {
                         const [statusRes, inboundsRes, onlineRes] = await Promise.all([
@@ -831,7 +832,7 @@ export default function Dashboard() {
                     }
                 }),
             ]);
-            const users = Array.isArray(usersRes.data?.obj) ? usersRes.data.obj : [];
+            const users = Array.isArray(usersRes) ? usersRes : [];
             const presence = buildManagedOnlineSummary(
                 users,
                 Object.values(results).map((item) => ({
@@ -874,25 +875,31 @@ export default function Dashboard() {
     useEffect(() => {
         setLoading(true);
         if (activeServerId === 'global') {
-            // Initial load via REST, then WebSocket takes over
+            // Initial load via REST, then WebSocket takes over.
             fetchGlobalData();
-        } else if (activeServerId) {
-            fetchSingleData();
-        } else {
-            setLoading(false);
+            return;
         }
+        if (activeServerId) {
+            fetchSingleData();
+            return;
+        }
+        setLoading(false);
+    }, [activeServerId, fetchSingleData, fetchGlobalData]);
 
-        if (!autoRefresh) return;
+    useEffect(() => {
+        if (!autoRefresh) return undefined;
         const interval = setInterval(() => {
-            // Keep polling even in global view so user-level online counts stay aligned with UsersHub.
             if (activeServerId === 'global') {
+                if (wsStatus === 'connected') return;
                 fetchGlobalData();
-            } else if (activeServerId) {
+                return;
+            }
+            if (activeServerId) {
                 fetchSingleData();
             }
         }, AUTO_REFRESH_INTERVAL);
         return () => clearInterval(interval);
-    }, [activeServerId, fetchSingleData, fetchGlobalData, autoRefresh]);
+    }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, wsStatus]);
 
     const refresh = () => activeServerId === 'global' ? fetchGlobalData() : fetchSingleData();
     const toggleAutoRefresh = () => {

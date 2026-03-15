@@ -17,91 +17,13 @@
 
 import { WebSocketServer } from 'ws';
 import { URL } from 'url';
-import serverStore from './store/serverStore.js';
-import { ensureAuthenticated } from './lib/panelClient.js';
 import { verifyWsTicket } from './lib/wsTicket.js';
 import taskQueue from './lib/taskQueue.js';
 import notificationService from './lib/notifications.js';
+import { collectClusterStatusSnapshot } from './lib/serverStatusService.js';
 
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
-const COLLECTOR_CONCURRENCY = 5;
-
-/** 并发控制 */
-async function runWithConcurrency(items, worker, concurrency = 3) {
-    const results = [];
-    let idx = 0;
-    const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-        while (idx < items.length) {
-            const i = idx++;
-            results[i] = await worker(items[i], i);
-        }
-    });
-    await Promise.all(runners);
-    return results;
-}
-
-async function fetchServerStatus(client) {
-    try {
-        return await client.get('/panel/api/server/status');
-    } catch {
-        return client.post('/panel/api/server/status');
-    }
-}
-
-/** 从单个节点采集状态 */
-async function collectServerStatus(serverMeta) {
-    try {
-        const client = await ensureAuthenticated(serverMeta.id);
-        const [statusRes, onlineRes, inboundsRes] = await Promise.all([
-            fetchServerStatus(client),
-            client.post('/panel/api/inbounds/onlines'),
-            client.get('/panel/api/inbounds/list').catch(() => ({ data: { obj: [] } })),
-        ]);
-
-        const status = statusRes.data?.obj;
-        const onlines = Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [];
-        const inbounds = Array.isArray(inboundsRes?.data?.obj) ? inboundsRes.data.obj : [];
-
-        // Normalize online entries
-        const onlineUsers = [];
-        for (const item of onlines) {
-            if (typeof item === 'string' && item.trim()) {
-                onlineUsers.push({ email: item.trim() });
-            } else if (item && typeof item === 'object') {
-                const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
-                if (email) onlineUsers.push({ email });
-            }
-        }
-
-        const inboundCount = inbounds.length;
-        const activeInbounds = inbounds.filter((item) => Boolean(item?.enable)).length;
-        const totalInboundUp = inbounds.reduce((sum, item) => sum + Number(item?.up || 0), 0);
-        const totalInboundDown = inbounds.reduce((sum, item) => sum + Number(item?.down || 0), 0);
-
-        return {
-            online: true,
-            status: {
-                cpu: status?.cpu ?? 0,
-                mem: status?.mem ?? { current: 0, total: 1 },
-                uptime: status?.uptime ?? 0,
-                xray: status?.xray ?? {},
-                netTraffic: status?.netTraffic ?? {},
-            },
-            inboundCount,
-            activeInbounds,
-            up: totalInboundUp,
-            down: totalInboundDown,
-            onlineCount: onlineUsers.length,
-            onlineUsers,
-        };
-    } catch (err) {
-        return {
-            online: false,
-            error: err.message || 'Connection failed',
-        };
-    }
-}
 
 /**
  * 初始化 WebSocket 服务器
@@ -190,44 +112,28 @@ export function initWebSocket(httpServer) {
 
         broadcasting = true;
         try {
-            const servers = serverStore.getAll();
-            if (servers.length === 0) {
+            const snapshot = await collectClusterStatusSnapshot({
+                includeDetails: true,
+                maxAgeMs: Math.max(0, BROADCAST_INTERVAL - 1_000),
+            });
+            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
             }
-
-            const serverResults = {};
-            let totalOnline = 0;
-            let onlineServers = 0;
-            let totalUp = 0;
-            let totalDown = 0;
-            let totalInbounds = 0;
-            let activeInbounds = 0;
-
-            await runWithConcurrency(servers, async (server) => {
-                const result = await collectServerStatus(server);
-                serverResults[server.id] = { ...result, name: server.name };
-                if (result.online) {
-                    onlineServers++;
-                    totalOnline += result.onlineCount;
-                    totalInbounds += result.inboundCount ?? 0;
-                    activeInbounds += result.activeInbounds ?? 0;
-                    totalUp += result.up ?? result.status?.netTraffic?.sent ?? 0;
-                    totalDown += result.down ?? result.status?.netTraffic?.recv ?? 0;
-                }
-            }, COLLECTOR_CONCURRENCY);
 
             const clusterPayload = JSON.stringify({
                 type: 'cluster_status',
                 ts: Date.now(),
                 data: {
-                    serverCount: servers.length,
-                    onlineServers,
-                    totalOnline,
-                    totalUp,
-                    totalDown,
-                    totalInbounds,
-                    activeInbounds,
-                    servers: serverResults,
+                    serverCount: snapshot.summary?.total || 0,
+                    onlineServers: snapshot.summary?.onlineServers || 0,
+                    totalOnline: snapshot.summary?.totalOnline || 0,
+                    totalUp: snapshot.summary?.totalUp || 0,
+                    totalDown: snapshot.summary?.totalDown || 0,
+                    totalInbounds: snapshot.summary?.totalInbounds || 0,
+                    activeInbounds: snapshot.summary?.activeInbounds || 0,
+                    byReason: snapshot.summary?.byReason || snapshot.summary?.reasonCounts || {},
+                    reasonCounts: snapshot.summary?.reasonCounts || {},
+                    servers: snapshot.byServerId || {},
                 },
             });
 
@@ -237,12 +143,12 @@ export function initWebSocket(httpServer) {
                 ws.send(clusterPayload);
 
                 // If subscribed to a specific server, send detailed status
-                if (ws.subscribedServerId && serverResults[ws.subscribedServerId]) {
+                if (ws.subscribedServerId && snapshot.byServerId?.[ws.subscribedServerId]) {
                     safeSend(ws, {
                         type: 'server_status',
                         ts: Date.now(),
                         serverId: ws.subscribedServerId,
-                        data: serverResults[ws.subscribedServerId],
+                        data: snapshot.byServerId[ws.subscribedServerId],
                     });
                 }
             }

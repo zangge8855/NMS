@@ -1199,7 +1199,7 @@ export default function Inbounds() {
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors hover-bg-surface inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
+                                                className={`cursor-pointer transition-colors inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
@@ -1300,7 +1300,7 @@ export default function Inbounds() {
                                                 )}
                                                 <td
                                                     data-label="备注"
-                                                    className="font-medium text-white inbounds-remark-cell"
+                                                    className="font-medium text-white text-center inbounds-remark-cell"
                                                     title={ib.remark || '-'}
                                                 >
                                                     {ib.remark || '-'}

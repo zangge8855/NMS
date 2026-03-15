@@ -1,9 +1,10 @@
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
+import { invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import UsersHub from './UsersHub.jsx';
 
 vi.mock('../../api/client.js', () => ({
@@ -68,7 +69,11 @@ function mockMatchMedia(matches = false) {
 }
 
 describe('UsersHub ordering', () => {
+    let consoleErrorSpy;
+
     beforeEach(() => {
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        invalidateManagedUsersCache();
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
@@ -128,6 +133,10 @@ describe('UsersHub ordering', () => {
         });
 
         api.put.mockResolvedValue({ data: { success: true } });
+    });
+
+    afterEach(() => {
+        consoleErrorSpy?.mockRestore();
     });
 
     it('shows auto-increment sequence numbers instead of an editable order input', async () => {
@@ -303,5 +312,59 @@ describe('UsersHub ordering', () => {
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
+    });
+
+    it('shows a primary load error when the user list request fails', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.reject(new Error('user list unavailable'));
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText('用户列表加载失败').length).toBeGreaterThan(0);
+        });
+        expect(screen.getByText('user list unavailable')).toBeInTheDocument();
+    });
+
+    it('keeps rendering users when node data only partially fails', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-a',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                            enabled: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.reject(new Error('inbounds denied'));
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.reject(new Error('presence denied'));
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('alice')).toBeInTheDocument();
+        expect(screen.getByText('节点数据已降级显示')).toBeInTheDocument();
+        expect(screen.getByText(/入站配置失败: Node A/)).toBeInTheDocument();
+        expect(screen.getByText(/在线状态失败: Node A/)).toBeInTheDocument();
     });
 });

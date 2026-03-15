@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
+    "start:prod": "node scripts/start_production.js",
     "dev": "node --watch index.js",
     "db:backfill": "node scripts/backfill_to_db.js",
     "review:fake-panel": "node scripts/review_fake_panel.js",

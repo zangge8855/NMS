@@ -4,6 +4,12 @@ import { renderWithRouter } from '../../test/render.jsx';
 import Dashboard from './Dashboard.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
+import { invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
+
+let webSocketState = {
+    status: 'disconnected',
+    lastMessage: null,
+};
 
 vi.mock('../../contexts/ServerContext.jsx', () => ({
     useServer: vi.fn(),
@@ -23,10 +29,7 @@ vi.mock('../../contexts/AuthContext.jsx', () => ({
 }));
 
 vi.mock('../../hooks/useWebSocket.js', () => ({
-    default: () => ({
-        status: 'disconnected',
-        lastMessage: null,
-    }),
+    default: () => webSocketState,
 }));
 
 vi.mock('../Layout/Header.jsx', () => ({
@@ -54,10 +57,15 @@ function mockMatchMedia(matches = false) {
 
 describe('Dashboard', () => {
     beforeEach(() => {
+        invalidateManagedUsersCache();
         localStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
         mockMatchMedia(false);
+        webSocketState = {
+            status: 'disconnected',
+            lastMessage: null,
+        };
         useServer.mockReturnValue({
             activeServerId: null,
             panelApi: vi.fn(),
@@ -437,5 +445,169 @@ describe('Dashboard', () => {
         expect(document.querySelector('.dashboard-online-table')).toBeFalsy();
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+    });
+
+    it('reuses the managed-user cache across dashboard mounts', async () => {
+        const panelApi = vi.fn((method, path) => {
+            if (method === 'get' && path === '/panel/api/server/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: { cpu: 10, mem: { current: 256, total: 1024 }, uptime: 3600 },
+                    },
+                });
+            }
+            if (method === 'get' && path === '/panel/api/server/cpuHistory/30') {
+                return Promise.resolve({ data: { obj: [10, 11, 12] } });
+            }
+            if (method === 'get' && path === '/panel/api/inbounds/list') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (method === 'post' && path === '/panel/api/inbounds/onlines') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            throw new Error(`Unexpected panelApi call: ${method} ${path}`);
+        });
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            panelApi,
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{ id: 'user-a', role: 'user', username: 'Alice', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        const firstRender = renderWithRouter(<Dashboard />, { route: '/' });
+        await waitFor(() => {
+            expect(panelApi).toHaveBeenCalledTimes(4);
+        });
+        firstRender.unmount();
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+        await waitFor(() => {
+            expect(panelApi).toHaveBeenCalledTimes(8);
+        });
+
+        expect(api.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips global auto-polling when the websocket cluster stream is connected', async () => {
+        const intervalCallbacks = [];
+        const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, delay) => {
+            if (delay === 30_000) {
+                intervalCallbacks.push(callback);
+            }
+            return 1;
+        });
+        const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval').mockImplementation(() => {});
+        try {
+            webSocketState = {
+                status: 'connected',
+                lastMessage: {
+                    type: 'cluster_status',
+                    data: {
+                        serverCount: 1,
+                        onlineServers: 1,
+                        totalOnline: 0,
+                        totalUp: 0,
+                        totalDown: 0,
+                        totalInbounds: 0,
+                        activeInbounds: 0,
+                        servers: {
+                            'server-a': {
+                                name: 'Node A',
+                                online: true,
+                                health: 'healthy',
+                                reasonCode: 'none',
+                                reasonMessage: '',
+                                status: {
+                                    cpu: 8,
+                                    mem: { current: 128, total: 1024 },
+                                    uptime: 3600,
+                                    xray: {},
+                                    netTraffic: {},
+                                },
+                                inboundCount: 0,
+                                activeInbounds: 0,
+                                up: 0,
+                                down: 0,
+                                onlineCount: 0,
+                                onlineUsers: [],
+                            },
+                        },
+                    },
+                },
+            };
+
+            useServer.mockReturnValue({
+                activeServerId: 'global',
+                panelApi: vi.fn(),
+                activeServer: null,
+                servers: [{ id: 'server-a', name: 'Node A' }],
+            });
+
+            let userFetches = 0;
+            let statusFetches = 0;
+            api.get.mockImplementation((url) => {
+                if (url === '/auth/users') {
+                    userFetches += 1;
+                    return Promise.resolve({
+                        data: {
+                            obj: [{ id: 'user-a', role: 'user', username: 'Alice', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true }],
+                        },
+                    });
+                }
+                if (url === '/panel/server-a/panel/api/server/status') {
+                    statusFetches += 1;
+                    return Promise.resolve({
+                        data: {
+                            obj: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                netTraffic: { sent: 0, recv: 0 },
+                            },
+                        },
+                    });
+                }
+                if (url === '/panel/server-a/panel/api/inbounds/list') {
+                    return Promise.resolve({ data: { obj: [] } });
+                }
+                throw new Error(`Unexpected GET ${url}`);
+            });
+            api.post.mockImplementation((url) => {
+                if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                    return Promise.resolve({ data: { obj: [] } });
+                }
+                throw new Error(`Unexpected POST ${url}`);
+            });
+
+            renderWithRouter(<Dashboard />, { route: '/' });
+            await waitFor(() => {
+                expect(userFetches).toBe(1);
+                expect(statusFetches).toBe(1);
+            });
+
+            expect(userFetches).toBe(1);
+            expect(statusFetches).toBe(1);
+            expect(intervalCallbacks.length).toBeGreaterThan(0);
+
+            intervalCallbacks[0]();
+
+            expect(userFetches).toBe(1);
+            expect(statusFetches).toBe(1);
+        } finally {
+            setIntervalSpy.mockRestore();
+            clearIntervalSpy.mockRestore();
+        }
     });
 });

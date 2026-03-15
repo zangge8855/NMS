@@ -62,6 +62,65 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, true);
     });
 
+    it('stores telegram bot configuration without exposing the raw token in public settings', () => {
+        const updated = systemSettingsStore.update({
+            telegram: {
+                enabled: true,
+                botToken: '123456:ABCDEF-token',
+                chatId: '-1001234567890',
+                sendSystemStatus: true,
+                sendSecurityAudit: true,
+                sendEmergencyAlerts: true,
+            },
+        });
+
+        assert.equal(updated.telegram.enabled, true);
+        assert.equal(updated.telegram.botTokenConfigured, true);
+        assert.equal(updated.telegram.botToken, '');
+        assert.equal(updated.telegram.chatId, '-1001234567890');
+
+        const telegram = systemSettingsStore.getTelegram();
+        assert.equal(telegram.botToken, '123456:ABCDEF-token');
+        assert.equal(telegram.chatId, '-1001234567890');
+        assert.equal(telegram.botTokenConfigured, true);
+    });
+
+    it('allows explicitly clearing a previously saved telegram token', () => {
+        systemSettingsStore.update({
+            telegram: {
+                enabled: true,
+                botToken: '123456:ABCDEF-token',
+                chatId: '-1001234567890',
+            },
+        });
+
+        const updated = systemSettingsStore.update({
+            telegram: {
+                enabled: false,
+                clearBotToken: true,
+            },
+        });
+
+        assert.equal(updated.telegram.botTokenConfigured, false);
+        assert.equal(systemSettingsStore.getTelegram().botToken, '');
+    });
+
+    it('does not overwrite a corrupted settings file at startup', async () => {
+        const module = await import('../store/systemSettingsStore.js');
+        fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
+
+        const settingsFile = path.join(TEST_DATA_DIR, 'system_settings.json');
+        fs.writeFileSync(settingsFile, '{broken json');
+        try {
+            const reloaded = new module.SystemSettingsStore();
+            assert.equal(reloaded.getTelegram().botTokenConfigured, false);
+            assert.equal(fs.readFileSync(settingsFile, 'utf8'), '{broken json');
+        } finally {
+            systemSettingsStore.settings = systemSettingsStore._normalizeSettings({});
+            systemSettingsStore._save();
+        }
+    });
+
     it('defaults site access path to root and normalizes custom values', () => {
         assert.equal(systemSettingsStore.getSite().accessPath, '/');
         assert.equal(systemSettingsStore.getSite().camouflageEnabled, false);
