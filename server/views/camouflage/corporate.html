@@ -350,8 +350,8 @@
                 <a class="{{class:nav-link}}" href="/support"><span data-lang="zh-CN">支持</span><span data-lang="en-US" hidden>Support</span></a>
             </nav>
             <div class="{{class:nav-chip}}">
-                <span data-lang="zh-CN">目录状态 {{statusCode}}</span>
-                <span data-lang="en-US" hidden>Status {{statusCode}}</span>
+                <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
+                <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
             </div>
             <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
                 <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
@@ -390,8 +390,8 @@
                     <div>
                         <span class="{{class:eyebrow}}"><span data-lang="zh-CN">请求记录</span><span data-lang="en-US" hidden>Request trace</span></span>
                         <div class="{{class:notice}}">
-                            <span data-lang="zh-CN">请求路径 <span class="{{class:inline-code}}">{{requestPath}}</span> 以 <span class="{{class:inline-code}}">{{requestMethod}}</span> 方式访问，公开目录返回状态 <span class="{{class:inline-code}}">{{statusCode}}</span>。</span>
-                            <span data-lang="en-US" hidden>Request <span class="{{class:inline-code}}">{{requestMethod}}</span> to <span class="{{class:inline-code}}">{{requestPath}}</span> returned public directory status <span class="{{class:inline-code}}">{{statusCode}}</span>.</span>
+                            <span data-lang="zh-CN">请求路径 <span class="{{class:inline-code}}">{{requestPath}}</span> {{requestNoticeZh}}</span>
+                            <span data-lang="en-US" hidden>The requested path <span class="{{class:inline-code}}">{{requestPath}}</span> {{requestNoticeEn}}</span>
                         </div>
                     </div>
                     <div class="{{class:meta-grid}}">

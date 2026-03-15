@@ -249,6 +249,14 @@ function createRenderModel(options = {}) {
     const now = new Date();
     const statusLabelZh = statusCode === 200 ? '公开目录' : '资源未发布';
     const statusLabelEn = statusCode === 200 ? 'Service directory' : 'Resource not published';
+    const directoryBadgeZh = statusCode === 200 ? '公开目录可用' : '内容未公开发布';
+    const directoryBadgeEn = statusCode === 200 ? 'Public directory available' : 'Content not published';
+    const requestNoticeZh = statusCode === 200 ? '已收录于公开目录。' : '当前未在公开目录发布。';
+    const requestNoticeEn = statusCode === 200 ? 'is available through the public directory.' : 'is not published in the public directory.';
+    const archiveNoticeZh = statusCode === 200 ? '已收录于公开归档，可供查阅。' : '未在公开归档中收录。';
+    const archiveNoticeEn = statusCode === 200 ? 'is listed in the public archive.' : 'is not part of the public archive.';
+    const deliveryNoticeZh = statusCode === 200 ? '可通过公开分发节点访问。' : '当前未通过公开分发节点发布。';
+    const deliveryNoticeEn = statusCode === 200 ? 'is available through the public delivery node.' : 'is not published through the public delivery node.';
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
     const descriptionZh = `${title} 提供工业边缘检测、设备接入与遥测支持服务，公开目录仅展示对外说明与协作信息。`;
@@ -259,7 +267,7 @@ function createRenderModel(options = {}) {
         title,
         defaultLanguage: 'zh-CN',
         alternateLanguage: 'en-US',
-        languageStorageKey: 'nms_camouflage_lang',
+        languageStorageKey: 'site_lang_pref',
         pageTitle: pageTitleZh,
         pageTitleZh,
         pageTitleEn,
@@ -272,6 +280,14 @@ function createRenderModel(options = {}) {
         statusLabel: statusLabelZh,
         statusLabelZh,
         statusLabelEn,
+        directoryBadgeZh,
+        directoryBadgeEn,
+        requestNoticeZh,
+        requestNoticeEn,
+        archiveNoticeZh,
+        archiveNoticeEn,
+        deliveryNoticeZh,
+        deliveryNoticeEn,
         currentYear: String(now.getUTCFullYear()),
         generatedAt: now.toUTCString(),
         classes: CLASS_MAP,

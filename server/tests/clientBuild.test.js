@@ -246,9 +246,12 @@ describe('client build helpers', () => {
         assert.match(html, /中文/);
         assert.match(html, /English/);
         assert.match(html, /工业边缘检测与遥测服务目录/);
+        assert.match(html, /公开目录可用/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
         assert.match(html, /24 小时/);
-        assert.match(html, /nms_camouflage_lang/);
+        assert.match(html, /site_lang_pref/);
+        assert.doesNotMatch(html, /目录状态 200/);
+        assert.doesNotMatch(html, /nms_camouflage_lang/i);
         assert.doesNotMatch(html, /pexels\.com/i);
     });
 });

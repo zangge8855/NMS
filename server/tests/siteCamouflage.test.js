@@ -20,11 +20,14 @@ describe('site camouflage renderer', () => {
         assert.match(html, /中文/);
         assert.match(html, /English/);
         assert.match(html, /公开札记、维护随笔与现场协作记录/);
+        assert.match(html, /未在公开归档中收录/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
         assert.doesNotMatch(html, /pexels\.com/i);
+        assert.doesNotMatch(html, /Directory status:/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
         assert.match(html, /\/wp-admin/);
-        assert.match(html, /nms_camouflage_lang/);
+        assert.match(html, /site_lang_pref/);
+        assert.doesNotMatch(html, /nms/i);
     });
 
     it('falls back to the corporate template for unknown template values', () => {
@@ -40,6 +43,8 @@ describe('site camouflage renderer', () => {
         assert.match(html, /Fallback Labs/);
         assert.match(html, /工业边缘检测与遥测服务目录/);
         assert.match(html, /面向制造检测、设备接入与远程遥测场景提供稳定的边缘协作平台/);
+        assert.match(html, /公开目录可用/);
+        assert.doesNotMatch(html, /目录状态 200/);
     });
 });
 
@@ -97,6 +102,9 @@ describe('camouflage middleware', () => {
         assert.match(calls[2][1], /\/wp-admin/);
         assert.match(calls[2][1], /中文/);
         assert.match(calls[2][1], /公开边缘节点/);
+        assert.match(calls[2][1], /当前未通过公开分发节点发布/);
+        assert.doesNotMatch(calls[2][1], /completed with status/i);
+        assert.doesNotMatch(calls[2][1], /nms/i);
     });
 
     it('redirects asset-like probes back to the camouflage home path', () => {
