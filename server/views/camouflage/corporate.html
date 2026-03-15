@@ -5,21 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{pageTitle}}</title>
     <meta name="description" content="{{description}}" />
+    <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
             color-scheme: dark;
-            --bg: #07111f;
-            --bg-soft: rgba(7, 17, 31, 0.82);
-            --panel: rgba(10, 24, 41, 0.78);
+            --bg: #06101d;
+            --bg-soft: rgba(8, 18, 33, 0.82);
+            --panel: rgba(9, 22, 39, 0.8);
+            --panel-strong: rgba(6, 16, 29, 0.92);
             --panel-border: rgba(255,255,255,0.1);
-            --text: #f5f7fb;
+            --text: #f4f7fb;
             --muted: rgba(226, 232, 240, 0.72);
             --accent: #38bdf8;
             --accent-soft: rgba(56, 189, 248, 0.18);
             --success: #34d399;
-            --radius-xl: 26px;
-            --radius-lg: 18px;
-            --shadow: 0 22px 72px rgba(2, 8, 20, 0.42);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --shadow: 0 26px 86px rgba(2, 8, 20, 0.44);
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -28,9 +30,9 @@
             color: var(--text);
             font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
             background:
-                radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.14), transparent 30%),
-                radial-gradient(circle at 85% 10%, rgba(52, 211, 153, 0.12), transparent 28%),
-                linear-gradient(165deg, #06101d 0%, #09182b 45%, #07111f 100%);
+                radial-gradient(circle at 15% 16%, rgba(56, 189, 248, 0.12), transparent 28%),
+                radial-gradient(circle at 84% 8%, rgba(52, 211, 153, 0.12), transparent 26%),
+                linear-gradient(165deg, #040b15 0%, #071321 44%, #06101d 100%);
         }
         body::before {
             content: "";
@@ -43,16 +45,17 @@
         }
         [data-lang][hidden] { display: none !important; }
         .{{class:page}} {
-            width: min(1180px, calc(100vw - 32px));
+            width: min(1220px, calc(100vw - 32px));
             margin: 0 auto;
-            padding: 28px 0 40px;
+            padding: 28px 0 44px;
             position: relative;
             z-index: 1;
         }
         .{{class:site-nav}},
         .{{class:hero-panel}},
         .{{class:section-card}},
-        .{{class:footer}} {
+        .{{class:footer}},
+        .{{class:spotlight}} {
             border: 1px solid var(--panel-border);
             background: var(--panel);
             box-shadow: var(--shadow);
@@ -160,7 +163,7 @@
         }
         .{{class:hero}} {
             display: grid;
-            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+            grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
             gap: 18px;
             margin-bottom: 18px;
         }
@@ -169,39 +172,44 @@
             overflow: hidden;
         }
         .{{class:hero-copy}} {
-            padding: 26px;
+            min-height: 100%;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
             background:
-                linear-gradient(180deg, rgba(7, 17, 31, 0.16), rgba(7, 17, 31, 0.62)),
-                url("{{asset:heroTexture}}");
+                linear-gradient(180deg, rgba(4, 11, 21, 0.12), rgba(4, 11, 21, 0.78)),
+                linear-gradient(135deg, rgba(7, 18, 31, 0.2), rgba(7, 18, 31, 0.84)),
+                url("{{asset:heroImage}}");
             background-size: cover;
             background-position: center;
-            min-height: 100%;
+            min-height: 520px;
         }
         .{{class:eyebrow}} {
             display: inline-block;
             margin-bottom: 12px;
             font-size: 11px;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
             color: #d7f7ff;
             font-weight: 700;
         }
         .{{class:headline}} {
             margin: 0;
-            font-size: clamp(2rem, 4vw, 3rem);
-            line-height: 1.05;
+            font-size: clamp(2.2rem, 4vw, 3.3rem);
+            line-height: 1.04;
             letter-spacing: -0.04em;
         }
         .{{class:lead}}, .{{class:card-copy}}, .{{class:footer-note}}, .{{class:muted}} {
             color: var(--muted);
-            line-height: 1.7;
+            line-height: 1.72;
             font-size: 14px;
         }
         .{{class:button-row}} {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin-top: 18px;
+            margin-top: 20px;
         }
         .{{class:button}} {
             display: inline-flex;
@@ -217,42 +225,73 @@
             font-size: 13px;
         }
         .{{class:button-muted}} {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .{{class:chip-row}} {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }
+        .{{class:chip}} {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.12);
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 12px;
             color: var(--text);
         }
         .{{class:stack}} {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            padding: 24px;
-            min-height: 100%;
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            height: 100%;
+            background:
+                linear-gradient(180deg, rgba(6, 16, 29, 0.92), rgba(7, 18, 31, 0.72)),
+                rgba(255,255,255,0.02);
+        }
+        .{{class:image-frame}} {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+        }
+        .{{class:hero-media}} {
+            position: relative;
+        }
+        .{{class:hero-media}}::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0;
+            height: 44%;
+            background: linear-gradient(180deg, transparent, rgba(6, 16, 29, 0.9));
+            pointer-events: none;
+        }
+        .{{class:hero-image}} {
+            display: block;
+            width: 100%;
+            height: auto;
         }
         .{{class:notice}} {
-            padding: 14px 16px;
-            border-radius: 16px;
+            padding: 16px;
+            border-radius: 18px;
             background: rgba(56, 189, 248, 0.1);
             border: 1px solid rgba(56, 189, 248, 0.18);
             color: var(--text);
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 14px;
+            line-height: 1.74;
         }
-        .{{class:inline-code}} {
-            font-family: "JetBrains Mono", "Fira Code", monospace;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.08);
-        }
-        .{{class:meta-grid}}, .{{class:status-strip}}, .{{class:section-grid}}, .{{class:grid-two}} {
+        .{{class:meta-grid}} {
             display: grid;
-            gap: 14px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
         }
-        .{{class:meta-grid}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .{{class:status-strip}} { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 18px; }
-        .{{class:section-grid}} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .{{class:grid-two}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .{{class:meta-card}}, .{{class:status-item}} {
+        .{{class:meta-card}} {
             padding: 16px;
             border-radius: 18px;
             background: rgba(255,255,255,0.04);
@@ -260,73 +299,97 @@
         }
         .{{class:meta-label}}, .{{class:status-label}} {
             display: block;
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: rgba(226, 232, 240, 0.62);
             margin-bottom: 8px;
+            color: #b9dff3;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 700;
         }
         .{{class:meta-value}}, .{{class:status-value}} {
-            font-size: 19px;
-            line-height: 1.2;
-            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 20px;
+            line-height: 1.1;
             color: var(--text);
+            font-weight: 700;
+        }
+        .{{class:status-strip}} {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .{{class:status-item}} {
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(6, 16, 29, 0.72);
+            backdrop-filter: blur(12px);
+        }
+        .{{class:section-grid}} {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 18px;
         }
         .{{class:section-card}} {
-            border-radius: 24px;
-            padding: 22px;
+            border-radius: var(--radius-lg);
+            padding: 18px;
         }
         .{{class:card-title}} {
             margin: 0 0 10px;
-            font-size: 18px;
-            line-height: 1.3;
+            font-size: 20px;
+            line-height: 1.18;
+            color: var(--text);
         }
         .{{class:list}} {
-            margin: 0;
+            margin: 14px 0 0;
             padding-left: 18px;
             color: var(--muted);
-            line-height: 1.75;
-            font-size: 14px;
+            line-height: 1.74;
         }
-        .{{class:image-frame}} {
-            overflow: hidden;
-            border-radius: 22px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.03);
+        .{{class:list}} li + li { margin-top: 8px; }
+        .{{class:spotlight}} {
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+            gap: 18px;
+            padding: 18px;
+            border-radius: var(--radius-xl);
+            margin-bottom: 18px;
         }
-        .{{class:hero-image}} {
-            display: block;
-            width: 100%;
-            height: auto;
+        .{{class:spotlight-copy}} {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 0;
+        }
+        .{{class:spotlight-media}} {
+            min-width: 0;
         }
         .{{class:footer}} {
-            border-radius: 24px;
-            margin-top: 18px;
-            padding: 18px 22px;
+            padding: 16px 18px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
             gap: 12px;
+            flex-wrap: wrap;
+            border-radius: 22px;
         }
         @media (max-width: 1080px) {
-            .{{class:site-nav}} { grid-template-columns: minmax(0, 1fr) auto; }
-            .{{class:nav-links}} { grid-column: 1 / -1; justify-content: flex-start; }
+            .{{class:hero}} { grid-template-columns: 1fr; }
+            .{{class:status-strip}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .{{class:section-grid}} { grid-template-columns: 1fr; }
+            .{{class:spotlight}} { grid-template-columns: 1fr; }
         }
-        @media (max-width: 980px) {
-            .{{class:hero}},
-            .{{class:section-grid}},
-            .{{class:grid-two}} { grid-template-columns: 1fr; }
-            .{{class:meta-grid}} { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 720px) {
-            .{{class:page}} { width: min(100vw - 20px, 1180px); }
-            .{{class:site-nav}}, .{{class:hero-copy}}, .{{class:stack}}, .{{class:section-card}}, .{{class:footer}} {
-                padding: 16px;
-            }
+        @media (max-width: 960px) {
             .{{class:site-nav}} { grid-template-columns: 1fr; }
-            .{{class:lang-switch}} { justify-content: center; }
-            .{{class:meta-grid}}, .{{class:status-strip}} { grid-template-columns: 1fr; }
-            .{{class:footer}} { flex-direction: column; align-items: flex-start; }
+            .{{class:nav-links}} { justify-content: flex-start; }
+        }
+        @media (max-width: 640px) {
+            .{{class:page}} { width: min(100vw - 20px, 1220px); }
+            .{{class:hero-copy}} { min-height: 420px; padding: 20px; }
+            .{{class:stack}} { padding: 14px; }
+            .{{class:status-strip}}, .{{class:meta-grid}} { grid-template-columns: 1fr; }
+            .{{class:spotlight}}, .{{class:section-card}}, .{{class:footer}} { padding: 16px; }
         }
     </style>
 </head>
@@ -336,7 +399,7 @@
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
                 <div class="{{class:brand-copy}}">
-                    <div><strong>{{title}}</strong></div>
+                    <strong>{{title}}</strong>
                     <div class="{{class:muted}}">
                         <span data-lang="zh-CN">工业检测设备与自动化解决方案</span>
                         <span data-lang="en-US" hidden>Industrial inspection equipment and automation solutions</span>
@@ -363,18 +426,28 @@
             <section class="{{class:hero-panel}}">
                 <div class="{{class:hero-copy}}">
                     <div data-lang="zh-CN">
-                        <span class="{{class:eyebrow}}">精密设备制造</span>
-                        <h1 class="{{class:headline}}">{{title}} 提供工业视觉检测设备、测量终端与自动化集成方案。</h1>
-                        <p class="{{class:lead}}">官网集中展示核心产品、行业应用、交付能力与售后服务信息，方便合作伙伴快速了解设备方案与项目支持能力。</p>
+                        <span class="{{class:eyebrow}}">精密制造与产线视觉</span>
+                        <h1 class="{{class:headline}}">{{title}} 聚焦工业视觉检测设备、测量终端与自动化交付体系。</h1>
+                        <p class="{{class:lead}}">官网集中展示核心设备、行业场景、区域服务网络与交付能力，帮助合作伙伴快速判断方案成熟度与产线适配性。</p>
+                        <div class="{{class:chip-row}}">
+                            <span class="{{class:chip}}">AOI 视觉检测</span>
+                            <span class="{{class:chip}}">产线测量工位</span>
+                            <span class="{{class:chip}}">边缘控制终端</span>
+                        </div>
                         <div class="{{class:button-row}}">
                             <a class="{{class:button}}" href="/products">浏览产品系列</a>
                             <a class="{{class:button}} {{class:button-muted}}" href="/solutions">查看行业方案</a>
                         </div>
                     </div>
                     <div data-lang="en-US" hidden>
-                        <span class="{{class:eyebrow}}">Precision Device Manufacturing</span>
-                        <h1 class="{{class:headline}}">{{title}} delivers industrial vision inspection systems, measurement terminals and automation integration solutions.</h1>
-                        <p class="{{class:lead}}">The official site highlights core products, industry applications, delivery capabilities and after-sales support for partners evaluating equipment programs.</p>
+                        <span class="{{class:eyebrow}}">Precision Manufacturing and Vision Systems</span>
+                        <h1 class="{{class:headline}}">{{title}} focuses on industrial inspection platforms, measurement terminals and automation delivery programs.</h1>
+                        <p class="{{class:lead}}">The official site outlines core equipment, industry use cases, regional service coverage and delivery capabilities for partners evaluating production line fit.</p>
+                        <div class="{{class:chip-row}}">
+                            <span class="{{class:chip}}">AOI inspection</span>
+                            <span class="{{class:chip}}">measurement stations</span>
+                            <span class="{{class:chip}}">edge controllers</span>
+                        </div>
                         <div class="{{class:button-row}}">
                             <a class="{{class:button}}" href="/products">Browse products</a>
                             <a class="{{class:button}} {{class:button-muted}}" href="/solutions">View solutions</a>
@@ -382,28 +455,32 @@
                     </div>
                 </div>
             </section>
+
             <aside class="{{class:hero-panel}}">
                 <div class="{{class:stack}}">
-                    <div class="{{class:image-frame}}">
+                    <div class="{{class:image-frame}} {{class:hero-media}}">
                         <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
                     </div>
-                    <div>
-                        <span class="{{class:eyebrow}}"><span data-lang="zh-CN">公开说明</span><span data-lang="en-US" hidden>Access note</span></span>
-                        <div class="{{class:notice}}">
-                            <span data-lang="zh-CN">{{accessNoteZh}}</span>
-                            <span data-lang="en-US" hidden>{{accessNoteEn}}</span>
-                        </div>
+                    <div class="{{class:notice}}">
+                        <span data-lang="zh-CN">{{accessNoteZh}}</span>
+                        <span data-lang="en-US" hidden>{{accessNoteEn}}</span>
                     </div>
-                        <div class="{{class:meta-grid}}">
-                            <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">产品资料</span><span data-lang="en-US" hidden>Product materials</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">持续更新</span><span data-lang="en-US" hidden>Updated regularly</span></div>
-                            <div class="{{class:muted}}"><span data-lang="zh-CN">产品规格、应用摘要与服务说明会持续维护。</span><span data-lang="en-US" hidden>Specifications, application notes and service details are refreshed on a regular basis.</span></div>
+                    <div class="{{class:meta-grid}}">
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">交付节奏</span><span data-lang="en-US" hidden>Delivery pace</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">项目化实施</span><span data-lang="en-US" hidden>Project-based rollout</span></div>
+                            <div class="{{class:muted}}">
+                                <span data-lang="zh-CN">支持方案验证、现场导入、培训与持续巡检。</span>
+                                <span data-lang="en-US" hidden>Programs cover validation, onsite deployment, training and recurring inspections.</span>
+                            </div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务网络</span><span data-lang="en-US" hidden>Service network</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">全国技术支持</span><span data-lang="en-US" hidden>Regional support</span></div>
-                            <div class="{{class:muted}}"><span data-lang="zh-CN">提供选型咨询、交付实施、培训与售后支持。</span><span data-lang="en-US" hidden>Support covers consulting, deployment, training and after-sales service.</span></div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务覆盖</span><span data-lang="en-US" hidden>Coverage</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">区域技术网络</span><span data-lang="en-US" hidden>Regional support grid</span></div>
+                            <div class="{{class:muted}}">
+                                <span data-lang="zh-CN">可提供选型咨询、交付实施与售后保养服务。</span>
+                                <span data-lang="en-US" hidden>Support spans equipment selection, deployment and after-sales maintenance.</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -412,46 +489,119 @@
 
         <section class="{{class:status-strip}}">
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">主打产品</span><span data-lang="en-US" hidden>Featured products</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">高精度视觉检测设备</span><span data-lang="en-US" hidden>High-precision vision systems</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">主打设备</span><span data-lang="en-US" hidden>Flagship systems</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">高速视觉检测平台</span><span data-lang="en-US" hidden>High-speed vision platforms</span></div>
+                <div class="{{class:muted}}"><span data-lang="zh-CN">面向精密制造与自动化装配线。</span><span data-lang="en-US" hidden>Built for precision manufacturing and automated assembly lines.</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">应用行业</span><span data-lang="en-US" hidden>Industries</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">电子制造与精密装配</span><span data-lang="en-US" hidden>Electronics and precision assembly</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">实施模式</span><span data-lang="en-US" hidden>Delivery model</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">方案 + 设备 + 培训</span><span data-lang="en-US" hidden>Program + equipment + training</span></div>
+                <div class="{{class:muted}}"><span data-lang="zh-CN">覆盖打样评估、导入实施与现场培训。</span><span data-lang="en-US" hidden>Covers sampling, deployment and onsite training.</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Last updated</span></span>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">应用场景</span><span data-lang="en-US" hidden>Applications</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">电子、新能源、精密部件</span><span data-lang="en-US" hidden>Electronics, new energy, precision parts</span></div>
+                <div class="{{class:muted}}"><span data-lang="zh-CN">围绕尺寸测量、外观检测与过程可视化。</span><span data-lang="en-US" hidden>Focused on measurement, surface inspection and process visibility.</span></div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">最近整理</span><span data-lang="en-US" hidden>Last reviewed</span></span>
                 <div class="{{class:status-value}}">
                     <span data-lang="zh-CN">{{generatedDateZh}}</span>
                     <span data-lang="en-US" hidden>{{generatedDateEn}}</span>
+                </div>
+                <div class="{{class:muted}}"><span data-lang="zh-CN">资料中心与交付说明持续维护。</span><span data-lang="en-US" hidden>Product materials and delivery notes are maintained regularly.</span></div>
+            </div>
+        </section>
+
+        <section class="{{class:section-grid}}">
+            <article class="{{class:section-card}}">
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">产线可视化与监控</span><span data-lang="en-US" hidden>Line visibility and monitoring</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">通过集中化数据面板展示稼动状态、检测趋势与设备告警，便于现场团队做产线节拍与维护决策。</span>
+                    <span data-lang="en-US" hidden>Centralized dashboards surface utilization, inspection trends and equipment alerts for line balancing and maintenance decisions.</span>
+                </p>
+            </article>
+            <article class="{{class:section-card}}">
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:machineVisionImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">在线检测工位</span><span data-lang="en-US" hidden>Inline inspection stations</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">覆盖热像分析、外观识别与多工位判定，可结合不同产线节拍完成自动识别与分拣联动。</span>
+                    <span data-lang="en-US" hidden>Inspection stations support thermal analysis, appearance recognition and multi-step verdicts with automated sorting linkage.</span>
+                </p>
+                <ul class="{{class:list}}">
+                    <li><span data-lang="zh-CN">多相机与光源联动</span><span data-lang="en-US" hidden>Multi-camera and lighting coordination</span></li>
+                    <li><span data-lang="zh-CN">边缘采集与工艺追溯</span><span data-lang="en-US" hidden>Edge capture and process traceability</span></li>
+                    <li><span data-lang="zh-CN">异常样本复核与留档</span><span data-lang="en-US" hidden>Exception review and archiving</span></li>
+                </ul>
+            </article>
+            <article class="{{class:section-card}}">
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:operationsImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">交付团队与现场支援</span><span data-lang="en-US" hidden>Delivery teams and onsite support</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">项目团队提供前期工艺评估、设备到线实施、操作培训和运维巡检，帮助客户缩短投产爬坡周期。</span>
+                    <span data-lang="en-US" hidden>Project teams support process evaluation, deployment, operator training and routine service to shorten ramp-up time.</span>
+                </p>
+            </article>
+        </section>
+
+        <section class="{{class:spotlight}}">
+            <div class="{{class:spotlight-copy}}">
+                <span class="{{class:eyebrow}}"><span data-lang="zh-CN">现场交付节奏</span><span data-lang="en-US" hidden>Onsite delivery cadence</span></span>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">从方案评估到区域巡检，形成稳定的设备交付闭环。</span><span data-lang="en-US" hidden>Programs move from solution assessment to regional inspections with a stable delivery loop.</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">公开页面展示基础产品资料、行业场景和服务说明，方便客户初步了解技术方向、合作方式和维护计划。</span>
+                    <span data-lang="en-US" hidden>The public site presents product materials, industry scenarios and support notes so visitors can quickly understand technical direction, engagement model and maintenance planning.</span>
+                </p>
+                <div class="{{class:button-row}}">
+                    <a class="{{class:button}}" href="/support"><span data-lang="zh-CN">查看服务能力</span><span data-lang="en-US" hidden>Review service capability</span></a>
+                    <a class="{{class:button}} {{class:button-muted}}" href="/products"><span data-lang="zh-CN">下载产品资料</span><span data-lang="en-US" hidden>Download materials</span></a>
+                </div>
+            </div>
+            <div class="{{class:spotlight-media}}">
+                <div class="{{class:image-frame}}">
+                    <img class="{{class:hero-image}}" src="{{asset:corridorImage}}" alt="" />
                 </div>
             </div>
         </section>
 
         <section class="{{class:section-grid}}">
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">产品系列</span><span data-lang="en-US" hidden>Product lines</span></h2>
-                <p class="{{class:card-copy}}"><span data-lang="zh-CN">覆盖视觉检测、工业相机、测量工位与边缘采集终端的设备组合。</span><span data-lang="en-US" hidden>Product lines include vision inspection systems, industrial cameras, measurement stations and edge acquisition terminals.</span></p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">联络与拜访</span><span data-lang="en-US" hidden>Contact and visits</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">对外页面保留基础商务联络、资料申请与区域接待信息，便于首次接触的客户快速找到正确窗口。</span>
+                    <span data-lang="en-US" hidden>The public site keeps core business contacts, material requests and regional reception details for first-time visitors.</span>
+                </p>
                 <ul class="{{class:list}}">
-                    <li><span data-lang="zh-CN">在线 AOI 视觉检测设备</span><span data-lang="en-US" hidden>Inline AOI inspection systems</span></li>
-                    <li><span data-lang="zh-CN">高速工业相机与光源模块</span><span data-lang="en-US" hidden>High-speed industrial cameras and lighting modules</span></li>
-                    <li><span data-lang="zh-CN">边缘采集与控制终端</span><span data-lang="en-US" hidden>Edge acquisition and control terminals</span></li>
+                    <li><span data-lang="zh-CN">商务资料：inquiry@edgeprecision.example</span><span data-lang="en-US" hidden>business desk: inquiry@edgeprecision.example</span></li>
+                    <li><span data-lang="zh-CN">项目联络：+86 400 860 2148</span><span data-lang="en-US" hidden>project line: +86 400 860 2148</span></li>
+                    <li><span data-lang="zh-CN">接待安排：华东应用中心，需提前预约</span><span data-lang="en-US" hidden>visits: East China application center, appointment required</span></li>
                 </ul>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">行业方案</span><span data-lang="en-US" hidden>Industry solutions</span></h2>
-                <div class="{{class:image-frame}}" style="margin-bottom: 14px;">
-                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
-                </div>
-                <p class="{{class:card-copy}}"><span data-lang="zh-CN">服务电子制造、新能源、汽车零部件与精密装配场景，可根据产线节拍与工艺要求提供定制化集成方案。</span><span data-lang="en-US" hidden>Solutions support electronics, new energy, automotive components and precision assembly, with integration tailored to line speed and process requirements.</span></p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开资料目录</span><span data-lang="en-US" hidden>Public material index</span></h2>
+                <ul class="{{class:list}}">
+                    <li><span data-lang="zh-CN">《视觉检测平台总览》PDF，2026 春季版</span><span data-lang="en-US" hidden>Vision platform overview PDF, Spring 2026 edition</span></li>
+                    <li><span data-lang="zh-CN">《行业应用摘要》面向电子、新能源与精密装配场景</span><span data-lang="en-US" hidden>Industry application brief for electronics, new energy and precision assembly</span></li>
+                    <li><span data-lang="zh-CN">《交付服务说明》含实施、培训与巡检流程</span><span data-lang="en-US" hidden>Delivery service note covering rollout, training and inspection workflow</span></li>
+                </ul>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">服务支持</span><span data-lang="en-US" hidden>Service support</span></h2>
-                <p class="{{class:card-copy}}"><span data-lang="zh-CN">提供方案咨询、设备交付、现场培训、维护保养与备件支持，帮助项目稳定运行与持续优化。</span><span data-lang="en-US" hidden>Support includes consultation, delivery, onsite training, maintenance and spare parts service for stable long-term operation.</span></p>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">站点维护记录</span><span data-lang="en-US" hidden>Site maintenance log</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">企业站首页会持续同步产品资料、应用摘要与服务说明，视觉和结构上更接近长期维护的官网。</span>
+                    <span data-lang="en-US" hidden>The home page keeps product materials, application summaries and support notes synchronized so the site feels maintained over time.</span>
+                </p>
                 <ul class="{{class:list}}">
-                    <li><span data-lang="zh-CN">售前选型与工艺评估</span><span data-lang="en-US" hidden>Pre-sales selection and process evaluation</span></li>
-                    <li><span data-lang="zh-CN">交付实施与现场培训</span><span data-lang="en-US" hidden>Delivery implementation and onsite training</span></li>
-                    <li><span data-lang="zh-CN">维护保养与备件服务</span><span data-lang="en-US" hidden>Maintenance and spare parts support</span></li>
+                    <li><span data-lang="zh-CN">最近整理：{{generatedDateZh}}</span><span data-lang="en-US" hidden>last reviewed: {{generatedDateEn}}</span></li>
+                    <li><span data-lang="zh-CN">资料节奏：按月复核，季度归档</span><span data-lang="en-US" hidden>review cadence: monthly review, quarterly archive</span></li>
+                    <li><span data-lang="zh-CN">公开栏目：产品、方案、服务、资料下载</span><span data-lang="en-US" hidden>public sections: products, solutions, service and downloads</span></li>
                 </ul>
             </article>
         </section>
@@ -461,7 +611,7 @@
                 <strong>{{title}}</strong>
                 <div class="{{class:footer-note}}"><span data-lang="zh-CN">精密设备制造与工业服务官网，{{currentYear}}。</span><span data-lang="en-US" hidden>Official site for precision devices and industrial services, {{currentYear}}.</span></div>
             </div>
-            <div class="{{class:footer-note}}"><span data-lang="zh-CN">产品资料、行业方案与服务支持</span><span data-lang="en-US" hidden>Products, solutions and service support</span></div>
+            <div class="{{class:footer-note}}"><span data-lang="zh-CN">产品资料、行业方案与服务支持 · inquiry@edgeprecision.example</span><span data-lang="en-US" hidden>Products, solutions and support · inquiry@edgeprecision.example</span></div>
         </footer>
     </div>
     <script>

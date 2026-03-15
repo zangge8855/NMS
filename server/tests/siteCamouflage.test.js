@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSiteCamouflageHtml, getCamouflageRuntime } from '../lib/siteCamouflage.js';
+import {
+    createCamouflageAssetMiddleware,
+    createSiteCamouflageHtml,
+    getCamouflageAssetPublicPath,
+    getCamouflageRuntime,
+} from '../lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from '../middleware/siteCamouflage.js';
 
 describe('site camouflage renderer', () => {
@@ -22,6 +27,7 @@ describe('site camouflage renderer', () => {
         assert.match(html, /新闻中心、技术文章与案例动态/);
         assert.match(html, /该内容暂未在新闻中心发布/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
+        assert.match(html, /\/media\/journal\/editorial-hero\.png/);
         assert.doesNotMatch(html, /pexels\.com/i);
         assert.doesNotMatch(html, /Directory status:/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
@@ -42,14 +48,47 @@ describe('site camouflage renderer', () => {
 
         assert.match(html, /Fallback Labs/);
         assert.match(html, /工业检测设备与自动化解决方案/);
-        assert.match(html, /工业视觉检测设备、测量终端与自动化集成方案/);
+        assert.match(html, /工业视觉检测设备、测量终端与自动化交付体系/);
         assert.match(html, /官方网站/);
-        assert.match(html, /持续更新/);
+        assert.match(html, /\/media\/industrial\/facility-overview\.png/);
+        assert.match(html, /区域技术网络/);
         assert.doesNotMatch(html, /目录状态 200/);
     });
 });
 
 describe('camouflage middleware', () => {
+    it('serves registered camouflage media files when camouflage is enabled', () => {
+        const middleware = createCamouflageAssetMiddleware({
+            getSiteConfig: () => ({
+                camouflageEnabled: true,
+            }),
+        });
+
+        const headers = new Map();
+        let sentFile = '';
+        middleware({
+            method: 'GET',
+            path: getCamouflageAssetPublicPath('blog', 'blogHeroImage'),
+        }, {
+            setHeader(name, value) {
+                headers.set(name, value);
+            },
+            removeHeader(name) {
+                headers.delete(name);
+            },
+            sendFile(filePath, callback) {
+                sentFile = filePath;
+                if (typeof callback === 'function') callback();
+                return this;
+            },
+        }, () => {
+            throw new Error('next should not be called');
+        });
+
+        assert.equal(headers.get('Cache-Control'), 'public, max-age=86400');
+        assert.match(sentFile, /server\/views\/camouflage\/assets\/blog\/2026-03-15-18-41-blog-hero\.png$/);
+    });
+
     it('renders a camouflage 404 page with static-site headers for document probes', () => {
         const middleware = createCamouflageNotFoundMiddleware({
             getSiteConfig: () => ({

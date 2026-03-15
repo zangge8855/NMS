@@ -5,15 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{pageTitle}}</title>
     <meta name="description" content="{{description}}" />
+    <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
             color-scheme: dark;
-            --bg: #0b1120;
-            --panel: rgba(15, 23, 42, 0.92);
-            --border: rgba(148, 163, 184, 0.16);
-            --text: #e2e8f0;
-            --muted: rgba(226, 232, 240, 0.68);
-            --accent: #22c55e;
+            --bg: #030815;
+            --bg-soft: #081120;
+            --panel: rgba(10, 20, 36, 0.9);
+            --panel-soft: rgba(12, 26, 48, 0.76);
+            --border: rgba(148, 163, 184, 0.18);
+            --text: #e8eef8;
+            --muted: rgba(226, 232, 240, 0.72);
+            --accent: #47e0a0;
+            --accent-soft: rgba(71, 224, 160, 0.14);
+            --accent-alt: #67d5ff;
+            --shadow: 0 28px 90px rgba(2, 8, 23, 0.56);
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -22,28 +28,54 @@
             color: var(--text);
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             background:
-                radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 25%),
-                linear-gradient(180deg, #020617 0%, #0b1120 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+                radial-gradient(circle at 14% 10%, rgba(71, 224, 160, 0.11), transparent 26%),
+                radial-gradient(circle at 88% 18%, rgba(103, 213, 255, 0.14), transparent 24%),
+                linear-gradient(180deg, #020617 0%, #07101f 40%, #030815 100%);
             padding: 20px;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 26px 26px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 88%);
+            pointer-events: none;
         }
         [data-lang][hidden] { display: none !important; }
         .{{class:page}} {
-            width: min(1040px, 100%);
+            width: min(1180px, 100%);
+            margin: 0 auto;
             padding: 28px;
-            border-radius: 24px;
+            border-radius: 28px;
             border: 1px solid var(--border);
-            background: var(--panel);
-            box-shadow: 0 28px 80px rgba(2, 6, 23, 0.5);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+                var(--panel);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        .{{class:page}}::after {
+            content: "";
+            position: absolute;
+            inset: auto -12% -30% auto;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(71, 224, 160, 0.12), transparent 70%);
+            pointer-events: none;
         }
         .{{class:site-nav}} {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 18px;
+            gap: 18px;
+            margin-bottom: 22px;
+            position: relative;
+            z-index: 1;
         }
         .{{class:lang-switch}} {
             display: inline-flex;
@@ -52,6 +84,7 @@
             border-radius: 999px;
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
         }
         .{{class:lang-button}} {
             min-height: 34px;
@@ -65,11 +98,13 @@
             cursor: pointer;
         }
         .{{class:lang-button}}[aria-pressed="true"] {
-            background: rgba(34, 197, 94, 0.18);
+            background: linear-gradient(135deg, rgba(71, 224, 160, 0.24), rgba(103, 213, 255, 0.22));
             color: var(--text);
         }
         .{{class:eyebrow}} {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             margin-bottom: 10px;
             color: var(--accent);
             font-size: 12px;
@@ -77,48 +112,80 @@
             text-transform: uppercase;
             font-weight: 700;
         }
+        .{{class:eyebrow}}::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+            box-shadow: 0 0 18px rgba(71, 224, 160, 0.5);
+        }
         .{{class:headline}} {
             margin: 0 0 12px;
-            font-size: clamp(2rem, 4vw, 3.2rem);
-            line-height: 1.05;
-            letter-spacing: -0.04em;
+            font-size: clamp(2.2rem, 4.4vw, 4rem);
+            line-height: 1.02;
+            letter-spacing: -0.05em;
+            max-width: 10ch;
         }
-        .{{class:lead}}, .{{class:muted}}, .{{class:terminal-line}}, .{{class:footer-note}} {
+        .{{class:lead}}, .{{class:muted}}, .{{class:terminal-line}}, .{{class:footer-note}}, .{{class:card-copy}} {
             color: var(--muted);
             line-height: 1.75;
             font-size: 14px;
         }
-        .{{class:grid-two}} {
+        .{{class:button-row}} {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .{{class:button}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(71, 224, 160, 0.24), rgba(103, 213, 255, 0.22));
+            color: var(--text);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid rgba(103, 213, 255, 0.14);
+        }
+        .{{class:button-muted}} {
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .{{class:hero-shell}} {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
-            gap: 16px;
-            margin-top: 20px;
+            grid-template-columns: minmax(0, 0.96fr) minmax(340px, 1.04fr);
+            gap: 18px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
         }
         .{{class:section-card}}, .{{class:terminal}} {
-            border-radius: 18px;
+            border-radius: 22px;
             border: 1px solid var(--border);
-            background: rgba(2, 6, 23, 0.45);
-            padding: 18px;
+            background: var(--panel-soft);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
-        .{{class:card-title}} {
-            margin: 0 0 10px;
-            font-size: 16px;
-            color: var(--text);
-        }
-        .{{class:terminal-line}} { margin: 0 0 8px; }
-        .{{class:terminal-line}}:last-child { margin-bottom: 0; }
-        .{{class:inline-code}} {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.06);
-            color: var(--text);
+        .{{class:section-card}} { padding: 22px; }
+        .{{class:terminal}} { padding: 18px; }
+        .{{class:hero-media}} {
+            position: relative;
+            min-height: 100%;
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background:
+                linear-gradient(180deg, rgba(3, 8, 21, 0), rgba(3, 8, 21, 0.3)),
+                rgba(255,255,255,0.02);
         }
         .{{class:image-frame}} {
             overflow: hidden;
             border-radius: 18px;
-            border: 1px solid var(--border);
-            margin-bottom: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
             background: rgba(255,255,255,0.02);
         }
         .{{class:hero-image}} {
@@ -126,19 +193,153 @@
             width: 100%;
             height: auto;
         }
-        .{{class:footer}} {
+        .{{class:hero-media}} .{{class:hero-image}} {
+            min-height: 100%;
+            object-fit: cover;
+        }
+        .{{class:hero-overlay}} {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 18px;
+            display: grid;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(3, 8, 21, 0.4), rgba(3, 8, 21, 0.84));
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+        }
+        .{{class:status-strip}} {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+        .{{class:status-item}} {
+            padding: 18px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: rgba(8, 17, 32, 0.82);
+        }
+        .{{class:status-label}}, .{{class:meta-label}}, .{{class:resource-meta}} {
+            display: block;
+            margin-bottom: 8px;
+            color: rgba(226, 232, 240, 0.56);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+        .{{class:status-value}}, .{{class:meta-value}} {
+            color: var(--text);
+            font-size: 18px;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+        .{{class:grid-two}} {
+            display: grid;
+            grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
+            gap: 18px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+        .{{class:card-title}} {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: var(--text);
+        }
+        .{{class:meta-grid}} {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
             margin-top: 16px;
+        }
+        .{{class:meta-card}} {
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+        }
+        .{{class:terminal-line}} {
+            margin: 0 0 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .{{class:terminal-line}}:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: 0;
+        }
+        .{{class:inline-code}} {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+        }
+        .{{class:resource-list}} {
+            display: grid;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .{{class:resource-item}} {
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+        }
+        .{{class:spotlight-grid}} {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+        .{{class:spotlight-card}} {
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: rgba(8, 17, 32, 0.82);
+        }
+        .{{class:footer}} {
             display: flex;
             justify-content: space-between;
             gap: 12px;
             flex-wrap: wrap;
+            padding-top: 4px;
             color: var(--muted);
             font-size: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        @media (max-width: 1080px) {
+            .{{class:hero-shell}},
+            .{{class:grid-two}},
+            .{{class:spotlight-grid}} {
+                grid-template-columns: 1fr;
+            }
         }
         @media (max-width: 840px) {
             .{{class:page}} { padding: 18px; }
             .{{class:site-nav}} { flex-direction: column; align-items: flex-start; }
-            .{{class:grid-two}} { grid-template-columns: 1fr; }
+            .{{class:status-strip}} { grid-template-columns: 1fr; }
+            .{{class:meta-grid}} { grid-template-columns: 1fr; }
+            .{{class:hero-overlay}} {
+                position: static;
+                margin: 14px;
+            }
+        }
+        @media (max-width: 640px) {
+            body { padding: 10px; }
+            .{{class:page}} { padding: 14px; border-radius: 22px; }
+            .{{class:section-card}}, .{{class:terminal}}, .{{class:spotlight-card}} { padding: 16px; }
+            .{{class:headline}} { max-width: none; }
         }
     </style>
 </head>
@@ -148,44 +349,216 @@
             <div>
                 <span class="{{class:eyebrow}}"><span data-lang="zh-CN">服务与支持</span><span data-lang="en-US" hidden>Service and support</span></span>
                 <h1 class="{{class:headline}}">{{title}}</h1>
+                <div class="{{class:muted}}">
+                    <span data-lang="zh-CN">运维门户、资料中心与公开服务联络入口</span>
+                    <span data-lang="en-US" hidden>Operations portal, document center and public service contact point</span>
+                </div>
             </div>
             <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
                 <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
                 <button class="{{class:lang-button}}" type="button" data-lang-toggle="en-US" aria-pressed="false">English</button>
             </div>
         </div>
-        <div data-lang="zh-CN">
-            <p class="{{class:lead}}">服务支持中心提供软件下载、维护公告、资料更新与公开联系方式，便于客户和合作伙伴查阅常用信息。</p>
-        </div>
-        <div data-lang="en-US" hidden>
-            <p class="{{class:lead}}">The support center provides software downloads, maintenance notices, documentation updates and contact information for customers and partners.</p>
-        </div>
-        <div class="{{class:grid-two}}">
+
+        <section class="{{class:hero-shell}}">
             <section class="{{class:section-card}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
+                <div data-lang="zh-CN">
+                    <span class="{{class:eyebrow}}">支持总览</span>
+                    <h2 class="{{class:headline}}">面向客户与合作伙伴的公开服务门户。</h2>
+                    <p class="{{class:lead}}">服务支持中心汇总软件下载、资料更新、维护窗口与公告信息，方便项目现场、IT 管理和交付团队快速定位常用入口。</p>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="/downloads">软件下载</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/docs">查阅文档</a>
+                    </div>
                 </div>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">访问说明</span><span data-lang="en-US" hidden>Access note</span></h2>
-                <p class="{{class:muted}}">
+                <div data-lang="en-US" hidden>
+                    <span class="{{class:eyebrow}}">Support overview</span>
+                    <h2 class="{{class:headline}}">A public service portal for customers and partners.</h2>
+                    <p class="{{class:lead}}">The support center consolidates software downloads, document updates, maintenance windows and service notices for field teams, IT managers and delivery partners.</p>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="/downloads">Downloads</a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="/docs">Documentation</a>
+                    </div>
+                </div>
+                <div class="{{class:meta-grid}}">
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">当前状态</span><span data-lang="en-US" hidden>Current state</span></span>
+                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">公开访问</span><span data-lang="en-US" hidden>Publicly accessible</span></div>
+                        <div class="{{class:muted}}">
+                            <span data-lang="zh-CN">{{deliveryNoticeZh}}</span>
+                            <span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span>
+                        </div>
+                    </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料节奏</span><span data-lang="en-US" hidden>Update cadence</span></span>
+                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">按周整理</span><span data-lang="en-US" hidden>Weekly refresh</span></div>
+                        <div class="{{class:muted}}">
+                            <span data-lang="zh-CN">下载包、版本说明和维护通告会持续归档。</span>
+                            <span data-lang="en-US" hidden>Download packages, release notes and maintenance advisories are refreshed on a regular cycle.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="{{class:hero-media}}">
+                <img class="{{class:hero-image}}" src="{{asset:supportHeroImage}}" alt="" />
+                <div class="{{class:hero-overlay}}">
+                    <div class="{{class:status-value}}">
+                        <span data-lang="zh-CN">区域服务台与远程支持协同运行</span>
+                        <span data-lang="en-US" hidden>Regional service desks and remote support are operating in sync</span>
+                    </div>
+                    <div class="{{class:muted}}">
+                        <span data-lang="zh-CN">面向交付后项目提供维护窗口、文档下载、故障排查建议与联系方式。</span>
+                        <span data-lang="en-US" hidden>Post-delivery programs can access maintenance windows, document downloads, troubleshooting notes and contact channels.</span>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <section class="{{class:status-strip}}">
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">支持时间</span><span data-lang="en-US" hidden>Support hours</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">工作日 09:00-18:00</span><span data-lang="en-US" hidden>Weekdays 09:00-18:00</span></div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Last update</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">服务范围</span><span data-lang="en-US" hidden>Service scope</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">软件、文档与维护资料</span><span data-lang="en-US" hidden>Software, documentation and maintenance materials</span></div>
+            </div>
+        </section>
+
+        <section class="{{class:grid-two}}">
+            <section class="{{class:section-card}}">
+                <div class="{{class:image-frame}}" style="margin-bottom: 16px;">
+                    <img class="{{class:hero-image}}" src="{{asset:opsDeskImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">运维工作台</span><span data-lang="en-US" hidden>Operations desk</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">门户首页面向已交付项目，集中整理设备联机说明、软件补丁、维护日程和常见问题，减少现场与远程团队的信息切换成本。</span>
+                    <span data-lang="en-US" hidden>The portal is organized for deployed projects, bringing together connectivity notes, software patches, maintenance calendars and common issues for field and remote teams.</span>
+                </p>
+                <div class="{{class:meta-grid}}">
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料目录</span><span data-lang="en-US" hidden>Content library</span></span>
+                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">安装包 / 手册 / 公告</span><span data-lang="en-US" hidden>Packages / manuals / notices</span></div>
+                    </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">联络方式</span><span data-lang="en-US" hidden>Contact mode</span></span>
+                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">邮件与工单窗口</span><span data-lang="en-US" hidden>Email and ticket intake</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="{{class:terminal}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">服务公告</span><span data-lang="en-US" hidden>Support bulletin</span></h2>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">门户状态：公开服务页</span><span data-lang="en-US" hidden>portal status: public support page</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">文档套件：2026 春季维护集</span><span data-lang="en-US" hidden>document set: Spring 2026 maintenance pack</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">公开联络：service@support.example</span><span data-lang="en-US" hidden>public contact: service@support.example</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">值班窗口：工作日 09:00-18:00 / 应急值守 7x12</span><span data-lang="en-US" hidden>duty desk: weekdays 09:00-18:00 / emergency coverage 7x12</span></p>
+                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">说明：<span class="{{class:inline-code}}">maintenance-notice</span> 与下载说明会在这里同步。</span><span data-lang="en-US" hidden>note: <span class="{{class:inline-code}}">maintenance-notice</span> and download instructions are synchronized here.</span></p>
+                <ul class="{{class:resource-list}}">
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">公开下载 · Edge Toolkit 4.8.2</span><span data-lang="en-US" hidden>Public downloads · Edge Toolkit 4.8.2</span></span>
+                        <div class="{{class:muted}}">
+                            <span data-lang="zh-CN">安装包、驱动与发布说明统一归档，便于项目交付后自行取用。当前汇总包大小约 612 MB。</span>
+                            <span data-lang="en-US" hidden>Installers, drivers and release notes are archived together for post-delivery retrieval. The current bundle is about 612 MB.</span>
+                        </div>
+                    </li>
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">维护窗口 · 2026-03-22 22:00 CST</span><span data-lang="en-US" hidden>Maintenance window · 2026-03-22 22:00 CST</span></span>
+                        <div class="{{class:muted}}">
+                            <span data-lang="zh-CN">计划停机、更新安排和恢复步骤通过公告页统一发布。</span>
+                            <span data-lang="en-US" hidden>Planned downtime, update windows and recovery steps are posted through a common advisory channel.</span>
+                        </div>
+                    </li>
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">文档归档 · Rev. 2026-S1</span><span data-lang="en-US" hidden>Document archive · Rev. 2026-S1</span></span>
+                        <div class="{{class:muted}}">
+                            <span data-lang="zh-CN">安装说明、连线拓扑、巡检清单与 FAQ 以季度归档方式更新。</span>
+                            <span data-lang="en-US" hidden>Installation notes, topology diagrams, inspection checklists and FAQs are updated on a quarterly archive cycle.</span>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+        </section>
+
+        <section class="{{class:spotlight-grid}}">
+            <article class="{{class:spotlight-card}}">
+                <div class="{{class:image-frame}}" style="margin-bottom: 14px;">
+                    <img class="{{class:hero-image}}" src="{{asset:helpdeskImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">服务台协作</span><span data-lang="en-US" hidden>Helpdesk coordination</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">工单受理、排班和设备拓扑一并展示，方便服务人员快速确认问题归属与处理进度。</span>
+                    <span data-lang="en-US" hidden>Ticket intake, scheduling and device topology are presented together so staff can confirm ownership and progress quickly.</span>
+                </p>
+            </article>
+            <article class="{{class:spotlight-card}}">
+                <div class="{{class:image-frame}}" style="margin-bottom: 14px;">
+                    <img class="{{class:hero-image}}" src="{{asset:docsDownloadsImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">文档与下载</span><span data-lang="en-US" hidden>Docs and downloads</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">首页保留文档库入口、更新说明与驱动下载摘要，适合对外公开展示常用资料路径。</span>
+                    <span data-lang="en-US" hidden>The homepage keeps visible entry points for the document library, release notes and driver download summaries for external visitors.</span>
+                </p>
+            </article>
+            <article class="{{class:spotlight-card}}">
+                <div class="{{class:image-frame}}" style="margin-bottom: 14px;">
+                    <img class="{{class:hero-image}}" src="{{asset:maintenanceRackImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">维护计划</span><span data-lang="en-US" hidden>Maintenance planning</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">机柜巡检、补丁排期和远程维护预约等内容可以集中在服务中心统一对外说明。</span>
+                    <span data-lang="en-US" hidden>Rack inspections, patch scheduling and remote maintenance appointments can be summarized in one public-facing service center.</span>
+                </p>
+            </article>
+        </section>
+
+        <section class="{{class:grid-two}}">
+            <section class="{{class:section-card}}">
+                <div class="{{class:image-frame}}" style="margin-bottom: 16px;">
+                    <img class="{{class:hero-image}}" src="{{asset:networkRackImage}}" alt="" />
+                </div>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">基础设施说明</span><span data-lang="en-US" hidden>Infrastructure note</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">服务页可放置网络连接、机柜维护与现场环境建议等公开说明，帮助访客了解设备侧的运行要求。</span>
+                    <span data-lang="en-US" hidden>The page can publish public notes about networking, rack maintenance and site environment expectations so visitors understand operational requirements.</span>
+                </p>
+            </section>
+            <section class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">访问提示</span><span data-lang="en-US" hidden>Access note</span></h2>
+                <p class="{{class:card-copy}}">
                     <span data-lang="zh-CN">{{deliveryNoticeZh}}</span>
                     <span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span>
                 </p>
-                <p class="{{class:muted}}">
-                    <span data-lang="zh-CN">支持中心收录常用文档、安装说明、服务公告与公开联络方式。</span>
-                    <span data-lang="en-US" hidden>The support center keeps common documents, installation notes, service advisories and public contact channels.</span>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">支持中心收录常用文档、安装说明、服务公告与公开联络方式，用于对外展示服务秩序与资料入口。</span>
+                    <span data-lang="en-US" hidden>The support center keeps common documents, installation notes, service advisories and public contact channels to present a structured service entry for visitors.</span>
                 </p>
+                <ul class="{{class:resource-list}}">
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">页面类型</span><span data-lang="en-US" hidden>Page type</span></span>
+                        <div class="{{class:muted}}"><span data-lang="zh-CN">服务支持页</span><span data-lang="en-US" hidden>Service and support page</span></div>
+                    </li>
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">推荐入口</span><span data-lang="en-US" hidden>Recommended entry</span></span>
+                        <div class="{{class:muted}}"><span data-lang="zh-CN">软件下载、文档库与维护公告</span><span data-lang="en-US" hidden>Downloads, documentation and maintenance advisories</span></div>
+                    </li>
+                    <li class="{{class:resource-item}}">
+                        <span class="{{class:resource-meta}}"><span data-lang="zh-CN">公开联络</span><span data-lang="en-US" hidden>Public contact</span></span>
+                        <div class="{{class:muted}}"><span data-lang="zh-CN">service@support.example · +86 400 925 1180</span><span data-lang="en-US" hidden>service@support.example · +86 400 925 1180</span></div>
+                    </li>
+                </ul>
             </section>
-            <section class="{{class:terminal}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">服务公告</span><span data-lang="en-US" hidden>Support bulletin</span></h2>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">资料版本：2026 春季</span><span data-lang="en-US" hidden>document set: Spring 2026</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">支持时间：工作日 09:00-18:00</span><span data-lang="en-US" hidden>support hours: weekdays 09:00-18:00</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">最近更新：{{generatedDateZh}}</span><span data-lang="en-US" hidden>updated: {{generatedDateEn}}</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">页面类型：服务支持页</span><span data-lang="en-US" hidden>page type: support center</span></p>
-            </section>
-        </div>
+        </section>
+
         <footer class="{{class:footer}}">
             <span><span data-lang="zh-CN">{{title}} 服务与支持中心</span><span data-lang="en-US" hidden>{{title}} service and support center</span></span>
-            <span class="{{class:footer-note}}">{{currentYear}}</span>
+            <span class="{{class:footer-note}}"><span data-lang="zh-CN">{{currentYear}} · 公开运维与文档门户 · service@support.example</span><span data-lang="en-US" hidden>{{currentYear}} · public operations and documentation portal · service@support.example</span></span>
         </footer>
     </main>
     <script>

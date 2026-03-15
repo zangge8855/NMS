@@ -96,7 +96,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             userTitle: 'Your Subscription',
             adminTitle: 'Subscription Address & Import',
             userSubtitle: 'Choose a config, then copy or scan it.',
-            adminSubtitle: 'For end users, these three steps are enough.',
+                adminSubtitle: 'For end users, these two steps are enough.',
             available: 'Subscription Ready',
             unavailable: 'Subscription Unavailable',
             nodeCount: `${nodeCount} nodes`,
@@ -118,35 +118,33 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
             userStepKicker: 'Flow',
-            userStepTitle: 'Choose a config, then copy or scan it',
-            userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
-            pickTypeTitle: 'Choose a config',
-            pickTypeText: '',
-            copyOrScanTitle: 'Copy the address or scan it',
-            copyOrScanText: 'Copy is the main action. The QR code and quick import stay right next to it.',
-            deviceOpenTitle: 'Downloads',
-            deviceOpenText: '',
-            resetRiskTitle: 'Reset only if leaked',
-            resetRiskText: 'The old link stops working immediately.',
-            heroTitle: 'Choose a config -> Copy the address -> Import into the client',
-            heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
-            manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
-            adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
-            goSettings: 'Change it in Settings',
-            qrAriaLabel: 'Subscription QR code · {label}',
-            quickImportHint: 'You can also use the quick import buttons below.',
-            adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
-            simpleReminder: 'Choose a config -> Copy or scan -> Import',
-            qrHint: 'You can also scan the QR code.',
-            guideTitle: 'How to share it',
-            guideSubtitle: 'Just explain these three steps.',
-            guideStep1Title: 'Choose a config',
-            guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
-            guideStep2Title: 'Copy the address',
-            guideStep2Text: 'If one-tap import is unavailable, copy the address above.',
-            guideStep3Title: 'Import it into the client',
-            guideStep3Text: 'Paste the address into the client and import it.',
-            summaryTitle: 'Current Subscription Summary',
+                userStepTitle: 'Choose a config, then import it',
+                userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
+                pickTypeTitle: 'Choose a config',
+                pickTypeText: '',
+                copyOrScanTitle: 'Address and import',
+                copyOrScanText: 'Copy, scan and quick import stay together here.',
+                deviceOpenTitle: 'Downloads',
+                deviceOpenText: '',
+                resetRiskTitle: 'Reset only if leaked',
+                resetRiskText: 'The old link stops working immediately.',
+                heroTitle: 'Choose a config -> Copy or import it',
+                heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
+                manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
+                adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
+                goSettings: 'Change it in Settings',
+                qrAriaLabel: 'Subscription QR code · {label}',
+                quickImportHint: 'You can also use the quick import buttons below.',
+                adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
+                simpleReminder: 'Choose a config -> Copy, scan or import',
+                qrHint: 'You can also scan the QR code.',
+                guideTitle: 'How to share it',
+                guideSubtitle: 'Just explain these two steps.',
+                guideStep1Title: 'Choose a config',
+                guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
+                guideStep2Title: 'Copy or import it',
+                guideStep2Text: 'Use one-tap import when available. Otherwise, copy the address above and paste it into the client.',
+                summaryTitle: 'Current Subscription Summary',
             summarySubtitle: 'Key details stay in one place for quick checks.',
             summaryUser: 'Current User',
             summaryStatus: 'Subscription Status',
@@ -180,7 +178,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         userTitle: '你的订阅地址',
         adminTitle: '订阅地址与导入',
         userSubtitle: '先选配置文件，再导入。',
-        adminSubtitle: '给用户时，直接按这三步说明就够了。',
+        adminSubtitle: '给用户时，直接按这两步说明就够了。',
         available: '订阅可用',
         unavailable: '订阅不可用',
         nodeCount: `${nodeCount} 个节点`,
@@ -206,13 +204,13 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
         pickTypeTitle: '选配置文件',
         pickTypeText: '',
-        copyOrScanTitle: '订阅地址',
-        copyOrScanText: '导入、复制、扫码都在这里。',
+        copyOrScanTitle: '订阅地址与导入',
+        copyOrScanText: '复制、扫码和一键导入都在这里。',
         deviceOpenTitle: '软件下载',
         deviceOpenText: '',
         resetRiskTitle: '地址泄露再重置',
         resetRiskText: '重置后旧地址立即失效。',
-        heroTitle: '选配置文件 -> 复制地址 -> 导入客户端',
+        heroTitle: '选配置文件 -> 复制或导入',
         heroText: '不知道选哪个时，先在下面下载适合自己设备的软件。',
         manualImportHint: '不会导入时，直接复制这条地址。',
         adminConverterHint: '管理提示：专用订阅当前走外部转换器',
@@ -220,16 +218,14 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         qrAriaLabel: '订阅二维码 · {label}',
         quickImportHint: '也可以直接点导入按钮。',
         adminQuickImportHint: '当前配置文件的快捷导入按钮也在这里。',
-        simpleReminder: '选配置文件 -> 复制/扫码 -> 导入',
+        simpleReminder: '选配置文件 -> 复制、扫码或直接导入',
         qrHint: '也可以扫码导入。',
         guideTitle: '怎么使用订阅',
-        guideSubtitle: '就按这三步，不用讲别的。',
+        guideSubtitle: '就按这两步，不用讲别的。',
         guideStep1Title: '选配置文件',
         guideStep1Text: '不知道怎么选，就先按设备下载软件，再选对应配置文件。',
-        guideStep2Title: '复制地址',
-        guideStep2Text: '不会一键导入时，就复制上面的地址。',
-        guideStep3Title: '导入客户端',
-        guideStep3Text: '客户端里粘贴地址，导入后就能用。',
+        guideStep2Title: '复制地址并导入',
+        guideStep2Text: '支持一键导入就直接点导入；不会时就复制上面的地址，在客户端里粘贴导入。',
         summaryTitle: '当前订阅概览',
         summarySubtitle: '重点信息集中显示，方便快速确认。',
         summaryUser: '当前用户',
@@ -717,15 +713,8 @@ export default function Subscriptions() {
                                                 <div className="subscription-focus-step subscription-focus-step--highlight">
                                                     <span className="subscription-focus-step-index">2</span>
                                                     <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{ui.copyOrScanTitle}</div>
+                                                        <div className="subscription-focus-step-title">{ui.guideStep2Title}</div>
                                                         <div className="subscription-focus-step-text">{ui.guideStep2Text}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="subscription-focus-step">
-                                                    <span className="subscription-focus-step-index">3</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{ui.guideStep3Title}</div>
-                                                        <div className="subscription-focus-step-text">{ui.guideStep3Text}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -751,13 +740,8 @@ export default function Subscriptions() {
                                                         </button>
                                                     ))}
                                                 </div>
-                                                {activeProfile?.label && (
+                                                {activeProfile?.label && (shouldShowUserProfileHint || activeProfileSupportedClients.length > 0) && (
                                                     <div className="subscription-current-profile-card">
-                                                        <div className="subscription-current-profile-label">{ui.currentType}</div>
-                                                        <div className="subscription-current-profile-value">{activeProfileLabel}</div>
-                                                        {shouldShowUserProfileHint && (
-                                                            <div className="subscription-current-profile-hint">{activeProfile.hint}</div>
-                                                        )}
                                                         {activeProfileSupportedClients.length > 0 && (
                                                             <div className="subscription-current-profile-tools">
                                                                 <span className="subscription-current-profile-tools-label">
@@ -769,6 +753,9 @@ export default function Subscriptions() {
                                                                     ))}
                                                                 </div>
                                                             </div>
+                                                        )}
+                                                        {shouldShowUserProfileHint && (
+                                                            <div className="subscription-current-profile-hint">{activeProfile.hint}</div>
                                                         )}
                                                     </div>
                                                 )}
@@ -1065,13 +1052,6 @@ export default function Subscriptions() {
                                         <div className="subscription-guide-copy">
                                             <div className="subscription-guide-title">{ui.guideStep2Title}</div>
                                             <div className="subscription-guide-text">{ui.guideStep2Text}</div>
-                                        </div>
-                                    </div>
-                                    <div className="subscription-guide-step">
-                                        <span className="subscription-guide-index">3</span>
-                                        <div className="subscription-guide-copy">
-                                            <div className="subscription-guide-title">{ui.guideStep3Title}</div>
-                                            <div className="subscription-guide-text">{ui.guideStep3Text}</div>
                                         </div>
                                     </div>
                                 </div>

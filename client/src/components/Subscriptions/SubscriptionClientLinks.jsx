@@ -79,7 +79,6 @@ export default function SubscriptionClientLinks({
                 sectionTitle: 'Pick one client for your device',
                 sectionCaption: 'Install it, then import the config you selected above.',
                 chooseAny: 'Pick any mainstream client.',
-                importReady: 'After installation, you can import it directly.',
                 downloads: 'Client Downloads',
                 recommended: 'Recommended Config',
                 chooseLabel: 'Use',
@@ -90,7 +89,6 @@ export default function SubscriptionClientLinks({
                 sectionTitle: '按设备选一个客户端',
                 sectionCaption: '下载一个常用客户端就行。',
                 chooseAny: '选一个常用客户端。',
-                importReady: '装好后直接导入。',
                 downloads: '客户端下载',
                 recommended: '推荐配置文件',
                 chooseLabel: '选',
@@ -154,7 +152,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'ios',
             title: 'iPhone / iPad',
-            summary: copy.importReady,
+            summary: copy.chooseAny,
             appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['stash'], 'clash'),
@@ -164,7 +162,7 @@ export default function SubscriptionClientLinks({
             ].filter(Boolean),
             quickKeys: ['shadowrocket', 'clash-family', 'surge', 'singbox'],
         },
-    ]), [copy.chooseAny, copy.importReady, profileLookup, toolLookup]);
+    ]), [copy.chooseAny, profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
@@ -192,54 +190,109 @@ export default function SubscriptionClientLinks({
                                 .filter((action) => String(action?.href || '').trim());
 
                             return (
-                                <div key={item.key} className="subscription-device-card">
-                                    <div className="subscription-device-title">{item.title}</div>
-                                    <div className="subscription-device-text">{item.summary}</div>
-                                    <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">{copy.downloads}</div>
-                                        <div className="subscription-device-actions subscription-device-actions--downloads">
-                                            {item.appLinks.map((link) => (
-                                                <a
-                                                    key={link.key}
-                                                    href={link.url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="btn btn-secondary btn-sm subscription-device-download-btn"
-                                                >
-                                                    {link.label}
-                                                </a>
-                                            ))}
-                                        </div>
+                                <div key={item.key} className={`subscription-device-card${compact ? ' subscription-device-card--compact' : ''}`}>
+                                    <div className="subscription-device-card-head">
+                                        <div className="subscription-device-title">{item.title}</div>
+                                        {!compact && <div className="subscription-device-text">{item.summary}</div>}
                                     </div>
-                                    <div className="subscription-device-block">
-                                        <div className="subscription-device-block-label">{copy.recommended}</div>
-                                        <div className="subscription-device-rules">
-                                            {item.profileRules.map((rule) => (
-                                                <div key={rule.key} className="subscription-device-rule">
-                                                    <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                    <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
-                                                    <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {showImportMethods && (
-                                        <div className="subscription-device-block subscription-device-block--push">
-                                            <div className="subscription-device-block-label">{copy.importMethod}</div>
-                                            {quickItems.length > 0 ? (
-                                                <div className="subscription-device-actions">
-                                                    {quickItems.map((action) => (
-                                                        <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
-                                                            {action.label}
+                                    {compact ? (
+                                        <div className="subscription-device-compact-layout">
+                                            <div className="subscription-device-compact-row">
+                                                <div className="subscription-device-compact-label">{copy.downloads}</div>
+                                                <div className="subscription-device-actions subscription-device-actions--downloads">
+                                                    {item.appLinks.map((link) => (
+                                                        <a
+                                                            key={link.key}
+                                                            href={link.url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="btn btn-secondary btn-sm subscription-device-download-btn"
+                                                        >
+                                                            {link.label}
                                                         </a>
                                                     ))}
                                                 </div>
-                                            ) : (
-                                                <div className="subscription-device-empty">
-                                                    {copy.copyAddress}
+                                            </div>
+                                            <div className="subscription-device-compact-row">
+                                                <div className="subscription-device-compact-label">{copy.recommended}</div>
+                                                <div className="subscription-device-rules subscription-device-rules--compact">
+                                                    {item.profileRules.map((rule) => (
+                                                        <div key={rule.key} className="subscription-device-rule">
+                                                            <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
+                                                            <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
+                                                            <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {showImportMethods && (
+                                                <div className="subscription-device-compact-row subscription-device-compact-row--push">
+                                                    <div className="subscription-device-compact-label">{copy.importMethod}</div>
+                                                    {quickItems.length > 0 ? (
+                                                        <div className="subscription-device-actions">
+                                                            {quickItems.map((action) => (
+                                                                <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
+                                                                    {action.label}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="subscription-device-empty">
+                                                            {copy.copyAddress}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
+                                    ) : (
+                                        <>
+                                            <div className="subscription-device-block">
+                                                <div className="subscription-device-block-label">{copy.downloads}</div>
+                                                <div className="subscription-device-actions subscription-device-actions--downloads">
+                                                    {item.appLinks.map((link) => (
+                                                        <a
+                                                            key={link.key}
+                                                            href={link.url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="btn btn-secondary btn-sm subscription-device-download-btn"
+                                                        >
+                                                            {link.label}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="subscription-device-block">
+                                                <div className="subscription-device-block-label">{copy.recommended}</div>
+                                                <div className="subscription-device-rules">
+                                                    {item.profileRules.map((rule) => (
+                                                        <div key={rule.key} className="subscription-device-rule">
+                                                            <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
+                                                            <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
+                                                            <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {showImportMethods && (
+                                                <div className="subscription-device-block subscription-device-block--push">
+                                                    <div className="subscription-device-block-label">{copy.importMethod}</div>
+                                                    {quickItems.length > 0 ? (
+                                                        <div className="subscription-device-actions">
+                                                            {quickItems.map((action) => (
+                                                                <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
+                                                                    {action.label}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="subscription-device-empty">
+                                                            {copy.copyAddress}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             );

@@ -25,6 +25,7 @@ import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
+import { createCamouflageAssetMiddleware } from './lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
 import { pathToFileURL } from 'url';
@@ -95,6 +96,10 @@ export function createApp(options = {}) {
             getSiteConfig: () => systemSettingsStore.getSite(),
         });
     }
+
+    app.use(createCamouflageAssetMiddleware({
+        getSiteConfig: () => systemSettingsStore.getSite(),
+    }));
 
     app.use(createCamouflageNotFoundMiddleware({
         getSiteConfig: () => systemSettingsStore.getSite(),

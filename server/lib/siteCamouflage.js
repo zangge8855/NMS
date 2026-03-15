@@ -9,7 +9,9 @@ const TEMPLATE_CACHE = new Map();
 const DEFAULT_TEMPLATE = 'corporate';
 const DEFAULT_TITLE = 'Edge Precision Systems';
 const CLASS_SUFFIX = crypto.randomBytes(5).toString('hex');
-const CLASS_TOKENS = [
+export const CAMOUFLAGE_TEMPLATE_IDS = Object.freeze(['corporate', 'nginx', 'blog']);
+export const CAMOUFLAGE_RESPONSE_CACHE_CONTROL = 'public, max-age=86400';
+const FALLBACK_CLASS_TOKENS = [
     'page',
     'site-nav',
     'brand',
@@ -57,13 +59,153 @@ const CLASS_TOKENS = [
     'hero-image',
     'muted',
 ];
+const CAMOUFLAGE_ASSET_ROUTE_PREFIX = '/media';
+const CAMOUFLAGE_FILE_ASSET_SPECS = Object.freeze({
+    corporate: Object.freeze({
+        heroImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/facility-overview.png`,
+            file: 'assets/corporate/2026-03-15-18-40-corporate-hero.png',
+            fallback: 'heroTexture',
+        }),
+        inspectionImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/inspection-line.png`,
+            file: 'assets/corporate/2026-03-15-18-46-corporate-inspection.png',
+            fallback: 'inspectionImage',
+        }),
+        telemetryImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/operations-wall.png`,
+            file: 'assets/corporate/2026-03-15-18-56-corporate-ops-wall.png',
+            fallback: 'telemetryImage',
+        }),
+        operationsImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/control-room.png`,
+            file: 'assets/corporate/2026-03-15-18-45-corporate-control-room.png',
+            fallback: 'telemetryImage',
+        }),
+        machineVisionImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/machine-vision-cell.png`,
+            file: 'assets/corporate/2026-03-15-18-57-corporate-machine-vision.png',
+            fallback: 'inspectionImage',
+        }),
+        corridorImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/industrial/edge-corridor.png`,
+            file: 'assets/corporate/2026-03-15-18-55-corporate-edge-corridor.png',
+            fallback: 'telemetryImage',
+        }),
+    }),
+    blog: Object.freeze({
+        heroImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/editorial-hero.png`,
+            file: 'assets/blog/2026-03-15-18-41-blog-hero.png',
+            fallback: 'heroTexture',
+        }),
+        blogHeroImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/editorial-hero.png`,
+            file: 'assets/blog/2026-03-15-18-41-blog-hero.png',
+            fallback: 'heroTexture',
+        }),
+        inspectionImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/editorial-desk.png`,
+            file: 'assets/blog/2026-03-15-18-47-blog-desk-editorial.png',
+            fallback: 'inspectionImage',
+        }),
+        editorialDeskImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/editorial-desk.png`,
+            file: 'assets/blog/2026-03-15-18-47-blog-desk-editorial.png',
+            fallback: 'inspectionImage',
+        }),
+        engineerFeatureImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/engineer-feature.png`,
+            file: 'assets/blog/2026-03-15-18-48-blog-engineer-feature.png',
+            fallback: 'inspectionImage',
+        }),
+        telemetryImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/plant-walkthrough.png`,
+            file: 'assets/blog/2026-03-15-18-59-blog-plant-walkthrough.png',
+            fallback: 'telemetryImage',
+        }),
+        plantWalkthroughImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/plant-walkthrough.png`,
+            file: 'assets/blog/2026-03-15-18-59-blog-plant-walkthrough.png',
+            fallback: 'telemetryImage',
+        }),
+        caseStudyDeskImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/case-study-desk.png`,
+            file: 'assets/blog/2026-03-15-18-58-blog-case-study-desk.png',
+            fallback: 'inspectionImage',
+        }),
+        researchNotesImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/journal/research-notes.png`,
+            file: 'assets/blog/2026-03-15-19-00-blog-research-notes.png',
+            fallback: 'inspectionImage',
+        }),
+    }),
+    nginx: Object.freeze({
+        supportHeroImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/operations-center.png`,
+            file: 'assets/support/2026-03-15-18-42-support-hero.png',
+            fallback: 'telemetryImage',
+        }),
+        opsDeskImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/ops-desk.png`,
+            file: 'assets/support/2026-03-15-18-49-support-ops-desk.png',
+            fallback: 'telemetryImage',
+        }),
+        networkRackImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/network-rack.png`,
+            file: 'assets/support/2026-03-15-18-50-support-network-rack.png',
+            fallback: 'telemetryImage',
+        }),
+        helpdeskImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/helpdesk-console.png`,
+            file: 'assets/support/2026-03-15-19-01-support-helpdesk.png',
+            fallback: 'telemetryImage',
+        }),
+        docsDownloadsImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/docs-library.png`,
+            file: 'assets/support/2026-03-15-19-02-support-docs-downloads.png',
+            fallback: 'telemetryImage',
+        }),
+        maintenanceRackImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/maintenance-rack.png`,
+            file: 'assets/support/2026-03-15-19-03-support-maintenance-rack.png',
+            fallback: 'telemetryImage',
+        }),
+        inspectionImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/operations-center.png`,
+            file: 'assets/support/2026-03-15-18-42-support-hero.png',
+            fallback: 'inspectionImage',
+        }),
+        telemetryImage: Object.freeze({
+            publicPath: `${CAMOUFLAGE_ASSET_ROUTE_PREFIX}/service/helpdesk-console.png`,
+            file: 'assets/support/2026-03-15-19-01-support-helpdesk.png',
+            fallback: 'telemetryImage',
+        }),
+    }),
+});
+
+function collectClassTokens() {
+    const tokens = new Set(FALLBACK_CLASS_TOKENS);
+    for (const templateName of CAMOUFLAGE_TEMPLATE_IDS) {
+        const file = path.join(CAMOUFLAGE_VIEW_DIR, `${templateName}.html`);
+        let source = '';
+        try {
+            source = fs.readFileSync(file, 'utf8');
+        } catch {
+            continue;
+        }
+        for (const match of source.matchAll(/\{\{\s*class:([a-zA-Z0-9_-]+)\s*\}\}/g)) {
+            tokens.add(match[1]);
+        }
+    }
+    return [...tokens];
+}
+
+const CLASS_TOKENS = Object.freeze(collectClassTokens());
 
 const CLASS_MAP = Object.freeze(Object.fromEntries(
     CLASS_TOKENS.map((token) => [token, `${token}-${CLASS_SUFFIX}`])
 ));
-
-export const CAMOUFLAGE_TEMPLATE_IDS = Object.freeze(['corporate', 'nginx', 'blog']);
-export const CAMOUFLAGE_RESPONSE_CACHE_CONTROL = 'public, max-age=86400';
 
 function escapeHtml(value) {
     return String(value || '')
@@ -125,6 +267,36 @@ function renderTemplate(source, data) {
     });
 }
 
+function buildCamouflageFileAssets() {
+    const templates = {};
+    const routes = new Map();
+
+    for (const [templateName, entries] of Object.entries(CAMOUFLAGE_FILE_ASSET_SPECS)) {
+        templates[templateName] = {};
+        for (const [assetKey, entry] of Object.entries(entries)) {
+            const absoluteFile = path.join(CAMOUFLAGE_VIEW_DIR, entry.file);
+            const assetEntry = Object.freeze({
+                assetKey,
+                templateName,
+                absoluteFile,
+                publicPath: entry.publicPath,
+                fallback: entry.fallback || '',
+                exists: fs.existsSync(absoluteFile),
+            });
+            templates[templateName][assetKey] = assetEntry;
+            routes.set(assetEntry.publicPath, assetEntry);
+        }
+        templates[templateName] = Object.freeze(templates[templateName]);
+    }
+
+    return Object.freeze({
+        templates: Object.freeze(templates),
+        routes,
+    });
+}
+
+const CAMOUFLAGE_FILE_ASSETS = buildCamouflageFileAssets();
+
 function createInlineAssets(title) {
     const safeTitle = escapeHtml(title);
     return {
@@ -176,6 +348,20 @@ function createInlineAssets(title) {
                     <circle cx="80" cy="142" r="2.2"/>
                     <circle cx="142" cy="142" r="2.2"/>
                 </g>
+            </svg>
+        `),
+        favicon: createSvgDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+                <defs>
+                    <linearGradient id="fav" x1="0" x2="1" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#38bdf8"/>
+                        <stop offset="100%" stop-color="#34d399"/>
+                    </linearGradient>
+                </defs>
+                <rect width="64" height="64" rx="18" fill="#08111f"/>
+                <rect x="8" y="8" width="48" height="48" rx="14" fill="url(#fav)" fill-opacity="0.18" stroke="rgba(255,255,255,0.18)"/>
+                <rect x="16" y="20" width="30" height="8" rx="4" fill="#d7f7ff"/>
+                <rect x="24" y="34" width="16" height="8" rx="4" fill="#7dd3fc"/>
             </svg>
         `),
         inspectionImage: createSvgDataUri(`
@@ -237,6 +423,23 @@ function createInlineAssets(title) {
             </svg>
         `),
     };
+}
+
+function createTemplateAssets(templateName, title) {
+    const assets = createInlineAssets(title);
+    const templateAssets = CAMOUFLAGE_FILE_ASSETS.templates[normalizeTemplate(templateName)] || {};
+
+    for (const [assetKey, entry] of Object.entries(templateAssets)) {
+        if (entry.exists) {
+            assets[assetKey] = entry.publicPath;
+            continue;
+        }
+        if (entry.fallback && assets[entry.fallback]) {
+            assets[assetKey] = assets[entry.fallback];
+        }
+    }
+
+    return assets;
 }
 
 function createRenderModel(options = {}) {
@@ -303,7 +506,7 @@ function createRenderModel(options = {}) {
         generatedDateEn,
         generatedAt: now.toUTCString(),
         classes: CLASS_MAP,
-        assets: createInlineAssets(title),
+        assets: createTemplateAssets(templateName, title),
     };
 }
 
@@ -315,10 +518,43 @@ export function getCamouflageRuntime() {
     };
 }
 
+export function getCamouflageAssetPublicPath(templateName, assetKey) {
+    const templateAssets = CAMOUFLAGE_FILE_ASSETS.templates[normalizeTemplate(templateName)] || {};
+    return templateAssets[assetKey]?.publicPath || '';
+}
+
 export function applyCamouflageResponseHeaders(res) {
     res.setHeader('Cache-Control', CAMOUFLAGE_RESPONSE_CACHE_CONTROL);
     res.removeHeader('X-Powered-By');
     return res;
+}
+
+export function createCamouflageAssetMiddleware({
+    getSiteConfig = () => ({}),
+} = {}) {
+    return (req, res, next) => {
+        const siteConfig = getSiteConfig() || {};
+        if (siteConfig.camouflageEnabled !== true) {
+            return next();
+        }
+
+        const method = String(req.method || 'GET').toUpperCase();
+        if (!['GET', 'HEAD'].includes(method)) {
+            return next();
+        }
+
+        const asset = CAMOUFLAGE_FILE_ASSETS.routes.get(String(req.path || ''));
+        if (!asset || !asset.exists) {
+            return next();
+        }
+
+        applyCamouflageResponseHeaders(res);
+        return res.sendFile(asset.absoluteFile, (error) => {
+            if (error) {
+                next(error);
+            }
+        });
+    };
 }
 
 export function createSiteCamouflageHtml(options = {}) {

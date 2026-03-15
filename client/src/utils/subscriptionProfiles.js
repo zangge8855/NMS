@@ -125,7 +125,7 @@ const TOOL_SITES = [
         links: [
             { key: 'clash-verge', label: 'Verge Rev', url: 'https://www.clashverge.dev/' },
             { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
-            { key: 'stash', label: 'Stash', url: 'https://stash.wiki/installation/' },
+            { key: 'stash', label: 'Stash', url: 'https://stash.wiki/get-started' },
         ],
     },
     { key: 'surge', label: 'Surge', url: 'https://nssurge.com/' },

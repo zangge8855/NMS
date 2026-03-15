@@ -13369,8 +13369,8 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-client-links--compact .subscription-device-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .subscription-device-card {
@@ -13386,8 +13386,41 @@ input[type="radio"]:focus-visible {
 
 .subscription-client-links--compact .subscription-device-card {
   min-height: 0;
-  padding: 12px;
+  padding: 11px 12px;
+  gap: 7px;
+}
+
+.subscription-device-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subscription-device-compact-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.subscription-device-compact-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
   gap: 8px;
+  align-items: start;
+  min-width: 0;
+}
+
+.subscription-device-compact-row--push {
+  margin-top: 2px;
+}
+
+.subscription-device-compact-label {
+  padding-top: 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .subscription-device-title {
@@ -13419,7 +13452,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-client-links--compact .subscription-device-text {
-  line-height: 1.55;
+  display: none;
 }
 
 .subscription-device-block {
@@ -13441,6 +13474,8 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-client-links--compact .subscription-device-block-label {
+  font-size: 10px;
+  line-height: 1.2;
   letter-spacing: 0.04em;
 }
 
@@ -13728,6 +13763,17 @@ input[type="radio"]:focus-visible {
   font-weight: 600;
 }
 
+.subscription-client-links--compact .subscription-device-actions--downloads {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.subscription-client-links--compact .subscription-device-download-btn {
+  min-height: 34px;
+  padding-inline: 8px;
+  font-size: 11px;
+}
+
 .subscription-device-download-btn:hover,
 .subscription-device-download-btn:focus-visible {
   border-color: rgba(99, 102, 241, 0.32);
@@ -13753,6 +13799,21 @@ input[type="radio"]:focus-visible {
   line-height: 1.5;
 }
 
+.subscription-client-links--compact .subscription-device-rules {
+  gap: 5px;
+}
+
+.subscription-device-rules--compact {
+  gap: 5px;
+}
+
+.subscription-client-links--compact .subscription-device-rule {
+  gap: 4px;
+  padding: 7px 8px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .subscription-device-rule-tools {
   color: var(--text-primary);
   font-weight: 600;
@@ -13775,6 +13836,12 @@ input[type="radio"]:focus-visible {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-secondary);
+}
+
+.subscription-client-links--compact .subscription-device-empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .subscription-guide-grid {
@@ -14328,6 +14395,16 @@ input[type="radio"]:focus-visible {
     gap: 8px;
   }
 
+  .subscription-device-compact-row {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .subscription-device-compact-label {
+    padding-top: 7px;
+    font-size: 9px;
+  }
+
   .subscription-device-title {
     font-size: 14px;
   }
@@ -14384,6 +14461,15 @@ input[type="radio"]:focus-visible {
 
   .subscription-device-actions--downloads {
     grid-template-columns: 1fr;
+  }
+
+  .subscription-device-compact-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .subscription-device-compact-label {
+    padding-top: 0;
   }
 }
 
