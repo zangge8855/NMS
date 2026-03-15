@@ -16310,3 +16310,92 @@ input[type="radio"]:focus-visible {
     width: 100%;
   }
 }
+
+/* Final brand-logo overrides: keep sidebar and login layouts stable despite earlier duplicate blocks. */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sidebar-logo-icon-custom {
+  flex: 0 0 38px;
+}
+
+.sidebar-logo-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sidebar-logo-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+
+.sidebar-logo-text,
+.sidebar-logo-subtitle {
+  display: block;
+  max-width: 100%;
+}
+
+.sidebar-logo-subtitle {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.login-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  text-align: left;
+}
+
+.login-brand-mark {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+.login-brand-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.login-brand-name,
+.login-brand-subtitle {
+  display: block;
+  max-width: 100%;
+}
+
+.login-brand-subtitle {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .login-brand-row {
+    align-items: flex-start;
+  }
+
+  .login-brand-mark {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+  }
+}
