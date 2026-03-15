@@ -23,6 +23,18 @@ vi.mock('../Tasks/Tasks.jsx', () => ({
     default: () => <div>tasks</div>,
 }));
 
+vi.mock('recharts', async () => {
+    const actual = await vi.importActual('recharts');
+    return {
+        ...actual,
+        ResponsiveContainer: ({ children }) => (
+            <div data-testid="responsive-container" style={{ width: 640, height: 260 }}>
+                {children}
+            </div>
+        ),
+    };
+});
+
 vi.mock('react-hot-toast', () => ({
     default: {
         error: vi.fn(),

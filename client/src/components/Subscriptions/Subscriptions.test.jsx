@@ -87,10 +87,10 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.getByText('选配置文件 -> 复制地址 -> 导入客户端')).toBeInTheDocument();
         expect(screen.getByText('当前配置文件')).toBeInTheDocument();
-        expect(screen.getByText('使用顺序')).toBeInTheDocument();
-        expect(screen.getByText('选配置文件 -> 复制/扫码 -> 导入')).toBeInTheDocument();
-        expect(screen.getByText('软件下载')).toBeInTheDocument();
+        expect(screen.getByLabelText('订阅导入步骤')).toBeInTheDocument();
+        expect(screen.getAllByText('软件下载').length).toBeGreaterThan(0);
         expect(screen.getByText('适用软件')).toBeInTheDocument();
         expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
         expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();
@@ -135,10 +135,14 @@ describe('Subscriptions', () => {
 
         await screen.findByDisplayValue('https://sub.example.com/base');
         expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
+        expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
         expect(screen.queryByText('给 Clash / Mihomo / Stash')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
+        expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toHaveClass('btn-secondary');
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
         expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
@@ -209,6 +213,11 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toBeInTheDocument();
+        expect(screen.getAllByText('当前用户').length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('link', { name: 'admin@example.com' }).length).toBeGreaterThan(0);
+        expect(screen.getByText('查看范围: 全部节点 · 已匹配 0/0')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
+        expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
         expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(1);
         expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(1);
         expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
@@ -230,6 +239,7 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Stash' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
         expect(screen.getByText('适用软件')).toBeInTheDocument();
         expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Sparkle').length).toBeGreaterThan(0);

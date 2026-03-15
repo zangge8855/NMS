@@ -983,8 +983,8 @@ export default function AuditCenter() {
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">{copy.traffic.userLevelUnsupported}</div>
                                 )}
-                                <div className="dashboard-chart">
-                                    <ResponsiveContainer>
+                                <div className="dashboard-chart audit-chart-body">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                                         <LineChart data={userTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                             <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
@@ -1016,8 +1016,8 @@ export default function AuditCenter() {
                                         </select>
                                     )}
                                 />
-                                <div className="dashboard-chart">
-                                    <ResponsiveContainer>
+                                <div className="dashboard-chart audit-chart-body">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                                         <LineChart data={serverTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                             <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />

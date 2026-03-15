@@ -211,7 +211,9 @@ describe('UserDetail', () => {
         await user.click(screen.getByRole('button', { name: '订阅' }));
 
         expect((await screen.findAllByText('订阅资料')).length).toBeGreaterThan(0);
-        expect(screen.getByText('直接告诉用户：选类型 -> 复制地址 -> 导入客户端。')).toBeInTheDocument();
+        expect(screen.getByText('选类型，复制地址，导入客户端。')).toBeInTheDocument();
+        expect(screen.getByText('当前配置文件')).toBeInTheDocument();
+        expect(screen.getByText('复制订阅地址')).toBeInTheDocument();
         expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
         expect(screen.getByText('subscription-client-links')).toBeInTheDocument();
         expect(screen.getByText('qr-code')).toBeInTheDocument();

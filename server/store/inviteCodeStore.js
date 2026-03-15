@@ -1,18 +1,26 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 
-const INVITE_CODES_FILE = path.join(config.dataDir, 'invite_codes.json');
+const STORE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const INVITE_SEGMENT_LENGTH = 4;
 const INVITE_SEGMENT_COUNT = 3;
 
-function ensureDataDir() {
-    if (!fs.existsSync(config.dataDir)) {
-        fs.mkdirSync(config.dataDir, { recursive: true });
+function resolveDataDir(value) {
+    const text = String(value ?? process.env.DATA_DIR ?? '').trim();
+    if (!text) return config.dataDir;
+    if (path.isAbsolute(text)) return text;
+    return path.resolve(STORE_DIR, '..', text);
+}
+
+function ensureDataDir(dataDir) {
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
     }
 }
 
@@ -134,17 +142,19 @@ function resolveStatus(record = {}) {
 }
 
 class InviteCodeStore {
-    constructor() {
-        ensureDataDir();
+    constructor(options = {}) {
+        this.dataDir = resolveDataDir(options.dataDir);
+        this.filePath = path.join(this.dataDir, 'invite_codes.json');
+        ensureDataDir(this.dataDir);
         this.invites = this._load();
     }
 
     _load() {
         try {
-            if (!fs.existsSync(INVITE_CODES_FILE)) {
+            if (!fs.existsSync(this.filePath)) {
                 return [];
             }
-            const parsed = JSON.parse(fs.readFileSync(INVITE_CODES_FILE, 'utf8'));
+            const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
             if (!Array.isArray(parsed)) return [];
             return parsed
                 .map((item) => normalizeRecord(item))
@@ -156,7 +166,7 @@ class InviteCodeStore {
     }
 
     _save() {
-        saveObjectAtomic(INVITE_CODES_FILE, this.invites);
+        saveObjectAtomic(this.filePath, this.invites);
         mirrorStoreSnapshot('invite_codes', this.exportState());
     }
 

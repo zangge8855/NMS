@@ -20,6 +20,7 @@ import {
     HiOutlineEye,
     HiOutlineXMark,
 } from 'react-icons/hi2';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const PANEL_AUTH_REPAIR_CODES = new Set([
     'PANEL_CREDENTIAL_UNREADABLE',
@@ -64,6 +65,7 @@ function formatServerEnvironment(value, locale = 'zh-CN') {
 
 export default function Servers() {
     const { locale, t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
     const {
         servers, activeServerId, selectServer,
@@ -807,23 +809,25 @@ export default function Servers() {
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
                                             </div>
-                                            <div className="servers-mobile-summary">
-                                                <div className="servers-mobile-summary-row">
-                                                    <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                                                    <span className="badge badge-info">{serverEnvironment}</span>
-                                                    {serverTags.slice(0, 2).map((tag) => (
-                                                        <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
-                                                    ))}
+                                            {isCompactLayout ? (
+                                                <div className="servers-mobile-summary">
+                                                    <div className="servers-mobile-summary-row">
+                                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
+                                                        <span className="badge badge-info">{serverEnvironment}</span>
+                                                        {serverTags.slice(0, 2).map((tag) => (
+                                                            <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
+                                                        ))}
+                                                    </div>
+                                                    <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
+                                                        <span className="servers-mobile-account-name">{server.username}</span>
+                                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                                                    </div>
+                                                    <div className="servers-mobile-summary-row">
+                                                        <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                                                        <span className={`badge ${testStateBadge}`}>{testStateText}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
-                                                    <span className="servers-mobile-account-name">{server.username}</span>
-                                                    <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
-                                                </div>
-                                                <div className="servers-mobile-summary-row">
-                                                    <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
-                                                    <span className={`badge ${testStateBadge}`}>{testStateText}</span>
-                                                </div>
-                                            </div>
+                                            ) : null}
                                         </div>
                                     </td>
                                     <td className="servers-tags-cell" data-label="分组 / 标签">

@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithRouter } from '../../test/render.jsx';
 import BatchResultModal from './BatchResultModal.jsx';
 
 vi.mock('../UI/ModalShell.jsx', () => ({
@@ -8,7 +9,7 @@ vi.mock('../UI/ModalShell.jsx', () => ({
 
 describe('BatchResultModal', () => {
     it('renders user sync rows with stage, inbound remark, and target identity fallbacks', () => {
-        render(
+        renderWithRouter(
             <BatchResultModal
                 isOpen
                 onClose={() => {}}
@@ -35,5 +36,27 @@ describe('BatchResultModal', () => {
         expect(screen.getByText('101 · Inbound A')).toBeInTheDocument();
         expect(screen.getByText('review-user (review-user@example.com)')).toBeInTheDocument();
         expect(screen.getByText('Auth failed')).toBeInTheDocument();
+    });
+
+    it('switches summary and empty-state copy with the selected locale', () => {
+        window.localStorage.setItem('nms_locale', 'en-US');
+
+        renderWithRouter(
+            <BatchResultModal
+                isOpen
+                onClose={() => {}}
+                data={{
+                    summary: { total: 2, success: 1, failed: 1 },
+                    results: [],
+                }}
+            />
+        );
+
+        expect(screen.getByText('Batch Results')).toBeInTheDocument();
+        expect(screen.getByText('Total 2')).toBeInTheDocument();
+        expect(screen.getByText('Success 1')).toBeInTheDocument();
+        expect(screen.getByText('Failed 1')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: 'Action' })).toBeInTheDocument();
+        expect(screen.getByText('No execution results yet')).toBeInTheDocument();
     });
 });

@@ -4,6 +4,41 @@ import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatTaskActionLabel } from '../../utils/taskLabels.js';
 
+const BATCH_RESULT_COPY = {
+    'zh-CN': {
+        defaultTitle: '批量执行结果',
+        close: '关闭',
+        total: '总计',
+        success: '成功',
+        failed: '失败',
+        status: '状态',
+        action: '动作',
+        node: '节点',
+        inbound: '入站',
+        target: '对象',
+        result: '结果',
+        empty: '暂无执行结果',
+    },
+    'en-US': {
+        defaultTitle: 'Batch Results',
+        close: 'Close',
+        total: 'Total',
+        success: 'Success',
+        failed: 'Failed',
+        status: 'Status',
+        action: 'Action',
+        node: 'Node',
+        inbound: 'Inbound',
+        target: 'Target',
+        result: 'Result',
+        empty: 'No execution results yet',
+    },
+};
+
+function getBatchResultCopy(locale = 'zh-CN') {
+    return BATCH_RESULT_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
+}
+
 function formatInboundLabel(item = {}) {
     const inboundId = item.inboundId ?? '';
     const remark = String(item.inboundRemark || '').trim();
@@ -20,10 +55,12 @@ function formatTargetLabel(item = {}) {
     return username || subscriptionEmail || item.email || item.remark || item.clientIdentifier || '-';
 }
 
-export default function BatchResultModal({ isOpen, onClose, title = '批量执行结果', data = null }) {
+export default function BatchResultModal({ isOpen, onClose, title = null, data = null }) {
     const { locale } = useI18n();
     if (!isOpen || !data) return null;
 
+    const copy = getBatchResultCopy(locale);
+    const resolvedTitle = title || copy.defaultTitle;
     const summary = data.summary || { total: 0, success: 0, failed: 0 };
     const results = Array.isArray(data.results) ? data.results : [];
 
@@ -31,8 +68,8 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
         <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg batch-result-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">{title}</h3>
-                    <button className="modal-close" onClick={onClose}>
+                    <h3 className="modal-title">{resolvedTitle}</h3>
+                    <button className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
                         <HiOutlineXMark />
                     </button>
                 </div>
@@ -40,9 +77,9 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                 <div className="modal-body">
                     <div className="card batch-result-summary" style={{ marginBottom: '12px', padding: '12px' }}>
                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
-                            <span className="badge badge-neutral">总计 {summary.total}</span>
-                            <span className="badge badge-success">成功 {summary.success}</span>
-                            <span className="badge badge-danger">失败 {summary.failed}</span>
+                            <span className="badge badge-neutral">{copy.total} {summary.total}</span>
+                            <span className="badge badge-success">{copy.success} {summary.success}</span>
+                            <span className="badge badge-danger">{copy.failed} {summary.failed}</span>
                         </div>
                     </div>
 
@@ -50,34 +87,34 @@ export default function BatchResultModal({ isOpen, onClose, title = '批量执�
                         <table className="table">
                             <thead>
                                 <tr>
-                                    <th>状态</th>
-                                    <th>动作</th>
-                                    <th>节点</th>
-                                    <th>入站</th>
-                                    <th>对象</th>
-                                    <th>结果</th>
+                                    <th>{copy.status}</th>
+                                    <th>{copy.action}</th>
+                                    <th>{copy.node}</th>
+                                    <th>{copy.inbound}</th>
+                                    <th>{copy.target}</th>
+                                    <th>{copy.result}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {results.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="text-center" style={{ padding: '24px' }}>
-                                            暂无执行结果
+                                            {copy.empty}
                                         </td>
                                     </tr>
                                 ) : (
                                     results.map((item, idx) => (
                                         <tr key={`${idx}-${item.serverId || 'x'}-${item.inboundId || 'x'}`}>
-                                            <td data-label="结果">
+                                            <td data-label={copy.result}>
                                                 <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
-                                                    {item.success ? '成功' : '失败'}
+                                                    {item.success ? copy.success : copy.failed}
                                                 </span>
                                             </td>
-                                            <td data-label="操作">{formatTaskActionLabel(item.action || item.stage, locale)}</td>
-                                            <td data-label="节点">{item.serverName || item.serverId || '-'}</td>
-                                            <td data-label="入站">{formatInboundLabel(item)}</td>
-                                            <td data-label="对象">{formatTargetLabel(item)}</td>
-                                            <td data-label="消息" style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
+                                            <td data-label={copy.action}>{formatTaskActionLabel(item.action || item.stage, locale)}</td>
+                                            <td data-label={copy.node}>{item.serverName || item.serverId || '-'}</td>
+                                            <td data-label={copy.inbound}>{formatInboundLabel(item)}</td>
+                                            <td data-label={copy.target}>{formatTargetLabel(item)}</td>
+                                            <td data-label={copy.result} style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
                                                 {item.msg || '-'}
                                             </td>
                                         </tr>

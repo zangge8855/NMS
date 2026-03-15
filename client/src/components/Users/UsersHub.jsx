@@ -37,6 +37,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -156,6 +157,7 @@ export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
@@ -1084,20 +1086,22 @@ export default function UsersHub() {
                                                     {displayEmail || '未设置邮箱'}
                                                 </span>
                                             </button>
-                                            <div className="users-mobile-summary">
-                                                <div className="users-mobile-summary-row">
-                                                    <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
-                                                    <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
-                                                    {user.onlineStatus.detail ? (
-                                                        <span className="users-mobile-meta-pill">{user.onlineStatus.detail}</span>
-                                                    ) : null}
+                                            {isCompactLayout ? (
+                                                <div className="users-mobile-summary">
+                                                    <div className="users-mobile-summary-row">
+                                                        <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                                        <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                                                        {user.onlineStatus.detail ? (
+                                                            <span className="users-mobile-meta-pill">{user.onlineStatus.detail}</span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="users-mobile-summary-row">
+                                                        <span className="users-mobile-meta-pill">节点 {user.clientData.count || 0}</span>
+                                                        <span className="users-mobile-meta-pill">{userTrafficSummary}</span>
+                                                        <span className="users-mobile-meta-pill">{userExpiryLabel}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="users-mobile-summary-row">
-                                                    <span className="users-mobile-meta-pill">节点 {user.clientData.count || 0}</span>
-                                                    <span className="users-mobile-meta-pill">{userTrafficSummary}</span>
-                                                    <span className="users-mobile-meta-pill">{userExpiryLabel}</span>
-                                                </div>
-                                            </div>
+                                            ) : null}
                                         </td>
                                         <td data-label="状态" className="users-status-cell">
                                             <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
