@@ -248,6 +248,8 @@ describe('SystemSettings', () => {
     });
 
     it('shows converter controls for admin users in subscription settings', async () => {
+        const user = userEvent.setup();
+
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -257,10 +259,14 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '随机路径' })).toBeInTheDocument();
+        expect(screen.getByText('高级入口策略')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /高级入口策略/ }));
         expect(screen.getByText('站点伪装首页')).toBeInTheDocument();
         expect(screen.getByText('公开首页预览')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('Northline Relay')).toBeInTheDocument();
         expect(screen.getAllByText('模板 nginx').length).toBeGreaterThan(0);
+        expect(screen.getByText('高级订阅输出')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /高级订阅输出/ }));
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
         expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
         expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();
@@ -322,13 +328,15 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         expect(await screen.findByText('注册与邀请码')).toBeInTheDocument();
-        expect(screen.getByText('当前注册开关、模式和邀请码库存统一收口到顶部状态卡，这里只保留模式切换和邀请码生成/撤销操作。')).toBeInTheDocument();
+        expect(screen.getByText('注册状态已收口到顶部状态卡。')).toBeInTheDocument();
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
     });
 
     it('shows consolidated monitor summaries inside the monitor tab', async () => {
+        const user = userEvent.setup();
+
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -338,9 +346,10 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByText('SMTP 诊断')).toBeInTheDocument();
         expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
-        expect(screen.getByText('状态摘要统一收口到系统状态卡片')).toBeInTheDocument();
+        expect(screen.getByText('摘要见系统状态')).toBeInTheDocument();
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /Telegram 机器人/ }));
         expect(screen.getByText('Telegram 可用命令')).toBeInTheDocument();
         expect(screen.getByText('/monitor')).toBeInTheDocument();
         expect(screen.getByDisplayValue('-1001234567890')).toBeInTheDocument();

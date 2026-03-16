@@ -9,6 +9,7 @@ import './index.css';
 import './styles/ui-tokens.css';
 import './styles/layout-polish.css';
 import './styles/interaction-polish.css';
+import './styles/ui-overhaul.css';
 import { resolveSiteBasePath } from './utils/sitePath.js';
 
 const siteBasePath = resolveSiteBasePath();

@@ -3,16 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { getVisibleNavSections, navSections } from './navConfig.js';
 
 describe('navConfig', () => {
-    it('keeps audit under manage and folds node console into settings for admins', () => {
+    it('keeps an operation-first sidebar order and folds node console into settings for admins', () => {
         const sections = getVisibleNavSections({
             isAdmin: true,
             isGlobalView: true,
             locale: 'zh-CN',
         });
 
-        expect(sections.map((section) => section.title)).toEqual(['监控', '管理', '系统']);
+        expect(sections.map((section) => section.title)).toEqual(['概览', '运营', '节点', '系统']);
         expect(sections[1].items.map((item) => item.path)).toEqual(['/inbounds', '/clients', '/audit']);
-        expect(sections[2].items.map((item) => item.path)).toEqual(['/settings', '/servers']);
+        expect(sections[2].items.map((item) => item.path)).toEqual(['/servers']);
+        expect(sections[3].items.map((item) => item.path)).toEqual(['/settings']);
     });
 
     it('uses distinct icons for inbounds, capabilities, settings, and servers', () => {

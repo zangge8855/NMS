@@ -404,6 +404,48 @@ export default function Subscriptions() {
             tone: expiryProgressState.tone,
         },
     ];
+    const subscriptionStatusLabel = result
+        ? (result.subscriptionActive ? ui.summaryStatusReady : ui.summaryStatusBlocked)
+        : (loading ? ui.loadingAddress : (isUserOnly ? ui.noAssignedLink : ui.inputEmailHint));
+    const introAccountMeta = locale === 'en-US'
+        ? `Signed in as ${accountMeta}`
+        : `登录账号 · ${accountMeta}`;
+    const introScopeMeta = result
+        ? ui.nodeCount
+        : (isAdmin
+            ? (locale === 'en-US' ? 'Cluster-wide view' : '当前按全部节点查看')
+            : (locale === 'en-US' ? 'Self-service access' : '当前为自助订阅视图'));
+    const introStatusMeta = result
+        ? ui.summaryFilters
+            .replace('{expired}', String(result.filteredExpired))
+            .replace('{disabled}', String(result.filteredDisabled))
+            .replace('{policy}', String(result.filteredByPolicy))
+        : (usersAccessDenied
+            ? (locale === 'en-US' ? `Lookup: ${ui.listDenied}` : `列表状态：${ui.listDenied}`)
+            : (locale === 'en-US' ? `Lookup: ${ui.listLoaded}` : `列表状态：${ui.listLoaded}`));
+    const introTitle = isUserOnly
+        ? (locale === 'en-US' ? 'Self-service subscription' : '自助订阅入口')
+        : t('pages.subscriptions.title');
+    const subscriptionIntroCards = [
+        {
+            key: 'user',
+            label: ui.summaryUser,
+            value: normalizedEmail || defaultIdentity || '-',
+            meta: introAccountMeta,
+        },
+        {
+            key: 'scope',
+            label: ui.summaryScope,
+            value: summaryScopeLabel,
+            meta: introScopeMeta,
+        },
+        {
+            key: 'status',
+            label: ui.summaryStatus,
+            value: subscriptionStatusLabel,
+            meta: introStatusMeta,
+        },
+    ];
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -596,6 +638,28 @@ export default function Subscriptions() {
         <>
             <Header title={t('pages.subscriptions.title')} />
             <div className="page-content page-content--wide page-enter subscriptions-page">
+                <section className="card subscriptions-page-intro" aria-label={isUserOnly ? ui.userTitle : ui.summaryTitle}>
+                    <div className="subscriptions-page-intro-copy">
+                        <div className="subscriptions-page-intro-eyebrow">
+                            {t('pages.subscriptions.title')}
+                        </div>
+                        <h2 className="subscriptions-page-intro-title">
+                            {introTitle}
+                        </h2>
+                        <p className="subscriptions-page-intro-text">
+                            {isUserOnly ? ui.heroText : ui.summarySubtitle}
+                        </p>
+                    </div>
+                    <div className="subscriptions-page-intro-grid">
+                        {subscriptionIntroCards.map((item) => (
+                            <div key={item.key} className="subscriptions-page-intro-card">
+                                <div className="subscriptions-page-intro-label">{item.label}</div>
+                                <div className="subscriptions-page-intro-value">{item.value}</div>
+                                <div className="subscriptions-page-intro-meta">{item.meta}</div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
                 {isAdmin && (
                     <PageToolbar
                         className="card mb-8 subscriptions-toolbar"
