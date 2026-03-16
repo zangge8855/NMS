@@ -1300,7 +1300,7 @@ export default function Inbounds() {
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
-                                                <td data-label="协议" className="whitespace-nowrap"><span className="badge badge-info">{ib.protocol}</span></td>
+                                                <td data-label="协议" className="whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm whitespace-nowrap">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label="用户数" className="table-cell-center inbounds-users-cell">
                                                     <span className="cell-mono inbounds-user-count" title={`共 ${clients.length} 位用户`}>

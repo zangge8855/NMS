@@ -6386,13 +6386,13 @@ body::before {
 }
 
 .inbounds-remark-col {
-  width: 128px;
-  min-width: 128px;
+  width: 112px;
+  min-width: 112px;
 }
 
 .inbounds-protocol-col {
-  width: 68px;
-  min-width: 68px;
+  width: 62px;
+  min-width: 62px;
 }
 
 .inbounds-port-col {
@@ -6522,6 +6522,11 @@ body::before {
   text-align: left;
   line-height: 1.35;
   overflow: visible;
+  padding-right: 8px !important;
+}
+
+.inbounds-protocol-cell {
+  padding-left: 6px !important;
 }
 
 .inbounds-sequence-actions {
