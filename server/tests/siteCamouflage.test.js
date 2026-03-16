@@ -24,12 +24,12 @@ describe('site camouflage renderer', () => {
         assert.match(html, /Northline Field Journal/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /新闻中心、技术文章与案例动态/);
-        assert.match(html, /该内容暂未在新闻中心发布/);
+        assert.match(html, /公开页维持简洁、克制/);
+        assert.match(html, /当前路径未开放内容，请返回首页或稍后再试/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
         assert.match(html, /\/media\/journal\/editorial-hero\.png/);
         assert.doesNotMatch(html, /pexels\.com/i);
-        assert.doesNotMatch(html, /Directory status:/i);
+        assert.doesNotMatch(html, /产品|方案|下载|联络|新闻中心/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
         assert.doesNotMatch(html, /\/wp-admin/);
         assert.match(html, /site_lang_pref/);
@@ -47,11 +47,11 @@ describe('site camouflage renderer', () => {
         });
 
         assert.match(html, /Fallback Labs/);
-        assert.match(html, /工业检测设备与自动化解决方案/);
-        assert.match(html, /工业视觉检测设备、测量终端与自动化交付体系/);
-        assert.match(html, /官方网站/);
+        assert.match(html, /公开站点/);
+        assert.match(html, /当前站点仅提供基础公开说明与更新时间/);
+        assert.match(html, /保留中性的公开外壳/);
         assert.match(html, /\/media\/industrial\/facility-overview\.png/);
-        assert.match(html, /区域技术网络/);
+        assert.match(html, /维护节奏/);
         assert.doesNotMatch(html, /目录状态 200/);
     });
 });
@@ -140,8 +140,8 @@ describe('camouflage middleware', () => {
         assert.deepEqual(calls[1], ['type', 'html']);
         assert.match(calls[2][1], /Aperture Relay/);
         assert.match(calls[2][1], /中文/);
-        assert.match(calls[2][1], /服务与支持/);
-        assert.match(calls[2][1], /您访问的页面暂未开放，请查看服务与支持栏目/);
+        assert.match(calls[2][1], /公开页只保留基础访问提示、时间戳和状态标记/);
+        assert.match(calls[2][1], /该路径未对外开放，请使用分配入口访问受限资源/);
         assert.doesNotMatch(calls[2][1], /\/wp-admin/);
         assert.doesNotMatch(calls[2][1], /completed with status/i);
         assert.doesNotMatch(calls[2][1], /nms/i);

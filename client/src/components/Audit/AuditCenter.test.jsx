@@ -77,6 +77,9 @@ describe('AuditCenter localization', () => {
                                     outcome: 'success',
                                     actor: 'review-admin',
                                     serverId: 'server-a',
+                                    ip: '203.0.113.9',
+                                    ipLocation: '中国 浙江 杭州',
+                                    ipCarrier: '中国电信',
                                     details: {
                                         email: 'alice@example.com',
                                     },
@@ -125,6 +128,7 @@ describe('AuditCenter localization', () => {
 
         const successBadge = screen.getAllByText('成功').find((node) => node.className.includes('badge'));
         expect(successBadge).toBeTruthy();
+        expect(screen.getByText('203.0.113.9 · 中国 浙江 杭州 · 中国电信')).toBeInTheDocument();
         expect(screen.queryByText('success')).not.toBeInTheDocument();
         expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
         expect(screen.queryByText('user_enabled')).not.toBeInTheDocument();

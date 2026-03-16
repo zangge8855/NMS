@@ -331,7 +331,7 @@ function createInlineAssets(title) {
                 </g>
                 <g fill="rgba(255,255,255,0.82)" font-family="Arial, Helvetica, sans-serif">
                     <text x="96" y="112" font-size="24" letter-spacing="3">${safeTitle}</text>
-                    <text x="96" y="148" font-size="13" opacity="0.72">EDGE SYSTEMS . INDUSTRIAL SIGNAL . FIELD OPERATIONS</text>
+                    <text x="96" y="148" font-size="13" opacity="0.72">PUBLIC SITE . ACCESS NOTICE . STATUS UPDATE</text>
                 </g>
             </svg>
         `),
@@ -394,7 +394,7 @@ function createInlineAssets(title) {
                 <rect x="644" y="368" width="134" height="18" rx="9" fill="rgba(255,255,255,0.1)"/>
                 <rect x="644" y="400" width="96" height="18" rx="9" fill="rgba(255,255,255,0.1)"/>
                 <text x="106" y="530" fill="rgba(255,255,255,0.82)" font-size="24" font-family="Arial, Helvetica, sans-serif">${safeTitle}</text>
-                <text x="106" y="564" fill="rgba(255,255,255,0.58)" font-size="14" font-family="Arial, Helvetica, sans-serif">machine vision inspection / edge appliance / local telemetry</text>
+                <text x="106" y="564" fill="rgba(255,255,255,0.58)" font-size="14" font-family="Arial, Helvetica, sans-serif">public shell / access notice / update marker</text>
             </svg>
         `),
         telemetryImage: createSvgDataUri(`
@@ -418,7 +418,7 @@ function createInlineAssets(title) {
                 <rect x="600" y="456" width="196" height="22" rx="11" fill="rgba(255,255,255,0.08)"/>
                 <g fill="rgba(255,255,255,0.82)" font-family="Arial, Helvetica, sans-serif">
                     <text x="90" y="84" font-size="26">${safeTitle}</text>
-                    <text x="90" y="112" font-size="14" opacity="0.62">telemetry wall / regional support / operations visibility</text>
+                    <text x="90" y="112" font-size="14" opacity="0.62">status board / maintenance note / public visibility</text>
                 </g>
             </svg>
         `),
@@ -454,24 +454,24 @@ function createRenderModel(options = {}) {
     const year = String(now.getUTCFullYear());
     const month = String(now.getUTCMonth() + 1).padStart(2, '0');
     const day = String(now.getUTCDate()).padStart(2, '0');
-    const statusLabelZh = '官方网站';
-    const statusLabelEn = 'Official site';
-    const directoryBadgeZh = '官方网站';
-    const directoryBadgeEn = 'Official site';
+    const statusLabelZh = '公开站点';
+    const statusLabelEn = 'Public site';
+    const directoryBadgeZh = '公开站点';
+    const directoryBadgeEn = 'Public site';
     const accessNoteZh = statusCode === 200
-        ? '欢迎浏览产品资料、行业方案与服务信息。'
-        : '您访问的页面暂时不可用，请查看产品、方案或服务栏目。';
+        ? '当前站点仅提供基础公开说明与更新时间。'
+        : '当前路径未开放内容，请返回首页或稍后再试。';
     const accessNoteEn = statusCode === 200
-        ? 'Browse product details, industry solutions and service information on the official site.'
-        : 'This page is temporarily unavailable. Continue through the product, solutions or service sections.';
-    const archiveNoticeZh = statusCode === 200 ? '当前内容已发布在新闻中心。' : '该内容暂未在新闻中心发布，请查看最新动态。';
-    const archiveNoticeEn = statusCode === 200 ? 'This content is published in the newsroom.' : 'This content is not currently published in the newsroom. Please review the latest updates.';
-    const deliveryNoticeZh = statusCode === 200 ? '当前页面提供服务资料、下载说明与联络信息。' : '您访问的页面暂未开放，请查看服务与支持栏目。';
-    const deliveryNoticeEn = statusCode === 200 ? 'This page provides service documents, download notes and contact information.' : 'This page is not currently available. Please continue through the service and support section.';
+        ? 'This site currently exposes only basic public notes and update markers.'
+        : 'This path is not available. Return to the home page or try again later.';
+    const archiveNoticeZh = statusCode === 200 ? '公开内容按月复核，季度归档。' : '该路径暂无公开条目，请查看首页更新说明。';
+    const archiveNoticeEn = statusCode === 200 ? 'Public notes are reviewed monthly and archived quarterly.' : 'No public entry is available for this path. Please review the homepage update note.';
+    const deliveryNoticeZh = statusCode === 200 ? '如需访问受限资源，请使用已分配的入口地址。' : '该路径未对外开放，请使用分配入口访问受限资源。';
+    const deliveryNoticeEn = statusCode === 200 ? 'Use the assigned access path for restricted resources.' : 'This path is not public. Use the assigned entry for restricted resources.';
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
-    const descriptionZh = `${title} 官方网站，提供公开页面与基础导航信息。`;
-    const descriptionEn = `${title} official website with public pages and core navigation information.`;
+    const descriptionZh = `${title} 公开站点，占位展示基础访问说明与更新时间。`;
+    const descriptionEn = `${title} public site placeholder with access notes and update timestamps.`;
     const generatedDateZh = `${year}年${month}月${day}日`;
     const generatedDateEn = `${monthNamesEn[now.getUTCMonth()]} ${Number(day)}, ${year}`;
 

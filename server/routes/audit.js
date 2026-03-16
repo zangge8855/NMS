@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import auditStore from '../store/auditStore.js';
+import { enrichAuditEvent, enrichAuditEvents } from '../lib/auditEventEnrichment.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ function toPositiveInt(value, fallback) {
 
 router.use(authMiddleware);
 
-router.get('/events', (req, res) => {
+router.get('/events', async (req, res) => {
     const result = auditStore.queryEvents({
         page: toPositiveInt(req.query.page, 1),
         pageSize: toPositiveInt(req.query.pageSize, 20),
@@ -28,7 +29,10 @@ router.get('/events', (req, res) => {
 
     return res.json({
         success: true,
-        obj: result,
+        obj: {
+            ...result,
+            items: await enrichAuditEvents(result.items),
+        },
     });
 });
 
@@ -61,7 +65,7 @@ router.get('/events/export', (req, res) => {
     return res.send(csv);
 });
 
-router.get('/events/:id', (req, res) => {
+router.get('/events/:id', async (req, res) => {
     const item = auditStore.getEventById(req.params.id);
     if (!item) {
         return res.status(404).json({
@@ -71,7 +75,7 @@ router.get('/events/:id', (req, res) => {
     }
     return res.json({
         success: true,
-        obj: item,
+        obj: await enrichAuditEvent(item),
     });
 });
 
@@ -86,4 +90,3 @@ router.delete('/subscription-access', adminOnly, (req, res) => {
 });
 
 export default router;
-

@@ -4,6 +4,8 @@ import fs from 'fs';
 import auditStore from '../store/auditStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import notificationService from '../lib/notifications.js';
+import ipGeoResolver from '../lib/ipGeoResolver.js';
+import ipIspResolver from '../lib/ipIspResolver.js';
 
 test('appendSecurityAudit forwards explicit outcome to audit store', (t) => {
     t.mock.method(fs, 'existsSync', () => true);
@@ -31,7 +33,7 @@ test('appendSecurityAudit forwards explicit outcome to audit store', (t) => {
     assert.equal(notificationMock.mock.calls.length, 0);
 });
 
-test('appendSecurityAudit escalates rate-limited login events into notifications', (t) => {
+test('appendSecurityAudit escalates rate-limited login events into notifications', async (t) => {
     t.mock.method(fs, 'existsSync', () => true);
     t.mock.method(fs, 'appendFileSync', () => {});
     t.mock.method(auditStore, 'appendEvent', () => ({
@@ -43,6 +45,10 @@ test('appendSecurityAudit escalates rate-limited login events into notifications
             username: 'alice',
         },
     }));
+    t.mock.method(ipGeoResolver, 'lookupMany', async () => new Map([['203.0.113.8', '中国 浙江 杭州']]));
+    t.mock.method(ipGeoResolver, 'pickFromMap', (map, ip) => map.get(ip) || '');
+    t.mock.method(ipIspResolver, 'lookupMany', async () => new Map([['203.0.113.8', '中国电信']]));
+    t.mock.method(ipIspResolver, 'pickFromMap', (map, ip) => map.get(ip) || '');
     const notificationMock = t.mock.method(notificationService, 'notify', () => ({}));
 
     appendSecurityAudit(
@@ -58,8 +64,11 @@ test('appendSecurityAudit escalates rate-limited login events into notifications
         { outcome: 'failed' }
     );
 
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(notificationMock.mock.calls.length, 1);
     const [payload] = notificationMock.mock.calls[0].arguments;
     assert.equal(payload.type, 'security_attack_login_rate_limited');
     assert.equal(payload.severity, 'critical');
+    assert.equal(payload.meta.ipLocation, '中国 浙江 杭州');
+    assert.equal(payload.meta.ipCarrier, '中国电信');
 });

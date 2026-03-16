@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
@@ -54,7 +55,9 @@ function ServerDetailInboundMobileList({ inbounds = [] }) {
                     <div key={ib.id} className="server-detail-mobile-card">
                         <div className="server-detail-mobile-card-head">
                             <div className="server-detail-mobile-card-copy">
-                                <div className="server-detail-mobile-card-title">{ib.remark || '-'}</div>
+                                <div className="server-detail-mobile-card-title">
+                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                </div>
                                 <div className="server-detail-mobile-card-subtitle">
                                     <span className="badge badge-neutral">{ib.protocol}</span>
                                     <span className="server-detail-mobile-card-port">:{ib.port}</span>
@@ -556,7 +559,9 @@ export default function ServerDetail() {
                                                     } catch {}
                                                     return (
                                                         <tr key={ib.id}>
-                                                            <td data-label="备注" className="font-medium">{ib.remark || '-'}</td>
+                                                            <td data-label="备注" className="server-detail-remark-cell">
+                                                                <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                                            </td>
                                                             <td data-label="协议"><span className="badge badge-neutral">{ib.protocol}</span></td>
                                                             <td data-label="端口">{ib.port}</td>
                                                             <td data-label="客户端数">{clients}</td>

@@ -228,6 +228,31 @@ function SettingsPanelHeader({ title, subtitle }) {
     );
 }
 
+function SettingsWorkspaceSection({
+    eyebrow,
+    title,
+    subtitle,
+    actions = null,
+    children,
+}) {
+    return (
+        <section className="card settings-workspace-section">
+            <div className="settings-workspace-section-head">
+                {eyebrow ? <div className="settings-workspace-section-eyebrow">{eyebrow}</div> : null}
+                <SectionHeader
+                    compact
+                    title={title}
+                    subtitle={subtitle}
+                    actions={actions}
+                />
+            </div>
+            <div className="settings-workspace-section-body">
+                {children}
+            </div>
+        </section>
+    );
+}
+
 function getSummaryToneBadgeMeta(tone) {
     if (tone === 'success') return { className: 'badge-success', label: '正常' };
     if (tone === 'warning') return { className: 'badge-warning', label: '关注' };
@@ -334,6 +359,7 @@ export default function SystemSettings() {
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
     const [searchParams, setSearchParams] = useSearchParams();
+    const requestedView = resolveSettingsTab(searchParams.get('tab'));
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -399,6 +425,7 @@ export default function SystemSettings() {
         usageLimit: 1,
         subscriptionDays: 30,
     });
+    const [consoleExpanded, setConsoleExpanded] = useState(() => requestedView === 'console');
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
@@ -424,8 +451,6 @@ export default function SystemSettings() {
     const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
     const siteAccessPath = normalizeSiteAccessPathInput(draft.site.accessPath, '/');
     const registrationEnabled = registrationRuntime?.enabled !== false;
-    const activeTab = resolveSettingsTab(searchParams.get('tab'));
-    const activeTabMeta = SETTINGS_TAB_CONFIG.find((item) => item.id === activeTab) || SETTINGS_TAB_CONFIG[0];
     const siteEntryPreview = useMemo(() => {
         if (typeof window === 'undefined') return siteAccessPath;
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
@@ -630,6 +655,12 @@ export default function SystemSettings() {
     }, [isAdmin]);
 
     useEffect(() => {
+        if (requestedView === 'console') {
+            setConsoleExpanded(true);
+        }
+    }, [requestedView]);
+
+    useEffect(() => {
         if (!noticeModalOpen) return undefined;
 
         let active = true;
@@ -669,7 +700,7 @@ export default function SystemSettings() {
         noticeDraft.includeDisabled,
     ]);
 
-    const setActiveTab = (nextTab) => {
+    const setRequestedView = (nextTab) => {
         const resolvedTab = resolveSettingsTab(nextTab);
         const nextParams = new URLSearchParams(searchParams);
         if (resolvedTab === DEFAULT_SETTINGS_TAB) {
@@ -776,7 +807,7 @@ export default function SystemSettings() {
                 '/'
             );
             if (nextSiteAccessPath !== currentSiteAccessPath && typeof window !== 'undefined') {
-                const nextRoute = activeTab === DEFAULT_SETTINGS_TAB ? '/settings' : `/settings?tab=${activeTab}`;
+                const nextRoute = requestedView === DEFAULT_SETTINGS_TAB ? '/settings' : `/settings?tab=${requestedView}`;
                 window.setTimeout(() => {
                     window.location.assign(buildAppEntryPath(nextSiteAccessPath, nextRoute));
                 }, 250);
@@ -1295,29 +1326,6 @@ export default function SystemSettings() {
 
     const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
     const latestLocalBackup = localBackups[0] || null;
-    const activeTabHighlights = useMemo(() => {
-        if (activeTab === 'status') {
-            return [
-                { label: '入口', value: siteAccessPath, detail: siteCamouflageEnabled ? `${draft.site.camouflageTitle} · ${draft.site.camouflageTemplate}` : '直接访问' },
-                { label: '注册', value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭', detail: registrationEnabled ? '可在参数页调整' : '由环境变量控制' },
-                { label: '备份', value: backupStatus?.lastExport?.filename || '暂无', detail: backupStatus?.lastExport?.createdAt ? formatDateTime(backupStatus.lastExport.createdAt, locale) : '建议先留快照' },
-                { label: '监控', value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '未运行', detail: monitorStatus?.healthMonitor?.lastRunAt ? formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale) : '尚未巡检' },
-            ];
-        }
-        return [];
-    }, [
-        activeTab,
-        backupStatus,
-        draft.registration.inviteOnlyEnabled,
-        draft.site.camouflageTemplate,
-        draft.site.camouflageTitle,
-        locale,
-        monitorStatus,
-        registrationEnabled,
-        siteAccessPath,
-        siteCamouflageEnabled,
-    ]);
-    const showTabHighlights = activeTab === 'status' && activeTabHighlights.length > 0;
     const monitorReasonSummary = useMemo(() => {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
             .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
@@ -1337,14 +1345,14 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="站点入口"
-                        subtitle="控制登录页、管理后台和用户自助页从哪个路径进入，并决定未命中真实入口时是否展示公开首页。"
+                        subtitle="真实入口与伪装页配置。"
                     />
                     <div className="settings-inline-grid settings-basic-entry-grid">
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">入口路径</div>
                                 <div className="settings-form-cluster-title">对外访问的真实入口</div>
-                                <div className="settings-form-cluster-note">保存后旧路径将不再提供页面，不要使用 `/api`、`/assets`、`/ws` 这类系统保留路径。</div>
+                                <div className="settings-form-cluster-note">保存后旧路径失效，避免使用 `/api`、`/assets`、`/ws` 等保留路径。</div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">首页访问路径</label>
@@ -1434,7 +1442,7 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                     <SettingsPanelHeader
                         title="订阅地址"
-                        subtitle="控制公开订阅域名和外部转换器地址。"
+                        subtitle="公开订阅域名与外部转换器。"
                     />
                     <div className="settings-basic-address-grid">
                         <div className="settings-form-cluster">
@@ -1504,7 +1512,7 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="注册与邀请码"
-                        subtitle="支持邀请注册、批量生成邀请码，并兼容已存在的单次邀请码数据。"
+                        subtitle="注册模式切换、邀请码生成与撤销。"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
@@ -1513,9 +1521,6 @@ export default function SystemSettings() {
                             </div>
                         )}
                     />
-                    <div className="settings-panel-subtitle mb-4">
-                        当前注册开关、模式和邀请码库存统一收口到顶部状态卡，这里只保留模式切换和邀请码生成/撤销操作。
-                    </div>
                     <div className="form-group">
                         <SettingsToggleCard
                             checked={draft.registration.inviteOnlyEnabled}
@@ -1857,8 +1862,8 @@ export default function SystemSettings() {
 
                 <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
                     <SettingsPanelHeader
-                        title="审计归属地查询"
-                        subtitle="控制订阅访问日志里的地区与运营商查询服务。"
+                        title="IP 归属地 / 运营商"
+                        subtitle="补充订阅访问和安全事件里的地区与运营商信息。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
@@ -1920,7 +1925,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="SMTP 诊断"
-                    subtitle="SMTP 配置来自服务端 `.env`，这里只展示诊断结果，不回显明文密码。"
+                    subtitle="邮件链路状态、连接测试和用户通知。"
                 />
                 <div className="settings-monitor-toolbar">
                     <div className="settings-monitor-toolbar-status">
@@ -2018,7 +2023,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="节点健康监控"
-                    subtitle="后台会定期巡检已配置节点，并通过右上角通知中心推送异常或恢复告警。"
+                    subtitle="巡检状态、异常分布和告警投递。"
                     actions={(
                         <div className="settings-panel-actions">
                             <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
@@ -2091,7 +2096,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="Telegram 机器人"
-                    subtitle="把系统状态、高风险审计和紧急告警推到固定 chat，并允许通过 Telegram 执行只读和低风险命令。"
+                    subtitle="把系统状态和安全告警推到固定 chat，并提供只读查询命令。"
                     actions={(
                         <button
                             className="btn btn-secondary btn-sm"
@@ -2227,10 +2232,13 @@ export default function SystemSettings() {
                             <span className="badge badge-neutral">/online</span>
                             <span className="badge badge-neutral">/traffic</span>
                             <span className="badge badge-neutral">/alerts</span>
+                            <span className="badge badge-neutral">/security</span>
+                            <span className="badge badge-neutral">/nodes</span>
+                            <span className="badge badge-neutral">/access</span>
                             <span className="badge badge-neutral">/monitor</span>
                         </div>
                         <div className="text-xs text-muted mt-2">
-                            `/monitor` 会触发一次手动节点巡检；其余命令只读，适合不登录网站时快速看在线人数、流量和最近告警。
+                            `/monitor` 会触发一次手动巡检；其余命令只读，适合不登录网站时快速看告警、节点异常和异常访问。
                         </div>
                     </div>
                 </div>
@@ -2630,7 +2638,7 @@ export default function SystemSettings() {
                                                 <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
                                             ) : (
                                                 (dbStatus.snapshots || []).map((item) => (
-                                                    <tr key={item.store_key}>
+                                                    <tr key={item.store_key || item.id || `${item.updated_at || 'snapshot'}-${item.payload_size || 0}`}>
                                                         <td data-label="Store">{item.store_key}</td>
                                                         <td data-label="大小">{item.payload_size || 0}</td>
                                                         <td data-label="更新时间">{formatDateTime(item.updated_at, locale)}</td>
@@ -2667,6 +2675,49 @@ export default function SystemSettings() {
         </div>
     );
 
+    const renderOperationsWorkspace = () => (
+        <div className="settings-section-stack">
+            {renderMonitorContent()}
+            <div className="card p-4 settings-panel settings-panel--wide">
+                <SectionHeader
+                    className="mb-3"
+                    compact
+                    title="节点控制台"
+                    subtitle="兼容旧的 `/settings?tab=console` 入口，直接在当前页面展开嵌入式节点控制台。"
+                    actions={(
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                                const next = !consoleExpanded;
+                                setConsoleExpanded(next);
+                                setRequestedView(next ? 'console' : DEFAULT_SETTINGS_TAB);
+                            }}
+                        >
+                            {consoleExpanded ? '收起控制台' : '打开节点控制台'}
+                        </button>
+                    )}
+                />
+                <div className="settings-basic-note-list mb-3">
+                    <span className="badge badge-neutral">旧链接兼容</span>
+                    <span className="badge badge-neutral">减少在设置页和节点页之间来回切换</span>
+                </div>
+                {consoleExpanded ? (
+                    <div className="settings-console-host settings-console-host--inline">
+                        <ServerManagement embedded />
+                    </div>
+                ) : (
+                    <div className="card p-3 settings-mini-card settings-detail-card settings-console-placeholder">
+                        <div className="text-sm font-medium">嵌入式节点控制台</div>
+                        <div className="text-xs text-muted mt-1">
+                            需要查看面板状态、执行备份或处理 geofile 时，可在这里直接展开节点控制台。
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
     if (!isAdmin) {
         return (
             <>
@@ -2696,84 +2747,62 @@ export default function SystemSettings() {
             <div className="page-content page-content--wide page-enter">
                 <div className="settings-shell">
                     <div className="card settings-nav">
-                        <div className="settings-nav-bar">
-                            <div className="settings-nav-list" role="tablist" aria-label="系统设置分区">
-                                {SETTINGS_TAB_CONFIG.map((item) => {
-                                    const Icon = item.icon;
-                                    const isActive = activeTab === item.id;
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            className={`settings-nav-item${isActive ? ' is-active' : ''}`}
-                                            onClick={() => setActiveTab(item.id)}
-                                            role="tab"
-                                            aria-selected={isActive}
-                                        >
-                                            <span className="settings-nav-item-icon"><Icon /></span>
-                                            <span className="settings-nav-item-copy">
-                                                <span className="settings-nav-item-label">{item.label}</span>
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <div className="settings-nav-side">
-                                <div className="settings-nav-status-panel" aria-live="polite">
-                                    <div className="settings-nav-status-main">
-                                        <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
-                                            {saving ? <span className="spinner spinner-16" /> : null}
-                                            <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
-                                        </div>
-                                    </div>
-                                    <div className="settings-nav-actions settings-panel-actions">
-                                        <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                            重新加载
-                                        </button>
-                                        <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                            {saving ? <span className="spinner" /> : '保存配置'}
-                                        </button>
-                                    </div>
+                        <div className="settings-nav-status-panel" aria-live="polite">
+                            <div className="settings-nav-status-main">
+                                <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
+                                    {saving ? <span className="spinner spinner-16" /> : null}
+                                    <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
                                 </div>
+                            </div>
+                            <div className="settings-basic-note-list">
+                                <span className="badge badge-neutral">对外访问</span>
+                                <span className="badge badge-neutral">安全审计</span>
+                                <span className="badge badge-neutral">运维通知</span>
+                                <span className="badge badge-neutral">数据备份</span>
+                                {requestedView === 'console' ? <span className="badge badge-success">已从旧控制台入口进入</span> : null}
+                            </div>
+                            <div className="settings-nav-actions settings-panel-actions">
+                                <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
+                                    重新加载
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
+                                    {saving ? <span className="spinner" /> : '保存配置'}
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     <div className="settings-main">
-                        <div className={`card settings-tab-hero${showTabHighlights ? '' : ' is-compact'}`}>
-                            <div className="settings-tab-hero-copy">
-                                <div className="settings-tab-hero-eyebrow">{activeTabMeta.eyebrow}</div>
-                                <div className="settings-tab-hero-title">{activeTabMeta.label}</div>
-                                <div className="settings-tab-hero-summary">{activeTabMeta.summary}</div>
-                            </div>
-                            {showTabHighlights ? (
-                                <div className="settings-tab-hero-grid">
-                                    {activeTabHighlights.map((item) => (
-                                        <div key={`${activeTabMeta.id}-${item.label}`} className="settings-tab-highlight-card">
-                                            <div className="settings-tab-highlight-label">{item.label}</div>
-                                            <div className="settings-tab-highlight-value">{item.value}</div>
-                                            <div className="settings-tab-highlight-detail">{item.detail}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </div>
-                        <div className="settings-tab-panel">
-                            {activeTab === 'console' ? (
-                                <div className="settings-console-host">
-                                    <ServerManagement embedded />
-                                </div>
-                            ) : (
-                                <fieldset className="settings-fieldset">
-                                    {activeTab === 'status' ? renderStatusContent() : null}
-                                    {activeTab === 'access' ? renderAccessContent() : null}
-                                    {activeTab === 'policy' ? renderPolicyContent() : null}
-                                    {activeTab === 'monitor' ? renderMonitorContent() : null}
-                                    {activeTab === 'backup' ? renderBackupContent() : null}
-                                    {activeTab === 'db' ? renderDatabaseContent() : null}
-                                </fieldset>
-                            )}
-                        </div>
+                        {renderStatusContent()}
+                        <SettingsWorkspaceSection
+                            eyebrow="Access"
+                            title="对外访问"
+                            subtitle="入口、订阅域名、注册模式和邀请码统一集中处理。"
+                        >
+                            {renderAccessContent()}
+                        </SettingsWorkspaceSection>
+                        <SettingsWorkspaceSection
+                            eyebrow="Security"
+                            title="安全审计"
+                            subtitle="批量风控、审计保留和 IP 归属地 / 运营商配置。"
+                        >
+                            {renderPolicyContent()}
+                        </SettingsWorkspaceSection>
+                        <SettingsWorkspaceSection
+                            eyebrow="Operations"
+                            title="运维通知"
+                            subtitle="SMTP、节点巡检、Telegram 和节点控制台。"
+                        >
+                            {renderOperationsWorkspace()}
+                        </SettingsWorkspaceSection>
+                        <SettingsWorkspaceSection
+                            eyebrow="Storage"
+                            title="数据备份"
+                            subtitle="数据库模式、加密备份和恢复统一放在一处。"
+                        >
+                            {renderDatabaseContent()}
+                            {renderBackupContent()}
+                        </SettingsWorkspaceSection>
                     </div>
                 </div>
             </div>

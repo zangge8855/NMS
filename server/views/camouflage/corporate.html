@@ -10,21 +10,23 @@
         :root {
             color-scheme: dark;
             --bg: #06101d;
-            --bg-soft: rgba(8, 18, 33, 0.82);
-            --panel: rgba(9, 22, 39, 0.8);
-            --panel-strong: rgba(6, 16, 29, 0.92);
-            --panel-border: rgba(255,255,255,0.1);
+            --bg-soft: rgba(8, 18, 33, 0.84);
+            --panel: rgba(9, 22, 39, 0.84);
+            --panel-strong: rgba(6, 16, 29, 0.94);
+            --panel-border: rgba(255, 255, 255, 0.1);
             --text: #f4f7fb;
             --muted: rgba(226, 232, 240, 0.72);
             --accent: #38bdf8;
-            --accent-soft: rgba(56, 189, 248, 0.18);
+            --accent-soft: rgba(56, 189, 248, 0.16);
             --success: #34d399;
             --radius-xl: 28px;
             --radius-lg: 20px;
             --shadow: 0 26px 86px rgba(2, 8, 20, 0.44);
         }
+
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
+
         body {
             min-height: 100vh;
             color: var(--text);
@@ -34,59 +36,67 @@
                 radial-gradient(circle at 84% 8%, rgba(52, 211, 153, 0.12), transparent 26%),
                 linear-gradient(165deg, #040b15 0%, #071321 44%, #06101d 100%);
         }
+
         body::before {
             content: "";
             position: fixed;
             inset: 0;
             background-image: url("{{asset:gridTexture}}");
             background-size: 180px 180px;
-            opacity: 0.15;
+            opacity: 0.14;
             pointer-events: none;
         }
+
         [data-lang][hidden] { display: none !important; }
+
         .{{class:page}} {
-            width: min(1220px, calc(100vw - 32px));
+            width: min(1180px, calc(100vw - 32px));
             margin: 0 auto;
-            padding: 28px 0 44px;
+            padding: 28px 0 40px;
             position: relative;
             z-index: 1;
         }
+
         .{{class:site-nav}},
         .{{class:hero-panel}},
         .{{class:section-card}},
         .{{class:footer}},
-        .{{class:spotlight}} {
+        .{{class:status-item}} {
             border: 1px solid var(--panel-border);
             background: var(--panel);
             box-shadow: var(--shadow);
             backdrop-filter: blur(16px);
         }
+
         .{{class:site-nav}} {
             display: grid;
-            grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto auto;
+            grid-template-columns: minmax(0, 1fr) auto auto;
             gap: 16px;
             align-items: center;
             padding: 16px 18px;
             border-radius: 22px;
             margin-bottom: 22px;
         }
+
         .{{class:brand}} {
             display: flex;
             gap: 14px;
             align-items: center;
             min-width: 0;
         }
+
         .{{class:brand-mark}} {
             width: 48px;
             height: 48px;
             border-radius: 16px;
             background:
                 linear-gradient(145deg, rgba(56, 189, 248, 0.24), rgba(52, 211, 153, 0.18)),
-                rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.14);
+                rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             position: relative;
             flex: 0 0 48px;
         }
+
         .{{class:brand-mark}}::before,
         .{{class:brand-mark}}::after {
             content: "";
@@ -94,9 +104,11 @@
             border-radius: 999px;
             background: linear-gradient(90deg, #d7f7ff, #7dd3fc);
         }
+
         .{{class:brand-mark}}::before { width: 26px; height: 6px; top: 14px; left: 11px; }
         .{{class:brand-mark}}::after { width: 18px; height: 6px; top: 28px; left: 18px; }
         .{{class:brand-copy}} { min-width: 0; }
+
         .{{class:nav-chip}} {
             display: inline-flex;
             align-items: center;
@@ -112,6 +124,7 @@
             font-weight: 600;
             white-space: nowrap;
         }
+
         .{{class:nav-links}} {
             display: flex;
             flex-wrap: wrap;
@@ -119,6 +132,7 @@
             gap: 8px;
             min-width: 0;
         }
+
         .{{class:nav-link}} {
             display: inline-flex;
             align-items: center;
@@ -132,20 +146,23 @@
             font-weight: 600;
             white-space: nowrap;
         }
+
         .{{class:nav-link}}:hover {
             color: var(--text);
-            border-color: rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.04);
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
         }
+
         .{{class:lang-switch}} {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 4px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         .{{class:lang-button}} {
             min-height: 34px;
             padding: 0 12px;
@@ -157,20 +174,24 @@
             font-weight: 700;
             cursor: pointer;
         }
+
         .{{class:lang-button}}[aria-pressed="true"] {
             background: linear-gradient(135deg, #d7f7ff, #7dd3fc);
             color: #03111f;
         }
+
         .{{class:hero}} {
             display: grid;
             grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
             gap: 18px;
             margin-bottom: 18px;
         }
+
         .{{class:hero-panel}} {
             border-radius: var(--radius-xl);
             overflow: hidden;
         }
+
         .{{class:hero-copy}} {
             min-height: 100%;
             padding: 28px;
@@ -183,8 +204,9 @@
                 url("{{asset:heroImage}}");
             background-size: cover;
             background-position: center;
-            min-height: 520px;
+            min-height: 500px;
         }
+
         .{{class:eyebrow}} {
             display: inline-block;
             margin-bottom: 12px;
@@ -194,23 +216,30 @@
             color: #d7f7ff;
             font-weight: 700;
         }
+
         .{{class:headline}} {
             margin: 0;
-            font-size: clamp(2.2rem, 4vw, 3.3rem);
-            line-height: 1.04;
+            font-size: clamp(2.1rem, 4vw, 3.2rem);
+            line-height: 1.06;
             letter-spacing: -0.04em;
         }
-        .{{class:lead}}, .{{class:card-copy}}, .{{class:footer-note}}, .{{class:muted}} {
+
+        .{{class:lead}},
+        .{{class:card-copy}},
+        .{{class:footer-note}},
+        .{{class:muted}} {
             color: var(--muted);
             line-height: 1.72;
             font-size: 14px;
         }
+
         .{{class:button-row}} {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 20px;
         }
+
         .{{class:button}} {
             display: inline-flex;
             align-items: center;
@@ -224,28 +253,13 @@
             text-decoration: none;
             font-size: 13px;
         }
+
         .{{class:button-muted}} {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
             color: var(--text);
-            border: 1px solid rgba(255,255,255,0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }
-        .{{class:chip-row}} {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 18px;
-        }
-        .{{class:chip}} {
-            display: inline-flex;
-            align-items: center;
-            min-height: 34px;
-            padding: 0 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.06);
-            font-size: 12px;
-            color: var(--text);
-        }
+
         .{{class:stack}} {
             display: grid;
             gap: 14px;
@@ -253,212 +267,178 @@
             height: 100%;
             background:
                 linear-gradient(180deg, rgba(6, 16, 29, 0.92), rgba(7, 18, 31, 0.72)),
-                rgba(255,255,255,0.02);
+                rgba(255, 255, 255, 0.02);
         }
+
         .{{class:image-frame}} {
             overflow: hidden;
             border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
         }
-        .{{class:hero-media}} {
-            position: relative;
-        }
-        .{{class:hero-media}}::after {
-            content: "";
-            position: absolute;
-            inset: auto 0 0;
-            height: 44%;
-            background: linear-gradient(180deg, transparent, rgba(6, 16, 29, 0.9));
-            pointer-events: none;
-        }
+
         .{{class:hero-image}} {
             display: block;
             width: 100%;
             height: auto;
         }
+
         .{{class:notice}} {
-            padding: 16px;
+            padding: 16px 18px;
             border-radius: 18px;
-            background: rgba(56, 189, 248, 0.1);
             border: 1px solid rgba(56, 189, 248, 0.18);
+            background: var(--accent-soft);
             color: var(--text);
+            line-height: 1.7;
             font-size: 14px;
-            line-height: 1.74;
         }
-        .{{class:meta-grid}} {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-        .{{class:meta-card}} {
-            padding: 16px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-        .{{class:meta-label}}, .{{class:status-label}} {
-            display: block;
-            margin-bottom: 8px;
-            color: #b9dff3;
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        .{{class:meta-value}}, .{{class:status-value}} {
-            margin-bottom: 8px;
-            font-size: 20px;
-            line-height: 1.1;
-            color: var(--text);
-            font-weight: 700;
-        }
+
+        .{{class:meta-grid}},
+        .{{class:section-grid}},
         .{{class:status-strip}} {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 18px;
+            gap: 14px;
         }
+
+        .{{class:meta-grid}} {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .{{class:meta-card}},
         .{{class:status-item}} {
-            padding: 18px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(6, 16, 29, 0.72);
-            backdrop-filter: blur(12px);
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .{{class:section-grid}} {
-            display: grid;
+
+        .{{class:meta-label}},
+        .{{class:status-label}} {
+            display: block;
+            margin-bottom: 6px;
+            color: rgba(226, 232, 240, 0.56);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .{{class:meta-value}},
+        .{{class:status-value}} {
+            color: var(--text);
+            font-size: 16px;
+            line-height: 1.45;
+            font-weight: 700;
+        }
+
+        .{{class:status-strip}} {
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 18px;
             margin-bottom: 18px;
         }
+
+        .{{class:section-grid}} {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-bottom: 18px;
+        }
+
         .{{class:section-card}} {
             border-radius: var(--radius-lg);
-            padding: 18px;
+            padding: 22px;
         }
+
         .{{class:card-title}} {
             margin: 0 0 10px;
-            font-size: 20px;
-            line-height: 1.18;
-            color: var(--text);
+            font-size: 18px;
+            line-height: 1.28;
         }
-        .{{class:list}} {
-            margin: 14px 0 0;
-            padding-left: 18px;
-            color: var(--muted);
-            line-height: 1.74;
-        }
-        .{{class:list}} li + li { margin-top: 8px; }
-        .{{class:spotlight}} {
-            display: grid;
-            grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
-            gap: 18px;
-            padding: 18px;
-            border-radius: var(--radius-xl);
-            margin-bottom: 18px;
-        }
-        .{{class:spotlight-copy}} {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-width: 0;
-        }
-        .{{class:spotlight-media}} {
-            min-width: 0;
-        }
+
         .{{class:footer}} {
-            padding: 16px 18px;
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
             border-radius: 22px;
+            padding: 16px 18px;
         }
-        @media (max-width: 1080px) {
-            .{{class:hero}} { grid-template-columns: 1fr; }
-            .{{class:status-strip}} { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .{{class:section-grid}} { grid-template-columns: 1fr; }
-            .{{class:spotlight}} { grid-template-columns: 1fr; }
-        }
+
         @media (max-width: 960px) {
-            .{{class:site-nav}} { grid-template-columns: 1fr; }
-            .{{class:nav-links}} { justify-content: flex-start; }
+            .{{class:site-nav}},
+            .{{class:hero}},
+            .{{class:status-strip}},
+            .{{class:section-grid}} {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
-        @media (max-width: 640px) {
-            .{{class:page}} { width: min(100vw - 20px, 1220px); }
-            .{{class:hero-copy}} { min-height: 420px; padding: 20px; }
-            .{{class:stack}} { padding: 14px; }
-            .{{class:status-strip}}, .{{class:meta-grid}} { grid-template-columns: 1fr; }
-            .{{class:spotlight}}, .{{class:section-card}}, .{{class:footer}} { padding: 16px; }
+
+        @media (max-width: 720px) {
+            .{{class:page}} {
+                width: min(100vw - 24px, 100%);
+                padding-top: 20px;
+            }
+
+            .{{class:meta-grid}} {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .{{class:hero-copy}} {
+                min-height: 420px;
+                padding: 22px;
+            }
         }
     </style>
 </head>
-<body data-page-title-zh="{{pageTitleZh}}" data-page-title-en="{{pageTitleEn}}" data-description-zh="{{descriptionZh}}" data-description-en="{{descriptionEn}}">
-    <div class="{{class:page}}">
-        <header class="{{class:site-nav}}">
+<body>
+    <main class="{{class:page}}">
+        <nav class="{{class:site-nav}}">
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
                 <div class="{{class:brand-copy}}">
-                    <strong>{{title}}</strong>
+                    <div style="font-size: 18px; font-weight: 700;">{{title}}</div>
                     <div class="{{class:muted}}">
-                        <span data-lang="zh-CN">工业检测设备与自动化解决方案</span>
-                        <span data-lang="en-US" hidden>Industrial inspection equipment and automation solutions</span>
+                        <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
+                        <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                     </div>
                 </div>
             </div>
-            <nav class="{{class:nav-links}}" aria-label="Primary">
-                <a class="{{class:nav-link}}" href="/"><span data-lang="zh-CN">公司</span><span data-lang="en-US" hidden>Company</span></a>
-                <a class="{{class:nav-link}}" href="/products"><span data-lang="zh-CN">产品</span><span data-lang="en-US" hidden>Products</span></a>
-                <a class="{{class:nav-link}}" href="/solutions"><span data-lang="zh-CN">方案</span><span data-lang="en-US" hidden>Solutions</span></a>
-                <a class="{{class:nav-link}}" href="/support"><span data-lang="zh-CN">服务</span><span data-lang="en-US" hidden>Support</span></a>
-            </nav>
-            <div class="{{class:nav-chip}}">
-                <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
-                <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
+            <div class="{{class:nav-links}}">
+                <a class="{{class:nav-link}}" href="#overview"><span data-lang="zh-CN">概览</span><span data-lang="en-US" hidden>Overview</span></a>
+                <a class="{{class:nav-link}}" href="#status"><span data-lang="zh-CN">状态</span><span data-lang="en-US" hidden>Status</span></a>
+                <a class="{{class:nav-link}}" href="#updates"><span data-lang="zh-CN">更新</span><span data-lang="en-US" hidden>Updates</span></a>
             </div>
-            <div class="{{class:lang-switch}}" role="group" aria-label="Language switch">
-                <button class="{{class:lang-button}}" type="button" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
-                <button class="{{class:lang-button}}" type="button" data-lang-toggle="en-US" aria-pressed="false">English</button>
+            <div style="display:flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+                <span class="{{class:nav-chip}}">
+                    <span data-lang="zh-CN">{{statusLabelZh}}</span>
+                    <span data-lang="en-US" hidden>{{statusLabelEn}}</span>
+                </span>
+                <div class="{{class:lang-switch}}">
+                    <button type="button" class="{{class:lang-button}}" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
+                    <button type="button" class="{{class:lang-button}}" data-lang-toggle="en-US" aria-pressed="false">English</button>
+                </div>
             </div>
-        </header>
+        </nav>
 
-        <main class="{{class:hero}}">
+        <section class="{{class:hero}}" id="overview">
             <section class="{{class:hero-panel}}">
                 <div class="{{class:hero-copy}}">
-                    <div data-lang="zh-CN">
-                        <span class="{{class:eyebrow}}">精密制造与产线视觉</span>
-                        <h1 class="{{class:headline}}">{{title}} 聚焦工业视觉检测设备、测量终端与自动化交付体系。</h1>
-                        <p class="{{class:lead}}">官网集中展示核心设备、行业场景、区域服务网络与交付能力，帮助合作伙伴快速判断方案成熟度与产线适配性。</p>
-                        <div class="{{class:chip-row}}">
-                            <span class="{{class:chip}}">AOI 视觉检测</span>
-                            <span class="{{class:chip}}">产线测量工位</span>
-                            <span class="{{class:chip}}">边缘控制终端</span>
-                        </div>
-                        <div class="{{class:button-row}}">
-                            <a class="{{class:button}}" href="/products">浏览产品系列</a>
-                            <a class="{{class:button}} {{class:button-muted}}" href="/solutions">查看行业方案</a>
-                        </div>
+                    <div>
+                        <span class="{{class:eyebrow}}">
+                            <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
+                            <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
+                        </span>
+                        <h1 class="{{class:headline}}">
+                            <span data-lang="zh-CN">{{title}} 保留中性的公开外壳，仅展示基础访问说明与状态信息。</span>
+                            <span data-lang="en-US" hidden>{{title}} keeps a neutral public shell with only basic access notes and status markers.</span>
+                        </h1>
+                        <p class="{{class:lead}}">
+                            <span data-lang="zh-CN">当前页面作为长期维护的公开站点壳层，对外只显示基础更新、访问提示与公开状态，不提供额外公开目录或外部入口。</span>
+                            <span data-lang="en-US" hidden>This page is maintained as a long-lived public shell. It exposes only basic updates, access notes, and public status without business materials, contact entry points, or download catalogs.</span>
+                        </p>
                     </div>
-                    <div data-lang="en-US" hidden>
-                        <span class="{{class:eyebrow}}">Precision Manufacturing and Vision Systems</span>
-                        <h1 class="{{class:headline}}">{{title}} focuses on industrial inspection platforms, measurement terminals and automation delivery programs.</h1>
-                        <p class="{{class:lead}}">The official site outlines core equipment, industry use cases, regional service coverage and delivery capabilities for partners evaluating production line fit.</p>
-                        <div class="{{class:chip-row}}">
-                            <span class="{{class:chip}}">AOI inspection</span>
-                            <span class="{{class:chip}}">measurement stations</span>
-                            <span class="{{class:chip}}">edge controllers</span>
-                        </div>
-                        <div class="{{class:button-row}}">
-                            <a class="{{class:button}}" href="/products">Browse products</a>
-                            <a class="{{class:button}} {{class:button-muted}}" href="/solutions">View solutions</a>
-                        </div>
+                    <div class="{{class:button-row}}">
+                        <a class="{{class:button}}" href="#status"><span data-lang="zh-CN">查看状态</span><span data-lang="en-US" hidden>View status</span></a>
+                        <a class="{{class:button}} {{class:button-muted}}" href="#updates"><span data-lang="zh-CN">查看说明</span><span data-lang="en-US" hidden>Read notes</span></a>
                     </div>
                 </div>
             </section>
 
             <aside class="{{class:hero-panel}}">
                 <div class="{{class:stack}}">
-                    <div class="{{class:image-frame}} {{class:hero-media}}">
+                    <div class="{{class:image-frame}}">
                         <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
                     </div>
                     <div class="{{class:notice}}">
@@ -467,154 +447,110 @@
                     </div>
                     <div class="{{class:meta-grid}}">
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">交付节奏</span><span data-lang="en-US" hidden>Delivery pace</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">项目化实施</span><span data-lang="en-US" hidden>Project-based rollout</span></div>
-                            <div class="{{class:muted}}">
-                                <span data-lang="zh-CN">支持方案验证、现场导入、培训与持续巡检。</span>
-                                <span data-lang="en-US" hidden>Programs cover validation, onsite deployment, training and recurring inspections.</span>
-                            </div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">公开模式</span><span data-lang="en-US" hidden>Public mode</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{directoryBadgeZh}}</span><span data-lang="en-US" hidden>{{directoryBadgeEn}}</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务覆盖</span><span data-lang="en-US" hidden>Coverage</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">区域技术网络</span><span data-lang="en-US" hidden>Regional support grid</span></div>
-                            <div class="{{class:muted}}">
-                                <span data-lang="zh-CN">可提供选型咨询、交付实施与售后保养服务。</span>
-                                <span data-lang="en-US" hidden>Support spans equipment selection, deployment and after-sales maintenance.</span>
-                            </div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">响应状态</span><span data-lang="en-US" hidden>Status code</span></span>
+                            <div class="{{class:meta-value}}">{{statusCode}}</div>
+                        </div>
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近整理</span><span data-lang="en-US" hidden>Last refresh</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
+                        </div>
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">站点标题</span><span data-lang="en-US" hidden>Site title</span></span>
+                            <div class="{{class:meta-value}}">{{title}}</div>
                         </div>
                     </div>
                 </div>
             </aside>
-        </main>
+        </section>
 
-        <section class="{{class:status-strip}}">
+        <section class="{{class:status-strip}}" id="status">
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">主打设备</span><span data-lang="en-US" hidden>Flagship systems</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">高速视觉检测平台</span><span data-lang="en-US" hidden>High-speed vision platforms</span></div>
-                <div class="{{class:muted}}"><span data-lang="zh-CN">面向精密制造与自动化装配线。</span><span data-lang="en-US" hidden>Built for precision manufacturing and automated assembly lines.</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">访问说明</span><span data-lang="en-US" hidden>Access note</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{accessNoteZh}}</span><span data-lang="en-US" hidden>{{accessNoteEn}}</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">实施模式</span><span data-lang="en-US" hidden>Delivery model</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">方案 + 设备 + 培训</span><span data-lang="en-US" hidden>Program + equipment + training</span></div>
-                <div class="{{class:muted}}"><span data-lang="zh-CN">覆盖打样评估、导入实施与现场培训。</span><span data-lang="en-US" hidden>Covers sampling, deployment and onsite training.</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">更新节奏</span><span data-lang="en-US" hidden>Update rhythm</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{archiveNoticeZh}}</span><span data-lang="en-US" hidden>{{archiveNoticeEn}}</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">应用场景</span><span data-lang="en-US" hidden>Applications</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">电子、新能源、精密部件</span><span data-lang="en-US" hidden>Electronics, new energy, precision parts</span></div>
-                <div class="{{class:muted}}"><span data-lang="zh-CN">围绕尺寸测量、外观检测与过程可视化。</span><span data-lang="en-US" hidden>Focused on measurement, surface inspection and process visibility.</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">区域协同</span><span data-lang="en-US" hidden>Regional coordination</span></span>
-                <div class="{{class:status-value}}">
-                    <span data-lang="zh-CN">方案评估到现场导入</span>
-                    <span data-lang="en-US" hidden>Assessment to onsite rollout</span>
-                </div>
-                <div class="{{class:muted}}"><span data-lang="zh-CN">覆盖前期验证、联调实施与后续巡检支持。</span><span data-lang="en-US" hidden>Covers validation, staged rollout and follow-up inspection support.</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">受限资源</span><span data-lang="en-US" hidden>Restricted access</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{deliveryNoticeZh}}</span><span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span></div>
             </div>
         </section>
 
-        <section class="{{class:section-grid}}">
+        <section class="{{class:section-grid}}" id="updates">
             <article class="{{class:section-card}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:telemetryImage}}" alt="" />
-                </div>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">产线可视化与监控</span><span data-lang="en-US" hidden>Line visibility and monitoring</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开范围</span><span data-lang="en-US" hidden>Public scope</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">通过集中化数据面板展示稼动状态、检测趋势与设备告警，便于现场团队做产线节拍与维护决策。</span>
-                    <span data-lang="en-US" hidden>Centralized dashboards surface utilization, inspection trends and equipment alerts for line balancing and maintenance decisions.</span>
+                    <span data-lang="zh-CN">首页仅保留公开站点所需的基础壳层、访问提示和更新时间，避免暴露过多外部导向信息。</span>
+                    <span data-lang="en-US" hidden>The homepage keeps only the shell, access notes, and update timestamps required for a public-facing site.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:machineVisionImage}}" alt="" />
-                </div>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">在线检测工位</span><span data-lang="en-US" hidden>Inline inspection stations</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">路径说明</span><span data-lang="en-US" hidden>Path note</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">覆盖热像分析、外观识别与多工位判定，可结合不同产线节拍完成自动识别与分拣联动。</span>
-                    <span data-lang="en-US" hidden>Inspection stations support thermal analysis, appearance recognition and multi-step verdicts with automated sorting linkage.</span>
+                    <span data-lang="zh-CN">未分配的公开路径统一落在该页面，受限资源需要通过独立入口访问，不在公开页直接给出细节。</span>
+                    <span data-lang="en-US" hidden>Unassigned public paths land here. Restricted resources require a dedicated entry and are not described in detail on this page.</span>
                 </p>
-                <ul class="{{class:list}}">
-                    <li><span data-lang="zh-CN">多相机与光源联动</span><span data-lang="en-US" hidden>Multi-camera and lighting coordination</span></li>
-                    <li><span data-lang="zh-CN">边缘采集与工艺追溯</span><span data-lang="en-US" hidden>Edge capture and process traceability</span></li>
-                    <li><span data-lang="zh-CN">异常样本复核与留档</span><span data-lang="en-US" hidden>Exception review and archiving</span></li>
-                </ul>
             </article>
             <article class="{{class:section-card}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:operationsImage}}" alt="" />
-                </div>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">交付团队与现场支援</span><span data-lang="en-US" hidden>Delivery teams and onsite support</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">维护节奏</span><span data-lang="en-US" hidden>Maintenance cadence</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">项目团队提供前期工艺评估、设备到线实施、操作培训和运维巡检，帮助客户缩短投产爬坡周期。</span>
-                    <span data-lang="en-US" hidden>Project teams support process evaluation, deployment, operator training and routine service to shorten ramp-up time.</span>
+                    <span data-lang="zh-CN">页面内容按固定节奏复核，重点保留状态、时间戳与访问提示，避免形成营销式公开目录。</span>
+                    <span data-lang="en-US" hidden>Content is reviewed on a fixed cadence with emphasis on status, timestamps, and access notes rather than a marketing-style public directory.</span>
                 </p>
             </article>
-        </section>
-
-        <section class="{{class:spotlight}}">
-            <div class="{{class:spotlight-copy}}">
-                <span class="{{class:eyebrow}}"><span data-lang="zh-CN">交付协同</span><span data-lang="en-US" hidden>Delivery coordination</span></span>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">围绕检测设备、测量终端与自动化集成形成完整实施路径。</span><span data-lang="en-US" hidden>Inspection equipment, measurement terminals and automation integration are aligned into one delivery path.</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">首页聚焦设备能力、行业场景与实施方式，帮助访客快速理解产品方向、项目节奏与区域支援结构。</span>
-                    <span data-lang="en-US" hidden>The home page stays focused on equipment capability, industry scenarios and rollout approach so visitors can quickly understand product direction, program pace and regional support structure.</span>
-                </p>
-                <div class="{{class:button-row}}">
-                    <a class="{{class:button}}" href="/support"><span data-lang="zh-CN">查看服务能力</span><span data-lang="en-US" hidden>Review service capability</span></a>
-                    <a class="{{class:button}} {{class:button-muted}}" href="/products"><span data-lang="zh-CN">浏览产品系列</span><span data-lang="en-US" hidden>Browse product lines</span></a>
-                </div>
-            </div>
-            <div class="{{class:spotlight-media}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:corridorImage}}" alt="" />
-                </div>
-            </div>
         </section>
 
         <footer class="{{class:footer}}">
-            <strong>{{title}}</strong>
-            <span class="{{class:footer-note}}"><span data-lang="zh-CN">{{currentYear}} · 官方公开页面</span><span data-lang="en-US" hidden>{{currentYear}} · official public page</span></span>
+            <div class="{{class:footer-note}}">
+                <span data-lang="zh-CN">{{title}} · 最近整理 {{generatedDateZh}}</span>
+                <span data-lang="en-US" hidden>{{title}} · last refreshed {{generatedDateEn}}</span>
+            </div>
         </footer>
-    </div>
-    <script>
-        (() => {
-            const root = document.documentElement;
-            const body = document.body;
-            const descriptionTag = document.querySelector('meta[name="description"]');
-            const buttons = Array.from(document.querySelectorAll('[data-lang-toggle]'));
-            const allowed = ['zh-CN', 'en-US'];
-            const storageKey = '{{languageStorageKey}}';
+    </main>
 
-            const setLanguage = (next) => {
-                const lang = allowed.includes(next) ? next : 'zh-CN';
-                root.lang = lang;
-                document.querySelectorAll('[data-lang]').forEach((node) => {
-                    node.hidden = node.getAttribute('data-lang') !== lang;
+    <script>
+        (function () {
+            var storageKey = "{{languageStorageKey}}";
+            var defaultLanguage = "{{defaultLanguage}}";
+            var alternateLanguage = "{{alternateLanguage}}";
+            var buttons = document.querySelectorAll('[data-lang-toggle]');
+            var targets = document.querySelectorAll('[data-lang]');
+
+            function applyLanguage(nextLanguage) {
+                var language = nextLanguage === alternateLanguage ? alternateLanguage : defaultLanguage;
+                document.documentElement.lang = language;
+                targets.forEach(function (node) {
+                    node.hidden = node.getAttribute('data-lang') !== language;
                 });
-                buttons.forEach((button) => {
-                    const active = button.getAttribute('data-lang-toggle') === lang;
+                buttons.forEach(function (button) {
+                    var active = button.getAttribute('data-lang-toggle') === language;
                     button.setAttribute('aria-pressed', active ? 'true' : 'false');
                 });
-                const pageTitle = body.getAttribute(lang === 'zh-CN' ? 'data-page-title-zh' : 'data-page-title-en');
-                const description = body.getAttribute(lang === 'zh-CN' ? 'data-description-zh' : 'data-description-en');
-                if (pageTitle) document.title = pageTitle;
-                if (descriptionTag && description) descriptionTag.setAttribute('content', description);
-                try { localStorage.setItem(storageKey, lang); } catch {}
-            };
+                try {
+                    localStorage.setItem(storageKey, language);
+                } catch (_) {}
+            }
 
-            let initial = 'zh-CN';
-            try {
-                const stored = localStorage.getItem(storageKey);
-                if (allowed.includes(stored)) initial = stored;
-            } catch {}
-
-            buttons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    setLanguage(button.getAttribute('data-lang-toggle') || 'zh-CN');
+            buttons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    applyLanguage(button.getAttribute('data-lang-toggle'));
                 });
             });
 
-            setLanguage(initial);
+            var initialLanguage = defaultLanguage;
+            try {
+                var stored = localStorage.getItem(storageKey);
+                if (stored === alternateLanguage || stored === defaultLanguage) {
+                    initialLanguage = stored;
+                }
+            } catch (_) {}
+            applyLanguage(initialLanguage);
         })();
     </script>
 </body>

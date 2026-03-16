@@ -691,3 +691,40 @@ body,
   border-color: var(--floating-panel-border) !important;
   box-shadow: var(--floating-panel-shadow) !important;
 }
+
+.notification-item-meta {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--stroke-soft) 72%, transparent 28%);
+}
+
+.notification-item-meta-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.notification-item-meta-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.notification-item-meta-value {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .notification-item-meta-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

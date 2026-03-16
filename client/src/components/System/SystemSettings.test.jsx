@@ -1,6 +1,5 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
 import api from '../../api/client.js';
@@ -268,9 +267,7 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
     });
 
-    it('keeps top status highlight cards inside the status tab only', async () => {
-        const user = userEvent.setup();
-
+    it('shows the shared overview summary without tab navigation', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -305,12 +302,10 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         await screen.findByDisplayValue('/portal');
-        expect(document.querySelectorAll('.settings-tab-highlight-card').length).toBe(0);
-
-        await user.click(screen.getByRole('tab', { name: '系统状态' }));
-
-        expect(await screen.findByText('站点入口')).toBeInTheDocument();
-        expect(document.querySelectorAll('.settings-tab-highlight-card').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('tab', { name: '系统状态' })).not.toBeInTheDocument();
+        expect((await screen.findAllByText('站点入口')).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('运维通知').length).toBeGreaterThan(0);
+        expect(document.querySelectorAll('.settings-summary-card').length).toBeGreaterThan(0);
     });
 
     it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
@@ -322,7 +317,7 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         expect(await screen.findByText('注册与邀请码')).toBeInTheDocument();
-        expect(screen.getByText('当前注册开关、模式和邀请码库存统一收口到顶部状态卡，这里只保留模式切换和邀请码生成/撤销操作。')).toBeInTheDocument();
+        expect(screen.getByText('注册模式')).toBeInTheDocument();
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();

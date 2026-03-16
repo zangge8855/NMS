@@ -30,8 +30,9 @@ test('telegramAlertService forwards critical notifications when configured', asy
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/bot123456:ABCDEF\/sendMessage$/);
     assert.equal(calls[0].body.chat_id, '-1001234567890');
-    assert.match(calls[0].body.text, /\[NMS 系统告警\]/);
+    assert.match(calls[0].body.text, /\[NMS 系统告警摘要\]/);
     assert.match(calls[0].body.text, /节点: node-a/);
+    assert.match(calls[0].body.text, /概况/);
 });
 
 test('telegramAlertService deduplicates repeated security alerts within the cooldown window', async () => {
@@ -52,6 +53,8 @@ test('telegramAlertService deduplicates repeated security alerts within the cool
         eventType: 'login_rate_limited',
         actor: 'anonymous',
         ip: '203.0.113.8',
+        ipLocation: '中国 浙江 杭州',
+        ipCarrier: '中国电信',
         method: 'POST',
         path: '/api/auth/login',
         details: {
@@ -63,6 +66,8 @@ test('telegramAlertService deduplicates repeated security alerts within the cool
     assert.equal(await service.notifySecurityAudit(auditEntry), false);
     assert.equal(calls.length, 1);
     assert.match(calls[0].body.text, /登录频率限制/);
+    assert.match(calls[0].body.text, /归属地 \/ 运营商: 中国 浙江 杭州 · 中国电信/);
+    assert.match(calls[0].body.text, /来源/);
 });
 
 test('telegramAlertService ignores low-severity notifications and exposes delivery status', async () => {

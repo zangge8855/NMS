@@ -39,7 +39,6 @@ const SERVER_ENV_LABELS_ZH = {
     testing: '测试',
     dr: '灾备',
     sandbox: '沙盒',
-    unknown: '未设置环境',
 };
 
 const SERVER_ENV_LABELS_EN = {
@@ -53,14 +52,14 @@ const SERVER_ENV_LABELS_EN = {
     testing: 'Testing',
     dr: 'Disaster Recovery',
     sandbox: 'Sandbox',
-    unknown: 'No environment',
 };
 
 function formatServerEnvironment(value, locale = 'zh-CN') {
     const raw = String(value || '').trim();
-    const normalized = raw.toLowerCase() || 'unknown';
+    const normalized = raw.toLowerCase();
     const labels = locale === 'zh-CN' ? SERVER_ENV_LABELS_ZH : SERVER_ENV_LABELS_EN;
-    return labels[normalized] || raw || labels.unknown;
+    if (!normalized || normalized === 'unknown') return '';
+    return labels[normalized] || raw;
 }
 
 export default function Servers() {
@@ -714,7 +713,7 @@ export default function Servers() {
 
                 <div className="servers-mobile-badges">
                     <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                    <span className="badge badge-info">{serverEnvironment}</span>
+                    {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
                     <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
                     <span className={`badge ${testStateBadge}`}>{testStateText}</span>
                     <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
@@ -725,10 +724,12 @@ export default function Servers() {
                         <span className="servers-mobile-meta-label">账号</span>
                         <span className="servers-mobile-meta-value">{server.username}</span>
                     </div>
-                    <div className="servers-mobile-meta-item">
-                        <span className="servers-mobile-meta-label">环境</span>
-                        <span className="servers-mobile-meta-value">{serverEnvironment}</span>
-                    </div>
+                    {serverEnvironment ? (
+                        <div className="servers-mobile-meta-item">
+                            <span className="servers-mobile-meta-label">环境</span>
+                            <span className="servers-mobile-meta-value">{serverEnvironment}</span>
+                        </div>
+                    ) : null}
                 </div>
 
                 {serverTags.length > 0 ? (
@@ -952,7 +953,7 @@ export default function Servers() {
                                                 <div className="servers-mobile-summary">
                                                     <div className="servers-mobile-summary-row">
                                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                                                        <span className="badge badge-info">{serverEnvironment}</span>
+                                                        {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
                                                         {serverTags.slice(0, 2).map((tag) => (
                                                             <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
                                                         ))}
@@ -980,7 +981,7 @@ export default function Servers() {
                                     <td className="servers-account-cell" data-label="账号">
                                         <div className="servers-account-stack">
                                             <span className="font-medium text-primary">{server.username}</span>
-                                            <span className="text-xs text-muted">环境：{serverEnvironment}</span>
+                                            {serverEnvironment ? <span className="text-xs text-muted">环境：{serverEnvironment}</span> : null}
                                         </div>
                                     </td>
                                     <td className="servers-credential-cell" data-label="凭据">

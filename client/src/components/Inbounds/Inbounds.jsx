@@ -47,6 +47,7 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
+import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 function toLocalDateTimeString(timestamp) {
@@ -1300,10 +1301,10 @@ export default function Inbounds() {
                                                 )}
                                                 <td
                                                     data-label="备注"
-                                                    className="font-medium text-white text-center inbounds-remark-cell"
+                                                    className="inbounds-remark-cell"
                                                     title={ib.remark || '-'}
                                                 >
-                                                    {ib.remark || '-'}
+                                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
                                                 <td data-label="协议" className="whitespace-nowrap"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm whitespace-nowrap">{ib.listen || '*'}:{ib.port}</td>

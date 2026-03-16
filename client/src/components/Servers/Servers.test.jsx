@@ -129,4 +129,35 @@ describe('Servers', () => {
         expect(within(mobileCard).getByText('账号')).toBeInTheDocument();
         expect(within(mobileCard).getByRole('button', { name: '详情' })).toBeInTheDocument();
     });
+
+    it('hides the placeholder environment label when environment is unknown', async () => {
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: '未分组节点',
+                url: 'https://panel.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'default',
+                environment: 'unknown',
+                health: 'healthy',
+                tags: [],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        renderWithRouter(<Servers />);
+
+        await screen.findAllByText('未分组节点');
+        expect(screen.queryByText('未设置环境')).not.toBeInTheDocument();
+        expect(screen.queryByText('环境：')).not.toBeInTheDocument();
+    });
 });

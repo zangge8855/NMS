@@ -4,6 +4,7 @@ import config from '../config.js';
 import auditStore from '../store/auditStore.js';
 import { resolveClientIp } from './requestIp.js';
 import notificationService, { SEVERITY } from './notifications.js';
+import { enrichAuditEvent } from './auditEventEnrichment.js';
 
 const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
 
@@ -123,19 +124,34 @@ function buildAuditNotification(entry = {}) {
     const matched = definitions[eventKey];
     if (!matched) return null;
 
+        return {
+            type: matched.type,
+            severity: matched.severity,
+            title: matched.title,
+            body: matched.body,
+            meta: {
+                event: eventKey,
+                ip,
+                actor,
+                path: pathValue,
+                method: String(entry.method || '').trim(),
+                telegramTopics: matched.telegramTopics,
+            },
+            dedupKey: matched.dedupKey,
+        };
+}
+
+function applyAuditNotificationEnrichment(notification = {}, entry = {}) {
     return {
-        type: matched.type,
-        severity: matched.severity,
-        title: matched.title,
-        body: matched.body,
+        ...notification,
         meta: {
-            event: eventKey,
-            ip,
-            actor,
-            path: pathValue,
-            telegramTopics: matched.telegramTopics,
+            ...(notification.meta || {}),
+            ip: String(entry.ip || notification.meta?.ip || '').trim(),
+            ipLocation: String(entry.ipLocation || '').trim(),
+            ipCarrier: String(entry.ipCarrier || '').trim(),
+            method: String(entry.method || notification.meta?.method || '').trim(),
+            path: String(entry.path || notification.meta?.path || '').trim(),
         },
-        dedupKey: matched.dedupKey,
     };
 }
 
@@ -162,7 +178,14 @@ export function appendSecurityAudit(event, req, details = {}, options = {}) {
         });
         const notification = buildAuditNotification(storedEntry);
         if (notification) {
-            notificationService.notify(notification);
+            void (async () => {
+                try {
+                    const enrichedEntry = await enrichAuditEvent(storedEntry);
+                    notificationService.notify(applyAuditNotificationEnrichment(notification, enrichedEntry || storedEntry));
+                } catch {
+                    notificationService.notify(notification);
+                }
+            })();
         }
     } catch {
         // Ignore audit errors to avoid affecting main request flow.

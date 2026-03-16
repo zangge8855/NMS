@@ -18,12 +18,28 @@ const NOTIFICATION_COPY = {
         markAllRead: '全部已读',
         empty: '暂无通知',
         triggerTitle: '通知',
+        labels: {
+            node: '节点',
+            sourceIp: '来源 IP',
+            locationCarrier: '归属地 / 运营商',
+            request: '请求',
+            reason: '原因',
+            event: '事件',
+        },
     },
     'en-US': {
         title: 'Notifications',
         markAllRead: 'Mark all read',
         empty: 'No notifications',
         triggerTitle: 'Notifications',
+        labels: {
+            node: 'Node',
+            sourceIp: 'Source IP',
+            locationCarrier: 'Geo / Carrier',
+            request: 'Request',
+            reason: 'Reason',
+            event: 'Event',
+        },
     },
 };
 
@@ -40,6 +56,50 @@ function severityTone(severity) {
 function clamp(value, min, max) {
     if (max <= min) return min;
     return Math.min(Math.max(value, min), max);
+}
+
+function buildNotificationMetaRows(notification = {}, locale = 'zh-CN') {
+    const copy = getNotificationCopy(locale);
+    const meta = notification.meta || {};
+    const rows = [];
+
+    if (meta.serverId) {
+        rows.push({ label: copy.labels.node, value: String(meta.serverId) });
+    }
+    if (meta.ip) {
+        rows.push({ label: copy.labels.sourceIp, value: String(meta.ip) });
+    }
+    if (meta.ipLocation || meta.ipCarrier) {
+        rows.push({
+            label: copy.labels.locationCarrier,
+            value: [meta.ipLocation, meta.ipCarrier].filter(Boolean).join(' · '),
+        });
+    }
+    if (meta.method || meta.path) {
+        rows.push({
+            label: copy.labels.request,
+            value: `${meta.method || '-'} ${meta.path || '-'}`.trim(),
+        });
+    }
+    if (meta.reasonCode) {
+        rows.push({ label: copy.labels.reason, value: String(meta.reasonCode) });
+    }
+    if (meta.event) {
+        rows.push({ label: copy.labels.event, value: String(meta.event) });
+    }
+
+    return rows
+        .map((item) => ({
+            ...item,
+            value: truncateLine(item.value, 180),
+        }))
+        .filter((item) => item.value);
+}
+
+function truncateLine(value, limit = 180) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    return text.length > limit ? `${text.slice(0, limit)}...` : text;
 }
 
 export default function NotificationBell() {
@@ -129,7 +189,9 @@ export default function NotificationBell() {
                             {copy.empty}
                         </div>
                     ) : (
-                        notifications.slice(0, 30).map((n) => (
+                        notifications.slice(0, 30).map((n) => {
+                            const metaRows = buildNotificationMetaRows(n, locale);
+                            return (
                             <div
                                 key={n.id}
                                 onClick={() => !n.readAt && markRead(n.id)}
@@ -149,8 +211,19 @@ export default function NotificationBell() {
                                         {n.body}
                                     </div>
                                 )}
+                                {metaRows.length > 0 && (
+                                    <div className="notification-item-meta">
+                                        {metaRows.map((row) => (
+                                            <div key={`${n.id}-${row.label}`} className="notification-item-meta-row">
+                                                <span className="notification-item-meta-label">{row.label}</span>
+                                                <span className="notification-item-meta-value">{row.value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>,

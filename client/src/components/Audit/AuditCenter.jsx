@@ -184,6 +184,7 @@ const AUDIT_COPY = {
             actor: '操作者',
             result: '结果',
             ip: 'IP',
+            locationCarrier: '归属地 / 运营商',
             path: '路径',
             node: '节点',
             targetUser: '目标用户',
@@ -352,6 +353,7 @@ const AUDIT_COPY = {
             actor: 'Actor',
             result: 'Outcome',
             ip: 'IP',
+            locationCarrier: 'Geo / Carrier',
             path: 'Path',
             node: 'Node',
             targetUser: 'Target User',
@@ -647,6 +649,24 @@ function resolveAuditTarget(item) {
         || '-';
 }
 
+function formatAuditLocationCarrier(item) {
+    return [item?.ipLocation, item?.ipCarrier]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' · ');
+}
+
+function buildAuditSourceSummary(item) {
+    const parts = [];
+    const ip = String(item?.ip || '').trim();
+    const locationCarrier = formatAuditLocationCarrier(item);
+
+    if (ip) parts.push(ip);
+    if (locationCarrier) parts.push(locationCarrier);
+
+    return parts.join(' · ');
+}
+
 function countActiveFilters(filters = {}) {
     return Object.values(filters).reduce((count, value) => {
         if (value === undefined || value === null) return count;
@@ -671,20 +691,28 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
                             {formatAuditStatusLabel(item.outcome, locale)}
                         </span>
                     </div>
-                    <div className="audit-mobile-card-grid">
-                        <div className="audit-mobile-card-item">
-                            <span className="audit-mobile-card-label">{copy.tables.actor}</span>
-                            <span className="audit-mobile-card-value">{formatAuditActorLabel(item, locale)}</span>
-                        </div>
+                        <div className="audit-mobile-card-grid">
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.tables.actor}</span>
+                                <span className="audit-mobile-card-value">{formatAuditActorLabel(item, locale)}</span>
+                            </div>
                         <div className="audit-mobile-card-item">
                             <span className="audit-mobile-card-label">{copy.tables.node}</span>
                             <span className="audit-mobile-card-value">{item.serverId || '-'}</span>
                         </div>
-                        <div className="audit-mobile-card-item audit-mobile-card-item--full">
-                            <span className="audit-mobile-card-label">{copy.tables.user}</span>
-                            <span className="audit-mobile-card-value">{resolveAuditTarget(item)}</span>
+                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
+                                <span className="audit-mobile-card-label">{copy.tables.user}</span>
+                                <span className="audit-mobile-card-value">{resolveAuditTarget(item)}</span>
+                            </div>
+                            {buildAuditSourceSummary(item) ? (
+                                <div className="audit-mobile-card-item audit-mobile-card-item--full">
+                                    <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
+                                    <span className="audit-mobile-card-value audit-mobile-card-value--mono">
+                                        {buildAuditSourceSummary(item)}
+                                    </span>
+                                </div>
+                            ) : null}
                         </div>
-                    </div>
                     <div className="audit-mobile-card-actions">
                         <button
                             className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
@@ -1304,7 +1332,14 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
                                                     <td data-label={copy.tables.actor}>{formatAuditActorLabel(item, locale)}</td>
                                                     <td data-label={copy.tables.node}>{item.serverId || '-'}</td>
-                                                    <td data-label={copy.tables.user}>{resolveAuditTarget(item)}</td>
+                                                    <td data-label={copy.tables.user}>
+                                                        <div className="audit-event-target">
+                                                            <span className="audit-event-target-label">{resolveAuditTarget(item)}</span>
+                                                            {buildAuditSourceSummary(item) ? (
+                                                                <span className="audit-event-target-meta">{buildAuditSourceSummary(item)}</span>
+                                                            ) : null}
+                                                        </div>
+                                                    </td>
                                                     <td data-label={copy.tables.action} className="table-cell-actions">
                                                         <div className="table-row-actions audit-table-row-actions">
                                                             <button
@@ -1745,6 +1780,12 @@ export default function AuditCenter() {
                                     <div>
                                         <span className="text-muted">{copy.detail.ip}: </span>
                                         <span className="font-mono">{selectedEvent.ip}</span>
+                                    </div>
+                                )}
+                                {formatAuditLocationCarrier(selectedEvent) && (
+                                    <div>
+                                        <span className="text-muted">{copy.detail.locationCarrier}: </span>
+                                        <span>{formatAuditLocationCarrier(selectedEvent)}</span>
                                     </div>
                                 )}
                                 {selectedEvent.path && (
