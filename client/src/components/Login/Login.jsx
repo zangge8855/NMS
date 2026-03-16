@@ -4,19 +4,7 @@ import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import {
-    HiOutlineLockClosed,
-    HiOutlineUser,
-    HiOutlineEnvelope,
-    HiOutlineArrowPath,
-    HiOutlineShieldCheck,
-    HiOutlineSun,
-    HiOutlineMoon,
-    HiOutlineComputerDesktop,
-    HiOutlineChartBarSquare,
-    HiOutlineLink,
-    HiOutlineServerStack,
-} from 'react-icons/hi2';
+import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
 
@@ -67,61 +55,6 @@ export default function Login() {
         : themeMode === 'light'
             ? t('shell.themeAuto')
             : t('shell.themeDark');
-    const showcaseCopy = locale === 'en-US'
-        ? {
-            eyebrow: 'Unified network operations',
-            title: 'A cleaner entry for node operations and user self-service.',
-            summary: 'The admin console keeps dense control where it matters, while the account portal stays simple enough to copy, scan, and move on.',
-            accessOpen: 'Registration Open',
-            accessInviteOnly: 'Invite Only',
-            accessClosed: 'Registration Closed',
-            passwordResetReady: 'Password Reset Ready',
-            dualThemeReady: 'Dark & Light Themes',
-            cards: [
-                {
-                    icon: HiOutlineServerStack,
-                    title: 'Node-first operations',
-                    text: 'Servers, inbounds, tools, and audit stay in a clearer action order for daily operations.',
-                },
-                {
-                    icon: HiOutlineLink,
-                    title: 'Self-service subscriptions',
-                    text: 'Users can copy, scan, and update account access from the same portal flow.',
-                },
-                {
-                    icon: HiOutlineChartBarSquare,
-                    title: 'Responsive control room',
-                    text: 'The same shell now adapts cleanly from mobile drawers to wide desktop workspaces.',
-                },
-            ],
-        }
-        : {
-            eyebrow: '统一网络运维入口',
-            title: '把节点操作和用户自助入口放进更清晰的一个界面。',
-            summary: '管理端保留高密度控制感，用户端则收敛成复制、扫码、改密这些最常用动作，桌面和手机都更稳定。',
-            accessOpen: '开放注册',
-            accessInviteOnly: '邀请注册',
-            accessClosed: '暂停注册',
-            passwordResetReady: '支持自助重置密码',
-            dualThemeReady: '深浅双主题已适配',
-            cards: [
-                {
-                    icon: HiOutlineServerStack,
-                    title: '按操作流组织节点工作区',
-                    text: '服务器、入站、工具和审计按日常使用顺序展开，减少来回切换。',
-                },
-                {
-                    icon: HiOutlineLink,
-                    title: '订阅和账号自助更直接',
-                    text: '用户在同一入口完成复制地址、扫码导入和账号密码维护。',
-                },
-                {
-                    icon: HiOutlineChartBarSquare,
-                    title: '桌面与移动端统一控制感',
-                    text: '同一套壳层在手机抽屉和宽屏工作台之间平滑切换，不再靠零散补丁维持。',
-                },
-            ],
-        };
 
     // Login fields
     const [username, setUsername] = useState('');
@@ -164,9 +97,6 @@ export default function Login() {
     const navigate = useNavigate();
     const registrationEnabled = registrationStatus.enabled !== false;
     const inviteOnlyEnabled = registrationStatus.inviteOnlyEnabled === true;
-    const registrationStateLabel = registrationEnabled
-        ? (inviteOnlyEnabled ? showcaseCopy.accessInviteOnly : showcaseCopy.accessOpen)
-        : showcaseCopy.accessClosed;
 
     useEffect(() => {
         let active = true;
@@ -444,8 +374,8 @@ export default function Login() {
 
             <div className="login-shell">
                 <div className="login-card-column">
-                    <div className="login-card">
-                        <div className="login-card-border" />
+                        <div className="login-card">
+                            <div className="login-card-border" />
                         <div className="login-brand-row">
                             <img src={logoSrc} alt="NMS" className="login-brand-mark" />
                             <div className="login-brand-copy">
@@ -788,34 +718,6 @@ export default function Login() {
                         )}
                     </div>
                 </div>
-                <aside className="login-showcase" aria-label={showcaseCopy.eyebrow}>
-                    <div className="login-showcase-hero card">
-                        <div className="login-showcase-eyebrow">{showcaseCopy.eyebrow}</div>
-                        <h2 className="login-showcase-title">{showcaseCopy.title}</h2>
-                        <p className="login-showcase-summary">{showcaseCopy.summary}</p>
-                        <div className="login-showcase-badges">
-                            <span className="badge badge-info">{registrationStateLabel}</span>
-                            {SELF_SERVICE_PASSWORD_RESET_ENABLED && (
-                                <span className="badge badge-success">{showcaseCopy.passwordResetReady}</span>
-                            )}
-                            <span className="badge badge-neutral">{showcaseCopy.dualThemeReady}</span>
-                        </div>
-                    </div>
-                    <div className="login-showcase-grid">
-                        {showcaseCopy.cards.map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <div key={item.title} className="login-showcase-card card">
-                                    <span className="login-showcase-card-icon" aria-hidden="true">
-                                        <Icon />
-                                    </span>
-                                    <div className="login-showcase-card-title">{item.title}</div>
-                                    <p className="login-showcase-card-text">{item.text}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </aside>
             </div>
         </div>
     );

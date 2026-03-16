@@ -247,11 +247,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
 
     return (
         <>
-        <aside
-            className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''} ${isMobile ? 'sidebar--mobile' : 'sidebar--desktop'}`}
-            data-collapsed={collapsed ? 'true' : 'false'}
-            data-open={open ? 'true' : 'false'}
-        >
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">
                     <img src={logoSrc} alt="NMS" className="sidebar-logo-image" />
@@ -274,7 +270,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 {isMobile ? <HiOutlineChevronLeft /> : (collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />)}
             </button>
 
-            <nav className="sidebar-nav" aria-label={locale === 'en-US' ? 'Primary navigation' : '主导航'}>
+            <nav className="sidebar-nav">
                 {visibleSections.map((section) => {
                     return (
                         <div className="nav-section" key={section.title}>
