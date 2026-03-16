@@ -59,7 +59,7 @@ describe('ServerManagement', () => {
         expect(screen.getByText('请先选择一台服务器')).toBeInTheDocument();
     });
 
-    it('shows the shared toolbar context in global view and probes versions from the first target', async () => {
+    it('shows the compact toolbar context in global view and probes versions from the first target', async () => {
         useServer.mockReturnValue({
             activeServerId: 'global',
             panelApi: vi.fn(),
@@ -74,7 +74,7 @@ describe('ServerManagement', () => {
 
         renderWithRouter(<ServerManagement />);
 
-        expect(await screen.findByText('集群批量控制')).toBeInTheDocument();
+        expect(await screen.findByText('批量控制模式')).toBeInTheDocument();
         expect(screen.getByText('当前作用域')).toBeInTheDocument();
         expect(screen.getByText('1 台节点')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '1.8.0' })).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('ServerManagement', () => {
 
         renderWithRouter(<ServerManagement embedded />);
 
-        expect(await screen.findByText('集群批量控制')).toBeInTheDocument();
+        expect(await screen.findByText('批量控制模式')).toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: '节点控制台' })).not.toBeInTheDocument();
     });
 });

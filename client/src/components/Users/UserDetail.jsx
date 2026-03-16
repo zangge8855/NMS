@@ -447,9 +447,6 @@ function buildTimelineFacts(item, copy) {
     if (resource) {
         facts.push({ label: copy.labels.resource, value: resource });
     }
-    if (item.tokenId) {
-        facts.push({ label: 'Token', value: item.tokenId });
-    }
     if (userAgent) {
         facts.push({ label: copy.labels.ua, value: userAgent });
     }
@@ -934,7 +931,6 @@ export default function UserDetail() {
             <>
                 <Header
                     title={t('pages.userDetail.title')}
-                    subtitle={t('pages.userDetail.subtitle')}
                     eyebrow={t('pages.userDetail.eyebrow')}
                 />
                 <div className="page-content page-enter">
@@ -951,7 +947,6 @@ export default function UserDetail() {
             <>
                 <Header
                     title={t('pages.userDetail.title')}
-                    subtitle={t('pages.userDetail.subtitle')}
                     eyebrow={t('pages.userDetail.eyebrow')}
                 />
                 <div className="page-content page-enter">
@@ -996,7 +991,6 @@ export default function UserDetail() {
         <>
             <Header
                 title={t('pages.userDetail.titleWithName', { name: user.username })}
-                subtitle={t('pages.userDetail.subtitle')}
                 eyebrow={t('pages.userDetail.eyebrow')}
             />
             <div className="page-content page-enter">

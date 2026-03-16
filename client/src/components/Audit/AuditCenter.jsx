@@ -497,6 +497,10 @@ const AUDIT_EVENT_LABELS = {
         smtp_connection_verified: '验证 SMTP 连接',
         registered_user_notice: '发送注册用户变更通知',
         system_backup_exported: '导出系统备份',
+        system_backup_saved_local: '保存本机备份',
+        system_backup_downloaded_local: '下载本机备份',
+        system_backup_restored_local: '恢复本机备份',
+        system_backup_deleted_local: '删除本机备份',
         system_backup_restored: '恢复系统备份',
         system_settings_updated: '更新系统设置',
         server_health_monitor_run: '执行节点健康检查',
@@ -565,6 +569,10 @@ const AUDIT_EVENT_LABELS = {
         smtp_connection_verified: 'SMTP Connection Verified',
         registered_user_notice: 'Registered User Notice Sent',
         system_backup_exported: 'System Backup Exported',
+        system_backup_saved_local: 'Local Backup Saved',
+        system_backup_downloaded_local: 'Local Backup Downloaded',
+        system_backup_restored_local: 'Local Backup Restored',
+        system_backup_deleted_local: 'Local Backup Deleted',
         system_backup_restored: 'System Backup Restored',
         system_settings_updated: 'System Settings Updated',
         server_health_monitor_run: 'Server Health Check Ran',
@@ -1057,121 +1065,23 @@ export default function AuditCenter() {
             icon: HiOutlineCommandLine,
         },
     ]), [copy]);
-    const activeTabMeta = auditTabs.find((item) => item.id === tab) || auditTabs[0];
     const currentTabBusy = (
         (tab === 'events' && eventsLoading)
         || (tab === 'traffic' && trafficLoading)
         || (tab === 'subscriptions' && accessLoading)
     );
-    const activeTabHighlights = useMemo(() => {
-        if (tab === 'events') {
-            return [
-                {
-                    label: copy.workspace.recordCount,
-                    value: String(eventsData.total || 0),
-                    detail: copy.workspace.dataWindowYear,
-                },
-                {
-                    label: copy.workspace.filterState,
-                    value: activeEventFilterCount > 0
-                        ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                        : copy.workspace.noFilters,
-                    detail: copy.workspace.range,
-                },
-                {
-                    label: copy.workspace.currentPage,
-                    value: `${eventsPage} / ${eventsData.totalPages || 1}`,
-                    detail: copy.tabs.events,
-                },
-            ];
-        }
-        if (tab === 'traffic') {
-            return [
-                {
-                    label: copy.traffic.totalTraffic,
-                    value: formatBytes(trafficTotals.totalBytes || 0),
-                    detail: copy.traffic.totalTrafficScope,
-                },
-                {
-                    label: copy.traffic.activeAccounts,
-                    value: String(trafficOverview?.activeUsers || 0),
-                    detail: copy.traffic.activeAccountsScope,
-                },
-                {
-                    label: copy.workspace.sampleStatus,
-                    value: trafficOverview?.lastCollectionAt
-                        ? formatDateTime(trafficOverview.lastCollectionAt, locale)
-                        : copy.workspace.loading,
-                    detail: copy.traffic.samplePointsScope,
-                },
-                {
-                    label: copy.workspace.warningNodes,
-                    value: String(trafficWarningCount),
-                    detail: trafficOverview?.userLevelSupported === false
-                        ? copy.workspace.supportLimited
-                        : copy.workspace.supportReady,
-                },
-            ];
-        }
-        if (tab === 'subscriptions') {
-            return [
-                {
-                    label: copy.traffic.pv,
-                    value: String(accessSummary.total || 0),
-                    detail: copy.workspace.dataWindowYear,
-                },
-                {
-                    label: copy.traffic.uv,
-                    value: String(accessSummary.uniqueIpCount || 0),
-                    detail: copy.tables.realIp,
-                },
-                {
-                    label: copy.traffic.uniqueUsers,
-                    value: String(accessSummary.uniqueUsers || 0),
-                    detail: copy.tables.user,
-                },
-                {
-                    label: copy.workspace.filterState,
-                    value: activeAccessFilterCount > 0
-                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                        : copy.workspace.noFilters,
-                    detail: copy.filters.defaultPeriod,
-                },
-            ];
-        }
-        return [];
-    }, [
-        accessSummary.total,
-        accessSummary.uniqueIpCount,
-        accessSummary.uniqueUsers,
-        activeAccessFilterCount,
-        activeEventFilterCount,
-        copy,
-        eventsData.total,
-        eventsData.totalPages,
-        eventsPage,
-        locale,
-        tab,
-        trafficOverview,
-        trafficTotals.totalBytes,
-        trafficWarningCount,
-    ]);
 
     return (
         <>
             <Header
                 title={t('pages.audit.title')}
-                subtitle={t('pages.audit.subtitle')}
                 eyebrow={t('pages.audit.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide">
                 <div className="audit-shell">
                     <div className="card audit-nav">
-                        <div className="audit-nav-head">
-                            <div className="audit-nav-copy">
-                                <div className="audit-nav-label">{copy.workspace.navLabel}</div>
-                                <div className="audit-nav-summary">{activeTabMeta.summary}</div>
-                            </div>
+                        <div className="audit-nav-topbar">
+                            <div className="audit-nav-label">{copy.workspace.navLabel}</div>
                             <div className={`audit-nav-status-chip${currentTabBusy ? ' is-loading' : ' is-ready'}`}>
                                 {currentTabBusy ? <span className="spinner spinner-16" /> : null}
                                 <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
@@ -1198,45 +1108,20 @@ export default function AuditCenter() {
                     </div>
 
                     <div className="audit-main">
-                        <div className="card audit-tab-hero">
-                            <div className="audit-tab-hero-copy">
-                                <div className="audit-tab-hero-eyebrow">{activeTabMeta.eyebrow}</div>
-                                <div className="audit-tab-hero-title">{activeTabMeta.label}</div>
-                                <div className="audit-tab-hero-summary">{activeTabMeta.summary}</div>
-                            </div>
-                            {activeTabHighlights.length > 0 && (
-                                <div className="audit-tab-hero-grid">
-                                    {activeTabHighlights.map((item) => (
-                                        <div key={`${tab}-${item.label}`} className="audit-tab-highlight-card">
-                                            <div className="audit-tab-highlight-label">{item.label}</div>
-                                            <div className="audit-tab-highlight-value">{item.value}</div>
-                                            <div className="audit-tab-highlight-detail">{item.detail}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
                         <div className="audit-tab-panel">
                 {tab === 'events' && (
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
                             <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
-                                <div className="audit-control-head">
-                                    <div className="audit-control-copy">
-                                        <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
-                                        <div className="audit-control-text">{copy.workspace.eventsFiltersSubtitle}</div>
-                                    </div>
-                                    <div className="audit-control-meta">
-                                        <span className="badge badge-neutral">
-                                            {copy.states.total.replace('{count}', String(eventsData.total || 0))}
-                                        </span>
-                                        <span className="badge badge-neutral">
-                                            {activeEventFilterCount > 0
-                                                ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                                                : copy.workspace.noFilters}
-                                        </span>
-                                    </div>
+                                <div className="audit-control-meta">
+                                    <span className="badge badge-neutral">
+                                        {copy.states.total.replace('{count}', String(eventsData.total || 0))}
+                                    </span>
+                                    <span className="badge badge-neutral">
+                                        {activeEventFilterCount > 0
+                                            ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
+                                            : copy.workspace.noFilters}
+                                    </span>
                                 </div>
                                 <div className="audit-filter-grid audit-filter-grid--events">
                                     <input
@@ -1383,30 +1268,23 @@ export default function AuditCenter() {
                 {tab === 'traffic' && (
                     <>
                         <div className="card mb-8 audit-traffic-overview">
-                            <div className="audit-traffic-overview-head">
-                                <div className="audit-traffic-overview-copy">
-                                    <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
-                                    <div className="audit-traffic-overview-title">{copy.traffic.totalTraffic}</div>
-                                    <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
+                            <div className="audit-traffic-overview-actions">
+                                <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
+                                    <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
+                                    <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
                                 </div>
-                                <div className="audit-traffic-overview-actions">
-                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
-                                        <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
-                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
-                                    </div>
-                                    <select
-                                        className="form-select w-130"
-                                        value={trafficGranularity}
-                                        onChange={(e) => setTrafficGranularity(e.target.value)}
-                                    >
-                                        <option value="auto">{copy.filters.autoGranularity}</option>
-                                        <option value="hour">{copy.filters.byHour}</option>
-                                        <option value="day">{copy.filters.byDay}</option>
-                                    </select>
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
-                                    </button>
-                                </div>
+                                <select
+                                    className="form-select w-130"
+                                    value={trafficGranularity}
+                                    onChange={(e) => setTrafficGranularity(e.target.value)}
+                                >
+                                    <option value="auto">{copy.filters.autoGranularity}</option>
+                                    <option value="hour">{copy.filters.byHour}</option>
+                                    <option value="day">{copy.filters.byDay}</option>
+                                </select>
+                                <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
+                                    <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
+                                </button>
                             </div>
                             <div className="audit-traffic-overview-body">
                                 <div className="audit-traffic-total-card">
@@ -1588,21 +1466,15 @@ export default function AuditCenter() {
                 {tab === 'subscriptions' && (
                     <>
                         <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
-                            <div className="audit-control-head">
-                                <div className="audit-control-copy">
-                                    <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
-                                    <div className="audit-control-text">{copy.workspace.subscriptionsFiltersSubtitle}</div>
-                                </div>
-                                <div className="audit-control-meta">
-                                    <span className="badge badge-neutral">
-                                        {copy.states.total.replace('{count}', String(accessData.total || 0))}
-                                    </span>
-                                    <span className="badge badge-neutral">
-                                        {activeAccessFilterCount > 0
-                                            ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                                            : copy.workspace.noFilters}
-                                    </span>
-                                </div>
+                            <div className="audit-control-meta">
+                                <span className="badge badge-neutral">
+                                    {copy.states.total.replace('{count}', String(accessData.total || 0))}
+                                </span>
+                                <span className="badge badge-neutral">
+                                    {activeAccessFilterCount > 0
+                                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
+                                        : copy.workspace.noFilters}
+                                </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <input

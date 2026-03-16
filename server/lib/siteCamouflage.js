@@ -454,24 +454,48 @@ function createRenderModel(options = {}) {
     const year = String(now.getUTCFullYear());
     const month = String(now.getUTCMonth() + 1).padStart(2, '0');
     const day = String(now.getUTCDate()).padStart(2, '0');
-    const statusLabelZh = '公开站点';
-    const statusLabelEn = 'Public site';
-    const directoryBadgeZh = '公开站点';
-    const directoryBadgeEn = 'Public site';
+    const monthIndex = now.getUTCMonth();
+    const seasonIndex = Math.floor(((monthIndex + 1) % 12) / 3);
+    const seasonNamesZh = ['冬季', '春季', '夏季', '秋季'];
+    const seasonNamesEn = ['Winter', 'Spring', 'Summer', 'Autumn'];
+    const seasonLabelZh = `${year} ${seasonNamesZh[seasonIndex]}`;
+    const seasonLabelEn = `${seasonNamesEn[seasonIndex]} ${year}`;
+    const editionCode = `${year}.${month}`;
+    let statusLabelZh = '技术平台';
+    let statusLabelEn = 'Platform';
+    let directoryBadgeZh = '智能视觉设备';
+    let directoryBadgeEn = 'Machine vision systems';
+    let descriptionZh = `${title} 高精度视觉检测与自动化平台。`;
+    let descriptionEn = `${title} high-precision vision inspection and automation platform.`;
+
+    if (templateName === 'blog') {
+        statusLabelZh = '行业观察';
+        statusLabelEn = 'Field notes';
+        directoryBadgeZh = '应用摘要';
+        directoryBadgeEn = 'Application notes';
+        descriptionZh = `${title} 行业应用与现场案例页面。`;
+        descriptionEn = `${title} industry applications and field cases page.`;
+    } else if (templateName === 'nginx') {
+        statusLabelZh = '服务支持';
+        statusLabelEn = 'Service';
+        directoryBadgeZh = '交付支持';
+        directoryBadgeEn = 'Delivery support';
+        descriptionZh = `${title} 交付实施与运维支持页面。`;
+        descriptionEn = `${title} delivery, implementation, and support page.`;
+    }
+
     const accessNoteZh = statusCode === 200
-        ? '当前站点仅提供基础公开说明与更新时间。'
-        : '当前路径未开放内容，请返回首页或稍后再试。';
+        ? '页面内容保持轻量，并按批次更新。'
+        : '当前内容不在本期版面中。';
     const accessNoteEn = statusCode === 200
-        ? 'This site currently exposes only basic public notes and update markers.'
-        : 'This path is not available. Return to the home page or try again later.';
-    const archiveNoticeZh = statusCode === 200 ? '公开内容按月复核，季度归档。' : '该路径暂无公开条目，请查看首页更新说明。';
-    const archiveNoticeEn = statusCode === 200 ? 'Public notes are reviewed monthly and archived quarterly.' : 'No public entry is available for this path. Please review the homepage update note.';
-    const deliveryNoticeZh = statusCode === 200 ? '如需访问受限资源，请使用已分配的入口地址。' : '该路径未对外开放，请使用分配入口访问受限资源。';
-    const deliveryNoticeEn = statusCode === 200 ? 'Use the assigned access path for restricted resources.' : 'This path is not public. Use the assigned entry for restricted resources.';
+        ? 'Content stays lightweight and is updated in batches.'
+        : 'This content is not part of the current edition.';
+    const archiveNoticeZh = statusCode === 200 ? '旧条目按固定周期整理。' : '当前路径没有纳入公开版面。';
+    const archiveNoticeEn = statusCode === 200 ? 'Older entries are folded back on a fixed cycle.' : 'This path is not included in the current public edition.';
+    const deliveryNoticeZh = '更多内容将在后续批次补充。';
+    const deliveryNoticeEn = 'Additional material will appear in later batches.';
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
-    const descriptionZh = `${title} 公开站点，占位展示基础访问说明与更新时间。`;
-    const descriptionEn = `${title} public site placeholder with access notes and update timestamps.`;
     const generatedDateZh = `${year}年${month}月${day}日`;
     const generatedDateEn = `${monthNamesEn[now.getUTCMonth()]} ${Number(day)}, ${year}`;
 
@@ -495,6 +519,9 @@ function createRenderModel(options = {}) {
         statusLabelEn,
         directoryBadgeZh,
         directoryBadgeEn,
+        seasonLabelZh,
+        seasonLabelEn,
+        editionCode,
         accessNoteZh,
         accessNoteEn,
         archiveNoticeZh,

@@ -101,12 +101,7 @@ export default function Capabilities() {
             <div className="page-content page-enter">
                 <PageToolbar
                     className="card mb-6 capabilities-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">节点能力矩阵</div>
-                            <div className="page-toolbar-subtitle">展示协议命名、官方能力映射和节点工具可用性。</div>
-                        </div>
-                    )}
+                    compact
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
                             <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新

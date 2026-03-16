@@ -354,17 +354,17 @@
                             <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                         </span>
                         <h1 class="{{class:headline}}">
-                            <span data-lang="zh-CN">公开页维持简洁、克制，只留下必要的说明与时间标记。</span>
-                            <span data-lang="en-US" hidden>The public page stays restrained and keeps only the notes and timestamps that matter.</span>
+                            <span data-lang="zh-CN">{{title}}</span>
+                            <span data-lang="en-US" hidden>{{title}}</span>
                         </h1>
                         <p class="{{class:lead}}">
-                            <span data-lang="zh-CN">{{title}} 当前更接近长期维护的公开壳层，而不是内容站或宣传页。访客看到的是基础状态、更新时间和访问提示。</span>
-                            <span data-lang="en-US" hidden>{{title}} behaves more like a maintained public shell than a content or promotional site. Visitors see only baseline status, update timestamps, and access guidance.</span>
+                            <span data-lang="zh-CN">围绕视觉检测、工艺追溯与自动化协同的应用记录与现场摘要。</span>
+                            <span data-lang="en-US" hidden>Application notes and field summaries around vision inspection, traceability, and automation coordination.</span>
                         </p>
-                    </div>
-                    <div class="{{class:button-row}}">
-                        <a class="{{class:button}}" href="#notes"><span data-lang="zh-CN">查看说明</span><span data-lang="en-US" hidden>Read notes</span></a>
-                        <a class="{{class:button}} {{class:button-muted}}" href="#updates"><span data-lang="zh-CN">查看更新</span><span data-lang="en-US" hidden>View updates</span></a>
+                        <div class="{{class:button-row}}">
+                            <a class="{{class:button}}" href="#cases"><span data-lang="zh-CN">阅读案例</span><span data-lang="en-US" hidden>Read cases</span></a>
+                            <a class="{{class:button}} {{class:button-muted}}" href="#industry"><span data-lang="zh-CN">查看行业</span><span data-lang="en-US" hidden>View sectors</span></a>
+                        </div>
                     </div>
                 </div>
             </article>
@@ -374,87 +374,76 @@
                     <div class="{{class:image-frame}}">
                         <img class="{{class:hero-image}}" src="{{asset:blogHeroImage}}" alt="" />
                     </div>
-                    <div class="{{class:notice}}">
-                        <span data-lang="zh-CN">{{accessNoteZh}}</span>
-                        <span data-lang="en-US" hidden>{{accessNoteEn}}</span>
-                    </div>
                     <div class="{{class:meta-grid}}">
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">响应状态</span><span data-lang="en-US" hidden>Status code</span></span>
-                            <div class="{{class:meta-value}}">{{statusCode}}</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">内容类型</span><span data-lang="en-US" hidden>Format</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">案例 / 摘要 / 图像</span><span data-lang="en-US" hidden>Cases / summaries / imagery</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近整理</span><span data-lang="en-US" hidden>Last refresh</span></span>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Updated</span></span>
                             <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
+                        </div>
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">聚焦行业</span><span data-lang="en-US" hidden>Sectors</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">电子 / 新能源 / 精密装配</span><span data-lang="en-US" hidden>Electronics / energy / precision assembly</span></div>
+                        </div>
+                        <div class="{{class:meta-card}}">
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">发布批次</span><span data-lang="en-US" hidden>Release</span></span>
+                            <div class="{{class:meta-value}}">{{editionCode}}</div>
                         </div>
                     </div>
                 </div>
             </aside>
         </section>
 
-        <section class="{{class:status-strip}}" id="notes">
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">访问说明</span><span data-lang="en-US" hidden>Access note</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{accessNoteZh}}</span><span data-lang="en-US" hidden>{{accessNoteEn}}</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">更新节奏</span><span data-lang="en-US" hidden>Update rhythm</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{archiveNoticeZh}}</span><span data-lang="en-US" hidden>{{archiveNoticeEn}}</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">受限资源</span><span data-lang="en-US" hidden>Restricted access</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{deliveryNoticeZh}}</span><span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span></div>
-            </div>
-        </section>
-
-        <section class="{{class:blog-list}}" id="updates">
+        <section class="{{class:blog-list}}" id="cases">
             <article class="{{class:blog-item}}">
-                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">更新标记</span><span data-lang="en-US" hidden>Update marker</span></span>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开内容只保留必要的外层说明。</span><span data-lang="en-US" hidden>Public content keeps only the outer explanatory layer.</span></h2>
+                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">电子装联</span><span data-lang="en-US" hidden>Electronics assembly</span></span>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">首件确认与批次复核的双段式检测</span><span data-lang="en-US" hidden>Dual-stage inspection for first-piece confirmation and batch review</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">页面不会对外罗列额外条目或栏目树，所有说明都收敛到基础访问提示和状态信息。</span>
-                    <span data-lang="en-US" hidden>The page does not list public catalogs, product lines, or section trees. Everything is reduced to access notes and status markers.</span>
+                    <span data-lang="zh-CN">通过在线检测单元与旁路复核台配合，缩短新品切换时的确认周期，并保留关键缺陷图像。</span>
+                    <span data-lang="en-US" hidden>Inline cells paired with side-review stations shorten first-piece confirmation during changeovers while retaining critical defect imagery.</span>
                 </p>
             </article>
             <article class="{{class:blog-item}}">
-                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">路径说明</span><span data-lang="en-US" hidden>Path note</span></span>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">未分配的公开路径统一落在这里。</span><span data-lang="en-US" hidden>Unassigned public paths land here consistently.</span></h2>
+                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">新能源</span><span data-lang="en-US" hidden>Energy storage</span></span>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">方壳电芯外观复核与边缘分析闭环</span><span data-lang="en-US" hidden>Prismatic cell review with closed-loop edge analytics</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">如果访客命中未开放内容，页面只返回统一的中性说明，不额外暴露业务入口。</span>
-                    <span data-lang="en-US" hidden>If a visitor reaches content that is not open, the page returns a single neutral explanation without exposing business entry points.</span>
+                    <span data-lang="zh-CN">将外观缺陷、批次号和工艺参数同步到工作站，便于异常趋势比对和返修复判。</span>
+                    <span data-lang="en-US" hidden>Appearance defects, batch IDs, and process parameters are synchronized to the workstation for trend comparison and rework review.</span>
                 </p>
             </article>
             <article class="{{class:blog-item}}">
-                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">维护节奏</span><span data-lang="en-US" hidden>Maintenance cadence</span></span>
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">更新时间比内容目录更重要。</span><span data-lang="en-US" hidden>Timestamps matter more than catalogs.</span></h2>
+                <span class="{{class:blog-meta}}"><span data-lang="zh-CN">精密装配</span><span data-lang="en-US" hidden>Precision assembly</span></span>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">多工位协同判定与一致性抽检</span><span data-lang="en-US" hidden>Multi-station coordination and consistency sampling</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">站点以时间戳和状态说明作为最小维护痕迹，避免形成长期可枚举的公开页面。</span>
-                    <span data-lang="en-US" hidden>The site uses timestamps and status notes as the minimum maintenance marker instead of a long-lived enumerable public resource page.</span>
+                    <span data-lang="zh-CN">针对装配偏差、零件姿态和工艺节拍建立统一判定口径，减少跨工位复判成本。</span>
+                    <span data-lang="en-US" hidden>A unified judgement baseline for assembly offsets, part pose, and takt timing reduces cross-station review overhead.</span>
                 </p>
             </article>
         </section>
 
-        <section class="{{class:section-grid}}">
+        <section class="{{class:section-grid}}" id="industry">
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开范围</span><span data-lang="en-US" hidden>Public scope</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">观察维度</span><span data-lang="en-US" hidden>Focus areas</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">页面只保留站点标题、状态、时间和访问提示，不出现额外条目或外部入口。</span>
-                    <span data-lang="en-US" hidden>The page keeps only the title, status, timestamps, and access notes with no downloads, industry sections, or contact details.</span>
+                    <span data-lang="zh-CN">内容围绕良率、节拍、复判效率和图像可追溯性展开，保留现场可读的关键指标。</span>
+                    <span data-lang="en-US" hidden>Notes focus on yield, takt time, review efficiency, and image traceability with field-readable indicators.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">访问方式</span><span data-lang="en-US" hidden>Access method</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">交付关注</span><span data-lang="en-US" hidden>Delivery focus</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">需要访问受限资源时，请使用已分配入口。公开页本身不再承担目录导航角色。</span>
-                    <span data-lang="en-US" hidden>Use the assigned entry for restricted resources. The public page no longer acts as a navigation directory.</span>
+                    <span data-lang="zh-CN">除设备形态外，也覆盖现场调试、人员培训和批次切换时的验证流程。</span>
+                    <span data-lang="en-US" hidden>Beyond the equipment form factor, the notes cover tuning, staff training, and validation during batch changeovers.</span>
                 </p>
             </article>
         </section>
 
         <footer class="{{class:footer}}">
             <div class="{{class:footer-note}}">
-                <span data-lang="zh-CN">{{title}} · 最近整理 {{generatedDateZh}}</span>
-                <span data-lang="en-US" hidden>{{title}} · last refreshed {{generatedDateEn}}</span>
+                <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
+                <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
             </div>
         </footer>
     </main>

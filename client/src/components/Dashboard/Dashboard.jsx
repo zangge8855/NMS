@@ -919,7 +919,6 @@ export default function Dashboard() {
             <>
                 <Header
                     title={t('pages.dashboardEmpty.title')}
-                    subtitle={t('pages.dashboardEmpty.subtitle')}
                 />
                 
                 <div className="page-content page-enter">
@@ -1047,7 +1046,6 @@ export default function Dashboard() {
             <>
                 <Header
                     title={t('pages.dashboardGlobal.title')}
-                    subtitle={`${t('pages.dashboardGlobal.subtitle')} · ${t('pages.dashboardGlobal.nodeCount', { count: servers.length })}`}
                     eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
                 >
@@ -1074,7 +1072,6 @@ export default function Dashboard() {
                             <SectionHeader
                                 className="dashboard-section-head"
                                 title={t('pages.dashboardGlobal.onlineDetailTitle')}
-                                subtitle={t('pages.dashboardGlobal.onlineDetailSubtitle')}
                                 meta={(
                                     <span className="text-sm text-muted">
                                         {t('pages.dashboardCommon.userSessionSummary', {
@@ -1150,7 +1147,6 @@ export default function Dashboard() {
                         <SectionHeader
                             className="dashboard-section-head"
                             title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
-                            subtitle={locale === 'en-US' ? 'Keep the most common troubleshooting entries on the dashboard.' : '把最常用的排查入口收在仪表盘里，减少来回切页。'}
                         />
                         <QuickActionGrid actions={globalQuickActions} />
                     </div>
@@ -1160,7 +1156,6 @@ export default function Dashboard() {
                         <SectionHeader
                             className="dashboard-section-head"
                             title={t('pages.dashboardGlobal.nodeHealthTitle')}
-                            subtitle={t('pages.dashboardGlobal.nodeHealthSubtitle')}
                             meta={<span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
                         />
                         <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
@@ -1253,9 +1248,6 @@ export default function Dashboard() {
         <>
             <Header
                 title={activeServer?.name || t('pages.dashboardNode.title')}
-                subtitle={status
-                    ? `${t('pages.dashboardNode.inboundsCount', { count: inbounds.length })} · ${t('pages.dashboardNode.cards.runtime')}: ${formatUptime(status.uptime, locale)}`
-                    : t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
             >
                 <button
@@ -1281,7 +1273,6 @@ export default function Dashboard() {
                         <SectionHeader
                             className="dashboard-section-head"
                             title={t('pages.dashboardNode.onlineDetailTitle')}
-                            subtitle={t('pages.dashboardNode.onlineDetailSubtitle')}
                             meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUsers.length, sessions: onlineSessionCount })}</span>}
                         />
                         {onlineUsers.length === 0 ? (
@@ -1331,7 +1322,6 @@ export default function Dashboard() {
                     <SectionHeader
                         className="dashboard-section-head"
                         title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
-                        subtitle={locale === 'en-US' ? 'The most common actions and troubleshooting entries for this node.' : '围绕当前节点最常用的操作和排查入口。'}
                     />
                     <QuickActionGrid actions={singleQuickActions} />
                 </div>
@@ -1341,7 +1331,6 @@ export default function Dashboard() {
                     <SectionHeader
                         className="dashboard-section-head"
                         title={t('pages.dashboardNode.inboundsTitle')}
-                        subtitle={t('pages.dashboardNode.inboundsSubtitle')}
                         meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
                     />
                     {inbounds.length === 0 ? (
@@ -1395,7 +1384,6 @@ export default function Dashboard() {
                     <SectionHeader
                         className="dashboard-section-head"
                         title={t('pages.dashboardNode.cpuChartTitle')}
-                        subtitle={t('pages.dashboardNode.cpuChartSubtitle')}
                     />
                     <div className="w-full dashboard-chart py-5">
                         {loading && cpuHistory.length === 0 ? (

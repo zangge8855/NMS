@@ -1196,7 +1196,6 @@ export default function UsersHub() {
         <>
             <Header
                 title={t('pages.usersHub.title')}
-                subtitle={t('pages.usersHub.subtitle')}
                 eyebrow={t('pages.usersHub.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide">
@@ -1321,7 +1320,7 @@ export default function UsersHub() {
                                     <th className="users-identity-column">账号</th>
                                     <th>状态</th>
                                     <th>在线状态</th>
-                                    <th className="text-right">节点数</th>
+                                    <th className="table-cell-center users-node-count-column">节点数</th>
                                     <th className="text-right users-traffic-column">已用流量</th>
                                     <th className="users-expiry-column">到期时间</th>
                                     <th className="users-actions-column">操作</th>
@@ -1382,7 +1381,7 @@ export default function UsersHub() {
                                                         {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
                                                 </td>
-                                                <td data-label="节点数" className="cell-mono-right users-node-count-cell">{user.clientData.count || '-'}</td>
+                                                <td data-label="节点数" className="table-cell-center users-node-count-cell">{user.clientData.count || '-'}</td>
                                                 <td
                                                     data-label="已用流量"
                                                     className="users-traffic-cell"

@@ -354,25 +354,33 @@
                     <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                 </span>
                 <h1 class="{{class:headline}}">
-                    <span data-lang="zh-CN">公开页只保留基础访问提示、时间戳和状态标记。</span>
-                    <span data-lang="en-US" hidden>The public page keeps only access notes, timestamps, and status markers.</span>
+                    <span data-lang="zh-CN">{{title}}</span>
+                    <span data-lang="en-US" hidden>{{title}}</span>
                 </h1>
                 <p class="{{class:lead}}">
-                    <span data-lang="zh-CN">{{title}} 当前作为中性的公开站点壳层，不承载额外公开目录或外部入口，只展示必要的对外说明。</span>
-                    <span data-lang="en-US" hidden>{{title}} currently acts as a neutral public shell without document catalogs, download entry points, or external contact windows.</span>
+                    <span data-lang="zh-CN">围绕部署、联调、培训与巡检的交付支持页面，面向长期运行场景。</span>
+                    <span data-lang="en-US" hidden>A delivery and support page focused on deployment, commissioning, training, and recurring inspection.</span>
                 </p>
                 <div class="{{class:button-row}}">
-                    <a class="{{class:button}}" href="#status"><span data-lang="zh-CN">查看状态</span><span data-lang="en-US" hidden>View status</span></a>
-                    <a class="{{class:button}} {{class:button-muted}}" href="#log"><span data-lang="zh-CN">查看说明</span><span data-lang="en-US" hidden>Read notes</span></a>
+                    <a class="{{class:button}}" href="#implementation"><span data-lang="zh-CN">实施路径</span><span data-lang="en-US" hidden>Implementation</span></a>
+                    <a class="{{class:button}} {{class:button-muted}}" href="#support"><span data-lang="zh-CN">支持内容</span><span data-lang="en-US" hidden>Support</span></a>
                 </div>
                 <div class="{{class:meta-grid}}">
                     <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">响应状态</span><span data-lang="en-US" hidden>Status code</span></span>
-                        <div class="{{class:meta-value}}">{{statusCode}}</div>
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务范围</span><span data-lang="en-US" hidden>Coverage</span></span>
+                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">部署 / 培训 / 巡检</span><span data-lang="en-US" hidden>Deployment / training / inspection</span></div>
                     </div>
                     <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近整理</span><span data-lang="en-US" hidden>Last refresh</span></span>
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">交付周期</span><span data-lang="en-US" hidden>Lead time</span></span>
+                        <div class="{{class:meta-value}}">6 - 12 <span data-lang="zh-CN">周</span><span data-lang="en-US" hidden>weeks</span></div>
+                    </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Updated</span></span>
                         <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
+                    </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料版本</span><span data-lang="en-US" hidden>Revision</span></span>
+                        <div class="{{class:meta-value}}">{{editionCode}}</div>
                     </div>
                 </div>
             </article>
@@ -381,75 +389,52 @@
                 <div class="{{class:image-frame}}">
                     <img class="{{class:hero-image}}" src="{{asset:supportHeroImage}}" alt="" />
                 </div>
-                <div class="{{class:hero-copy}}">
-                    <div class="{{class:notice}}">
-                        <span data-lang="zh-CN">{{accessNoteZh}}</span>
-                        <span data-lang="en-US" hidden>{{accessNoteEn}}</span>
-                    </div>
-                </div>
             </aside>
         </section>
 
-        <section class="{{class:status-strip}}" id="status">
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">访问说明</span><span data-lang="en-US" hidden>Access note</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{accessNoteZh}}</span><span data-lang="en-US" hidden>{{accessNoteEn}}</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">更新节奏</span><span data-lang="en-US" hidden>Update rhythm</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{archiveNoticeZh}}</span><span data-lang="en-US" hidden>{{archiveNoticeEn}}</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">受限资源</span><span data-lang="en-US" hidden>Restricted access</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{deliveryNoticeZh}}</span><span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span></div>
-            </div>
-        </section>
-
-        <section class="{{class:grid-two}}">
-            <article class="{{class:terminal}}" id="log">
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">site: {{title}}</span><span data-lang="en-US" hidden>site: {{title}}</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">mode: {{directoryBadgeZh}}</span><span data-lang="en-US" hidden>mode: {{directoryBadgeEn}}</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">status: <span class="{{class:inline-code}}">{{statusCode}}</span></span><span data-lang="en-US" hidden>status: <span class="{{class:inline-code}}">{{statusCode}}</span></span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">note: {{archiveNoticeZh}}</span><span data-lang="en-US" hidden>note: {{archiveNoticeEn}}</span></p>
-                <p class="{{class:terminal-line}}"><span data-lang="zh-CN">restricted: {{deliveryNoticeZh}}</span><span data-lang="en-US" hidden>restricted: {{deliveryNoticeEn}}</span></p>
+        <section class="{{class:section-grid}}" id="implementation">
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场实施</span><span data-lang="en-US" hidden>On-site implementation</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">从设备到位、光学定位到通信联调，实施过程按线体节拍逐段验证。</span>
+                    <span data-lang="en-US" hidden>From equipment placement and optics alignment to communications integration, implementation is validated stage by stage against line takt.</span>
+                </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开壳层说明</span><span data-lang="en-US" hidden>Public shell note</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">培训验收</span><span data-lang="en-US" hidden>Training and acceptance</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">该模板只保留最基础的状态说明、更新时间和访问提示，结构更接近长期维护的中性公开页，而非资料中心或服务门户。</span>
-                    <span data-lang="en-US" hidden>This template keeps only the minimum status notes, timestamps, and access prompts so it behaves like a neutral maintained page rather than a resource center.</span>
+                    <span data-lang="zh-CN">覆盖操作、复判和维护岗位，确保现场班组能够独立完成切换、复核与基础维护。</span>
+                    <span data-lang="en-US" hidden>Operator, review, and maintenance teams are trained to handle changeovers, rechecks, and baseline upkeep independently.</span>
+                </p>
+            </article>
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">巡检备件</span><span data-lang="en-US" hidden>Inspection and spares</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">围绕镜头、光源、控制器与关键组件建立巡检清单和备件建议，降低停线风险。</span>
+                    <span data-lang="en-US" hidden>Inspection checklists and spare recommendations for optics, lighting, controllers, and key parts reduce line stoppage risk.</span>
                 </p>
             </article>
         </section>
 
-        <section class="{{class:section-grid}}">
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开范围</span><span data-lang="en-US" hidden>Public scope</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">页面不展示额外目录或外部入口，只保留基础对外可见信息。</span>
-                    <span data-lang="en-US" hidden>The page does not expose resource catalogs, service channels, downloads, or contact details.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">路径处理</span><span data-lang="en-US" hidden>Path handling</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">公开访问命中该模板时，只给出统一说明；受限资源需使用分配好的真实入口访问。</span>
-                    <span data-lang="en-US" hidden>When public traffic lands here, the page returns a single neutral explanation. Restricted resources require the assigned real entry.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">维护节奏</span><span data-lang="en-US" hidden>Maintenance cadence</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">公开内容按固定节奏复核，并保留更新时间戳作为最小维护痕迹。</span>
-                    <span data-lang="en-US" hidden>Public-facing content is reviewed on a fixed cadence with timestamps retained as the minimum maintenance marker.</span>
-                </p>
-            </article>
+        <section class="{{class:status-strip}}" id="support">
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">实施范围</span><span data-lang="en-US" hidden>Scope</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">设备上架 / 参数整定 / 联调验证</span><span data-lang="en-US" hidden>Installation / tuning / integration validation</span></div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">支持方式</span><span data-lang="en-US" hidden>Support mode</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">远程诊断 / 现场巡检 / 复判协助</span><span data-lang="en-US" hidden>Remote diagnostics / on-site visits / review assistance</span></div>
+            </div>
+            <div class="{{class:status-item}}">
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">当前批次</span><span data-lang="en-US" hidden>Current batch</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{seasonLabelZh}}</span><span data-lang="en-US" hidden>{{seasonLabelEn}}</span></div>
+            </div>
         </section>
 
         <footer class="{{class:footer}}">
             <div class="{{class:footer-note}}">
-                <span data-lang="zh-CN">{{title}} · 最近整理 {{generatedDateZh}}</span>
-                <span data-lang="en-US" hidden>{{title}} · last refreshed {{generatedDateEn}}</span>
+                <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
+                <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
             </div>
         </footer>
     </main>

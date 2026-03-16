@@ -158,12 +158,7 @@ export default function Tools() {
             <div className="page-content page-enter">
                 <PageToolbar
                     className="card rounded-xl mb-6 tools-toolbar"
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">{copy.toolbarTitle}</div>
-                            <div className="page-toolbar-subtitle">{copy.toolbarSubtitle}</div>
-                        </div>
-                    )}
+                    compact
                     actions={(
                         <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchCatalog} disabled={catalogLoading}>
                             <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}

@@ -157,6 +157,7 @@ describe('UserDetail', () => {
         expect(within(timelineRow).getByText('中国 浙江 杭州')).toBeInTheDocument();
         expect(within(timelineRow).getByText('运营商')).toBeInTheDocument();
         expect(within(timelineRow).getByText('中国电信')).toBeInTheDocument();
+        expect(within(timelineRow).getAllByText(/token-1/i)).toHaveLength(1);
     });
 
     it('renders audit events with structured facts and hides masked audit values', async () => {

@@ -460,6 +460,10 @@ export default function SystemSettings() {
         if (typeof window === 'undefined') return '/';
         return `${window.location.origin}/`;
     }, []);
+    const hasPendingChanges = useMemo(() => {
+        if (!settings) return false;
+        return JSON.stringify(draft) !== JSON.stringify(buildDraft(settings));
+    }, [draft, settings]);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -709,18 +713,6 @@ export default function SystemSettings() {
             nextParams.set('tab', resolvedTab);
         }
         setSearchParams(nextParams, { replace: true });
-    };
-
-    const refreshAllSections = async () => {
-        await Promise.all([
-            fetchSettings(),
-            fetchDbStatus({ quiet: true }),
-            fetchEmailStatus({ quiet: true }),
-            fetchBackupStatus({ quiet: true }),
-            fetchMonitorStatus({ quiet: true }),
-            fetchRegistrationRuntime(),
-            fetchInviteCodes({ quiet: true }),
-        ]);
     };
 
     const patchField = (section, key, value) => {
@@ -2749,24 +2741,23 @@ export default function SystemSettings() {
                     <div className="card settings-nav">
                         <div className="settings-nav-status-panel" aria-live="polite">
                             <div className="settings-nav-status-main">
-                                <div className={`settings-nav-status-chip${saving ? ' is-saving' : settings ? ' is-ready' : ' is-loading'}`}>
+                                <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
                                     {saving ? <span className="spinner spinner-16" /> : null}
-                                    <span>{saving ? '正在保存设置' : settings ? '配置已加载' : '正在加载配置'}</span>
+                                    <span>
+                                        {saving
+                                            ? '正在保存设置'
+                                            : loading
+                                                ? '正在加载配置'
+                                                : hasPendingChanges
+                                                    ? '有未保存更改'
+                                                    : '配置已加载'}
+                                    </span>
                                 </div>
-                            </div>
-                            <div className="settings-basic-note-list">
-                                <span className="badge badge-neutral">对外访问</span>
-                                <span className="badge badge-neutral">安全审计</span>
-                                <span className="badge badge-neutral">运维通知</span>
-                                <span className="badge badge-neutral">数据备份</span>
                                 {requestedView === 'console' ? <span className="badge badge-success">已从旧控制台入口进入</span> : null}
                             </div>
                             <div className="settings-nav-actions settings-panel-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={refreshAllSections} disabled={loading}>
-                                    重新加载
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving}>
-                                    {saving ? <span className="spinner" /> : '保存配置'}
+                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
+                                    {saving ? <span className="spinner" /> : '保存设置'}
                                 </button>
                             </div>
                         </div>
@@ -2775,30 +2766,22 @@ export default function SystemSettings() {
                     <div className="settings-main">
                         {renderStatusContent()}
                         <SettingsWorkspaceSection
-                            eyebrow="Access"
                             title="对外访问"
-                            subtitle="入口、订阅域名、注册模式和邀请码统一集中处理。"
                         >
                             {renderAccessContent()}
                         </SettingsWorkspaceSection>
                         <SettingsWorkspaceSection
-                            eyebrow="Security"
                             title="安全审计"
-                            subtitle="批量风控、审计保留和 IP 归属地 / 运营商配置。"
                         >
                             {renderPolicyContent()}
                         </SettingsWorkspaceSection>
                         <SettingsWorkspaceSection
-                            eyebrow="Operations"
                             title="运维通知"
-                            subtitle="SMTP、节点巡检、Telegram 和节点控制台。"
                         >
                             {renderOperationsWorkspace()}
                         </SettingsWorkspaceSection>
                         <SettingsWorkspaceSection
-                            eyebrow="Storage"
                             title="数据备份"
-                            subtitle="数据库模式、加密备份和恢复统一放在一处。"
                         >
                             {renderDatabaseContent()}
                             {renderBackupContent()}

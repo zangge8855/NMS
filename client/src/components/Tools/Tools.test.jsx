@@ -78,7 +78,7 @@ describe('Tools', () => {
         const user = userEvent.setup();
         renderWithRouter(<Tools />);
 
-        expect(await screen.findByText('节点工具集')).toBeInTheDocument();
+        expect(await screen.findByText('可执行 1 / 1')).toBeInTheDocument();
         expect(screen.getByText('诊断工具')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /生成/ }));

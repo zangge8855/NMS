@@ -43,7 +43,7 @@ describe('Capabilities', () => {
         expect(api.get).not.toHaveBeenCalled();
     });
 
-    it('loads capability data for a concrete node and shows the shared toolbar copy', async () => {
+    it('loads capability data for a concrete node and shows the compact toolbar summary', async () => {
         useServer.mockReturnValue({
             activeServerId: 'server-a',
         });
@@ -86,7 +86,7 @@ describe('Capabilities', () => {
 
         renderWithRouter(<Capabilities />);
 
-        expect(await screen.findByText('节点能力矩阵')).toBeInTheDocument();
+        expect(await screen.findByText('协议 1 · 工具 1')).toBeInTheDocument();
         expect(screen.getByText('证书检查')).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
     });

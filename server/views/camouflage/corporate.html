@@ -395,11 +395,6 @@
                     </div>
                 </div>
             </div>
-            <div class="{{class:nav-links}}">
-                <a class="{{class:nav-link}}" href="#overview"><span data-lang="zh-CN">概览</span><span data-lang="en-US" hidden>Overview</span></a>
-                <a class="{{class:nav-link}}" href="#status"><span data-lang="zh-CN">状态</span><span data-lang="en-US" hidden>Status</span></a>
-                <a class="{{class:nav-link}}" href="#updates"><span data-lang="zh-CN">更新</span><span data-lang="en-US" hidden>Updates</span></a>
-            </div>
             <div style="display:flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
                 <span class="{{class:nav-chip}}">
                     <span data-lang="zh-CN">{{statusLabelZh}}</span>
@@ -412,7 +407,7 @@
             </div>
         </nav>
 
-        <section class="{{class:hero}}" id="overview">
+        <section class="{{class:hero}}">
             <section class="{{class:hero-panel}}">
                 <div class="{{class:hero-copy}}">
                     <div>
@@ -421,17 +416,17 @@
                             <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                         </span>
                         <h1 class="{{class:headline}}">
-                            <span data-lang="zh-CN">{{title}} 保留中性的公开外壳，仅展示基础访问说明与状态信息。</span>
-                            <span data-lang="en-US" hidden>{{title}} keeps a neutral public shell with only basic access notes and status markers.</span>
+                            <span data-lang="zh-CN">{{title}}</span>
+                            <span data-lang="en-US" hidden>{{title}}</span>
                         </h1>
                         <p class="{{class:lead}}">
-                            <span data-lang="zh-CN">当前页面作为长期维护的公开站点壳层，对外只显示基础更新、访问提示与公开状态，不提供额外公开目录或外部入口。</span>
-                            <span data-lang="en-US" hidden>This page is maintained as a long-lived public shell. It exposes only basic updates, access notes, and public status without business materials, contact entry points, or download catalogs.</span>
+                            <span data-lang="zh-CN">高精度视觉检测与自动化单元，面向电子制造、新能源和精密装配产线。</span>
+                            <span data-lang="en-US" hidden>High-precision inspection and automation units for electronics, battery manufacturing, and precision assembly lines.</span>
                         </p>
-                    </div>
-                    <div class="{{class:button-row}}">
-                        <a class="{{class:button}}" href="#status"><span data-lang="zh-CN">查看状态</span><span data-lang="en-US" hidden>View status</span></a>
-                        <a class="{{class:button}} {{class:button-muted}}" href="#updates"><span data-lang="zh-CN">查看说明</span><span data-lang="en-US" hidden>Read notes</span></a>
+                        <div class="{{class:button-row}}">
+                            <a class="{{class:button}}" href="#products"><span data-lang="zh-CN">产品矩阵</span><span data-lang="en-US" hidden>Product line</span></a>
+                            <a class="{{class:button}} {{class:button-muted}}" href="#delivery"><span data-lang="zh-CN">交付流程</span><span data-lang="en-US" hidden>Delivery</span></a>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -441,75 +436,95 @@
                     <div class="{{class:image-frame}}">
                         <img class="{{class:hero-image}}" src="{{asset:inspectionImage}}" alt="" />
                     </div>
-                    <div class="{{class:notice}}">
-                        <span data-lang="zh-CN">{{accessNoteZh}}</span>
-                        <span data-lang="en-US" hidden>{{accessNoteEn}}</span>
-                    </div>
                     <div class="{{class:meta-grid}}">
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">公开模式</span><span data-lang="en-US" hidden>Public mode</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{directoryBadgeZh}}</span><span data-lang="en-US" hidden>{{directoryBadgeEn}}</span></div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">核心平台</span><span data-lang="en-US" hidden>Platform</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">视觉检测 / 边缘分析</span><span data-lang="en-US" hidden>Vision inspection / Edge analytics</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">响应状态</span><span data-lang="en-US" hidden>Status code</span></span>
-                            <div class="{{class:meta-value}}">{{statusCode}}</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">节拍范围</span><span data-lang="en-US" hidden>Cycle time</span></span>
+                            <div class="{{class:meta-value}}">0.3s - 2.0s</div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近整理</span><span data-lang="en-US" hidden>Last refresh</span></span>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Updated</span></span>
                             <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">站点标题</span><span data-lang="en-US" hidden>Site title</span></span>
-                            <div class="{{class:meta-value}}">{{title}}</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料版本</span><span data-lang="en-US" hidden>Revision</span></span>
+                            <div class="{{class:meta-value}}">{{editionCode}}</div>
                         </div>
                     </div>
                 </div>
             </aside>
         </section>
 
-        <section class="{{class:status-strip}}" id="status">
+        <section class="{{class:status-strip}}">
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">访问说明</span><span data-lang="en-US" hidden>Access note</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{accessNoteZh}}</span><span data-lang="en-US" hidden>{{accessNoteEn}}</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">行业覆盖</span><span data-lang="en-US" hidden>Sectors</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">电子装联 / 电芯封装 / 精密装配</span><span data-lang="en-US" hidden>Electronics / cell packaging / precision assembly</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">更新节奏</span><span data-lang="en-US" hidden>Update rhythm</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{archiveNoticeZh}}</span><span data-lang="en-US" hidden>{{archiveNoticeEn}}</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">部署方式</span><span data-lang="en-US" hidden>Deployment</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">在线检测 / 旁路复核 / 工艺回溯</span><span data-lang="en-US" hidden>Inline inspection / side review / process traceability</span></div>
             </div>
             <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">受限资源</span><span data-lang="en-US" hidden>Restricted access</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{deliveryNoticeZh}}</span><span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span></div>
+                <span class="{{class:status-label}}"><span data-lang="zh-CN">当前批次</span><span data-lang="en-US" hidden>Current batch</span></span>
+                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{seasonLabelZh}}</span><span data-lang="en-US" hidden>{{seasonLabelEn}}</span></div>
             </div>
         </section>
 
-        <section class="{{class:section-grid}}" id="updates">
+        <section class="{{class:section-grid}}" id="products">
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">公开范围</span><span data-lang="en-US" hidden>Public scope</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">在线检测单元</span><span data-lang="en-US" hidden>Inline inspection cell</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">首页仅保留公开站点所需的基础壳层、访问提示和更新时间，避免暴露过多外部导向信息。</span>
-                    <span data-lang="en-US" hidden>The homepage keeps only the shell, access notes, and update timestamps required for a public-facing site.</span>
+                    <span data-lang="zh-CN">集成相机、光源、治具与边缘推理模块，在产线节拍内完成判定与结果输出。</span>
+                    <span data-lang="en-US" hidden>Cameras, lighting, fixtures, and edge inference modules are combined to complete inspection within production takt time.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">路径说明</span><span data-lang="en-US" hidden>Path note</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">边缘分析工作站</span><span data-lang="en-US" hidden>Edge analytics station</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">未分配的公开路径统一落在该页面，受限资源需要通过独立入口访问，不在公开页直接给出细节。</span>
-                    <span data-lang="en-US" hidden>Unassigned public paths land here. Restricted resources require a dedicated entry and are not described in detail on this page.</span>
+                    <span data-lang="zh-CN">统一归档缺陷图像、批次参数与复核记录，支持快速回溯和工艺比对。</span>
+                    <span data-lang="en-US" hidden>Defect imagery, batch parameters, and review records are archived together for fast trace-back and process comparison.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">维护节奏</span><span data-lang="en-US" hidden>Maintenance cadence</span></h2>
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">自动化协同接口</span><span data-lang="en-US" hidden>Automation interface</span></h2>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">页面内容按固定节奏复核，重点保留状态、时间戳与访问提示，避免形成营销式公开目录。</span>
-                    <span data-lang="en-US" hidden>Content is reviewed on a fixed cadence with emphasis on status, timestamps, and access notes rather than a marketing-style public directory.</span>
+                    <span data-lang="zh-CN">联动 PLC、MES 与机械手，实现剔除、复判、节拍同步与异常留痕。</span>
+                    <span data-lang="en-US" hidden>Links with PLC, MES, and robotics for reject handling, rechecks, takt synchronization, and exception logging.</span>
+                </p>
+            </article>
+        </section>
+
+        <section class="{{class:section-grid}}" id="delivery">
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场评估</span><span data-lang="en-US" hidden>Site assessment</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">围绕节拍、来料差异、光学条件和治具空间完成快速勘查与方案收敛。</span>
+                    <span data-lang="en-US" hidden>Cycle time, incoming variation, optics, and fixture space are evaluated to converge on a workable deployment plan.</span>
+                </p>
+            </article>
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">联调实施</span><span data-lang="en-US" hidden>Commissioning</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">完成设备上架、工艺参数整定、通信联调和生产节拍验证。</span>
+                    <span data-lang="en-US" hidden>Deployment includes installation, parameter tuning, communications integration, and production takt validation.</span>
+                </p>
+            </article>
+            <article class="{{class:section-card}}">
+                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">培训巡检</span><span data-lang="en-US" hidden>Training and inspection</span></h2>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">针对操作、复判和维护岗位提供培训，并按周期执行远程或现场巡检。</span>
+                    <span data-lang="en-US" hidden>Operator, review, and maintenance teams receive training with scheduled remote or on-site inspection support.</span>
                 </p>
             </article>
         </section>
 
         <footer class="{{class:footer}}">
             <div class="{{class:footer-note}}">
-                <span data-lang="zh-CN">{{title}} · 最近整理 {{generatedDateZh}}</span>
-                <span data-lang="en-US" hidden>{{title}} · last refreshed {{generatedDateEn}}</span>
+                <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
+                <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
             </div>
         </footer>
     </main>

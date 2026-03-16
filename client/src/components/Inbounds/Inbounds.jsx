@@ -1020,7 +1020,6 @@ export default function Inbounds() {
             <>
                 <Header
                     title={t('pages.inbounds.title')}
-                    subtitle={t('pages.inbounds.subtitle')}
                     eyebrow={t('pages.inbounds.eyebrow')}
                 />
                 <div className="page-content page-content--wide page-enter">
@@ -1039,7 +1038,6 @@ export default function Inbounds() {
         <>
             <Header
                 title={t('pages.inbounds.title')}
-                subtitle={t('pages.inbounds.subtitle')}
                 eyebrow={t('pages.inbounds.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter">
@@ -1056,10 +1054,7 @@ export default function Inbounds() {
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
-                        <div className="inbounds-toolbar-copy">
-                            <h2 className="text-glow text-lg font-semibold">入站列表</h2>
-                            <p className="text-muted mt-1" style={{ fontSize: '12px' }}>共 {filteredInbounds.length} 条规则</p>
-                        </div>
+                        <span className="text-sm text-muted inbounds-toolbar-summary">共 {filteredInbounds.length} 条规则</span>
                     </div>
                     <div className="inbounds-toolbar-actions">
                         {selectedVisibleCount > 0 ? (

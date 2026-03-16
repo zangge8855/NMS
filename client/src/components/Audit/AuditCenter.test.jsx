@@ -106,8 +106,17 @@ describe('AuditCenter localization', () => {
                                         email: 'alice@example.com',
                                     },
                                 },
+                                {
+                                    id: 'event-4',
+                                    ts: '2026-03-13T10:30:00.000Z',
+                                    eventType: 'system_backup_deleted_local',
+                                    outcome: 'success',
+                                    actor: 'review-admin',
+                                    serverId: 'server-a',
+                                    details: {},
+                                },
                             ],
-                            total: 3,
+                            total: 4,
                             page: 1,
                             totalPages: 1,
                         },
@@ -122,6 +131,7 @@ describe('AuditCenter localization', () => {
         expect(await screen.findByText('登录成功')).toBeInTheDocument();
         expect(screen.getByText('开通订阅')).toBeInTheDocument();
         expect(screen.getByText('启用用户')).toBeInTheDocument();
+        expect(screen.getByText('删除本机备份')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '成功' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '失败' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '信息' })).toBeInTheDocument();
@@ -132,6 +142,7 @@ describe('AuditCenter localization', () => {
         expect(screen.queryByText('success')).not.toBeInTheDocument();
         expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
         expect(screen.queryByText('user_enabled')).not.toBeInTheDocument();
+        expect(screen.queryByText('system_backup_deleted_local')).not.toBeInTheDocument();
     });
 
     it('renders localized subscription access statuses in the subscriptions tab', async () => {

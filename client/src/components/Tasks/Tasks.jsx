@@ -236,12 +236,7 @@ export default function Tasks({ embedded = false }) {
             <div className={shellClassName}>
                 <PageToolbar
                     className={headClassName}
-                    main={(
-                        <div className="page-toolbar-copy tasks-page-copy">
-                            <div className="page-toolbar-title">{embedded ? copy.embeddedTitle : copy.pageTitle}</div>
-                            <div className="page-toolbar-subtitle">{embedded ? copy.embeddedSubtitle : copy.pageSubtitle}</div>
-                        </div>
-                    )}
+                    compact
                     actions={(
                         <div className="tasks-page-actions">
                             <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
@@ -252,6 +247,7 @@ export default function Tasks({ embedded = false }) {
                             </button>
                         </div>
                     )}
+                    meta={<span>{copy.total.replace('{count}', String(filteredTasks.length))}</span>}
                 />
 
                 <div className={filterCardClassName}>

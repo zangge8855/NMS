@@ -377,7 +377,6 @@ export default function ServerDetail() {
             <>
                 <Header
                     title={t('pages.serverDetail.title')}
-                    subtitle={t('pages.serverDetail.subtitle')}
                     eyebrow={t('pages.serverDetail.eyebrow')}
                 />
                 <div className="page-content page-enter">
@@ -394,7 +393,6 @@ export default function ServerDetail() {
             <>
                 <Header
                     title={t('pages.serverDetail.title')}
-                    subtitle={t('pages.serverDetail.subtitle')}
                     eyebrow={t('pages.serverDetail.eyebrow')}
                 />
                 <div className="page-content page-enter">
@@ -426,7 +424,6 @@ export default function ServerDetail() {
         <>
             <Header
                 title={t('pages.serverDetail.titleWithName', { name: server.name })}
-                subtitle={t('pages.serverDetail.subtitle')}
                 eyebrow={t('pages.serverDetail.eyebrow')}
                 allowTitleWrap
             />

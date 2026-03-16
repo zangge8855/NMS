@@ -767,7 +767,6 @@ export default function Servers() {
         <>
             <Header
                 title={t('pages.servers.title')}
-                subtitle={t('pages.servers.subtitle')}
                 eyebrow={t('pages.servers.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter">
@@ -861,14 +860,15 @@ export default function Servers() {
                         <table className="table servers-table">
                             <thead>
                                 <tr>
-                                    <th className="table-cell-center">选择</th>
-                                    <th className="table-cell-center">序号</th>
-                                    <th>服务器</th>
-                                    <th>分组 / 标签</th>
-                                    <th>账号</th>
-                                    <th>凭据</th>
-                                    <th>状态</th>
-                                    <th className="table-cell-actions">操作</th>
+                                    <th className="table-cell-center servers-select-column">选择</th>
+                                    <th className="table-cell-center servers-move-column">移动</th>
+                                    <th className="table-cell-center servers-order-column">序号</th>
+                                    <th className="servers-name-column">服务器</th>
+                                    <th className="servers-group-column">分组 / 标签</th>
+                                    <th className="servers-account-column">账号</th>
+                                    <th className="servers-credential-column">凭据</th>
+                                    <th className="servers-status-column">状态</th>
+                                    <th className="table-cell-actions servers-actions-column">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -910,31 +910,33 @@ export default function Servers() {
                                             onChange={() => toggleSelect(server.id)}
                                         />
                                     </td>
+                                    <td className="table-cell-center servers-move-cell" data-label="移动" onClick={(e) => e.stopPropagation()}>
+                                        <div className="servers-order-actions">
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs btn-icon"
+                                                aria-label={`上移服务器 ${server.name}`}
+                                                title="上移"
+                                                disabled={index === 0 || loading.serverOrder}
+                                                onClick={() => moveServer(server.id, -1)}
+                                            >
+                                                <HiOutlineArrowUp />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs btn-icon"
+                                                aria-label={`下移服务器 ${server.name}`}
+                                                title="下移"
+                                                disabled={index === filteredServers.length - 1 || loading.serverOrder}
+                                                onClick={() => moveServer(server.id, 1)}
+                                            >
+                                                <HiOutlineArrowDown />
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td className="table-cell-center servers-order-cell" data-label="序号" onClick={(e) => e.stopPropagation()}>
                                         <div className="servers-order-stack">
                                             <span className="servers-order-number">{index + 1}</span>
-                                            <div className="servers-order-actions">
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-xs btn-icon"
-                                                    aria-label={`上移服务器 ${server.name}`}
-                                                    title="上移"
-                                                    disabled={index === 0 || loading.serverOrder}
-                                                    onClick={() => moveServer(server.id, -1)}
-                                                >
-                                                    <HiOutlineArrowUp />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-xs btn-icon"
-                                                    aria-label={`下移服务器 ${server.name}`}
-                                                    title="下移"
-                                                    disabled={index === filteredServers.length - 1 || loading.serverOrder}
-                                                    onClick={() => moveServer(server.id, 1)}
-                                                >
-                                                    <HiOutlineArrowDown />
-                                                </button>
-                                            </div>
                                         </div>
                                     </td>
                                     <td className="servers-name-cell" data-label="服务器">
@@ -995,7 +997,7 @@ export default function Servers() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="table-cell-actions" data-label="操作" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-actions servers-actions-cell" data-label="操作" onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
                                             <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
                                             <HiOutlineEye /> 详情

@@ -245,12 +245,14 @@ describe('client build helpers', () => {
         assert.match(html, /Edge Precision Systems/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /工业检测设备与自动化解决方案/);
-        assert.match(html, /官方网站/);
+        assert.match(html, /智能视觉设备/);
+        assert.match(html, /产品矩阵/);
+        assert.match(html, /在线检测单元/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /项目化实施/);
-        assert.match(html, /区域技术网络/);
+        assert.match(html, /最近更新/);
         assert.match(html, /site_lang_pref/);
+        assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
+        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);
         assert.doesNotMatch(html, /目录状态 200/);
         assert.doesNotMatch(html, /nms_camouflage_lang/i);
         assert.doesNotMatch(html, /pexels\.com/i);

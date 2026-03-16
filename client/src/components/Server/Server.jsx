@@ -353,14 +353,7 @@ export default function ServerManagement({ embedded = false }) {
             <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter'}>
                 <PageToolbar
                     className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
-                    main={(
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-title">{isGlobalView ? '集群批量控制' : (activeServerMeta?.name || '节点控制台')}</div>
-                            <div className="page-toolbar-subtitle">
-                                {isGlobalView ? '对所有已接入节点执行统一控制动作。' : '执行 Xray、Geo 文件、数据库和节点工具相关操作。'}
-                            </div>
-                        </div>
-                    )}
+                    compact
                     actions={(
                         <>
                             <div className="server-console-scope-card" aria-live="polite">
@@ -379,6 +372,7 @@ export default function ServerManagement({ embedded = false }) {
                             )}
                         </>
                     )}
+                    meta={<span>{isGlobalView ? '批量控制模式' : '单节点控制模式'}</span>}
                 />
                 {lastRun && (
                     <div className="card mb-6">

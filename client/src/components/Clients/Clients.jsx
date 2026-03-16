@@ -648,11 +648,7 @@ export default function Clients() {
                                 <HiOutlineTrash /> 删除
                             </button>
                         </div>
-                    ) : (
-                        <div className="page-toolbar-copy">
-                            <div className="page-toolbar-subtitle">支持跨节点添加用户、冲突扫描和订阅链接查看。</div>
-                        </div>
-                    )}
+                    ) : null}
                     actions={(
                         <>
                             <button className="btn btn-primary btn-sm" onClick={handleOpenAddAllNodes} title="添加到全部节点">
