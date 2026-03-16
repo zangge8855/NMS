@@ -19,6 +19,7 @@ function buildSessionUser(user, fallback = {}) {
         role: String(user?.role || fallback.role || 'user').trim(),
         email: user?.email || '',
         subscriptionEmail: resolveUserSubscriptionEmail(user),
+        emailVerified: user?.emailVerified === true,
     };
 }
 
@@ -132,6 +133,20 @@ function validateSession(authHeader, deps = {}) {
     }
 }
 
+function resolveCurrentUserRecord(currentUser = {}, deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const userId = String(currentUser?.userId || '').trim();
+    if (userId) {
+        return userRepo.getById(userId);
+    }
+
+    const username = String(currentUser?.username || '').trim();
+    if (username) {
+        return userRepo.getByUsername(username);
+    }
+    return null;
+}
+
 function changeOwnPassword(payload = {}, currentUser = {}, deps = {}) {
     const oldPassword = String(payload?.oldPassword || '');
     const newPassword = String(payload?.newPassword || '');
@@ -144,15 +159,10 @@ function changeOwnPassword(payload = {}, currentUser = {}, deps = {}) {
         throw createHttpError(400, passwordCheck.reason);
     }
 
-    const userId = currentUser?.userId;
-    if (!userId) {
-        throw createHttpError(400, '无法识别当前用户');
-    }
-
     const userRepo = deps.userRepository || userRepository;
-    const user = userRepo.getById(userId);
+    const user = resolveCurrentUserRecord(currentUser, deps);
     if (!user) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(400, '无法识别当前用户');
     }
 
     const verified = userRepo.authenticate(user.username, oldPassword);
@@ -160,10 +170,40 @@ function changeOwnPassword(payload = {}, currentUser = {}, deps = {}) {
         throw createHttpError(401, '旧密码错误');
     }
 
-    userRepo.update(userId, { password: newPassword });
+    userRepo.update(user.id, { password: newPassword });
     return {
         user,
     };
 }
 
-export { createLoginSession, validateSession, changeOwnPassword };
+function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const user = resolveCurrentUserRecord(currentUser, deps);
+    if (!user) {
+        throw createHttpError(400, '无法识别当前用户');
+    }
+
+    const email = normalizeEmailInput(payload?.email);
+    if (!email) {
+        throw createHttpError(400, '请提供邮箱');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw createHttpError(400, '邮箱格式不正确');
+    }
+
+    const previousEmail = normalizeEmailInput(user.email);
+    const previousSubscriptionEmail = normalizeEmailInput(user.subscriptionEmail);
+    const updated = userRepo.update(user.id, { email });
+    if (!updated) {
+        throw createHttpError(404, '用户不存在');
+    }
+
+    return {
+        user: updated,
+        previousEmail,
+        previousSubscriptionEmail,
+        subscriptionEmailSynced: false,
+    };
+}
+
+export { createLoginSession, validateSession, changeOwnPassword, updateOwnProfile };

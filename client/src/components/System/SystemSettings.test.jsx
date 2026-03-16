@@ -258,14 +258,11 @@ describe('SystemSettings', () => {
         expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '随机路径' })).toBeInTheDocument();
         expect(screen.getByText('站点伪装首页')).toBeInTheDocument();
-        expect(screen.getByText('公开首页预览')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('Northline Relay')).toBeInTheDocument();
-        expect(screen.getAllByText('模板 nginx').length).toBeGreaterThan(0);
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
         expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
         expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
     });
 
     it('shows a dedicated status tab while keeping the default access workspace focused', async () => {
@@ -337,8 +334,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
-        expect(screen.getByText('Telegram 可用命令')).toBeInTheDocument();
-        expect(screen.getByText('/monitor')).toBeInTheDocument();
+        expect(screen.getByText('菜单待同步')).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');
         expect(chatIdInput).toHaveAttribute('readonly');
@@ -347,7 +343,7 @@ describe('SystemSettings', () => {
         expect(chatIdInput).not.toHaveAttribute('readonly');
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
-        expect(screen.getAllByText('********7890').length).toBeGreaterThan(0);
+        expect(screen.getByText(/目标 \*{8}7890/)).toBeInTheDocument();
     });
 
     it('shows a compact backup summary card in the backup tab', async () => {
@@ -358,7 +354,7 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=backup' });
 
-        expect(await screen.findByText('加密备份工作台')).toBeInTheDocument();
+        expect(await screen.findByText('备份与恢复')).toBeInTheDocument();
         expect(screen.getByText('备份摘要')).toBeInTheDocument();
         expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
     });

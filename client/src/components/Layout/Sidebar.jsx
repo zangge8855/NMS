@@ -11,6 +11,8 @@ import {
     HiOutlineArrowRightOnRectangle,
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
+    HiOutlineShieldCheck,
+    HiOutlineUserCircle,
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
@@ -47,11 +49,9 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
+    const AccountIdentityIcon = isAdmin ? HiOutlineShieldCheck : HiOutlineUserCircle;
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
-    const footerTitle = visibleFooterItems.length > 0
-        ? (isAdmin ? t('nav.system') : t('nav.account'))
-        : '';
 
     navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
 
@@ -305,10 +305,17 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         </div>
                     );
                 })}
-            </nav>
-            <div className="sidebar-footer-nav">
-                <div className="nav-section nav-section-footer">
-                    {footerTitle && <div className="nav-section-title">{footerTitle}</div>}
+                <div className="nav-section nav-section-utility">
+                    {user?.username ? (
+                        <div className="sidebar-account-chip" title={user.username}>
+                            <span className="sidebar-account-chip-icon" aria-hidden="true">
+                                <AccountIdentityIcon />
+                            </span>
+                            <span className="sidebar-account-chip-copy">
+                                <span className="sidebar-account-chip-name">{user.username}</span>
+                            </span>
+                        </div>
+                    ) : null}
                     {visibleFooterItems.map((item) => (
                         <NavLink
                             key={item.path}
@@ -343,7 +350,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         <span className="nav-label">{t('shell.logout')}</span>
                     </button>
                 </div>
-            </div>
+            </nav>
             {isAdmin && (
                 <div className="server-selector" ref={serverSelectorRef}>
                 {activeServerId === 'global' ? (

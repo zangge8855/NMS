@@ -16,6 +16,7 @@ const Inbounds = lazy(() => import('./components/Inbounds/Inbounds.jsx'));
 const UsersHub = lazy(() => import('./components/Users/UsersHub.jsx'));
 const UserDetail = lazy(() => import('./components/Users/UserDetail.jsx'));
 const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions.jsx'));
+const AccountCenter = lazy(() => import('./components/Account/AccountCenter.jsx'));
 const Logs = lazy(() => import('./components/Logs/Logs.jsx'));
 const Tools = lazy(() => import('./components/Tools/Tools.jsx'));
 const Servers = lazy(() => import('./components/Servers/Servers.jsx'));
@@ -95,6 +96,7 @@ function ProtectedLayout() {
                         <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
                         <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
                         <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
@@ -104,7 +106,7 @@ function ProtectedLayout() {
                         <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
                         <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
                     </Routes>

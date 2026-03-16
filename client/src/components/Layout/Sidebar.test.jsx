@@ -74,10 +74,19 @@ describe('Sidebar', () => {
         expect(container.querySelector('.sidebar-user')).toBeNull();
     });
 
-    it('renders logout in the fixed footer area instead of the scrollable nav list', () => {
+    it('renders logout in the utility section inside the main nav', () => {
         const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
 
-        expect(container.querySelector('.sidebar-footer-nav .sidebar-logout')).not.toBeNull();
-        expect(container.querySelector('.sidebar-nav .sidebar-logout')).toBeNull();
+        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-account-chip')).not.toBeNull();
+        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-logout')).not.toBeNull();
+        expect(container.querySelector('.sidebar-footer-nav .sidebar-logout')).toBeNull();
+    });
+
+    it('groups dashboard under manage instead of rendering a separate monitor section', () => {
+        renderWithRouter(<Sidebar collapsed={false} open={false} onClose={vi.fn()} onToggle={vi.fn()} />, { route: '/' });
+
+        expect(screen.getByText('管理')).toBeInTheDocument();
+        expect(screen.queryByText('监控')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /仪表盘/i })).toBeInTheDocument();
     });
 });

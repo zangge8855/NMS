@@ -138,6 +138,13 @@ export function AuthProvider({ children }) {
         setUser(null);
     };
 
+    const patchUser = useCallback((nextUser) => {
+        setUser((current) => ({
+            ...(current || {}),
+            ...(nextUser || {}),
+        }));
+    }, []);
+
     return (
         <AuthContext.Provider value={{
             isAuthenticated, loading,
@@ -146,6 +153,8 @@ export function AuthProvider({ children }) {
             requestPasswordReset, resetPassword,
             user,
             token,
+            refreshAuth: checkAuth,
+            patchUser,
         }}>
             {children}
         </AuthContext.Provider>

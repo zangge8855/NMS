@@ -31,6 +31,11 @@ const DEFAULT_QUERY_COMMANDS = [
 const DEFAULT_OPERATION_COMMANDS = [
     { command: '/monitor', description: '立即执行节点巡检' },
 ];
+const DEFAULT_SHORTCUT_ROWS = [
+    ['/status', '/security', '/alerts'],
+    ['/online', '/traffic', '/nodes'],
+    ['/access', '/expiry', '/monitor'],
+];
 
 function normalizeStringArray(input = []) {
     return Array.from(new Set(
@@ -178,39 +183,112 @@ function formatExpiryDateTime(value) {
     return formatDateTime(timestamp);
 }
 
+function escapeTelegramCommand(command = '') {
+    return escapeTelegramHtml(String(command || '').trim().replace(/^\//, ''));
+}
+
+function formatHtmlValue(value) {
+    return `<b>${escapeTelegramHtml(value)}</b>`;
+}
+
+function formatHtmlKeyValueRow(label, value) {
+    const normalizedValue = String(value ?? '').trim();
+    if (!label || !normalizedValue) return '';
+    return `${escapeTelegramHtml(label)}: ${formatHtmlValue(normalizedValue)}`;
+}
+
+function formatStageLabel(stage = '') {
+    const normalized = String(stage || '').trim().toLowerCase();
+    if (normalized === 'expired') return '已到期';
+    if (normalized === '1d') return '1 天内到期';
+    if (normalized === '3d') return '3 天内到期';
+    if (normalized === '7d') return '7 天内到期';
+    return normalized;
+}
+
+function formatHtmlDetailBlock(title, rows = [], { rawRows = false } = {}) {
+    const normalizedRows = rows.filter(Boolean);
+    const body = normalizedRows
+        .map((row) => `  ${rawRows ? row : escapeTelegramHtml(row)}`)
+        .join('\n');
+    return `<b>${escapeTelegramHtml(title)}</b>${body ? `\n${body}` : ''}`;
+}
+
+function formatCounterHtmlRows(counter, { limit = 5, suffix = ' 次' } = {}) {
+    return Array.from(counter.entries())
+        .sort((left, right) => {
+            if (right[1] !== left[1]) return right[1] - left[1];
+            return left[0].localeCompare(right[0], 'zh-CN');
+        })
+        .slice(0, limit)
+        .map(([label, count]) => `<b>${escapeTelegramHtml(label)}</b> · ${formatHtmlValue(`${count}${suffix}`)}`);
+}
+
+function buildCommandReplyMarkup() {
+    return {
+        keyboard: DEFAULT_SHORTCUT_ROWS.map((row) => row.map((command) => ({ text: command }))),
+        resize_keyboard: true,
+        is_persistent: true,
+        input_field_placeholder: '选择命令或输入 /help',
+    };
+}
+
+function buildTelegramCommandMenu(items = []) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const command = String(item?.command || '').trim().replace(/^\//, '');
+            const description = String(item?.description || '').trim();
+            if (!command || !description) return null;
+            return {
+                command,
+                description,
+            };
+        })
+        .filter(Boolean);
+}
+
 function formatNotificationMessage(notification = {}) {
     const meta = notification.meta || {};
     const locationCarrier = formatLocationCarrierText(meta.ipLocation, meta.ipCarrier);
     const detailText = stringifyDetails(meta.details);
     const blocks = [];
+    const expiryLabel = formatExpiryDateTime(meta.expiryTime);
+    const targetUser = String(meta.targetUsername || meta.targetEmail || '').trim();
+    const subscriptionEmail = String(meta.subscriptionEmail || '').trim();
+    const stageLabel = formatStageLabel(meta.stage || meta.label);
+    const userAgent = truncateLine(meta.userAgent || meta.ua || '', 200);
 
     appendHtmlSection(blocks, '概况', [
-        `级别: ${severityLabel(notification.severity)}`,
-        `标题: ${truncateLine(notification.title, 120) || '-'}`,
-        `类型: ${notification.type || 'system'}`,
-        `时间: ${formatDateTime(notification.createdAt || new Date().toISOString())}`,
-        notification.body ? `摘要: ${truncateLine(notification.body, 800)}` : '',
-    ]);
+        formatHtmlKeyValueRow('级别', severityLabel(notification.severity)),
+        formatHtmlKeyValueRow('标题', truncateLine(notification.title, 120) || '-'),
+        formatHtmlKeyValueRow('类型', notification.type || 'system'),
+        formatHtmlKeyValueRow('时间', formatDateTime(notification.createdAt || new Date().toISOString())),
+        notification.body ? `摘要: ${escapeTelegramHtml(truncateLine(notification.body, 800))}` : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '影响', [
-        meta.serverId ? `节点: ${meta.serverId}` : '',
-        meta.reasonCode ? `原因码: ${meta.reasonCode}` : '',
-        meta.event ? `事件编码: ${meta.event}` : '',
-        meta.targetUsername ? `目标账号: ${meta.targetUsername}` : '',
-        meta.targetEmail ? `目标用户: ${meta.targetEmail}` : '',
-        Number.isFinite(Number(meta.remainingDays)) && Number(meta.remainingDays) > 0 ? `剩余天数: ${Number(meta.remainingDays)} 天` : '',
-        formatExpiryDateTime(meta.expiryTime) ? `到期时间: ${formatExpiryDateTime(meta.expiryTime)}` : '',
-    ]);
+        meta.serverId ? formatHtmlKeyValueRow('节点', meta.serverId) : '',
+        meta.reasonCode ? formatHtmlKeyValueRow('原因码', meta.reasonCode) : '',
+        meta.event ? formatHtmlKeyValueRow('事件编码', meta.event) : '',
+        targetUser ? formatHtmlKeyValueRow('目标账号', targetUser) : '',
+        subscriptionEmail ? formatHtmlKeyValueRow('订阅邮箱', subscriptionEmail) : '',
+        stageLabel ? formatHtmlKeyValueRow('阶段', stageLabel) : '',
+        Number.isFinite(Number(meta.remainingDays)) && Number(meta.remainingDays) > 0
+            ? formatHtmlKeyValueRow('剩余时间', `${Number(meta.remainingDays)} 天`)
+            : '',
+        expiryLabel ? formatHtmlKeyValueRow('到期时间', expiryLabel) : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '来源', [
-        meta.ip ? `IP: ${meta.ip}` : '',
-        locationCarrier ? `归属地 / 运营商: ${locationCarrier}` : '',
-        meta.method || meta.path ? `请求: ${meta.method || '-'} ${meta.path || '-'}` : '',
-    ]);
+        meta.ip ? formatHtmlKeyValueRow('IP', meta.ip) : '',
+        locationCarrier ? formatHtmlKeyValueRow('归属地 / 运营商', locationCarrier) : '',
+        meta.method || meta.path ? formatHtmlKeyValueRow('请求', `${meta.method || '-'} ${meta.path || '-'}`) : '',
+        userAgent ? formatHtmlKeyValueRow('UA', userAgent) : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '补充', [
-        detailText ? `上下文: ${detailText}` : '',
-    ]);
+        detailText ? `上下文: <code>${escapeTelegramHtml(detailText)}</code>` : '',
+    ], { rawRows: true });
 
     return joinHtmlMessage('NMS 系统告警摘要', blocks);
 }
@@ -229,30 +307,34 @@ function formatAuditMessage(entry = {}, rule = {}) {
         || entry.details?.username
         || ''
     ).trim();
+    const userAgent = truncateLine(entry.userAgent || entry.details?.userAgent || '', 200);
+    const tokenId = String(entry.tokenId || entry.details?.tokenId || entry.details?.token || '').trim();
 
     appendHtmlSection(blocks, '概况', [
-        `级别: ${severityLabel(rule.severity || 'warning')}`,
-        `事件: ${rule.label || entry.eventType || entry.event || 'audit_event'}`,
-        `编码: ${entry.eventType || entry.event || 'audit_event'}`,
-        `时间: ${formatDateTime(entry.ts || new Date().toISOString())}`,
-        `结果: ${formatAuditOutcome(entry.outcome)}`,
-        `操作者: ${entry.actor || 'anonymous'}`,
-    ]);
+        formatHtmlKeyValueRow('级别', severityLabel(rule.severity || 'warning')),
+        formatHtmlKeyValueRow('事件', rule.label || entry.eventType || entry.event || 'audit_event'),
+        formatHtmlKeyValueRow('编码', entry.eventType || entry.event || 'audit_event'),
+        formatHtmlKeyValueRow('时间', formatDateTime(entry.ts || new Date().toISOString())),
+        formatHtmlKeyValueRow('结果', formatAuditOutcome(entry.outcome)),
+        formatHtmlKeyValueRow('操作者', entry.actor || 'anonymous'),
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '目标', [
-        entry.serverId ? `节点: ${entry.serverId}` : '',
-        targetUser ? `目标用户: ${targetUser}` : '',
-    ]);
+        entry.serverId ? formatHtmlKeyValueRow('节点', entry.serverId) : '',
+        targetUser ? formatHtmlKeyValueRow('目标用户', targetUser) : '',
+        tokenId ? formatHtmlKeyValueRow('Token', tokenId) : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '来源', [
-        entry.ip ? `IP: ${entry.ip}` : '',
-        locationCarrier ? `归属地 / 运营商: ${locationCarrier}` : '',
-        entry.method || entry.path ? `请求: ${entry.method || '-'} ${entry.path || '-'}` : '',
-    ]);
+        entry.ip ? formatHtmlKeyValueRow('IP', entry.ip) : '',
+        locationCarrier ? formatHtmlKeyValueRow('归属地 / 运营商', locationCarrier) : '',
+        entry.method || entry.path ? formatHtmlKeyValueRow('请求', `${entry.method || '-'} ${entry.path || '-'}`) : '',
+        userAgent ? formatHtmlKeyValueRow('UA', userAgent) : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '细节', [
-        detailText ? `上下文: ${detailText}` : '',
-    ]);
+        detailText ? `上下文: <code>${escapeTelegramHtml(detailText)}</code>` : '',
+    ], { rawRows: true });
 
     return joinHtmlMessage('NMS 安全审计摘要', blocks);
 }
@@ -317,6 +399,11 @@ function formatCommandHtmlRows(items = []) {
 export function formatCommandCatalogMessage(options = {}) {
     const title = String(options.title || 'NMS Telegram 控制台').trim() || 'NMS Telegram 控制台';
     const blocks = [];
+    appendHtmlSection(blocks, '快捷方式', [
+        '输入框输入 <code>/</code> 可直接选命令',
+        '下方键盘已固定常用命令',
+        '机器人启动后会自动同步命令菜单',
+    ], { rawRows: true });
     appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(options.queryCommands || DEFAULT_QUERY_COMMANDS), { rawRows: true });
     appendHtmlSection(blocks, '运维命令', formatCommandHtmlRows(options.operationCommands || DEFAULT_OPERATION_COMMANDS), { rawRows: true });
     return joinHtmlMessage(title, blocks);
@@ -374,23 +461,22 @@ export function formatStatusDigestMessage(context = {}) {
     const traffic = context?.traffic || {};
     const checkedAt = context?.checkedAt || '';
     const blocks = [];
-    appendHtmlSection(blocks, '集群运行', [
-        `节点规模: ${summary.total || 0} 台`,
-        `节点状态: 正常 ${summary.healthy || 0} · 降级 ${summary.degraded || 0} · 离线 ${summary.unreachable || 0} · 维护 ${summary.maintenance || 0}`,
-        `在线用户: ${summary.totalOnline || 0}`,
-        `活跃入站: ${summary.activeInbounds || 0}/${summary.totalInbounds || 0}`,
-    ]);
+    appendHtmlSection(blocks, '集群概况', [
+        formatHtmlKeyValueRow('节点规模', `${summary.total || 0} 台`),
+        `节点状态: 正常 ${formatHtmlValue(summary.healthy || 0)} · 降级 ${formatHtmlValue(summary.degraded || 0)} · 离线 ${formatHtmlValue(summary.unreachable || 0)} · 维护 ${formatHtmlValue(summary.maintenance || 0)}`,
+        `在线用户: ${formatHtmlValue(summary.totalOnline || 0)} · 活跃入站: ${formatHtmlValue(`${summary.activeInbounds || 0}/${summary.totalInbounds || 0}`)}`,
+    ], { rawRows: true });
 
-    appendHtmlSection(blocks, '流量概况', [
-        `累计总量: ${formatBytesHuman(traffic.totalBytes || ((traffic.upBytes || 0) + (traffic.downBytes || 0)))}`,
-        `上行: ${formatBytesHuman(traffic.upBytes || 0)}`,
-        `下行: ${formatBytesHuman(traffic.downBytes || 0)}`,
-        traffic.lastCollectionAt ? `最近流量采集: ${formatDateTime(traffic.lastCollectionAt)}` : '',
-    ]);
+    appendHtmlSection(blocks, '流量窗口', [
+        formatHtmlKeyValueRow('统计口径', traffic.source === 'traffic_store' ? '最近 24h 采样汇总' : '节点快照累计值'),
+        `上行: ${formatHtmlValue(formatBytesHuman(traffic.upBytes || 0))} · 下行: ${formatHtmlValue(formatBytesHuman(traffic.downBytes || 0))}`,
+        formatHtmlKeyValueRow('合计', formatBytesHuman(traffic.totalBytes || ((traffic.upBytes || 0) + (traffic.downBytes || 0)))),
+        traffic.lastCollectionAt ? formatHtmlKeyValueRow('最近采集', formatDateTime(traffic.lastCollectionAt)) : '',
+    ], { rawRows: true });
 
     appendHtmlSection(blocks, '巡检时间', [
-        `最近巡检: ${formatDateTime(checkedAt)}`,
-    ]);
+        formatHtmlKeyValueRow('最近巡检', formatDateTime(checkedAt)),
+    ], { rawRows: true });
 
     return joinHtmlMessage('NMS 状态总览', blocks);
 }
@@ -451,11 +537,15 @@ export function createTelegramAlertService(options = {}) {
         lastPollError: '',
         lastCommandAt: null,
         lastCommand: '',
+        lastCommandSyncAt: null,
+        lastCommandSyncError: '',
     };
     let running = false;
     let timer = null;
     let lastUpdateId = 0;
     let initializedOffset = false;
+    let commandsSynced = false;
+    let commandSyncPromise = null;
 
     function resolveSettings() {
         const stored = typeof options.getSettings === 'function'
@@ -517,6 +607,9 @@ export function createTelegramAlertService(options = {}) {
             if (overrides.parseMode) {
                 body.parse_mode = String(overrides.parseMode);
             }
+            if (overrides.replyMarkup) {
+                body.reply_markup = overrides.replyMarkup;
+            }
             await fetcher({
                 url: `${settings.apiBaseUrl.replace(/\/$/, '')}/bot${settings.botToken}/sendMessage`,
                 body,
@@ -535,6 +628,46 @@ export function createTelegramAlertService(options = {}) {
             runtimeStatus.lastError = error.message || 'telegram-send-failed';
             return false;
         }
+    }
+
+    async function syncCommands(force = false) {
+        const settings = resolveSettings();
+        if (!settings.enabled || !settings.configured) return false;
+        if (commandsSynced && !force) return true;
+        if (commandSyncPromise && !force) return commandSyncPromise;
+
+        const commands = buildTelegramCommandMenu([
+            ...DEFAULT_QUERY_COMMANDS,
+            ...DEFAULT_OPERATION_COMMANDS,
+        ]);
+
+        commandSyncPromise = callTelegramApi('setMyCommands', { commands })
+            .then(() => {
+                commandsSynced = true;
+                runtimeStatus.lastCommandSyncAt = new Date().toISOString();
+                runtimeStatus.lastCommandSyncError = '';
+                return true;
+            })
+            .catch((error) => {
+                commandsSynced = false;
+                runtimeStatus.lastCommandSyncError = error.message || 'telegram-command-sync-failed';
+                return false;
+            })
+            .finally(() => {
+                commandSyncPromise = null;
+            });
+
+        return commandSyncPromise;
+    }
+
+    async function sendCommandReply(text, chatId, kind = 'command') {
+        await syncCommands();
+        return sendMessage(text, '', {
+            chatId,
+            kind,
+            parseMode: 'HTML',
+            replyMarkup: buildCommandReplyMarkup(),
+        });
     }
 
     function shouldSendNotification(notification = {}) {
@@ -602,16 +735,17 @@ export function createTelegramAlertService(options = {}) {
         const settings = resolveSettings();
         const blocks = [];
         appendHtmlSection(blocks, '概况', [
-            `目标: ${settings.chatId || '未配置'}`,
-            `时间: ${formatDateTime(new Date().toISOString())}`,
-            `触发人: ${actor}`,
-        ]);
+            formatHtmlKeyValueRow('目标', settings.chatId || '未配置'),
+            formatHtmlKeyValueRow('时间', formatDateTime(new Date().toISOString())),
+            formatHtmlKeyValueRow('触发人', actor),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '快捷方式', [
+            '命令菜单已同步后，可直接在输入框输入 <code>/</code> 选择命令',
+            '下方聊天键盘会固定常用命令',
+        ], { rawRows: true });
         appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(DEFAULT_QUERY_COMMANDS), { rawRows: true });
         appendHtmlSection(blocks, '运维命令', formatCommandHtmlRows(DEFAULT_OPERATION_COMMANDS), { rawRows: true });
-        return sendMessage(joinHtmlMessage('NMS Telegram 测试通知', blocks), '', {
-            kind: 'test',
-            parseMode: 'HTML',
-        });
+        return sendCommandReply(joinHtmlMessage('NMS Telegram 测试通知', blocks), settings.chatId, 'test');
     }
 
     async function callTelegramApi(method, body = {}) {
@@ -652,15 +786,15 @@ export function createTelegramAlertService(options = {}) {
         const topNodes = items
             .sort((left, right) => Number(right.onlineCount || 0) - Number(left.onlineCount || 0))
             .slice(0, 5)
-            .map((item) => `${item.name || item.serverId}: ${item.onlineCount || 0} 在线`);
+            .map((item, index) => `${index + 1}. <b>${escapeTelegramHtml(item.name || item.serverId || '-')}</b> · 在线 ${formatHtmlValue(item.onlineCount || 0)}`);
 
-        const lines = ['[NMS 在线概览]'];
-        appendSection(lines, '概况', [
-            `总在线用户: ${snapshot?.summary?.totalOnline || 0}`,
-            `参与节点: ${items.filter((item) => Number(item?.onlineCount || 0) > 0).length}`,
-        ]);
-        appendSection(lines, '节点分布', topNodes);
-        return trimLines(lines);
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('总在线用户', snapshot?.summary?.totalOnline || 0),
+            formatHtmlKeyValueRow('参与节点', items.filter((item) => Number(item?.onlineCount || 0) > 0).length),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '节点分布', topNodes, { rawRows: true });
+        return joinHtmlMessage('NMS 在线概览', blocks);
     }
 
     async function buildTrafficDigest() {
@@ -668,46 +802,50 @@ export function createTelegramAlertService(options = {}) {
         await trafficStatsStore.collectIfStale(false);
         const overview = trafficStatsStore.getOverview({ days: 1, top: 5 });
         const topUsers = Array.isArray(overview?.topUsers)
-            ? overview.topUsers.slice(0, 5).map((item) => `${item.username || item.email}: ${formatBytesHuman(item.totalBytes)}`)
+            ? overview.topUsers.slice(0, 5).map((item, index) => `${index + 1}. <b>${escapeTelegramHtml(item.username || item.email || '-')}</b> · ${formatHtmlValue(formatBytesHuman(item.totalBytes))}`)
             : [];
         const topServers = Array.isArray(overview?.topServers)
-            ? overview.topServers.slice(0, 5).map((item) => `${item.serverName || item.serverId}: ${formatBytesHuman(item.totalBytes)}`)
+            ? overview.topServers.slice(0, 5).map((item, index) => `${index + 1}. <b>${escapeTelegramHtml(item.serverName || item.serverId || '-')}</b> · ${formatHtmlValue(formatBytesHuman(item.totalBytes))}`)
             : [];
 
-        const lines = ['[NMS 24h 流量摘要]'];
-        appendSection(lines, '概况', [
-            `注册用户活跃数: ${overview?.registeredTotals?.activeUsers || 0}/${overview?.registeredTotals?.totalUsers || 0}`,
-            `上行: ${formatBytesHuman(overview?.totals?.upBytes || 0)} · 下行: ${formatBytesHuman(overview?.totals?.downBytes || 0)} · 合计: ${formatBytesHuman(overview?.totals?.totalBytes || 0)}`,
-            overview?.lastCollectionAt ? `最近采集: ${formatDateTime(overview.lastCollectionAt)}` : '',
-        ]);
-        appendSection(lines, 'Top 用户', topUsers);
-        appendSection(lines, 'Top 节点', topServers);
-        return trimLines(lines);
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            `活跃用户: ${formatHtmlValue(`${overview?.registeredTotals?.activeUsers || 0}/${overview?.registeredTotals?.totalUsers || 0}`)}`,
+            `上行: ${formatHtmlValue(formatBytesHuman(overview?.totals?.upBytes || 0))} · 下行: ${formatHtmlValue(formatBytesHuman(overview?.totals?.downBytes || 0))}`,
+            formatHtmlKeyValueRow('合计', formatBytesHuman(overview?.totals?.totalBytes || 0)),
+            overview?.lastCollectionAt ? formatHtmlKeyValueRow('最近采集', formatDateTime(overview.lastCollectionAt)) : '',
+        ], { rawRows: true });
+        appendHtmlSection(blocks, 'Top 用户', topUsers, { rawRows: true });
+        appendHtmlSection(blocks, 'Top 节点', topServers, { rawRows: true });
+        return joinHtmlMessage('NMS 24h 流量摘要', blocks);
     }
 
     async function buildAlertsDigest() {
         const notificationService = (await import('./notifications.js')).default;
         const items = notificationService.getUnread(5);
         if (!Array.isArray(items) || items.length === 0) {
-            return '[NMS 告警] 当前没有未读通知';
+            return joinHtmlMessage('NMS 最近告警摘要', [
+                `<b>概况</b>\n• 当前没有未读通知`,
+            ]);
         }
         const severityCounter = new Map();
         items.forEach((item) => incrementCounter(severityCounter, severityLabel(item.severity)));
-        const lines = ['[NMS 最近告警摘要]'];
-        appendSection(lines, '概况', [
-            `未读告警: ${items.length}`,
-            `等级分布: ${formatCounterRows(severityCounter, { limit: 3, suffix: ' 条' }).join(' · ') || '无'}`,
-        ]);
-        appendSection(lines, '最近告警', items.map((item, index) => formatDetailBlock(
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('未读告警', items.length),
+            formatCounterHtmlRows(severityCounter, { limit: 3, suffix: ' 条' }).join(' · '),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '最近告警', items.map((item, index) => formatHtmlDetailBlock(
             `${index + 1}. [${severityLabel(item.severity)}] ${truncateLine(item.title, 120)}`,
             [
-                item.body ? `摘要: ${truncateLine(item.body, 220)}` : '',
-                item?.meta?.serverId ? `节点: ${item.meta.serverId}` : '',
-                item?.meta?.reasonCode ? `原因码: ${item.meta.reasonCode}` : '',
-                `时间: ${formatDateTime(item.createdAt)}`,
-            ]
-        )));
-        return trimLines(lines);
+                item.body ? `摘要: ${escapeTelegramHtml(truncateLine(item.body, 220))}` : '',
+                item?.meta?.serverId ? formatHtmlKeyValueRow('节点', item.meta.serverId) : '',
+                item?.meta?.reasonCode ? formatHtmlKeyValueRow('原因码', item.meta.reasonCode) : '',
+                formatHtmlKeyValueRow('时间', formatDateTime(item.createdAt)),
+            ],
+            { rawRows: true }
+        )), { rawRows: true });
+        return joinHtmlMessage('NMS 最近告警摘要', blocks);
     }
 
     async function buildSecurityDigest() {
@@ -721,7 +859,9 @@ export function createTelegramAlertService(options = {}) {
             .filter((item) => watchedEvents.has(String(item?.eventType || '').trim().toLowerCase()));
 
         if (filtered.length === 0) {
-            return '[NMS 安全事件] 最近没有新的高优先级安全审计事件';
+            return joinHtmlMessage('NMS 安全事件摘要', [
+                `<b>概况</b>\n• 最近没有新的高优先级安全审计事件`,
+            ]);
         }
 
         const enriched = await enrichAuditEvents(filtered);
@@ -745,30 +885,30 @@ export function createTelegramAlertService(options = {}) {
             }
         });
 
-        const lines = ['[NMS 安全事件摘要]'];
-        appendSection(lines, '概况', [
-            `命中事件: ${enriched.length}`,
-            `等级分布: 紧急 ${criticalCount} · 告警 ${warningCount}`,
-            `最近时间: ${formatDateTime(enriched[0]?.ts)}`,
-        ]);
-        appendSection(lines, '事件分布', formatCounterRows(eventCounter, { limit: 4, suffix: ' 次' }));
-        appendSection(lines, '来源概览', formatCounterRows(sourceCounter, { limit: 4, suffix: ' 次' }));
-        appendSection(lines, '最近事件', enriched.slice(0, 4).map((item, index) => {
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('命中事件', enriched.length),
+            `等级分布: 紧急 ${formatHtmlValue(criticalCount)} · 告警 ${formatHtmlValue(warningCount)}`,
+            formatHtmlKeyValueRow('最近时间', formatDateTime(enriched[0]?.ts)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '事件分布', formatCounterHtmlRows(eventCounter, { limit: 4, suffix: ' 次' }), { rawRows: true });
+        appendHtmlSection(blocks, '来源概览', formatCounterHtmlRows(sourceCounter, { limit: 4, suffix: ' 次' }), { rawRows: true });
+        appendHtmlSection(blocks, '最近事件', enriched.slice(0, 4).map((item, index) => {
             const eventKey = String(item?.eventType || '').trim().toLowerCase();
             const rule = DEFAULT_AUDIT_EVENT_RULES[eventKey] || { severity: 'warning', label: eventKey || 'audit_event' };
-            return formatDetailBlock(`${index + 1}. ${rule.label}`, [
-                `级别: ${severityLabel(rule.severity)}`,
-                `时间: ${formatDateTime(item?.ts)}`,
-                `IP: ${item?.ip || 'unknown'}`,
+            return formatHtmlDetailBlock(`${index + 1}. ${rule.label}`, [
+                formatHtmlKeyValueRow('级别', severityLabel(rule.severity)),
+                formatHtmlKeyValueRow('时间', formatDateTime(item?.ts)),
+                formatHtmlKeyValueRow('IP', item?.ip || 'unknown'),
                 formatLocationCarrierText(item?.ipLocation, item?.ipCarrier)
-                    ? `归属地 / 运营商: ${formatLocationCarrierText(item?.ipLocation, item?.ipCarrier)}`
+                    ? formatHtmlKeyValueRow('归属地 / 运营商', formatLocationCarrierText(item?.ipLocation, item?.ipCarrier))
                     : '',
-                item?.method || item?.path ? `请求: ${item?.method || '-'} ${item?.path || '-'}` : '',
-                item?.targetEmail ? `目标用户: ${item.targetEmail}` : '',
-                item?.serverId ? `节点: ${item.serverId}` : '',
-            ]);
-        }));
-        return trimLines(lines);
+                item?.method || item?.path ? formatHtmlKeyValueRow('请求', `${item?.method || '-'} ${item?.path || '-'}`) : '',
+                item?.targetEmail ? formatHtmlKeyValueRow('目标用户', item.targetEmail) : '',
+                item?.serverId ? formatHtmlKeyValueRow('节点', item.serverId) : '',
+            ], { rawRows: true });
+        }), { rawRows: true });
+        return joinHtmlMessage('NMS 安全事件摘要', blocks);
     }
 
     async function buildNodeIssuesDigest() {
@@ -782,7 +922,9 @@ export function createTelegramAlertService(options = {}) {
             .slice(0, 5);
 
         if (degradedItems.length === 0) {
-            return '[NMS 节点异常] 当前没有降级、离线或维护节点';
+            return joinHtmlMessage('NMS 节点异常摘要', [
+                `<b>概况</b>\n• 当前没有降级、离线或维护节点`,
+            ]);
         }
 
         const problemItems = (Array.isArray(snapshot?.items) ? snapshot.items : [])
@@ -794,22 +936,22 @@ export function createTelegramAlertService(options = {}) {
             incrementCounter(reasonCounter, item?.reasonCode || 'none');
         });
 
-        const lines = ['[NMS 节点异常摘要]'];
-        appendSection(lines, '概况', [
-            `异常节点: ${problemItems.length}/${snapshot?.summary?.total || 0}`,
-            `最近巡检: ${formatDateTime(snapshot?.summary?.checkedAt)}`,
-        ]);
-        appendSection(lines, '状态分布', formatCounterRows(healthCounter, { limit: 4, suffix: ' 台' }));
-        appendSection(lines, '原因分布', formatCounterRows(reasonCounter, { limit: 4, suffix: ' 台' }));
-        appendSection(lines, '节点明细', degradedItems.map((item, index) => (
-            formatDetailBlock(`${index + 1}. ${item?.name || item?.serverId || '-'}`, [
-                `状态: ${formatHealthLabel(item?.health)}`,
-                `原因: ${item?.reasonCode || 'none'}`,
-                `在线用户: ${item?.onlineCount || 0}`,
-                `时间: ${formatDateTime(item?.checkedAt)}`,
-            ])
-        )));
-        return trimLines(lines);
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('异常节点', `${problemItems.length}/${snapshot?.summary?.total || 0}`),
+            formatHtmlKeyValueRow('最近巡检', formatDateTime(snapshot?.summary?.checkedAt)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '状态分布', formatCounterHtmlRows(healthCounter, { limit: 4, suffix: ' 台' }), { rawRows: true });
+        appendHtmlSection(blocks, '原因分布', formatCounterHtmlRows(reasonCounter, { limit: 4, suffix: ' 台' }), { rawRows: true });
+        appendHtmlSection(blocks, '节点明细', degradedItems.map((item, index) => (
+            formatHtmlDetailBlock(`${index + 1}. ${item?.name || item?.serverId || '-'}`, [
+                formatHtmlKeyValueRow('状态', formatHealthLabel(item?.health)),
+                formatHtmlKeyValueRow('原因', item?.reasonCode || 'none'),
+                formatHtmlKeyValueRow('在线用户', item?.onlineCount || 0),
+                formatHtmlKeyValueRow('时间', formatDateTime(item?.checkedAt)),
+            ], { rawRows: true })
+        )), { rawRows: true });
+        return joinHtmlMessage('NMS 节点异常摘要', blocks);
     }
 
     async function buildAccessDigest() {
@@ -837,38 +979,42 @@ export function createTelegramAlertService(options = {}) {
         ]);
         const items = Array.isArray(result?.items) ? result.items : [];
         if ((summary?.total || 0) === 0 && items.length === 0) {
-            return '[NMS 订阅访问] 最近 7 天没有被拒绝的公开订阅访问';
+            return joinHtmlMessage('NMS 公开订阅异常访问摘要', [
+                `<b>概况</b>\n• 最近 7 天没有被拒绝的公开订阅访问`,
+            ]);
         }
 
-        const lines = ['[NMS 公开订阅异常访问摘要]'];
-        appendSection(lines, '概况', [
-            '统计周期: 最近 7 天',
-            `拒绝请求: ${summary?.total || items.length}`,
-            `独立 IP: ${summary?.uniqueIpCount || 0}`,
-            `涉及用户: ${summary?.uniqueUsers || 0}`,
-        ]);
-        appendSection(lines, '高频来源', (summary?.topIps || []).slice(0, 4).map((item) => {
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('统计周期', '最近 7 天'),
+            formatHtmlKeyValueRow('拒绝请求', summary?.total || items.length),
+            formatHtmlKeyValueRow('独立 IP', summary?.uniqueIpCount || 0),
+            formatHtmlKeyValueRow('涉及用户', summary?.uniqueUsers || 0),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '高频来源', (summary?.topIps || []).slice(0, 4).map((item, index) => {
             const locationCarrier = formatLocationCarrierText(item?.ipLocation, item?.ipCarrier);
-            return `${item?.ip || 'unknown'}${locationCarrier ? ` · ${locationCarrier}` : ''} · ${item?.count || 0} 次`;
-        }));
-        appendSection(lines, '最近记录', items.slice(0, 4).map((item, index) => {
+            return `${index + 1}. <b>${escapeTelegramHtml(item?.ip || 'unknown')}</b>${locationCarrier ? ` · ${escapeTelegramHtml(locationCarrier)}` : ''} · ${formatHtmlValue(`${item?.count || 0} 次`)}`;
+        }), { rawRows: true });
+        appendHtmlSection(blocks, '最近记录', items.slice(0, 4).map((item, index) => {
             const locationCarrier = formatLocationCarrierText(item?.ipLocation, item?.ipCarrier);
-            return formatDetailBlock(`${index + 1}. ${item?.userLabel || item?.email || '-'}`, [
-                `时间: ${formatDateTime(item?.ts)}`,
-                `状态: ${item?.status || 'denied'}`,
-                `IP: ${item?.clientIp || item?.ip || 'unknown'}`,
-                locationCarrier ? `归属地 / 运营商: ${locationCarrier}` : '',
-                item?.userAgent ? `UA: ${truncateLine(item.userAgent, 180)}` : '',
-            ]);
-        }));
-        return trimLines(lines);
+            return formatHtmlDetailBlock(`${index + 1}. ${item?.userLabel || item?.email || '-'}`, [
+                formatHtmlKeyValueRow('时间', formatDateTime(item?.ts)),
+                formatHtmlKeyValueRow('状态', item?.status || 'denied'),
+                formatHtmlKeyValueRow('IP', item?.clientIp || item?.ip || 'unknown'),
+                locationCarrier ? formatHtmlKeyValueRow('归属地 / 运营商', locationCarrier) : '',
+                item?.userAgent ? formatHtmlKeyValueRow('UA', truncateLine(item.userAgent, 180)) : '',
+            ], { rawRows: true });
+        }), { rawRows: true });
+        return joinHtmlMessage('NMS 公开订阅异常访问摘要', blocks);
     }
 
     async function buildExpiryDigest() {
         const { collectSubscriptionExpirySnapshot } = await import('./subscriptionExpiryNotifier.js');
         const snapshot = collectSubscriptionExpirySnapshot({ limit: 6 });
         if ((snapshot?.total || 0) === 0) {
-            return '[NMS 到期提醒] 最近 7 天没有即将到期或已到期的用户';
+            return joinHtmlMessage('NMS 用户到期提醒摘要', [
+                `<b>概况</b>\n• 最近 7 天没有即将到期或已到期的用户`,
+            ]);
         }
 
         const stageCounter = new Map();
@@ -876,42 +1022,46 @@ export function createTelegramAlertService(options = {}) {
             incrementCounter(stageCounter, item.label || item.stage);
         });
 
-        const lines = ['[NMS 用户到期提醒摘要]'];
-        appendSection(lines, '概况', [
-            `命中用户: ${snapshot.total || 0}`,
-            `已到期: ${snapshot.expiredCount || 0} · 即将到期: ${snapshot.warningCount || 0}`,
-            `最近生成: ${formatDateTime(snapshot.generatedAt)}`,
-        ]);
-        appendSection(lines, '阶段分布', formatCounterRows(stageCounter, { limit: 4, suffix: ' 人' }));
-        appendSection(lines, '用户明细', (snapshot.items || []).map((item, index) => formatDetailBlock(
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('命中用户', snapshot.total || 0),
+            `已到期: ${formatHtmlValue(snapshot.expiredCount || 0)} · 即将到期: ${formatHtmlValue(snapshot.warningCount || 0)}`,
+            formatHtmlKeyValueRow('最近生成', formatDateTime(snapshot.generatedAt)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '阶段分布', formatCounterHtmlRows(stageCounter, { limit: 4, suffix: ' 人' }), { rawRows: true });
+        appendHtmlSection(blocks, '用户明细', (snapshot.items || []).map((item, index) => formatHtmlDetailBlock(
             `${index + 1}. ${item.username || item.subscriptionEmail || item.email || '-'}`,
             [
-                `订阅邮箱: ${item.subscriptionEmail || item.email || '-'}`,
-                `阶段: ${item.label || item.stage}`,
-                item.remainingDays > 0 ? `剩余: ${item.remainingDays} 天` : '状态: 已到期',
-                formatExpiryDateTime(item.expiryTime) ? `到期时间: ${formatExpiryDateTime(item.expiryTime)}` : '',
-            ]
-        )));
-        return trimLines(lines);
+                formatHtmlKeyValueRow('订阅邮箱', item.subscriptionEmail || item.email || '-'),
+                formatHtmlKeyValueRow('阶段', item.label || item.stage),
+                item.remainingDays > 0
+                    ? formatHtmlKeyValueRow('剩余时间', `${item.remainingDays} 天`)
+                    : formatHtmlKeyValueRow('状态', '已到期'),
+                formatExpiryDateTime(item.expiryTime) ? formatHtmlKeyValueRow('到期时间', formatExpiryDateTime(item.expiryTime)) : '',
+            ],
+            { rawRows: true }
+        )), { rawRows: true });
+        return joinHtmlMessage('NMS 用户到期提醒摘要', blocks);
     }
 
     async function runMonitorDigest(actor = 'telegram') {
         const serverHealthMonitor = (await import('./serverHealthMonitor.js')).default;
         const result = await serverHealthMonitor.runOnce({ force: true });
         const summary = result?.summary || {};
-        const lines = ['[NMS 手动巡检完成]'];
-        appendSection(lines, '概况', [
-            `触发人: ${actor}`,
-            `节点: ${summary.total || 0} 台 · 正常 ${summary.healthy || 0} · 降级 ${summary.degraded || 0} · 离线 ${summary.unreachable || 0} · 维护 ${summary.maintenance || 0}`,
-            `时间: ${formatDateTime(summary.checkedAt)}`,
-        ]);
-        appendSection(lines, '异常分布', [
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('触发人', actor),
+            formatHtmlKeyValueRow('节点规模', `${summary.total || 0} 台`),
+            `节点状态: 正常 ${formatHtmlValue(summary.healthy || 0)} · 降级 ${formatHtmlValue(summary.degraded || 0)} · 离线 ${formatHtmlValue(summary.unreachable || 0)} · 维护 ${formatHtmlValue(summary.maintenance || 0)}`,
+            formatHtmlKeyValueRow('时间', formatDateTime(summary.checkedAt)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '异常分布', [
             Object.entries(summary.byReason || {})
                 .filter(([, count]) => Number(count || 0) > 0)
-                .map(([key, count]) => `${key} ${count}`)
+                .map(([key, count]) => `<b>${escapeTelegramHtml(key)}</b> · ${formatHtmlValue(count)}`)
                 .join(' · ') || '无',
-        ]);
-        return trimLines(lines);
+        ], { rawRows: true });
+        return joinHtmlMessage('NMS 手动巡检完成', blocks);
     }
 
     async function handleCommand(message) {
@@ -922,64 +1072,58 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastCommand = command || String(message?.text || '').trim();
 
         if (command === '/start' || command === '/help') {
-            await sendMessage(formatCommandCatalogMessage(), '', {
-                chatId,
-                kind: 'command',
-                parseMode: 'HTML',
-            });
+            await sendCommandReply(formatCommandCatalogMessage(), chatId);
             return;
         }
 
         if (command === '/status') {
-            await sendMessage(await buildStatusDigest(), '', {
-                chatId,
-                kind: 'command',
-                parseMode: 'HTML',
-            });
+            await sendCommandReply(await buildStatusDigest(), chatId);
             return;
         }
 
         if (command === '/online') {
-            await sendMessage(await buildOnlineDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildOnlineDigest(), chatId);
             return;
         }
 
         if (command === '/traffic') {
-            await sendMessage(await buildTrafficDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildTrafficDigest(), chatId);
             return;
         }
 
         if (command === '/alerts') {
-            await sendMessage(await buildAlertsDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildAlertsDigest(), chatId);
             return;
         }
 
         if (command === '/security') {
-            await sendMessage(await buildSecurityDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildSecurityDigest(), chatId);
             return;
         }
 
         if (command === '/nodes') {
-            await sendMessage(await buildNodeIssuesDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildNodeIssuesDigest(), chatId);
             return;
         }
 
         if (command === '/access') {
-            await sendMessage(await buildAccessDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildAccessDigest(), chatId);
             return;
         }
 
         if (command === '/expiry') {
-            await sendMessage(await buildExpiryDigest(), '', { chatId, kind: 'command' });
+            await sendCommandReply(await buildExpiryDigest(), chatId);
             return;
         }
 
         if (command === '/monitor') {
-            await sendMessage(await runMonitorDigest(message?.from?.username || 'telegram'), '', { chatId, kind: 'command' });
+            await sendCommandReply(await runMonitorDigest(message?.from?.username || 'telegram'), chatId);
             return;
         }
 
-        await sendMessage('未识别命令。发送 /help 查看可用命令。', '', { chatId, kind: 'command' });
+        await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
+            `<b>概况</b>\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
+        ]), chatId, 'command');
     }
 
     async function processUpdates(updates = []) {
@@ -993,10 +1137,9 @@ export function createTelegramAlertService(options = {}) {
             try {
                 await handleCommand(message);
             } catch (error) {
-                await sendMessage(`命令执行失败: ${error.message || 'unknown error'}`, '', {
-                    chatId: String(message?.chat?.id || '').trim(),
-                    kind: 'command_error',
-                });
+                await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
+                    `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
+                ]), String(message?.chat?.id || '').trim(), 'command_error');
             }
         }
     }
@@ -1042,6 +1185,7 @@ export function createTelegramAlertService(options = {}) {
     function start() {
         if (running) return;
         running = true;
+        void syncCommands();
         scheduleNextPoll(2000);
     }
 
@@ -1076,6 +1220,8 @@ export function createTelegramAlertService(options = {}) {
             lastPollError: runtimeStatus.lastPollError,
             lastCommandAt: runtimeStatus.lastCommandAt,
             lastCommand: runtimeStatus.lastCommand,
+            lastCommandSyncAt: runtimeStatus.lastCommandSyncAt,
+            lastCommandSyncError: runtimeStatus.lastCommandSyncError,
         };
     }
 
@@ -1091,6 +1237,10 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastPollError = '';
         runtimeStatus.lastCommandAt = null;
         runtimeStatus.lastCommand = '';
+        runtimeStatus.lastCommandSyncAt = null;
+        runtimeStatus.lastCommandSyncError = '';
+        commandsSynced = false;
+        commandSyncPromise = null;
     }
 
     startBackgroundInterval(() => {
@@ -1107,6 +1257,7 @@ export function createTelegramAlertService(options = {}) {
         notifyNotification,
         notifySecurityAudit,
         sendTestMessage,
+        syncCommands,
         start,
         stop,
         resetForTests,

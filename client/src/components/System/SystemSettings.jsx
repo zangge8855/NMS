@@ -1405,14 +1405,12 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="站点入口"
-                        subtitle="真实入口与伪装页配置。"
                     />
                     <div className="settings-inline-grid settings-basic-entry-grid">
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">入口路径</div>
                                 <div className="settings-form-cluster-title">对外访问的真实入口</div>
-                                <div className="settings-form-cluster-note">保存后旧路径失效，避免使用 `/api`、`/assets`、`/ws` 等保留路径。</div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">首页访问路径</label>
@@ -1431,15 +1429,6 @@ export default function SystemSettings() {
                                         随机路径
                                     </button>
                                 </div>
-                                <div className="text-xs text-muted mt-1">例如 `/portal` 或 `/office/nms`。</div>
-                            </div>
-                        </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
-                            <div className="text-sm text-muted">当前入口预览</div>
-                            <div className="text-base font-semibold font-mono mt-2 break-all">{siteEntryPreview}</div>
-                            <div className="settings-basic-note-list mt-2">
-                                <span className="badge badge-neutral">登录页 / 后台 / 自助页共用入口</span>
-                                <span className="badge badge-neutral">支持多级路径</span>
                             </div>
                         </div>
                     </div>
@@ -1455,7 +1444,6 @@ export default function SystemSettings() {
                                     <option key={item.value} value={item.value}>{item.label}</option>
                                 ))}
                             </select>
-                            <div className="text-xs text-muted mt-1">可切换 `corporate`、`nginx` 或 `blog` 风格。</div>
                         </div>
                         <div className="form-group mb-0">
                             <label className="form-label">伪装站点标题</label>
@@ -1465,15 +1453,6 @@ export default function SystemSettings() {
                                 onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
                                 placeholder="Edge Precision Systems"
                             />
-                            <div className="text-xs text-muted mt-1">会同步出现在伪装页标题、品牌区和部分文案中。</div>
-                        </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
-                            <div className="text-sm text-muted">当前伪装策略</div>
-                            <div className="text-base font-semibold mt-2 break-all">{draft.site.camouflageTitle}</div>
-                            <div className="settings-basic-note-list mt-2">
-                                <span className="badge badge-neutral">模板 {draft.site.camouflageTemplate}</span>
-                                <span className="badge badge-neutral">{siteCamouflageEnabled ? '伪装已启用' : '伪装未启用'}</span>
-                            </div>
                         </div>
                     </div>
                     <div className="settings-field-grid settings-field-grid--compact mt-4">
@@ -1487,22 +1466,12 @@ export default function SystemSettings() {
                                 inactiveLabel="已关闭"
                             />
                         </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card mb-0">
-                            <div className="text-sm text-muted">公开首页预览</div>
-                            <div className="text-base font-semibold font-mono mt-2 break-all">{camouflagePreview}</div>
-                            <div className="text-xs text-muted mt-2">
-                                {siteCamouflageEnabled
-                                    ? '访问根路径或错误路径时，将展示高科技设备公司的公开首页。'
-                                    : '关闭时，错误路径将按默认 404 / 前端路由处理。'}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                     <SettingsPanelHeader
                         title="订阅地址"
-                        subtitle="公开订阅域名与外部转换器。"
                     />
                     <div className="settings-basic-address-grid">
                         <div className="settings-form-cluster">
@@ -1518,7 +1487,6 @@ export default function SystemSettings() {
                                     value={draft.subscription.publicBaseUrl}
                                     onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
                                 />
-                                <div className="text-xs text-muted mt-1">配置后订阅链接将固定使用该地址，避免出现 localhost 或内网地址。</div>
                             </div>
                         </div>
                         <div className="settings-form-cluster">
@@ -1534,7 +1502,6 @@ export default function SystemSettings() {
                                     value={converterBaseUrl}
                                     onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
                                 />
-                                <div className="text-xs text-muted mt-1">配置后快捷方式会自动切换到外部转换器。</div>
                                 <div className="flex gap-2 flex-wrap mt-2">
                                     <button
                                         type="button"
@@ -1559,11 +1526,6 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                         </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
-                            <div className="text-sm text-muted">当前输出策略</div>
-                            <div className="text-base font-semibold break-all">{draft.subscription.publicBaseUrl || '未固定公网域名'}</div>
-                            <div className="text-xs text-muted mt-1">{converterBaseUrl ? `转换器 ${converterBaseUrl}` : '未配置外部转换器时，仍使用 NMS 内置专用配置生成逻辑。'}</div>
-                        </div>
                     </div>
                 </div>
 
@@ -1572,7 +1534,6 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="注册与邀请码"
-                        subtitle="注册模式切换、邀请码生成与撤销。"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
@@ -1588,15 +1549,14 @@ export default function SystemSettings() {
                             disabled={!registrationEnabled}
                             label="开启邀请注册"
                             description={registrationEnabled
-                                ? '开启后，注册页必须填写有效邀请码；注册成功后可直接登录，后台自动按邀请码开通全部节点订阅。'
-                                : '当前环境已关闭自助注册，这里的邀请模式配置会保留，但不会开放注册入口。'}
+                                ? '开启后注册需填写邀请码。'
+                                : '当前环境已关闭自助注册。'}
                             activeLabel="邀请模式"
                             inactiveLabel="普通模式"
                         />
                     </div>
                     <div className="card p-3 settings-mini-card settings-detail-card mb-3">
                         <div className="text-sm font-medium mb-2">生成参数</div>
-                        <div className="text-xs text-muted mb-3">邀请码注册会默认开通全部节点和全部协议；这里主要控制可用次数和开通时长。</div>
                         <div className="settings-inline-grid settings-inline-grid--triple">
                             <div className="form-group mb-0">
                                 <label className="form-label">本次生成数量</label>
@@ -1605,13 +1565,12 @@ export default function SystemSettings() {
                                     type="number"
                                     min={1}
                                     max={50}
-                                    value={inviteGenerationDraft.count}
-                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                value={inviteGenerationDraft.count}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
                                         ...prev,
                                         count: e.target.value,
                                     }))}
                                 />
-                                <div className="text-xs text-muted mt-1">一次最多生成 50 个。</div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">每个邀请码可用次数</label>
@@ -1620,13 +1579,12 @@ export default function SystemSettings() {
                                     type="number"
                                     min={1}
                                     max={1000}
-                                    value={inviteGenerationDraft.usageLimit}
-                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                value={inviteGenerationDraft.usageLimit}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
                                         ...prev,
                                         usageLimit: e.target.value,
                                     }))}
                                 />
-                                <div className="text-xs text-muted mt-1">老邀请码会自动按单次使用兼容。</div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">开通时长（天）</label>
@@ -1635,13 +1593,12 @@ export default function SystemSettings() {
                                     type="number"
                                     min={0}
                                     max={3650}
-                                    value={inviteGenerationDraft.subscriptionDays}
-                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                value={inviteGenerationDraft.subscriptionDays}
+                                onChange={(e) => setInviteGenerationDraft((prev) => ({
                                         ...prev,
                                         subscriptionDays: e.target.value,
                                     }))}
                                 />
-                                <div className="text-xs text-muted mt-1">填 0 表示不限时，例如 30 / 90 / 365 天。</div>
                             </div>
                             <div className="form-group mb-0 settings-form-actions">
                                 <button
@@ -1652,7 +1609,6 @@ export default function SystemSettings() {
                                 >
                                     {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
                                 </button>
-                                <div className="text-xs text-muted mt-1">例如生成 5 个邀请码，每个可注册 2 次，并自动开通 30 天。</div>
                             </div>
                         </div>
                     </div>
@@ -1684,108 +1640,6 @@ export default function SystemSettings() {
                             <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                         </div>
                     )}
-                    <SettingsDisclosure
-                        title="邀请码历史"
-                        subtitle={`总计 ${inviteCodes.length} 个 · 可用 ${inviteStatusSummary.active} 个 · 用完 ${inviteStatusSummary.used} 个 · 撤销 ${inviteStatusSummary.revoked} 个`}
-                        badge={<span className="badge badge-neutral">可按需展开</span>}
-                    >
-                        <div className="settings-table-shell settings-invite-table-shell" style={{ maxHeight: '260px', overflowY: 'auto' }}>
-                            <table className="table settings-invite-table">
-                                <thead>
-                                    <tr>
-                                        <th>预览</th>
-                                        <th className="table-cell-center settings-invite-status-column">状态</th>
-                                        <th className="table-cell-center settings-invite-count-column">次数</th>
-                                        <th className="table-cell-center settings-invite-duration-column">开通时长</th>
-                                        <th className="table-cell-center settings-invite-created-column">创建时间</th>
-                                        <th>使用情况</th>
-                                        <th className="table-cell-actions settings-invite-actions-column">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {inviteCodes.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="text-center text-muted">暂无邀请码</td>
-                                        </tr>
-                                    ) : (
-                                        inviteCodes.map((invite) => (
-                                            <tr key={invite.id}>
-                                                <td data-label="预览" className="cell-mono settings-invite-preview-cell">
-                                                    <div className="settings-invite-preview">
-                                                        <span className="settings-invite-preview-code">{invite.preview}</span>
-                                                        <span className="settings-invite-preview-note">
-                                                            {invite.createdBy ? `创建者 ${invite.createdBy}` : '创建后明文仅展示一次'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td data-label="状态" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-status-cell">
-                                                    <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
-                                                        {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
-                                                    </span>
-                                                    <span className="settings-invite-status-note">
-                                                        {resolveInviteState(invite) === 'active'
-                                                            ? `剩余 ${Number(invite.remainingUses || 0)} 次`
-                                                            : resolveInviteState(invite) === 'used'
-                                                                ? '已达到使用上限'
-                                                                : '已停止使用'}
-                                                    </span>
-                                                </td>
-                                                <td data-label="次数" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-count-cell">
-                                                    <span className="settings-invite-usage-main">
-                                                        {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
-                                                    </span>
-                                                    <span className="settings-invite-usage-note">
-                                                        已用 {Number(invite.usedCount || 0)} 次
-                                                    </span>
-                                                </td>
-                                                <td data-label="开通时长" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-duration-cell">
-                                                    <span className="settings-invite-usage-main">
-                                                        {formatInviteDuration(invite.subscriptionDays)}
-                                                    </span>
-                                                    <span className="settings-invite-usage-note">
-                                                        {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
-                                                    </span>
-                                                </td>
-                                                <td data-label="创建时间" className="table-cell-center settings-invite-created-cell">
-                                                    <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
-                                                </td>
-                                                <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
-                                                    <span className="settings-invite-history-main">
-                                                        {invite.revokedAt
-                                                            ? '手动撤销'
-                                                            : invite.usedAt
-                                                                ? `最近由 ${invite.usedByUsername || invite.usedByUserId || '-'} 使用`
-                                                                : '暂无使用记录'}
-                                                    </span>
-                                                    <span className="settings-invite-history-note">
-                                                        {invite.revokedAt
-                                                            ? formatDateTime(invite.revokedAt, locale)
-                                                            : invite.usedAt
-                                                                ? formatDateTime(invite.usedAt, locale)
-                                                                : '等待首次使用'}
-                                                    </span>
-                                                </td>
-                                                <td data-label="操作" className="table-cell-actions settings-invite-action-cell">
-                                                    {resolveInviteState(invite) === 'active' ? (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-danger btn-sm settings-invite-revoke-btn"
-                                                            onClick={() => revokeInviteCode(invite)}
-                                                            disabled={inviteCodeActionLoading}
-                                                        >
-                                                            撤销
-                                                        </button>
-                                                    ) : (
-                                                        <span className="text-xs text-muted">-</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </SettingsDisclosure>
                 </div>
             </div>
         </div>
@@ -1794,111 +1648,37 @@ export default function SystemSettings() {
     const renderPolicyContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-7 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="任务中心参数"
-                        subtitle="批量任务的保留、分页和并发策略。"
-                    />
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">保留策略</div>
-                            <div className="settings-form-cluster-title">先定义历史记录和分页上限</div>
-                            <div className="settings-form-cluster-note">面向任务列表本身的容量控制，避免页面和存储一起膨胀。</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">任务保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.retentionDays} onChange={(e) => patchField('jobs', 'retentionDays', toInt(e.target.value, 90))} />
-                                <div className="text-xs text-muted mt-1">历史任务记录的保留期限。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.jobs.maxPageSize} onChange={(e) => patchField('jobs', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">任务列表单页最大记录数。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">任务最大保留记录</label>
-                                <input className="form-input" type="number" min={100} value={draft.jobs.maxRecords} onChange={(e) => patchField('jobs', 'maxRecords', toInt(e.target.value, 2000))} />
-                                <div className="text-xs text-muted mt-1">系统保留的历史任务上限。</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">执行策略</div>
-                            <div className="settings-form-cluster-title">控制新任务默认并发和最高并发</div>
-                            <div className="settings-form-cluster-note">上限过高会放大批量操作的资源消耗，建议和节点规模一起调整。</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">批量并发上限</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.maxConcurrency} onChange={(e) => patchField('jobs', 'maxConcurrency', toInt(e.target.value, 10))} />
-                                <div className="text-xs text-muted mt-1">允许的最大并行操作数。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">默认并发</label>
-                                <input className="form-input" type="number" min={1} value={draft.jobs.defaultConcurrency} onChange={(e) => patchField('jobs', 'defaultConcurrency', toInt(e.target.value, 5))} />
-                                <div className="text-xs text-muted mt-1">新建任务时的默认并行数。</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="风控确认"
-                        subtitle="控制高风险批量动作的确认阈值和令牌时效。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
                             checked={draft.security.requireHighRiskConfirmation}
                             onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
                             label="高风险操作二次确认"
-                            description="批量动作达到高风险阈值后，执行前必须再次确认。"
+                            description="达到高风险阈值后执行前必须再次确认。"
                         />
                     </div>
-                    <div className="settings-basic-note-strip">
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
-                            <div className="text-sm text-muted">当前高风险线</div>
-                            <div className="text-lg font-semibold">{draft.security.highRiskMinTargets} 个目标</div>
-                            <div className="text-xs text-muted">达到后必须二次确认。</div>
+                    <div className="settings-field-grid settings-field-grid--compact">
+                        <div className="form-group">
+                            <label className="form-label">中风险阈值</label>
+                            <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
                         </div>
-                        <div className="card p-3 settings-mini-card settings-detail-card settings-basic-note-card">
-                            <div className="text-sm text-muted">确认有效期</div>
-                            <div className="text-lg font-semibold">{draft.security.riskTokenTtlSeconds} 秒</div>
-                            <div className="text-xs text-muted">超时后需重新确认。</div>
+                        <div className="form-group">
+                            <label className="form-label">高风险阈值</label>
+                            <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                        </div>
+                        <div className="form-group mb-0">
+                            <label className="form-label">确认令牌有效期（秒）</label>
+                            <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
                         </div>
                     </div>
-                    <SettingsDisclosure
-                        title="阈值与令牌时效"
-                        subtitle={`中风险 ${draft.security.mediumRiskMinTargets} · 高风险 ${draft.security.highRiskMinTargets} · 有效期 ${draft.security.riskTokenTtlSeconds}s`}
-                        tone="warning"
-                        defaultOpen={draft.security.requireHighRiskConfirmation}
-                    >
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">中风险阈值</label>
-                                <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                                <div className="text-xs text-muted mt-1">达到后按中风险提示。</div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">高风险阈值</label>
-                                <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                                <div className="text-xs text-muted mt-1">达到后要求二次确认。</div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">确认令牌有效期（秒）</label>
-                                <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                                <div className="text-xs text-muted mt-1">批量执行授权的有效时长。</div>
-                            </div>
-                        </div>
-                    </SettingsDisclosure>
                 </div>
 
                 <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="审计参数"
-                        subtitle="控制操作日志的保留周期和分页上限。"
                     />
                     <div className="settings-form-cluster">
                         <div className="settings-form-cluster-head">
@@ -1909,12 +1689,10 @@ export default function SystemSettings() {
                             <div className="form-group">
                                 <label className="form-label">审计保留天数</label>
                                 <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                                <div className="text-xs text-muted mt-1">日志保留期限，超期自动清理。</div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">审计分页最大条数</label>
                                 <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                                <div className="text-xs text-muted mt-1">日志列表单页最大记录数。</div>
                             </div>
                         </div>
                     </div>
@@ -1923,56 +1701,22 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="IP 归属地 / 运营商"
-                        subtitle="补充订阅访问和安全事件里的地区与运营商信息。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
                             checked={draft.auditIpGeo.enabled}
                             onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
                             label="归属地查询"
-                            description="为订阅访问日志补充地区和运营商信息。"
+                            description="为订阅访问和安全事件补充地区与运营商。"
                         />
                     </div>
-                    <SettingsDisclosure
-                        title="服务配置"
-                        subtitle={`${draft.auditIpGeo.provider || '未设置服务商'} · 超时 ${draft.auditIpGeo.timeoutMs}ms · 缓存 ${draft.auditIpGeo.cacheTtlSeconds}s`}
-                        tone={draft.auditIpGeo.enabled ? 'success' : 'neutral'}
-                        defaultOpen={draft.auditIpGeo.enabled}
-                    >
-                        <div className="settings-basic-geo-grid">
-                            <div className="settings-form-cluster">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">查询地址</div>
-                                    <div className="settings-form-cluster-title">IP 查询模板</div>
-                                    <div className="settings-form-cluster-note">使用 `{`ip`}` 作为 IP 占位符，避免写成固定 IP。</div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">查询地址模板</label>
-                                    <input className="form-input" value={draft.auditIpGeo.endpoint} onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="settings-form-cluster">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">服务参数</div>
-                                    <div className="settings-form-cluster-title">提供方、超时和缓存</div>
-                                </div>
-                                <div className="settings-field-grid settings-field-grid--compact">
-                                    <div className="form-group">
-                                        <label className="form-label">服务提供方</label>
-                                        <input className="form-input" value={draft.auditIpGeo.provider} onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">超时（毫秒）</label>
-                                        <input className="form-input" type="number" min={200} value={draft.auditIpGeo.timeoutMs} onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">缓存时长（秒）</label>
-                                        <input className="form-input" type="number" min={60} value={draft.auditIpGeo.cacheTtlSeconds} onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </SettingsDisclosure>
+                    <div className="settings-basic-note-list">
+                        <span className={`badge ${draft.auditIpGeo.enabled ? 'badge-success' : 'badge-neutral'}`}>
+                            {draft.auditIpGeo.enabled ? '已启用' : '未启用'}
+                        </span>
+                        <span className="badge badge-neutral">服务商 {draft.auditIpGeo.provider || '-'}</span>
+                        <span className="badge badge-neutral">缓存 {draft.auditIpGeo.cacheTtlSeconds}s</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1985,7 +1729,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="SMTP 诊断"
-                    subtitle="邮件链路状态、连接测试和用户通知。"
                 />
                 <div className="settings-monitor-toolbar">
                     <div className="settings-monitor-toolbar-status">
@@ -2000,76 +1743,40 @@ export default function SystemSettings() {
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
                             {emailStatusLoading ? <span className="spinner" /> : '刷新'}
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={openNoticeModal} disabled={!emailStatus?.configured || emailStatusLoading || emailTestLoading}>
-                            发送变更通知
-                        </button>
                     </div>
                 </div>
                 {!emailStatus ? (
                     <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
                 ) : (
-                    <>
-                        <div className="settings-monitor-hero settings-monitor-hero--single">
-                            <div className="card p-3 settings-mini-card settings-monitor-hero-main">
-                                <div className="settings-monitor-hero-eyebrow">当前邮件链路</div>
-                                <div className="settings-monitor-hero-title">{emailStatus.from || '未设置发件人'}</div>
-                                <div className="settings-monitor-hero-detail">
-                                    {(emailStatus.host || '未配置服务器')} · port {emailStatus.port || '-'} · {emailStatus.service || '自定义 SMTP'}
-                                </div>
-                                <div className="settings-basic-note-list">
-                                    <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                                    <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                                    <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                                </div>
+                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
+                        <div className="settings-basic-note-list mb-3">
+                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
+                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
+                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                        </div>
+                        <div className="settings-monitor-log-meta">
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">发件人</span>
+                                <span className="settings-monitor-log-value">{emailStatus.from || '未设置发件人'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">SMTP</span>
+                                <span className="settings-monitor-log-value">{(emailStatus.host || '未配置服务器')} · port {emailStatus.port || '-'} · {emailStatus.service || 'SMTP'}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近测试</span>
+                                <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastVerification?.ts, locale)}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">最近发送</span>
+                                <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastDelivery?.ts, locale)}</span>
+                            </div>
+                            <div className="settings-monitor-log-item">
+                                <span className="settings-monitor-log-label">错误</span>
+                                <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.error || emailStatus.lastVerification?.error || '-'}</span>
                             </div>
                         </div>
-                        <div className="settings-monitor-detail-grid">
-                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                    <div className="text-sm font-medium">最近连接测试</div>
-                                    <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                                </div>
-                                <div className="settings-monitor-log-meta">
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">最近测试</span>
-                                        <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastVerification?.ts, locale)}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">错误摘要</span>
-                                        <span className="settings-monitor-log-value">{emailStatus.lastVerification?.error || '-'}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">诊断建议</span>
-                                        <span className="settings-monitor-log-value">{emailStatus.lastVerification?.hint || '-'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                    <div className="text-sm font-medium">最近发送结果</div>
-                                    <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                                </div>
-                                <div className="settings-monitor-log-meta">
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">最近发送</span>
-                                        <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastDelivery?.ts, locale)}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">发送类型</span>
-                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.type || '-'}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">错误摘要</span>
-                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.error || '-'}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">诊断建议</span>
-                                        <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.hint || '-'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
+                    </div>
                 )}
             </div>
 
@@ -2078,7 +1785,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="节点健康监控"
-                    subtitle="巡检状态、异常分布和告警投递。"
                     actions={(
                         <div className="settings-panel-actions">
                             <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
@@ -2145,7 +1851,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="Telegram 机器人"
-                    subtitle="把系统状态和安全告警推到固定 chat，并提供只读查询命令。"
                     actions={(
                         <button
                             className="btn btn-secondary btn-sm"
@@ -2162,6 +1867,13 @@ export default function SystemSettings() {
                     </span>
                     <span className="badge badge-neutral">
                         {monitorStatus?.telegram?.commandsEnabled ? '命令轮询已开启' : '命令轮询未开启'}
+                    </span>
+                    <span className={`badge ${monitorStatus?.telegram?.lastCommandSyncError ? 'badge-warning' : 'badge-neutral'}`}>
+                        {monitorStatus?.telegram?.lastCommandSyncError
+                            ? '菜单同步失败'
+                            : monitorStatus?.telegram?.lastCommandSyncAt
+                                ? '菜单已同步'
+                                : '菜单待同步'}
                     </span>
                     <span className="badge badge-neutral">
                         {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
@@ -2230,7 +1942,7 @@ export default function SystemSettings() {
                         checked={draft.telegram.enabled}
                         onChange={(event) => patchField('telegram', 'enabled', event.target.checked)}
                         label="启用 Telegram 告警"
-                        description="启用后，通知中心里的系统状态告警和高风险审计事件会按分类推送到 Telegram。"
+                        description="启用后将推送系统状态和安全告警。"
                         activeLabel="已启用"
                         inactiveLabel="未启用"
                     />
@@ -2238,7 +1950,7 @@ export default function SystemSettings() {
                         checked={draft.telegram.sendSystemStatus}
                         onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
                         label="系统状态"
-                        description="推送节点健康、DB 连续失败、通知中心系统告警等状态类消息。"
+                        description="节点、数据库、到期提醒等状态消息。"
                         activeLabel="推送"
                         inactiveLabel="不推送"
                     />
@@ -2246,7 +1958,7 @@ export default function SystemSettings() {
                         checked={draft.telegram.sendSecurityAudit}
                         onChange={(event) => patchField('telegram', 'sendSecurityAudit', event.target.checked)}
                         label="审计告警"
-                        description="推送登录限流、公开订阅异常访问、批量高风险操作等安全审计事件。"
+                        description="登录失败、限流、订阅异常访问等。"
                         activeLabel="推送"
                         inactiveLabel="不推送"
                     />
@@ -2254,55 +1966,21 @@ export default function SystemSettings() {
                         checked={draft.telegram.sendEmergencyAlerts}
                         onChange={(event) => patchField('telegram', 'sendEmergencyAlerts', event.target.checked)}
                         label="紧急告警"
-                        description="critical 级别事件会直接升级到紧急通道，适合陌生人攻击或节点大面积异常。"
+                        description="critical 级别事件直接升级。"
                         activeLabel="推送"
                         inactiveLabel="不推送"
                     />
                 </div>
-                <div className="settings-monitor-detail-grid mt-3">
-                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="text-sm font-medium">机器人状态</div>
-                        <div className="settings-monitor-log-meta">
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">目标</span>
-                                <span className="settings-monitor-log-value">{telegramTargetPreview}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近发送</span>
-                                <span className="settings-monitor-log-value">{formatDateTime(monitorStatus?.telegram?.lastSentAt, locale)}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近发送错误</span>
-                                <span className="settings-monitor-log-value">{monitorStatus?.telegram?.lastError || '-'}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近命令</span>
-                                <span className="settings-monitor-log-value">
-                                    {monitorStatus?.telegram?.lastCommand
-                                        ? `${monitorStatus.telegram.lastCommand} · ${formatDateTime(monitorStatus?.telegram?.lastCommandAt, locale)}`
-                                        : '暂无'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="text-sm font-medium">Telegram 可用命令</div>
-                        <div className="text-sm text-muted">这些命令都限制在当前配置的 chat id 内，只开放查看和低风险动作。</div>
-                        <div className="settings-basic-note-list mt-2">
-                            <span className="badge badge-neutral">/help</span>
-                            <span className="badge badge-neutral">/status</span>
-                            <span className="badge badge-neutral">/online</span>
-                            <span className="badge badge-neutral">/traffic</span>
-                            <span className="badge badge-neutral">/alerts</span>
-                            <span className="badge badge-neutral">/security</span>
-                            <span className="badge badge-neutral">/nodes</span>
-                            <span className="badge badge-neutral">/access</span>
-                            <span className="badge badge-neutral">/monitor</span>
-                        </div>
-                        <div className="text-xs text-muted mt-2">
-                            `/monitor` 会触发一次手动巡检；其余命令只读，适合不登录网站时快速看告警、节点异常和异常访问。
-                        </div>
-                    </div>
+                <div className="settings-basic-note-list mt-3">
+                    <span className="badge badge-neutral">目标 {telegramTargetPreview}</span>
+                    <span className="badge badge-neutral">
+                        {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
+                    </span>
+                    <span className="badge badge-neutral">
+                        {monitorStatus?.telegram?.lastCommand
+                            ? `最近命令 ${monitorStatus.telegram.lastCommand}`
+                            : '尚无命令记录'}
+                    </span>
                 </div>
             </div>
         </div>
@@ -2314,46 +1992,31 @@ export default function SystemSettings() {
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="加密备份工作台"
-                    subtitle="新备份会统一使用当前 `CREDENTIALS_SECRET` 加密；导出、保存到服务器本机、预览和恢复都走同一套解密校验链路。"
+                    title="备份与恢复"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
                             {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
                         </button>
                     )}
                 />
-                <div className="settings-backup-hero">
-                    <div className="card p-3 settings-mini-card settings-backup-hero-card">
-                        <div className="settings-backup-hero-eyebrow">备份策略</div>
-                        <div className="settings-backup-hero-title">默认输出加密备份包，恢复前先解密再校验</div>
-                        <div className="text-sm text-muted">
-                            新备份文件统一为 `.nmsbak`。只要 `CREDENTIALS_SECRET` 不变，你可以选择导出下载，或直接在服务器本机留存并从列表里恢复。
+                <div className="card p-3 settings-mini-card settings-detail-card">
+                    <div className="text-sm font-medium">备份摘要</div>
+                    <div className="settings-monitor-log-meta">
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">可备份 Store</span>
+                            <span className="settings-monitor-log-value">{backupStatus?.storeKeys?.length || 0} · {(backupStatus?.storeKeys || []).join(', ') || '暂无'}</span>
                         </div>
-                        <div className="settings-backup-badge-row">
-                            <span className="badge badge-success">AES-256-GCM</span>
-                            <span className="badge badge-neutral">密钥来源 CREDENTIALS_SECRET</span>
-                            <span className="badge badge-neutral">旧版 `.json.gz` 兼容恢复</span>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">最近生成</span>
+                            <span className="settings-monitor-log-value">{backupStatus?.lastExport?.filename || '-'} · {formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</span>
                         </div>
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-detail-card">
-                        <div className="text-sm font-medium">备份摘要</div>
-                        <div className="settings-monitor-log-meta">
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">可备份 Store</span>
-                                <span className="settings-monitor-log-value">{backupStatus?.storeKeys?.length || 0} · {(backupStatus?.storeKeys || []).join(', ') || '暂无'}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近生成</span>
-                                <span className="settings-monitor-log-value">{backupStatus?.lastExport?.filename || '-'} · {formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">本机备份</span>
-                                <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '服务器本机尚无备份'}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近恢复</span>
-                                <span className="settings-monitor-log-value">{backupStatus?.lastImport?.sourceFilename || '-'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</span>
-                            </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">本机备份</span>
+                            <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">最近恢复</span>
+                            <span className="settings-monitor-log-value">{backupStatus?.lastImport?.sourceFilename || '-'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</span>
                         </div>
                     </div>
                 </div>
@@ -2361,7 +2024,7 @@ export default function SystemSettings() {
                 <div className="settings-backup-actions settings-backup-actions--triple mt-3">
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
                         <div className="text-sm font-medium">导出到浏览器</div>
-                        <div className="text-xs text-muted mt-1">下载一份加密备份包到当前浏览器所在设备，适合异地留存或手工归档。</div>
+                        <div className="text-xs text-muted mt-1">下载一份加密备份包。</div>
                         <div className="settings-backup-action-footer">
                             <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
                                 {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出加密备份</>}
@@ -2370,7 +2033,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
                         <div className="text-sm font-medium">保存到服务器本机</div>
-                        <div className="text-xs text-muted mt-1">在 `NMS` 所在机器保存一份加密备份，后续可以直接从下面列表里下载、恢复或删除。</div>
+                        <div className="text-xs text-muted mt-1">在服务器本机留存一份加密备份。</div>
                         <div className="settings-backup-action-footer">
                             <button className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
                                 {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck /> 保存本机备份</>}
@@ -2379,7 +2042,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
                         <div className="text-sm font-medium">从文件恢复</div>
-                        <div className="text-xs text-muted mt-1">上传加密备份包或旧版 `.json.gz`，系统会先解密或解压校验，再执行覆盖恢复。</div>
+                        <div className="text-xs text-muted mt-1">上传备份包后恢复。</div>
                         <div className="settings-backup-action-footer">
                             <button
                                 className="btn btn-secondary btn-sm"
@@ -2502,28 +2165,6 @@ export default function SystemSettings() {
                     </div>
                 )}
             </div>
-
-            <div className="card p-4 settings-panel settings-danger-panel">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="凭据轮换"
-                    subtitle="更换 `CREDENTIALS_SECRET` 后，可用新密钥重新加密已保存的节点凭据。Dry Run 仅预演不修改数据。"
-                />
-                <div className="flex gap-2 flex-wrap mb-3">
-                    <button className="btn btn-secondary btn-sm" onClick={() => rotateCredentials(true)} disabled={rotateLoading}>
-                        {rotateLoading ? <span className="spinner" /> : 'Dry Run'}
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => rotateCredentials(false)} disabled={rotateLoading}>
-                        {rotateLoading ? <span className="spinner" /> : '执行轮换'}
-                    </button>
-                </div>
-                {rotateResult && (
-                    <div className="text-sm text-muted">
-                        扫描字段: {rotateResult.scannedFields}，轮换字段: {rotateResult.rotatedFields}，失败: {rotateResult.failedFields}
-                    </div>
-                )}
-            </div>
         </div>
     );
 
@@ -2534,7 +2175,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="数据库接入状态"
-                    subtitle="运行时查看数据库就绪情况，并在 file / db / dual 之间切换读写模式。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2553,7 +2193,6 @@ export default function SystemSettings() {
                                     {dbStatus.connection?.enabled ? (dbStatus.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
                                 </div>
                                 <div className="text-xs text-muted">{dbStatus.connection?.error || '无错误'}</div>
-                                <div className="text-xs text-muted mt-1">需在 `.env` 中配置 `DB_ENABLED=true` 和 `DB_URL`。</div>
                             </div>
                             <div className="card p-3 settings-mini-card">
                                 <div className="text-sm text-muted">当前模式</div>
@@ -2575,7 +2214,6 @@ export default function SystemSettings() {
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
                                     <h4 className="text-base font-semibold">切换读写模式</h4>
-                                    <div className="text-xs text-muted">运行时切换数据源，无需重启。file=本地 JSON，db=PostgreSQL，dual=同时写两者。</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
@@ -2628,7 +2266,6 @@ export default function SystemSettings() {
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
                                     <h4 className="text-base font-semibold">Store 回填到数据库</h4>
-                                    <div className="text-xs text-muted">将本地 JSON 文件数据导入 PostgreSQL。脱敏写入会隐藏密码等敏感字段。</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
@@ -2680,38 +2317,6 @@ export default function SystemSettings() {
                             </div>
                         </div>
 
-                        <div className="mt-4 settings-snapshot-section">
-                            <SettingsDisclosure
-                                title="数据库快照"
-                                subtitle={`当前 ${(dbStatus.snapshots || []).length} 条快照记录`}
-                                badge={<span className="badge badge-neutral">只读信息</span>}
-                            >
-                                <div className="settings-table-shell" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>store</th>
-                                                <th>size(bytes)</th>
-                                                <th>updated_at</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(dbStatus.snapshots || []).length === 0 ? (
-                                                <tr><td colSpan={3} className="text-center text-muted">暂无快照</td></tr>
-                                            ) : (
-                                                (dbStatus.snapshots || []).map((item) => (
-                                                    <tr key={item.store_key || item.id || `${item.updated_at || 'snapshot'}-${item.payload_size || 0}`}>
-                                                        <td data-label="Store">{item.store_key}</td>
-                                                        <td data-label="大小">{item.payload_size || 0}</td>
-                                                        <td data-label="更新时间">{formatDateTime(item.updated_at, locale)}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </SettingsDisclosure>
-                        </div>
                     </>
                 )}
             </div>
@@ -2873,29 +2478,29 @@ export default function SystemSettings() {
                         >
                             {activeWorkspaceSection.content}
                         </SettingsWorkspaceSection>
-                    </div>
-                    <div className="card settings-save-dock">
-                        <div className="settings-save-dock-inner" aria-live="polite">
-                            <div className="settings-save-dock-main">
-                                <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
-                                    {saving ? <span className="spinner spinner-16" /> : null}
-                                    <span>
-                                        {saving
-                                            ? '正在保存设置'
-                                            : loading
-                                                ? '正在加载配置'
-                                                : hasPendingChanges
-                                                    ? '有未保存更改'
-                                                    : '配置已加载'}
-                                    </span>
+                        <div className="card settings-save-dock">
+                            <div className="settings-save-dock-inner" aria-live="polite">
+                                <div className="settings-save-dock-main">
+                                    <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
+                                        {saving ? <span className="spinner spinner-16" /> : null}
+                                        <span>
+                                            {saving
+                                                ? '正在保存设置'
+                                                : loading
+                                                    ? '正在加载配置'
+                                                    : hasPendingChanges
+                                                        ? '有未保存更改'
+                                                        : '配置已加载'}
+                                        </span>
+                                    </div>
+                                    <span className="settings-save-dock-current">{activeWorkspaceSection.title}</span>
+                                    {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
                                 </div>
-                                <span className="settings-save-dock-current">{activeWorkspaceSection.title}</span>
-                                {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
-                            </div>
-                            <div className="settings-save-dock-actions">
-                                <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
-                                    {saving ? <span className="spinner" /> : '保存设置'}
-                                </button>
+                                <div className="settings-save-dock-actions">
+                                    <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
+                                        {saving ? <span className="spinner" /> : '保存设置'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

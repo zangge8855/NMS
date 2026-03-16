@@ -1358,8 +1358,8 @@
 .settings-main {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 56px;
+  gap: 12px;
+  padding-bottom: 12px;
 }
 
 .settings-nav-list--workspace {
@@ -1370,6 +1370,7 @@
   position: sticky;
   bottom: 8px;
   z-index: 9;
+  margin-top: 2px;
   padding: 10px 12px;
   border-radius: 18px;
   border: 1px solid var(--stroke-soft);

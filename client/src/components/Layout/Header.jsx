@@ -10,8 +10,6 @@ import {
     HiOutlineMoon,
     HiOutlineComputerDesktop,
     HiOutlineMagnifyingGlass,
-    HiOutlineShieldCheck,
-    HiOutlineUserCircle,
 } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getNavItemForPath, getSearchableNavItems } from './navConfig.js';
@@ -68,7 +66,6 @@ export default function Header({
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
     const MatchedNavIcon = matchedNavItem?.icon || null;
     const resolvedHeaderIcon = MatchedNavIcon ? <MatchedNavIcon /> : icon;
-    const UserIdentityIcon = isAdmin ? HiOutlineShieldCheck : HiOutlineUserCircle;
     const themeLabels = useMemo(() => ({
         dark: t('shell.themeDark'),
         light: t('shell.themeLight'),
@@ -300,14 +297,6 @@ export default function Header({
                     <kbd className="header-search-kbd">{shortcutLabel}</kbd>
                 </div>
                 {children}
-                {user?.username && (
-                    <div className="header-user-chip" title={user.username}>
-                        <span className="header-user-symbol" aria-hidden="true">
-                            <UserIdentityIcon />
-                        </span>
-                        <span className="header-user-name">{user.username}</span>
-                    </div>
-                )}
                 <button
                     type="button"
                     className="theme-toggle-btn language-toggle-btn"

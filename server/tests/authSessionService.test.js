@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     changeOwnPassword,
     createLoginSession,
+    updateOwnProfile,
     validateSession,
 } from '../services/authSessionService.js';
 
@@ -205,5 +206,89 @@ test('changeOwnPassword updates password when old password is correct', () => {
     assert.deepEqual(updatedPayload, {
         id: 'user-6',
         payload: { password: 'NewPass123!' },
+    });
+});
+
+test('updateOwnProfile only updates the login email', () => {
+    let updatedPayload = null;
+    const repo = {
+        getById(id) {
+            assert.equal(id, 'user-7');
+            return {
+                id: 'user-7',
+                username: 'gina',
+                role: 'user',
+                email: 'gina@example.com',
+                subscriptionEmail: 'gina@example.com',
+                emailVerified: true,
+            };
+        },
+        update(id, payload) {
+            updatedPayload = { id, payload };
+            return {
+                id,
+                username: 'gina',
+                role: 'user',
+                email: payload.email,
+                subscriptionEmail: payload.subscriptionEmail,
+                emailVerified: true,
+            };
+        },
+    };
+
+    const result = updateOwnProfile(
+        { email: 'gina.new@example.com' },
+        { userId: 'user-7' },
+        { userRepository: repo }
+    );
+
+    assert.equal(result.subscriptionEmailSynced, false);
+    assert.deepEqual(updatedPayload, {
+        id: 'user-7',
+        payload: {
+            email: 'gina.new@example.com',
+        },
+    });
+});
+
+test('updateOwnProfile preserves an explicitly bound subscription email', () => {
+    let updatedPayload = null;
+    const repo = {
+        getById(id) {
+            assert.equal(id, 'user-8');
+            return {
+                id: 'user-8',
+                username: 'harry',
+                role: 'user',
+                email: 'harry@example.com',
+                subscriptionEmail: 'harry-sub@example.com',
+                emailVerified: true,
+            };
+        },
+        update(id, payload) {
+            updatedPayload = { id, payload };
+            return {
+                id,
+                username: 'harry',
+                role: 'user',
+                email: payload.email,
+                subscriptionEmail: 'harry-sub@example.com',
+                emailVerified: true,
+            };
+        },
+    };
+
+    const result = updateOwnProfile(
+        { email: 'harry.new@example.com' },
+        { userId: 'user-8' },
+        { userRepository: repo }
+    );
+
+    assert.equal(result.subscriptionEmailSynced, false);
+    assert.deepEqual(updatedPayload, {
+        id: 'user-8',
+        payload: {
+            email: 'harry.new@example.com',
+        },
     });
 });

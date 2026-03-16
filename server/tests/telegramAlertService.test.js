@@ -37,7 +37,7 @@ test('telegramAlertService forwards critical notifications when configured', asy
     assert.equal(calls[0].body.chat_id, '-1001234567890');
     assert.equal(calls[0].body.parse_mode, 'HTML');
     assert.match(calls[0].body.text, /<b>NMS 系统告警摘要<\/b>/);
-    assert.match(calls[0].body.text, /节点: node-a/);
+    assert.match(calls[0].body.text, /节点: <b>node-a<\/b>/);
     assert.match(calls[0].body.text, /<b>概况<\/b>/);
     assert.match(calls[0].body.text, /\n\n<b>影响<\/b>/);
 });
@@ -74,7 +74,7 @@ test('telegramAlertService deduplicates repeated security alerts within the cool
     assert.equal(calls.length, 1);
     assert.equal(calls[0].body.parse_mode, 'HTML');
     assert.match(calls[0].body.text, /登录频率限制/);
-    assert.match(calls[0].body.text, /归属地 \/ 运营商: 中国 浙江 杭州 · 中国电信/);
+    assert.match(calls[0].body.text, /归属地 \/ 运营商: <b>中国 浙江 杭州 · 中国电信<\/b>/);
     assert.match(calls[0].body.text, /<b>来源<\/b>/);
 });
 
@@ -113,14 +113,20 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     });
 
     const sent = await service.sendTestMessage('admin');
+    const commandCall = calls.find((item) => /\/setMyCommands$/.test(item.url));
+    const messageCall = calls.find((item) => /\/sendMessage$/.test(item.url));
 
     assert.equal(sent, true);
     assert.equal(service.getStatus().commandsEnabled, true);
     assert.equal(service.getStatus().enabled, true);
-    assert.equal(calls[0].body.parse_mode, 'HTML');
-    assert.match(calls[0].body.text, /<b>NMS Telegram 测试通知<\/b>/);
-    assert.match(calls[0].body.text, /<code>\/expiry<\/code> 用户到期提醒摘要/);
-    assert.match(calls[0].body.text, /<b>运维命令<\/b>/);
+    assert.ok(commandCall);
+    assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor']);
+    assert.equal(messageCall.body.parse_mode, 'HTML');
+    assert.match(messageCall.body.text, /<b>NMS Telegram 测试通知<\/b>/);
+    assert.match(messageCall.body.text, /<b>快捷方式<\/b>/);
+    assert.match(messageCall.body.text, /<code>\/expiry<\/code> 用户到期提醒摘要/);
+    assert.match(messageCall.body.text, /<b>运维命令<\/b>/);
+    assert.deepEqual(messageCall.body.reply_markup.keyboard[0].map((item) => item.text), ['/status', '/security', '/alerts']);
 });
 
 test('telegramAlertService forwards login failure audits with target account details', async () => {
@@ -150,8 +156,8 @@ test('telegramAlertService forwards login failure audits with target account det
     assert.equal(sent, true);
     assert.equal(calls.length, 1);
     assert.match(calls[0].body.text, /登录失败/);
-    assert.match(calls[0].body.text, /目标用户: alice/);
-    assert.match(calls[0].body.text, /请求: POST \/api\/auth\/login/);
+    assert.match(calls[0].body.text, /目标用户: <b>alice<\/b>/);
+    assert.match(calls[0].body.text, /请求: <b>POST \/api\/auth\/login<\/b>/);
 });
 
 test('telegramAlertService retries the same alert after a failed delivery', async () => {
@@ -252,10 +258,11 @@ test('formatStatusDigestMessage renders structured HTML blocks', () => {
     });
 
     assert.match(text, /<b>NMS 状态总览<\/b>/);
-    assert.match(text, /<b>集群运行<\/b>/);
-    assert.match(text, /累计总量: 120 B/);
-    assert.match(text, /上行: 50 B/);
-    assert.match(text, /下行: 70 B/);
+    assert.match(text, /<b>集群概况<\/b>/);
+    assert.match(text, /统计口径: <b>节点快照累计值<\/b>/);
+    assert.match(text, /合计: <b>120 B<\/b>/);
+    assert.match(text, /上行: <b>50 B<\/b>/);
+    assert.match(text, /下行: <b>70 B<\/b>/);
 });
 
 test('formatCommandCatalogMessage renders structured HTML help output', () => {

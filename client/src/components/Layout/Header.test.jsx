@@ -65,15 +65,12 @@ describe('Header', () => {
         expect(screen.getByRole('heading', { name: '服务器 · 华东核心节点-A-超长名称' })).toHaveClass('header-title--wrap');
     });
 
-    it('shows the current user identity in the top-right action area without the old stacked role label', () => {
+    it('keeps the top-right action area free of the old user identity chip', () => {
         const { container } = renderWithRouter(<Header title="订阅中心" />);
 
-        expect(screen.getByText('review-admin')).toBeInTheDocument();
-        expect(container.querySelector('.header-user-chip')).toBeInTheDocument();
-        expect(container.querySelector('.header-user-symbol')).toBeInTheDocument();
-        expect(container.querySelector('.header-user-avatar')).toBeNull();
-        expect(container.querySelector('.header-user-role')).toBeNull();
-        expect(screen.queryByText('管理员')).not.toBeInTheDocument();
+        expect(screen.queryByText('review-admin')).not.toBeInTheDocument();
+        expect(container.querySelector('.header-user-chip')).toBeNull();
+        expect(container.querySelector('.header-user-symbol')).toBeNull();
     });
 
     it('reuses the sidebar navigation icon for top-level pages and nested detail pages', () => {

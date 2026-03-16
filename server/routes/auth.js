@@ -16,6 +16,7 @@ import {
 import {
     changeOwnPassword,
     createLoginSession,
+    updateOwnProfile,
     validateSession,
 } from '../services/authSessionService.js';
 import {
@@ -834,6 +835,29 @@ router.put('/change-password', authMiddleware, (req, res) => {
         res.json({ success: true, msg: '密码修改成功' });
     } catch (err) {
         const error = toHttpError(err, 400, '修改密码失败');
+        res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * PUT /api/auth/profile — 修改自己的账号资料
+ */
+router.put('/profile', authMiddleware, (req, res) => {
+    try {
+        const result = updateOwnProfile(req.body, req.user);
+        appendSecurityAudit('account_email_updated', req, buildUserAuditDetails(result.user, {
+            username: result.user.username,
+            previousEmail: result.previousEmail,
+            previousSubscriptionEmail: result.previousSubscriptionEmail,
+            subscriptionEmailSynced: result.subscriptionEmailSynced,
+        }));
+        res.json({
+            success: true,
+            msg: '账号信息已更新',
+            obj: result.user,
+        });
+    } catch (err) {
+        const error = toHttpError(err, 400, '更新账号信息失败');
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
