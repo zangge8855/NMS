@@ -516,47 +516,6 @@ a:hover {
   border-top: 1px solid var(--stroke-soft);
 }
 
-.sidebar-account-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke-soft);
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.sidebar-account-chip-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 24px;
-  color: var(--text-primary);
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.16);
-}
-
-.sidebar-account-chip-copy {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
-
-.sidebar-account-chip-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
 .nav-section-title {
   padding: 0 10px;
   font-size: 10px;
@@ -632,15 +591,6 @@ a:hover {
 .sidebar.collapsed .nav-item {
   justify-content: center;
   padding: 10px 0;
-}
-
-.sidebar.collapsed .sidebar-account-chip {
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.sidebar.collapsed .sidebar-account-chip-copy {
-  display: none;
 }
 
 .nav-label {

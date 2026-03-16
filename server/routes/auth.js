@@ -847,6 +847,7 @@ router.put('/profile', authMiddleware, (req, res) => {
         const result = updateOwnProfile(req.body, req.user);
         appendSecurityAudit('account_email_updated', req, buildUserAuditDetails(result.user, {
             username: result.user.username,
+            previousUsername: result.previousUsername,
             previousEmail: result.previousEmail,
             previousSubscriptionEmail: result.previousSubscriptionEmail,
             subscriptionEmailSynced: result.subscriptionEmailSynced,

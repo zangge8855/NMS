@@ -16,19 +16,16 @@ function getAccountCopy(locale = 'zh-CN') {
             username: 'Username',
             role: 'Role',
             email: 'Login Email',
-            subscriptionEmail: 'Subscription Email',
             verified: 'Verified',
             unverified: 'Unverified',
-            unset: 'Not set',
             userRole: 'User',
             adminRole: 'Admin',
             saveProfile: 'Save Account',
             savingProfile: 'Saving',
             profileSaved: 'Account updated',
             profileSaveFailed: 'Failed to update account',
+            usernameRequired: 'Username is required',
             emailInvalid: 'Invalid email address',
-            followsLogin: 'The subscription email currently follows the login email and will be updated together.',
-            separateBinding: 'The subscription email is bound separately and will stay unchanged.',
             currentPassword: 'Current Password',
             newPassword: 'New Password',
             confirmPassword: 'Confirm New Password',
@@ -47,19 +44,16 @@ function getAccountCopy(locale = 'zh-CN') {
         username: '用户名',
         role: '角色',
         email: '登录邮箱',
-        subscriptionEmail: '订阅邮箱',
         verified: '已验证',
         unverified: '未验证',
-        unset: '未设置',
         userRole: '用户',
         adminRole: '管理员',
         saveProfile: '保存账号',
         savingProfile: '正在保存',
         profileSaved: '账号信息已更新',
         profileSaveFailed: '更新账号信息失败',
+        usernameRequired: '用户名不能为空',
         emailInvalid: '邮箱格式不正确',
-        followsLogin: '当前订阅邮箱跟随登录邮箱，保存后会一起同步。',
-        separateBinding: '当前订阅邮箱已单独绑定，不会随登录邮箱一起变化。',
         currentPassword: '当前密码',
         newPassword: '新密码',
         confirmPassword: '确认新密码',
@@ -75,10 +69,15 @@ function normalizeEmail(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function normalizeUsername(value) {
+    return String(value || '').trim();
+}
+
 export default function AccountCenter() {
     const { user, patchUser } = useAuth();
     const { locale } = useI18n();
     const copy = useMemo(() => getAccountCopy(locale), [locale]);
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [profileSaving, setProfileSaving] = useState(false);
     const [oldPassword, setOldPassword] = useState('');
@@ -87,16 +86,22 @@ export default function AccountCenter() {
     const [passwordSaving, setPasswordSaving] = useState(false);
 
     const loginEmail = normalizeEmail(user?.email);
-    const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
+    const loginUsername = normalizeUsername(user?.username);
     const roleLabel = user?.role === 'admin' ? copy.adminRole : copy.userRole;
-    const profileChanged = normalizeEmail(email) !== loginEmail;
+    const profileChanged = normalizeUsername(username) !== loginUsername || normalizeEmail(email) !== loginEmail;
 
     useEffect(() => {
+        setUsername(loginUsername);
         setEmail(loginEmail);
-    }, [loginEmail]);
+    }, [loginEmail, loginUsername]);
 
     const handleSaveProfile = async () => {
+        const nextUsername = normalizeUsername(username);
         const nextEmail = normalizeEmail(email);
+        if (!nextUsername) {
+            toast.error(copy.usernameRequired);
+            return;
+        }
         if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
             toast.error(copy.emailInvalid);
             return;
@@ -104,8 +109,11 @@ export default function AccountCenter() {
 
         setProfileSaving(true);
         try {
-            const res = await api.put('/auth/profile', { email: nextEmail });
-            patchUser?.(res.data?.obj || { email: nextEmail });
+            const res = await api.put('/auth/profile', {
+                username: nextUsername,
+                email: nextEmail,
+            });
+            patchUser?.(res.data?.obj || { username: nextUsername, email: nextEmail });
             toast.success(res.data?.msg || copy.profileSaved);
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || copy.profileSaveFailed);
@@ -158,16 +166,17 @@ export default function AccountCenter() {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title={copy.profileTitle}
-                            meta={(
-                                <span className="text-xs text-muted">
-                                    {String(user?.username || '-').trim() || '-'}
-                                </span>
-                            )}
                         />
                         <div className="account-profile-grid">
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.username}</label>
-                                <input className="form-input" value={String(user?.username || '')} readOnly />
+                                <label className="form-label" htmlFor="account-username">{copy.username}</label>
+                                <input
+                                    id="account-username"
+                                    className="form-input"
+                                    value={username}
+                                    onChange={(event) => setUsername(event.target.value)}
+                                    autoComplete="username"
+                                />
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">{copy.role}</label>
@@ -179,8 +188,9 @@ export default function AccountCenter() {
                                 </div>
                             </div>
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.email}</label>
+                                <label className="form-label" htmlFor="account-email">{copy.email}</label>
                                 <input
+                                    id="account-email"
                                     type="email"
                                     className="form-input"
                                     value={email}
@@ -189,13 +199,6 @@ export default function AccountCenter() {
                                     placeholder="user@example.com"
                                 />
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">{copy.subscriptionEmail}</label>
-                                <input className="form-input" value={subscriptionEmail || copy.unset} readOnly />
-                            </div>
-                        </div>
-                        <div className="account-profile-note">
-                            {copy.separateBinding}
                         </div>
                         <div className="account-actions">
                             <button
@@ -215,8 +218,9 @@ export default function AccountCenter() {
                         />
                         <div className="account-password-grid">
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.currentPassword}</label>
+                                <label className="form-label" htmlFor="account-current-password">{copy.currentPassword}</label>
                                 <input
+                                    id="account-current-password"
                                     type="password"
                                     className="form-input"
                                     value={oldPassword}
@@ -225,8 +229,9 @@ export default function AccountCenter() {
                                 />
                             </div>
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.newPassword}</label>
+                                <label className="form-label" htmlFor="account-new-password">{copy.newPassword}</label>
                                 <input
+                                    id="account-new-password"
                                     type="password"
                                     className="form-input"
                                     value={newPassword}
@@ -235,8 +240,9 @@ export default function AccountCenter() {
                                 />
                             </div>
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.confirmPassword}</label>
+                                <label className="form-label" htmlFor="account-confirm-password">{copy.confirmPassword}</label>
                                 <input
+                                    id="account-confirm-password"
                                     type="password"
                                     className="form-input"
                                     value={confirmPassword}

@@ -77,7 +77,7 @@ describe('Sidebar', () => {
     it('renders logout in the utility section inside the main nav', () => {
         const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
 
-        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-account-chip')).not.toBeNull();
+        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-account-chip')).toBeNull();
         expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-logout')).not.toBeNull();
         expect(container.querySelector('.sidebar-footer-nav .sidebar-logout')).toBeNull();
     });

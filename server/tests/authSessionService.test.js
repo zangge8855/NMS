@@ -209,7 +209,7 @@ test('changeOwnPassword updates password when old password is correct', () => {
     });
 });
 
-test('updateOwnProfile only updates the login email', () => {
+test('updateOwnProfile updates username and login email only', () => {
     let updatedPayload = null;
     const repo = {
         getById(id) {
@@ -237,15 +237,17 @@ test('updateOwnProfile only updates the login email', () => {
     };
 
     const result = updateOwnProfile(
-        { email: 'gina.new@example.com' },
+        { username: 'gina-new', email: 'gina.new@example.com' },
         { userId: 'user-7' },
         { userRepository: repo }
     );
 
     assert.equal(result.subscriptionEmailSynced, false);
+    assert.equal(result.previousUsername, 'gina');
     assert.deepEqual(updatedPayload, {
         id: 'user-7',
         payload: {
+            username: 'gina-new',
             email: 'gina.new@example.com',
         },
     });
@@ -279,7 +281,7 @@ test('updateOwnProfile preserves an explicitly bound subscription email', () => 
     };
 
     const result = updateOwnProfile(
-        { email: 'harry.new@example.com' },
+        { username: 'harry-next', email: 'harry.new@example.com' },
         { userId: 'user-8' },
         { userRepository: repo }
     );
@@ -288,7 +290,36 @@ test('updateOwnProfile preserves an explicitly bound subscription email', () => 
     assert.deepEqual(updatedPayload, {
         id: 'user-8',
         payload: {
+            username: 'harry-next',
             email: 'harry.new@example.com',
         },
     });
+});
+
+test('updateOwnProfile requires a username', () => {
+    const repo = {
+        getById() {
+            return {
+                id: 'user-9',
+                username: 'ivy',
+                role: 'user',
+                email: 'ivy@example.com',
+                subscriptionEmail: 'ivy@example.com',
+                emailVerified: true,
+            };
+        },
+    };
+
+    assert.throws(
+        () => updateOwnProfile(
+            { username: '   ', email: 'ivy.new@example.com' },
+            { userId: 'user-9' },
+            { userRepository: repo }
+        ),
+        (error) => {
+            assert.equal(error.status, 400);
+            assert.equal(error.message, '请提供用户名');
+            return true;
+        }
+    );
 });

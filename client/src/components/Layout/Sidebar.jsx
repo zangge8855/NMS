@@ -11,8 +11,6 @@ import {
     HiOutlineArrowRightOnRectangle,
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
-    HiOutlineShieldCheck,
-    HiOutlineUserCircle,
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
@@ -49,7 +47,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
-    const AccountIdentityIcon = isAdmin ? HiOutlineShieldCheck : HiOutlineUserCircle;
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
 
@@ -306,16 +303,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                     );
                 })}
                 <div className="nav-section nav-section-utility">
-                    {user?.username ? (
-                        <div className="sidebar-account-chip" title={user.username}>
-                            <span className="sidebar-account-chip-icon" aria-hidden="true">
-                                <AccountIdentityIcon />
-                            </span>
-                            <span className="sidebar-account-chip-copy">
-                                <span className="sidebar-account-chip-name">{user.username}</span>
-                            </span>
-                        </div>
-                    ) : null}
                     {visibleFooterItems.map((item) => (
                         <NavLink
                             key={item.path}

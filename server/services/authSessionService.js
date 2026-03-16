@@ -5,6 +5,10 @@ import { createHttpError } from '../lib/httpError.js';
 import userRepository from '../repositories/userRepository.js';
 import { normalizeEmailInput } from './emailAuthService.js';
 
+function normalizeUsernameInput(value) {
+    return String(value || '').trim();
+}
+
 function resolveUserSubscriptionEmail(user) {
     if (!user || typeof user !== 'object') return '';
     if (Object.prototype.hasOwnProperty.call(user, 'subscriptionEmail')) {
@@ -183,7 +187,11 @@ function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
         throw createHttpError(400, '无法识别当前用户');
     }
 
+    const username = normalizeUsernameInput(payload?.username);
     const email = normalizeEmailInput(payload?.email);
+    if (!username) {
+        throw createHttpError(400, '请提供用户名');
+    }
     if (!email) {
         throw createHttpError(400, '请提供邮箱');
     }
@@ -191,15 +199,17 @@ function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
         throw createHttpError(400, '邮箱格式不正确');
     }
 
+    const previousUsername = normalizeUsernameInput(user.username);
     const previousEmail = normalizeEmailInput(user.email);
     const previousSubscriptionEmail = normalizeEmailInput(user.subscriptionEmail);
-    const updated = userRepo.update(user.id, { email });
+    const updated = userRepo.update(user.id, { username, email });
     if (!updated) {
         throw createHttpError(404, '用户不存在');
     }
 
     return {
         user: updated,
+        previousUsername,
         previousEmail,
         previousSubscriptionEmail,
         subscriptionEmailSynced: false,
