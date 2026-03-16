@@ -305,16 +305,16 @@ export default function ConflictScannerModal({
                                                     </div>
 
                                                     <div className="table-container">
-                                                        <table className="table">
+                                                        <table className="table conflict-scanner-table">
                                                             <thead>
                                                                 <tr>
                                                                     <th>节点</th>
                                                                     <th>入站</th>
                                                                     <th>标识</th>
-                                                                    <th>启用</th>
-                                                                    <th>有效期</th>
-                                                                    <th>总量</th>
-                                                                    <th>来源</th>
+                                                                    <th className="table-cell-center conflict-scanner-enabled-column">启用</th>
+                                                                    <th className="table-cell-center conflict-scanner-expiry-column">有效期</th>
+                                                                    <th className="table-cell-right conflict-scanner-total-column">总量</th>
+                                                                    <th className="table-cell-center conflict-scanner-source-column">来源</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -328,14 +328,14 @@ export default function ConflictScannerModal({
                                                                             <td data-label="标识" className="font-mono text-xs">
                                                                                 {getClientIdentifier(entry) || '-'}
                                                                             </td>
-                                                                            <td data-label="启用">
+                                                                            <td data-label="启用" className="table-cell-center conflict-scanner-enabled-cell">
                                                                                 <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
                                                                                     {entry.enable === false ? '停用' : '启用'}
                                                                                 </span>
                                                                             </td>
-                                                                            <td data-label="有效期">{formatExpiry(entry.expiryTime)}</td>
-                                                                            <td data-label="总量">{formatBytes(toNumber(entry.totalGB, 0))}</td>
-                                                                            <td data-label="来源">
+                                                                            <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime)}</td>
+                                                                            <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
+                                                                            <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
                                                                                 {isSource ? <span className="badge badge-info">来源</span> : '-'}
                                                                             </td>
                                                                         </tr>
@@ -361,4 +361,3 @@ export default function ConflictScannerModal({
         </ModalShell>
     );
 }
-

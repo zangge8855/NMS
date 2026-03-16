@@ -1,5 +1,6 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
 import api from '../../api/client.js';
@@ -324,6 +325,8 @@ describe('SystemSettings', () => {
     });
 
     it('shows consolidated monitor summaries inside the monitor tab', async () => {
+        const user = userEvent.setup();
+
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -333,14 +336,17 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByText('SMTP 诊断')).toBeInTheDocument();
         expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
-        expect(screen.getByText('状态摘要统一收口到系统状态卡片')).toBeInTheDocument();
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
         expect(screen.getByText('Telegram 可用命令')).toBeInTheDocument();
         expect(screen.getByText('/monitor')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('-1001234567890')).toBeInTheDocument();
+        const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
+        expect(chatIdInput).toHaveAttribute('type', 'password');
+        await user.click(screen.getByRole('button', { name: '显示 Chat ID' }));
+        expect(chatIdInput).toHaveAttribute('type', 'text');
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
+        expect(screen.getAllByText('********7890').length).toBeGreaterThan(0);
     });
 
     it('shows a compact backup summary card in the backup tab', async () => {

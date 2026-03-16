@@ -64,7 +64,7 @@
 
 .page-toolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   gap: 16px;
   flex-wrap: wrap;
@@ -137,12 +137,13 @@
 
 .section-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
 .section-header--align-start {
+  align-items: flex-start;
   justify-content: flex-start;
 }
 
@@ -218,6 +219,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
 }
 
 .clients-toolbar .account-search-shell,
@@ -465,6 +471,131 @@
   align-items: center;
 }
 
+.accounts-table th.accounts-status-column,
+.accounts-table th.accounts-role-column,
+.accounts-table th.accounts-verify-column,
+.accounts-table th.accounts-created-column,
+.accounts-table th.accounts-actions-column,
+.accounts-table td.accounts-status-cell,
+.accounts-table td.accounts-role-cell,
+.accounts-table td.accounts-verify-cell,
+.accounts-table td.accounts-created-cell,
+.accounts-table td.accounts-actions-cell,
+.clients-table th.clients-node-column,
+.clients-table th.clients-inbound-column,
+.clients-table th.clients-expiry-column,
+.clients-table td.clients-node-cell,
+.clients-table td.clients-inbound-cell,
+.clients-table td.clients-expiry-cell,
+.capability-matrix-table th.capability-support-column,
+.capability-matrix-table th.capability-status-column,
+.capability-matrix-table th.capability-entry-column,
+.capability-matrix-table td.capability-support-cell,
+.capability-matrix-table td.capability-status-cell,
+.capability-matrix-table td.capability-entry-cell,
+.capability-tools-table th.capability-availability-column,
+.capability-tools-table th.capability-status-column,
+.capability-tools-table th.capability-entry-column,
+.capability-tools-table td.capability-availability-cell,
+.capability-tools-table td.capability-status-cell,
+.capability-tools-table td.capability-entry-cell,
+.user-detail-clients-table th.user-detail-protocol-column,
+.user-detail-clients-table th.user-detail-expiry-column,
+.user-detail-clients-table th.user-detail-status-column,
+.user-detail-clients-table th.user-detail-actions-column,
+.user-detail-clients-table td.user-detail-protocol-cell,
+.user-detail-clients-table td.user-detail-expiry-cell,
+.user-detail-clients-table td.user-detail-status-cell,
+.server-detail-inbounds-table th.server-detail-protocol-column,
+.server-detail-inbounds-table th.server-detail-port-column,
+.server-detail-inbounds-table th.server-detail-clients-column,
+.server-detail-inbounds-table th.server-detail-status-column,
+.server-detail-inbounds-table td.server-detail-protocol-cell,
+.server-detail-inbounds-table td.server-detail-port-cell,
+.server-detail-inbounds-table td.server-detail-clients-cell,
+.server-detail-inbounds-table td.server-detail-status-cell,
+.server-detail-online-table th.server-detail-sequence-column,
+.server-detail-online-table th.server-detail-sessions-column,
+.server-detail-online-table th.server-detail-online-actions-column,
+.server-detail-online-table td.server-detail-sequence-cell,
+.server-detail-online-table td.server-detail-sessions-cell,
+.conflict-scanner-table th.conflict-scanner-enabled-column,
+.conflict-scanner-table th.conflict-scanner-expiry-column,
+.conflict-scanner-table th.conflict-scanner-source-column,
+.conflict-scanner-table td.conflict-scanner-enabled-cell,
+.conflict-scanner-table td.conflict-scanner-expiry-cell,
+.conflict-scanner-table td.conflict-scanner-source-cell {
+  text-align: center;
+}
+
+.users-table th.users-status-column,
+.users-table th.users-online-column,
+.users-table th.users-expiry-column,
+.users-table th.users-actions-column,
+.users-table td.users-status-cell,
+.users-table td.users-online-cell,
+.users-table td.users-expiry-cell,
+.users-table td.users-actions-cell,
+.inbounds-table th.inbounds-users-col,
+.inbounds-table th.inbounds-status-col,
+.inbounds-table th.inbounds-actions-col,
+.inbounds-table td.inbounds-users-cell,
+.inbounds-table td.inbounds-status-cell-wrap,
+.inbounds-table td.inbounds-actions-cell,
+.settings-invite-table th.settings-invite-status-column,
+.settings-invite-table th.settings-invite-count-column,
+.settings-invite-table th.settings-invite-duration-column,
+.settings-invite-table th.settings-invite-created-column,
+.settings-invite-table th.settings-invite-actions-column,
+.settings-invite-table td.settings-invite-status-cell,
+.settings-invite-table td.settings-invite-count-cell,
+.settings-invite-table td.settings-invite-duration-cell,
+.settings-invite-table td.settings-invite-created-cell,
+.settings-invite-table td.settings-invite-action-cell {
+  text-align: center;
+}
+
+.users-online-stack {
+  justify-content: center;
+}
+
+.users-actions-cell .users-row-actions,
+.accounts-actions-cell .accounts-row-actions,
+.clients-node-cell .badge,
+.capability-matrix-table td .badge,
+.capability-tools-table td .badge,
+.user-detail-clients-table td .badge,
+.server-detail-inbounds-table td .badge,
+.server-detail-online-table td .btn,
+.conflict-scanner-table td .badge,
+.settings-invite-action-cell .settings-invite-revoke-btn {
+  margin-inline: auto;
+}
+
+.accounts-actions-cell .accounts-row-actions,
+.settings-invite-status-cell,
+.settings-invite-count-cell,
+.settings-invite-duration-cell {
+  align-items: center;
+}
+
+.inbounds-status-cell {
+  justify-content: center;
+}
+
+.inbounds-actions-cell .inbounds-row-actions {
+  margin-inline: auto;
+}
+
+.inbounds-clients-table th.inbounds-clients-col-expiry,
+.inbounds-clients-table th.inbounds-clients-col-status,
+.inbounds-clients-table th.inbounds-clients-col-actions,
+.inbounds-clients-table td.inbounds-clients-col-expiry,
+.inbounds-clients-table td.inbounds-clients-col-status,
+.inbounds-clients-table td.inbounds-clients-col-actions {
+  text-align: center;
+}
+
 .servers-toolbar,
 .inbounds-toolbar,
 .users-toolbar,
@@ -655,7 +786,7 @@
 .servers-table th,
 .servers-table td {
   padding: 12px 12px;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .servers-table th.servers-select-column,
@@ -760,6 +891,8 @@
 .servers-account-stack,
 .servers-status-stack {
   gap: 6px;
+  align-items: center;
+  text-align: center;
 }
 
 .servers-account-stack > span,
@@ -772,10 +905,30 @@
   line-height: 1.45;
 }
 
+.servers-table th.servers-group-column,
+.servers-table th.servers-account-column,
+.servers-table th.servers-credential-column,
+.servers-table th.servers-status-column,
+.servers-table td.servers-tags-cell,
+.servers-table td.servers-account-cell,
+.servers-table td.servers-credential-cell,
+.servers-table td.servers-status-cell {
+  text-align: center;
+}
+
 .servers-tags-cell .server-card-tags,
 .servers-credential-cell .badge,
 .servers-status-cell .badge {
   width: fit-content;
+}
+
+.servers-tags-cell .server-card-tags {
+  justify-content: center;
+}
+
+.servers-credential-cell .badge,
+.servers-status-cell .badge {
+  margin-inline: auto;
 }
 
 .servers-row-actions {
@@ -1206,6 +1359,53 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding-bottom: 96px;
+}
+
+.settings-nav-list--workspace {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.settings-save-dock {
+  position: sticky;
+  bottom: 12px;
+  z-index: 9;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke-soft);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(15, 23, 42, 0.74));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+}
+
+.settings-save-dock-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.settings-save-dock-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.settings-save-dock-current {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-save-dock-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .settings-console-host--inline {
@@ -1235,11 +1435,11 @@
 .settings-summary-card {
   position: relative;
   display: flex;
-  min-height: 144px;
+  min-height: 124px;
   height: 100%;
   flex-direction: column;
-  gap: 10px;
-  padding: clamp(16px, 1.8vw, 20px);
+  gap: 8px;
+  padding: clamp(14px, 1.8vw, 18px);
   overflow: hidden;
 }
 
@@ -1676,7 +1876,7 @@
 
 .settings-toggle-copy {
   display: grid;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
 }
 
@@ -1688,9 +1888,24 @@
 }
 
 .settings-toggle-description {
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.6;
+  display: none;
+}
+
+.settings-sensitive-field {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.settings-sensitive-field .form-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-sensitive-field .btn {
+  flex: 0 0 auto;
+  min-width: 44px;
+  justify-content: center;
 }
 
 .settings-toggle-side {
@@ -1912,6 +2127,10 @@
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.settings-monitor-hero--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .settings-monitor-hero-main,
@@ -2254,22 +2473,13 @@
 
 @media (min-width: 1200px) {
   .settings-shell {
-    grid-template-columns: minmax(248px, 280px) minmax(0, 1fr);
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
 
   .settings-nav {
     position: sticky;
     top: calc(76px + env(safe-area-inset-top, 0px));
-  }
-
-  .settings-nav-bar {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-
-  .settings-nav-list {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-summary-grid {
@@ -2517,11 +2727,6 @@
     padding: 10px;
   }
 
-  .settings-nav-bar {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
   .settings-nav-list {
     display: grid;
     grid-auto-flow: column;
@@ -2550,6 +2755,18 @@
   .settings-nav-item {
     min-width: 132px;
     scroll-snap-align: start;
+  }
+
+  .settings-nav-list--workspace {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .settings-save-dock-actions,
+  .settings-save-dock-actions .btn {
+    width: 100%;
   }
 
   .settings-tab-hero {
@@ -3665,15 +3882,15 @@ p, .empty-state-body, td {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  width: auto;
-  max-width: min(100%, 220px);
-  min-width: 84px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 34px;
   overflow: hidden;
   border-radius: 12px;
   border: 1px solid var(--inbound-remark-border);
   background: var(--inbound-remark-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: none;
 }
 
 .inbound-remark-pill-accent {
@@ -3767,7 +3984,7 @@ p, .empty-state-body, td {
 .inbounds-remark-cell .inbound-remark-pill,
 .server-detail-remark-cell .inbound-remark-pill,
 .server-detail-mobile-card-title .inbound-remark-pill {
-  width: auto;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -3873,5 +4090,5 @@ p, .empty-state-body, td {
 }
 
 [data-theme="light"] .inbound-remark-pill {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: none;
 }

@@ -150,13 +150,13 @@ export default function Capabilities() {
                                 title="官方能力矩阵"
                             />
                             <div className="table-container">
-                                <table className="table">
+                                <table className="table capability-matrix-table">
                                     <thead>
                                         <tr>
                                             <th>能力</th>
-                                            <th>3x-ui</th>
-                                            <th>NMS 状态</th>
-                                            <th>入口</th>
+                                            <th className="table-cell-center capability-support-column">3x-ui</th>
+                                            <th className="table-cell-center capability-status-column">NMS 状态</th>
+                                            <th className="table-cell-center capability-entry-column">入口</th>
                                             <th>说明</th>
                                         </tr>
                                     </thead>
@@ -173,9 +173,9 @@ export default function Capabilities() {
                                                         </a>
                                                     </div>
                                                 </td>
-                                                <td data-label="3x-ui">{renderBooleanSupport(module.supportedBy3xui === true)}</td>
-                                                <td data-label="NMS 状态">{renderAlignmentStatus(module.status)}</td>
-                                                <td data-label="入口">
+                                                <td data-label="3x-ui" className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true)}</td>
+                                                <td data-label="NMS 状态" className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status)}</td>
+                                                <td data-label="入口" className="table-cell-center capability-entry-cell">
                                                     <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
                                                 </td>
                                                 <td data-label="说明" className="text-sm text-muted">{module.note || '-'}</td>
@@ -192,13 +192,13 @@ export default function Capabilities() {
                                 title="工具与接口"
                             />
                             <div className="table-container">
-                                <table className="table">
+                                <table className="table capability-tools-table">
                                     <thead>
                                         <tr>
                                             <th>工具</th>
-                                            <th>节点可用性</th>
-                                            <th>NMS 状态</th>
-                                            <th>入口</th>
+                                            <th className="table-cell-center capability-availability-column">节点可用性</th>
+                                            <th className="table-cell-center capability-status-column">NMS 状态</th>
+                                            <th className="table-cell-center capability-entry-column">入口</th>
                                             <th>来源</th>
                                         </tr>
                                     </thead>
@@ -213,9 +213,9 @@ export default function Capabilities() {
                                                         <span className="text-xs text-muted">{tool.description || '-'}</span>
                                                     </div>
                                                 </td>
-                                                <td data-label="节点可用性">{renderAvailability(tool.available)}</td>
-                                                <td data-label="NMS 状态">{renderAlignmentStatus(tool.status)}</td>
-                                                <td data-label="入口">
+                                                <td data-label="节点可用性" className="table-cell-center capability-availability-cell">{renderAvailability(tool.available)}</td>
+                                                <td data-label="NMS 状态" className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status)}</td>
+                                                <td data-label="入口" className="table-cell-center capability-entry-cell">
                                                     <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
                                                 </td>
                                                 <td data-label="来源" className="text-sm text-muted">{renderProbeSource(tool.source)}</td>

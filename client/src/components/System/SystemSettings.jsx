@@ -14,6 +14,8 @@ import {
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
     HiOutlineCommandLine,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
     HiOutlineExclamationTriangle,
     HiOutlineServerStack,
     HiOutlineShieldCheck,
@@ -46,6 +48,19 @@ function parseStoreKeys(value) {
 function toText(value, fallback = '') {
     const text = String(value || '').trim();
     return text || fallback;
+}
+
+function maskChatIdValue(value) {
+    const text = toText(value, '');
+    if (!text) return '';
+    if (text.length <= 4) return '*'.repeat(text.length);
+    return `${'*'.repeat(Math.max(4, text.length - 4))}${text.slice(-4)}`;
+}
+
+function resolveChatIdPreviewValue(preview, value) {
+    const previewText = toText(preview, '');
+    if (previewText) return previewText;
+    return maskChatIdValue(value) || '-';
 }
 
 function normalizeSiteAccessPathInput(value, fallback = '/') {
@@ -209,9 +224,44 @@ const SETTINGS_TAB_CONFIG = [
     },
 ];
 
+const SETTINGS_WORKSPACE_CONFIG = [
+    {
+        id: 'access',
+        label: '对外访问',
+        icon: HiOutlineCog6Tooth,
+        routeTab: 'access',
+    },
+    {
+        id: 'policy',
+        label: '安全审计',
+        icon: HiOutlineShieldCheck,
+        routeTab: 'policy',
+    },
+    {
+        id: 'operations',
+        label: '运维通知',
+        icon: HiOutlineServerStack,
+        routeTab: 'monitor',
+    },
+    {
+        id: 'backup',
+        label: '数据备份',
+        icon: HiOutlineArrowDownTray,
+        routeTab: 'backup',
+    },
+];
+
 function resolveSettingsTab(value) {
     if (value === 'basic') return 'access';
     return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
+}
+
+function resolveWorkspaceSection(value) {
+    const normalized = resolveSettingsTab(value);
+    if (normalized === 'policy') return 'policy';
+    if (normalized === 'db' || normalized === 'backup') return 'backup';
+    if (normalized === 'monitor' || normalized === 'console') return 'operations';
+    return 'access';
 }
 
 function formatDateTime(value, locale = 'zh-CN') {
@@ -360,6 +410,7 @@ export default function SystemSettings() {
     const isAdmin = user?.role === 'admin';
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedView = resolveSettingsTab(searchParams.get('tab'));
+    const activeWorkspaceSectionId = resolveWorkspaceSection(requestedView);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -410,6 +461,7 @@ export default function SystemSettings() {
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
     const [telegramTestLoading, setTelegramTestLoading] = useState(false);
+    const [showTelegramChatId, setShowTelegramChatId] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
@@ -1244,80 +1296,72 @@ export default function SystemSettings() {
         }, { active: 0, used: 0, revoked: 0 })
     ), [inviteCodes]);
 
+    const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
+    const latestLocalBackup = localBackups[0] || null;
+    const hasExportBackup = Boolean(backupStatus?.lastExport?.createdAt);
+    const hasLocalBackup = Boolean(latestLocalBackup?.createdAt);
+    const backupSummaryValue = hasExportBackup && hasLocalBackup
+        ? '导出 + 本机'
+        : hasExportBackup
+            ? '已有导出备份'
+            : hasLocalBackup
+                ? '已有本机备份'
+                : '暂无备份';
+    const telegramTargetPreview = resolveChatIdPreviewValue(monitorStatus?.telegram?.chatIdPreview, draft.telegram.chatId);
+    const alertChainStates = [
+        emailStatus?.configured ? '邮件已配置' : '邮件未配置',
+        monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
+        monitorStatus?.telegram?.enabled
+            ? 'Telegram 已启用'
+            : monitorStatus?.telegram?.configured
+                ? 'Telegram 待启用'
+                : 'Telegram 未配置',
+    ];
+    const readyAlertChainCount = [
+        Boolean(emailStatus?.configured),
+        Boolean(monitorStatus?.healthMonitor?.running),
+        Boolean(monitorStatus?.telegram?.enabled),
+    ].filter(Boolean).length;
+
     const overviewCards = useMemo(() => ([
         {
             title: '站点入口',
             value: siteAccessPath,
-            detail: siteAccessPath === '/'
-                ? '当前仍使用根路径提供登录页和管理页。'
-                : (siteCamouflageEnabled ? '真实入口已隐藏到自定义路径，其他路径将展示公开首页。' : '登录页、管理后台和用户页都改为这个入口路径。'),
-            tone: siteAccessPath === '/' ? 'neutral' : 'warning',
+            tone: siteAccessPath === '/' ? 'warning' : 'success',
         },
         {
             title: '注册模式',
             value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册',
-            detail: registrationEnabled ? '注册页将按当前模式展示表单。' : '环境变量已关闭自助注册。',
-            tone: registrationEnabled ? 'success' : 'danger',
+            tone: registrationEnabled ? 'success' : 'neutral',
         },
         {
             title: '数据库模式',
             value: dbStatus
                 ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
                 : '等待探测',
-            detail: dbStatus?.connection?.enabled
-                ? (dbStatus.connection?.ready ? '数据库连接已就绪。' : (dbStatus.connection?.error || '数据库连接未就绪。'))
-                : '当前仍以本地文件模式为主。',
             tone: dbStatus?.connection?.ready ? 'success' : dbStatus?.connection?.enabled ? 'warning' : 'neutral',
         },
         {
-            title: '邮件诊断',
-            value: emailStatus?.configured ? 'SMTP 已配置' : 'SMTP 未配置',
-            detail: emailStatus?.lastVerification?.ts
-                ? `最近测试 ${formatDateTime(emailStatus.lastVerification.ts, locale)}`
-                : '尚未执行连接测试。',
-            tone: emailStatus?.configured ? (emailStatus?.lastVerification?.success === false ? 'warning' : 'success') : 'neutral',
+            title: '告警链路',
+            value: alertChainStates.join(' · '),
+            tone: readyAlertChainCount === 3 ? 'success' : readyAlertChainCount > 0 ? 'warning' : 'neutral',
         },
         {
             title: '备份状态',
-            value: backupStatus?.lastExport?.createdAt ? '已有备份快照' : '暂无备份快照',
-            detail: backupStatus?.lastExport?.createdAt
-                ? `最近生成 ${formatDateTime(backupStatus.lastExport.createdAt, locale)}`
-                : '建议在改动前先导出一份系统快照。',
-            tone: backupStatus?.lastExport?.createdAt ? 'success' : 'warning',
-        },
-        {
-            title: '节点监控',
-            value: monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
-            detail: monitorStatus?.healthMonitor?.lastRunAt
-                ? `最近巡检 ${formatDateTime(monitorStatus.healthMonitor.lastRunAt, locale)}`
-                : '尚未执行节点健康巡检。',
-            tone: monitorStatus?.healthMonitor?.running ? 'success' : 'neutral',
-        },
-        {
-            title: 'Telegram',
-            value: monitorStatus?.telegram?.enabled
-                ? '机器人已启用'
-                : monitorStatus?.telegram?.configured
-                    ? '已配置待启用'
-                    : '未配置',
-            detail: monitorStatus?.telegram?.lastSentAt
-                ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}`
-                : (monitorStatus?.telegram?.lastError || '可推送系统状态、审计告警和紧急异常。'),
-            tone: monitorStatus?.telegram?.enabled ? 'success' : monitorStatus?.telegram?.configured ? 'warning' : 'neutral',
+            value: backupSummaryValue,
+            tone: hasExportBackup || hasLocalBackup ? 'success' : 'warning',
         },
     ]), [
-        backupStatus?.lastExport?.createdAt,
+        backupSummaryValue,
         dbStatus,
         draft.registration.inviteOnlyEnabled,
         emailStatus,
+        hasExportBackup,
+        hasLocalBackup,
         monitorStatus,
         registrationEnabled,
-        siteCamouflageEnabled,
         siteAccessPath,
     ]);
-
-    const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
-    const latestLocalBackup = localBackups[0] || null;
     const monitorReasonSummary = useMemo(() => {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
             .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
@@ -1626,12 +1670,12 @@ export default function SystemSettings() {
                                 <thead>
                                     <tr>
                                         <th>预览</th>
-                                        <th>状态</th>
-                                        <th>次数</th>
-                                        <th>开通时长</th>
-                                        <th>创建时间</th>
+                                        <th className="table-cell-center settings-invite-status-column">状态</th>
+                                        <th className="table-cell-center settings-invite-count-column">次数</th>
+                                        <th className="table-cell-center settings-invite-duration-column">开通时长</th>
+                                        <th className="table-cell-center settings-invite-created-column">创建时间</th>
                                         <th>使用情况</th>
-                                        <th>操作</th>
+                                        <th className="table-cell-actions settings-invite-actions-column">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1650,7 +1694,7 @@ export default function SystemSettings() {
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td data-label="状态" className="table-cell-stack settings-invite-cell">
+                                                <td data-label="状态" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-status-cell">
                                                     <span className={`badge ${resolveInviteState(invite) === 'active' ? 'badge-success' : resolveInviteState(invite) === 'used' ? 'badge-warning' : 'badge-danger'}`}>
                                                         {resolveInviteState(invite) === 'active' ? '可用中' : resolveInviteState(invite) === 'used' ? '已用完' : '已撤销'}
                                                     </span>
@@ -1662,7 +1706,7 @@ export default function SystemSettings() {
                                                                 : '已停止使用'}
                                                     </span>
                                                 </td>
-                                                <td data-label="次数" className="table-cell-stack settings-invite-cell">
+                                                <td data-label="次数" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-count-cell">
                                                     <span className="settings-invite-usage-main">
                                                         {Number(invite.usedCount || 0)} / {Number(invite.usageLimit || 1)}
                                                     </span>
@@ -1670,7 +1714,7 @@ export default function SystemSettings() {
                                                         已用 {Number(invite.usedCount || 0)} 次
                                                     </span>
                                                 </td>
-                                                <td data-label="开通时长" className="table-cell-stack settings-invite-cell">
+                                                <td data-label="开通时长" className="table-cell-center table-cell-stack settings-invite-cell settings-invite-duration-cell">
                                                     <span className="settings-invite-usage-main">
                                                         {formatInviteDuration(invite.subscriptionDays)}
                                                     </span>
@@ -1678,7 +1722,7 @@ export default function SystemSettings() {
                                                         {Number(invite.subscriptionDays || 0) > 0 ? '注册即自动生效' : '注册后不限到期时间'}
                                                     </span>
                                                 </td>
-                                                <td data-label="创建时间" className="settings-invite-created-cell">
+                                                <td data-label="创建时间" className="table-cell-center settings-invite-created-cell">
                                                     <div className="settings-invite-created">{formatDateTime(invite.createdAt, locale)}</div>
                                                 </td>
                                                 <td data-label="使用情况" className="table-cell-stack settings-invite-cell">
@@ -1941,7 +1985,7 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
                 ) : (
                     <>
-                        <div className="settings-monitor-hero">
+                        <div className="settings-monitor-hero settings-monitor-hero--single">
                             <div className="card p-3 settings-mini-card settings-monitor-hero-main">
                                 <div className="settings-monitor-hero-eyebrow">当前邮件链路</div>
                                 <div className="settings-monitor-hero-title">{emailStatus.from || '未设置发件人'}</div>
@@ -1953,11 +1997,6 @@ export default function SystemSettings() {
                                     <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
                                     <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
                                 </div>
-                            </div>
-                            <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-hero-side">
-                                <div className="text-sm font-medium">运维通知建议</div>
-                                <div className="text-sm text-muted">更换站点入口、订阅域名或备用网址时，可以直接从这里给已注册用户发送变更通知。邮件会逐个单发，不会暴露其他用户地址。</div>
-                                <div className="text-xs text-muted">建议在改域名前先做一次连接测试，再发通知。</div>
                             </div>
                         </div>
                         <div className="settings-monitor-detail-grid">
@@ -2066,18 +2105,12 @@ export default function SystemSettings() {
                                 <span className="settings-monitor-log-label">Telegram 告警</span>
                                 <span className="settings-monitor-log-value">
                                     {monitorStatus?.telegram?.enabled
-                                        ? `已启用 · ${monitorStatus.telegram.chatIdPreview || '已配置目标'}`
+                                        ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}`
                                         : monitorStatus?.telegram?.configured
                                         ? '已配置但未启用'
                                         : '未配置'}
                                 </span>
                             </div>
-                        </div>
-                        <div className="settings-basic-note-list mt-2">
-                            <span className="badge badge-neutral">状态摘要统一收口到系统状态卡片</span>
-                            <span className="badge badge-neutral">异常与恢复会同步投递到通知中心</span>
-                            <span className="badge badge-neutral">手动巡检会刷新最新节点快照</span>
-                            <span className="badge badge-neutral">可通过 Telegram Bot 接收紧急系统告警</span>
                         </div>
                     </div>
                 </div>
@@ -2113,15 +2146,32 @@ export default function SystemSettings() {
                 <div className="grid-auto-220 items-start">
                     <div className="form-group">
                         <label className="form-label" htmlFor="telegram-chat-id">Chat ID / 群组 ID</label>
-                        <input
-                            id="telegram-chat-id"
-                            className="form-input"
-                            value={draft.telegram.chatId}
-                            onChange={(event) => patchField('telegram', 'chatId', event.target.value)}
-                            placeholder="-1001234567890"
-                        />
+                        <div className="settings-sensitive-field">
+                            <input
+                                id="telegram-chat-id"
+                                className="form-input"
+                                type={showTelegramChatId ? 'text' : 'password'}
+                                inputMode="numeric"
+                                value={draft.telegram.chatId}
+                                onChange={(event) => patchField('telegram', 'chatId', event.target.value)}
+                                placeholder="-1001234567890"
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setShowTelegramChatId((prev) => !prev)}
+                                disabled={!draft.telegram.chatId}
+                                aria-label={showTelegramChatId ? '隐藏 Chat ID' : '显示 Chat ID'}
+                                title={showTelegramChatId ? '隐藏 Chat ID' : '显示 Chat ID'}
+                            >
+                                {showTelegramChatId ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                            </button>
+                        </div>
                         <div className="text-xs text-muted mt-1">
-                            推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。
+                            {draft.telegram.chatId
+                                ? `已隐藏完整 Chat ID${showTelegramChatId ? '，当前为临时显示。' : '，可点右侧按钮临时查看。'}`
+                                : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。'}
                         </div>
                     </div>
                     <div className="form-group">
@@ -2195,7 +2245,7 @@ export default function SystemSettings() {
                         <div className="settings-monitor-log-meta">
                             <div className="settings-monitor-log-item">
                                 <span className="settings-monitor-log-label">目标</span>
-                                <span className="settings-monitor-log-value">{monitorStatus?.telegram?.chatIdPreview || draft.telegram.chatId || '-'}</span>
+                                <span className="settings-monitor-log-value">{telegramTargetPreview}</span>
                             </div>
                             <div className="settings-monitor-log-item">
                                 <span className="settings-monitor-log-label">最近发送</span>
@@ -2660,7 +2710,7 @@ export default function SystemSettings() {
                             <span className={`badge settings-summary-badge ${badgeMeta.className}`}>{badgeMeta.label}</span>
                         </div>
                         <div className="settings-summary-value">{item.value}</div>
-                        <div className="settings-summary-detail">{item.detail}</div>
+                        {item.detail ? <div className="settings-summary-detail">{item.detail}</div> : null}
                     </div>
                 );})}
             </div>
@@ -2710,6 +2760,35 @@ export default function SystemSettings() {
         </div>
     );
 
+    const workspaceSections = [
+        {
+            id: 'access',
+            title: '对外访问',
+            content: renderAccessContent(),
+        },
+        {
+            id: 'policy',
+            title: '安全审计',
+            content: renderPolicyContent(),
+        },
+        {
+            id: 'operations',
+            title: '运维通知',
+            content: renderOperationsWorkspace(),
+        },
+        {
+            id: 'backup',
+            title: '数据备份',
+            content: (
+                <>
+                    {renderDatabaseContent()}
+                    {renderBackupContent()}
+                </>
+            ),
+        },
+    ];
+    const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
+
     if (!isAdmin) {
         return (
             <>
@@ -2739,8 +2818,41 @@ export default function SystemSettings() {
             <div className="page-content page-content--wide page-enter">
                 <div className="settings-shell">
                     <div className="card settings-nav">
-                        <div className="settings-nav-status-panel" aria-live="polite">
-                            <div className="settings-nav-status-main">
+                        <div className="settings-nav-list settings-nav-list--workspace">
+                            {SETTINGS_WORKSPACE_CONFIG.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = item.id === activeWorkspaceSectionId;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        className={`settings-nav-item${isActive ? ' is-active' : ''}`}
+                                        aria-pressed={isActive}
+                                        onClick={() => setRequestedView(item.routeTab)}
+                                    >
+                                        <span className="settings-nav-item-icon">
+                                            <Icon />
+                                        </span>
+                                        <span className="settings-nav-item-copy">
+                                            <span className="settings-nav-item-label">{item.label}</span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="settings-main">
+                        {renderStatusContent()}
+                        <SettingsWorkspaceSection
+                            title={activeWorkspaceSection.title}
+                        >
+                            {activeWorkspaceSection.content}
+                        </SettingsWorkspaceSection>
+                    </div>
+                    <div className="card settings-save-dock">
+                        <div className="settings-save-dock-inner" aria-live="polite">
+                            <div className="settings-save-dock-main">
                                 <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
                                     {saving ? <span className="spinner spinner-16" /> : null}
                                     <span>
@@ -2753,39 +2865,15 @@ export default function SystemSettings() {
                                                     : '配置已加载'}
                                     </span>
                                 </div>
-                                {requestedView === 'console' ? <span className="badge badge-success">已从旧控制台入口进入</span> : null}
+                                <span className="settings-save-dock-current">{activeWorkspaceSection.title}</span>
+                                {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
                             </div>
-                            <div className="settings-nav-actions settings-panel-actions">
+                            <div className="settings-save-dock-actions">
                                 <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
                                     {saving ? <span className="spinner" /> : '保存设置'}
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="settings-main">
-                        {renderStatusContent()}
-                        <SettingsWorkspaceSection
-                            title="对外访问"
-                        >
-                            {renderAccessContent()}
-                        </SettingsWorkspaceSection>
-                        <SettingsWorkspaceSection
-                            title="安全审计"
-                        >
-                            {renderPolicyContent()}
-                        </SettingsWorkspaceSection>
-                        <SettingsWorkspaceSection
-                            title="运维通知"
-                        >
-                            {renderOperationsWorkspace()}
-                        </SettingsWorkspaceSection>
-                        <SettingsWorkspaceSection
-                            title="数据备份"
-                        >
-                            {renderDatabaseContent()}
-                            {renderBackupContent()}
-                        </SettingsWorkspaceSection>
                     </div>
                 </div>
             </div>

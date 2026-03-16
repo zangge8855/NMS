@@ -560,17 +560,17 @@ export default function Accounts({ embedded = false }) {
                 </div>
 
                 <div className="table-container glass-panel">
-                    <table className="table">
+                    <table className="table accounts-table">
                         <thead>
                             <tr>
                                 <th>用户名</th>
                                 <th>邮箱</th>
                                 <th>订阅绑定邮箱</th>
-                                <th>订阅状态</th>
-                                <th>角色</th>
-                                <th>邮箱验证</th>
-                                <th>创建时间</th>
-                                <th>操作</th>
+                                <th className="table-cell-center accounts-status-column">订阅状态</th>
+                                <th className="table-cell-center accounts-role-column">角色</th>
+                                <th className="table-cell-center accounts-verify-column">邮箱验证</th>
+                                <th className="table-cell-center accounts-created-column">创建时间</th>
+                                <th className="table-cell-actions accounts-actions-column">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -586,7 +586,7 @@ export default function Accounts({ embedded = false }) {
                                         <td data-label="用户名" className="font-medium text-white">{item.username}</td>
                                         <td data-label="邮箱" className="text-muted">{item.email || '-'}</td>
                                         <td data-label="订阅绑定邮箱" className="text-muted">{item.subscriptionEmail || '-'}</td>
-                                        <td data-label="订阅状态">
+                                        <td data-label="订阅状态" className="table-cell-center accounts-status-cell">
                                             {item.role === 'admin' ? (
                                                 <span className="badge badge-neutral">管理员</span>
                                             ) : (
@@ -595,19 +595,19 @@ export default function Accounts({ embedded = false }) {
                                                 </span>
                                             )}
                                         </td>
-                                        <td data-label="角色">
+                                        <td data-label="角色" className="table-cell-center accounts-role-cell">
                                             <span className={`badge ${item.role === 'admin' ? 'badge-danger' : 'badge-info'}`}>
                                                 {item.role}
                                             </span>
                                         </td>
-                                        <td data-label="邮箱验证">
+                                        <td data-label="邮箱验证" className="table-cell-center accounts-verify-cell">
                                             <span className={`badge ${item.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
                                                 {item.emailVerified ? '已验证' : '未验证'}
                                             </span>
                                         </td>
-                                        <td data-label="创建时间" className="text-muted">{formatDate(item.createdAt)}</td>
-                                        <td data-label="">
-                                            <div className="flex gap-2">
+                                        <td data-label="创建时间" className="table-cell-center cell-mono text-muted accounts-created-cell">{formatDate(item.createdAt)}</td>
+                                        <td data-label="" className="table-cell-actions accounts-actions-cell">
+                                            <div className="flex gap-2 flex-wrap table-row-actions accounts-row-actions">
                                                 {item.role !== 'admin' && (
                                                     <button
                                                         className="btn btn-primary btn-sm"

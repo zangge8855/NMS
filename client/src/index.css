@@ -6357,8 +6357,8 @@ body::before {
 }
 
 .inbounds-table-shell .table {
-  min-width: 900px;
-  table-layout: fixed;
+  min-width: 1040px;
+  table-layout: auto;
 }
 
 .inbounds-table-shell .table th {
@@ -6381,13 +6381,13 @@ body::before {
 }
 
 .inbounds-node-col {
-  width: 208px;
-  min-width: 208px;
+  width: 160px;
+  min-width: 160px;
 }
 
 .inbounds-remark-col {
-  width: 48px;
-  min-width: 48px;
+  width: 240px;
+  min-width: 240px;
 }
 
 .inbounds-protocol-col {
@@ -6483,25 +6483,25 @@ body::before {
 }
 
 .inbounds-node-badge {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: flex-start;
+  align-items: center;
   column-gap: 6px;
   min-width: 0;
   max-width: 100%;
-  padding-right: 6px;
-  white-space: normal;
+  padding-right: 0;
+  white-space: nowrap;
   flex: 1 1 auto;
   width: 100%;
 }
 
 .inbounds-node-name {
   min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+  line-height: 1.35;
 }
 
 .inbounds-node-order-actions {
@@ -6516,18 +6516,12 @@ body::before {
 }
 
 .inbounds-remark-cell {
-  display: -webkit-box;
+  display: table-cell;
   max-width: 100%;
   min-width: 0;
-  text-align: center;
-  justify-content: center;
-  line-height: 1.45;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal;
-  word-break: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-align: left;
+  line-height: 1.35;
+  overflow: visible;
 }
 
 .inbounds-sequence-actions {
@@ -8052,14 +8046,23 @@ body::before {
 
 .audit-filter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
+  align-items: stretch;
+}
+
+.audit-filter-grid--events {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.audit-filter-grid--subscriptions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .audit-filter-grid .form-input,
 .audit-filter-grid .form-select {
-  width: 100%;
+  width: 100% !important;
   min-width: 0;
+  min-height: 40px;
 }
 
 .audit-control-actions {
@@ -8654,21 +8657,21 @@ body::before {
   min-width: 0;
 }
 
+.settings-main {
+  padding-bottom: 96px;
+}
+
 .settings-nav {
-  padding: 18px;
-  border-radius: 24px;
+  position: sticky;
+  top: calc(76px + env(safe-area-inset-top, 0px));
+  z-index: 8;
+  padding: 10px;
+  border-radius: 20px;
   border: 1px solid var(--stroke-soft);
   background:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 30%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.46));
   box-shadow: var(--shadow-sm);
-}
-
-.settings-nav-bar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
 }
 
 .settings-nav-list {
@@ -8677,6 +8680,12 @@ body::before {
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
+}
+
+.settings-nav-list--workspace {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .settings-nav-item {
@@ -8733,28 +8742,6 @@ body::before {
   white-space: nowrap;
 }
 
-.settings-nav-side {
-  flex: 0 0 320px;
-  max-width: 100%;
-}
-
-.settings-nav-status-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
-  min-height: 100%;
-}
-
-.settings-nav-status-main {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
 .settings-nav-status-chip {
   display: inline-flex;
   align-items: center;
@@ -8785,9 +8772,44 @@ body::before {
   background: rgba(148, 163, 184, 0.1);
 }
 
-.settings-nav-actions {
+.settings-save-dock {
+  position: sticky;
+  bottom: 12px;
+  z-index: 9;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke-soft);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.72));
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+}
+
+.settings-save-dock-inner {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
   flex-wrap: wrap;
+}
+
+.settings-save-dock-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.settings-save-dock-current {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-save-dock-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
 }
@@ -8923,17 +8945,17 @@ body::before {
 
 .settings-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .settings-summary-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  min-height: 152px;
-  padding: 18px;
+  min-height: 124px;
+  padding: 16px;
   border-radius: 20px;
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.028);
@@ -9268,7 +9290,7 @@ body::before {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
 .settings-toggle-label {
@@ -9279,9 +9301,24 @@ body::before {
 }
 
 .settings-toggle-description {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-secondary);
+  display: none;
+}
+
+.settings-sensitive-field {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.settings-sensitive-field .form-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-sensitive-field .btn {
+  flex: 0 0 auto;
+  min-width: 44px;
+  justify-content: center;
 }
 
 .settings-toggle-side {
@@ -9408,6 +9445,10 @@ body::before {
   grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
   gap: 14px;
   align-items: stretch;
+}
+
+.settings-monitor-hero--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .settings-monitor-hero-main,
@@ -9954,9 +9995,20 @@ body::before {
     padding-bottom: 2px;
   }
 
+  .settings-nav-list--workspace {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+
   .settings-nav-item {
     flex: 0 0 auto;
     min-width: 152px;
+  }
+
+  .settings-save-dock-actions,
+  .settings-save-dock-actions .btn {
+    width: 100%;
   }
 
   .settings-nav-status-panel,
@@ -10043,6 +10095,14 @@ body::before {
 }
 
 @media (max-width: 420px) {
+  .settings-main {
+    padding-bottom: 112px;
+  }
+
+  .settings-nav-list--workspace {
+    grid-template-columns: 1fr;
+  }
+
   .settings-nav-item {
     min-width: 138px;
     min-height: 48px;
@@ -12005,7 +12065,7 @@ input[type="radio"]:focus-visible {
   }
 
   .inbounds-remark-cell {
-    max-width: 180px;
+    max-width: 220px;
   }
 }
 
@@ -12644,6 +12704,18 @@ input[type="radio"]:focus-visible {
 .subscription-qr-card,
 .subscription-password-card {
   overflow: hidden;
+}
+
+.subscription-password-submit-shell {
+  display: flex;
+  min-height: 100%;
+  align-items: flex-end;
+}
+
+.subscription-password-submit-btn {
+  width: 100%;
+  min-height: 40px;
+  justify-content: center;
 }
 
 .subscription-user-flow {
@@ -13312,13 +13384,16 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--link .subscription-link-with-qr--user {
-  max-width: 700px;
-  grid-template-columns: minmax(0, 1fr) 144px;
-  gap: 10px;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr) 156px;
+  gap: 12px;
+  align-items: stretch;
 }
 
-.subscription-user-panel--link .subscription-link-card {
-  max-width: 520px;
+.subscription-user-panel--link .subscription-link-card,
+.subscription-user-panel--link .subscription-link-card--user-focus {
+  max-width: none;
 }
 
 .subscription-user-panel--link .subscription-link-grid {
@@ -13336,6 +13411,7 @@ input[type="radio"]:focus-visible {
 .subscription-user-panel--link .subscription-inline-qr {
   padding: 12px 10px;
   gap: 6px;
+  min-height: 100%;
 }
 
 .subscription-user-panel--link .subscription-inline-qr-text,
@@ -15014,6 +15090,19 @@ input[type="radio"]:focus-visible {
 
   .audit-nested-table-shell {
     overflow: visible;
+  }
+}
+
+@media (max-width: 1280px) {
+  .audit-filter-grid--events {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .audit-filter-grid--events,
+  .audit-filter-grid--subscriptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

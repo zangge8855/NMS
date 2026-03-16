@@ -1353,16 +1353,16 @@ export default function UserDetail() {
                                     </div>
                                 ) : (
                                     <div className="table-container">
-                                        <table className="table">
+                                        <table className="table user-detail-clients-table">
                                             <thead>
                                                 <tr>
                                                     <th>{copy.labels.server}</th>
                                                     <th>{copy.labels.inbound}</th>
-                                                    <th>{copy.labels.protocol}</th>
-                                                    <th>{copy.labels.traffic}</th>
-                                                    <th>{copy.labels.expiryTime}</th>
-                                                    <th>{copy.labels.status}</th>
-                                                    <th>{copy.labels.actions}</th>
+                                                    <th className="table-cell-center user-detail-protocol-column">{copy.labels.protocol}</th>
+                                                    <th className="table-cell-right user-detail-traffic-column">{copy.labels.traffic}</th>
+                                                    <th className="table-cell-center user-detail-expiry-column">{copy.labels.expiryTime}</th>
+                                                    <th className="table-cell-center user-detail-status-column">{copy.labels.status}</th>
+                                                    <th className="table-cell-actions user-detail-actions-column">{copy.labels.actions}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1372,10 +1372,10 @@ export default function UserDetail() {
                                                     <tr key={i}>
                                                         <td data-label={copy.labels.server}>{c.serverName}</td>
                                                         <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
-                                                        <td data-label={copy.labels.protocol}><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td data-label={copy.labels.traffic}>{formatBytes((c.up || 0) + (c.down || 0))}</td>
-                                                        <td data-label={copy.labels.expiryTime}>{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
-                                                        <td data-label={copy.labels.status}><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
+                                                        <td data-label={copy.labels.protocol} className="table-cell-center user-detail-protocol-cell"><span className="badge badge-neutral">{c.protocol}</span></td>
+                                                        <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes((c.up || 0) + (c.down || 0))}</td>
+                                                        <td data-label={copy.labels.expiryTime} className="table-cell-center cell-mono user-detail-expiry-cell">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
+                                                        <td data-label={copy.labels.status} className="table-cell-center user-detail-status-cell"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
                                                         <td data-label={copy.labels.actions} className="table-cell-actions">
                                                             {renderClientActionButton(c, supportState)}
                                                         </td>

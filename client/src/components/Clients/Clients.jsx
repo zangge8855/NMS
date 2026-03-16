@@ -665,7 +665,7 @@ export default function Clients() {
                 />
 
                 <div className="table-container glass-panel">
-                    <table className="table">
+                    <table className="table clients-table">
                         <thead>
                             <tr>
                                 <th className="cell-checkbox">
@@ -678,10 +678,10 @@ export default function Clients() {
                                 </th>
                                 <th className="table-cell-center">状态</th>
                                 <th>Email</th>
-                                {filterServerId === 'all' && <th>节点</th>}
-                                <th>入站</th>
+                                {filterServerId === 'all' && <th className="table-cell-center clients-node-column">节点</th>}
+                                <th className="table-cell-center clients-inbound-column">入站</th>
                                 <th className="table-cell-right">已用流量</th>
-                                <th>到期时间</th>
+                                <th className="table-cell-center clients-expiry-column">到期时间</th>
                                 <th className="table-cell-actions">操作</th>
                             </tr>
                         </thead>
@@ -724,17 +724,17 @@ export default function Clients() {
                                                 {client.email}
                                             </td>
                                             {filterServerId === 'all' && (
-                                                <td data-label="节点">
+                                                <td data-label="节点" className="table-cell-center clients-node-cell">
                                                     <span className="badge badge-neutral flex items-center gap-1 w-fit" title={client.serverNames.join(', ')}>
                                                         <HiOutlineServer size={10} /> {client.serverCount} 节点
                                                     </span>
                                                 </td>
                                             )}
-                                            <td data-label="入站" className="text-sm text-muted" title={client.inboundPreview}>
+                                            <td data-label="入站" className="table-cell-center text-sm text-muted clients-inbound-cell" title={client.inboundPreview}>
                                                 {client.inboundCount} 入站
                                             </td>
                                             <td data-label="已用流量" className="cell-mono-right">{formatBytes(client.totalUsed)}</td>
-                                            <td data-label="到期时间" className="cell-mono">{formatExpiryLabel(client.expiryValues)}</td>
+                                            <td data-label="到期时间" className="cell-mono table-cell-center clients-expiry-cell">{formatExpiryLabel(client.expiryValues)}</td>
                                             <td data-label="" className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
                                                 <div className="table-row-actions">
                                                     <button

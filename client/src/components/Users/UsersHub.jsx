@@ -1318,12 +1318,12 @@ export default function UsersHub() {
                                         </button>
                                     </th>
                                     <th className="users-identity-column">账号</th>
-                                    <th>状态</th>
-                                    <th>在线状态</th>
+                                    <th className="table-cell-center users-status-column">状态</th>
+                                    <th className="table-cell-center users-online-column">在线状态</th>
                                     <th className="table-cell-center users-node-count-column">节点数</th>
                                     <th className="text-right users-traffic-column">已用流量</th>
-                                    <th className="users-expiry-column">到期时间</th>
-                                    <th className="users-actions-column">操作</th>
+                                    <th className="table-cell-center users-expiry-column">到期时间</th>
+                                    <th className="table-cell-actions users-actions-column">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1372,11 +1372,11 @@ export default function UsersHub() {
                                                         </span>
                                                     </button>
                                                 </td>
-                                                <td data-label="状态" className="users-status-cell">
+                                                <td data-label="状态" className="table-cell-center users-status-cell">
                                                     <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                                                 </td>
-                                                <td data-label="在线状态" className="users-online-cell">
-                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                <td data-label="在线状态" className="table-cell-center users-online-cell">
+                                                    <div className="flex items-center gap-2 flex-wrap users-online-stack">
                                                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
                                                         {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
@@ -1396,12 +1396,12 @@ export default function UsersHub() {
                                                 </td>
                                                 <td
                                                     data-label="到期时间"
-                                                    className="cell-mono users-expiry-cell"
+                                                    className="cell-mono table-cell-center users-expiry-cell"
                                                     title={user.clientData.count > 0 ? userExpiryLabel : '-'}
                                                 >
                                                     {user.clientData.count > 0 ? userExpiryLabel : '-'}
                                                 </td>
-                                                <td data-label="" className="users-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label="" className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 flex-wrap users-row-actions">
                                                         {renderUserActionButtons(user)}
                                                     </div>

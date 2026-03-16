@@ -1110,10 +1110,10 @@ export default function Inbounds() {
                                 <th className="inbounds-remark-col">备注</th>
                                 <th className="inbounds-protocol-col">协议</th>
                                 <th className="inbounds-port-col">监听:端口</th>
-                                <th className="inbounds-users-col">用户数</th>
+                                <th className="table-cell-center inbounds-users-col">用户数</th>
                                 <th className="inbounds-traffic-col">流量 (上/下)</th>
-                                <th className="inbounds-status-col">状态</th>
-                                <th className="inbounds-actions-col">操作</th>
+                                <th className="table-cell-center inbounds-status-col">状态</th>
+                                <th className="table-cell-actions inbounds-actions-col">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1297,14 +1297,13 @@ export default function Inbounds() {
                                                 <td
                                                     data-label="备注"
                                                     className="inbounds-remark-cell"
-                                                    title={ib.remark || '-'}
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
                                                 <td data-label="协议" className="whitespace-nowrap"><span className="badge badge-info">{ib.protocol}</span></td>
                                                 <td data-label="端口" className="cell-mono text-sm whitespace-nowrap">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="用户数">
-                                                    <span className="cell-mono-right inbounds-user-count" title={`共 ${clients.length} 位用户`}>
+                                                <td data-label="用户数" className="table-cell-center inbounds-users-cell">
+                                                    <span className="cell-mono inbounds-user-count" title={`共 ${clients.length} 位用户`}>
                                                         {clients.length}
                                                     </span>
                                                 </td>
@@ -1314,7 +1313,7 @@ export default function Inbounds() {
                                                         <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
                                                     </div>
                                                 </td>
-                                                <td data-label="状态">
+                                                <td data-label="状态" className="table-cell-center inbounds-status-cell-wrap">
                                                     <div className="inbounds-status-cell">
                                                         <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
                                                             {ib.enable ? t('comp.common.enabled') : t('comp.common.disabled')}
@@ -1333,7 +1332,7 @@ export default function Inbounds() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td data-label="操作" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label="操作" className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon inbounds-action-btn"
