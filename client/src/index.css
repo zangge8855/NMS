@@ -6357,22 +6357,22 @@ body::before {
 }
 
 .inbounds-table-shell .table {
-  min-width: 1040px;
+  min-width: 920px;
   table-layout: auto;
 }
 
 .inbounds-table-shell .table th {
   background: rgba(255, 255, 255, 0.03);
-  padding: 11px 9px;
+  padding: 11px 7px;
 }
 
 .inbounds-table-shell .table td {
-  padding: 11px 9px;
+  padding: 11px 7px;
 }
 
 .inbounds-sequence-col {
-  width: 88px;
-  min-width: 88px;
+  width: 78px;
+  min-width: 78px;
 }
 
 .inbounds-sequence-col.is-compact {
@@ -6381,23 +6381,23 @@ body::before {
 }
 
 .inbounds-node-col {
-  width: 140px;
-  min-width: 140px;
+  width: 124px;
+  min-width: 124px;
 }
 
 .inbounds-remark-col {
-  width: 112px;
-  min-width: 112px;
+  width: 92px;
+  min-width: 92px;
 }
 
 .inbounds-protocol-col {
-  width: 62px;
-  min-width: 62px;
+  width: 56px;
+  min-width: 56px;
 }
 
 .inbounds-port-col {
-  width: 82px;
-  min-width: 82px;
+  width: 76px;
+  min-width: 76px;
 }
 
 .inbounds-users-col {
@@ -6406,18 +6406,18 @@ body::before {
 }
 
 .inbounds-traffic-col {
-  width: 88px;
-  min-width: 88px;
+  width: 78px;
+  min-width: 78px;
 }
 
 .inbounds-status-col {
-  width: 96px;
-  min-width: 96px;
+  width: 86px;
+  min-width: 86px;
 }
 
 .inbounds-actions-col {
-  width: 120px;
-  min-width: 120px;
+  width: 112px;
+  min-width: 112px;
 }
 
 .inbounds-expand-col,
@@ -6522,11 +6522,11 @@ body::before {
   text-align: left;
   line-height: 1.35;
   overflow: visible;
-  padding-right: 8px !important;
+  padding-right: 4px !important;
 }
 
 .inbounds-protocol-cell {
-  padding-left: 6px !important;
+  padding-left: 2px !important;
 }
 
 .inbounds-sequence-actions {
