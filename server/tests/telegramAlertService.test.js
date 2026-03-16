@@ -93,11 +93,15 @@ test('telegramAlertService ignores low-severity notifications and exposes delive
 });
 
 test('telegramAlertService exposes command polling capability for numeric chat ids', async () => {
+    const calls = [];
     const service = createTelegramAlertService({
         enabled: true,
         botToken: '123456:ABCDEF',
         chatId: '-1001234567890',
-        fetcher: async () => ({ ok: true, result: {} }),
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true, result: {} };
+        },
     });
 
     const sent = await service.sendTestMessage('admin');
@@ -105,6 +109,38 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     assert.equal(sent, true);
     assert.equal(service.getStatus().commandsEnabled, true);
     assert.equal(service.getStatus().enabled, true);
+    assert.match(calls[0].body.text, /\/expiry 用户到期提醒摘要/);
+});
+
+test('telegramAlertService forwards login failure audits with target account details', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true };
+        },
+    });
+
+    const sent = await service.notifySecurityAudit({
+        ts: '2026-03-15T10:00:00.000Z',
+        eventType: 'login_failed',
+        actor: 'anonymous',
+        ip: '203.0.113.9',
+        method: 'POST',
+        path: '/api/auth/login',
+        details: {
+            username: 'alice',
+        },
+    });
+
+    assert.equal(sent, true);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].body.text, /登录失败/);
+    assert.match(calls[0].body.text, /目标用户: alice/);
+    assert.match(calls[0].body.text, /请求: POST \/api\/auth\/login/);
 });
 
 test('telegramAlertService retries the same alert after a failed delivery', async () => {

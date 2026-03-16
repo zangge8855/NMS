@@ -55,6 +55,30 @@ function buildAuditNotification(entry = {}) {
         : {};
 
     const definitions = {
+        login_failed: {
+            type: 'security_login_failed',
+            severity: SEVERITY.WARNING,
+            title: '登录失败',
+            body: `检测到登录失败请求。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: ['security_audit'],
+        },
+        login_denied_email_unverified: {
+            type: 'security_login_denied_email_unverified',
+            severity: SEVERITY.WARNING,
+            title: '未验证邮箱尝试登录',
+            body: `检测到未完成邮箱验证的登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: ['security_audit'],
+        },
+        login_denied_user_disabled: {
+            type: 'security_login_denied_user_disabled',
+            severity: SEVERITY.WARNING,
+            title: '停用账号尝试登录',
+            body: `检测到停用账号登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: ['security_audit'],
+        },
         login_rate_limited: {
             type: 'security_attack_login_rate_limited',
             severity: SEVERITY.CRITICAL,

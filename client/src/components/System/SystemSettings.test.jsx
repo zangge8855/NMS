@@ -268,7 +268,7 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('link', { name: '打开链接' })).toBeInTheDocument();
     });
 
-    it('shows the shared overview summary without tab navigation', async () => {
+    it('shows a dedicated status tab while keeping the default access workspace focused', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -303,10 +303,9 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         await screen.findByDisplayValue('/portal');
-        expect(screen.queryByRole('tab', { name: '系统状态' })).not.toBeInTheDocument();
-        expect((await screen.findAllByText('站点入口')).length).toBeGreaterThan(0);
+        expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
         expect(screen.getAllByText('运维通知').length).toBeGreaterThan(0);
-        expect(document.querySelectorAll('.settings-summary-card').length).toBeGreaterThan(0);
+        expect(document.querySelectorAll('.settings-summary-card').length).toBe(0);
     });
 
     it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
@@ -318,7 +317,7 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         expect(await screen.findByText('注册与邀请码')).toBeInTheDocument();
-        expect(screen.getByText('注册模式')).toBeInTheDocument();
+        expect(screen.getByText('开启邀请注册')).toBeInTheDocument();
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
@@ -341,9 +340,11 @@ describe('SystemSettings', () => {
         expect(screen.getByText('Telegram 可用命令')).toBeInTheDocument();
         expect(screen.getByText('/monitor')).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
-        expect(chatIdInput).toHaveAttribute('type', 'password');
-        await user.click(screen.getByRole('button', { name: '显示 Chat ID' }));
-        expect(chatIdInput).toHaveAttribute('type', 'text');
+        expect(chatIdInput).toHaveValue('********7890');
+        expect(chatIdInput).toHaveAttribute('readonly');
+        await user.click(screen.getByRole('button', { name: '修改' }));
+        expect(chatIdInput).toHaveValue('-1001234567890');
+        expect(chatIdInput).not.toHaveAttribute('readonly');
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
         expect(screen.getAllByText('********7890').length).toBeGreaterThan(0);

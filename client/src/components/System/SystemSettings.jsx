@@ -14,8 +14,6 @@ import {
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
     HiOutlineCommandLine,
-    HiOutlineEye,
-    HiOutlineEyeSlash,
     HiOutlineExclamationTriangle,
     HiOutlineServerStack,
     HiOutlineShieldCheck,
@@ -226,6 +224,12 @@ const SETTINGS_TAB_CONFIG = [
 
 const SETTINGS_WORKSPACE_CONFIG = [
     {
+        id: 'status',
+        label: '系统状态',
+        icon: HiOutlineChartBarSquare,
+        routeTab: 'status',
+    },
+    {
         id: 'access',
         label: '对外访问',
         icon: HiOutlineCog6Tooth,
@@ -258,6 +262,7 @@ function resolveSettingsTab(value) {
 
 function resolveWorkspaceSection(value) {
     const normalized = resolveSettingsTab(value);
+    if (normalized === 'status') return 'status';
     if (normalized === 'policy') return 'policy';
     if (normalized === 'db' || normalized === 'backup') return 'backup';
     if (normalized === 'monitor' || normalized === 'console') return 'operations';
@@ -461,7 +466,7 @@ export default function SystemSettings() {
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(null);
     const [telegramTestLoading, setTelegramTestLoading] = useState(false);
-    const [showTelegramChatId, setShowTelegramChatId] = useState(false);
+    const [editingTelegramChatId, setEditingTelegramChatId] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
@@ -524,6 +529,7 @@ export default function SystemSettings() {
             const payload = res.data?.obj || null;
             setSettings(payload);
             setDraft(buildDraft(payload));
+            setEditingTelegramChatId(false);
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '加载系统设置失败');
         }
@@ -842,6 +848,7 @@ export default function SystemSettings() {
             const next = res.data?.obj || payload;
             setSettings(next);
             setDraft(buildDraft(next));
+            setEditingTelegramChatId(false);
             await fetchMonitorStatus({ quiet: true });
             await fetchRegistrationRuntime();
             toast.success('系统设置已更新');
@@ -1307,7 +1314,24 @@ export default function SystemSettings() {
             : hasLocalBackup
                 ? '已有本机备份'
                 : '暂无备份';
+    const savedTelegramChatId = toText(settings?.telegram?.chatId, '');
+    const draftTelegramChatId = toText(draft.telegram.chatId, '');
+    const hasSavedTelegramChatId = Boolean(savedTelegramChatId || toText(monitorStatus?.telegram?.chatIdPreview, ''));
+    const telegramChatIdChanged = draftTelegramChatId !== savedTelegramChatId;
     const telegramTargetPreview = resolveChatIdPreviewValue(monitorStatus?.telegram?.chatIdPreview, draft.telegram.chatId);
+    const telegramMaskedDisplayValue = !draftTelegramChatId && hasSavedTelegramChatId && telegramChatIdChanged
+        ? '已清空，待保存'
+        : (draftTelegramChatId
+            ? (telegramChatIdChanged ? maskChatIdValue(draftTelegramChatId) : telegramTargetPreview)
+            : telegramTargetPreview);
+    const shouldMaskTelegramChatId = hasSavedTelegramChatId && !editingTelegramChatId;
+    const telegramChatIdHint = hasSavedTelegramChatId
+        ? (editingTelegramChatId
+            ? '正在编辑 Chat ID，保存后会继续按脱敏形式显示。'
+            : telegramMaskedDisplayValue === '已清空，待保存'
+                ? '当前 Chat ID 已清空，保存后会移除现有目标。'
+                : `当前仅显示脱敏值：${telegramMaskedDisplayValue}`)
+        : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。';
     const alertChainStates = [
         emailStatus?.configured ? '邮件已配置' : '邮件未配置',
         monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
@@ -2149,30 +2173,26 @@ export default function SystemSettings() {
                         <div className="settings-sensitive-field">
                             <input
                                 id="telegram-chat-id"
-                                className="form-input"
-                                type={showTelegramChatId ? 'text' : 'password'}
-                                inputMode="numeric"
-                                value={draft.telegram.chatId}
-                                onChange={(event) => patchField('telegram', 'chatId', event.target.value)}
-                                placeholder="-1001234567890"
+                                className={`form-input${shouldMaskTelegramChatId ? ' settings-sensitive-display' : ''}`}
+                                type="text"
+                                inputMode={shouldMaskTelegramChatId ? undefined : 'numeric'}
+                                value={shouldMaskTelegramChatId ? telegramMaskedDisplayValue : draft.telegram.chatId}
+                                onChange={shouldMaskTelegramChatId ? undefined : (event) => patchField('telegram', 'chatId', event.target.value)}
+                                placeholder={shouldMaskTelegramChatId ? '' : '-1001234567890'}
+                                readOnly={shouldMaskTelegramChatId}
                                 autoComplete="new-password"
                             />
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setShowTelegramChatId((prev) => !prev)}
-                                disabled={!draft.telegram.chatId}
-                                aria-label={showTelegramChatId ? '隐藏 Chat ID' : '显示 Chat ID'}
-                                title={showTelegramChatId ? '隐藏 Chat ID' : '显示 Chat ID'}
-                            >
-                                {showTelegramChatId ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
-                            </button>
+                            {hasSavedTelegramChatId ? (
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => setEditingTelegramChatId((prev) => !prev)}
+                                >
+                                    {editingTelegramChatId ? '完成' : '修改'}
+                                </button>
+                            ) : null}
                         </div>
-                        <div className="text-xs text-muted mt-1">
-                            {draft.telegram.chatId
-                                ? `已隐藏完整 Chat ID${showTelegramChatId ? '，当前为临时显示。' : '，可点右侧按钮临时查看。'}`
-                                : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。'}
-                        </div>
+                        <div className="text-xs text-muted mt-1">{telegramChatIdHint}</div>
                     </div>
                     <div className="form-group">
                         <label className="form-label" htmlFor="telegram-bot-token">Bot Token</label>
@@ -2762,6 +2782,11 @@ export default function SystemSettings() {
 
     const workspaceSections = [
         {
+            id: 'status',
+            title: '系统状态',
+            content: renderStatusContent(),
+        },
+        {
             id: 'access',
             title: '对外访问',
             content: renderAccessContent(),
@@ -2843,7 +2868,6 @@ export default function SystemSettings() {
                     </div>
 
                     <div className="settings-main">
-                        {renderStatusContent()}
                         <SettingsWorkspaceSection
                             title={activeWorkspaceSection.title}
                         >

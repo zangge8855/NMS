@@ -3,6 +3,9 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const DEFAULT_ALERT_SEVERITIES = new Set(['warning', 'critical']);
 const DEFAULT_AUDIT_EVENT_RULES = {
+    login_failed: { severity: 'warning', label: '登录失败' },
+    login_denied_email_unverified: { severity: 'warning', label: '未验证邮箱尝试登录' },
+    login_denied_user_disabled: { severity: 'warning', label: '停用账号尝试登录' },
     login_rate_limited: { severity: 'critical', label: '登录频率限制' },
     password_reset_request_rate_limited: { severity: 'critical', label: '重置密码请求频率限制' },
     register_rate_limited: { severity: 'critical', label: '注册频率限制' },
@@ -124,6 +127,12 @@ function formatLocationCarrierText(location = '', carrier = '') {
     return parts.join(' · ');
 }
 
+function formatExpiryDateTime(value) {
+    const timestamp = Number(value || 0);
+    if (!(timestamp > 0)) return '';
+    return formatDateTime(timestamp);
+}
+
 function formatNotificationMessage(notification = {}) {
     const meta = notification.meta || {};
     const locationCarrier = formatLocationCarrierText(meta.ipLocation, meta.ipCarrier);
@@ -142,6 +151,10 @@ function formatNotificationMessage(notification = {}) {
         meta.serverId ? `节点: ${meta.serverId}` : '',
         meta.reasonCode ? `原因码: ${meta.reasonCode}` : '',
         meta.event ? `事件编码: ${meta.event}` : '',
+        meta.targetUsername ? `目标账号: ${meta.targetUsername}` : '',
+        meta.targetEmail ? `目标用户: ${meta.targetEmail}` : '',
+        Number.isFinite(Number(meta.remainingDays)) && Number(meta.remainingDays) > 0 ? `剩余天数: ${Number(meta.remainingDays)} 天` : '',
+        formatExpiryDateTime(meta.expiryTime) ? `到期时间: ${formatExpiryDateTime(meta.expiryTime)}` : '',
     ]);
 
     appendSection(lines, '来源', [
@@ -161,6 +174,16 @@ function formatAuditMessage(entry = {}, rule = {}) {
     const lines = ['[NMS 安全审计摘要]'];
     const locationCarrier = formatLocationCarrierText(entry.ipLocation, entry.ipCarrier);
     const detailText = stringifyDetails(entry.details);
+    const targetUser = String(
+        entry.targetEmail
+        || entry.subscriptionEmail
+        || entry.email
+        || entry.targetUsername
+        || entry.details?.subscriptionEmail
+        || entry.details?.email
+        || entry.details?.username
+        || ''
+    ).trim();
 
     appendSection(lines, '概况', [
         `级别: ${severityLabel(rule.severity || 'warning')}`,
@@ -173,7 +196,7 @@ function formatAuditMessage(entry = {}, rule = {}) {
 
     appendSection(lines, '目标', [
         entry.serverId ? `节点: ${entry.serverId}` : '',
-        entry.targetEmail ? `目标用户: ${entry.targetEmail}` : '',
+        targetUser ? `目标用户: ${targetUser}` : '',
     ]);
 
     appendSection(lines, '来源', [
@@ -426,6 +449,7 @@ export function createTelegramAlertService(options = {}) {
             '/security 安全事件汇总',
             '/nodes 异常节点汇总',
             '/access 公开订阅异常访问汇总',
+            '/expiry 用户到期提醒摘要',
             '/monitor 立即执行节点巡检',
         ]);
         return sendMessage(trimLines(lines), '', { kind: 'test' });
@@ -696,6 +720,37 @@ export function createTelegramAlertService(options = {}) {
         return trimLines(lines);
     }
 
+    async function buildExpiryDigest() {
+        const { collectSubscriptionExpirySnapshot } = await import('./subscriptionExpiryNotifier.js');
+        const snapshot = collectSubscriptionExpirySnapshot({ limit: 6 });
+        if ((snapshot?.total || 0) === 0) {
+            return '[NMS 到期提醒] 最近 7 天没有即将到期或已到期的用户';
+        }
+
+        const stageCounter = new Map();
+        (snapshot.items || []).forEach((item) => {
+            incrementCounter(stageCounter, item.label || item.stage);
+        });
+
+        const lines = ['[NMS 用户到期提醒摘要]'];
+        appendSection(lines, '概况', [
+            `命中用户: ${snapshot.total || 0}`,
+            `已到期: ${snapshot.expiredCount || 0} · 即将到期: ${snapshot.warningCount || 0}`,
+            `最近生成: ${formatDateTime(snapshot.generatedAt)}`,
+        ]);
+        appendSection(lines, '阶段分布', formatCounterRows(stageCounter, { limit: 4, suffix: ' 人' }));
+        appendSection(lines, '用户明细', (snapshot.items || []).map((item, index) => formatDetailBlock(
+            `${index + 1}. ${item.username || item.subscriptionEmail || item.email || '-'}`,
+            [
+                `订阅邮箱: ${item.subscriptionEmail || item.email || '-'}`,
+                `阶段: ${item.label || item.stage}`,
+                item.remainingDays > 0 ? `剩余: ${item.remainingDays} 天` : '状态: 已到期',
+                formatExpiryDateTime(item.expiryTime) ? `到期时间: ${formatExpiryDateTime(item.expiryTime)}` : '',
+            ]
+        )));
+        return trimLines(lines);
+    }
+
     async function runMonitorDigest(actor = 'telegram') {
         const serverHealthMonitor = (await import('./serverHealthMonitor.js')).default;
         const result = await serverHealthMonitor.runOnce({ force: true });
@@ -732,6 +787,7 @@ export function createTelegramAlertService(options = {}) {
                 '/security 查看最近安全事件汇总',
                 '/nodes 查看异常节点摘要',
                 '/access 查看最近被拒绝的公开订阅访问',
+                '/expiry 查看用户到期提醒摘要',
             ]);
             appendSection(lines, '运维命令', [
                 '/monitor 立即执行节点巡检',
@@ -772,6 +828,11 @@ export function createTelegramAlertService(options = {}) {
 
         if (command === '/access') {
             await sendMessage(await buildAccessDigest(), '', { chatId, kind: 'command' });
+            return;
+        }
+
+        if (command === '/expiry') {
+            await sendMessage(await buildExpiryDigest(), '', { chatId, kind: 'command' });
             return;
         }
 

@@ -30,6 +30,7 @@ import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.
 import { createSearchBotProtectionMiddleware } from './middleware/searchBotProtection.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
 import telegramAlertService from './lib/telegramAlertService.js';
+import subscriptionExpiryNotifier from './lib/subscriptionExpiryNotifier.js';
 import { pathToFileURL } from 'url';
 import { resolve } from 'path';
 
@@ -193,6 +194,7 @@ export async function startServer(options = {}) {
     });
     serverHealthMonitor.start();
     telegramAlertService.start();
+    subscriptionExpiryNotifier.start();
 
     await new Promise((resolvePromise, rejectPromise) => {
         httpServer.once('error', rejectPromise);
