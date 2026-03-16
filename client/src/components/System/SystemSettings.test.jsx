@@ -335,6 +335,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
         expect(screen.getByText('菜单待同步')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');
         expect(chatIdInput).toHaveAttribute('readonly');

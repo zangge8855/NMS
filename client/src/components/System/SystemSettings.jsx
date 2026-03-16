@@ -1753,6 +1753,7 @@ export default function SystemSettings() {
                             <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
                             <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
                             <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                            <span className="badge badge-neutral">支持网址变更通知</span>
                         </div>
                         <div className="settings-monitor-log-meta">
                             <div className="settings-monitor-log-item">
@@ -1775,6 +1776,19 @@ export default function SystemSettings() {
                                 <span className="settings-monitor-log-label">错误</span>
                                 <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.error || emailStatus.lastVerification?.error || '-'}</span>
                             </div>
+                        </div>
+                        <div className="settings-inline-action-strip">
+                            <div className="settings-inline-action-copy">
+                                <div className="settings-inline-action-title">网址变更通知</div>
+                                <div className="settings-inline-action-note">给已注册用户发送最新地址邮件</div>
+                            </div>
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={openNoticeModal}
+                                disabled={!emailStatus?.configured || noticeSending}
+                            >
+                                {noticeSending ? <span className="spinner" /> : '发变更通知'}
+                            </button>
                         </div>
                     </div>
                 )}
