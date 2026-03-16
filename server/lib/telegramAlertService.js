@@ -18,6 +18,19 @@ const DEFAULT_AUDIT_EVENT_RULES = {
 const DEFAULT_DEDUP_WINDOW_MS = 2 * 60 * 1000;
 const DEFAULT_API_BASE_URL = 'https://api.telegram.org';
 const POLL_INTERVAL_MS = 5000;
+const DEFAULT_QUERY_COMMANDS = [
+    { command: '/status', description: '系统状态总览' },
+    { command: '/online', description: '在线人数与节点分布' },
+    { command: '/traffic', description: '最近 24h 流量摘要' },
+    { command: '/alerts', description: '最近未读告警摘要' },
+    { command: '/security', description: '最近安全事件汇总' },
+    { command: '/nodes', description: '异常节点摘要' },
+    { command: '/access', description: '最近被拒绝的公开订阅访问' },
+    { command: '/expiry', description: '用户到期提醒摘要' },
+];
+const DEFAULT_OPERATION_COMMANDS = [
+    { command: '/monitor', description: '立即执行节点巡检' },
+];
 
 function normalizeStringArray(input = []) {
     return Array.from(new Set(
@@ -55,6 +68,18 @@ function truncateLine(value, limit = 400) {
     const text = String(value || '').replace(/\s+/g, ' ').trim();
     if (!text) return '';
     return text.length > limit ? `${text.slice(0, limit)}...` : text;
+}
+
+function truncateMessageText(value, limit = 3900) {
+    const text = String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.replace(/[ \t]+$/g, ''))
+        .join('\n')
+        .trim();
+    if (!text) return '';
+    if (text.length <= limit) return text;
+    return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }
 
 function startBackgroundInterval(fn, delayMs) {
@@ -127,6 +152,26 @@ function formatLocationCarrierText(location = '', carrier = '') {
     return parts.join(' · ');
 }
 
+function sumTrafficTotals(entries = []) {
+    return (Array.isArray(entries) ? entries : []).reduce((totals, item) => {
+        totals.upBytes += Number(item?.upBytes || 0);
+        totals.downBytes += Number(item?.downBytes || 0);
+        totals.totalBytes += Number(item?.totalBytes || 0);
+        return totals;
+    }, {
+        upBytes: 0,
+        downBytes: 0,
+        totalBytes: 0,
+    });
+}
+
+function escapeTelegramHtml(value = '') {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function formatExpiryDateTime(value) {
     const timestamp = Number(value || 0);
     if (!(timestamp > 0)) return '';
@@ -137,9 +182,9 @@ function formatNotificationMessage(notification = {}) {
     const meta = notification.meta || {};
     const locationCarrier = formatLocationCarrierText(meta.ipLocation, meta.ipCarrier);
     const detailText = stringifyDetails(meta.details);
-    const lines = ['[NMS 系统告警摘要]'];
+    const blocks = [];
 
-    appendSection(lines, '概况', [
+    appendHtmlSection(blocks, '概况', [
         `级别: ${severityLabel(notification.severity)}`,
         `标题: ${truncateLine(notification.title, 120) || '-'}`,
         `类型: ${notification.type || 'system'}`,
@@ -147,7 +192,7 @@ function formatNotificationMessage(notification = {}) {
         notification.body ? `摘要: ${truncateLine(notification.body, 800)}` : '',
     ]);
 
-    appendSection(lines, '影响', [
+    appendHtmlSection(blocks, '影响', [
         meta.serverId ? `节点: ${meta.serverId}` : '',
         meta.reasonCode ? `原因码: ${meta.reasonCode}` : '',
         meta.event ? `事件编码: ${meta.event}` : '',
@@ -157,21 +202,21 @@ function formatNotificationMessage(notification = {}) {
         formatExpiryDateTime(meta.expiryTime) ? `到期时间: ${formatExpiryDateTime(meta.expiryTime)}` : '',
     ]);
 
-    appendSection(lines, '来源', [
+    appendHtmlSection(blocks, '来源', [
         meta.ip ? `IP: ${meta.ip}` : '',
         locationCarrier ? `归属地 / 运营商: ${locationCarrier}` : '',
         meta.method || meta.path ? `请求: ${meta.method || '-'} ${meta.path || '-'}` : '',
     ]);
 
-    appendSection(lines, '补充', [
+    appendHtmlSection(blocks, '补充', [
         detailText ? `上下文: ${detailText}` : '',
     ]);
 
-    return lines.join('\n');
+    return joinHtmlMessage('NMS 系统告警摘要', blocks);
 }
 
 function formatAuditMessage(entry = {}, rule = {}) {
-    const lines = ['[NMS 安全审计摘要]'];
+    const blocks = [];
     const locationCarrier = formatLocationCarrierText(entry.ipLocation, entry.ipCarrier);
     const detailText = stringifyDetails(entry.details);
     const targetUser = String(
@@ -185,7 +230,7 @@ function formatAuditMessage(entry = {}, rule = {}) {
         || ''
     ).trim();
 
-    appendSection(lines, '概况', [
+    appendHtmlSection(blocks, '概况', [
         `级别: ${severityLabel(rule.severity || 'warning')}`,
         `事件: ${rule.label || entry.eventType || entry.event || 'audit_event'}`,
         `编码: ${entry.eventType || entry.event || 'audit_event'}`,
@@ -194,22 +239,22 @@ function formatAuditMessage(entry = {}, rule = {}) {
         `操作者: ${entry.actor || 'anonymous'}`,
     ]);
 
-    appendSection(lines, '目标', [
+    appendHtmlSection(blocks, '目标', [
         entry.serverId ? `节点: ${entry.serverId}` : '',
         targetUser ? `目标用户: ${targetUser}` : '',
     ]);
 
-    appendSection(lines, '来源', [
+    appendHtmlSection(blocks, '来源', [
         entry.ip ? `IP: ${entry.ip}` : '',
         locationCarrier ? `归属地 / 运营商: ${locationCarrier}` : '',
         entry.method || entry.path ? `请求: ${entry.method || '-'} ${entry.path || '-'}` : '',
     ]);
 
-    appendSection(lines, '细节', [
+    appendHtmlSection(blocks, '细节', [
         detailText ? `上下文: ${detailText}` : '',
     ]);
 
-    return lines.join('\n');
+    return joinHtmlMessage('NMS 安全审计摘要', blocks);
 }
 
 function normalizeCommand(value) {
@@ -234,6 +279,120 @@ function appendSection(lines, title, rows = []) {
     normalizedRows.forEach((row) => {
         lines.push(`- ${row}`);
     });
+}
+
+function appendHtmlSection(blocks, title, rows = [], { rawRows = false } = {}) {
+    const normalizedRows = rows.filter(Boolean);
+    if (normalizedRows.length === 0) return;
+    const sectionRows = normalizedRows.map((row) => `• ${rawRows ? row : escapeTelegramHtml(row)}`);
+    blocks.push(`<b>${escapeTelegramHtml(title)}</b>\n${sectionRows.join('\n')}`);
+}
+
+function joinHtmlMessage(title, blocks = []) {
+    return [`<b>${escapeTelegramHtml(title)}</b>`, ...blocks].join('\n\n').trim();
+}
+
+function formatCommandRows(items = []) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const command = String(item?.command || '').trim();
+            const description = String(item?.description || '').trim();
+            if (!command || !description) return '';
+            return `${command} ${description}`;
+        })
+        .filter(Boolean);
+}
+
+function formatCommandHtmlRows(items = []) {
+    return (Array.isArray(items) ? items : [])
+        .map((item) => {
+            const command = String(item?.command || '').trim();
+            const description = String(item?.description || '').trim();
+            if (!command || !description) return '';
+            return `<code>${escapeTelegramHtml(command)}</code> ${escapeTelegramHtml(description)}`;
+        })
+        .filter(Boolean);
+}
+
+export function formatCommandCatalogMessage(options = {}) {
+    const title = String(options.title || 'NMS Telegram 控制台').trim() || 'NMS Telegram 控制台';
+    const blocks = [];
+    appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(options.queryCommands || DEFAULT_QUERY_COMMANDS), { rawRows: true });
+    appendHtmlSection(blocks, '运维命令', formatCommandHtmlRows(options.operationCommands || DEFAULT_OPERATION_COMMANDS), { rawRows: true });
+    return joinHtmlMessage(title, blocks);
+}
+
+export async function collectStatusDigestContext(deps = {}) {
+    const collectClusterStatusSnapshot = typeof deps.collectClusterStatusSnapshot === 'function'
+        ? deps.collectClusterStatusSnapshot
+        : (await import('./serverStatusService.js')).collectClusterStatusSnapshot;
+    const serverHealthMonitor = deps.serverHealthMonitor
+        || await import('./serverHealthMonitor.js').then((module) => module.default);
+
+    const snapshot = await collectClusterStatusSnapshot({
+        includeDetails: true,
+        maxAgeMs: 30_000,
+    });
+    const summary = snapshot?.summary || {};
+    const fallbackUpBytes = Number(summary.totalUp || 0);
+    const fallbackDownBytes = Number(summary.totalDown || 0);
+    let traffic = {
+        upBytes: fallbackUpBytes,
+        downBytes: fallbackDownBytes,
+        totalBytes: fallbackUpBytes + fallbackDownBytes,
+        lastCollectionAt: '',
+        source: 'cluster_snapshot',
+    };
+
+    try {
+        const trafficStatsStore = deps.trafficStatsStore || (await import('../store/trafficStatsStore.js')).default;
+        if (trafficStatsStore?.collectIfStale && trafficStatsStore?.getOverview) {
+            await trafficStatsStore.collectIfStale(false);
+            const overview = trafficStatsStore.getOverview({ days: 1, top: 5 });
+            const serverTotals = Array.isArray(overview?.serverTotals) ? overview.serverTotals : [];
+            if (serverTotals.length > 0) {
+                traffic = {
+                    ...sumTrafficTotals(serverTotals),
+                    lastCollectionAt: overview?.lastCollectionAt || '',
+                    source: 'traffic_store',
+                };
+            }
+        }
+    } catch {
+        // Fall back to the live cluster status snapshot when traffic samples are unavailable.
+    }
+
+    return {
+        summary,
+        traffic,
+        checkedAt: summary.checkedAt || serverHealthMonitor?.getStatus?.()?.lastRunAt || '',
+    };
+}
+
+export function formatStatusDigestMessage(context = {}) {
+    const summary = context?.summary || {};
+    const traffic = context?.traffic || {};
+    const checkedAt = context?.checkedAt || '';
+    const blocks = [];
+    appendHtmlSection(blocks, '集群运行', [
+        `节点规模: ${summary.total || 0} 台`,
+        `节点状态: 正常 ${summary.healthy || 0} · 降级 ${summary.degraded || 0} · 离线 ${summary.unreachable || 0} · 维护 ${summary.maintenance || 0}`,
+        `在线用户: ${summary.totalOnline || 0}`,
+        `活跃入站: ${summary.activeInbounds || 0}/${summary.totalInbounds || 0}`,
+    ]);
+
+    appendHtmlSection(blocks, '流量概况', [
+        `累计总量: ${formatBytesHuman(traffic.totalBytes || ((traffic.upBytes || 0) + (traffic.downBytes || 0)))}`,
+        `上行: ${formatBytesHuman(traffic.upBytes || 0)}`,
+        `下行: ${formatBytesHuman(traffic.downBytes || 0)}`,
+        traffic.lastCollectionAt ? `最近流量采集: ${formatDateTime(traffic.lastCollectionAt)}` : '',
+    ]);
+
+    appendHtmlSection(blocks, '巡检时间', [
+        `最近巡检: ${formatDateTime(checkedAt)}`,
+    ]);
+
+    return joinHtmlMessage('NMS 状态总览', blocks);
 }
 
 function formatDetailBlock(title, rows = []) {
@@ -350,13 +509,17 @@ export function createTelegramAlertService(options = {}) {
         if (shouldSkipDedup(dedupKey)) return false;
 
         try {
+            const body = {
+                chat_id: String(overrides.chatId || settings.chatId),
+                text: truncateMessageText(text, 3900),
+                disable_web_page_preview: true,
+            };
+            if (overrides.parseMode) {
+                body.parse_mode = String(overrides.parseMode);
+            }
             await fetcher({
                 url: `${settings.apiBaseUrl.replace(/\/$/, '')}/bot${settings.botToken}/sendMessage`,
-                body: {
-                    chat_id: String(overrides.chatId || settings.chatId),
-                    text: truncateLine(text, 3900),
-                    disable_web_page_preview: true,
-                },
+                body,
             });
             if (dedupKey) {
                 dedupCache.set(String(dedupKey).trim(), Date.now());
@@ -414,6 +577,7 @@ export function createTelegramAlertService(options = {}) {
         const dedupKey = `notification:${notification.type || 'system'}:${meta.serverId || ''}:${meta.reasonCode || ''}:${notification.severity || 'info'}`;
         return sendMessage(formatNotificationMessage(notification), dedupKey, {
             kind: notification.type || 'notification',
+            parseMode: 'HTML',
         });
     }
 
@@ -430,29 +594,24 @@ export function createTelegramAlertService(options = {}) {
         const dedupKey = `audit:${entry.eventType || entry.event || 'audit'}:${entry.actor || ''}:${entry.ip || ''}:${entry.path || ''}`;
         return sendMessage(formatAuditMessage(entry, rule), dedupKey, {
             kind: entry.eventType || entry.event || 'audit',
+            parseMode: 'HTML',
         });
     }
 
     async function sendTestMessage(actor = 'admin') {
         const settings = resolveSettings();
-        const lines = ['[NMS Telegram 测试通知]'];
-        appendSection(lines, '概况', [
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
             `目标: ${settings.chatId || '未配置'}`,
             `时间: ${formatDateTime(new Date().toISOString())}`,
             `触发人: ${actor}`,
         ]);
-        appendSection(lines, '可用命令', [
-            '/status 系统状态摘要',
-            '/online 在线分布摘要',
-            '/traffic 最近 24h 流量摘要',
-            '/alerts 未读告警摘要',
-            '/security 安全事件汇总',
-            '/nodes 异常节点汇总',
-            '/access 公开订阅异常访问汇总',
-            '/expiry 用户到期提醒摘要',
-            '/monitor 立即执行节点巡检',
-        ]);
-        return sendMessage(trimLines(lines), '', { kind: 'test' });
+        appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(DEFAULT_QUERY_COMMANDS), { rawRows: true });
+        appendHtmlSection(blocks, '运维命令', formatCommandHtmlRows(DEFAULT_OPERATION_COMMANDS), { rawRows: true });
+        return sendMessage(joinHtmlMessage('NMS Telegram 测试通知', blocks), '', {
+            kind: 'test',
+            parseMode: 'HTML',
+        });
     }
 
     async function callTelegramApi(method, body = {}) {
@@ -479,23 +638,8 @@ export function createTelegramAlertService(options = {}) {
     }
 
     async function buildStatusDigest() {
-        const [{ collectClusterStatusSnapshot }, serverHealthMonitor] = await Promise.all([
-            import('./serverStatusService.js'),
-            import('./serverHealthMonitor.js').then((module) => module.default),
-        ]);
-        const snapshot = await collectClusterStatusSnapshot({
-            includeDetails: true,
-            maxAgeMs: 30_000,
-        });
-        const summary = snapshot?.summary || {};
-        const lines = ['[NMS 状态总览]'];
-        appendSection(lines, '集群概况', [
-            `节点: ${summary.total || 0} 台 · 正常 ${summary.healthy || 0} · 降级 ${summary.degraded || 0} · 离线 ${summary.unreachable || 0} · 维护 ${summary.maintenance || 0}`,
-            `在线用户: ${summary.totalOnline || 0} · 活跃入站 ${summary.activeInbounds || 0}/${summary.totalInbounds || 0}`,
-            `总流量: ↑ ${formatBytesHuman(summary.totalUp || 0)} / ↓ ${formatBytesHuman(summary.totalDown || 0)}`,
-            `最近巡检: ${formatDateTime(summary.checkedAt || serverHealthMonitor.getStatus()?.lastRunAt)}`,
-        ]);
-        return trimLines(lines);
+        const context = await collectStatusDigestContext();
+        return formatStatusDigestMessage(context);
     }
 
     async function buildOnlineDigest() {
@@ -778,26 +922,20 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastCommand = command || String(message?.text || '').trim();
 
         if (command === '/start' || command === '/help') {
-            const lines = ['[NMS Telegram 控制台]'];
-            appendSection(lines, '摘要命令', [
-                '/status 查看系统状态摘要',
-                '/online 查看节点在线人数与分布',
-                '/traffic 查看最近 24h 流量摘要',
-                '/alerts 查看最近未读告警摘要',
-                '/security 查看最近安全事件汇总',
-                '/nodes 查看异常节点摘要',
-                '/access 查看最近被拒绝的公开订阅访问',
-                '/expiry 查看用户到期提醒摘要',
-            ]);
-            appendSection(lines, '运维命令', [
-                '/monitor 立即执行节点巡检',
-            ]);
-            await sendMessage(trimLines(lines), '', { chatId, kind: 'command' });
+            await sendMessage(formatCommandCatalogMessage(), '', {
+                chatId,
+                kind: 'command',
+                parseMode: 'HTML',
+            });
             return;
         }
 
         if (command === '/status') {
-            await sendMessage(await buildStatusDigest(), '', { chatId, kind: 'command' });
+            await sendMessage(await buildStatusDigest(), '', {
+                chatId,
+                kind: 'command',
+                parseMode: 'HTML',
+            });
             return;
         }
 

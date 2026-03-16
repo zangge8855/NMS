@@ -305,9 +305,13 @@ describe('UserDetail', () => {
         await user.click(screen.getByRole('button', { name: '订阅' }));
 
         expect((await screen.findAllByText('订阅资料')).length).toBeGreaterThan(0);
-        expect(screen.getByText('选类型，复制地址，导入客户端。')).toBeInTheDocument();
-        expect(screen.getByText('当前配置文件')).toBeInTheDocument();
-        expect(screen.getByText('复制订阅地址')).toBeInTheDocument();
+        expect(screen.getByText('已用流量')).toBeInTheDocument();
+        expect(screen.getByText('可用流量')).toBeInTheDocument();
+        expect(screen.getByText('到期时间')).toBeInTheDocument();
+        const profileNotes = document.querySelector('.subscription-profile-notes');
+        expect(profileNotes).toBeTruthy();
+        expect(profileNotes).toHaveTextContent('个配置文件');
+        expect(profileNotes).toHaveTextContent('按这个配置文件直接导入');
         expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
         expect(screen.getByText('subscription-client-links')).toBeInTheDocument();
         expect(screen.getByText('qr-code')).toBeInTheDocument();

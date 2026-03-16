@@ -245,7 +245,8 @@ describe('UsersHub ordering', () => {
         expect(within(aliceRow).queryByText(/ID user-a/i)).not.toBeInTheDocument();
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
         expect(within(aliceRow).getByText('1 会话')).toBeInTheDocument();
-        expect(within(aliceRow).getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
+        expect(within(aliceRow).getByRole('button', { name: '详情' })).toBeInTheDocument();
+        expect(within(aliceRow).queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
         expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
     });
 
@@ -311,7 +312,8 @@ describe('UsersHub ordering', () => {
         expect(document.querySelector('.users-table')).toBeFalsy();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '查看订阅' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '详情' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
     });
 
     it('shows a primary load error when the user list request fails', async () => {

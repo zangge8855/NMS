@@ -31,6 +31,8 @@ const TASKS_COPY = {
         pageSubtitle: '记录批量用户/入站操作的执行结果',
         refresh: '刷新',
         clear: '清空',
+        noFilters: '未设置筛选',
+        filtersActive: '已启用 {count} 项',
         allTypes: '全部类型',
         allActions: '全部动作',
         allServers: '全部节点',
@@ -62,6 +64,8 @@ const TASKS_COPY = {
         pageSubtitle: 'Execution results for bulk user and inbound operations',
         refresh: 'Refresh',
         clear: 'Clear',
+        noFilters: 'No filters',
+        filtersActive: '{count} active',
         allTypes: 'All Types',
         allActions: 'All Actions',
         allServers: 'All Nodes',
@@ -156,8 +160,18 @@ export default function Tasks({ embedded = false }) {
         })
     ), [tasks, typeFilter, actionFilter, serverFilter, failedOnlyFilter]);
 
+    const activeTaskFilterCount = useMemo(() => {
+        let count = 0;
+        if (typeFilter !== 'all') count += 1;
+        if (actionFilter !== 'all') count += 1;
+        if (serverFilter !== 'all') count += 1;
+        if (failedOnlyFilter) count += 1;
+        if (retryGroupBy !== 'none') count += 1;
+        return count;
+    }, [actionFilter, failedOnlyFilter, retryGroupBy, serverFilter, typeFilter]);
+
     const shellClassName = embedded ? '' : 'page-content page-enter';
-    const filterCardClassName = embedded ? 'card mb-8 p-3 audit-filter-card audit-filter-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
+    const filterCardClassName = embedded ? 'card mb-8 p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
     // Converge on the shared table shell instead of page-specific container variants.
     const tableShellClassName = 'table-container mb-8';
     const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
@@ -234,56 +248,112 @@ export default function Tasks({ embedded = false }) {
         <>
             {!embedded && <Header title={t('pages.tasks.title')} />}
             <div className={shellClassName}>
-                <PageToolbar
-                    className={headClassName}
-                    compact
-                    actions={(
-                        <div className="tasks-page-actions">
-                            <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
-                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
-                            </button>
-                            <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
-                                <HiOutlineTrash /> {copy.clear}
-                            </button>
-                        </div>
-                    )}
-                    meta={<span>{copy.total.replace('{count}', String(filteredTasks.length))}</span>}
-                />
+                {!embedded && (
+                    <PageToolbar
+                        className={headClassName}
+                        compact
+                        actions={(
+                            <div className="tasks-page-actions">
+                                <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
+                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
+                                </button>
+                                <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
+                                    <HiOutlineTrash /> {copy.clear}
+                                </button>
+                            </div>
+                        )}
+                        meta={<span>{copy.total.replace('{count}', String(filteredTasks.length))}</span>}
+                    />
+                )}
 
                 <div className={filterCardClassName}>
-                    <div className="tasks-filter-row audit-filter-bar">
-                        {/* Keep native controls on the shared form surface and focus ring rules. */}
-                        <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                            <option value="all">{copy.allTypes}</option>
-                            {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
-                        </select>
-                        <select className={`${filterSelectClassName} w-140`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-                            <option value="all">{copy.allActions}</option>
-                            {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
-                        </select>
-                        <select className={`${filterSelectClassName} w-180`} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
-                            <option value="all">{copy.allServers}</option>
-                            {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
-                        </select>
-                        <label className="toolbar-checkbox">
-                            <input
-                                type="checkbox"
-                                checked={failedOnlyFilter}
-                                onChange={(e) => setFailedOnlyFilter(e.target.checked)}
-                                className={failedOnlyCheckboxClassName}
-                            />
-                            {copy.failedOnly}
-                        </label>
-                        <select className={`${filterSelectClassName} w-180`} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
-                            <option value="none">{formatRetryGroupLabel('none', locale)}</option>
-                            <option value="server">{formatRetryGroupLabel('server', locale)}</option>
-                            <option value="error">{formatRetryGroupLabel('error', locale)}</option>
-                            <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
-                        </select>
-                        <div className="text-sm text-muted tasks-filter-meta">
-                            {copy.total.replace('{count}', String(filteredTasks.length))}
+                    {embedded ? (
+                        <>
+                            <div className="audit-control-head">
+                                <div className="audit-control-meta">
+                                    <span className="badge badge-neutral">
+                                        {copy.total.replace('{count}', String(filteredTasks.length))}
+                                    </span>
+                                    <span className="badge badge-neutral">
+                                        {activeTaskFilterCount > 0
+                                            ? copy.filtersActive.replace('{count}', String(activeTaskFilterCount))
+                                            : copy.noFilters}
+                                    </span>
+                                </div>
+                                <div className="audit-control-actions">
+                                    <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
+                                        <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
+                                    </button>
+                                    <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
+                                        <HiOutlineTrash /> {copy.clear}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="audit-filter-grid audit-filter-grid--tasks">
+                                <select className={filterSelectClassName} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                                    <option value="all">{copy.allTypes}</option>
+                                    {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
+                                </select>
+                                <select className={filterSelectClassName} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                    <option value="all">{copy.allActions}</option>
+                                    {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
+                                </select>
+                                <select className={filterSelectClassName} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                                    <option value="all">{copy.allServers}</option>
+                                    {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
+                                </select>
+                                <label className="toolbar-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={failedOnlyFilter}
+                                        onChange={(e) => setFailedOnlyFilter(e.target.checked)}
+                                        className={failedOnlyCheckboxClassName}
+                                    />
+                                    {copy.failedOnly}
+                                </label>
+                                <select className={filterSelectClassName} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                                    <option value="none">{formatRetryGroupLabel('none', locale)}</option>
+                                    <option value="server">{formatRetryGroupLabel('server', locale)}</option>
+                                    <option value="error">{formatRetryGroupLabel('error', locale)}</option>
+                                    <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
+                                </select>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="tasks-filter-row audit-filter-bar">
+                            {/* Keep native controls on the shared form surface and focus ring rules. */}
+                            <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                                <option value="all">{copy.allTypes}</option>
+                                {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
+                            </select>
+                            <select className={`${filterSelectClassName} w-140`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                <option value="all">{copy.allActions}</option>
+                                {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
+                            </select>
+                            <select className={`${filterSelectClassName} w-180`} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                                <option value="all">{copy.allServers}</option>
+                                {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                            <label className="toolbar-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={failedOnlyFilter}
+                                    onChange={(e) => setFailedOnlyFilter(e.target.checked)}
+                                    className={failedOnlyCheckboxClassName}
+                                />
+                                {copy.failedOnly}
+                            </label>
+                            <select className={`${filterSelectClassName} w-180`} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                                <option value="none">{formatRetryGroupLabel('none', locale)}</option>
+                                <option value="server">{formatRetryGroupLabel('server', locale)}</option>
+                                <option value="error">{formatRetryGroupLabel('error', locale)}</option>
+                                <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
+                            </select>
+                            <div className="text-sm text-muted tasks-filter-meta">
+                                {copy.total.replace('{count}', String(filteredTasks.length))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className={tableShellClassName}>

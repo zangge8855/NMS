@@ -33,6 +33,50 @@ import {
     HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 
+function clampProgress(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(100, numeric));
+}
+
+function pickProgressTone(progress, { inverse = false } = {}) {
+    if (!inverse) {
+        if (progress >= 85) return 'danger';
+        if (progress >= 60) return 'warning';
+        return 'info';
+    }
+    if (progress <= 15) return 'danger';
+    if (progress <= 40) return 'warning';
+    return 'success';
+}
+
+function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
+    const timestamp = Number(expiryTime || 0);
+    if (!(timestamp > 0)) {
+        return {
+            progress: 100,
+            tone: 'success',
+            meta: '∞',
+        };
+    }
+
+    const remainingMs = timestamp - Date.now();
+    if (remainingMs <= 0) {
+        return {
+            progress: 0,
+            tone: 'danger',
+            meta: locale === 'en-US' ? 'Expired' : '已到期',
+        };
+    }
+
+    const remainingDays = Math.max(1, Math.ceil(remainingMs / 86400000));
+    return {
+        progress: clampProgress((remainingDays / 30) * 100),
+        tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
+        meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays}天`,
+    };
+}
+
 function getUserDetailCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
         return {
@@ -119,6 +163,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 disabled: 'Disabled',
                 emailVerified: 'Email Verified',
                 totalTraffic: 'Total Traffic',
+                usedTraffic: 'Used Traffic',
+                availableTraffic: 'Available Traffic',
                 nodeCount: 'Nodes',
                 accessCount: 'Subscription Access',
                 auditCount: 'Audit Records',
@@ -270,6 +316,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
             disabled: '已停用',
             emailVerified: '邮箱已验证',
             totalTraffic: '总流量',
+            usedTraffic: '已用流量',
+            availableTraffic: '可用流量',
             nodeCount: '节点数',
             accessCount: '订阅访问',
             auditCount: '审计记录',
@@ -555,6 +603,10 @@ export default function UserDetail() {
                 filteredExpired: Number(payload.filteredExpired || 0),
                 filteredDisabled: Number(payload.filteredDisabled || 0),
                 filteredByPolicy: Number(payload.filteredByPolicy || 0),
+                usedTrafficBytes: Number(payload.usedTrafficBytes || 0),
+                trafficLimitBytes: Number(payload.trafficLimitBytes || 0),
+                remainingTrafficBytes: Number(payload.remainingTrafficBytes || 0),
+                expiryTime: Number(payload.expiryTime || 0),
                 matchedClientsRaw: Number(payload.matchedClientsRaw || 0),
                 matchedClientsActive: Number(payload.matchedClientsActive || 0),
                 token: payload.token || null,
@@ -738,6 +790,47 @@ export default function UserDetail() {
         || subscriptionResult?.filteredDisabled
         || subscriptionResult?.filteredByPolicy
     );
+    const usedTrafficBytes = Number(subscriptionResult?.usedTrafficBytes || 0);
+    const trafficLimitBytes = Number(subscriptionResult?.trafficLimitBytes || 0);
+    const remainingTrafficBytes = Number(subscriptionResult?.remainingTrafficBytes || 0);
+    const usedTrafficProgress = trafficLimitBytes > 0
+        ? clampProgress((usedTrafficBytes / trafficLimitBytes) * 100)
+        : 100;
+    const availableTrafficProgress = trafficLimitBytes > 0
+        ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
+        : 100;
+    const expiryProgressState = buildExpiryProgress(subscriptionResult?.expiryTime, locale);
+    const subscriptionStatusCards = [
+        {
+            key: 'used',
+            label: copy.labels.usedTraffic,
+            value: formatBytes(usedTrafficBytes),
+            meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
+            tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
+        },
+        {
+            key: 'available',
+            label: copy.labels.availableTraffic,
+            value: trafficLimitBytes > 0 ? formatBytes(remainingTrafficBytes) : copy.labels.unlimited,
+            meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
+            tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
+        },
+        {
+            key: 'expiry',
+            label: copy.labels.expiryTime,
+            value: Number(subscriptionResult?.expiryTime || 0) > 0
+                ? formatDateOnly(Number(subscriptionResult.expiryTime), locale)
+                : copy.labels.permanent,
+            meta: expiryProgressState.meta,
+            tone: expiryProgressState.tone,
+        },
+    ];
+    const subscriptionFilterSummary = hasSubscriptionFilters
+        ? copy.labels.filteredSummary
+            .replace('{expired}', String(subscriptionResult?.filteredExpired || 0))
+            .replace('{disabled}', String(subscriptionResult?.filteredDisabled || 0))
+            .replace('{policy}', String(subscriptionResult?.filteredByPolicy || 0))
+        : '';
 
     const handleCopySubscription = async () => {
         if (!activeSubscriptionProfile?.url) {
@@ -1106,7 +1199,7 @@ export default function UserDetail() {
                                     title={copy.labels.subscriptionInfo}
                                     meta={subscriptionResult && (
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-danger'}`}>
+                                            <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
                                                 {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
                                             </span>
                                             {subscriptionResult.inactiveReason ? (
@@ -1129,55 +1222,8 @@ export default function UserDetail() {
                                     <EmptyState title={copy.labels.noSubscriptionTitle} subtitle={copy.labels.noSubscriptionSubtitle} />
                                 ) : (
                                     <div className="user-detail-subscription-layout">
-                                        <div className="subscription-user-step subscription-user-step--highlight user-detail-subscription-hero">
-                                            <div className="subscription-hero-summary">
-                                                <div className="subscription-hero-copy">
-                                                    <div className="subscription-user-step-kicker">{copy.labels.subscriptionInfo}</div>
-                                                    <div className="subscription-hero-title">{copy.labels.justThreeSteps}</div>
-                                                    <div className="subscription-hero-text">{copy.labels.subscriptionIntro}</div>
-                                                </div>
-                                                <div className="subscription-hero-badges">
-                                                    <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-danger'}`}>
-                                                        {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
-                                                    </span>
-                                                    <span className="badge badge-neutral">{activeSubscriptionProfile?.label || '-'}</span>
-                                                </div>
-                                            </div>
-                                            <div className="subscription-focus-steps">
-                                                <div className="subscription-focus-step">
-                                                    <span className="subscription-focus-step-index">1</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{copy.labels.stepChooseProfileTitle}</div>
-                                                        <div className="subscription-focus-step-text">{copy.labels.stepChooseProfileText}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="subscription-focus-step subscription-focus-step--highlight">
-                                                    <span className="subscription-focus-step-index">2</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{copy.labels.stepCopyAddressTitle}</div>
-                                                        <div className="subscription-focus-step-text">{copy.labels.stepCopyAddressText}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="subscription-focus-step">
-                                                    <span className="subscription-focus-step-index">3</span>
-                                                    <div className="subscription-focus-step-copy">
-                                                        <div className="subscription-focus-step-title">{copy.labels.stepImportClientTitle}</div>
-                                                        <div className="subscription-focus-step-text">{copy.labels.stepImportClientText}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
                                         <div className="subscription-link-with-qr user-detail-subscription-main">
                                             <div className="subscription-link-card subscription-link-card--import-focus user-detail-subscription-card">
-                                                <div className="subscription-current-profile-card">
-                                                    <div className="subscription-current-profile-label">{copy.labels.selectedProfile}</div>
-                                                    <div className="subscription-current-profile-value">{activeSubscriptionProfile?.label || '-'}</div>
-                                                    <div className="subscription-current-profile-hint">
-                                                        {copy.labels.availableProfiles.replace('{count}', String(availableSubscriptionProfiles.length || 0))} · {copy.labels.selectedProfileHint}
-                                                    </div>
-                                                </div>
-
                                                 <div className="subscription-profile-switches">
                                                     {availableSubscriptionProfiles.map((item) => (
                                                         <button
@@ -1191,11 +1237,25 @@ export default function UserDetail() {
                                                     ))}
                                                 </div>
 
+                                                <div className="subscription-profile-notes">
+                                                    <div className="text-xs text-muted">
+                                                        {copy.labels.availableProfiles.replace('{count}', String(availableSubscriptionProfiles.length || 0))}
+                                                        {' · '}
+                                                        {copy.labels.selectedProfileHint}
+                                                    </div>
+                                                    {hasSubscriptionFilters ? (
+                                                        <div className="text-xs text-muted">{subscriptionFilterSummary}</div>
+                                                    ) : null}
+                                                </div>
+
                                                 <div className="subscription-user-address-head">
                                                     <div className="subscription-user-address-copy">
-                                                        <div className="subscription-user-address-label">{copy.labels.currentAddress}</div>
+                                                        <div className="subscription-user-address-label">{copy.labels.subscriptionInfo}</div>
                                                         <div className="subscription-user-address-kicker">{activeSubscriptionProfile?.label || copy.labels.copyAddress}</div>
                                                     </div>
+                                                    <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
+                                                    </span>
                                                 </div>
 
                                                 <div className="subscription-link-grid subscription-link-grid--compact">
@@ -1214,42 +1274,21 @@ export default function UserDetail() {
                                                     </button>
                                                 </div>
 
+                                                <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                    {subscriptionStatusCards.map((item) => (
+                                                        <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
+                                                            <div className="subscription-address-status-head">
+                                                                <div className="subscription-address-status-label">{item.label}</div>
+                                                                <div className="subscription-address-status-meta">{item.meta}</div>
+                                                            </div>
+                                                            <div className="subscription-address-status-value">{item.value}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
                                                 <div className="subscription-user-address-note">
                                                     {copy.labels.subscriptionEmail}: {subscriptionResult.email}
                                                     {subscriptionResult.bundle?.externalConverterConfigured ? ` · ${copy.labels.converterEnabled}` : ` · ${copy.labels.converterBuiltin}`}
-                                                </div>
-
-                                                <div className="subscription-summary-grid user-detail-subscription-summary">
-                                                    <div className="subscription-summary-item">
-                                                        <div className="subscription-summary-label">{copy.labels.subscriptionEmail}</div>
-                                                        <div className="subscription-summary-value subscription-summary-value--email">{subscriptionResult.email}</div>
-                                                        <div className="subscription-summary-meta">
-                                                            {subscriptionResult.subscriptionActive ? copy.labels.statusEnabled : copy.labels.statusDisabled}
-                                                        </div>
-                                                    </div>
-                                                    <div className="subscription-summary-item">
-                                                        <div className="subscription-summary-label">{copy.labels.servers}</div>
-                                                        <div className="subscription-summary-value">
-                                                            {subscriptionResult.matchedClientsActive || 0} / {subscriptionResult.matchedClientsRaw || 0}
-                                                        </div>
-                                                        <div className="subscription-summary-meta">
-                                                            {copy.labels.matchedNodes
-                                                                .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
-                                                                .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
-                                                        </div>
-                                                    </div>
-                                                    {hasSubscriptionFilters && (
-                                                        <div className="subscription-summary-item">
-                                                            <div className="subscription-summary-label">{copy.labels.filteredStats}</div>
-                                                            <div className="subscription-summary-value">
-                                                                {copy.labels.filteredSummary
-                                                                    .replace('{expired}', String(subscriptionResult.filteredExpired || 0))
-                                                                    .replace('{disabled}', String(subscriptionResult.filteredDisabled || 0))
-                                                                    .replace('{policy}', String(subscriptionResult.filteredByPolicy || 0))}
-                                                            </div>
-                                                            <div className="subscription-summary-meta">{copy.labels.justThreeStepsText}</div>
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 <div className="subscription-user-address-foot">
@@ -1272,7 +1311,11 @@ export default function UserDetail() {
                                                 <div className="user-detail-subscription-guides">
                                                     <div className="subscription-user-address-copy">
                                                         <div className="subscription-user-address-label">{copy.labels.stepImportClientTitle}</div>
-                                                        <div className="subscription-user-address-note">{copy.labels.stepImportClientText}</div>
+                                                        <div className="subscription-user-address-note">
+                                                            {copy.labels.matchedNodes
+                                                                .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
+                                                                .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
+                                                        </div>
                                                     </div>
                                                     <SubscriptionClientLinks
                                                         bundle={subscriptionResult.bundle}
@@ -1283,9 +1326,9 @@ export default function UserDetail() {
                                             </div>
 
                                             <div className="subscription-inline-qr subscription-inline-qr--featured user-detail-subscription-qr">
-                                                <div className="subscription-inline-qr-title">{copy.labels.qrTitle}</div>
-                                                {activeSubscriptionProfile?.url ? (
+                                                {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
                                                     <>
+                                                        <div className="subscription-inline-qr-title">{copy.labels.qrTitle}</div>
                                                         <div className="subscription-inline-qr-surface rounded-xl bg-white">
                                                             <QRCodeSVG value={activeSubscriptionProfile.url} size={176} />
                                                         </div>

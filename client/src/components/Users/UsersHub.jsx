@@ -24,7 +24,6 @@ import {
     HiOutlineChevronDown,
     HiOutlineChevronUp,
     HiOutlineMagnifyingGlass,
-    HiOutlineLink,
     HiOutlineClipboard,
     HiOutlineCheck,
     HiOutlineEye,
@@ -663,15 +662,6 @@ export default function UsersHub() {
             )}
             {user.status.key === 'active' && (
                 <>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
-                        title={copy.viewSubscription}
-                        aria-label={copy.viewSubscription}
-                        onClick={() => navigate(`/clients/${user.id}?tab=subscription`)}
-                    >
-                        <HiOutlineLink />
-                        <span className="users-action-mobile-label">订阅</span>
-                    </button>
                     <button
                         className="btn btn-secondary btn-sm btn-icon users-action-btn"
                         title="编辑"

@@ -1113,15 +1113,28 @@ export default function AuditCenter() {
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
                             <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
-                                <div className="audit-control-meta">
-                                    <span className="badge badge-neutral">
-                                        {copy.states.total.replace('{count}', String(eventsData.total || 0))}
-                                    </span>
-                                    <span className="badge badge-neutral">
-                                        {activeEventFilterCount > 0
-                                            ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                                            : copy.workspace.noFilters}
-                                    </span>
+                                <div className="audit-control-head">
+                                    <div className="audit-control-meta">
+                                        <span className="badge badge-neutral">
+                                            {copy.states.total.replace('{count}', String(eventsData.total || 0))}
+                                        </span>
+                                        <span className="badge badge-neutral">
+                                            {activeEventFilterCount > 0
+                                                ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
+                                                : copy.workspace.noFilters}
+                                        </span>
+                                    </div>
+                                    <div className="audit-control-actions">
+                                        <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
+                                            <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
+                                        </button>
+                                        <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
+                                            <HiOutlineArrowDownTray /> {copy.actions.export}
+                                        </button>
+                                        <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
+                                            <HiOutlineTrash /> {copy.actions.clear}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="audit-filter-grid audit-filter-grid--events">
                                     <input
@@ -1158,17 +1171,6 @@ export default function AuditCenter() {
                                         value={eventFilters.serverId}
                                         onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
                                     />
-                                </div>
-                                <div className="audit-control-actions">
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
-                                        <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                    </button>
-                                    <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
-                                        <HiOutlineTrash /> {copy.actions.clear}
-                                    </button>
-                                    <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
-                                        <HiOutlineArrowDownTray /> {copy.actions.export}
-                                    </button>
                                 </div>
                             </div>
 
@@ -1466,15 +1468,25 @@ export default function AuditCenter() {
                 {tab === 'subscriptions' && (
                     <>
                         <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
-                            <div className="audit-control-meta">
-                                <span className="badge badge-neutral">
-                                    {copy.states.total.replace('{count}', String(accessData.total || 0))}
-                                </span>
-                                <span className="badge badge-neutral">
-                                    {activeAccessFilterCount > 0
-                                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                                        : copy.workspace.noFilters}
-                                </span>
+                            <div className="audit-control-head">
+                                <div className="audit-control-meta">
+                                    <span className="badge badge-neutral">
+                                        {copy.states.total.replace('{count}', String(accessData.total || 0))}
+                                    </span>
+                                    <span className="badge badge-neutral">
+                                        {activeAccessFilterCount > 0
+                                            ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
+                                            : copy.workspace.noFilters}
+                                    </span>
+                                </div>
+                                <div className="audit-control-actions">
+                                    <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
+                                        <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
+                                    </button>
+                                    <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
+                                        <HiOutlineTrash /> {copy.actions.clear}
+                                    </button>
+                                </div>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <input
@@ -1494,15 +1506,6 @@ export default function AuditCenter() {
                                         <option value="expired">{copy.filters.expired}</option>
                                         <option value="revoked">{copy.filters.revoked}</option>
                                     </select>
-                            </div>
-                            <div className="audit-control-actions">
-                                <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
-                                    <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
-                                    <HiOutlineTrash /> {copy.actions.clear}
-                                </button>
-                                <span className="text-sm text-muted">{copy.filters.defaultPeriod}</span>
                             </div>
                         </div>
 

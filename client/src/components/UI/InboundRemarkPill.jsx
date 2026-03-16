@@ -24,11 +24,10 @@ export function resolveInboundRemarkTone(protocol = '') {
 export default function InboundRemarkPill({ remark, protocol, className = '', title }) {
     const text = String(remark || '').trim() || '-';
     const tone = resolveInboundRemarkTone(protocol);
-    const classes = ['inbound-remark-pill', tone, className].filter(Boolean).join(' ');
+    const classes = ['badge', 'badge-neutral', 'inbound-remark-pill', tone, className].filter(Boolean).join(' ');
 
     return (
         <span className={classes} title={title || text}>
-            <span className="inbound-remark-pill-accent" aria-hidden="true" />
             <span className="inbound-remark-pill-text">{text}</span>
         </span>
     );

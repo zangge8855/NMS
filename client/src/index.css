@@ -7933,35 +7933,45 @@ body::before {
 .audit-tab-highlight-card {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
+  min-height: 116px;
   padding: 14px 15px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
+  text-align: center;
 }
 
 .audit-tab-highlight-label {
+  width: 100%;
   font-size: 11px;
   line-height: 1.2;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 700;
+  text-align: center;
 }
 
 .audit-tab-highlight-value {
+  width: 100%;
   font-size: 18px;
   line-height: 1.35;
   font-weight: 700;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .audit-tab-highlight-detail {
+  width: 100%;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-secondary);
+  text-align: center;
 }
 
 .audit-tabs {
@@ -8021,6 +8031,16 @@ body::before {
   gap: 14px;
 }
 
+.audit-control-head .audit-control-meta {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.audit-control-head .audit-control-actions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}
+
 .audit-control-copy {
   display: flex;
   min-width: 0;
@@ -8053,7 +8073,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
+  min-height: 40px;
   width: 100%;
   text-align: center;
 }
@@ -8072,11 +8092,21 @@ body::before {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.audit-filter-grid--tasks {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .audit-filter-grid .form-input,
 .audit-filter-grid .form-select {
   width: 100% !important;
   min-width: 0;
   min-height: 40px;
+}
+
+.audit-filter-grid .toolbar-checkbox {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
 }
 
 .audit-control-actions {
@@ -8707,7 +8737,7 @@ body::before {
 }
 
 .settings-main {
-  padding-bottom: 96px;
+  padding-bottom: 56px;
 }
 
 .settings-nav {
@@ -8823,7 +8853,7 @@ body::before {
 
 .settings-save-dock {
   position: sticky;
-  bottom: 12px;
+  bottom: 8px;
   z-index: 9;
   padding: 10px 12px;
   border-radius: 18px;
@@ -9015,6 +9045,26 @@ body::before {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.settings-summary-grid--status .settings-summary-card {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.settings-summary-grid--status .settings-summary-head {
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-summary-grid--status .settings-summary-label,
+.settings-summary-grid--status .settings-summary-value,
+.settings-summary-grid--status .settings-summary-detail {
+  width: 100%;
+  text-align: center;
 }
 
 .settings-summary-badge {
@@ -10150,7 +10200,7 @@ body::before {
 
 @media (max-width: 420px) {
   .settings-main {
-    padding-bottom: 112px;
+    padding-bottom: 72px;
   }
 
   .settings-nav-list--workspace {
@@ -12969,13 +13019,16 @@ input[type="radio"]:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  align-items: stretch;
 }
 
 .subscription-address-status-card {
   display: flex;
   min-width: 0;
   flex-direction: column;
+  justify-content: space-between;
   gap: 6px;
+  min-height: 78px;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--stroke-soft);
@@ -13357,7 +13410,9 @@ input[type="radio"]:focus-visible {
 
 .subscription-link-with-qr {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 168px;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr) minmax(152px, 168px);
   gap: 12px;
   align-items: stretch;
 }
@@ -13373,6 +13428,8 @@ input[type="radio"]:focus-visible {
 .subscription-link-card--import-focus {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
   gap: 12px;
   padding: 14px;
   border-radius: 18px;
@@ -13396,11 +13453,13 @@ input[type="radio"]:focus-visible {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
+  width: 100%;
   padding: 14px 12px;
   border-radius: 16px;
   border: 1px solid var(--stroke-soft);
   background: linear-gradient(180deg, var(--surface-soft), rgba(255, 255, 255, 0.02));
   min-width: 0;
+  align-self: stretch;
 }
 
 .subscription-inline-qr--featured {
@@ -13410,6 +13469,7 @@ input[type="radio"]:focus-visible {
 
 .subscription-inline-qr-surface {
   padding: 8px;
+  margin-inline: auto;
 }
 
 .subscription-inline-qr-title {
@@ -13483,7 +13543,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--link .subscription-user-address-grid {
-  grid-template-columns: minmax(0, 1fr) 148px;
+  grid-template-columns: minmax(0, 1fr) minmax(144px, 156px);
   gap: 12px;
 }
 
@@ -13499,9 +13559,6 @@ input[type="radio"]:focus-visible {
   max-width: 15ch;
 }
 
-.subscription-link-with-qr {
-  max-width: 780px;
-}
 
 .subscription-inline-tip {
   margin-top: 12px;
