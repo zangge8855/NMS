@@ -1952,10 +1952,10 @@ export default function SystemSettings() {
                     </span>
                     <span className={`badge ${monitorStatus?.telegram?.lastCommandSyncError ? 'badge-warning' : 'badge-neutral'}`}>
                         {monitorStatus?.telegram?.lastCommandSyncError
-                            ? '底部菜单隐藏失败'
+                            ? '菜单同步失败'
                             : monitorStatus?.telegram?.lastCommandSyncAt
-                                ? '底部菜单已隐藏'
-                                : '底部菜单待处理'}
+                                ? '菜单已同步'
+                                : '菜单待同步'}
                     </span>
                     <span className="badge badge-neutral">
                         {`运维汇总 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '已关闭'}`}
