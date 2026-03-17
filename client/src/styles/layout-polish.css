@@ -8,6 +8,11 @@
   overflow: visible;
 }
 
+:root {
+  --page-shell-max: 1600px;
+  --page-shell-wide-max: 1760px;
+}
+
 .sidebar {
   overflow: visible;
   transition: width 300ms ease-in-out, transform 300ms ease-in-out !important;
@@ -174,6 +179,16 @@
   min-width: 0;
   margin-left: auto;
   flex-wrap: nowrap;
+}
+
+.header-shell {
+  width: min(100%, var(--page-shell-wide-max));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
 }
 
 .page-pagination {
@@ -3629,7 +3644,7 @@
 /* --- Master UI Plan Layout Overrides --- */
 .page-content {
   padding: clamp(16px, 2vw + 12px, 34px) clamp(16px, 3vw + 8px, 36px) clamp(24px, 4vw + 12px, 44px) !important;
-  max-width: 1600px;
+  max-width: var(--page-shell-max);
 }
 
 @media (max-width: 768px) {
@@ -3682,7 +3697,36 @@ p, .empty-state-body, td {
 .page-content {
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: min(100%, var(--page-shell-max));
+  margin: 0 auto;
+}
+
+.page-content--wide {
+  width: 100%;
+  max-width: min(100%, var(--page-shell-wide-max));
+  margin: 0 auto;
+}
+
+.header-left {
+  align-items: center;
+}
+
+.header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.header-title {
+  line-height: 1.08;
 }
 
 .sidebar-logo-text {
@@ -3743,10 +3787,6 @@ p, .empty-state-body, td {
   }
 
   .header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 10px 12px;
     min-height: 72px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     padding-right: var(--mobile-page-pad);
@@ -3754,12 +3794,21 @@ p, .empty-state-body, td {
     padding-left: calc(var(--mobile-page-pad) + 48px);
   }
 
+  .header-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 12px;
+    width: 100%;
+    max-width: none;
+  }
+
   .header-left {
     display: flex;
     grid-column: 1;
     width: auto;
     min-width: 0;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .header-title-group {

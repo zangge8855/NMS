@@ -260,64 +260,66 @@ export default function Header({
     return (
         <>
         <header className="header">
-            <div className="header-left">
-                {resolvedHeaderIcon && <span className="header-icon">{resolvedHeaderIcon}</span>}
-                <div className="header-title-group">
-                    <h1 className={`header-title${allowTitleWrap ? ' header-title--wrap' : ''}`}>{title}</h1>
-                    {showSubtitle && subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
+            <div className="header-shell">
+                <div className="header-left">
+                    {resolvedHeaderIcon && <span className="header-icon">{resolvedHeaderIcon}</span>}
+                    <div className="header-title-group">
+                        <h1 className={`header-title${allowTitleWrap ? ' header-title--wrap' : ''}`}>{title}</h1>
+                        {showSubtitle && subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
+                    </div>
                 </div>
-            </div>
-            <div className="header-actions">
-                <div
-                    className={`header-search${searchOpen ? ' is-open' : ''}`}
-                    data-open={searchOpen ? 'true' : 'false'}
-                    ref={searchRef}
-                    onClick={openSearch}
-                    role="combobox"
-                    aria-expanded={searchOpen}
-                    aria-haspopup="listbox"
-                    aria-controls={searchResultsId}
-                >
-                    <HiOutlineMagnifyingGlass className="header-search-icon" />
-                    <input
-                        ref={inputRef}
-                        placeholder={t('shell.searchPlaceholder')}
-                        className="header-search-input"
-                        value={searchTerm}
-                        onChange={(event) => {
-                            setSearchTerm(event.target.value);
-                            setSearchOpen(true);
-                        }}
-                        onFocus={() => setSearchOpen(true)}
-                        onKeyDown={handleSearchKeyDown}
-                        aria-label={t('shell.searchAriaLabel')}
-                        aria-autocomplete="list"
+                <div className="header-actions">
+                    <div
+                        className={`header-search${searchOpen ? ' is-open' : ''}`}
+                        data-open={searchOpen ? 'true' : 'false'}
+                        ref={searchRef}
+                        onClick={openSearch}
+                        role="combobox"
+                        aria-expanded={searchOpen}
+                        aria-haspopup="listbox"
                         aria-controls={searchResultsId}
-                        aria-activedescendant={searchOpen && filteredItems[highlightedIndex] ? `${searchResultsId}-${highlightedIndex}` : undefined}
-                    />
-                    <kbd className="header-search-kbd">{shortcutLabel}</kbd>
-                </div>
-                <div className="header-controls">
-                    {children}
-                    <button
-                        type="button"
-                        className="theme-toggle-btn language-toggle-btn"
-                        onClick={toggleLocale}
-                        title={t('shell.switchLanguage')}
-                        aria-label={t('shell.switchLanguage')}
                     >
-                        <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                    </button>
-                    <NotificationBell />
-                    <button
-                        type="button"
-                        className="theme-toggle-btn"
-                        onClick={cycleTheme}
-                        title={themeLabels[mode]}
-                        aria-label={themeLabels[mode]}
-                    >
-                        <ThemeIcon />
-                    </button>
+                        <HiOutlineMagnifyingGlass className="header-search-icon" />
+                        <input
+                            ref={inputRef}
+                            placeholder={t('shell.searchPlaceholder')}
+                            className="header-search-input"
+                            value={searchTerm}
+                            onChange={(event) => {
+                                setSearchTerm(event.target.value);
+                                setSearchOpen(true);
+                            }}
+                            onFocus={() => setSearchOpen(true)}
+                            onKeyDown={handleSearchKeyDown}
+                            aria-label={t('shell.searchAriaLabel')}
+                            aria-autocomplete="list"
+                            aria-controls={searchResultsId}
+                            aria-activedescendant={searchOpen && filteredItems[highlightedIndex] ? `${searchResultsId}-${highlightedIndex}` : undefined}
+                        />
+                        <kbd className="header-search-kbd">{shortcutLabel}</kbd>
+                    </div>
+                    <div className="header-controls">
+                        {children}
+                        <button
+                            type="button"
+                            className="theme-toggle-btn language-toggle-btn"
+                            onClick={toggleLocale}
+                            title={t('shell.switchLanguage')}
+                            aria-label={t('shell.switchLanguage')}
+                        >
+                            <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                        </button>
+                        <NotificationBell />
+                        <button
+                            type="button"
+                            className="theme-toggle-btn"
+                            onClick={cycleTheme}
+                            title={themeLabels[mode]}
+                            aria-label={themeLabels[mode]}
+                        >
+                            <ThemeIcon />
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>

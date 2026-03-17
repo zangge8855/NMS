@@ -76,6 +76,7 @@ describe('Header', () => {
     it('groups language, notifications, and theme toggles in a dedicated controls area', () => {
         const { container } = renderWithRouter(<Header title="订阅中心" />);
 
+        expect(container.querySelector('.header-shell')).not.toBeNull();
         const controls = container.querySelector('.header-controls');
         expect(controls).not.toBeNull();
         expect(controls?.querySelector('.language-toggle-btn')).not.toBeNull();
