@@ -92,6 +92,7 @@ function mockAdminBootstrap(overrides = {}) {
                         botTokenConfigured: true,
                         botTokenPreview: '1234...ABCD',
                         chatId: '-1001234567890',
+                        commandMenuEnabled: false,
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
                         sendSystemStatus: true,
@@ -197,6 +198,7 @@ function mockAdminBootstrap(overrides = {}) {
                         enabled: true,
                         configured: true,
                         commandsEnabled: true,
+                        commandMenuEnabled: false,
                         chatIdPreview: '********7890',
                         botTokenPreview: '1234...ABCD',
                         opsDigestIntervalMinutes: 45,
@@ -356,7 +358,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
-        expect(screen.getByText('菜单待同步')).toBeInTheDocument();
+        expect(screen.getByText('菜单已关闭')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');

@@ -75,7 +75,7 @@ NMS 由三层组成：
 
 - WebSocket 用于受控实时能力，连接前先通过 ticket 授权
 - `serverHealthMonitor` 在后台持续采样节点状态
-- `telegramAlertService` 负责结构化通知投递、命令菜单同步、周期摘要与重复事件聚合
+- `telegramAlertService` 负责结构化通知投递、可选命令菜单管理、周期摘要与重复事件聚合
 - 批量任务与日志、流量统计都具有独立保留策略
 
 ### 前端加载策略
@@ -167,7 +167,7 @@ Related environment variables:
 
 - WebSocket features use ticket-based authorization
 - `serverHealthMonitor` samples server health in the background
-- `telegramAlertService` handles structured Telegram delivery, command-menu sync, periodic digests, and repeated-event aggregation
+- `telegramAlertService` handles structured Telegram delivery, optional command-menu management, periodic digests, and repeated-event aggregation
 - Batch jobs, audit records, and traffic stats each have dedicated retention controls
 
 ### Frontend loading strategy

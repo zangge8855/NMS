@@ -263,7 +263,6 @@ export default function Header({
             <div className="header-left">
                 {resolvedHeaderIcon && <span className="header-icon">{resolvedHeaderIcon}</span>}
                 <div className="header-title-group">
-                    {eyebrow ? <span className="header-eyebrow">{eyebrow}</span> : null}
                     <h1 className={`header-title${allowTitleWrap ? ' header-title--wrap' : ''}`}>{title}</h1>
                     {showSubtitle && subtitle ? <p className="header-subtitle">{subtitle}</p> : null}
                 </div>

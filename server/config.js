@@ -237,6 +237,7 @@ const config = {
         enabled: parseBoolean(process.env.TELEGRAM_ALERTS_ENABLED, false),
         botToken: String(process.env.TELEGRAM_BOT_TOKEN || '').trim(),
         chatId: String(process.env.TELEGRAM_CHAT_ID || '').trim(),
+        commandMenuEnabled: parseBoolean(process.env.TELEGRAM_COMMAND_MENU_ENABLED, false),
         apiBaseUrl: parseHttpUrl(process.env.TELEGRAM_API_BASE_URL) || 'https://api.telegram.org',
         alertSeverities: parseStringList(process.env.TELEGRAM_ALERT_SEVERITIES || 'warning,critical'),
         auditEvents: parseStringList(process.env.TELEGRAM_AUDIT_EVENTS),

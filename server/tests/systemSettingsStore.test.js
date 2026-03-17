@@ -68,6 +68,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
                 enabled: true,
                 botToken: '123456:ABCDEF-token',
                 chatId: '-1001234567890',
+                commandMenuEnabled: true,
                 opsDigestIntervalMinutes: 45,
                 dailyDigestIntervalHours: 12,
                 sendSystemStatus: true,
@@ -80,6 +81,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(updated.telegram.botTokenConfigured, true);
         assert.equal(updated.telegram.botToken, '');
         assert.equal(updated.telegram.chatId, '-1001234567890');
+        assert.equal(updated.telegram.commandMenuEnabled, true);
         assert.equal(updated.telegram.opsDigestIntervalMinutes, 45);
         assert.equal(updated.telegram.dailyDigestIntervalHours, 12);
 
@@ -87,6 +89,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(telegram.botToken, '123456:ABCDEF-token');
         assert.equal(telegram.chatId, '-1001234567890');
         assert.equal(telegram.botTokenConfigured, true);
+        assert.equal(telegram.commandMenuEnabled, true);
         assert.equal(telegram.opsDigestIntervalMinutes, 45);
         assert.equal(telegram.dailyDigestIntervalHours, 12);
     });

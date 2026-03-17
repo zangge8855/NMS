@@ -149,6 +149,7 @@ function buildDraft(source = null) {
             botToken: '',
             clearBotToken: false,
             chatId: toText(settings.telegram?.chatId, ''),
+            commandMenuEnabled: settings.telegram?.commandMenuEnabled === true,
             opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),
             dailyDigestIntervalHours: toInt(settings.telegram?.dailyDigestIntervalHours, 24),
             sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
@@ -1951,11 +1952,15 @@ export default function SystemSettings() {
                         {monitorStatus?.telegram?.commandsEnabled ? '命令轮询已开启' : '命令轮询未开启'}
                     </span>
                     <span className={`badge ${monitorStatus?.telegram?.lastCommandSyncError ? 'badge-warning' : 'badge-neutral'}`}>
-                        {monitorStatus?.telegram?.lastCommandSyncError
-                            ? '菜单同步失败'
-                            : monitorStatus?.telegram?.lastCommandSyncAt
-                                ? '菜单已同步'
-                                : '菜单待同步'}
+                        {(monitorStatus?.telegram?.commandMenuEnabled ?? draft.telegram.commandMenuEnabled)
+                            ? monitorStatus?.telegram?.lastCommandSyncError
+                                ? '菜单同步失败'
+                                : monitorStatus?.telegram?.lastCommandSyncAt
+                                    ? '菜单已同步'
+                                    : '菜单待同步'
+                            : monitorStatus?.telegram?.lastCommandSyncError
+                                ? '菜单关闭失败'
+                                : '菜单已关闭'}
                     </span>
                     <span className="badge badge-neutral">
                         {`运维汇总 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '已关闭'}`}
@@ -2061,6 +2066,14 @@ export default function SystemSettings() {
                         description="启用后将推送系统状态和安全告警。"
                         activeLabel="已启用"
                         inactiveLabel="未启用"
+                    />
+                    <SettingsToggleCard
+                        checked={draft.telegram.commandMenuEnabled}
+                        onChange={(event) => patchField('telegram', 'commandMenuEnabled', event.target.checked)}
+                        label="Telegram 命令菜单"
+                        description="开启后会显示 Telegram 官方命令菜单；关闭后只保留手动输入命令。"
+                        activeLabel="显示"
+                        inactiveLabel="隐藏"
                     />
                     <SettingsToggleCard
                         checked={draft.telegram.sendSystemStatus}

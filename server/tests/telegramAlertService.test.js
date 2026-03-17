@@ -102,12 +102,13 @@ test('telegramAlertService ignores low-severity notifications and exposes delive
     assert.equal(service.getStatus().enabled, true);
 });
 
-test('telegramAlertService exposes command polling capability for numeric chat ids', async () => {
+test('telegramAlertService syncs Telegram command menus only when explicitly enabled', async () => {
     const calls = [];
     const service = createTelegramAlertService({
         enabled: true,
         botToken: '123456:ABCDEF',
         chatId: '-1001234567890',
+        commandMenuEnabled: true,
         fetcher: async (payload) => {
             calls.push(payload);
             return { ok: true, result: {} };
@@ -120,6 +121,7 @@ test('telegramAlertService exposes command polling capability for numeric chat i
 
     assert.equal(sent, true);
     assert.equal(service.getStatus().commandsEnabled, true);
+    assert.equal(service.getStatus().commandMenuEnabled, true);
     assert.equal(service.getStatus().enabled, true);
     assert.ok(commandCall);
     assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor']);
@@ -129,13 +131,37 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     assert.match(messageCall.body.text, /<b>🚀 快速开始<\/b>/);
     assert.match(messageCall.body.text, /<pre>[\s\S]*\/expiry\s+用户到期提醒摘要[\s\S]*<\/pre>/);
     assert.match(messageCall.body.text, /<b>🔧 运维动作<\/b>/);
-    assert.equal(Object.prototype.hasOwnProperty.call(messageCall.body, 'reply_markup'), false);
+    assert.deepEqual(messageCall.body.reply_markup, { remove_keyboard: true });
 });
 
-test('formatCommandCatalogMessage keeps command-menu guidance in the help text', () => {
+test('telegramAlertService clears Telegram command menus by default', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true, result: {} };
+        },
+    });
+
+    const sent = await service.sendTestMessage('admin');
+    const commandCall = calls.find((item) => /\/deleteMyCommands$/.test(item.url));
+    const messageCall = calls.find((item) => /\/sendMessage$/.test(item.url));
+
+    assert.equal(sent, true);
+    assert.equal(service.getStatus().commandMenuEnabled, false);
+    assert.ok(commandCall);
+    assert.match(messageCall.body.text, /<i>消息结构与命令入口检查<\/i>/);
+    assert.deepEqual(messageCall.body.reply_markup, { remove_keyboard: true });
+});
+
+test('formatCommandCatalogMessage keeps manual command guidance in the help text', () => {
     const message = formatCommandCatalogMessage();
 
-    assert.match(message, /同步命令菜单/);
+    assert.match(message, /直接发送 <code>\/help<\/code>/);
+    assert.doesNotMatch(message, /同步命令菜单/);
     assert.doesNotMatch(message, /快捷按钮/);
 });
 

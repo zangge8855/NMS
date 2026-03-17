@@ -592,13 +592,23 @@ function formatCommandHtmlTable(items = []) {
         .join('\n')}</pre>`;
 }
 
+function buildCommandEntryHints(commandMenuEnabled = false) {
+    if (commandMenuEnabled) {
+        return [
+            '输入框输入 <code>/</code> 可直接选命令',
+            '机器人已同步 Telegram 命令菜单',
+        ];
+    }
+    return [
+        '直接发送 <code>/help</code> 查看完整说明',
+        '直接输入命令，如 <code>/status</code> 或 <code>/monitor</code>',
+    ];
+}
+
 export function formatCommandCatalogMessage(options = {}) {
     const title = String(options.title || 'NMS Telegram 控制台').trim() || 'NMS Telegram 控制台';
     const blocks = [];
-    appendHtmlSection(blocks, '快速开始', [
-        '输入框输入 <code>/</code> 可直接选命令',
-        '机器人启动后会自动同步命令菜单',
-    ], { rawRows: true });
+    appendHtmlSection(blocks, '快速开始', buildCommandEntryHints(options.commandMenuEnabled === true), { rawRows: true });
     const queryTable = formatCommandHtmlTable(options.queryCommands || DEFAULT_QUERY_COMMANDS);
     if (queryTable) {
         blocks.push(`${sectionHeader('状态查询')}\n${queryTable}`);
@@ -871,6 +881,7 @@ export function createTelegramAlertService(options = {}) {
     let lastUpdateId = 0;
     let initializedOffset = false;
     let commandsSynced = false;
+    let commandMenuCleared = false;
     let commandSyncPromise = null;
 
     function resolveSettings() {
@@ -881,12 +892,14 @@ export function createTelegramAlertService(options = {}) {
         const botToken = String(options.botToken ?? stored?.botToken ?? envDefaults.botToken ?? '').trim();
         const chatId = String(options.chatId ?? stored?.chatId ?? envDefaults.chatId ?? '').trim();
         const enabled = options.enabled ?? stored?.enabled ?? envDefaults.enabled ?? false;
+        const commandMenuEnabled = options.commandMenuEnabled ?? stored?.commandMenuEnabled ?? envDefaults.commandMenuEnabled ?? false;
 
         return {
             enabled: enabled === true,
             botToken,
             chatId,
             configured: Boolean(botToken && chatId),
+            commandMenuEnabled: commandMenuEnabled === true,
             botTokenPreview: botToken ? maskToken(botToken) : (stored?.botTokenPreview || ''),
             chatIdPreview: chatId ? maskChatId(chatId) : '',
             sendSystemStatus: options.sendSystemStatus ?? stored?.sendSystemStatus ?? true,
@@ -988,6 +1001,11 @@ export function createTelegramAlertService(options = {}) {
             if (overrides.parseMode) {
                 body.parse_mode = String(overrides.parseMode);
             }
+            if (overrides.removeKeyboard) {
+                body.reply_markup = {
+                    remove_keyboard: true,
+                };
+            }
             await fetcher({
                 url: `${settings.apiBaseUrl.replace(/\/$/, '')}/bot${settings.botToken}/sendMessage`,
                 body,
@@ -1010,24 +1028,52 @@ export function createTelegramAlertService(options = {}) {
 
     async function syncCommands(force = false) {
         const settings = resolveSettings();
-        if (!settings.enabled || !settings.configured) return false;
-        if (commandsSynced && !force) return true;
+        if (!settings.botToken) return false;
+        if (settings.commandMenuEnabled) {
+            if (!settings.enabled || !settings.configured) return false;
+            if (commandsSynced && !force) return true;
+        } else if (commandMenuCleared && !force) {
+            return true;
+        }
         if (commandSyncPromise && !force) return commandSyncPromise;
+
+        if (!settings.commandMenuEnabled) {
+            commandSyncPromise = callTelegramBotApi('deleteMyCommands', {}, { requireConfiguredChat: false })
+                .then(() => {
+                    commandsSynced = false;
+                    commandMenuCleared = true;
+                    runtimeStatus.lastCommandSyncAt = new Date().toISOString();
+                    runtimeStatus.lastCommandSyncError = '';
+                    return true;
+                })
+                .catch((error) => {
+                    commandsSynced = false;
+                    commandMenuCleared = false;
+                    runtimeStatus.lastCommandSyncError = error.message || 'telegram-command-menu-clear-failed';
+                    return false;
+                })
+                .finally(() => {
+                    commandSyncPromise = null;
+                });
+            return commandSyncPromise;
+        }
 
         const commands = buildTelegramCommandMenu([
             ...DEFAULT_QUERY_COMMANDS,
             ...DEFAULT_OPERATION_COMMANDS,
         ]);
 
-        commandSyncPromise = callTelegramApi('setMyCommands', { commands })
+        commandSyncPromise = callTelegramBotApi('setMyCommands', { commands }, { requireConfiguredChat: false })
             .then(() => {
                 commandsSynced = true;
+                commandMenuCleared = false;
                 runtimeStatus.lastCommandSyncAt = new Date().toISOString();
                 runtimeStatus.lastCommandSyncError = '';
                 return true;
             })
             .catch((error) => {
                 commandsSynced = false;
+                commandMenuCleared = false;
                 runtimeStatus.lastCommandSyncError = error.message || 'telegram-command-sync-failed';
                 return false;
             })
@@ -1044,6 +1090,7 @@ export function createTelegramAlertService(options = {}) {
             chatId,
             kind,
             parseMode: 'HTML',
+            removeKeyboard: true,
         });
     }
 
@@ -1125,9 +1172,7 @@ export function createTelegramAlertService(options = {}) {
             formatHtmlKeyValueRow('时间', formatDateTime(new Date().toISOString())),
             formatHtmlKeyValueRow('触发人', actor),
         ], { rawRows: true });
-        appendHtmlSection(blocks, '快速开始', [
-            '命令菜单已同步后，可直接在输入框输入 <code>/</code> 选择命令',
-        ], { rawRows: true });
+        appendHtmlSection(blocks, '快速开始', buildCommandEntryHints(settings.commandMenuEnabled), { rawRows: true });
         const queryTable = formatCommandHtmlTable(DEFAULT_QUERY_COMMANDS);
         if (queryTable) {
             blocks.push(`${sectionHeader('状态查询')}\n${queryTable}`);
@@ -1137,13 +1182,13 @@ export function createTelegramAlertService(options = {}) {
             blocks.push(`${sectionHeader('运维动作')}\n${operationTable}`);
         }
         return sendCommandReply(joinHtmlMessage('NMS Telegram 测试通知', blocks, {
-            subtitle: '消息结构与命令菜单检查',
+            subtitle: settings.commandMenuEnabled ? '消息结构与命令菜单检查' : '消息结构与命令入口检查',
         }), settings.chatId, 'test');
     }
 
-    async function callTelegramApi(method, body = {}) {
+    async function callTelegramBotApi(method, body = {}, { requireConfiguredChat = true } = {}) {
         const settings = resolveSettings();
-        if (!settings.enabled || !settings.configured) {
+        if (!settings.botToken || (requireConfiguredChat && (!settings.enabled || !settings.configured))) {
             throw new Error('telegram-not-configured');
         }
         const result = await fetcher({
@@ -1151,6 +1196,10 @@ export function createTelegramAlertService(options = {}) {
             body,
         });
         return result?.result ?? result;
+    }
+
+    async function callTelegramApi(method, body = {}) {
+        return callTelegramBotApi(method, body, { requireConfiguredChat: true });
     }
 
     async function primeUpdates() {
@@ -1867,6 +1916,7 @@ export function createTelegramAlertService(options = {}) {
 
     function reloadSettings() {
         commandsSynced = false;
+        commandMenuCleared = false;
         commandSyncPromise = null;
         if (!running) return;
         void syncCommands(true);
@@ -1888,6 +1938,7 @@ export function createTelegramAlertService(options = {}) {
             sendEmergencyAlerts: settings.sendEmergencyAlerts,
             opsDigestIntervalMinutes: settings.opsDigestIntervalMinutes,
             dailyDigestIntervalHours: settings.dailyDigestIntervalHours,
+            commandMenuEnabled: settings.commandMenuEnabled,
             commandsEnabled: settings.enabled && settings.configured && isNumericChatId(settings.chatId),
             polling: running && settings.enabled && settings.configured && isNumericChatId(settings.chatId),
             lastSentAt: runtimeStatus.lastSentAt,
@@ -1923,6 +1974,7 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastDigestKind = '';
         runtimeStatus.lastDigestError = '';
         commandsSynced = false;
+        commandMenuCleared = false;
         commandSyncPromise = null;
         aggregateBuckets.clear();
         for (const key of aggregateTimers.keys()) {
