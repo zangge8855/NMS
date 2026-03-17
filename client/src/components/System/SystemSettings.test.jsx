@@ -92,6 +92,8 @@ function mockAdminBootstrap(overrides = {}) {
                         botTokenConfigured: true,
                         botTokenPreview: '1234...ABCD',
                         chatId: '-1001234567890',
+                        opsDigestIntervalMinutes: 45,
+                        dailyDigestIntervalHours: 12,
                         sendSystemStatus: true,
                         sendSecurityAudit: true,
                         sendEmergencyAlerts: true,
@@ -197,6 +199,8 @@ function mockAdminBootstrap(overrides = {}) {
                         commandsEnabled: true,
                         chatIdPreview: '********7890',
                         botTokenPreview: '1234...ABCD',
+                        opsDigestIntervalMinutes: 45,
+                        dailyDigestIntervalHours: 12,
                         lastSentAt: '2026-03-15T06:30:00.000Z',
                         lastError: '',
                         lastCommandAt: '2026-03-15T06:35:00.000Z',
@@ -361,7 +365,11 @@ describe('SystemSettings', () => {
         expect(chatIdInput).toHaveValue('-1001234567890');
         expect(chatIdInput).not.toHaveAttribute('readonly');
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
+        expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
+        expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
+        expect(screen.getByText('运维汇总 45 分钟')).toBeInTheDocument();
+        expect(screen.getByText('日报 12 小时')).toBeInTheDocument();
         expect(screen.getByText(/目标 \*{8}7890/)).toBeInTheDocument();
     });
 

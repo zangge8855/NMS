@@ -57,6 +57,18 @@ function maskChatId(chatId = '') {
     return `${'*'.repeat(Math.max(0, text.length - 4))}${text.slice(-4)}`;
 }
 
+function normalizeDigestIntervalMinutes(value, fallbackMinutes) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isInteger(parsed) || parsed < 0) return fallbackMinutes;
+    return parsed;
+}
+
+function normalizeDigestIntervalHours(value, fallbackHours) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isInteger(parsed) || parsed < 0) return fallbackHours;
+    return parsed;
+}
+
 function stringifyDetails(value) {
     try {
         const text = JSON.stringify(value || {});
@@ -823,6 +835,14 @@ export function createTelegramAlertService(options = {}) {
             sendSystemStatus: options.sendSystemStatus ?? stored?.sendSystemStatus ?? true,
             sendSecurityAudit: options.sendSecurityAudit ?? stored?.sendSecurityAudit ?? true,
             sendEmergencyAlerts: options.sendEmergencyAlerts ?? stored?.sendEmergencyAlerts ?? true,
+            opsDigestIntervalMinutes: normalizeDigestIntervalMinutes(
+                options.opsDigestIntervalMinutes ?? stored?.opsDigestIntervalMinutes,
+                Math.round(OPS_DIGEST_INTERVAL_MS / 60_000)
+            ),
+            dailyDigestIntervalHours: normalizeDigestIntervalHours(
+                options.dailyDigestIntervalHours ?? stored?.dailyDigestIntervalHours,
+                Math.round(DAILY_DIGEST_INTERVAL_MS / 3_600_000)
+            ),
             apiBaseUrl: String(options.apiBaseUrl || envDefaults.apiBaseUrl || DEFAULT_API_BASE_URL).trim() || DEFAULT_API_BASE_URL,
             alertSeverities: overrideAlertSeverities.size > 0
                 ? overrideAlertSeverities
@@ -1647,17 +1667,19 @@ export function createTelegramAlertService(options = {}) {
     async function sendPeriodicDigest(kind = 'ops') {
         const normalized = String(kind || '').trim().toLowerCase();
         let text = '';
+        const settings = resolveSettings();
         let intervalMs = OPS_DIGEST_INTERVAL_MS;
 
         if (normalized === 'daily') {
+            intervalMs = Math.max(60 * 60 * 1000, Number(settings.dailyDigestIntervalHours || 0) * 3_600_000) || DAILY_DIGEST_INTERVAL_MS;
             text = typeof options.buildDailyDigest === 'function'
-                ? await options.buildDailyDigest()
-                : await buildDailyDigest();
-            intervalMs = DAILY_DIGEST_INTERVAL_MS;
+                ? await options.buildDailyDigest(intervalMs)
+                : await buildDailyDigest(intervalMs);
         } else {
+            intervalMs = Math.max(60_000, Number(settings.opsDigestIntervalMinutes || 0) * 60_000) || OPS_DIGEST_INTERVAL_MS;
             text = typeof options.buildOperationsDigest === 'function'
-                ? await options.buildOperationsDigest()
-                : await buildOperationsDigest();
+                ? await options.buildOperationsDigest(intervalMs)
+                : await buildOperationsDigest(intervalMs);
         }
 
         const sent = await sendMessage(text, `digest:${normalized}:${Math.floor(Date.now() / intervalMs)}`, {
@@ -1683,17 +1705,25 @@ export function createTelegramAlertService(options = {}) {
         }
         if (!running) return;
 
-        opsDigestTimer = startBackgroundInterval(() => {
-            sendPeriodicDigest('ops').catch((error) => {
-                runtimeStatus.lastDigestError = error.message || 'telegram-ops-digest-failed';
-            });
-        }, OPS_DIGEST_INTERVAL_MS);
+        const settings = resolveSettings();
+        const opsIntervalMs = Number(settings.opsDigestIntervalMinutes || 0) * 60_000;
+        const dailyIntervalMs = Number(settings.dailyDigestIntervalHours || 0) * 3_600_000;
 
-        dailyDigestTimer = startBackgroundInterval(() => {
-            sendPeriodicDigest('daily').catch((error) => {
-                runtimeStatus.lastDigestError = error.message || 'telegram-daily-digest-failed';
-            });
-        }, DAILY_DIGEST_INTERVAL_MS);
+        if (opsIntervalMs > 0) {
+            opsDigestTimer = startBackgroundInterval(() => {
+                sendPeriodicDigest('ops').catch((error) => {
+                    runtimeStatus.lastDigestError = error.message || 'telegram-ops-digest-failed';
+                });
+            }, opsIntervalMs);
+        }
+
+        if (dailyIntervalMs > 0) {
+            dailyDigestTimer = startBackgroundInterval(() => {
+                sendPeriodicDigest('daily').catch((error) => {
+                    runtimeStatus.lastDigestError = error.message || 'telegram-daily-digest-failed';
+                });
+            }, dailyIntervalMs);
+        }
     }
 
     async function processUpdates(updates = []) {
@@ -1781,6 +1811,14 @@ export function createTelegramAlertService(options = {}) {
         aggregateBuckets.clear();
     }
 
+    function reloadSettings() {
+        commandsSynced = false;
+        commandSyncPromise = null;
+        if (!running) return;
+        void syncCommands(true);
+        schedulePeriodicDigests();
+    }
+
     function getStatus() {
         const settings = resolveSettings();
         return {
@@ -1794,6 +1832,8 @@ export function createTelegramAlertService(options = {}) {
             sendSystemStatus: settings.sendSystemStatus,
             sendSecurityAudit: settings.sendSecurityAudit,
             sendEmergencyAlerts: settings.sendEmergencyAlerts,
+            opsDigestIntervalMinutes: settings.opsDigestIntervalMinutes,
+            dailyDigestIntervalHours: settings.dailyDigestIntervalHours,
             commandsEnabled: settings.enabled && settings.configured && isNumericChatId(settings.chatId),
             polling: running && settings.enabled && settings.configured && isNumericChatId(settings.chatId),
             lastSentAt: runtimeStatus.lastSentAt,
@@ -1853,6 +1893,7 @@ export function createTelegramAlertService(options = {}) {
         syncCommands,
         noteNotificationOccurrence,
         sendPeriodicDigest,
+        reloadSettings,
         start,
         stop,
         resetForTests,

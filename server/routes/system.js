@@ -612,6 +612,7 @@ router.put('/settings', adminOnly, (req, res) => {
     try {
         const payload = req.body && typeof req.body === 'object' ? req.body : {};
         const updated = systemSettingsStore.update(payload);
+        telegramAlertService.reloadSettings();
         appendSecurityAudit('system_settings_updated', req, {
             updatedSections: Object.keys(payload || {}),
         });

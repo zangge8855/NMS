@@ -263,6 +263,7 @@ test('telegramAlertService can send scheduled operation digests without inline m
         enabled: true,
         botToken: '123456:ABCDEF',
         chatId: '-1001234567890',
+        opsDigestIntervalMinutes: 45,
         fetcher: async (payload) => {
             calls.push(payload);
             return { ok: true };
@@ -274,6 +275,7 @@ test('telegramAlertService can send scheduled operation digests without inline m
 
     assert.equal(sent, true);
     assert.equal(service.getStatus().lastDigestKind, 'ops');
+    assert.equal(service.getStatus().opsDigestIntervalMinutes, 45);
     assert.match(calls[0].body.text, /<b>NMS 运维汇总摘要<\/b>/);
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'reply_markup'), false);
 });

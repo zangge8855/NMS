@@ -149,6 +149,8 @@ function buildDraft(source = null) {
             botToken: '',
             clearBotToken: false,
             chatId: toText(settings.telegram?.chatId, ''),
+            opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),
+            dailyDigestIntervalHours: toInt(settings.telegram?.dailyDigestIntervalHours, 24),
             sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
             sendSecurityAudit: settings.telegram?.sendSecurityAudit !== false,
             sendEmergencyAlerts: settings.telegram?.sendEmergencyAlerts !== false,
@@ -1956,6 +1958,12 @@ export default function SystemSettings() {
                                 : '菜单待同步'}
                     </span>
                     <span className="badge badge-neutral">
+                        {`运维汇总 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '已关闭'}`}
+                    </span>
+                    <span className="badge badge-neutral">
+                        {`日报 ${Number(draft.telegram.dailyDigestIntervalHours || 0) > 0 ? `${draft.telegram.dailyDigestIntervalHours} 小时` : '已关闭'}`}
+                    </span>
+                    <span className="badge badge-neutral">
                         {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
                     </span>
                 </div>
@@ -2015,6 +2023,34 @@ export default function SystemSettings() {
                                 </button>
                             ) : null}
                         </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor="telegram-ops-digest-interval">运维汇总间隔</label>
+                        <input
+                            id="telegram-ops-digest-interval"
+                            className="form-input"
+                            type="number"
+                            min="0"
+                            max="1440"
+                            inputMode="numeric"
+                            value={draft.telegram.opsDigestIntervalMinutes}
+                            onChange={(event) => patchField('telegram', 'opsDigestIntervalMinutes', toBoundedInt(event.target.value, 30, 0, 1440))}
+                        />
+                        <div className="text-xs text-muted mt-1">单位：分钟，填 0 关闭定时运维汇总。</div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor="telegram-daily-digest-interval">日报间隔</label>
+                        <input
+                            id="telegram-daily-digest-interval"
+                            className="form-input"
+                            type="number"
+                            min="0"
+                            max="168"
+                            inputMode="numeric"
+                            value={draft.telegram.dailyDigestIntervalHours}
+                            onChange={(event) => patchField('telegram', 'dailyDigestIntervalHours', toBoundedInt(event.target.value, 24, 0, 168))}
+                        />
+                        <div className="text-xs text-muted mt-1">单位：小时，填 0 关闭定时报。</div>
                     </div>
                 </div>
                 <div className="settings-field-grid settings-field-grid--compact mt-3">
