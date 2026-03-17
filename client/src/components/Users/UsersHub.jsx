@@ -1923,7 +1923,7 @@ export default function UsersHub() {
                                                     return (
                                                         <label
                                                             key={ib.key}
-                                                            className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-white/5' : ''}`}
+                                                            className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-surface-soft border-stroke-soft' : ''}`}
                                                             style={{ border: '1px solid var(--border-color)' }}
                                                         >
                                                             <input
@@ -1955,7 +1955,7 @@ export default function UsersHub() {
                                         <div className="card-header">
                                             <span className="card-title">开通结果</span>
                                         </div>
-                                        <div className="text-sm mb-3" style={{ color: 'var(--accent-success)' }}>
+                                        <div className="text-sm text-success mb-3">
                                             {provisionResult.successMessage || '订阅已成功开通'}
                                         </div>
                                         {provisionResult.deployment && provisionResult.deployment.total > 0 && (

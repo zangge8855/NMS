@@ -569,7 +569,7 @@ export default function ClientModal({
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         {targets.length > 0 && !editingClient && (
-                            <div className="mb-4 p-3 rounded bg-white/5 text-xs text-secondary border border-white/10">
+                            <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
                                 <div className="mb-2">
                                     <strong>目标节点 ({selectedServerIds.length}/{availableServers.length})：</strong>
                                 </div>
@@ -675,7 +675,7 @@ export default function ClientModal({
                         )}
 
                         {editingClient && editTargets.length > 0 && (
-                            <div className="mb-4 p-3 rounded bg-white/5 text-xs text-secondary border border-white/10">
+                            <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
                                 <strong>将同步到以下实例:</strong>
                                 <ul className="mt-1 list-disc list-inside">
                                     {editTargets.map((t, idx) => (
@@ -770,7 +770,7 @@ export default function ClientModal({
                             </div>
                         )}
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="form-group">
                                 <label className="form-label">流量限制 (GB)</label>
                                 <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder="0 为不限制" />
@@ -803,13 +803,13 @@ export default function ClientModal({
                             </div>
                         </div>
 
-                        <div className="mb-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
                                 <label className="form-label">IP 限制 (0 为不限制)</label>
                                 <input className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
                             </div>
-                            <div className="form-group" style={{ display: 'flex', alignItems: 'center', paddingTop: '24px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                            <div className="form-group flex items-center pt-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
                                     启用此用户
                                 </label>

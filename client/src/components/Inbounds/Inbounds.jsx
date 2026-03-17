@@ -1630,7 +1630,7 @@ export default function Inbounds() {
                             </div>
                             <form onSubmit={submitEntitlementOverride}>
                                 <div className="modal-body">
-                                    <div className="mb-4 p-3 rounded bg-white/5 border border-white/10 text-sm">
+                                    <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
                                         <div>节点: <strong>{entitlementTarget.inbound.serverName}</strong></div>
                                         <div>入站: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
                                         <div>用户: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>

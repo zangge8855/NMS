@@ -135,7 +135,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
-                        <div className="mb-4 p-3 rounded bg-white/5 border border-white/10 text-sm">
+                        <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
                             用户: <strong>{normalizedEmail || '-'}</strong>
                         </div>
 

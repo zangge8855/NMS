@@ -1464,7 +1464,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     <div className="modal-body">
                         {/* Target Servers */}
                         {!editingInbound && servers.length > 0 && (
-                            <div className="form-group mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+                            <div className="form-group mb-6 p-4 rounded-xl bg-surface-soft border border-stroke-soft">
                                 <label className="form-label mb-2 block">部署目标 ({selectedServerIds.length}/{servers.length})</label>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
@@ -1496,7 +1496,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         )}
 
                         {/* Basic Info */}
-                        <div className="grid grid-cols-2 gap-4 mb-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
                                 <label className="form-label">备注</label>
                                 <input className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
@@ -1589,11 +1589,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 </div>
                             </>
                         ) : (
-                            <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                            <div className="bg-surface-soft p-4 rounded-xl border border-stroke-soft">
                                 {normalizedProtocol === 'vless' && (
-                                    <div className="border border-white/10 rounded-lg p-4 mb-4">
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
                                         <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">VLESS 协议参数</h4>
-                                        <div className="grid grid-cols-2 gap-4 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">Authentication</label>
                                                 <select
@@ -1627,7 +1627,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">UUID</label>
                                                 <div className="flex gap-2">
@@ -1664,7 +1664,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">Decryption</label>
                                                 <input
@@ -1725,7 +1725,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <div className="text-xs text-muted">未配置 fallback</div>
                                                 )}
                                                 {vlessFallbacks.map((fallback, index) => (
-                                                    <div key={`vless-fallback-${index}`} className="border border-white/10 rounded-md p-3 mb-2">
+                                                    <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-md p-3 mb-2">
                                                         <div className="flex justify-between items-center mb-2">
                                                             <span className="text-xs text-secondary">Fallback #{index + 1}</span>
                                                             <button
@@ -1739,7 +1739,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 删除
                                                             </button>
                                                         </div>
-                                                        <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                        <div className="grid grid-cols-2 gap-3">
                                                             <div className="form-group">
                                                                 <label className="form-label">SNI</label>
                                                                 <input
@@ -1839,7 +1839,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-4 gap-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                                                <div className="grid grid-cols-4 gap-2">
                                                     {vlessTestseed.map((seed, idx) => (
                                                         <input
                                                             key={`vless-seed-${idx}`}
@@ -1863,7 +1863,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">传输配置</h4>
-                                <div className="grid grid-cols-2 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="form-group">
                                         <label className="form-label">传输协议 (Network)</label>
                                         <select className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
@@ -1886,7 +1886,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 </div>
 
-                                <div className="border-t border-white/10 pt-4 mt-4">
+                                <div className="border-t border-stroke-soft pt-4 mt-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">流量嗅探 (Sniffing)</h4>
                                         <label className="flex items-center gap-2 cursor-pointer text-sm">
@@ -1999,8 +1999,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
 
                                         {simpleStream.tcpHeaderType === 'http' && (
-                                            <div className="mt-3 border border-white/10 rounded-lg p-3">
-                                                <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                            <div className="mt-3 border border-stroke-soft rounded-lg p-3">
+                                                <div className="grid grid-cols-2 gap-3">
                                                     <div className="form-group">
                                                         <label className="form-label">Request Version</label>
                                                         <input
@@ -2108,7 +2108,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 {simpleStream.network === 'kcp' && (
-                                    <div className="grid grid-cols-3 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div className="form-group">
                                             <label className="form-label">MTU</label>
                                             <input
@@ -2208,7 +2208,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Heartbeat Period</label>
                                                 <input
@@ -2320,7 +2320,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {simpleStream.network === 'xhttp' && (
                                     <div>
-                                        <div className="grid grid-cols-3 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
                                                 <label className="form-label">XHTTP Path</label>
                                                 <input className="form-input" value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
@@ -2339,7 +2339,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Max Buffered Upload</label>
                                                 <input
@@ -2415,7 +2415,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Padding Key</label>
                                                 <input
@@ -2606,7 +2606,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {simpleStream.security === 'tls' && (
                                     <div>
-                                        <div className="grid grid-cols-3 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
                                                 <label className="form-label">TLS SNI (serverName)</label>
                                                 <input
@@ -2637,7 +2637,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Min Version</label>
                                                 <select
@@ -2686,7 +2686,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Reject Unknown SNI</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
@@ -2730,7 +2730,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 mt-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">ECH Server Keys</label>
                                                 <input
@@ -2777,9 +2777,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>清空</button>
                                             </div>
                                         </div>
-                                        <div className="border border-white/10 rounded-lg p-3 mt-2">
+                                        <div className="border border-stroke-soft rounded-lg p-3 mt-2">
                                             <label className="form-label mb-2 block">证书 (第1条)</label>
-                                            <div className="grid grid-cols-2 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                            <div className="grid grid-cols-2 gap-4">
                                                 <div className="form-group">
                                                     <label className="form-label">证书文件路径</label>
                                                     <input
@@ -2865,7 +2865,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 {simpleStream.security === 'reality' && (
-                                    <div className="border-t border-white/10 pt-4 mt-2">
+                                    <div className="border-t border-stroke-soft pt-4 mt-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <label className="form-label">Reality Settings</label>
                                             <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>生成密钥</button>
@@ -3016,7 +3016,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
-                                    <div className="border-t border-white/10 pt-4 mt-4">
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">External Proxy</h4>
                                             <div className="flex gap-2">
@@ -3045,7 +3045,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <div className="text-xs text-muted mb-3">未配置 external proxy</div>
                                         )}
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).map((row, index) => (
-                                            <div key={`external-proxy-${index}`} className="grid grid-cols-5 gap-3 mb-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '12px' }}>
+                                            <div key={`external-proxy-${index}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-2">
                                                 <select
                                                     className="form-select"
                                                     value={String(row?.forceTls || 'same')}
@@ -3108,7 +3108,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
-                                    <div className="border-t border-white/10 pt-4 mt-4">
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <h4 className="text-secondary text-sm font-bold uppercase tracking-wider mb-2">Sockopt</h4>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3" style={{ width: 'fit-content' }}>
                                             <input
@@ -3143,7 +3143,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             启用 Sockopt
                                         </label>
                                         {!!streamObj?.sockopt && (
-                                            <div className="grid grid-cols-3 gap-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                                            <div className="grid grid-cols-3 gap-4">
                                                 <div className="form-group">
                                                     <label className="form-label">Route Mark</label>
                                                     <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.mark || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = Number(e.target.value || 0); })} />
@@ -3244,7 +3244,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && ['tcp', 'ws', 'httpupgrade', 'xhttp', 'kcp'].includes(simpleStream.network) && (
-                                    <div className="border-t border-white/10 pt-4 mt-4">
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">UDP Masks (FinalMask)</h4>
                                             <button
@@ -3266,7 +3266,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <div className="text-xs text-muted mb-2">未配置 UDP mask</div>
                                         )}
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).map((mask, index) => (
-                                            <div key={`udp-mask-${index}`} className="grid grid-cols-4 gap-3 mb-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '12px' }}>
+                                            <div key={`udp-mask-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 mb-2">
                                                 <input
                                                     className="form-input"
                                                     value={String(mask?.type || '')}

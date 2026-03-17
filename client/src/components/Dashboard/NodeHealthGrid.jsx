@@ -205,7 +205,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
         return (
             <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
                 <HiOutlineServerStack style={{ fontSize: '32px', color: 'var(--text-muted)', marginBottom: '8px' }} />
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('pages.nodeHealth.empty')}</div>
+                <div className="text-sm text-muted">{t('pages.nodeHealth.empty')}</div>
             </div>
         );
     }

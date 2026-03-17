@@ -75,15 +75,15 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                 </div>
 
                 <div className="modal-body">
-                    <div className="card batch-result-summary" style={{ marginBottom: '12px', padding: '12px' }}>
-                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
+                    <div className="card batch-result-summary mb-3 p-3">
+                        <div className="flex gap-3 flex-wrap text-sm">
                             <span className="badge badge-neutral">{copy.total} {summary.total}</span>
                             <span className="badge badge-success">{copy.success} {summary.success}</span>
                             <span className="badge badge-danger">{copy.failed} {summary.failed}</span>
                         </div>
                     </div>
 
-                    <div className="table-container batch-result-table" style={{ maxHeight: '420px', overflow: 'auto' }}>
+                    <div className="table-container table-scroll table-scroll-md batch-result-table">
                         <table className="table">
                             <thead>
                                 <tr>
