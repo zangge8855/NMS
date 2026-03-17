@@ -1280,7 +1280,7 @@ export default function UsersHub() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <select className="form-select users-filter-select" style={{ width: 'auto', minWidth: 100 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                        <select className="form-select users-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                             <option value="all">全部状态</option>
                             <option value="active">已开通</option>
                             <option value="enabled">已启用</option>

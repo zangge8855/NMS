@@ -1584,7 +1584,7 @@ export default function Dashboard() {
                                 <div className="skeleton w-full h-full opacity-10" />
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%" minWidth={280}>
+                            <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={cpuHistory}>
                                     <defs>
                                         <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">

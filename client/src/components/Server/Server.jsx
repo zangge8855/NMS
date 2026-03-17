@@ -430,7 +430,7 @@ export default function ServerManagement({ embedded = false }) {
                             )}
                         />
                         <div className="server-console-select-row">
-                            <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} style={{ flex: 1, minWidth: '220px' }}>
+                            <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)}>
                                 {xrayVersions.length === 0 && <option value="">暂无可用版本</option>}
                                 {xrayVersions.map((v) => <option key={v} value={v}>{v}</option>)}
                             </select>

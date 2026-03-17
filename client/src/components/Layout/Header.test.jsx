@@ -73,6 +73,16 @@ describe('Header', () => {
         expect(container.querySelector('.header-user-symbol')).toBeNull();
     });
 
+    it('groups language, notifications, and theme toggles in a dedicated controls area', () => {
+        const { container } = renderWithRouter(<Header title="订阅中心" />);
+
+        const controls = container.querySelector('.header-controls');
+        expect(controls).not.toBeNull();
+        expect(controls?.querySelector('.language-toggle-btn')).not.toBeNull();
+        expect(controls?.querySelector('[data-testid="notification-bell"]')).not.toBeNull();
+        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
+    });
+
     it('reuses the sidebar navigation icon for top-level pages and nested detail pages', () => {
         const { container: auditContainer } = renderWithRouter(<Header title="审计中心" />, { route: '/audit' });
         expect(auditContainer.querySelector('.header-icon')).toBeInTheDocument();

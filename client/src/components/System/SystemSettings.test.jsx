@@ -358,7 +358,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
         expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
-        expect(screen.getByText('菜单已关闭')).toBeInTheDocument();
+        expect(screen.getByText(/菜单已关闭/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');
@@ -370,8 +370,7 @@ describe('SystemSettings', () => {
         expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
         expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
-        expect(screen.getByText('运维汇总 45 分钟')).toBeInTheDocument();
-        expect(screen.getByText('日报 12 小时')).toBeInTheDocument();
+        expect(screen.getByText('摘要 45 分钟 / 12 小时')).toBeInTheDocument();
         expect(screen.getAllByText(/目标 \*{8}7890/).length).toBeGreaterThan(0);
     });
 
@@ -396,7 +395,7 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=console' });
 
-        expect(await screen.findByText('远程节点控制台')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: '收起控制台' })).toBeInTheDocument();
         expect(screen.getAllByText('节点控制台').length).toBeGreaterThan(0);
     });
 });

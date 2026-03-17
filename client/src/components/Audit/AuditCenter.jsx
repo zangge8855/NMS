@@ -7,6 +7,7 @@ import {
     HiOutlineChartBarSquare,
     HiOutlineUsers,
     HiOutlineDocumentText,
+    HiOutlineFunnel,
     HiOutlineTrash,
     HiOutlineArrowDownTray,
     HiOutlineXMark,
@@ -48,6 +49,9 @@ const AUDIT_COPY = {
             query: '查询',
             clear: '清空',
             export: '导出',
+            moreFilters: '更多筛选',
+            lessFilters: '收起筛选',
+            resetFilters: '重置筛选',
             previous: '上一页',
             next: '下一页',
             detail: '详情',
@@ -218,6 +222,9 @@ const AUDIT_COPY = {
             query: 'Query',
             clear: 'Clear',
             export: 'Export',
+            moreFilters: 'More Filters',
+            lessFilters: 'Hide Filters',
+            resetFilters: 'Reset Filters',
             previous: 'Previous',
             next: 'Next',
             detail: 'Details',
@@ -377,6 +384,14 @@ const AUDIT_COPY = {
         },
     },
 };
+
+const EMPTY_EVENT_FILTERS = Object.freeze({
+    q: '',
+    eventType: '',
+    outcome: '',
+    targetEmail: '',
+    serverId: '',
+});
 
 const MASKED_AUDIT_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
@@ -840,13 +855,8 @@ export default function AuditCenter() {
     const [eventsLoading, setEventsLoading] = useState(false);
     const [eventsData, setEventsData] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
     const [eventsPage, setEventsPage] = useState(1);
-    const [eventFilters, setEventFilters] = useState({
-        q: '',
-        eventType: '',
-        outcome: '',
-        targetEmail: '',
-        serverId: '',
-    });
+    const [eventFilters, setEventFilters] = useState(() => ({ ...EMPTY_EVENT_FILTERS }));
+    const [showAdvancedEventFilters, setShowAdvancedEventFilters] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     const [trafficLoading, setTrafficLoading] = useState(false);
@@ -866,17 +876,17 @@ export default function AuditCenter() {
         status: '',
     });
 
-    const fetchEvents = async (targetPage = eventsPage) => {
+    const fetchEvents = async (targetPage = eventsPage, filters = eventFilters) => {
         setEventsLoading(true);
         try {
             const params = new URLSearchParams();
             params.append('page', String(targetPage));
             params.append('pageSize', '20');
-            if (eventFilters.q) params.append('q', eventFilters.q);
-            if (eventFilters.eventType) params.append('eventType', eventFilters.eventType);
-            if (eventFilters.outcome) params.append('outcome', eventFilters.outcome);
-            if (eventFilters.targetEmail) params.append('targetEmail', eventFilters.targetEmail);
-            if (eventFilters.serverId) params.append('serverId', eventFilters.serverId);
+            if (filters.q) params.append('q', filters.q);
+            if (filters.eventType) params.append('eventType', filters.eventType);
+            if (filters.outcome) params.append('outcome', filters.outcome);
+            if (filters.targetEmail) params.append('targetEmail', filters.targetEmail);
+            if (filters.serverId) params.append('serverId', filters.serverId);
             const res = await api.get(`/audit/events?${params.toString()}`);
             setEventsData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1 });
             setEventsPage(targetPage);
@@ -1021,6 +1031,13 @@ export default function AuditCenter() {
         }
     };
 
+    const handleResetEventFilters = () => {
+        const nextFilters = { ...EMPTY_EVENT_FILTERS };
+        setEventFilters(nextFilters);
+        setShowAdvancedEventFilters(false);
+        fetchEvents(1, nextFilters);
+    };
+
     useEffect(() => {
         if (tab === 'events') {
             fetchEvents(1);
@@ -1030,6 +1047,12 @@ export default function AuditCenter() {
             fetchAccess(1);
         }
     }, [tab]);
+
+    useEffect(() => {
+        if (eventFilters.eventType || eventFilters.serverId) {
+            setShowAdvancedEventFilters(true);
+        }
+    }, [eventFilters.eventType, eventFilters.serverId]);
 
     useEffect(() => {
         if (tab !== 'traffic') return;
@@ -1147,16 +1170,32 @@ export default function AuditCenter() {
                         <div className="audit-events-main">
                             <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
                                 <div className="audit-control-head audit-control-head--compact">
-                                    <div className="audit-control-actions">
-                                        <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
-                                            <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                        </button>
-                                        <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
-                                            <HiOutlineArrowDownTray /> {copy.actions.export}
-                                        </button>
-                                        <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
-                                            <HiOutlineTrash /> {copy.actions.clear}
-                                        </button>
+                                    <div className="audit-control-actions audit-control-actions--split">
+                                        <div className="audit-control-action-group">
+                                            <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
+                                                <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
+                                            </button>
+                                            <button
+                                                className={`btn btn-sm ${showAdvancedEventFilters ? 'btn-secondary' : 'btn-ghost'}`}
+                                                onClick={() => setShowAdvancedEventFilters((value) => !value)}
+                                            >
+                                                {showAdvancedEventFilters ? <HiOutlineXMark /> : <HiOutlineFunnel />}
+                                                {showAdvancedEventFilters ? copy.actions.lessFilters : copy.actions.moreFilters}
+                                            </button>
+                                            {activeEventFilterCount > 0 && (
+                                                <button className="btn btn-ghost btn-sm" onClick={handleResetEventFilters}>
+                                                    {copy.actions.resetFilters}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="audit-control-action-group audit-control-action-group--secondary">
+                                            <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
+                                                <HiOutlineArrowDownTray /> {copy.actions.export}
+                                            </button>
+                                            <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
+                                                <HiOutlineTrash /> {copy.actions.clear}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="audit-control-meta audit-control-meta--compact">
@@ -1169,41 +1208,47 @@ export default function AuditCenter() {
                                             : copy.workspace.noFilters}
                                     </span>
                                 </div>
-                                <div className="audit-filter-grid audit-filter-grid--events">
-                                    <input
-                                        className="form-input w-180"
-                                        placeholder={copy.filters.keyword}
-                                        value={eventFilters.q}
-                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
-                                    />
-                                    <input
-                                        className="form-input w-180"
-                                        placeholder={copy.filters.eventType}
-                                        value={eventFilters.eventType}
-                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
-                                    />
-                                    <select
-                                        className="form-select w-140"
-                                        value={eventFilters.outcome}
-                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
-                                    >
-                                        <option value="">{copy.filters.allResults}</option>
-                                        <option value="success">{copy.filters.success}</option>
-                                        <option value="failed">{copy.filters.failed}</option>
-                                        <option value="info">{copy.filters.info}</option>
-                                    </select>
-                                    <input
-                                        className="form-input w-180"
-                                        placeholder={copy.filters.userOrEmail}
-                                        value={eventFilters.targetEmail}
-                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
-                                    />
-                                    <input
-                                        className="form-input w-180"
-                                        placeholder={copy.filters.serverId}
-                                        value={eventFilters.serverId}
-                                        onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
-                                    />
+                                <div className="audit-filter-stack">
+                                    <div className="audit-filter-grid audit-filter-grid--events-primary">
+                                        <input
+                                            className="form-input w-180"
+                                            placeholder={copy.filters.keyword}
+                                            value={eventFilters.q}
+                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
+                                        />
+                                        <select
+                                            className="form-select w-140"
+                                            value={eventFilters.outcome}
+                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
+                                        >
+                                            <option value="">{copy.filters.allResults}</option>
+                                            <option value="success">{copy.filters.success}</option>
+                                            <option value="failed">{copy.filters.failed}</option>
+                                            <option value="info">{copy.filters.info}</option>
+                                        </select>
+                                        <input
+                                            className="form-input w-180"
+                                            placeholder={copy.filters.userOrEmail}
+                                            value={eventFilters.targetEmail}
+                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                                        />
+                                    </div>
+                                    {showAdvancedEventFilters && (
+                                        <div className="audit-filter-grid audit-filter-grid--events-secondary">
+                                            <input
+                                                className="form-input w-180"
+                                                placeholder={copy.filters.eventType}
+                                                value={eventFilters.eventType}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
+                                            />
+                                            <input
+                                                className="form-input w-180"
+                                                placeholder={copy.filters.serverId}
+                                                value={eventFilters.serverId}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1394,7 +1439,7 @@ export default function AuditCenter() {
                                     </span>
                                 </div>
                                 <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={280}>
+                                    <ResponsiveContainer width="100%" height="100%">
                                         <LineChart data={userTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                             <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
@@ -1433,7 +1478,7 @@ export default function AuditCenter() {
                                     </span>
                                 </div>
                                 <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={280}>
+                                    <ResponsiveContainer width="100%" height="100%">
                                         <LineChart data={serverTrend.points || []}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                             <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />

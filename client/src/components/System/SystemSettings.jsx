@@ -1611,7 +1611,6 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="站点入口"
-                        subtitle="先确认真实入口，再决定是否开启首页伪装。"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={copySiteEntry}>
@@ -1637,9 +1636,6 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">入口路径</div>
                                 <div className="settings-form-cluster-title">对外访问的真实入口</div>
-                                <div className="settings-form-cluster-note">
-                                    建议使用非根路径，并和首页伪装一起启用，减少后台直接暴露。
-                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">首页访问路径</label>
@@ -1721,7 +1717,6 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                     <SettingsPanelHeader
                         title="订阅地址"
-                        subtitle="区分公开输出地址和外部转换地址，避免订阅链路混在一起。"
                     />
                     <div className="settings-basic-note-list">
                         <span className={`badge ${draft.subscription.publicBaseUrl ? 'badge-success' : 'badge-warning'}`}>
@@ -1736,9 +1731,6 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">公网输出</div>
                                 <div className="settings-form-cluster-title">固定订阅链接的公开域名</div>
-                                <div className="settings-form-cluster-note">
-                                    建议填写实际对外可访问域名，减少节点地址变化时的用户感知。
-                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">订阅公网地址（可选，建议配置）</label>
@@ -1754,9 +1746,6 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">外部转换</div>
                                 <div className="settings-form-cluster-title">Clash / Mihomo / Surge 使用的转换器</div>
-                                <div className="settings-form-cluster-note">
-                                    如果不依赖外部转换器，可以保持为空。
-                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">外部订阅转换器地址（可选）</label>
@@ -1798,7 +1787,6 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="注册与邀请码"
-                        subtitle="把注册模式、邀请码生成和当前库存放在同一处处理。"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
@@ -1812,9 +1800,6 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">注册模式</div>
                                 <div className="settings-form-cluster-title">控制是否允许公开注册</div>
-                                <div className="settings-form-cluster-note">
-                                    邀请模式适合受控分发，普通模式适合公开注册入口。
-                                </div>
                             </div>
                             <SettingsToggleCard
                                 checked={draft.registration.inviteOnlyEnabled}
@@ -1907,14 +1892,12 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">邀请码库存</div>
                                 <div className="settings-form-cluster-title">最近创建与当前可用情况</div>
-                                <div className="settings-form-cluster-note">
-                                    明文邀请码只会在创建当次展示，库存面板只保留预览和使用状态。
-                                </div>
+                                <div className="settings-form-cluster-note">库存只保留预览和使用状态。</div>
                             </div>
                             {inviteCodesLoading ? (
                                 <div className="text-sm text-muted">正在加载邀请码列表...</div>
                             ) : inviteRecentRecords.length === 0 ? (
-                                <div className="text-sm text-muted">当前没有可展示的邀请码记录。需要时可先生成一批邀请码。</div>
+                                <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
                             ) : (
                                 <div className="settings-invite-activity-list">
                                     {inviteRecentRecords.map((item) => {
@@ -1973,7 +1956,7 @@ export default function SystemSettings() {
                                     <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                                 </div>
                             ) : (
-                                <div className="text-xs text-muted">生成新邀请码后，这里会显示当前批次的明文结果，便于一次性复制留档。</div>
+                                <div className="text-xs text-muted">生成后会在这里显示本批次明文结果。</div>
                             )}
                         </div>
                     </div>
@@ -1985,10 +1968,9 @@ export default function SystemSettings() {
     const renderPolicyContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
+                <div className="card p-4 settings-panel settings-panel--span-9 settings-basic-workbench">
                     <SettingsPanelHeader
-                        title="风控确认"
-                        subtitle="控制批量操作的二次确认门槛，避免高风险任务直接执行。"
+                        title="风控与审计"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
@@ -2012,17 +1994,10 @@ export default function SystemSettings() {
                             <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
                         </div>
                     </div>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="审计参数"
-                        subtitle="定义日志保留窗口和分页密度，控制审计面板的信息量。"
-                    />
                     <div className="settings-form-cluster">
                         <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">保留窗口</div>
-                            <div className="settings-form-cluster-title">审计日志多久清理一次</div>
+                            <div className="settings-form-cluster-eyebrow">审计窗口</div>
+                            <div className="settings-form-cluster-title">日志保留和分页密度</div>
                         </div>
                         <div className="settings-field-grid settings-field-grid--compact">
                             <div className="form-group">
@@ -2037,10 +2012,9 @@ export default function SystemSettings() {
                     </div>
                 </div>
 
-                <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
+                <div className="card p-4 settings-panel settings-panel--span-3 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="IP 归属地 / 运营商"
-                        subtitle="为订阅访问和安全事件补充地理信息，便于审计定位。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
@@ -2069,7 +2043,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="SMTP 诊断"
-                    subtitle="先验证 SMTP 链路，再处理通知发送。"
                 />
                 <div className="settings-monitor-toolbar">
                     <div className="settings-monitor-toolbar-status">
@@ -2090,12 +2063,6 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
                 ) : (
                     <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="settings-basic-note-list mb-3">
-                            <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                            <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                            <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
-                            <span className="badge badge-neutral">支持网址变更通知</span>
-                        </div>
                         <div className="settings-monitor-log-meta">
                             <div className="settings-monitor-log-item">
                                 <span className="settings-monitor-log-label">发件人</span>
@@ -2140,7 +2107,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="节点健康监控"
-                    subtitle="查看最近巡检结果、异常分布和告警去向。"
                     actions={(
                         <div className="settings-panel-actions">
                             <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
@@ -2207,7 +2173,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="Telegram 机器人"
-                    subtitle="配置告警目标、轮询行为和摘要推送频率。"
                     actions={(
                         <button
                             className="btn btn-secondary btn-sm"
@@ -2223,27 +2188,11 @@ export default function SystemSettings() {
                         {monitorStatus?.telegram?.enabled ? '已启用' : monitorStatus?.telegram?.configured ? '已配置未启用' : '未配置'}
                     </span>
                     <span className="badge badge-neutral">
-                        {monitorStatus?.telegram?.commandsEnabled ? '命令轮询已开启' : '命令轮询未开启'}
-                    </span>
-                    <span className={`badge ${monitorStatus?.telegram?.lastCommandSyncError ? 'badge-warning' : 'badge-neutral'}`}>
-                        {(monitorStatus?.telegram?.commandMenuEnabled ?? draft.telegram.commandMenuEnabled)
-                            ? monitorStatus?.telegram?.lastCommandSyncError
-                                ? '菜单同步失败'
-                                : monitorStatus?.telegram?.lastCommandSyncAt
-                                    ? '菜单已同步'
-                                    : '菜单待同步'
-                            : monitorStatus?.telegram?.lastCommandSyncError
-                                ? '菜单关闭失败'
-                                : '菜单已关闭'}
+                        {(monitorStatus?.telegram?.commandsEnabled ? '命令轮询开启' : '命令轮询关闭')
+                            + ` · ${((monitorStatus?.telegram?.commandMenuEnabled ?? draft.telegram.commandMenuEnabled) ? '菜单显示' : '菜单已关闭')}`}
                     </span>
                     <span className="badge badge-neutral">
-                        {`运维汇总 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '已关闭'}`}
-                    </span>
-                    <span className="badge badge-neutral">
-                        {`日报 ${Number(draft.telegram.dailyDigestIntervalHours || 0) > 0 ? `${draft.telegram.dailyDigestIntervalHours} 小时` : '已关闭'}`}
-                    </span>
-                    <span className="badge badge-neutral">
-                        {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
+                        {`摘要 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '关闭'} / ${Number(draft.telegram.dailyDigestIntervalHours || 0) > 0 ? `${draft.telegram.dailyDigestIntervalHours} 小时` : '关闭'}`}
                     </span>
                 </div>
                 <div className="grid-auto-220 items-start">
@@ -2396,7 +2345,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="备份与恢复"
-                    subtitle="把导出、服务器本机留存和恢复流程放在同一处处理。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
                             {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2579,7 +2527,6 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="数据库接入状态"
-                    subtitle="检查连接状态后，再执行读写模式切换和 Store 回填。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2749,22 +2696,12 @@ export default function SystemSettings() {
 
     const renderOperationsWorkspace = () => (
         <div className="settings-section-stack">
-            <div className="settings-summary-grid settings-summary-grid--status">
-                {operationsOverviewCards.map((item) => (
-                    <div key={item.label} className="card settings-summary-card">
-                        <div className="settings-summary-label">{item.label}</div>
-                        <div className="settings-summary-value">{item.value}</div>
-                        {item.detail ? <div className="settings-summary-detail">{item.detail}</div> : null}
-                    </div>
-                ))}
-            </div>
             {renderMonitorContent()}
             <div className="card p-4 settings-panel settings-panel--wide">
                 <SectionHeader
                     className="mb-3"
                     compact
                     title="节点控制台"
-                    subtitle="远程节点控制台"
                     actions={(
                         <button
                             type="button"
@@ -2804,8 +2741,6 @@ export default function SystemSettings() {
             id: 'status',
             title: '系统状态',
             eyebrow: 'Overview',
-            subtitle: '先看整体健康，再进入对应工作区处理具体配置。',
-            summary: '这里汇总站点入口、注册模式、数据库、告警链路和备份状态，适合作为每日巡检首页。',
             badges: (
                 <>
                     <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
@@ -2847,8 +2782,6 @@ export default function SystemSettings() {
             id: 'access',
             title: '对外访问',
             eyebrow: 'Public Access',
-            subtitle: '管理真实入口、订阅分发地址和注册策略。',
-            summary: '先保护真实入口，再整理公网订阅地址与邀请码库存，减少用户感知到的变更。',
             badges: (
                 <>
                     <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
@@ -2870,8 +2803,6 @@ export default function SystemSettings() {
             id: 'policy',
             title: '安全审计',
             eyebrow: 'Policy & Audit',
-            subtitle: '定义风险确认、日志保留和归属地补充策略。',
-            summary: '这一组配置决定后台批量操作的防呆程度，以及安全审计信息的留存密度。',
             badges: (
                 <>
                     <span className={`badge ${draft.security.requireHighRiskConfirmation ? 'badge-success' : 'badge-neutral'}`}>
@@ -2893,8 +2824,6 @@ export default function SystemSettings() {
             id: 'operations',
             title: '运维通知',
             eyebrow: 'Ops & Alerts',
-            subtitle: '查看邮件、节点巡检和 Telegram 告警链路是否完整。',
-            summary: '先确认消息通道，再处理节点健康和告警投递，避免出问题时没有通知出口。',
             badges: (
                 <>
                     <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>
@@ -2926,8 +2855,6 @@ export default function SystemSettings() {
             id: 'backup',
             title: '数据备份',
             eyebrow: 'Data Safety',
-            subtitle: '把数据库接入、导出备份和恢复流程放在同一处管理。',
-            summary: '这里既包含数据库读写模式，也包含加密备份、服务器本机留存和恢复校验流程。',
             badges: (
                 <>
                     <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>

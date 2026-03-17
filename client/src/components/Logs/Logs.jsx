@@ -135,7 +135,7 @@ function extractLogTimestamp(line) {
 
 export default function Logs({ embedded = false, sourceMode = 'auto', displayLabel = '' }) {
     const { activeServerId, activeServer, servers } = useServer();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const isGlobal = activeServerId === 'global';
     const lockedSourceMode = ['auto', 'panel', 'system', 'xray'].includes(sourceMode) ? sourceMode : 'auto';
     const logLevels = useMemo(() => ([
@@ -208,6 +208,25 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const filterSelectClassName = 'form-select rounded-lg';
     const keywordInputClassName = 'form-input w-200 rounded-lg';
     const serverCheckboxClassName = 'checkbox-14 rounded';
+    const activeLogFilterCount = [
+        String(keywords || '').trim(),
+        levelFilter,
+        lockedSourceMode === 'auto' && selectedSource !== 'panel' ? selectedSource : '',
+    ].filter(Boolean).length;
+    const logToolbarMeta = [
+        locale === 'en-US' ? `${count} lines` : `${count} 行`,
+        activeLogFilterCount > 0
+            ? (locale === 'en-US' ? `${activeLogFilterCount} filters` : `${activeLogFilterCount} 个筛选`)
+            : (locale === 'en-US' ? 'No filters' : '无筛选'),
+        isGlobal
+            ? (locale === 'en-US'
+                ? `Nodes ${selectedServerIds.length}/${servers.length}`
+                : `节点 ${selectedServerIds.length}/${servers.length}`)
+            : null,
+        String(keywords || '').trim()
+            ? (locale === 'en-US' ? `Keyword: ${keywords}` : `关键词: ${keywords}`)
+            : null,
+    ].filter(Boolean);
 
     const fetchSingleLogs = useCallback(async () => {
         if (!activeServerId || activeServerId === 'global') return;
@@ -416,40 +435,51 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     )}
                     actions={(
                         <>
-                            <button
-                                className="btn btn-ghost btn-sm rounded-lg"
-                                onClick={() => setAutoScrollEnabled((value) => !value)}
-                                title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
-                            >
-                                {autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
-                                {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
-                            </button>
-                            <button
-                                className={`btn btn-sm rounded-lg ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
-                                onClick={() => setWrapLines((value) => !value)}
-                                title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
-                            >
-                                {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
-                            </button>
-                            <button
-                                className={`btn btn-sm rounded-lg ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
-                                onClick={() => setImmersiveMode((value) => !value)}
-                                title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
-                            >
-                                {immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
-                                {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
-                            </button>
-                            <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
-                                <HiOutlineTrash /> {t('pages.logs.clearView')}
-                            </button>
-                            <button className="btn btn-secondary btn-sm rounded-lg" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
-                                <HiOutlineClipboardDocument /> {t('pages.logs.copy')}
-                            </button>
-                            <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
-                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
-                                {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
-                            </button>
+                            <div className="logs-toolbar-toggle-group" role="group" aria-label={locale === 'en-US' ? 'Viewer controls' : '查看控制'}>
+                                <button
+                                    className="btn btn-ghost btn-sm rounded-lg"
+                                    onClick={() => setAutoScrollEnabled((value) => !value)}
+                                    title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
+                                >
+                                    {autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+                                    {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
+                                </button>
+                                <button
+                                    className={`btn btn-sm rounded-lg ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                    onClick={() => setWrapLines((value) => !value)}
+                                    title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
+                                >
+                                    {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
+                                </button>
+                                <button
+                                    className={`btn btn-sm rounded-lg ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                    onClick={() => setImmersiveMode((value) => !value)}
+                                    title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
+                                >
+                                    {immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
+                                    {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
+                                </button>
+                            </div>
+                            <div className="logs-toolbar-primary-group">
+                                <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                    <HiOutlineTrash /> {t('pages.logs.clearView')}
+                                </button>
+                                <button className="btn btn-secondary btn-sm rounded-lg" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
+                                    <HiOutlineClipboardDocument /> {t('pages.logs.copy')}
+                                </button>
+                                <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
+                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
+                                    {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
+                                </button>
+                            </div>
                         </>
+                    )}
+                    meta={(
+                        <div className="logs-toolbar-meta">
+                            {logToolbarMeta.map((item) => (
+                                <span key={item} className="logs-toolbar-chip">{item}</span>
+                            ))}
+                        </div>
                     )}
                 />
 

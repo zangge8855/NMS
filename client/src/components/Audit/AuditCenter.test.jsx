@@ -1,5 +1,6 @@
 import React from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { renderWithRouter } from '../../test/render.jsx';
 import AuditCenter from './AuditCenter.jsx';
@@ -143,6 +144,36 @@ describe('AuditCenter localization', () => {
         expect(screen.queryByText('user_subscription_provisioned')).not.toBeInTheDocument();
         expect(screen.queryByText('user_enabled')).not.toBeInTheDocument();
         expect(screen.queryByText('system_backup_deleted_local')).not.toBeInTheDocument();
+    });
+
+    it('keeps advanced event filters collapsed until requested', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/audit/events?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [],
+                            total: 0,
+                            page: 1,
+                            totalPages: 1,
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('节点 ID')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '更多筛选' }));
+
+        expect(screen.getByPlaceholderText('事件类型')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('节点 ID')).toBeInTheDocument();
     });
 
     it('renders localized subscription access statuses in the subscriptions tab', async () => {

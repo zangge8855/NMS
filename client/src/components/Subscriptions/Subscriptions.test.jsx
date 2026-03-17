@@ -169,7 +169,8 @@ describe('Subscriptions', () => {
 
         renderWithRouter(<Subscriptions />);
 
-        expect(await screen.findByText('当前角色无全量用户列表权限，请手动输入邮箱')).toBeInTheDocument();
+        expect(await screen.findByText('仅支持手动输入')).toBeInTheDocument();
+        expect(screen.getByText('手动输入邮箱')).toBeInTheDocument();
     });
 
     it('switches between client-specific subscription profiles', async () => {

@@ -359,6 +359,13 @@ export default function Subscriptions() {
     const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
         ? ui.selectedNode.replace('{id}', selectedServerId)
         : ui.allNodes;
+    const toolbarSelectionLabel = normalizedEmail
+        ? `${locale === 'en-US' ? 'User' : '当前用户'} · ${normalizedEmail}`
+        : (locale === 'en-US' ? 'Enter email manually' : '手动输入邮箱');
+    const toolbarUsersLabel = usersAccessDenied
+        ? (locale === 'en-US' ? 'Manual input only' : '仅支持手动输入')
+        : `${locale === 'en-US' ? 'User list' : '用户列表'} ${users.length}`;
+    const toolbarScopeLabel = `${locale === 'en-US' ? 'Scope' : '范围'} · ${summaryScopeLabel}`;
     const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ` · ${ui.adminRole}` : ''}`;
     const usedTrafficBytes = Number(result?.usedTrafficBytes || 0);
     const trafficLimitBytes = Number(result?.trafficLimitBytes || 0);
@@ -634,23 +641,33 @@ export default function Subscriptions() {
                         )}
                         actions={(
                             <>
-                                {normalizedEmail && (
-                                    <Link className="btn btn-secondary" to={linkedUserHref}>
-                                        {ui.manageUsers}
-                                    </Link>
-                                )}
-                                <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
-                                    {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
-                                </button>
-                                <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={loading || !normalizedEmail}>
-                                    {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
-                                </button>
+                                <div className="subscriptions-toolbar-secondary">
+                                    {normalizedEmail && (
+                                        <Link className="btn btn-secondary" to={linkedUserHref}>
+                                            {ui.manageUsers}
+                                        </Link>
+                                    )}
+                                    <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                        {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
+                                    </button>
+                                </div>
+                                <div className="subscriptions-toolbar-primary">
+                                    <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={loading || !normalizedEmail}>
+                                        {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
+                                    </button>
+                                </div>
                             </>
                         )}
                         meta={(
-                            <span className="subscriptions-toolbar-status">
-                                {usersAccessDenied ? ui.listDenied : ui.listLoaded}
-                            </span>
+                            <div className="subscriptions-toolbar-meta">
+                                <span className={`subscriptions-toolbar-chip${normalizedEmail ? ' is-active' : ''}`}>
+                                    {toolbarSelectionLabel}
+                                </span>
+                                <span className="subscriptions-toolbar-chip">{toolbarScopeLabel}</span>
+                                <span className={`subscriptions-toolbar-chip${usersAccessDenied ? ' is-warning' : ''}`}>
+                                    {toolbarUsersLabel}
+                                </span>
+                            </div>
                         )}
                     />
                 )}

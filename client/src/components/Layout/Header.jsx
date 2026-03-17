@@ -297,26 +297,28 @@ export default function Header({
                     />
                     <kbd className="header-search-kbd">{shortcutLabel}</kbd>
                 </div>
-                {children}
-                <button
-                    type="button"
-                    className="theme-toggle-btn language-toggle-btn"
-                    onClick={toggleLocale}
-                    title={t('shell.switchLanguage')}
-                    aria-label={t('shell.switchLanguage')}
-                >
-                    <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                </button>
-                <NotificationBell />
-                <button
-                    type="button"
-                    className="theme-toggle-btn"
-                    onClick={cycleTheme}
-                    title={themeLabels[mode]}
-                    aria-label={themeLabels[mode]}
-                >
-                    <ThemeIcon />
-                </button>
+                <div className="header-controls">
+                    {children}
+                    <button
+                        type="button"
+                        className="theme-toggle-btn language-toggle-btn"
+                        onClick={toggleLocale}
+                        title={t('shell.switchLanguage')}
+                        aria-label={t('shell.switchLanguage')}
+                    >
+                        <span className="language-toggle-label">{t('shell.langLabel')}</span>
+                    </button>
+                    <NotificationBell />
+                    <button
+                        type="button"
+                        className="theme-toggle-btn"
+                        onClick={cycleTheme}
+                        title={themeLabels[mode]}
+                        aria-label={themeLabels[mode]}
+                    >
+                        <ThemeIcon />
+                    </button>
+                </div>
             </div>
         </header>
         {searchResults}
