@@ -115,21 +115,27 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     });
 
     const sent = await service.sendTestMessage('admin');
-    const commandCall = calls.find((item) => /\/setMyCommands$/.test(item.url));
+    const commandCall = calls.find((item) => /\/deleteMyCommands$/.test(item.url));
     const messageCall = calls.find((item) => /\/sendMessage$/.test(item.url));
 
     assert.equal(sent, true);
     assert.equal(service.getStatus().commandsEnabled, true);
     assert.equal(service.getStatus().enabled, true);
     assert.ok(commandCall);
-    assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor']);
     assert.equal(messageCall.body.parse_mode, 'HTML');
     assert.match(messageCall.body.text, /<b>NMS Telegram 测试通知<\/b>/);
-    assert.match(messageCall.body.text, /<i>消息结构与命令菜单检查<\/i>/);
+    assert.match(messageCall.body.text, /<i>消息结构与快捷命令检查<\/i>/);
     assert.match(messageCall.body.text, /<b>快速开始<\/b>/);
     assert.match(messageCall.body.text, /<pre>[\s\S]*\/expiry\s+用户到期提醒摘要[\s\S]*<\/pre>/);
     assert.match(messageCall.body.text, /<b>运维动作<\/b>/);
     assert.equal(Object.prototype.hasOwnProperty.call(messageCall.body, 'reply_markup'), false);
+});
+
+test('formatCommandCatalogMessage explains inline quick actions instead of the bottom menu', () => {
+    const message = formatCommandCatalogMessage();
+
+    assert.match(message, /直接点下方快捷按钮即可执行常用查询/);
+    assert.doesNotMatch(message, /同步命令菜单/);
 });
 
 test('telegramAlertService forwards login failure audits with target account details', async () => {
@@ -358,9 +364,9 @@ test('formatCommandCatalogMessage renders structured HTML help output', () => {
     assert.match(text, /<b>NMS Telegram 控制台<\/b>/);
     assert.match(text, /<i>状态摘要查询与巡检触发入口<\/i>/);
     assert.match(text, /<b>快速开始<\/b>/);
+    assert.match(text, /快捷按钮/);
     assert.match(text, /<b>状态查询<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/status\s+系统状态总览[\s\S]*<\/pre>/);
     assert.match(text, /<b>运维动作<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/monitor\s+立即执行节点巡检[\s\S]*<\/pre>/);
-    assert.doesNotMatch(text, /快捷按钮/);
 });
