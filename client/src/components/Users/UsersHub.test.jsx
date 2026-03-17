@@ -254,6 +254,62 @@ describe('UsersHub ordering', () => {
         expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
     });
 
+    it('moves the enable toggle into the edit dialog instead of showing it in the row actions', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-a',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                            enabled: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            if (url === '/user-policy/alice%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {},
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const aliceCell = await screen.findByText('alice');
+        const aliceRow = aliceCell.closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+
+        expect(within(aliceRow).queryByRole('button', { name: '停用' })).not.toBeInTheDocument();
+
+        await user.click(within(aliceRow).getByRole('button', { name: '编辑 / 状态' }));
+
+        expect(await screen.findByRole('button', { name: '启用' })).toBeInTheDocument();
+        const disableButton = screen.getByRole('button', { name: '停用' });
+        await user.click(disableButton);
+        await user.click(screen.getByRole('button', { name: '保存' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/auth/users/user-a/set-enabled', { enabled: false });
+        });
+    });
+
     it('renders the base user list before node stats finish loading', async () => {
         let releaseInbounds;
         const inboundsDeferred = new Promise((resolve) => {

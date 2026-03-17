@@ -368,6 +368,120 @@ describe('Dashboard', () => {
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
     });
 
+    it('keeps cumulative traffic on a loading placeholder until managed-user totals are ready', async () => {
+        let resolveInbounds;
+        const delayedInbounds = new Promise((resolve) => {
+            resolveInbounds = resolve;
+        });
+
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalOnline: 9,
+                    totalUp: 987654,
+                    totalDown: 123456,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                            up: 987654,
+                            down: 123456,
+                            onlineCount: 9,
+                            onlineUsers: [],
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'user-a',
+                                role: 'user',
+                                username: 'Alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                enabled: true,
+                            },
+                        ],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return delayedInbounds;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const trafficCard = screen.getByText('累计流量').closest('[role="button"]');
+        if (!trafficCard) throw new Error('Missing cumulative traffic card');
+
+        await waitFor(() => {
+            expect(trafficCard).toHaveTextContent('--');
+            expect(trafficCard).toHaveTextContent('统计当前用户流量中');
+        });
+
+        resolveInbounds({
+            data: {
+                obj: [
+                    {
+                        id: 'inbound-a',
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Node A Link',
+                        settings: JSON.stringify({
+                            clients: [{ id: 'uuid-a', email: 'alice@example.com' }],
+                        }),
+                        clientStats: [{ id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 }],
+                        up: 999000,
+                        down: 888000,
+                    },
+                ],
+            },
+        });
+
+        await waitFor(() => {
+            expect(trafficCard).toHaveTextContent('300 B');
+            expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
+            expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
+        });
+    });
+
     it('renders stacked online-user cards on mobile instead of the global table', async () => {
         mockMatchMedia(true);
         useServer.mockReturnValue({

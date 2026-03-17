@@ -1003,11 +1003,11 @@ export default function Servers() {
                                             {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
-                                            <button className="btn btn-ghost btn-sm btn-icon servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
+                                            <button className="btn btn-ghost btn-sm btn-icon table-action-btn servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
                                                 <HiOutlinePencilSquare />
                                                 <span className="servers-row-action-mobile-label">{t('comp.common.edit')}</span>
                                             </button>
-                                            <button className="btn btn-danger btn-sm btn-icon servers-row-action-icon" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
+                                            <button className="btn btn-danger btn-sm btn-icon table-action-btn servers-row-action-icon is-danger" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
                                                 <HiOutlineTrash />
                                                 <span className="servers-row-action-mobile-label">{t('comp.common.delete')}</span>
                                             </button>

@@ -738,28 +738,28 @@ export default function Clients() {
                                             <td data-label="" className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
                                                 <div className="table-row-actions">
                                                     <button
-                                                        className="btn btn-secondary btn-sm btn-icon"
+                                                        className="btn btn-secondary btn-sm btn-icon table-action-btn"
                                                         title="编辑"
                                                         onClick={() => handleEdit(client)}
                                                     >
                                                         <HiOutlinePencilSquare />
                                                     </button>
                                                     <button
-                                                        className="btn btn-secondary btn-sm btn-icon"
+                                                        className="btn btn-secondary btn-sm btn-icon table-action-btn"
                                                         title="订阅链接"
                                                         onClick={() => openSubscriptionModal(client.email)}
                                                     >
                                                         <HiOutlineLink />
                                                     </button>
                                                     <button
-                                                        className="btn btn-secondary btn-sm btn-icon"
+                                                        className="btn btn-secondary btn-sm btn-icon table-action-btn"
                                                         title="订阅权限"
                                                         onClick={() => handleOpenPolicy(client)}
                                                     >
                                                         <HiOutlineShieldCheck />
                                                     </button>
                                                     <button
-                                                        className="btn btn-danger btn-sm btn-icon"
+                                                        className="btn btn-danger btn-sm btn-icon table-action-btn is-danger"
                                                         title="删除"
                                                         onClick={() => handleDelete(client)}
                                                     >

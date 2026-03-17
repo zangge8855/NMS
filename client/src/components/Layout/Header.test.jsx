@@ -28,7 +28,7 @@ vi.mock('./NotificationBell.jsx', () => ({
 }));
 
 describe('Header', () => {
-    it('renders title while ignoring the optional eyebrow and hiding subtitle by default', () => {
+    it('renders title and eyebrow while hiding subtitle by default', () => {
         const { container } = renderWithRouter(
             <Header
                 title="集群仪表盘"
@@ -39,8 +39,8 @@ describe('Header', () => {
 
         expect(screen.getByRole('heading', { name: '集群仪表盘' })).toBeInTheDocument();
         expect(screen.queryByText('跨节点观察在线态、容量与异常分布')).not.toBeInTheDocument();
-        expect(screen.queryByText('Operations Overview')).not.toBeInTheDocument();
-        expect(container.querySelector('.header-eyebrow')).toBeNull();
+        expect(screen.getByText('Operations Overview')).toBeInTheDocument();
+        expect(container.querySelector('.header-eyebrow')).toHaveTextContent('Operations Overview');
         expect(container.querySelector('.header-subtitle')).toBeNull();
     });
 

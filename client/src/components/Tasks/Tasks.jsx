@@ -401,12 +401,12 @@ export default function Tasks({ embedded = false }) {
                                         <td data-label={copy.failedCol} className="table-cell-right">{task.summary?.failed ?? '-'}</td>
                                         <td data-label={copy.actions} className="table-cell-actions">
                                             <div className="table-row-actions tasks-row-actions">
-                                            <button className="btn btn-secondary btn-sm btn-icon rounded-lg" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
+                                            <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                                 <HiOutlineEye />
                                             </button>
                                             {Number(task.summary?.failed || 0) > 0 && (
                                                 <button
-                                                    className="btn btn-primary btn-sm btn-icon rounded-lg"
+                                                    className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
                                                     onClick={() => handleRetryFailed(task)}
                                                     disabled={retryingId === task.id}
                                                     title={copy.retryFailedItems}

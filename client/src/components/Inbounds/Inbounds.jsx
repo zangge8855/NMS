@@ -1335,7 +1335,7 @@ export default function Inbounds() {
                                                 <td data-label="操作" className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
-                                                            className="btn btn-secondary btn-sm btn-icon inbounds-action-btn"
+                                                            className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
                                                             title={t('comp.common.edit')}
                                                             onClick={() => handleEdit(ib)}
                                                         >
@@ -1343,7 +1343,7 @@ export default function Inbounds() {
                                                             <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
                                                         </button>
                                                         <button
-                                                            className="btn btn-danger btn-sm btn-icon inbounds-action-btn is-danger"
+                                                            className="btn btn-danger btn-sm btn-icon table-action-btn inbounds-action-btn is-danger"
                                                             title={t('comp.common.delete')}
                                                             onClick={() => handleDelete(ib)}
                                                         >

@@ -284,6 +284,7 @@ export default function UsersHub() {
     const [editUser, setEditUser] = useState(null);
     const [editUsername, setEditUsername] = useState('');
     const [editEmail, setEditEmail] = useState('');
+    const [editEnabled, setEditEnabled] = useState(true);
     const [editPassword, setEditPassword] = useState('');
     const [showEditPassword, setShowEditPassword] = useState(false);
     const [editExpiryDate, setEditExpiryDate] = useState('');
@@ -662,14 +663,14 @@ export default function UsersHub() {
 
     const renderUserActionButtons = (user) => (
         <>
-            <button className="btn btn-secondary btn-sm btn-icon users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
+            <button className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
                 <HiOutlineEye />
                 <span className="users-action-mobile-label">详情</span>
             </button>
             {user.status.key === 'pending' && (
                 <>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-success"
                         title="通过审核"
                         aria-label="通过审核"
                         onClick={() => handleSetEnabled(user, true)}
@@ -678,7 +679,7 @@ export default function UsersHub() {
                         <span className="users-action-mobile-label">通过</span>
                     </button>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
                         title="删除"
                         aria-label="删除"
                         onClick={() => handleDelete(user)}
@@ -691,7 +692,7 @@ export default function UsersHub() {
             {user.status.key === 'enabled' && (
                 <>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-primary"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-primary"
                         title={copy.provisionAction}
                         aria-label={copy.provisionAction}
                         onClick={() => openProvisionModal(user)}
@@ -700,25 +701,16 @@ export default function UsersHub() {
                         <span className="users-action-mobile-label">开通</span>
                     </button>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                        title="编辑"
-                        aria-label="编辑"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
                         onClick={() => openEditModal(user)}
                     >
                         <HiOutlinePencilSquare />
                         <span className="users-action-mobile-label">编辑</span>
                     </button>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                        title={user.enabled !== false ? '停用' : '启用'}
-                        aria-label={user.enabled !== false ? '停用' : '启用'}
-                        onClick={() => handleSetEnabled(user, user.enabled === false)}
-                    >
-                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
                         title="删除"
                         aria-label="删除"
                         onClick={() => handleDelete(user)}
@@ -731,25 +723,16 @@ export default function UsersHub() {
             {user.status.key === 'active' && (
                 <>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                        title="编辑"
-                        aria-label="编辑"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
                         onClick={() => openEditModal(user)}
                     >
                         <HiOutlinePencilSquare />
                         <span className="users-action-mobile-label">编辑</span>
                     </button>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn"
-                        title={user.enabled !== false ? '停用' : '启用'}
-                        aria-label={user.enabled !== false ? '停用' : '启用'}
-                        onClick={() => handleSetEnabled(user, user.enabled === false)}
-                    >
-                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
                         title="删除"
                         aria-label="删除"
                         onClick={() => handleDelete(user)}
@@ -762,16 +745,16 @@ export default function UsersHub() {
             {user.status.key === 'disabled' && (
                 <>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-success"
-                        title={user.enabled !== false ? '停用' : '启用'}
-                        aria-label={user.enabled !== false ? '停用' : '启用'}
-                        onClick={() => handleSetEnabled(user, user.enabled === false)}
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
+                        onClick={() => openEditModal(user)}
                     >
-                        {user.enabled !== false ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />}
-                        <span className="users-action-mobile-label">{user.enabled !== false ? '停用' : '启用'}</span>
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
                     </button>
                     <button
-                        className="btn btn-secondary btn-sm btn-icon users-action-btn is-danger"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
                         title="删除"
                         aria-label="删除"
                         onClick={() => handleDelete(user)}
@@ -1009,6 +992,7 @@ export default function UsersHub() {
         setEditUser(user);
         setEditUsername(user.username || '');
         setEditEmail(user.email || '');
+        setEditEnabled(user.enabled !== false);
         setEditPassword('');
         setShowEditPassword(false);
         setEditSaving(false);
@@ -1086,6 +1070,7 @@ export default function UsersHub() {
         }
 
         const payload = { username, email };
+        const enabledChanged = editEnabled !== (editUser.enabled !== false);
         if (editPassword) {
             const passwordError = getPasswordPolicyError(editPassword, locale);
             if (passwordError) {
@@ -1132,6 +1117,24 @@ export default function UsersHub() {
                 }
             }
 
+            let statusSyncFailedMessage = '';
+            let statusSyncPartialFailure = false;
+            if (enabledChanged) {
+                try {
+                    const enabledRes = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/set-enabled`, {
+                        enabled: editEnabled,
+                    });
+                    if (!enabledRes.data?.success) {
+                        toast.error(enabledRes.data?.msg || '更新用户状态失败');
+                        setEditSaving(false);
+                        return;
+                    }
+                    statusSyncPartialFailure = enabledRes.data?.obj?.partialFailure === true;
+                } catch (enabledErr) {
+                    statusSyncFailedMessage = enabledErr.response?.data?.msg || enabledErr.message || '更新用户状态失败';
+                }
+            }
+
             // Update expiry if user has clients
             if (editHasClients) {
                 const newExpiryTime = editExpiryDate
@@ -1143,31 +1146,31 @@ export default function UsersHub() {
                     });
                     if (expiryRes.data?.success) {
                         const r = expiryRes.data.obj;
-                        if (policySyncFailedMessage) {
-                            toast.error(`用户信息已更新，但${policySyncFailedMessage}`);
-                        } else if (r.failed > 0 || policySyncPartialFailure) {
+                        if (policySyncFailedMessage || statusSyncFailedMessage) {
+                            toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
+                        } else if (r.failed > 0 || policySyncPartialFailure || statusSyncPartialFailure) {
                             toast.success(`用户信息已更新，但节点同步有部分失败（到期时间成功 ${r.updated}/${r.total}）`);
                         } else if (r.updated > 0) {
-                            toast.success(`用户信息、订阅策略和到期时间已更新（${r.updated} 个节点）`);
+                            toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}、订阅策略和到期时间已更新（${r.updated} 个节点）`);
                         } else {
-                            toast.success('用户信息和订阅策略已更新');
+                            toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
                         }
                     }
                 } catch (expiryErr) {
                     const expiryFailedMessage = expiryErr.response?.data?.msg || expiryErr.message;
-                    if (policySyncFailedMessage) {
-                        toast.error(`用户信息已更新，但${policySyncFailedMessage}；到期时间更新也失败: ${expiryFailedMessage}`);
+                    if (policySyncFailedMessage || statusSyncFailedMessage) {
+                        toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}；到期时间更新也失败: ${expiryFailedMessage}`);
                     } else {
-                        toast.error(`用户信息和订阅策略已更新，但到期时间更新失败: ${expiryFailedMessage}`);
+                        toast.error(`用户信息${enabledChanged ? '、账号状态' : ''}和订阅策略已更新，但到期时间更新失败: ${expiryFailedMessage}`);
                     }
                 }
             } else {
-                if (policySyncFailedMessage) {
-                    toast.error(`用户信息已更新，但${policySyncFailedMessage}`);
-                } else if (policySyncPartialFailure) {
-                    toast.success('用户信息和订阅策略已更新，但部分节点同步失败');
+                if (policySyncFailedMessage || statusSyncFailedMessage) {
+                    toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
+                } else if (policySyncPartialFailure || statusSyncPartialFailure) {
+                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新，但部分节点同步失败`);
                 } else {
-                    toast.success('用户信息和订阅策略已更新');
+                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
                 }
             }
 
@@ -1611,6 +1614,32 @@ export default function UsersHub() {
                                         value={editEmail}
                                         onChange={(e) => setEditEmail(e.target.value)}
                                     />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">账号状态</label>
+                                    <div className="users-edit-status-toggle" role="group" aria-label="账号状态">
+                                        <button
+                                            type="button"
+                                            className={`users-edit-status-option${editEnabled ? ' is-active is-success' : ''}`}
+                                            onClick={() => setEditEnabled(true)}
+                                            aria-pressed={editEnabled}
+                                        >
+                                            <HiOutlinePlayCircle />
+                                            <span>启用</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`users-edit-status-option${!editEnabled ? ' is-active is-danger' : ''}`}
+                                            onClick={() => setEditEnabled(false)}
+                                            aria-pressed={!editEnabled}
+                                        >
+                                            <HiOutlineNoSymbol />
+                                            <span>停用</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-muted text-sm mt-1">
+                                        {editEnabled ? '允许该账号正常登录和使用订阅。' : '停用后账号将无法登录，已开通客户端会同步停用。'}
+                                    </p>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">重置密码（留空则不修改）</label>
