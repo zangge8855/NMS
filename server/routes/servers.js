@@ -59,6 +59,10 @@ function isBlockedHostname(hostname) {
     if (!host) return true;
     if (host === 'localhost' || host.endsWith('.localhost')) return true;
     if (host.endsWith('.local')) return true;
+    if (host.endsWith('.internal')) return true;
+    if (host.endsWith('.test')) return true;
+    if (host.endsWith('.invalid')) return true;
+    if (host.endsWith('.example')) return true;
     if (net.isIP(host) !== 0) return false; // allow IPv4/IPv6 literals
     if (!host.includes('.')) return true; // block single-label names
     return false;

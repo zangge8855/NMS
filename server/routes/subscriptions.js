@@ -112,6 +112,7 @@ function summarizeSubscriptionUsage(entries = [], policy = {}) {
         const entry = item?.entry || item || {};
         summary.uploadTrafficBytes += normalizeNonNegativeNumber(entry.up);
         summary.downloadTrafficBytes += normalizeNonNegativeNumber(entry.down);
+        // Note: 3x-ui's "totalGB" field is bytes despite the misleading name.
         summary.trafficLimitBytes += normalizeNonNegativeNumber(entry.totalGB);
         const expiryTime = normalizeNonNegativeNumber(entry.expiryTime);
         if (expiryTime > 0 && (summary.expiryTime === 0 || expiryTime < summary.expiryTime)) {

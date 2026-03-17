@@ -24,6 +24,7 @@ import { collectClusterStatusSnapshot } from './lib/serverStatusService.js';
 
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
+const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
 
 /**
  * 初始化 WebSocket 服务器
@@ -80,7 +81,9 @@ export function initWebSocket(httpServer) {
                     ws.isAlive = true;
                     safeSend(ws, { type: 'pong', ts: Date.now() });
                 } else if (msg.type === 'subscribe_task' && msg.taskId) {
-                    ws.subscribedTaskIds.add(String(msg.taskId));
+                    if (ws.subscribedTaskIds.size < MAX_TASK_SUBSCRIPTIONS) {
+                        ws.subscribedTaskIds.add(String(msg.taskId));
+                    }
                     // 立即推送当前任务状态
                     const task = taskQueue.get(msg.taskId);
                     if (task) {

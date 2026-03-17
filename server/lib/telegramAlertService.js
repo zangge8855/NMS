@@ -35,6 +35,42 @@ const DEFAULT_OPERATION_COMMANDS = [
 ];
 const AGGREGATE_SAMPLE_LIMIT = 5;
 
+// ── Telegram 消息排版 emoji 映射 ──────────────────────────
+const MESSAGE_TYPE_ICONS = new Map([
+    ['NMS 系统通知', '🔔'],
+    ['NMS 安全审计', '🛡'],
+    ['NMS 聚合告警', '📊'],
+    ['NMS 状态总览', '📡'],
+    ['NMS 在线概览', '👥'],
+    ['NMS 24h 流量摘要', '📶'],
+    ['NMS 最近告警摘要', '🔔'],
+    ['NMS 安全事件摘要', '🛡'],
+    ['NMS 节点异常摘要', '🖥'],
+    ['NMS 公开订阅异常访问摘要', '🚫'],
+    ['NMS 用户到期提醒摘要', '⏰'],
+    ['NMS 运维汇总摘要', '📋'],
+    ['NMS 每日巡检摘要', '📅'],
+    ['NMS 手动巡检完成', '✅'],
+    ['NMS Telegram 测试通知', '🧪'],
+    ['NMS Telegram 控制台', '🤖'],
+]);
+
+const SECTION_ICONS = new Map([
+    ['关键信息', '📋'], ['影响范围', '🎯'], ['来源线索', '🔍'],
+    ['事件摘要', '💬'], ['附加上下文', '📎'], ['操作目标', '🎯'],
+    ['快速开始', '🚀'], ['核心指标', '📊'], ['节点健康', '💚'],
+    ['24h 流量', '📶'], ['时间', '🕐'], ['影响分布', '🎯'],
+    ['来源分布', '🌐'], ['最近摘要', '📝'], ['节点分布', '🗺'],
+    ['Top 用户', '👤'], ['Top 节点', '🖥'], ['级别分布', '📊'],
+    ['最近告警', '⚡'], ['事件分布', '📊'], ['来源概览', '🌐'],
+    ['最近事件', '📝'], ['状态分布', '📈'], ['原因分布', '🔎'],
+    ['节点明细', '📋'], ['高频来源', '📍'], ['最近记录', '📝'],
+    ['阶段分布', '📊'], ['用户明细', '👥'], ['通知分布', '📊'],
+    ['安全热点', '🔒'], ['当前状态', '📡'], ['到期提醒', '⏰'],
+    ['节点状态', '🖥'], ['异常分布', '⚡'], ['提示', '💡'],
+    ['状态查询', '📊'], ['运维动作', '🔧'],
+]);
+
 function normalizeStringArray(input = []) {
     return Array.from(new Set(
         (Array.isArray(input) ? input : [])
@@ -227,6 +263,20 @@ function escapeTelegramHtml(value = '') {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+function getMessageIcon(title) {
+    for (const [prefix, icon] of MESSAGE_TYPE_ICONS) {
+        if (title.startsWith(prefix)) return icon;
+    }
+    return '';
+}
+
+function sectionHeader(title) {
+    const icon = SECTION_ICONS.get(title) || '';
+    return icon
+        ? `<b>${icon} ${escapeTelegramHtml(title)}</b>`
+        : `<b>${escapeTelegramHtml(title)}</b>`;
 }
 
 function formatExpiryDateTime(value) {
@@ -484,14 +534,21 @@ function appendSection(lines, title, rows = []) {
 function appendHtmlSection(blocks, title, rows = [], { rawRows = false } = {}) {
     const normalizedRows = rows.filter(Boolean);
     if (normalizedRows.length === 0) return;
+    const icon = SECTION_ICONS.get(title) || '';
+    const iconPrefix = icon ? `${icon} ` : '';
     const sectionRows = normalizedRows.map((row) => `• ${rawRows ? row : escapeTelegramHtml(row)}`);
-    blocks.push(`<b>${escapeTelegramHtml(title)}</b>\n${sectionRows.join('\n')}`);
+    blocks.push(`<b>${iconPrefix}${escapeTelegramHtml(title)}</b>\n${sectionRows.join('\n')}`);
 }
 
 function joinHtmlMessage(title, blocks = [], options = {}) {
-    const parts = [`<b>${escapeTelegramHtml(title)}</b>`];
+    const icon = options.icon ?? getMessageIcon(title);
+    const iconPrefix = icon ? `${icon} ` : '';
+    const header = `<b>${iconPrefix}${escapeTelegramHtml(title)}</b>`;
+    const parts = [];
     if (options?.subtitle) {
-        parts.push(`<i>${escapeTelegramHtml(options.subtitle)}</i>`);
+        parts.push(`${header}\n<i>${escapeTelegramHtml(options.subtitle)}</i>`);
+    } else {
+        parts.push(header);
     }
     parts.push(...blocks);
     return parts.join('\n\n').trim();
@@ -544,11 +601,11 @@ export function formatCommandCatalogMessage(options = {}) {
     ], { rawRows: true });
     const queryTable = formatCommandHtmlTable(options.queryCommands || DEFAULT_QUERY_COMMANDS);
     if (queryTable) {
-        blocks.push(`<b>状态查询</b>\n${queryTable}`);
+        blocks.push(`${sectionHeader('状态查询')}\n${queryTable}`);
     }
     const operationTable = formatCommandHtmlTable(options.operationCommands || DEFAULT_OPERATION_COMMANDS);
     if (operationTable) {
-        blocks.push(`<b>运维动作</b>\n${operationTable}`);
+        blocks.push(`${sectionHeader('运维动作')}\n${operationTable}`);
     }
     return joinHtmlMessage(title, blocks, {
         subtitle: '状态摘要查询与巡检触发入口',
@@ -1073,11 +1130,11 @@ export function createTelegramAlertService(options = {}) {
         ], { rawRows: true });
         const queryTable = formatCommandHtmlTable(DEFAULT_QUERY_COMMANDS);
         if (queryTable) {
-            blocks.push(`<b>状态查询</b>\n${queryTable}`);
+            blocks.push(`${sectionHeader('状态查询')}\n${queryTable}`);
         }
         const operationTable = formatCommandHtmlTable(DEFAULT_OPERATION_COMMANDS);
         if (operationTable) {
-            blocks.push(`<b>运维动作</b>\n${operationTable}`);
+            blocks.push(`${sectionHeader('运维动作')}\n${operationTable}`);
         }
         return sendCommandReply(joinHtmlMessage('NMS Telegram 测试通知', blocks, {
             subtitle: '消息结构与命令菜单检查',
@@ -1167,7 +1224,7 @@ export function createTelegramAlertService(options = {}) {
         const items = notificationService.getUnread(5);
         if (!Array.isArray(items) || items.length === 0) {
             return joinHtmlMessage('NMS 最近告警摘要', [
-                `<b>关键信息</b>\n• 当前没有未读通知`,
+                `${sectionHeader('关键信息')}\n• 当前没有未读通知`,
             ], {
                 subtitle: '最近未读系统通知',
             });
@@ -1206,7 +1263,7 @@ export function createTelegramAlertService(options = {}) {
 
         if (filtered.length === 0) {
             return joinHtmlMessage('NMS 安全事件摘要', [
-                `<b>关键信息</b>\n• 最近没有新的高优先级安全审计事件`,
+                `${sectionHeader('关键信息')}\n• 最近没有新的高优先级安全审计事件`,
             ], {
                 subtitle: '高优先级安全审计汇总',
             });
@@ -1274,7 +1331,7 @@ export function createTelegramAlertService(options = {}) {
 
         if (degradedItems.length === 0) {
             return joinHtmlMessage('NMS 节点异常摘要', [
-                `<b>关键信息</b>\n• 当前没有降级、离线或维护节点`,
+                `${sectionHeader('关键信息')}\n• 当前没有降级、离线或维护节点`,
             ], {
                 subtitle: '异常节点与原因分布',
             });
@@ -1335,7 +1392,7 @@ export function createTelegramAlertService(options = {}) {
         const items = Array.isArray(result?.items) ? result.items : [];
         if ((summary?.total || 0) === 0 && items.length === 0) {
             return joinHtmlMessage('NMS 公开订阅异常访问摘要', [
-                `<b>关键信息</b>\n• 最近 7 天没有被拒绝的公开订阅访问`,
+                `${sectionHeader('关键信息')}\n• 最近 7 天没有被拒绝的公开订阅访问`,
             ], {
                 subtitle: '最近 7 天拒绝访问摘要',
             });
@@ -1372,7 +1429,7 @@ export function createTelegramAlertService(options = {}) {
         const snapshot = collectSubscriptionExpirySnapshot({ limit: 6 });
         if ((snapshot?.total || 0) === 0) {
             return joinHtmlMessage('NMS 用户到期提醒摘要', [
-                `<b>关键信息</b>\n• 最近 7 天没有即将到期或已到期的用户`,
+                `${sectionHeader('关键信息')}\n• 最近 7 天没有即将到期或已到期的用户`,
             ], {
                 subtitle: '最近 7 天到期提醒汇总',
             });
@@ -1638,7 +1695,7 @@ export function createTelegramAlertService(options = {}) {
 
         return {
             text: joinHtmlMessage('NMS Telegram 控制台', [
-                `<b>提示</b>\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
+                `${sectionHeader('提示')}\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
             ], {
                 subtitle: '命令入口',
             }),

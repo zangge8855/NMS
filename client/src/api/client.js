@@ -88,9 +88,10 @@ api.interceptors.response.use(
     (error) => {
         if (shouldClearSessionOnUnauthorized(error)) {
             clearStoredToken();
-            // Don't redirect if already on login
+            // Emit a custom event so AuthContext can handle the redirect via React Router
+            // instead of a full-page reload that destroys SPA state.
             if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
+                window.dispatchEvent(new CustomEvent('nms:session-expired'));
             }
         }
         return Promise.reject(error);

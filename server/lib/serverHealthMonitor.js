@@ -191,6 +191,8 @@ class ServerHealthMonitor {
         if (this.running) return;
         this.configure(options);
         this.running = true;
+        // Run initial check immediately (like subscriptionExpiryNotifier)
+        this.runOnce().catch(() => {});
         this.timer = startBackgroundInterval(() => {
             this.runOnce().catch(() => {
                 // Swallow background errors and surface via status/notifications.

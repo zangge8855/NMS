@@ -142,6 +142,7 @@ function clearLoginRate(ip, username = '') {
 // --- Register rate limiter ---
 const REGISTER_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const REGISTER_RATE_MAX = 5;
+const REGISTER_RATE_MAP_LIMIT = 10000;
 const registerAttempts = new Map();
 
 startCleanupInterval(() => {
@@ -155,6 +156,7 @@ function checkRegisterRate(ip) {
     const now = Date.now();
     const data = registerAttempts.get(ip);
     if (!data || now - data.firstAttempt > REGISTER_RATE_WINDOW) {
+        if (registerAttempts.size >= REGISTER_RATE_MAP_LIMIT) return true;
         registerAttempts.set(ip, { count: 1, firstAttempt: now });
         return true;
     }
@@ -166,6 +168,7 @@ function checkRegisterRate(ip) {
 // --- Password reset rate limiter ---
 const RESET_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const RESET_RATE_MAX = 8;
+const RESET_RATE_MAP_LIMIT = 10000;
 const resetAttempts = new Map();
 
 startCleanupInterval(() => {
@@ -179,6 +182,7 @@ function checkResetRate(ip) {
     const now = Date.now();
     const data = resetAttempts.get(ip);
     if (!data || now - data.firstAttempt > RESET_RATE_WINDOW) {
+        if (resetAttempts.size >= RESET_RATE_MAP_LIMIT) return true;
         resetAttempts.set(ip, { count: 1, firstAttempt: now });
         return true;
     }
@@ -510,10 +514,27 @@ router.post('/reset-password', (req, res) => {
 // ── User Management Routes (admin only) ────────────────────
 
 /**
- * GET /api/auth/users — 获取所有用户列表
+ * GET /api/auth/users — 获取用户列表（支持分页）
+ * Query: page (default 1), pageSize (default 50, max 200), search (optional)
  */
 router.get('/users', authMiddleware, adminOnly, (req, res) => {
-    res.json({ success: true, obj: listUsers() });
+    const allUsers = listUsers();
+    const search = String(req.query.search || '').trim().toLowerCase();
+
+    const filtered = search
+        ? allUsers.filter((u) =>
+            (u.username || '').toLowerCase().includes(search)
+            || (u.email || '').toLowerCase().includes(search))
+        : allUsers;
+
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const pageSize = Math.min(200, Math.max(1, Math.floor(Number(req.query.pageSize) || 50)));
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const obj = filtered.slice(start, start + pageSize);
+
+    res.json({ success: true, obj, total, page, pageSize, totalPages });
 });
 
 /**

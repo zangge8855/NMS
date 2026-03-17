@@ -29,15 +29,20 @@ function normalizeRole(role, options = {}) {
     return strict ? '' : ROLES.user;
 }
 
+const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_LEGACY_ITERATIONS = 10_000;
+
 function hashPassword(password, salt) {
     if (!salt) salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-    return { hash, salt };
+    const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, 64, 'sha512').toString('hex');
+    return { hash, salt, iterations: PBKDF2_ITERATIONS };
 }
 
-function verifyPassword(password, hash, salt) {
-    const result = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-    return result === hash;
+function verifyPassword(password, hash, salt, iterations = 0) {
+    const iter = Number(iterations) > 0 ? Number(iterations) : PBKDF2_LEGACY_ITERATIONS;
+    const result = crypto.pbkdf2Sync(password, salt, iter, 64, 'sha512').toString('hex');
+    if (result.length !== hash.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(result, 'hex'), Buffer.from(hash, 'hex'));
 }
 
 function normalizeEmailValue(value) {
@@ -119,12 +124,13 @@ class UserStore {
         if (!hasAdmin) {
             const adminUsername = String(config.auth.adminUsername || 'admin').trim() || 'admin';
             const adminPassword = config.auth.adminPassword;
-            const { hash, salt } = hashPassword(adminPassword);
+            const { hash, salt, iterations } = hashPassword(adminPassword);
             this.users.push({
                 id: crypto.randomUUID(),
                 username: adminUsername,
                 passwordHash: hash,
                 passwordSalt: salt,
+                pbkdf2Iterations: iterations,
                 role: ROLES.admin,
                 enabled: true,
                 subscriptionEmail: '',
@@ -201,8 +207,15 @@ class UserStore {
 
         const user = this.getByUsername(normalizedUsername);
         if (!user) return null;
-        if (!verifyPassword(password, user.passwordHash, user.passwordSalt)) return null;
+        if (!verifyPassword(password, user.passwordHash, user.passwordSalt, user.pbkdf2Iterations)) return null;
         user.lastLoginAt = new Date().toISOString();
+        // Auto-upgrade hash to current iteration count on successful login
+        if (!user.pbkdf2Iterations || user.pbkdf2Iterations < PBKDF2_ITERATIONS) {
+            const { hash, salt, iterations } = hashPassword(password);
+            user.passwordHash = hash;
+            user.passwordSalt = salt;
+            user.pbkdf2Iterations = iterations;
+        }
         this._save();
         return { id: user.id, username: user.username, role: user.role };
     }
@@ -239,7 +252,7 @@ class UserStore {
         const passwordCheck = checkAccountPassword(password);
         if (!passwordCheck.valid) throw new Error(passwordCheck.reason);
 
-        const { hash, salt } = hashPassword(password);
+        const { hash, salt, iterations } = hashPassword(password);
         const user = {
             id: crypto.randomUUID(),
             username: normalizedUsername,
@@ -254,6 +267,7 @@ class UserStore {
             resetCodeExpiresAt: null,
             passwordHash: hash,
             passwordSalt: salt,
+            pbkdf2Iterations: iterations,
             role: normalizedRole,
             createdAt: new Date().toISOString(),
         };
@@ -310,9 +324,10 @@ class UserStore {
         if (data.password) {
             const passwordCheck = checkAccountPassword(data.password);
             if (!passwordCheck.valid) throw new Error(passwordCheck.reason);
-            const { hash, salt } = hashPassword(data.password);
+            const { hash, salt, iterations } = hashPassword(data.password);
             this.users[idx].passwordHash = hash;
             this.users[idx].passwordSalt = salt;
+            this.users[idx].pbkdf2Iterations = iterations;
             this.users[idx].resetCode = null;
             this.users[idx].resetCodeExpiresAt = null;
         }

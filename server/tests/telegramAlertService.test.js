@@ -36,11 +36,11 @@ test('telegramAlertService forwards critical notifications when configured', asy
     assert.match(calls[0].url, /\/bot123456:ABCDEF\/sendMessage$/);
     assert.equal(calls[0].body.chat_id, '-1001234567890');
     assert.equal(calls[0].body.parse_mode, 'HTML');
-    assert.match(calls[0].body.text, /<b>NMS 系统通知 · 节点连接超时<\/b>/);
+    assert.match(calls[0].body.text, /<b>🔔 NMS 系统通知 · 节点连接超时<\/b>/);
     assert.match(calls[0].body.text, /<i>系统事件推送<\/i>/);
     assert.match(calls[0].body.text, /节点: <b>node-a<\/b>/);
-    assert.match(calls[0].body.text, /<b>关键信息<\/b>/);
-    assert.match(calls[0].body.text, /\n\n<b>影响范围<\/b>/);
+    assert.match(calls[0].body.text, /<b>📋 关键信息<\/b>/);
+    assert.match(calls[0].body.text, /\n\n<b>🎯 影响范围<\/b>/);
 });
 
 test('telegramAlertService deduplicates repeated security alerts within the cooldown window', async () => {
@@ -76,8 +76,8 @@ test('telegramAlertService deduplicates repeated security alerts within the cool
     assert.equal(calls[0].body.parse_mode, 'HTML');
     assert.match(calls[0].body.text, /登录频率限制/);
     assert.match(calls[0].body.text, /归属地 \/ 运营商: <b>中国 浙江 杭州 · 中国电信<\/b>/);
-    assert.match(calls[0].body.text, /<b>来源线索<\/b>/);
-    assert.match(calls[1].body.text, /<b>NMS 聚合告警 · 登录频率限制<\/b>/);
+    assert.match(calls[0].body.text, /<b>🔍 来源线索<\/b>/);
+    assert.match(calls[1].body.text, /<b>📊 NMS 聚合告警 · 登录频率限制<\/b>/);
 });
 
 test('telegramAlertService ignores low-severity notifications and exposes delivery status', async () => {
@@ -124,11 +124,11 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     assert.ok(commandCall);
     assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor']);
     assert.equal(messageCall.body.parse_mode, 'HTML');
-    assert.match(messageCall.body.text, /<b>NMS Telegram 测试通知<\/b>/);
+    assert.match(messageCall.body.text, /<b>🧪 NMS Telegram 测试通知<\/b>/);
     assert.match(messageCall.body.text, /<i>消息结构与命令菜单检查<\/i>/);
-    assert.match(messageCall.body.text, /<b>快速开始<\/b>/);
+    assert.match(messageCall.body.text, /<b>🚀 快速开始<\/b>/);
     assert.match(messageCall.body.text, /<pre>[\s\S]*\/expiry\s+用户到期提醒摘要[\s\S]*<\/pre>/);
-    assert.match(messageCall.body.text, /<b>运维动作<\/b>/);
+    assert.match(messageCall.body.text, /<b>🔧 运维动作<\/b>/);
     assert.equal(Object.prototype.hasOwnProperty.call(messageCall.body, 'reply_markup'), false);
 });
 
@@ -165,7 +165,7 @@ test('telegramAlertService forwards login failure audits with target account det
 
     assert.equal(sent, true);
     assert.equal(calls.length, 1);
-    assert.match(calls[0].body.text, /<b>NMS 安全审计 · 登录失败<\/b>/);
+    assert.match(calls[0].body.text, /<b>🛡 NMS 安全审计 · 登录失败<\/b>/);
     assert.match(calls[0].body.text, /<i>安全审计推送<\/i>/);
     assert.match(calls[0].body.text, /目标用户: <b>alice<\/b>/);
     assert.match(calls[0].body.text, /请求: <b>POST \/api\/auth\/login<\/b>/);
@@ -258,7 +258,7 @@ test('telegramAlertService sends an aggregate digest after repeated suppressed n
     await new Promise((resolve) => setTimeout(resolve, 120));
 
     assert.equal(calls.length, 1);
-    assert.match(calls[0].body.text, /<b>NMS 聚合告警 · 登录失败<\/b>/);
+    assert.match(calls[0].body.text, /<b>📊 NMS 聚合告警 · 登录失败<\/b>/);
     assert.match(calls[0].body.text, /<i>重复事件自动聚合<\/i>/);
     assert.match(calls[0].body.text, /累计命中: <b>2 次<\/b>/);
     assert.match(calls[0].body.text, /聚合抑制: <b>1 次<\/b>/);
@@ -349,10 +349,10 @@ test('formatStatusDigestMessage renders structured HTML blocks', () => {
         checkedAt: '2026-03-16T14:29:00.000Z',
     });
 
-    assert.match(text, /<b>NMS 状态总览<\/b>/);
+    assert.match(text, /<b>📡 NMS 状态总览<\/b>/);
     assert.match(text, /<i>集群即时状态与最近 24h 流量<\/i>/);
-    assert.match(text, /<b>核心指标<\/b>/);
-    assert.match(text, /<b>节点健康<\/b>/);
+    assert.match(text, /<b>📊 核心指标<\/b>/);
+    assert.match(text, /<b>💚 节点健康<\/b>/);
     assert.match(text, /统计口径: <b>当前节点快照累计值<\/b>/);
     assert.match(text, /合计: <b>120 B<\/b>/);
     assert.match(text, /上行: <b>50 B<\/b>/);
@@ -362,12 +362,12 @@ test('formatStatusDigestMessage renders structured HTML blocks', () => {
 test('formatCommandCatalogMessage renders structured HTML help output', () => {
     const text = formatCommandCatalogMessage();
 
-    assert.match(text, /<b>NMS Telegram 控制台<\/b>/);
+    assert.match(text, /<b>🤖 NMS Telegram 控制台<\/b>/);
     assert.match(text, /<i>状态摘要查询与巡检触发入口<\/i>/);
-    assert.match(text, /<b>快速开始<\/b>/);
-    assert.match(text, /<b>状态查询<\/b>/);
+    assert.match(text, /<b>🚀 快速开始<\/b>/);
+    assert.match(text, /<b>📊 状态查询<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/status\s+系统状态总览[\s\S]*<\/pre>/);
-    assert.match(text, /<b>运维动作<\/b>/);
+    assert.match(text, /<b>🔧 运维动作<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/monitor\s+立即执行节点巡检[\s\S]*<\/pre>/);
     assert.doesNotMatch(text, /快捷按钮/);
 });

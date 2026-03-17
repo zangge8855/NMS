@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api, { getStoredToken, setStoredToken, clearStoredToken } from '../api/client.js';
 
 const AuthContext = createContext(null);
@@ -23,6 +24,21 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(getStoredToken);
+    const navigate = useNavigate();
+
+    // Listen for session-expired events from the API interceptor
+    // to handle 401 redirects via React Router instead of full page reload.
+    useEffect(() => {
+        const handler = () => {
+            clearStoredToken();
+            setToken(null);
+            setIsAuthenticated(false);
+            setUser(null);
+            navigate('/login', { replace: true });
+        };
+        window.addEventListener('nms:session-expired', handler);
+        return () => window.removeEventListener('nms:session-expired', handler);
+    }, [navigate]);
 
     const checkAuth = useCallback(async () => {
         const token = getStoredToken();

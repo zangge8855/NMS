@@ -639,31 +639,31 @@ export class SystemSettingsStore {
     }
 
     getSecurity() {
-        return this.getAll().security;
+        return { ...this.settings.security };
     }
 
     getSite() {
-        return this.getAll().site;
+        return { ...this.settings.site };
     }
 
     getRegistration() {
-        return this.getAll().registration;
+        return { ...this.settings.registration };
     }
 
     getJobs() {
-        return this.getAll().jobs;
+        return { ...this.settings.jobs };
     }
 
     getAudit() {
-        return this.getAll().audit;
+        return { ...this.settings.audit };
     }
 
     getSubscription() {
-        return this.getAll().subscription;
+        return { ...this.settings.subscription };
     }
 
     getAuditIpGeo() {
-        return this.getAll().auditIpGeo;
+        return { ...this.settings.auditIpGeo };
     }
 
     getTelegram() {

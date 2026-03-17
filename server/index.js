@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
+import { randomUUID } from 'crypto';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
@@ -54,6 +55,37 @@ export function createApp(options = {}) {
     app.use(cookieParser());
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+    // ── Request ID ───────────────────────────────────────────
+    app.use((req, res, _next) => {
+        req.id = req.headers['x-request-id'] || randomUUID();
+        res.setHeader('X-Request-Id', req.id);
+        _next();
+    });
+
+    // ── Request Logging ──────────────────────────────────────
+    app.use((req, res, _next) => {
+        const start = Date.now();
+        res.on('finish', () => {
+            const duration = Date.now() - start;
+            // Skip noisy health/check/static asset polling
+            if (req.path === '/api/health' || req.path === '/api/auth/check') return;
+            const level = res.statusCode >= 500 ? 'error' : (res.statusCode >= 400 ? 'warn' : 'log');
+            console[level](
+                `[${req.id?.slice(0, 8)}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
+            );
+        });
+        _next();
+    });
+
+    // ── Health Check ─────────────────────────────────────────
+    app.get('/api/health', (_req, res) => {
+        res.json({
+            status: 'ok',
+            uptime: Math.floor(process.uptime()),
+            env: config.nodeEnv,
+        });
+    });
 
     // ── Rate Limiting ──────────────────────────────────────────
     const apiLimiter = rateLimit({
@@ -143,6 +175,40 @@ process.on('uncaughtException', (err) => {
     setTimeout(() => process.exit(1), 1000);
 });
 
+let activeHttpServer = null;
+
+function setupGracefulShutdown(httpServer) {
+    activeHttpServer = httpServer;
+    let shutdownInProgress = false;
+
+    function shutdown(signal) {
+        if (shutdownInProgress) return;
+        shutdownInProgress = true;
+        console.log(`\n  ⏳ Received ${signal}, shutting down gracefully...`);
+
+        serverHealthMonitor.stop();
+        telegramAlertService.stop();
+        subscriptionExpiryNotifier.stop();
+
+        if (activeHttpServer) {
+            activeHttpServer.close(() => {
+                console.log('  ✅ HTTP server closed');
+                process.exit(0);
+            });
+            // Force exit after 10 seconds if connections don't close
+            setTimeout(() => {
+                console.warn('  ⚠️  Forcing shutdown after timeout');
+                process.exit(1);
+            }, 10_000).unref();
+        } else {
+            process.exit(0);
+        }
+    }
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
 const app = createApp();
 
 export function createHttpServer(options = {}) {
@@ -203,6 +269,8 @@ export async function startServer(options = {}) {
             resolvePromise();
         });
     });
+
+    setupGracefulShutdown(httpServer);
 
     console.log(`\n  🚀 Node Management System (NMS) running on http://localhost:${port}`);
     console.log(`  📦 Environment: ${config.nodeEnv}`);
