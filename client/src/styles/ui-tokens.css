@@ -27,6 +27,16 @@
   --scrollbar-thumb-hover: rgba(148, 163, 184, 0.38);
   
   --theme-transition-duration: 0ms;
+
+  /* Dark theme form & component defaults */
+  --form-focus-bg: rgba(15, 23, 42, 0.8);
+  --btn-danger-hover-text: #ffd9d9;
+  --btn-success-hover-text: #d9ffe6;
+  --table-container-bg: rgba(5, 12, 20, 0.3);
+  --skeleton-from: rgba(145, 161, 181, 0.05);
+  --skeleton-via: rgba(255, 255, 255, 0.08);
+  --skeleton-to: rgba(145, 161, 181, 0.05);
+
   color-scheme: dark;
 }
 
@@ -106,6 +116,16 @@
   --accent-warning-bg: rgba(245, 158, 11, 0.15);
   --accent-danger-bg: rgba(239, 68, 68, 0.15);
   --accent-info-bg: rgba(59, 130, 246, 0.15);
+
+  /* Light theme form & component overrides */
+  --form-focus-bg: #ffffff;
+  --btn-danger-hover-text: #b91c1c;
+  --btn-success-hover-text: #047857;
+  --table-container-bg: rgba(255, 255, 255, 0.82);
+  --skeleton-from: rgba(148, 163, 184, 0.08);
+  --skeleton-via: rgba(148, 163, 184, 0.16);
+  --skeleton-to: rgba(148, 163, 184, 0.08);
+  --bg-card-hover: rgba(248, 250, 252, 0.98);
 
   color-scheme: light;
 }

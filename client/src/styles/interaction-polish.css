@@ -209,7 +209,7 @@
   top: 0;
   z-index: 2;
   background: var(--surface-table-header);
-  box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.12);
+  box-shadow: inset 0 -1px 0 var(--border-color, rgba(148, 163, 184, 0.12));
 }
 
 .table tbody tr {
@@ -309,12 +309,12 @@
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 600;
-  text-align: left;
+  text-align: center;
 }
 
 .empty-state-sub {
   max-width: 48ch;
-  text-align: left;
+  text-align: center;
 }
 
 .empty-state--compact {

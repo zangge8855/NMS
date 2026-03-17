@@ -178,49 +178,49 @@ const SETTINGS_TAB_CONFIG = [
         label: '系统状态',
         icon: HiOutlineChartBarSquare,
         eyebrow: 'Overview',
-        summary: '先看入口、注册、数据库、备份和监控这些关键状态，再进入具体分区处理。',
+        summary: '关键状态一览',
     },
     {
         id: 'access',
         label: '入口与订阅',
         icon: HiOutlineCog6Tooth,
         eyebrow: 'Access',
-        summary: '集中处理真实入口、伪装首页、公开订阅地址，以及注册和邀请码这些面向外部访问的配置。',
+        summary: '入口、订阅、注册配置',
     },
     {
         id: 'policy',
         label: '策略与审计',
         icon: HiOutlineShieldCheck,
         eyebrow: 'Policy',
-        summary: '把批量任务容量、风控确认、审计保留和归属地查询归到同一层，方便统一调整治理策略。',
+        summary: '任务容量、风控、审计',
     },
     {
         id: 'db',
-        label: '数据库与存储',
+        label: '数据与备份',
         icon: HiOutlineCircleStack,
         eyebrow: 'Storage',
-        summary: '查看数据库连接状态，切换读写模式，并决定是否把本地 store 回填到数据库。',
+        summary: '数据库、备份、恢复',
     },
     {
         id: 'backup',
         label: '安全与备份',
         icon: HiOutlineArrowDownTray,
         eyebrow: 'Backup',
-        summary: '管理加密备份、服务器本机留档和恢复流程，同时处理凭据轮换等高风险操作。',
+        summary: '加密备份与凭据轮换',
     },
     {
         id: 'monitor',
-        label: '监控诊断',
+        label: '运维监控',
         icon: HiOutlineServerStack,
-        eyebrow: 'Diagnostics',
-        summary: '集中查看 SMTP 投递状态、连接测试结果和节点健康巡检信息。',
+        eyebrow: 'Ops',
+        summary: '诊断、控制台、巡检',
     },
     {
         id: 'console',
         label: '节点控制台',
         icon: HiOutlineCommandLine,
         eyebrow: 'Console',
-        summary: '在系统设置内嵌视图里直接处理节点控制台相关操作，减少来回切换。',
+        summary: '远程节点操作',
     },
 ];
 
@@ -2466,7 +2466,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="节点控制台"
-                    subtitle="兼容旧的 `/settings?tab=console` 入口，直接在当前页面展开嵌入式节点控制台。"
+                    subtitle="远程节点控制台"
                     actions={(
                         <button
                             type="button"

@@ -394,7 +394,7 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=console' });
 
-        expect(await screen.findByText('嵌入式节点控制台')).toBeInTheDocument();
+        expect(await screen.findByText('远程节点控制台')).toBeInTheDocument();
         expect(screen.getAllByText('节点控制台').length).toBeGreaterThan(0);
     });
 });

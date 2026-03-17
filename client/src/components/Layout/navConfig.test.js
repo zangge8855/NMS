@@ -1,4 +1,4 @@
-import { HiOutlineCog6Tooth, HiOutlineCpuChip, HiOutlineServerStack, HiOutlineSignal } from 'react-icons/hi2';
+import { HiOutlineCog6Tooth, HiOutlineCpuChip, HiOutlineRss, HiOutlineServerStack, HiOutlineSignal, HiOutlineUserCircle } from 'react-icons/hi2';
 import { describe, expect, it } from 'vitest';
 import { getVisibleNavSections, navSections } from './navConfig.js';
 
@@ -33,5 +33,12 @@ describe('navConfig', () => {
         expect(items.find((item) => item.path === '/capabilities')?.icon).toBe(HiOutlineCpuChip);
         expect(items.find((item) => item.path === '/settings')?.icon).toBe(HiOutlineCog6Tooth);
         expect(items.find((item) => item.path === '/servers')?.icon).toBe(HiOutlineServerStack);
+    });
+
+    it('uses distinct icons for account and subscriptions', () => {
+        const items = navSections.flatMap((section) => section.items);
+
+        expect(items.find((item) => item.path === '/account')?.icon).toBe(HiOutlineUserCircle);
+        expect(items.find((item) => item.path === '/subscriptions')?.icon).toBe(HiOutlineRss);
     });
 });

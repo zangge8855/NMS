@@ -4,10 +4,11 @@ import {
     HiOutlineUsers,
     HiOutlineCog6Tooth,
     HiOutlineWrenchScrewdriver,
-    HiOutlineLink,
+    HiOutlineRss,
     HiOutlineSignal,
     HiOutlineCpuChip,
     HiOutlineShieldCheck,
+    HiOutlineUserCircle,
 } from 'react-icons/hi2';
 
 function localize(copy, locale = 'zh-CN') {
@@ -24,8 +25,8 @@ export const navSections = [
             { path: '/inbounds', icon: HiOutlineSignal, label: { 'zh-CN': '入站管理', 'en-US': 'Inbounds' }, supportsGlobal: true, keywords: ['协议', '端口', '流量', 'inbound'] },
             { path: '/clients', icon: HiOutlineUsers, label: { 'zh-CN': '用户管理', 'en-US': 'Users' }, supportsGlobal: true, keywords: ['账号', '用户', '客户端', 'users', 'clients'] },
             { path: '/audit', icon: HiOutlineShieldCheck, label: { 'zh-CN': '审计中心', 'en-US': 'Audit' }, supportsGlobal: true, keywords: ['审计', '日志', '安全', 'audit', '任务', '批量', 'jobs', 'tasks', '操作历史'] },
-            { path: '/account', icon: HiOutlineCog6Tooth, label: { 'zh-CN': '账号', 'en-US': 'Account' }, supportsGlobal: true, userOnly: true, keywords: ['账号', '邮箱', '密码', 'account', 'email', 'password', 'profile'] },
-            { path: '/subscriptions', icon: HiOutlineLink, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, userOnly: true, keywords: ['订阅', 'subscription', '账户', '密码', 'profile'] },
+            { path: '/account', icon: HiOutlineUserCircle, label: { 'zh-CN': '账号', 'en-US': 'Account' }, supportsGlobal: true, userOnly: true, keywords: ['账号', '邮箱', '密码', 'account', 'email', 'password', 'profile'] },
+            { path: '/subscriptions', icon: HiOutlineRss, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, userOnly: true, keywords: ['订阅', 'subscription', '账户', '密码', 'profile'] },
             { path: '/capabilities', icon: HiOutlineCpuChip, label: { 'zh-CN': '3x-ui 能力', 'en-US': '3x-ui Capabilities' }, supportsGlobal: false, keywords: ['能力', '探测', 'capabilities'] },
             { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: { 'zh-CN': '节点工具', 'en-US': 'Node Tools' }, supportsGlobal: false, keywords: ['工具', 'tools'] },
         ],
