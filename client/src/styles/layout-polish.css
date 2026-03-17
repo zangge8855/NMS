@@ -4204,15 +4204,14 @@ p, .empty-state-body, td {
 }
 
 .audit-control-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
-.audit-control-meta .badge {
-  justify-content: center;
-  text-align: center;
+.audit-control-pill {
+  flex: 0 0 auto;
 }
 
 .audit-traffic-overview {
@@ -4243,7 +4242,7 @@ p, .empty-state-body, td {
   }
 
   .audit-control-meta {
-    grid-template-columns: 1fr;
+    justify-content: flex-start;
   }
 
   .inbounds-table td.inbounds-remark-cell {

@@ -129,6 +129,7 @@ const AUDIT_COPY = {
             noAccessSubtitle: '订阅链接访问记录将在此显示',
             noData: '暂无数据',
             maskedUser: '已脱敏用户',
+            redactedUa: '已脱敏 UA',
             total: '共 {count} 条',
         },
         traffic: {
@@ -298,6 +299,7 @@ const AUDIT_COPY = {
             noAccessSubtitle: 'Subscription access records will appear here',
             noData: 'No data',
             maskedUser: 'Masked user',
+            redactedUa: 'Redacted UA',
             total: '{count} total',
         },
         traffic: {
@@ -375,6 +377,8 @@ const AUDIT_COPY = {
         },
     },
 };
+
+const MASKED_AUDIT_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
 function getAuditCopy(locale = 'zh-CN') {
     return AUDIT_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
@@ -666,6 +670,33 @@ function formatAuditLocationCarrier(item) {
         .join(' · ');
 }
 
+function formatAuditUserAgent(value, locale = 'zh-CN', isMasked = false) {
+    const copy = getAuditCopy(locale);
+    const text = String(value || '').trim();
+    if (text) {
+        return MASKED_AUDIT_UA_PATTERN.test(text) ? copy.states.redactedUa : text;
+    }
+    if (isMasked) return copy.states.redactedUa;
+    return '-';
+}
+
+function sanitizeAuditDetailPayload(payload, locale = 'zh-CN') {
+    if (Array.isArray(payload)) {
+        return payload.map((item) => sanitizeAuditDetailPayload(item, locale));
+    }
+    if (!payload || typeof payload !== 'object') {
+        return typeof payload === 'string' && MASKED_AUDIT_UA_PATTERN.test(payload)
+            ? getAuditCopy(locale).states.redactedUa
+            : payload;
+    }
+
+    const next = { ...payload };
+    Object.keys(next).forEach((key) => {
+        next[key] = sanitizeAuditDetailPayload(next[key], locale);
+    });
+    return next;
+}
+
 function buildAuditSourceSummary(item) {
     const parts = [];
     const ip = String(item?.ip || '').trim();
@@ -775,7 +806,7 @@ function AuditAccessMobileList({ items = [], copy, locale }) {
                             </div>
                             <div className="audit-mobile-card-item audit-mobile-card-item--full">
                                 <span className="audit-mobile-card-label">{copy.tables.ua}</span>
-                                <span className="audit-mobile-card-value">{item.userAgent || '-'}</span>
+                                <span className="audit-mobile-card-value">{formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true)}</span>
                             </div>
                         </div>
                     </div>
@@ -1115,17 +1146,7 @@ export default function AuditCenter() {
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
                             <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
-                                <div className="audit-control-head">
-                                    <div className="audit-control-meta">
-                                        <span className="badge badge-neutral">
-                                            {copy.states.total.replace('{count}', String(eventsData.total || 0))}
-                                        </span>
-                                        <span className="badge badge-neutral">
-                                            {activeEventFilterCount > 0
-                                                ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                                                : copy.workspace.noFilters}
-                                        </span>
-                                    </div>
+                                <div className="audit-control-head audit-control-head--compact">
                                     <div className="audit-control-actions">
                                         <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
                                             <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
@@ -1137,6 +1158,16 @@ export default function AuditCenter() {
                                             <HiOutlineTrash /> {copy.actions.clear}
                                         </button>
                                     </div>
+                                </div>
+                                <div className="audit-control-meta audit-control-meta--compact">
+                                    <span className="audit-control-pill">
+                                        {copy.states.total.replace('{count}', String(eventsData.total || 0))}
+                                    </span>
+                                    <span className={`audit-control-pill ${activeEventFilterCount > 0 ? 'is-active' : ''}`}>
+                                        {activeEventFilterCount > 0
+                                            ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
+                                            : copy.workspace.noFilters}
+                                    </span>
                                 </div>
                                 <div className="audit-filter-grid audit-filter-grid--events">
                                     <input
@@ -1470,17 +1501,7 @@ export default function AuditCenter() {
                 {tab === 'subscriptions' && (
                     <>
                         <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
-                            <div className="audit-control-head">
-                                <div className="audit-control-meta">
-                                    <span className="badge badge-neutral">
-                                        {copy.states.total.replace('{count}', String(accessData.total || 0))}
-                                    </span>
-                                    <span className="badge badge-neutral">
-                                        {activeAccessFilterCount > 0
-                                            ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                                            : copy.workspace.noFilters}
-                                    </span>
-                                </div>
+                            <div className="audit-control-head audit-control-head--compact">
                                 <div className="audit-control-actions">
                                     <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
                                         <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
@@ -1489,6 +1510,16 @@ export default function AuditCenter() {
                                         <HiOutlineTrash /> {copy.actions.clear}
                                     </button>
                                 </div>
+                            </div>
+                            <div className="audit-control-meta audit-control-meta--compact">
+                                <span className="audit-control-pill">
+                                    {copy.states.total.replace('{count}', String(accessData.total || 0))}
+                                </span>
+                                <span className={`audit-control-pill ${activeAccessFilterCount > 0 ? 'is-active' : ''}`}>
+                                    {activeAccessFilterCount > 0
+                                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
+                                        : copy.workspace.noFilters}
+                                </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <input
@@ -1592,7 +1623,9 @@ export default function AuditCenter() {
                                                         {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
                                                     </div>
                                                 </td>
-                                                <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>{item.userAgent || '-'}</td>
+                                                <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>
+                                                    {formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true)}
+                                                </td>
                                             </tr>
                                             );
                                         })}
@@ -1714,7 +1747,7 @@ export default function AuditCenter() {
                             <div>
                                 <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.payload}</div>
                                 <pre className="log-viewer log-viewer-compact">
-                                    {JSON.stringify(selectedEvent.details || {}, null, 2)}
+                                    {JSON.stringify(sanitizeAuditDetailPayload(selectedEvent.details || {}, locale), null, 2)}
                                 </pre>
                             </div>
                         </div>

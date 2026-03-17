@@ -7166,7 +7166,7 @@ body::before {
 
 .servers-mobile-meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 
@@ -8037,6 +8037,11 @@ body::before {
   gap: 14px;
 }
 
+.audit-control-head--compact {
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .audit-control-head .audit-control-meta {
   flex: 1 1 320px;
   min-width: 0;
@@ -8069,19 +8074,36 @@ body::before {
 }
 
 .audit-control-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
-.audit-control-meta .badge {
+.audit-control-meta--compact {
+  margin-top: -2px;
+}
+
+.audit-control-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  width: 100%;
-  text-align: center;
+  justify-content: flex-start;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.audit-control-pill.is-active {
+  border-color: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-primary);
 }
 
 .audit-filter-grid {
@@ -15210,7 +15232,7 @@ input[type="radio"]:focus-visible {
   }
 
   .audit-control-meta {
-    grid-template-columns: 1fr;
+    justify-content: flex-start;
   }
 
   .audit-control-actions {

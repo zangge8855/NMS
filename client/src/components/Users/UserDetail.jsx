@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
@@ -15,9 +15,11 @@ import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.js
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { useServer } from '../../contexts/ServerContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
 import {
     HiOutlineArrowLeft,
     HiOutlineClipboard,
@@ -515,10 +517,16 @@ export default function UserDetail() {
     const { locale, t } = useI18n();
     const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const { servers, loading: serversLoading } = useServer();
     const { userId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
+    const clientRequestIdRef = useRef(0);
+    const serverInventoryKey = useMemo(
+        () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
+        [servers]
+    );
 
     const [loading, setLoading] = useState(true);
     const [detail, setDetail] = useState(null);
@@ -627,52 +635,61 @@ export default function UserDetail() {
     };
 
     const fetchClients = async () => {
+        const requestId = clientRequestIdRef.current + 1;
+        clientRequestIdRef.current = requestId;
         if (!detail?.user?.subscriptionEmail && !detail?.user?.email) {
+            if (requestId !== clientRequestIdRef.current) return;
             setClientData([]);
             setClientsFetched(true);
             return;
         }
         setClientsLoading(true);
         try {
-            // Fetch all server inbounds to find this user's clients
-            const serversRes = await api.get('/servers');
-            const servers = serversRes.data?.obj || [];
+            if (servers.length === 0) {
+                if (requestId !== clientRequestIdRef.current) return;
+                setClientData([]);
+                setClientsFetched(true);
+                setClientsLoading(false);
+                return;
+            }
             const email = (detail.user.subscriptionEmail || detail.user.email || '').toLowerCase();
             const clients = [];
+            const serverResults = await fetchServerPanelData(api, servers, { includeOnlines: false });
+            if (requestId !== clientRequestIdRef.current) return;
 
-            await Promise.all(servers.map(async (server) => {
-                try {
-                    const ibRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
-                    const inbounds = ibRes.data?.obj || [];
-                    for (const ib of inbounds) {
-                        const ibClients = mergeInboundClientStats(ib);
-                        if (ibClients.length === 0) continue;
-                        const protocol = String(ib.protocol || '').toLowerCase();
-                        for (const cl of ibClients) {
-                            if ((cl.email || '').toLowerCase() === email) {
-                                clients.push({
-                                    serverId: server.id,
-                                    serverName: server.name,
-                                    inboundId: ib.id,
-                                    inboundRemark: ib.remark || '',
-                                    email: cl.email || email,
-                                    protocol,
-                                    port: ib.port,
-                                    up: Number(cl.up) || 0,
-                                    down: Number(cl.down) || 0,
-                                    expiryTime: Number(cl.expiryTime) || 0,
-                                    enable: cl.enable !== false,
-                                });
-                            }
-                        }
-                    }
-                } catch {}
-            }));
+            serverResults.forEach((result) => {
+                const server = result.server;
+                const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+                inbounds.forEach((ib) => {
+                    const ibClients = mergeInboundClientStats(ib);
+                    if (ibClients.length === 0) return;
+                    const protocol = String(ib.protocol || '').toLowerCase();
+                    ibClients.forEach((cl) => {
+                        if ((cl.email || '').toLowerCase() !== email) return;
+                        clients.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: ib.id,
+                            inboundRemark: ib.remark || '',
+                            email: cl.email || email,
+                            protocol,
+                            port: ib.port,
+                            up: Number(cl.up) || 0,
+                            down: Number(cl.down) || 0,
+                            expiryTime: Number(cl.expiryTime) || 0,
+                            enable: cl.enable !== false,
+                        });
+                    });
+                });
+            });
 
+            if (requestId !== clientRequestIdRef.current) return;
             setClientData(clients);
         } catch {
+            if (requestId !== clientRequestIdRef.current) return;
             setClientData([]);
         }
+        if (requestId !== clientRequestIdRef.current) return;
         setClientsFetched(true);
         setClientsLoading(false);
     };
@@ -683,8 +700,16 @@ export default function UserDetail() {
         setSubscriptionResult(null);
         setSubscriptionFetched(false);
         setClientIpSupportByServer({});
+        clientRequestIdRef.current += 1;
         fetchDetail();
     }, [userId]);
+
+    useEffect(() => {
+        if (!detail) return;
+        setClientData([]);
+        setClientsFetched(false);
+        clientRequestIdRef.current += 1;
+    }, [detail?.user?.id, serverInventoryKey]);
 
     useEffect(() => {
         const nextTab = normalizeDetailTab(searchParams.get('tab'));
@@ -693,10 +718,11 @@ export default function UserDetail() {
 
     useEffect(() => {
         if (!detail) return;
+        if (serversLoading) return;
         if (!clientsFetched && !clientsLoading && (activeTab === 'overview' || activeTab === 'clients')) {
             fetchClients();
         }
-    }, [detail, activeTab, clientsFetched, clientsLoading]);
+    }, [detail, activeTab, clientsFetched, clientsLoading, serversLoading, serverInventoryKey]);
 
     useEffect(() => {
         if (!detail) return;
@@ -708,7 +734,8 @@ export default function UserDetail() {
     const user = detail?.user;
     const recentAudit = detail?.recentAudit?.items || [];
     const subscriptionAccess = detail?.subscriptionAccess?.items || [];
-    const clientSummaryLoading = !!detail && clientsLoading && clientData.length === 0;
+    const clientsPanelLoading = !!detail && clientData.length === 0 && (clientsLoading || (serversLoading && !clientsFetched));
+    const clientSummaryLoading = clientsPanelLoading && (activeTab === 'overview' || activeTab === 'clients');
 
     // Merge audit + subscription access into timeline
     const timeline = useMemo(() => {
@@ -1354,7 +1381,7 @@ export default function UserDetail() {
                                 {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
                                     <div className="text-xs text-muted mb-3">{copy.labels.clientIpNotice}</div>
                                 )}
-                                {clientsLoading ? (
+                                {clientsPanelLoading ? (
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
                                     <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />

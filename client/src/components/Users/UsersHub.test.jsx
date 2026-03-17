@@ -5,6 +5,7 @@ import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import { invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
+import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import UsersHub from './UsersHub.jsx';
 
 vi.mock('../../api/client.js', () => ({
@@ -74,6 +75,7 @@ describe('UsersHub ordering', () => {
     beforeEach(() => {
         consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         invalidateManagedUsersCache();
+        invalidateServerPanelDataCache();
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
@@ -239,15 +241,68 @@ describe('UsersHub ordering', () => {
         const aliceRow = aliceCell.closest('tr');
         if (!aliceRow) throw new Error('Missing Alice row');
 
-        expect(within(aliceRow).getByText('alice@example.com')).toBeInTheDocument();
-        expect(within(aliceRow).getByText('↑10 B')).toBeInTheDocument();
-        expect(within(aliceRow).getByText('↓20 B')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(within(aliceRow).getByText('alice@example.com')).toBeInTheDocument();
+            expect(within(aliceRow).getByText('↑10 B')).toBeInTheDocument();
+            expect(within(aliceRow).getByText('↓20 B')).toBeInTheDocument();
+        });
         expect(within(aliceRow).queryByText(/ID user-a/i)).not.toBeInTheDocument();
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
         expect(within(aliceRow).getByText('1 会话')).toBeInTheDocument();
         expect(within(aliceRow).getByRole('button', { name: '详情' })).toBeInTheDocument();
         expect(within(aliceRow).queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
         expect(within(aliceRow).queryByText('订阅链接')).not.toBeInTheDocument();
+    });
+
+    it('renders the base user list before node stats finish loading', async () => {
+        let releaseInbounds;
+        const inboundsDeferred = new Promise((resolve) => {
+            releaseInbounds = resolve;
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-a',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                            enabled: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return inboundsDeferred;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const aliceCell = await screen.findByText('alice');
+        const aliceRow = aliceCell.closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+
+        await waitFor(() => {
+            expect(aliceRow.textContent).toContain('同步中');
+            expect(screen.getByText(/节点统计同步中/i)).toBeInTheDocument();
+        });
+
+        releaseInbounds({
+            data: {
+                obj: [],
+            },
+        });
+        api.post.mockResolvedValueOnce({ data: { obj: [] } });
+
+        await waitFor(() => {
+            expect(screen.queryByText(/节点统计同步中/i)).not.toBeInTheDocument();
+        });
     });
 
     it('switches to stacked mobile cards on narrow screens', async () => {
@@ -310,8 +365,10 @@ describe('UsersHub ordering', () => {
         expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(document.querySelector('.users-mobile-card')).toBeTruthy();
         expect(document.querySelector('.users-table')).toBeFalsy();
-        expect(screen.getByText('alice@example.com')).toBeInTheDocument();
-        expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+            expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
+        });
         expect(screen.getByRole('button', { name: '详情' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
     });
@@ -365,8 +422,10 @@ describe('UsersHub ordering', () => {
         renderWithRouter(<UsersHub />);
 
         expect(await screen.findByText('alice')).toBeInTheDocument();
-        expect(screen.getByText('节点数据已降级显示')).toBeInTheDocument();
-        expect(screen.getByText(/入站配置失败: Node A/)).toBeInTheDocument();
-        expect(screen.getByText(/在线状态失败: Node A/)).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('节点数据已降级显示')).toBeInTheDocument();
+            expect(screen.getByText(/入站配置失败: Node A/)).toBeInTheDocument();
+            expect(screen.getByText(/在线状态失败: Node A/)).toBeInTheDocument();
+        });
     });
 });

@@ -225,7 +225,7 @@ describe('AuditCenter localization', () => {
                                     status: 'success',
                                     clientIp: '203.0.113.8',
                                     ipSource: 'real',
-                                    userAgent: 'Clash',
+                                    userAgent: 'ua_1234567890abcdef',
                                 },
                             ],
                             total: 1,
@@ -261,7 +261,9 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
 
         expect(await screen.findByText('已脱敏用户')).toBeInTheDocument();
+        expect(screen.getByText('已脱敏 UA')).toBeInTheDocument();
         expect(screen.queryByText('dd43f8a31ad7ff43@masked.local')).not.toBeInTheDocument();
+        expect(screen.queryByText('ua_1234567890abcdef')).not.toBeInTheDocument();
     });
 
     it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {

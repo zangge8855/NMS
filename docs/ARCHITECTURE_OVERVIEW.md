@@ -34,6 +34,7 @@ NMS 由三层组成：
 - 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
 - 系统设置与邀请码：`routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
+- Telegram 通知与汇总：`lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`
 
 ### 存储模式
 
@@ -55,10 +56,9 @@ NMS 由三层组成：
 ### 前端信息架构
 
 - Layout：Sidebar + Header + Content
-- 监控：Dashboard（含快捷运维入口）
-- 管理：Inbounds、Users、Audit、3x-ui Capabilities、Node Tools
+- 管理：Dashboard、Inbounds、Users、Audit、3x-ui Capabilities、Node Tools
 - 运维：Settings、Servers
-- 系统工作台：Settings 内包含系统参数、数据库、备份、监控诊断和 Node Console
+- 系统工作台：Settings 内包含对外访问、安全审计、运维通知、数据备份，以及独立的系统状态与 Node Console
 - 用户自助：Subscriptions
 
 ### 安全边界
@@ -75,7 +75,16 @@ NMS 由三层组成：
 
 - WebSocket 用于受控实时能力，连接前先通过 ticket 授权
 - `serverHealthMonitor` 在后台持续采样节点状态
+- `telegramAlertService` 负责结构化通知投递、命令菜单同步、周期摘要与重复事件聚合
 - 批量任务与日志、流量统计都具有独立保留策略
+
+### 前端加载策略
+
+- `Dashboard` 首屏优先使用 WebSocket / 集群状态快照，只有在展开更重的在线明细时才补充跨节点扫描
+- `Users` 先渲染基础账号表，再后台同步节点统计，避免整页阻塞在全量面板请求上
+- `User Detail` 与 `Users` 共享节点面板缓存，减少同一批节点被重复扫描
+- 通知中心首屏只拉轻量预览与未读数，完整列表在用户展开通知面板后再补齐
+- `Settings` 按当前工作区分组惰性加载依赖状态，而不是在首次进入时一次性请求全部系统诊断数据
 
 ### 推荐扩展方式
 
@@ -117,6 +126,7 @@ NMS is built from three layers:
 - Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
 - Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
 - System settings and invite codes: `routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
+- Telegram notifications and digests: `lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`
 
 ### Storage modes
 
@@ -138,10 +148,9 @@ Related environment variables:
 ### Frontend information architecture
 
 - Layout: Sidebar + Header + Content
-- Monitor: Dashboard with quick operations
-- Manage: Inbounds, Users, Audit, 3x-ui Capabilities, Node Tools
+- Manage: Dashboard, Inbounds, Users, Audit, 3x-ui Capabilities, Node Tools
 - Operate: Settings, Servers
-- System workbench: `Settings` includes basic system parameters, database, backup, diagnostics, and the embedded Node Console
+- System workbench: `Settings` now groups external access, security audit, operations notifications, data backup, plus a separate system-status tab and the embedded Node Console
 - End-user self-service: Subscriptions
 
 ### Security boundaries
@@ -158,7 +167,16 @@ Related environment variables:
 
 - WebSocket features use ticket-based authorization
 - `serverHealthMonitor` samples server health in the background
+- `telegramAlertService` handles structured Telegram delivery, command-menu sync, periodic digests, and repeated-event aggregation
 - Batch jobs, audit records, and traffic stats each have dedicated retention controls
+
+### Frontend loading strategy
+
+- `Dashboard` prefers WebSocket or cached cluster snapshots on first paint, and only hydrates heavier online detail when the operator opens it
+- `Users` renders the base account table first and then syncs node statistics in the background
+- `User Detail` reuses the same server-panel cache path as `Users` to avoid rescanning the same nodes
+- The notification center fetches only unread count and a lightweight preview first, and expands into a fuller list only when the bell is opened
+- `Settings` lazily loads per-workspace diagnostics instead of fetching every system status block on first open
 
 ### Preferred extension pattern
 

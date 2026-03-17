@@ -107,13 +107,14 @@ export default function NotificationBell() {
     const ref = useRef(null);
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
-    const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+    const { notifications, unreadCount, markRead, markAllRead, ensureExpandedNotifications } = useNotifications();
     const { locale } = useI18n();
     const copy = getNotificationCopy(locale);
 
     // 点击外部关闭
     useEffect(() => {
         if (!open) return;
+        void ensureExpandedNotifications();
         const handler = (e) => {
             const clickedInsideTrigger = ref.current?.contains(e.target);
             const clickedInsideDropdown = dropdownRef.current?.contains(e.target);
@@ -121,7 +122,7 @@ export default function NotificationBell() {
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
+    }, [open, ensureExpandedNotifications]);
 
     const computeDropdownPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
         const viewportPadding = 12;

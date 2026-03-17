@@ -269,17 +269,7 @@ export default function Tasks({ embedded = false }) {
                 <div className={filterCardClassName}>
                     {embedded ? (
                         <>
-                            <div className="audit-control-head">
-                                <div className="audit-control-meta">
-                                    <span className="badge badge-neutral">
-                                        {copy.total.replace('{count}', String(filteredTasks.length))}
-                                    </span>
-                                    <span className="badge badge-neutral">
-                                        {activeTaskFilterCount > 0
-                                            ? copy.filtersActive.replace('{count}', String(activeTaskFilterCount))
-                                            : copy.noFilters}
-                                    </span>
-                                </div>
+                            <div className="audit-control-head audit-control-head--compact">
                                 <div className="audit-control-actions">
                                     <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
                                         <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
@@ -288,6 +278,16 @@ export default function Tasks({ embedded = false }) {
                                         <HiOutlineTrash /> {copy.clear}
                                     </button>
                                 </div>
+                            </div>
+                            <div className="audit-control-meta audit-control-meta--compact">
+                                <span className="audit-control-pill">
+                                    {copy.total.replace('{count}', String(filteredTasks.length))}
+                                </span>
+                                <span className={`audit-control-pill ${activeTaskFilterCount > 0 ? 'is-active' : ''}`}>
+                                    {activeTaskFilterCount > 0
+                                        ? copy.filtersActive.replace('{count}', String(activeTaskFilterCount))
+                                        : copy.noFilters}
+                                </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--tasks">
                                 <select className={filterSelectClassName} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>

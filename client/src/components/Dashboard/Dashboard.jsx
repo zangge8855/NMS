@@ -33,6 +33,7 @@ import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { fetchManagedUsers } from '../../utils/managedUsersCache.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
+const GLOBAL_WS_GRACE_MS = 500;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const MAX_NODE_TREND_POINTS = 12;
@@ -632,6 +633,9 @@ export default function Dashboard() {
     const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]);
     const [globalOnlineSessionCount, setGlobalOnlineSessionCount] = useState(0);
     const [globalAccountSummary, setGlobalAccountSummary] = useState({ totalUsers: 0, pendingUsers: 0 });
+    const [hasLiveClusterSnapshot, setHasLiveClusterSnapshot] = useState(false);
+    const [globalPresenceLoading, setGlobalPresenceLoading] = useState(false);
+    const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -653,6 +657,19 @@ export default function Dashboard() {
         () => summarizeClusterThroughput(serverTrendHistory),
         [serverTrendHistory]
     );
+
+    const fetchGlobalAccountSummary = useCallback(async (options = {}) => {
+        try {
+            const users = await fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []);
+            const rows = Array.isArray(users) ? users.filter((item) => item?.role !== 'admin') : [];
+            setGlobalAccountSummary({
+                totalUsers: rows.length,
+                pendingUsers: rows.filter((item) => item?.enabled === false).length,
+            });
+        } catch {
+            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
+        }
+    }, []);
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!token) {
@@ -720,6 +737,7 @@ export default function Dashboard() {
         const activeInbounds = Number.isFinite(Number(data.activeInbounds))
             ? Number(data.activeInbounds)
             : derivedActiveInbounds;
+        setHasLiveClusterSnapshot(true);
         setServerStatuses((previous) => {
             const next = {};
             Object.entries(statusMap).forEach(([serverId, serverData]) => {
@@ -734,10 +752,10 @@ export default function Dashboard() {
             return next;
         });
         setServerTrendHistory((previous) => pushServerTrendSamples(previous, statusMap));
-        setGlobalStats((previous) => ({
-            totalUp: previous.totalUp || 0,
-            totalDown: previous.totalDown || 0,
-            totalOnline: previous.totalOnline || 0,
+        setGlobalStats(() => ({
+            totalUp: Number(data.totalUp || 0),
+            totalDown: Number(data.totalDown || 0),
+            totalOnline: Number(data.totalOnline || 0),
             totalInbounds,
             activeInbounds,
             serverCount: data.serverCount || 0,
@@ -793,6 +811,7 @@ export default function Dashboard() {
             setGlobalOnlineUsers([]);
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
+            setGlobalPresenceReady(true);
             setLoading(false);
             return;
         }
@@ -863,34 +882,131 @@ export default function Dashboard() {
                 totalUsers: presence.rows.length,
                 pendingUsers: presence.pendingCount,
             });
+            setGlobalPresenceReady(true);
         } catch (err) {
             console.error('Global fetch error:', err);
             setGlobalOnlineUsers([]);
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
+            setGlobalPresenceReady(false);
         }
         setLoading(false);
+    }, [servers]);
+
+    const hydrateGlobalPresence = useCallback(async (options = {}) => {
+        if (servers.length === 0) {
+            setGlobalOnlineUsers([]);
+            setGlobalOnlineSessionCount(0);
+            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
+            setGlobalPresenceReady(true);
+            return;
+        }
+
+        setGlobalPresenceLoading(true);
+        try {
+            const users = await fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []);
+            const serverPayloads = await Promise.all(
+                servers.map(async (server) => {
+                    try {
+                        const [inboundsRes, onlineRes] = await Promise.all([
+                            api.get(`/panel/${server.id}/panel/api/inbounds/list`),
+                            api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
+                        ]);
+                        return {
+                            server,
+                            inbounds: Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [],
+                            onlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
+                        };
+                    } catch {
+                        return {
+                            server,
+                            inbounds: [],
+                            onlines: [],
+                        };
+                    }
+                })
+            );
+
+            const presence = buildManagedOnlineSummary(
+                Array.isArray(users) ? users : [],
+                serverPayloads.map((item) => ({
+                    inbounds: item.inbounds,
+                    onlines: item.onlines,
+                    serverName: item.server.name,
+                }))
+            );
+
+            setGlobalOnlineUsers(presence.onlineRows);
+            setGlobalOnlineSessionCount(presence.onlineSessionCount);
+            setGlobalAccountSummary({
+                totalUsers: presence.rows.length,
+                pendingUsers: presence.pendingCount,
+            });
+            setGlobalPresenceReady(true);
+            setServerStatuses((previous) => {
+                const next = { ...previous };
+                serverPayloads.forEach((item) => {
+                    const current = previous?.[item.server.id] || {};
+                    next[item.server.id] = withServerRemarkMeta({
+                        ...current,
+                        name: current.name || item.server.name,
+                        rawInbounds: item.inbounds,
+                        rawOnlines: item.onlines,
+                    }, item.server.name);
+                });
+                return next;
+            });
+        } catch (err) {
+            console.error('Global presence hydration error:', err);
+            setGlobalOnlineUsers([]);
+            setGlobalOnlineSessionCount(0);
+            setGlobalPresenceReady(false);
+        }
+        setGlobalPresenceLoading(false);
     }, [servers]);
 
     useEffect(() => {
         setLoading(true);
         if (activeServerId === 'global') {
-            // Initial load via REST, then WebSocket takes over.
-            fetchGlobalData();
-            return;
+            fetchGlobalAccountSummary();
+            if (hasLiveClusterSnapshot) {
+                setLoading(false);
+                return;
+            }
+            const timer = window.setTimeout(() => {
+                if (!hasLiveClusterSnapshot) {
+                    fetchGlobalData();
+                }
+            }, GLOBAL_WS_GRACE_MS);
+            return () => window.clearTimeout(timer);
         }
         if (activeServerId) {
+            setHasLiveClusterSnapshot(false);
             fetchSingleData();
             return;
         }
+        setHasLiveClusterSnapshot(false);
         setLoading(false);
-    }, [activeServerId, fetchSingleData, fetchGlobalData]);
+    }, [activeServerId, fetchSingleData, fetchGlobalAccountSummary, fetchGlobalData, hasLiveClusterSnapshot]);
+
+    useEffect(() => {
+        if (activeServerId !== 'global') return;
+        if (!showOnlineDetail) return;
+        if (globalPresenceLoading) return;
+        if (globalPresenceReady) return;
+        hydrateGlobalPresence();
+    }, [activeServerId, globalPresenceLoading, globalPresenceReady, hydrateGlobalPresence, showOnlineDetail]);
 
     useEffect(() => {
         if (!autoRefresh) return undefined;
         const interval = setInterval(() => {
             if (activeServerId === 'global') {
-                if (wsStatus === 'connected') return;
+                if (wsStatus === 'connected') {
+                    if (showOnlineDetail) {
+                        hydrateGlobalPresence();
+                    }
+                    return;
+                }
                 fetchGlobalData();
                 return;
             }
@@ -899,9 +1015,21 @@ export default function Dashboard() {
             }
         }, AUTO_REFRESH_INTERVAL);
         return () => clearInterval(interval);
-    }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, wsStatus]);
+    }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, showOnlineDetail, wsStatus]);
 
-    const refresh = () => activeServerId === 'global' ? fetchGlobalData() : fetchSingleData();
+    const refresh = () => {
+        if (activeServerId !== 'global') {
+            return fetchSingleData();
+        }
+        if (wsStatus === 'connected') {
+            const summaryTask = fetchGlobalAccountSummary({ forceUsers: true });
+            if (showOnlineDetail) {
+                return hydrateGlobalPresence({ forceUsers: true });
+            }
+            return summaryTask;
+        }
+        return fetchGlobalData();
+    };
     const toggleAutoRefresh = () => {
         setAutoRefresh((previous) => {
             const next = !previous;

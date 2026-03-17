@@ -594,17 +594,17 @@ describe('Dashboard', () => {
             renderWithRouter(<Dashboard />, { route: '/' });
             await waitFor(() => {
                 expect(userFetches).toBe(1);
-                expect(statusFetches).toBe(1);
+                expect(statusFetches).toBe(0);
             });
 
             expect(userFetches).toBe(1);
-            expect(statusFetches).toBe(1);
+            expect(statusFetches).toBe(0);
             expect(intervalCallbacks.length).toBeGreaterThan(0);
 
             intervalCallbacks[0]();
 
             expect(userFetches).toBe(1);
-            expect(statusFetches).toBe(1);
+            expect(statusFetches).toBe(0);
         } finally {
             setIntervalSpy.mockRestore();
             clearIntervalSpy.mockRestore();

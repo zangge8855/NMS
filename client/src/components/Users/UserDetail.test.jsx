@@ -2,6 +2,7 @@ import React from 'react';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
+import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import UserDetail from './UserDetail.jsx';
 
@@ -12,6 +13,10 @@ vi.mock('../../api/client.js', () => ({
         post: vi.fn(),
         delete: vi.fn(),
     },
+}));
+
+vi.mock('../../contexts/ServerContext.jsx', () => ({
+    useServer: vi.fn(),
 }));
 
 vi.mock('../../contexts/ConfirmContext.jsx', () => ({
@@ -85,6 +90,11 @@ describe('UserDetail', () => {
         api.put.mockReset();
         api.post.mockReset();
         api.delete.mockReset();
+        useServer.mockReset();
+        useServer.mockReturnValue({
+            servers: [],
+            loading: false,
+        });
         mockMatchMedia(false);
 
         api.get.mockImplementation((url) => {
@@ -286,13 +296,6 @@ describe('UserDetail', () => {
                     },
                 });
             }
-            if (url === '/servers') {
-                return Promise.resolve({
-                    data: {
-                        obj: [],
-                    },
-                });
-            }
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -331,6 +334,10 @@ describe('UserDetail', () => {
 
     it('switches the node list to compact cards on mobile', async () => {
         mockMatchMedia(true);
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-1', name: 'Tokyo Node' }],
+            loading: false,
+        });
 
         api.get.mockImplementation((url) => {
             if (url === '/users/user-1/detail') {
@@ -354,13 +361,6 @@ describe('UserDetail', () => {
                             subscriptionAccess: { items: [], total: 0 },
                             tokens: [],
                         },
-                    },
-                });
-            }
-            if (url === '/servers') {
-                return Promise.resolve({
-                    data: {
-                        obj: [{ id: 'server-1', name: 'Tokyo Node' }],
                     },
                 });
             }

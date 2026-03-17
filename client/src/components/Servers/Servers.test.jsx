@@ -128,6 +128,9 @@ describe('Servers', () => {
         expect(within(mobileCard).getByText('新加坡边缘节点')).toBeInTheDocument();
         expect(within(mobileCard).getByText('账号')).toBeInTheDocument();
         expect(within(mobileCard).getByRole('button', { name: '详情' })).toBeInTheDocument();
+        expect(within(mobileCard).queryByText('https://panel.example.com/xui')).not.toBeInTheDocument();
+        expect(within(mobileCard).queryByText('/xui')).not.toBeInTheDocument();
+        expect(within(mobileCard).queryByText('环境')).not.toBeInTheDocument();
     });
 
     it('hides the placeholder environment label when environment is unknown', async () => {

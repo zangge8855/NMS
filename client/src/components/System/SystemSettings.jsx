@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
@@ -483,6 +483,15 @@ export default function SystemSettings() {
         subscriptionDays: 30,
     });
     const [consoleExpanded, setConsoleExpanded] = useState(() => requestedView === 'console');
+    const lazyLoadRef = useRef({
+        settings: false,
+        dbStatus: false,
+        emailStatus: false,
+        backupStatus: false,
+        monitorStatus: false,
+        registrationRuntime: false,
+        inviteCodes: false,
+    });
     const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
@@ -707,14 +716,71 @@ export default function SystemSettings() {
             setLoading(false);
             return;
         }
+        if (lazyLoadRef.current.settings) return;
+        lazyLoadRef.current.settings = true;
         fetchSettings();
-        fetchDbStatus({ quiet: true });
-        fetchEmailStatus({ quiet: true });
-        fetchBackupStatus({ quiet: true });
-        fetchMonitorStatus({ quiet: true });
-        fetchRegistrationRuntime();
-        fetchInviteCodes({ quiet: true });
     }, [isAdmin]);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        const ensureDbStatus = () => {
+            if (lazyLoadRef.current.dbStatus) return;
+            lazyLoadRef.current.dbStatus = true;
+            fetchDbStatus({ quiet: true });
+        };
+        const ensureEmailStatus = () => {
+            if (lazyLoadRef.current.emailStatus) return;
+            lazyLoadRef.current.emailStatus = true;
+            fetchEmailStatus({ quiet: true });
+        };
+        const ensureBackupStatus = () => {
+            if (lazyLoadRef.current.backupStatus) return;
+            lazyLoadRef.current.backupStatus = true;
+            fetchBackupStatus({ quiet: true });
+        };
+        const ensureMonitorStatus = () => {
+            if (lazyLoadRef.current.monitorStatus) return;
+            lazyLoadRef.current.monitorStatus = true;
+            fetchMonitorStatus({ quiet: true });
+        };
+        const ensureRegistrationRuntime = () => {
+            if (lazyLoadRef.current.registrationRuntime) return;
+            lazyLoadRef.current.registrationRuntime = true;
+            fetchRegistrationRuntime();
+        };
+        const ensureInviteCodes = () => {
+            if (lazyLoadRef.current.inviteCodes) return;
+            lazyLoadRef.current.inviteCodes = true;
+            fetchInviteCodes({ quiet: true });
+        };
+
+        if (activeWorkspaceSectionId === 'status') {
+            ensureRegistrationRuntime();
+            ensureDbStatus();
+            ensureEmailStatus();
+            ensureBackupStatus();
+            ensureMonitorStatus();
+            return;
+        }
+
+        if (activeWorkspaceSectionId === 'access') {
+            ensureRegistrationRuntime();
+            ensureInviteCodes();
+            return;
+        }
+
+        if (activeWorkspaceSectionId === 'backup') {
+            ensureDbStatus();
+            ensureBackupStatus();
+            return;
+        }
+
+        if (activeWorkspaceSectionId === 'operations') {
+            ensureEmailStatus();
+            ensureMonitorStatus();
+        }
+    }, [activeWorkspaceSectionId, isAdmin]);
 
     useEffect(() => {
         if (requestedView === 'console') {

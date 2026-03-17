@@ -708,7 +708,6 @@ export default function Servers() {
                     >
                         {server.name}
                     </button>
-                    <div className="servers-mobile-url">{getPanelUrl(server)}</div>
                 </div>
 
                 <div className="servers-mobile-badges">
@@ -724,12 +723,6 @@ export default function Servers() {
                         <span className="servers-mobile-meta-label">账号</span>
                         <span className="servers-mobile-meta-value">{server.username}</span>
                     </div>
-                    {serverEnvironment ? (
-                        <div className="servers-mobile-meta-item">
-                            <span className="servers-mobile-meta-label">环境</span>
-                            <span className="servers-mobile-meta-value">{serverEnvironment}</span>
-                        </div>
-                    ) : null}
                 </div>
 
                 {serverTags.length > 0 ? (

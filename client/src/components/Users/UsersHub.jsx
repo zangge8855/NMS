@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -13,6 +13,7 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import { fetchManagedUsers, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
+import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -149,6 +150,21 @@ function getOnlineStatus(clientCount, sessions) {
     };
 }
 
+function getSyncingBadgeCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            status: 'Syncing',
+            detail: 'Refreshing node stats',
+            summary: 'Refreshing node stats...',
+        };
+    }
+    return {
+        status: '同步中',
+        detail: '正在刷新节点统计',
+        summary: '节点统计同步中...',
+    };
+}
+
 function compareUsersFallback(a, b) {
     const order = { pending: 0, enabled: 1, active: 2, disabled: 3 };
     const aOrder = order[a.status.key] ?? 4;
@@ -225,11 +241,19 @@ export default function UsersHub() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
+    const syncingCopy = useMemo(() => getSyncingBadgeCopy(locale), [locale]);
+    const requestIdRef = useRef(0);
+    const serverInventoryKey = useMemo(
+        () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
+        [servers]
+    );
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
     const [onlineMap, setOnlineMap] = useState(new Map());
     const [loading, setLoading] = useState(true);
+    const [statsLoading, setStatsLoading] = useState(false);
+    const [statsReady, setStatsReady] = useState(false);
     const [primaryError, setPrimaryError] = useState('');
     const [partialErrors, setPartialErrors] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -289,61 +313,58 @@ export default function UsersHub() {
         setSearchTerm(queryValue);
     }, [searchParams]);
 
-    const fetchData = async (options = {}) => {
-        const forceUsers = options.forceUsers === true;
-        setLoading(true);
-        setPrimaryError('');
+    const hydrateNodeStats = async (requestId, options = {}) => {
+        const forceStats = options.forceStats === true;
+        setStatsLoading(true);
+        setStatsReady(false);
         setPartialErrors([]);
+
+        if (servers.length === 0) {
+            if (requestId !== requestIdRef.current) return;
+            setClientsMap(new Map());
+            setOnlineMap(new Map());
+            setInboundExpiries([]);
+            setAllInbounds([]);
+            setStatsLoading(false);
+            setStatsReady(true);
+            return;
+        }
+
         try {
-            const userList = await fetchManagedUsers(api, { force: forceUsers });
-            setUsers(userList);
-            setSelectedIds((previous) => new Set(
-                Array.from(previous).filter((id) => userList.some((user) => user.id === id))
-            ));
+            const serverResults = await fetchServerPanelData(api, servers, {
+                force: forceStats,
+                includeOnlines: true,
+            });
+            if (requestId !== requestIdRef.current) return;
 
             const nextPartialErrors = [];
-            const serverResults = await Promise.all(
-                servers.map(async (server) => {
-                    let inbounds = [];
-                    let onlines = [];
-
-                    try {
-                        const inboundsRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
-                        inbounds = Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [];
-                    } catch (error) {
-                        nextPartialErrors.push({
-                            kind: 'inbounds',
-                            serverId: server.id,
-                            serverName: server.name,
-                            message: error?.response?.data?.msg || error?.message || 'inbounds unavailable',
-                        });
-                    }
-
-                    try {
-                        const onlinesRes = await api.post(`/panel/${server.id}/panel/api/inbounds/onlines`);
-                        onlines = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
-                    } catch (error) {
-                        nextPartialErrors.push({
-                            kind: 'presence',
-                            serverId: server.id,
-                            serverName: server.name,
-                            message: error?.response?.data?.msg || error?.message || 'presence unavailable',
-                        });
-                    }
-
-                    return { server, inbounds, onlines };
-                })
-            );
-
             const emailMap = new Map();
             const onlineEmailMap = new Map();
             const expiryRef = [];
             const inboundList = [];
+
             serverResults.forEach((result) => {
                 const server = result.server;
                 const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
                 const onlines = Array.isArray(result?.onlines) ? result.onlines : [];
                 const onlineCounter = new Map();
+
+                if (result?.inboundsError) {
+                    nextPartialErrors.push({
+                        kind: 'inbounds',
+                        serverId: server.id,
+                        serverName: server.name,
+                        message: result.inboundsError?.response?.data?.msg || result.inboundsError?.message || 'inbounds unavailable',
+                    });
+                }
+                if (result?.onlinesError) {
+                    nextPartialErrors.push({
+                        kind: 'presence',
+                        serverId: server.id,
+                        serverName: server.name,
+                        message: result.onlinesError?.response?.data?.msg || result.onlinesError?.message || 'presence unavailable',
+                    });
+                }
 
                 onlines.forEach((entry) => {
                     normalizeOnlineKeys(entry).forEach((key) => {
@@ -417,6 +438,42 @@ export default function UsersHub() {
             setAllInbounds(inboundList);
             setPartialErrors(nextPartialErrors);
         } catch (err) {
+            if (requestId !== requestIdRef.current) return;
+            console.error('Failed to hydrate users node stats', err);
+            setClientsMap(new Map());
+            setOnlineMap(new Map());
+            setInboundExpiries([]);
+            setAllInbounds([]);
+            setPartialErrors([]);
+        }
+
+        if (requestId !== requestIdRef.current) return;
+        setStatsLoading(false);
+        setStatsReady(true);
+    };
+
+    const fetchData = async (options = {}) => {
+        const forceUsers = options.forceUsers === true;
+        const forceStats = options.forceStats === true || forceUsers;
+        const requestId = requestIdRef.current + 1;
+        requestIdRef.current = requestId;
+
+        setLoading(true);
+        setPrimaryError('');
+        setStatsLoading(true);
+        setStatsReady(false);
+        setPartialErrors([]);
+        try {
+            const userList = await fetchManagedUsers(api, { force: forceUsers });
+            if (requestId !== requestIdRef.current) return;
+            setUsers(userList);
+            setSelectedIds((previous) => new Set(
+                Array.from(previous).filter((id) => userList.some((user) => user.id === id))
+            ));
+            setLoading(false);
+            hydrateNodeStats(requestId, { forceStats });
+        } catch (err) {
+            if (requestId !== requestIdRef.current) return;
             console.error('Failed to fetch users data', err);
             const message = err?.response?.data?.msg || err?.message || t('comp.users.loadFailed');
             setPrimaryError(message);
@@ -426,14 +483,16 @@ export default function UsersHub() {
             setOnlineMap(new Map());
             setInboundExpiries([]);
             setAllInbounds([]);
+            setStatsLoading(false);
+            setStatsReady(false);
+            setLoading(false);
             toast.error(t('comp.users.loadFailed'));
         }
-        setLoading(false);
     };
 
     useEffect(() => {
         fetchData();
-    }, [servers]);
+    }, [serverInventoryKey]);
 
     const allOrderedUsers = useMemo(() => {
         return users
@@ -441,13 +500,19 @@ export default function UsersHub() {
                 const subEmail = normalizeEmail(user.subscriptionEmail);
                 const loginEmail = normalizeEmail(user.email);
                 const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 };
-                const onlineSessions = clientData.onlineSessions || onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0;
-                const status = getUserStatus(user, clientData.count);
-                const onlineStatus = getOnlineStatus(clientData.count, onlineSessions);
-                return { ...user, clientData, status, onlineSessions, onlineStatus };
+                const onlineSessions = statsReady
+                    ? (clientData.onlineSessions || onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0)
+                    : 0;
+                const status = statsReady
+                    ? getUserStatus(user, clientData.count)
+                    : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral' };
+                const onlineStatus = statsReady
+                    ? getOnlineStatus(clientData.count, onlineSessions)
+                    : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral', detail: syncingCopy.detail };
+                return { ...user, clientData, status, onlineSessions, onlineStatus, statsPending: !statsReady };
             })
             .sort(compareUsersFallback);
-    }, [users, clientsMap, onlineMap]);
+    }, [users, clientsMap, onlineMap, statsReady, syncingCopy.detail, syncingCopy.status]);
 
     const filteredUsers = useMemo(() => {
         const search = String(deferredSearchTerm || '').trim().toLowerCase();
@@ -494,6 +559,7 @@ export default function UsersHub() {
                 } else {
                     toast.success(message);
                 }
+                invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
             } else {
@@ -519,6 +585,7 @@ export default function UsersHub() {
             const res = await api.delete(`/auth/users/${encodeURIComponent(user.id)}`);
             if (res.data?.success) {
                 toast.success(`用户 ${user.username} 已删除`);
+                invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
             } else {
@@ -549,6 +616,7 @@ export default function UsersHub() {
                     toast.success(res.data.msg);
                 }
                 setSelectedIds(new Set());
+                invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
             } else {
@@ -721,10 +789,14 @@ export default function UsersHub() {
             ? index + 1
             : enrichedUsers.length - index;
         const displayEmail = user.email || user.subscriptionEmail || '';
-        const userExpiryLabel = user.clientData.count > 0
+        const userExpiryLabel = user.statsPending
+            ? syncingCopy.detail
+            : user.clientData.count > 0
             ? formatExpiryLabel(user.clientData.expiryValues, locale)
             : '未开通';
-        const userTrafficSummary = user.clientData.totalUsed
+        const userTrafficSummary = user.statsPending
+            ? syncingCopy.detail
+            : user.clientData.totalUsed
             ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
             : '未使用流量';
 
@@ -769,7 +841,9 @@ export default function UsersHub() {
                     </div>
                     <div className="users-mobile-metric">
                         <span className="users-mobile-metric-label">节点数</span>
-                        <span className="users-mobile-metric-value">{user.clientData.count || 0}</span>
+                        <span className="users-mobile-metric-value">
+                            {user.statsPending ? syncingCopy.status : (user.clientData.count || 0)}
+                        </span>
                     </div>
                     <div className="users-mobile-metric">
                         <span className="users-mobile-metric-label">流量</span>
@@ -909,6 +983,7 @@ export default function UsersHub() {
             });
 
             try {
+                invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
             } catch (refreshErr) {
@@ -1097,6 +1172,7 @@ export default function UsersHub() {
             }
 
             closeEditModal();
+            invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true });
         } catch (err) {
@@ -1153,6 +1229,7 @@ export default function UsersHub() {
             const createdUser = res.data.obj;
             toast.success(`用户 ${createdUser.username || username} 已创建`);
             closeCreateModal();
+            invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true });
 
@@ -1209,7 +1286,11 @@ export default function UsersHub() {
                         </select>
                     </div>
                     <div className="users-toolbar-actions">
-                        <div className="text-sm text-muted users-toolbar-summary">显示 {enrichedUsers.length} / {users.length} 位账号</div>
+                        <div className="text-sm text-muted users-toolbar-summary">
+                            {statsLoading
+                                ? `${syncingCopy.summary} · 显示 ${enrichedUsers.length} / ${users.length} 位账号`
+                                : `显示 ${enrichedUsers.length} / ${users.length} 位账号`}
+                        </div>
                         <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
                             <HiOutlineArrowDownTray /> 导出
                         </button>
@@ -1333,7 +1414,9 @@ export default function UsersHub() {
                                             ? index + 1
                                             : enrichedUsers.length - index;
                                         const displayEmail = user.email || user.subscriptionEmail || '';
-                                        const userExpiryLabel = user.clientData.count > 0
+                                        const userExpiryLabel = user.statsPending
+                                            ? syncingCopy.detail
+                                            : user.clientData.count > 0
                                             ? formatExpiryLabel(user.clientData.expiryValues, locale)
                                             : '未开通';
                                         return (
@@ -1371,13 +1454,19 @@ export default function UsersHub() {
                                                         {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
                                                 </td>
-                                                <td data-label="节点数" className="table-cell-center users-node-count-cell">{user.clientData.count || '-'}</td>
+                                                <td data-label="节点数" className="table-cell-center users-node-count-cell">
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.status}</span>
+                                                    ) : (user.clientData.count || '-')}
+                                                </td>
                                                 <td
                                                     data-label="已用流量"
                                                     className="users-traffic-cell"
-                                                    title={user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-'}
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-')}
                                                 >
-                                                    {user.clientData.totalUsed ? (
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.detail}</span>
+                                                    ) : user.clientData.totalUsed ? (
                                                         <div className="users-traffic-stack">
                                                             <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
                                                             <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
@@ -1387,9 +1476,11 @@ export default function UsersHub() {
                                                 <td
                                                     data-label="到期时间"
                                                     className="cell-mono table-cell-center users-expiry-cell"
-                                                    title={user.clientData.count > 0 ? userExpiryLabel : '-'}
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.count > 0 ? userExpiryLabel : '-')}
                                                 >
-                                                    {user.clientData.count > 0 ? userExpiryLabel : '-'}
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.detail}</span>
+                                                    ) : (user.clientData.count > 0 ? userExpiryLabel : '-')}
                                                 </td>
                                                 <td data-label="" className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 flex-wrap users-row-actions">

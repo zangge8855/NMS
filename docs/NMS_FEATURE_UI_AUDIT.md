@@ -17,6 +17,13 @@
 - `Tools` 页空状态已补上明确的下一步动作按钮，避免停留在被动提示
 - 邀请码注册链路已改为“注册即启用、后台自动开通订阅”，后台邀请码表也补上了可用次数与开通时长展示
 - 仪表盘在线用户明细现在会同时显示用户名与邮箱，减少在用户识别时来回切页
+- 系统设置已收敛成更紧凑的工作台，核心配置优先展示，系统状态独立成单独页签
+- 用户详情里的订阅页签已与普通用户订阅中心对齐，不再维护两套明显不同的导入布局
+- 审计中心、批量任务和订阅访问的筛选摘要已统一为紧凑控制条，减少大面积空白和重复状态卡
+- 侧边栏去掉了重复的监控分组与底部单节点切换区，主导航整体更靠上，账号 / 退出入口更容易被看到
+- 入站、服务器、用户等主要表格重新统一了对齐规则、紧凑列宽和 badge 语言
+- Telegram 告警、状态摘要和帮助命令已经统一为结构化 HTML 消息，重点数值加粗，命令说明改成对齐表格
+- 用户管理、用户详情、通知中心和仪表盘都补上了分阶段加载或共享缓存，后台首屏等待感明显下降
 
 ### 当前状态良好区域
 
@@ -25,6 +32,8 @@
 - 明暗模式下的浮层稳定性明显提升
 - 关键操作的 hover / active / focus 反馈已可接受
 - Logs、Tasks、Tools 这类次级运维页面也开始跟随同一套卡片、表格和空状态规范
+- 审计、系统设置、用户详情和订阅中心的页面长度已经明显缩短，信息密度更接近真正的运维工作台
+- Telegram 输出已经更接近正式值班摘要，而不是原始日志片段堆叠
 
 ### 仍建议继续优化的区域
 
@@ -32,6 +41,8 @@
 - 非核心页面的 Empty State 仍可继续替换为共享组件
 - 一些业务文案仍偏工程化，后续可以优化为更面向运维人员的提示
 - 更细粒度的键盘导航和无障碍提示仍有提升空间
+- 仍可继续把旧页面中的残留副标题、说明段和非必要提示卡向更紧凑的控制行收敛
+- 可以继续为 Telegram 做更统一的标题命名和不同级别事件的词汇规范
 
 ### 风险点
 
@@ -65,6 +76,12 @@ Audit date: 2026-03-11
 - The end-user subscription page now keeps quick import, copy, QR code, and reset actions inside one primary import block, while device cards only show downloads and recommended profile types
 - Native select styling is now finalized through one last-pass surface rule, so Chromium no longer flashes a black native popup before the themed menu settles
 - Server and inbound tables were tightened again so sidebar-expanded layouts keep more operational information visible before horizontal scrolling is needed
+- System settings now behave more like a compact workbench, keeping core controls first and moving system status into its own tab
+- The user-detail subscription tab now mirrors the end-user subscription center instead of maintaining a clearly separate admin layout
+- Audit tabs, task views, and subscription-access filters now use compact summary rows instead of large redundant status cards
+- The sidebar no longer carries a duplicated monitor group or bottom single-node switcher, and account / sign-out actions sit closer to the main navigation
+- Telegram digests, alerts, and help output now share one structured HTML message system with bold key values and aligned command tables
+- Dashboard, Users, User Detail, and Notification Center now use staged loading and shared cache paths to reduce first-open waiting time
 
 ### Areas in good shape
 
@@ -83,6 +100,7 @@ Audit date: 2026-03-11
 - Keyboard navigation depth and accessibility hints still have room to improve
 - A few older pages still rely on style inheritance instead of explicitly attaching the shared form/control classes, so future refactors should keep tightening that contract
 - Full i18n coverage still needs continued cleanup in a few older admin pages outside the main login / subscription / user-detail path
+- Telegram wording can still be tuned further so different event classes read even more consistently in day-to-day on-call use
 
 ### Risk points
 

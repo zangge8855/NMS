@@ -265,6 +265,24 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
     });
 
+    it('lazy-loads only the access workspace dependencies on the default tab', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+
+        renderWithRouter(<SystemSettings />);
+
+        expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/system/settings');
+        expect(api.get).toHaveBeenCalledWith('/auth/registration-status');
+        expect(api.get).toHaveBeenCalledWith('/system/invite-codes');
+        expect(api.get).not.toHaveBeenCalledWith('/system/db/status');
+        expect(api.get).not.toHaveBeenCalledWith('/system/email/status');
+        expect(api.get).not.toHaveBeenCalledWith('/system/backup/status');
+        expect(api.get).not.toHaveBeenCalledWith('/system/monitor/status');
+    });
+
     it('shows a dedicated status tab while keeping the default access workspace focused', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
