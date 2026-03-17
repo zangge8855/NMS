@@ -290,29 +290,6 @@ function buildTelegramCommandMenu(items = []) {
         .filter(Boolean);
 }
 
-function buildCommandInlineKeyboard(queryCommands = DEFAULT_QUERY_COMMANDS, operationCommands = DEFAULT_OPERATION_COMMANDS) {
-    const items = [...(Array.isArray(queryCommands) ? queryCommands : []), ...(Array.isArray(operationCommands) ? operationCommands : [])]
-        .map((item) => ({
-            command: String(item?.command || '').trim(),
-            label: String(item?.description || '').trim(),
-        }))
-        .filter((item) => item.command.startsWith('/') && item.label);
-
-    if (items.length === 0) return null;
-
-    const rows = [];
-    for (let index = 0; index < items.length; index += 3) {
-        rows.push(items.slice(index, index + 3).map((item) => ({
-            text: item.label,
-            callback_data: item.command,
-        })));
-    }
-
-    return {
-        inline_keyboard: rows,
-    };
-}
-
 function formatNotificationMessage(notification = {}) {
     const meta = notification.meta || {};
     const locationCarrier = formatLocationCarrierText(meta.ipLocation, meta.ipCarrier);
@@ -562,8 +539,8 @@ export function formatCommandCatalogMessage(options = {}) {
     const title = String(options.title || 'NMS Telegram 控制台').trim() || 'NMS Telegram 控制台';
     const blocks = [];
     appendHtmlSection(blocks, '快速开始', [
-        '直接点下方快捷按钮即可执行常用查询',
-        '也可以手动输入 <code>/status</code>、<code>/security</code> 这类命令',
+        '输入框输入 <code>/</code> 可直接选命令',
+        '机器人启动后会自动同步命令菜单',
     ], { rawRows: true });
     const queryTable = formatCommandHtmlTable(options.queryCommands || DEFAULT_QUERY_COMMANDS);
     if (queryTable) {
@@ -954,9 +931,6 @@ export function createTelegramAlertService(options = {}) {
             if (overrides.parseMode) {
                 body.parse_mode = String(overrides.parseMode);
             }
-            if (overrides.replyMarkup) {
-                body.reply_markup = overrides.replyMarkup;
-            }
             await fetcher({
                 url: `${settings.apiBaseUrl.replace(/\/$/, '')}/bot${settings.botToken}/sendMessage`,
                 body,
@@ -983,7 +957,12 @@ export function createTelegramAlertService(options = {}) {
         if (commandsSynced && !force) return true;
         if (commandSyncPromise && !force) return commandSyncPromise;
 
-        commandSyncPromise = callTelegramApi('deleteMyCommands', {})
+        const commands = buildTelegramCommandMenu([
+            ...DEFAULT_QUERY_COMMANDS,
+            ...DEFAULT_OPERATION_COMMANDS,
+        ]);
+
+        commandSyncPromise = callTelegramApi('setMyCommands', { commands })
             .then(() => {
                 commandsSynced = true;
                 runtimeStatus.lastCommandSyncAt = new Date().toISOString();
@@ -1002,13 +981,12 @@ export function createTelegramAlertService(options = {}) {
         return commandSyncPromise;
     }
 
-    async function sendCommandReply(text, chatId, kind = 'command', replyMarkup = null) {
+    async function sendCommandReply(text, chatId, kind = 'command') {
         await syncCommands();
         return sendMessage(text, '', {
             chatId,
             kind,
             parseMode: 'HTML',
-            replyMarkup,
         });
     }
 
@@ -1091,7 +1069,7 @@ export function createTelegramAlertService(options = {}) {
             formatHtmlKeyValueRow('触发人', actor),
         ], { rawRows: true });
         appendHtmlSection(blocks, '快速开始', [
-            '底部命令菜单已关闭，可直接发送命令或使用 /help 中的快捷按钮',
+            '命令菜单已同步后，可直接在输入框输入 <code>/</code> 选择命令',
         ], { rawRows: true });
         const queryTable = formatCommandHtmlTable(DEFAULT_QUERY_COMMANDS);
         if (queryTable) {
@@ -1102,7 +1080,7 @@ export function createTelegramAlertService(options = {}) {
             blocks.push(`<b>运维动作</b>\n${operationTable}`);
         }
         return sendCommandReply(joinHtmlMessage('NMS Telegram 测试通知', blocks, {
-            subtitle: '消息结构与快捷命令检查',
+            subtitle: '消息结构与命令菜单检查',
         }), settings.chatId, 'test');
     }
 
@@ -1122,7 +1100,7 @@ export function createTelegramAlertService(options = {}) {
         const result = await callTelegramApi('getUpdates', {
             timeout: 0,
             limit: 20,
-            allowed_updates: ['message', 'callback_query'],
+            allowed_updates: ['message'],
         });
         const latest = Array.isArray(result) ? result[result.length - 1] : null;
         lastUpdateId = Number(latest?.update_id || 0);
@@ -1592,7 +1570,6 @@ export function createTelegramAlertService(options = {}) {
             return {
                 text: formatCommandCatalogMessage(),
                 kind: 'command_help',
-                replyMarkup: buildCommandInlineKeyboard(),
             };
         }
 
@@ -1681,28 +1658,7 @@ export function createTelegramAlertService(options = {}) {
             actor: message?.from?.username || 'telegram',
             chatId,
         });
-        await sendCommandReply(reply.text, chatId, reply.kind, reply.replyMarkup || null);
-    }
-
-    async function handleCallbackQuery(callbackQuery) {
-        const chatId = String(callbackQuery?.message?.chat?.id || '').trim();
-        const command = normalizeCommand(callbackQuery?.data || '');
-        const callbackId = String(callbackQuery?.id || '').trim();
-
-        runtimeStatus.lastCommandAt = new Date().toISOString();
-        runtimeStatus.lastCommand = command || 'callback';
-
-        if (callbackId) {
-            await callTelegramApi('answerCallbackQuery', {
-                callback_query_id: callbackId,
-            }).catch(() => {});
-        }
-
-        const reply = await dispatchCommand(command, {
-            actor: callbackQuery?.from?.username || 'telegram',
-            chatId,
-        });
-        await sendCommandReply(reply.text, chatId, reply.kind, reply.replyMarkup || null);
+        await sendCommandReply(reply.text, chatId, reply.kind);
     }
 
     async function sendPeriodicDigest(kind = 'ops') {
@@ -1772,7 +1728,6 @@ export function createTelegramAlertService(options = {}) {
         for (const update of Array.isArray(updates) ? updates : []) {
             lastUpdateId = Math.max(lastUpdateId, Number(update?.update_id || 0));
             const message = update?.message;
-            const callbackQuery = update?.callback_query;
 
             if (message?.text && String(message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
                 try {
@@ -1781,20 +1736,6 @@ export function createTelegramAlertService(options = {}) {
                     await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
                         `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
                     ]), String(message?.chat?.id || '').trim(), 'command_error');
-                }
-            }
-
-            if (callbackQuery?.data && String(callbackQuery?.message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
-                try {
-                    await handleCallbackQuery(callbackQuery);
-                } catch (error) {
-                    if (String(callbackQuery?.id || '').trim()) {
-                        await callTelegramApi('answerCallbackQuery', {
-                            callback_query_id: String(callbackQuery.id || '').trim(),
-                            text: error.message || '命令执行失败',
-                            show_alert: false,
-                        }).catch(() => {});
-                    }
                 }
             }
         }
@@ -1813,7 +1754,7 @@ export function createTelegramAlertService(options = {}) {
         const result = await callTelegramApi('getUpdates', {
             timeout: 15,
             offset: lastUpdateId + 1,
-            allowed_updates: ['message', 'callback_query'],
+            allowed_updates: ['message'],
         });
 
         runtimeStatus.lastPollAt = new Date().toISOString();
