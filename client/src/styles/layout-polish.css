@@ -1268,6 +1268,26 @@
 .settings-workspace-section-body {
   display: grid;
   gap: 18px;
+  min-width: 0;
+}
+
+.settings-workspace-section-body > * {
+  min-width: 0;
+}
+
+.settings-workspace-hero-badges .badge,
+.settings-basic-note-list .badge,
+.settings-save-dock-main .badge,
+.settings-nav-item-flags .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: 100%;
+  min-height: 28px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .settings-nav,
@@ -1805,12 +1825,17 @@
   min-width: 0;
   flex-direction: column;
   gap: 14px;
+  height: 100%;
   padding: 16px;
   border-radius: 18px;
   border: 1px solid var(--stroke-soft);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.018) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.settings-form-cluster > * {
+  min-width: 0;
 }
 
 .settings-form-cluster-head {
@@ -1898,11 +1923,170 @@
   align-items: start;
 }
 
+.settings-access-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-access-stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
+.settings-access-stack > * {
+  min-width: 0;
+}
+
+.settings-access-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-access-action-row .btn {
+  justify-content: center;
+}
+
 .settings-code-list {
   display: grid;
   gap: 8px;
   max-height: 180px;
   overflow-y: auto;
+}
+
+.settings-invite-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-field-grid--invite-generate {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.settings-invite-ledger {
+  display: grid;
+  gap: 12px;
+  max-height: 820px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.settings-invite-ledger-item {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-invite-ledger-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+}
+
+.settings-invite-ledger-title-block {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-invite-ledger-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-usage {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-invite-ledger-usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-invite-ledger-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.settings-invite-ledger-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.84), rgba(34, 197, 94, 0.82));
+}
+
+.settings-invite-ledger-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-invite-ledger-meta-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.settings-invite-ledger-meta-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-invite-ledger-meta-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 2px;
 }
 
 .settings-invite-activity-list {
@@ -2416,13 +2600,16 @@
 
 .settings-monitor-log-meta {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-items: stretch;
 }
 
 .settings-monitor-log-item {
   display: grid;
   gap: 4px;
   min-width: 0;
+  min-height: 100%;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--stroke-soft);
@@ -2443,6 +2630,35 @@
   line-height: 1.55;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.settings-inline-action-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--stroke-soft);
+}
+
+.settings-inline-action-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-inline-action-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.settings-inline-action-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-notice-shell {
@@ -2582,6 +2798,33 @@
 .settings-backup-local-actions .btn {
   flex: 1 1 88px;
   justify-content: center;
+}
+
+.settings-backup-inspection {
+  gap: 12px;
+}
+
+.settings-backup-inspection-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-backup-inspection-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-backup-inspection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .settings-invite-status-note,
@@ -2897,6 +3140,17 @@
 
   .settings-save-dock-main {
     width: 100%;
+  }
+
+  .settings-access-grid,
+  .settings-invite-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-field-grid--invite-generate,
+  .settings-backup-inspection-grid,
+  .settings-invite-ledger-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .clients-toolbar .page-toolbar-main,
@@ -3230,6 +3484,26 @@
   .settings-notice-preview-frame {
     height: 520px;
   }
+
+  .settings-monitor-log-meta,
+  .settings-field-grid--invite-generate,
+  .settings-invite-ledger-meta,
+  .settings-backup-inspection-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-invite-ledger,
+  .settings-access-stack,
+  .settings-inline-action-copy {
+    min-width: 0;
+  }
+
+  .settings-access-action-row,
+  .settings-invite-ledger-actions,
+  .settings-backup-inspection-actions,
+  .settings-inline-action-strip {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3471,6 +3745,32 @@
   .settings-invite-activity-meta {
     flex-direction: column;
     gap: 4px;
+  }
+
+  .settings-access-action-row,
+  .settings-invite-ledger-top,
+  .settings-invite-ledger-usage-head,
+  .settings-backup-inspection-actions,
+  .settings-inline-action-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-access-action-row .btn,
+  .settings-invite-ledger-actions .btn,
+  .settings-backup-inspection-actions .btn,
+  .settings-inline-action-strip .btn {
+    width: 100%;
+  }
+
+  .settings-invite-ledger {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .settings-invite-ledger-meta,
+  .settings-backup-inspection-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-panel .section-header-side {

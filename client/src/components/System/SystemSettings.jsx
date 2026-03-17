@@ -390,6 +390,25 @@ function formatInviteDuration(days) {
     return normalized > 0 ? `${normalized} 天` : '不限时';
 }
 
+function getInviteStatusMeta(item = {}) {
+    if (item.status === 'active') {
+        return {
+            className: 'badge-success',
+            label: Number(item.remainingUses || 0) > 0 ? '可使用' : '待检查',
+        };
+    }
+    if (item.status === 'revoked') {
+        return {
+            className: 'badge-danger',
+            label: '已撤销',
+        };
+    }
+    return {
+        className: 'badge-neutral',
+        label: '已用完',
+    };
+}
+
 function areComparableSettingsEqual(left, right) {
     return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
@@ -453,7 +472,7 @@ export default function SystemSettings() {
     const [editingTelegramChatId, setEditingTelegramChatId] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
-    const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
+    const [inviteCodeActionKey, setInviteCodeActionKey] = useState('');
     const [_inviteCodes, setInviteCodes] = useState([]);
     const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
         count: '1',
@@ -562,7 +581,20 @@ export default function SystemSettings() {
         () => inviteRecords.filter((item) => item.status === 'revoked').length,
         [inviteRecords]
     );
-    const inviteRecentRecords = useMemo(() => inviteRecords.slice(0, 4), [inviteRecords]);
+    const inviteConsumedUses = useMemo(
+        () => inviteRecords.reduce((sum, item) => sum + Math.max(0, Number(item.usedCount || 0)), 0),
+        [inviteRecords]
+    );
+    const inviteAvailableRecords = useMemo(
+        () => inviteRecords.filter((item) => item.status === 'active' && Number(item.remainingUses || 0) > 0),
+        [inviteRecords]
+    );
+    const inviteRecentUsedAt = useMemo(() => (
+        inviteRecords
+            .filter((item) => item.usedAt)
+            .sort((left, right) => new Date(right.usedAt).getTime() - new Date(left.usedAt).getTime())[0] || null
+    ), [inviteRecords]);
+    const inviteCodeActionLoading = inviteCodeActionKey !== '';
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -1009,7 +1041,7 @@ export default function SystemSettings() {
         const count = toBoundedInt(inviteGenerationDraft.count, 1, 1, 50);
         const usageLimit = toBoundedInt(inviteGenerationDraft.usageLimit, 1, 1, 1000);
         const subscriptionDays = toBoundedInt(inviteGenerationDraft.subscriptionDays, 30, 0, 3650);
-        setInviteCodeActionLoading(true);
+        setInviteCodeActionKey('create');
         try {
             const res = await api.post('/system/invite-codes', {
                 count,
@@ -1035,7 +1067,30 @@ export default function SystemSettings() {
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
         }
-        setInviteCodeActionLoading(false);
+        setInviteCodeActionKey('');
+    };
+
+    const revokeInviteCode = async (invite) => {
+        if (!isAdmin || !invite?.id) return;
+        const inviteLabel = invite.preview || invite.id;
+        const ok = await confirmAction({
+            title: '撤销邀请码',
+            message: `确定撤销 ${inviteLabel} 吗？`,
+            details: '撤销后该邀请码将立即失效，未使用完的剩余额度也会一并作废。',
+            confirmText: '确认撤销',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setInviteCodeActionKey(`revoke:${invite.id}`);
+        try {
+            const res = await api.delete(`/system/invite-codes/${encodeURIComponent(invite.id)}`);
+            toast.success(res.data?.msg || '邀请码已撤销');
+            await fetchInviteCodes({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '撤销邀请码失败');
+        }
+        setInviteCodeActionKey('');
     };
 
     const switchDbMode = async () => {
@@ -1606,11 +1661,11 @@ export default function SystemSettings() {
     const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--wide settings-panel--entry">
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="站点入口"
+                        title="站点入口与订阅"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={copySiteEntry}>
@@ -1629,96 +1684,6 @@ export default function SystemSettings() {
                         <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
                             {draft.site.camouflageEnabled ? '伪装首页已开启' : '伪装首页未开启'}
                         </span>
-                        <span className="badge badge-neutral">访问预览 {siteEntryPreview}</span>
-                    </div>
-                    <div className="settings-inline-grid settings-basic-entry-grid">
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">入口路径</div>
-                                <div className="settings-form-cluster-title">对外访问的真实入口</div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">首页访问路径</label>
-                                <div className="settings-inline-action-row">
-                                    <input
-                                        className="form-input font-mono"
-                                        placeholder="/"
-                                        value={draft.site.accessPath}
-                                        onChange={(e) => patchField('site', 'accessPath', e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={applyRandomSiteAccessPath}
-                                    >
-                                        随机路径
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">入口摘要</div>
-                                <div className="settings-form-cluster-title">当前对外呈现方式</div>
-                            </div>
-                            <div className="settings-monitor-log-meta">
-                                <div className="settings-monitor-log-item">
-                                    <span className="settings-monitor-log-label">访问地址</span>
-                                    <span className="settings-monitor-log-value">{siteEntryPreview}</span>
-                                </div>
-                                <div className="settings-monitor-log-item">
-                                    <span className="settings-monitor-log-label">首页表现</span>
-                                    <span className="settings-monitor-log-value">
-                                        {draft.site.camouflageEnabled
-                                            ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
-                                            : '直接显示 NMS 登录页'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="settings-field-grid settings-field-grid--compact mt-4">
-                        <div className="form-group mb-0">
-                            <label className="form-label">伪装模板</label>
-                            <select
-                                className="form-select"
-                                value={draft.site.camouflageTemplate}
-                                onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
-                            >
-                                {CAMOUFLAGE_TEMPLATE_OPTIONS.map((item) => (
-                                    <option key={item.value} value={item.value}>{item.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="form-group mb-0">
-                            <label className="form-label">伪装站点标题</label>
-                            <input
-                                className="form-input"
-                                value={draft.site.camouflageTitle}
-                                onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
-                                placeholder="Edge Precision Systems"
-                            />
-                        </div>
-                    </div>
-                    <div className="settings-field-grid settings-field-grid--compact mt-4">
-                        <div className="form-group mb-0">
-                            <SettingsToggleCard
-                                checked={draft.site.camouflageEnabled}
-                                onChange={(e) => handleCamouflageToggle(e.target.checked)}
-                                label="站点伪装首页"
-                                description="开启后，首页和错误路径将展示公开首页；只有输入真实入口路径才能进入 NMS。"
-                                activeLabel="已开启"
-                                inactiveLabel="已关闭"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="订阅地址"
-                    />
-                    <div className="settings-basic-note-list">
                         <span className={`badge ${draft.subscription.publicBaseUrl ? 'badge-success' : 'badge-warning'}`}>
                             {draft.subscription.publicBaseUrl ? '订阅公网地址已配置' : '订阅公网地址待配置'}
                         </span>
@@ -1726,36 +1691,115 @@ export default function SystemSettings() {
                             {converterBaseUrl ? '外部转换器已配置' : '未配置外部转换器'}
                         </span>
                     </div>
-                    <div className="settings-basic-address-grid">
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">公网输出</div>
-                                <div className="settings-form-cluster-title">固定订阅链接的公开域名</div>
+                    <div className="settings-access-grid">
+                        <div className="settings-access-stack">
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">入口路径</div>
+                                    <div className="settings-form-cluster-title">真实入口与首页</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">首页访问路径</label>
+                                    <div className="settings-inline-action-row">
+                                        <input
+                                            className="form-input font-mono"
+                                            placeholder="/"
+                                            value={draft.site.accessPath}
+                                            onChange={(e) => patchField('site', 'accessPath', e.target.value)}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={applyRandomSiteAccessPath}
+                                        >
+                                            随机路径
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="settings-monitor-log-meta">
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">访问地址</span>
+                                        <span className="settings-monitor-log-value">{siteEntryPreview}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">首页表现</span>
+                                        <span className="settings-monitor-log-value">
+                                            {draft.site.camouflageEnabled
+                                                ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
+                                                : '直接显示 NMS 登录页'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">订阅公网地址（可选，建议配置）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://nms.example.com"
-                                    value={draft.subscription.publicBaseUrl}
-                                    onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">伪装页面</div>
+                                    <div className="settings-form-cluster-title">伪装模板与标题</div>
+                                </div>
+                                <div className="settings-field-grid settings-field-grid--compact">
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">伪装模板</label>
+                                        <select
+                                            className="form-select"
+                                            value={draft.site.camouflageTemplate}
+                                            onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
+                                        >
+                                            {CAMOUFLAGE_TEMPLATE_OPTIONS.map((item) => (
+                                                <option key={item.value} value={item.value}>{item.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">伪装站点标题</label>
+                                        <input
+                                            className="form-input"
+                                            value={draft.site.camouflageTitle}
+                                            onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
+                                            placeholder="Edge Precision Systems"
+                                        />
+                                    </div>
+                                </div>
+                                <SettingsToggleCard
+                                    checked={draft.site.camouflageEnabled}
+                                    onChange={(e) => handleCamouflageToggle(e.target.checked)}
+                                    label="站点伪装首页"
+                                    description="开启后，首页和错误路径展示公开首页；只有真实入口路径会进入 NMS。"
+                                    activeLabel="已开启"
+                                    inactiveLabel="已关闭"
                                 />
                             </div>
                         </div>
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">外部转换</div>
-                                <div className="settings-form-cluster-title">Clash / Mihomo / Surge 使用的转换器</div>
+                        <div className="settings-access-stack">
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">订阅公网</div>
+                                    <div className="settings-form-cluster-title">订阅公网地址</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">订阅公网地址</label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="https://nms.example.com"
+                                        value={draft.subscription.publicBaseUrl}
+                                        onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">外部订阅转换器地址（可选）</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="https://converter.example.com"
-                                    value={converterBaseUrl}
-                                    onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
-                                />
-                                <div className="flex gap-2 flex-wrap mt-2">
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">外部转换</div>
+                                    <div className="settings-form-cluster-title">外部订阅转换</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">外部订阅转换器地址</label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="https://converter.example.com"
+                                        value={converterBaseUrl}
+                                        onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                                    />
+                                </div>
+                                <div className="settings-access-action-row">
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
@@ -1778,6 +1822,26 @@ export default function SystemSettings() {
                                     </a>
                                 </div>
                             </div>
+                            <div className="settings-form-cluster">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">分发摘要</div>
+                                    <div className="settings-form-cluster-title">当前对外地址</div>
+                                </div>
+                                <div className="settings-monitor-log-meta">
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">真实入口</span>
+                                        <span className="settings-monitor-log-value">{siteAccessPath}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">订阅公网</span>
+                                        <span className="settings-monitor-log-value">{draft.subscription.publicBaseUrl || '未配置'}</span>
+                                    </div>
+                                    <div className="settings-monitor-log-item">
+                                        <span className="settings-monitor-log-label">转换器</span>
+                                        <span className="settings-monitor-log-value">{converterBaseUrl || '未配置'}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1795,11 +1859,12 @@ export default function SystemSettings() {
                             </div>
                         )}
                     />
-                    <div className="settings-inline-grid settings-inline-grid--invite-workbench">
-                        <div className="settings-form-cluster">
+                    <div className="settings-invite-layout">
+                        <div className="settings-access-stack">
+                            <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">注册模式</div>
-                                <div className="settings-form-cluster-title">控制是否允许公开注册</div>
+                                <div className="settings-form-cluster-title">注册方式与邀请码</div>
                             </div>
                             <SettingsToggleCard
                                 checked={draft.registration.inviteOnlyEnabled}
@@ -1816,22 +1881,35 @@ export default function SystemSettings() {
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">活动邀请码</div>
                                     <div className="text-lg font-semibold">{inviteActiveCount} 个</div>
-                                    <div className="text-xs text-muted">当前可继续发放的邀请码</div>
+                                    <div className="text-xs text-muted">当前仍可继续使用的库存</div>
                                 </div>
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">剩余额度</div>
                                     <div className="text-lg font-semibold">{inviteRemainingUses} 次</div>
-                                    <div className="text-xs text-muted">所有活动邀请码可累计使用次数</div>
+                                    <div className="text-xs text-muted">活动邀请码剩余总次数</div>
                                 </div>
                                 <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">已失效</div>
-                                    <div className="text-lg font-semibold">{inviteUsedCount + inviteRevokedCount} 个</div>
-                                    <div className="text-xs text-muted">已用完 {inviteUsedCount} · 已撤销 {inviteRevokedCount}</div>
+                                    <div className="text-sm text-muted">已使用次数</div>
+                                    <div className="text-lg font-semibold">{inviteConsumedUses} 次</div>
+                                    <div className="text-xs text-muted">邀请码累计已消耗次数</div>
+                                </div>
+                                <div className="card p-3 settings-mini-card">
+                                    <div className="text-sm text-muted">最近使用</div>
+                                    <div className="text-lg font-semibold">{inviteRecentUsedAt ? formatDateTime(inviteRecentUsedAt.usedAt, locale) : '暂无'}</div>
+                                    <div className="text-xs text-muted">
+                                        {inviteRecentUsedAt?.usedByUsername ? `最近由 ${inviteRecentUsedAt.usedByUsername} 使用` : `已用完 ${inviteUsedCount} · 已撤销 ${inviteRevokedCount}`}
+                                    </div>
                                 </div>
                             </div>
+                            </div>
                             <div className="card p-3 settings-mini-card settings-detail-card">
-                                <div className="text-sm font-medium">生成参数</div>
-                                <div className="settings-inline-grid settings-inline-grid--triple">
+                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                    <div className="text-sm font-medium">生成邀请码</div>
+                                    <span className="text-xs text-muted">
+                                        当前可用 {inviteAvailableRecords.length} 个，剩余 {inviteRemainingUses} 次
+                                    </span>
+                                </div>
+                                <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
                                     <div className="form-group mb-0">
                                         <label className="form-label">本次生成数量</label>
                                         <input
@@ -1881,53 +1959,11 @@ export default function SystemSettings() {
                                             onClick={createInviteCode}
                                             disabled={inviteCodeActionLoading}
                                         >
-                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                                            {inviteCodeActionKey === 'create' ? <span className="spinner" /> : '生成邀请码'}
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">邀请码库存</div>
-                                <div className="settings-form-cluster-title">最近创建与当前可用情况</div>
-                                <div className="settings-form-cluster-note">库存只保留预览和使用状态。</div>
-                            </div>
-                            {inviteCodesLoading ? (
-                                <div className="text-sm text-muted">正在加载邀请码列表...</div>
-                            ) : inviteRecentRecords.length === 0 ? (
-                                <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
-                            ) : (
-                                <div className="settings-invite-activity-list">
-                                    {inviteRecentRecords.map((item) => {
-                                        const statusClass = item.status === 'active'
-                                            ? 'badge-success'
-                                            : item.status === 'revoked'
-                                                ? 'badge-danger'
-                                                : 'badge-neutral';
-                                        const statusLabel = item.status === 'active'
-                                            ? '可使用'
-                                            : item.status === 'revoked'
-                                                ? '已撤销'
-                                                : '已用完';
-
-                                        return (
-                                            <div key={item.id} className="settings-invite-activity-item">
-                                                <div className="settings-invite-activity-head">
-                                                    <div className="settings-invite-activity-title">{item.preview || item.id}</div>
-                                                    <span className={`badge ${statusClass}`}>{statusLabel}</span>
-                                                </div>
-                                                <div className="settings-invite-activity-meta">
-                                                    <span>创建于 {formatDateTime(item.createdAt, locale)}</span>
-                                                    <span>剩余 {Number(item.remainingUses || 0)} / {Number(item.usageLimit || 1)}</span>
-                                                    <span>已使用 {Number(item.usedCount || 0)} 次</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
                             {latestInviteCodes.length > 0 ? (
                                 <div className="card p-3 settings-mini-card settings-detail-card">
                                     <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -1955,8 +1991,89 @@ export default function SystemSettings() {
                                     </div>
                                     <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
                                 </div>
+                            ) : null}
+                        </div>
+
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">邀请码台账</div>
+                                <div className="settings-form-cluster-title">库存、进度与最近使用</div>
+                            </div>
+                            {inviteCodesLoading ? (
+                                <div className="text-sm text-muted">正在加载邀请码列表...</div>
+                            ) : inviteRecords.length === 0 ? (
+                                <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
                             ) : (
-                                <div className="text-xs text-muted">生成后会在这里显示本批次明文结果。</div>
+                                <div className="settings-invite-ledger">
+                                    {inviteRecords.map((item) => {
+                                        const statusMeta = getInviteStatusMeta(item);
+                                        const usageLimit = Math.max(1, Number(item.usageLimit || 1));
+                                        const usedCount = Math.max(0, Number(item.usedCount || 0));
+                                        const remainingUses = Math.max(0, Number(item.remainingUses || 0));
+                                        const progressWidth = `${Math.min(100, Math.round((usedCount / usageLimit) * 100))}%`;
+                                        const actionBusy = inviteCodeActionKey === `revoke:${item.id}`;
+
+                                        return (
+                                            <div key={item.id} className="settings-invite-ledger-item">
+                                                <div className="settings-invite-ledger-top">
+                                                    <div className="settings-invite-ledger-title-block">
+                                                        <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
+                                                        <div className="settings-invite-ledger-subtitle">
+                                                            创建于 {formatDateTime(item.createdAt, locale)}
+                                                            {item.createdBy ? ` · 创建者 ${item.createdBy}` : ''}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`badge ${statusMeta.className}`}>{statusMeta.label}</span>
+                                                </div>
+                                                <div className="settings-invite-ledger-usage">
+                                                    <div className="settings-invite-ledger-usage-head">
+                                                        <span>已用 {usedCount} / {usageLimit}</span>
+                                                        <span>剩余 {remainingUses} 次</span>
+                                                    </div>
+                                                    <div className="settings-invite-ledger-progress" aria-hidden="true">
+                                                        <span className="settings-invite-ledger-progress-bar" style={{ width: progressWidth }} />
+                                                    </div>
+                                                </div>
+                                                <div className="settings-invite-ledger-meta">
+                                                    <div className="settings-invite-ledger-meta-item">
+                                                        <span className="settings-invite-ledger-meta-label">开通时长</span>
+                                                        <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
+                                                    </div>
+                                                    <div className="settings-invite-ledger-meta-item">
+                                                        <span className="settings-invite-ledger-meta-label">最近使用</span>
+                                                        <span className="settings-invite-ledger-meta-value">
+                                                            {item.usedAt
+                                                                ? `${formatDateTime(item.usedAt, locale)}${item.usedByUsername ? ` · ${item.usedByUsername}` : ''}`
+                                                                : '未使用'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="settings-invite-ledger-meta-item">
+                                                        <span className="settings-invite-ledger-meta-label">状态说明</span>
+                                                        <span className="settings-invite-ledger-meta-value">
+                                                            {item.status === 'revoked'
+                                                                ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
+                                                                : item.status === 'used'
+                                                                    ? '已达到使用上限'
+                                                                    : '仍可继续发放'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {item.status === 'active' ? (
+                                                    <div className="settings-invite-ledger-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-ghost btn-sm"
+                                                            onClick={() => revokeInviteCode(item)}
+                                                            disabled={inviteCodeActionLoading}
+                                                        >
+                                                            {actionBusy ? <span className="spinner" /> : '撤销邀请码'}
+                                                        </button>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             )}
                         </div>
                     </div>

@@ -10,6 +10,7 @@ vi.mock('../../api/client.js', () => ({
         get: vi.fn(),
         post: vi.fn(),
         put: vi.fn(),
+        delete: vi.fn(),
     },
 }));
 
@@ -223,9 +224,29 @@ function mockAdminBootstrap(overrides = {}) {
                 obj: [
                     {
                         id: 'invite-1',
+                        preview: 'INV-ALPHA',
                         status: 'active',
+                        createdAt: '2026-03-15T07:00:00.000Z',
+                        createdBy: 'admin',
+                        usageLimit: 5,
                         remainingUses: 3,
-                        usedCount: 0,
+                        usedCount: 2,
+                        subscriptionDays: 30,
+                        usedAt: '2026-03-15T07:30:00.000Z',
+                        usedByUsername: 'alice',
+                    },
+                    {
+                        id: 'invite-2',
+                        preview: 'INV-BETA',
+                        status: 'used',
+                        createdAt: '2026-03-14T07:00:00.000Z',
+                        createdBy: 'admin',
+                        usageLimit: 1,
+                        remainingUses: 0,
+                        usedCount: 1,
+                        subscriptionDays: 90,
+                        usedAt: '2026-03-14T08:00:00.000Z',
+                        usedByUsername: 'bob',
                     },
                 ],
             },
@@ -296,6 +317,7 @@ describe('SystemSettings', () => {
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
+        api.delete.mockReset();
     });
 
     it('shows the access restriction empty state for non-admin users', () => {
@@ -522,6 +544,33 @@ describe('SystemSettings', () => {
                     clearBotToken: true,
                 }),
             }));
+        });
+    });
+
+    it('shows invite usage details and allows revoking an active invite', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.delete.mockResolvedValue({
+            data: {
+                msg: '邀请码已撤销',
+            },
+        });
+
+        renderWithRouter(<SystemSettings />);
+
+        expect(await screen.findByText('邀请码台账')).toBeInTheDocument();
+        expect(screen.getByText('INV-ALPHA')).toBeInTheDocument();
+        expect(screen.getByText('已用 2 / 5')).toBeInTheDocument();
+        expect(screen.getAllByText(/alice/).length).toBeGreaterThan(0);
+
+        await user.click(screen.getByRole('button', { name: '撤销邀请码' }));
+
+        await waitFor(() => {
+            expect(api.delete).toHaveBeenCalledWith('/system/invite-codes/invite-1');
         });
     });
 });
