@@ -1136,9 +1136,43 @@
 }
 
 .settings-workspace-section {
+  display: grid;
+  gap: 18px;
   padding: 16px;
   border-color: rgba(255, 255, 255, 0.06);
   background: var(--surface-panel);
+}
+
+.settings-workspace-hero {
+  padding: clamp(18px, 2.4vw, 24px);
+  border-radius: 22px;
+}
+
+.settings-workspace-hero-subtitle {
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.settings-workspace-hero-badges,
+.settings-workspace-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-workspace-hero-actions .btn {
+  min-height: 40px;
+  padding-inline: 15px;
+  border-radius: 12px;
+}
+
+.settings-workspace-highlight-grid {
+  align-content: start;
+}
+
+.settings-workspace-highlight-card {
+  min-height: 138px;
 }
 
 .settings-workspace-section-head {
@@ -1339,7 +1373,14 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0;
+  gap: 5px;
+}
+
+.settings-nav-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .settings-nav-item-label {
@@ -1347,6 +1388,43 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.settings-nav-item-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.settings-nav-item-flags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.settings-nav-item-flags .badge {
+  min-height: 26px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+
+.settings-nav-item-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent-warning);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+  flex: 0 0 auto;
+}
+
+.settings-nav-item.is-dirty {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .settings-main,
@@ -1402,6 +1480,12 @@
   line-height: 1.4;
 }
 
+.settings-save-dock-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .settings-save-dock-actions {
   display: flex;
   align-items: center;
@@ -1442,6 +1526,13 @@
   gap: 8px;
   padding: clamp(14px, 1.8vw, 18px);
   overflow: hidden;
+}
+
+.settings-summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .settings-summary-label {
@@ -1607,6 +1698,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.settings-inline-grid--invite-workbench {
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+}
+
 .settings-field-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1733,6 +1828,45 @@
   gap: 8px;
   max-height: 180px;
   overflow-y: auto;
+}
+
+.settings-invite-activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-invite-activity-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-invite-activity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.settings-invite-activity-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.settings-invite-activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-embedded-console--empty {
@@ -2057,6 +2191,12 @@
 
 .settings-backup-actions--triple {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-backup-action-card--danger {
+  border-color: rgba(239, 68, 68, 0.18);
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .settings-db-control-card {
@@ -2931,6 +3071,19 @@
     scroll-snap-align: start;
   }
 
+  .settings-workspace-hero-actions,
+  .settings-workspace-hero-actions .btn {
+    width: 100%;
+  }
+
+  .settings-workspace-hero-badges {
+    width: 100%;
+  }
+
+  .settings-inline-grid--invite-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .settings-nav-list--workspace {
     grid-auto-flow: row;
     grid-auto-columns: auto;
@@ -3092,6 +3245,7 @@
 
   .settings-inline-grid,
   .settings-inline-grid--triple,
+  .settings-inline-grid--invite-workbench,
   .settings-field-grid,
   .settings-field-grid--triple {
     grid-template-columns: minmax(0, 1fr);
@@ -3127,6 +3281,14 @@
   .settings-nav-list {
     scroll-snap-type: x proximity;
     padding-inline-end: 6px;
+  }
+
+  .settings-nav-item {
+    min-height: 56px;
+  }
+
+  .settings-nav-item-summary {
+    -webkit-line-clamp: 3;
   }
 
   .settings-db-control-card,
@@ -3168,6 +3330,11 @@
     width: 100%;
   }
 
+  .settings-table-shell .table {
+    min-width: 0;
+    width: 100%;
+  }
+
   .settings-tab-hero-grid,
   .settings-backup-summary-grid,
   .settings-backup-actions--triple,
@@ -3187,6 +3354,11 @@
   .settings-backup-local-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .settings-invite-activity-meta {
+    flex-direction: column;
+    gap: 4px;
   }
 
   .settings-panel .section-header-side {
@@ -3484,6 +3656,13 @@ p, .empty-state-body, td {
     padding-left: calc(var(--mobile-page-pad) + 48px);
   }
 
+  .header-left {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
   .header-title-group,
   .header-actions {
     width: 100%;
@@ -3496,7 +3675,7 @@ p, .empty-state-body, td {
   }
 
   .header-actions {
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-left: 0;
     gap: 8px;
   }

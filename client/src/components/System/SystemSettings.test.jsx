@@ -372,7 +372,7 @@ describe('SystemSettings', () => {
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
         expect(screen.getByText('运维汇总 45 分钟')).toBeInTheDocument();
         expect(screen.getByText('日报 12 小时')).toBeInTheDocument();
-        expect(screen.getByText(/目标 \*{8}7890/)).toBeInTheDocument();
+        expect(screen.getAllByText(/目标 \*{8}7890/).length).toBeGreaterThan(0);
     });
 
     it('shows a compact backup summary card in the backup tab', async () => {

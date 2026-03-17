@@ -290,20 +290,39 @@ function SettingsWorkspaceSection({
     eyebrow,
     title,
     subtitle,
+    summary,
+    badges = null,
+    highlights = [],
     actions = null,
     children,
 }) {
+    const hasHero = Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
+
     return (
         <section className="card settings-workspace-section">
-            <div className="settings-workspace-section-head">
-                {eyebrow ? <div className="settings-workspace-section-eyebrow">{eyebrow}</div> : null}
-                <SectionHeader
-                    compact
-                    title={title}
-                    subtitle={subtitle}
-                    actions={actions}
-                />
-            </div>
+            {hasHero ? (
+                <div className="settings-tab-hero settings-workspace-hero">
+                    <div className="settings-tab-hero-copy">
+                        {eyebrow ? <div className="settings-tab-hero-eyebrow">{eyebrow}</div> : null}
+                        {title ? <div className="settings-tab-hero-title">{title}</div> : null}
+                        {subtitle ? <div className="settings-workspace-hero-subtitle">{subtitle}</div> : null}
+                        {summary ? <div className="settings-tab-hero-summary">{summary}</div> : null}
+                        {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
+                        {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
+                    </div>
+                    {highlights.length > 0 ? (
+                        <div className="settings-tab-hero-grid settings-workspace-highlight-grid">
+                            {highlights.map((item) => (
+                                <div key={item.label} className="settings-tab-highlight-card settings-workspace-highlight-card">
+                                    <div className="settings-tab-highlight-label">{item.label}</div>
+                                    <div className="settings-tab-highlight-value">{item.value}</div>
+                                    {item.detail ? <div className="settings-tab-highlight-detail">{item.detail}</div> : null}
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
             <div className="settings-workspace-section-body">
                 {children}
             </div>
@@ -366,49 +385,13 @@ function SettingsToggleCard({
     );
 }
 
-function SettingsDisclosure({
-    title,
-    subtitle,
-    badge = null,
-    tone = 'neutral',
-    defaultOpen = false,
-    children,
-}) {
-    const [open, setOpen] = useState(defaultOpen);
-
-    return (
-        <div className={`settings-disclosure${open ? ' is-open' : ''}`} data-tone={tone}>
-            <button
-                type="button"
-                className="settings-disclosure-summary"
-                onClick={() => setOpen((prev) => !prev)}
-                aria-expanded={open}
-            >
-                <span className="settings-disclosure-copy">
-                    <span className="settings-disclosure-title">{title}</span>
-                    {subtitle ? <span className="settings-disclosure-subtitle">{subtitle}</span> : null}
-                </span>
-                <span className="settings-disclosure-side">
-                    {badge}
-                    <span className="settings-disclosure-indicator" aria-hidden="true" />
-                </span>
-            </button>
-            {open ? <div className="settings-disclosure-body">{children}</div> : null}
-        </div>
-    );
-}
-
-function resolveInviteState(invite) {
-    const status = String(invite?.status || '').trim();
-    if (status === 'revoked') return 'revoked';
-    if (status === 'used') return 'used';
-    const remaining = Number(invite?.remainingUses ?? invite?.usageLimit ?? 0) - Number(invite?.usedCount || 0);
-    return remaining > 0 ? 'active' : 'used';
-}
-
 function formatInviteDuration(days) {
     const normalized = Math.max(0, Number(days) || 0);
     return normalized > 0 ? `${normalized} 天` : '不限时';
+}
+
+function areComparableSettingsEqual(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 export default function SystemSettings() {
@@ -422,10 +405,8 @@ export default function SystemSettings() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [rotateLoading, setRotateLoading] = useState(false);
     const [settings, setSettings] = useState(null);
     const [draft, setDraft] = useState(buildDraft(null));
-    const [rotateResult, setRotateResult] = useState(null);
     const [dbLoading, setDbLoading] = useState(false);
     const [dbStatus, setDbStatus] = useState(null);
     const [dbModeDraft, setDbModeDraft] = useState({
@@ -473,7 +454,7 @@ export default function SystemSettings() {
     const [registrationRuntime, setRegistrationRuntime] = useState(null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionLoading, setInviteCodeActionLoading] = useState(false);
-    const [inviteCodes, setInviteCodes] = useState([]);
+    const [_inviteCodes, setInviteCodes] = useState([]);
     const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
         count: '1',
         usageLimit: '1',
@@ -524,15 +505,64 @@ export default function SystemSettings() {
         if (typeof window === 'undefined') return siteAccessPath;
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
     }, [siteAccessPath]);
-    const siteCamouflageEnabled = draft.site.camouflageEnabled === true;
-    const camouflagePreview = useMemo(() => {
-        if (typeof window === 'undefined') return '/';
-        return `${window.location.origin}/`;
-    }, []);
+    const baselineDraft = useMemo(() => buildDraft(settings), [settings]);
     const hasPendingChanges = useMemo(() => {
         if (!settings) return false;
-        return JSON.stringify(draft) !== JSON.stringify(buildDraft(settings));
-    }, [draft, settings]);
+        return !areComparableSettingsEqual(draft, baselineDraft);
+    }, [baselineDraft, draft, settings]);
+    const dirtySectionMap = useMemo(() => {
+        if (!settings) {
+            return {
+                site: false,
+                registration: false,
+                security: false,
+                audit: false,
+                auditIpGeo: false,
+                subscription: false,
+                telegram: false,
+            };
+        }
+        return {
+            site: !areComparableSettingsEqual(draft.site, baselineDraft.site),
+            registration: !areComparableSettingsEqual(draft.registration, baselineDraft.registration),
+            security: !areComparableSettingsEqual(draft.security, baselineDraft.security),
+            audit: !areComparableSettingsEqual(draft.audit, baselineDraft.audit),
+            auditIpGeo: !areComparableSettingsEqual(draft.auditIpGeo, baselineDraft.auditIpGeo),
+            subscription: !areComparableSettingsEqual(draft.subscription, baselineDraft.subscription),
+            telegram: !areComparableSettingsEqual(draft.telegram, baselineDraft.telegram),
+        };
+    }, [baselineDraft, draft, settings]);
+    const workspaceDirtyMap = useMemo(() => ({
+        status: false,
+        access: dirtySectionMap.site || dirtySectionMap.registration || dirtySectionMap.subscription,
+        policy: dirtySectionMap.security || dirtySectionMap.audit || dirtySectionMap.auditIpGeo,
+        operations: dirtySectionMap.telegram,
+        backup: false,
+    }), [dirtySectionMap]);
+    const dirtyWorkspaceIds = useMemo(() => (
+        Object.entries(workspaceDirtyMap)
+            .filter(([, isDirty]) => isDirty)
+            .map(([workspaceId]) => workspaceId)
+    ), [workspaceDirtyMap]);
+    const dirtyWorkspaceCount = dirtyWorkspaceIds.length;
+    const inviteRecords = useMemo(() => (Array.isArray(_inviteCodes) ? _inviteCodes : []), [_inviteCodes]);
+    const inviteActiveCount = useMemo(
+        () => inviteRecords.filter((item) => item.status === 'active' && Number(item.remainingUses || 0) > 0).length,
+        [inviteRecords]
+    );
+    const inviteRemainingUses = useMemo(
+        () => inviteRecords.reduce((sum, item) => sum + Math.max(0, Number(item.remainingUses || 0)), 0),
+        [inviteRecords]
+    );
+    const inviteUsedCount = useMemo(
+        () => inviteRecords.filter((item) => item.status === 'used' || Number(item.remainingUses || 0) <= 0).length,
+        [inviteRecords]
+    );
+    const inviteRevokedCount = useMemo(
+        () => inviteRecords.filter((item) => item.status === 'revoked').length,
+        [inviteRecords]
+    );
+    const inviteRecentRecords = useMemo(() => inviteRecords.slice(0, 4), [inviteRecords]);
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -878,6 +908,42 @@ export default function SystemSettings() {
         patchField('site', 'accessPath', generateRandomSiteAccessPath());
     };
 
+    const resetPendingChanges = () => {
+        if (!settings) return;
+        setDraft(buildDraft(settings));
+        setEditingTelegramChatId(false);
+        toast.success('已恢复到已保存配置');
+    };
+
+    const copySiteEntry = async () => {
+        await copyToClipboard(siteEntryPreview);
+        toast.success('入口地址已复制到剪贴板');
+    };
+
+    const refreshStatusWorkspace = async () => {
+        await Promise.all([
+            fetchRegistrationRuntime(),
+            fetchDbStatus({ quiet: true }),
+            fetchEmailStatus({ quiet: true }),
+            fetchBackupStatus({ quiet: true }),
+            fetchMonitorStatus({ quiet: true }),
+        ]);
+    };
+
+    const refreshOperationsWorkspace = async () => {
+        await Promise.all([
+            fetchEmailStatus({ quiet: true }),
+            fetchMonitorStatus({ quiet: true }),
+        ]);
+    };
+
+    const refreshBackupWorkspace = async () => {
+        await Promise.all([
+            fetchDbStatus({ quiet: true }),
+            fetchBackupStatus({ quiet: true }),
+        ]);
+    };
+
     const handleCamouflageToggle = (checked) => {
         if (!checked) {
             patchField('site', 'camouflageEnabled', false);
@@ -970,51 +1036,6 @@ export default function SystemSettings() {
             toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
         }
         setInviteCodeActionLoading(false);
-    };
-
-    const revokeInviteCode = async (invite) => {
-        if (!invite?.id || !isAdmin) return;
-        const ok = await confirmAction({
-            title: '撤销邀请码',
-            message: `确定撤销邀请码 ${invite.preview} 吗？`,
-            details: `撤销后剩余 ${Math.max(0, Number(invite.remainingUses || 0))} 次将立即失效。`,
-            confirmText: '确认撤销',
-            tone: 'danger',
-        });
-        if (!ok) return;
-
-        setInviteCodeActionLoading(true);
-        try {
-            await api.delete(`/system/invite-codes/${encodeURIComponent(invite.id)}`);
-            toast.success('邀请码已撤销');
-            await fetchInviteCodes({ quiet: true });
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '撤销邀请码失败');
-        }
-        setInviteCodeActionLoading(false);
-    };
-
-    const rotateCredentials = async (dryRun) => {
-        if (!isAdmin) return;
-        const ok = await confirmAction({
-            title: dryRun ? '凭据轮换预演' : '执行凭据轮换',
-            message: dryRun
-                ? '执行 dry-run 仅检查可轮换条目，不写入数据。'
-                : '执行后会重加密所有节点凭据，是否继续？',
-            confirmText: dryRun ? '开始预演' : '确认轮换',
-            tone: dryRun ? 'secondary' : 'danger',
-        });
-        if (!ok) return;
-
-        setRotateLoading(true);
-        try {
-            const res = await api.post('/system/credentials/rotate', { dryRun });
-            setRotateResult(res.data?.obj || null);
-            toast.success(res.data?.msg || '凭据轮换已完成');
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '凭据轮换失败');
-        }
-        setRotateLoading(false);
     };
 
     const switchDbMode = async () => {
@@ -1364,14 +1385,6 @@ export default function SystemSettings() {
         setTelegramTestLoading(false);
     };
 
-    const inviteStatusSummary = useMemo(() => (
-        inviteCodes.reduce((acc, invite) => {
-            const state = resolveInviteState(invite);
-            acc[state] += 1;
-            return acc;
-        }, { active: 0, used: 0, revoked: 0 })
-    ), [inviteCodes]);
-
     const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
     const latestLocalBackup = localBackups[0] || null;
     const hasExportBackup = Boolean(backupStatus?.lastExport?.createdAt);
@@ -1465,6 +1478,130 @@ export default function SystemSettings() {
             .filter(Boolean);
         return entries.length > 0 ? entries.slice(0, 3).join(' · ') : '最近未记录节点异常原因';
     }, [monitorStatus]);
+    const monitorHealthyCount = Number(monitorStatus?.healthMonitor?.summary?.healthy || 0);
+    const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
+        + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
+    const monitorUnreadCount = Number(monitorStatus?.notifications?.unreadCount || 0);
+    const accessOverviewCards = useMemo(() => ([
+        {
+            label: '真实入口',
+            value: siteAccessPath,
+            detail: draft.site.camouflageEnabled ? '首页伪装已开启' : '首页直接显示 NMS',
+        },
+        {
+            label: '注册模式',
+            value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册',
+            detail: registrationEnabled ? '当前运行时允许注册' : '运行时已关闭自助注册',
+        },
+        {
+            label: '活动邀请码',
+            value: `${inviteActiveCount} 个`,
+            detail: `剩余 ${inviteRemainingUses} 次使用额度`,
+        },
+        {
+            label: '订阅公网',
+            value: draft.subscription.publicBaseUrl || '未配置',
+            detail: converterBaseUrl ? '已配置外部转换器' : '未配置外部转换器',
+        },
+    ]), [
+        converterBaseUrl,
+        draft.registration.inviteOnlyEnabled,
+        draft.site.camouflageEnabled,
+        draft.subscription.publicBaseUrl,
+        inviteActiveCount,
+        inviteRemainingUses,
+        registrationEnabled,
+        siteAccessPath,
+    ]);
+    const policyOverviewCards = useMemo(() => ([
+        {
+            label: '风控确认',
+            value: draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭',
+            detail: `高风险阈值 ${draft.security.highRiskMinTargets}`,
+        },
+        {
+            label: '审计保留',
+            value: `${draft.audit.retentionDays} 天`,
+            detail: `单页最多 ${draft.audit.maxPageSize} 条`,
+        },
+        {
+            label: '地理信息',
+            value: draft.auditIpGeo.enabled ? '已启用' : '未启用',
+            detail: draft.auditIpGeo.enabled ? `服务商 ${draft.auditIpGeo.provider || '-'}` : '不会补充地区与运营商',
+        },
+        {
+            label: '确认令牌',
+            value: `${draft.security.riskTokenTtlSeconds} 秒`,
+            detail: `中风险阈值 ${draft.security.mediumRiskMinTargets}`,
+        },
+    ]), [draft.audit, draft.auditIpGeo, draft.security]);
+    const operationsOverviewCards = useMemo(() => ([
+        {
+            label: 'SMTP',
+            value: emailConfiguredLabel,
+            detail: emailDeliveryLabel,
+        },
+        {
+            label: '节点巡检',
+            value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行',
+            detail: `正常 ${monitorHealthyCount} · 异常 ${monitorIncidentCount}`,
+        },
+        {
+            label: '通知中心',
+            value: `${monitorUnreadCount} 条未读`,
+            detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}`,
+        },
+        {
+            label: 'Telegram',
+            value: monitorStatus?.telegram?.enabled
+                ? '已启用'
+                : monitorStatus?.telegram?.configured
+                    ? '待启用'
+                    : '未配置',
+            detail: telegramTargetPreview !== '-' ? `目标 ${telegramTargetPreview}` : '尚未设置消息目标',
+        },
+    ]), [
+        emailConfiguredLabel,
+        emailDeliveryLabel,
+        monitorHealthyCount,
+        monitorIncidentCount,
+        monitorStatus,
+        monitorUnreadCount,
+        telegramTargetPreview,
+    ]);
+    const backupOverviewCards = useMemo(() => ([
+        {
+            label: '数据库模式',
+            value: dbStatus
+                ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
+                : '等待探测',
+            detail: dbStatus?.connection?.ready ? '数据库连接已就绪' : dbStatus?.connection?.enabled ? '数据库连接待检查' : '当前未启用数据库',
+        },
+        {
+            label: '备份状态',
+            value: backupSummaryValue,
+            detail: hasExportBackup || hasLocalBackup ? '建议定期验证恢复流程' : '建议先生成一份基线备份',
+        },
+        {
+            label: '本机备份',
+            value: `${localBackups.length} 份`,
+            detail: latestLocalBackup?.filename || '暂无服务器本机备份',
+        },
+        {
+            label: '最近恢复',
+            value: backupStatus?.lastImport?.sourceFilename || '暂无',
+            detail: formatDateTime(backupStatus?.lastImport?.restoredAt, locale),
+        },
+    ]), [
+        backupStatus,
+        backupSummaryValue,
+        dbStatus,
+        hasExportBackup,
+        hasLocalBackup,
+        latestLocalBackup,
+        localBackups.length,
+        locale,
+    ]);
 
     const renderAccessContent = () => (
         <div className="settings-section-stack">
@@ -1474,12 +1611,35 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="站点入口"
+                        subtitle="先确认真实入口，再决定是否开启首页伪装。"
+                        actions={(
+                            <div className="settings-panel-actions">
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={copySiteEntry}>
+                                    复制入口
+                                </button>
+                                <a href={siteEntryPreview} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                                    打开预览
+                                </a>
+                            </div>
+                        )}
                     />
+                    <div className="settings-basic-note-list">
+                        <span className={`badge ${siteAccessPath === '/' ? 'badge-warning' : 'badge-success'}`}>
+                            {siteAccessPath === '/' ? '真实入口位于根路径' : '真实入口已隐藏'}
+                        </span>
+                        <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
+                            {draft.site.camouflageEnabled ? '伪装首页已开启' : '伪装首页未开启'}
+                        </span>
+                        <span className="badge badge-neutral">访问预览 {siteEntryPreview}</span>
+                    </div>
                     <div className="settings-inline-grid settings-basic-entry-grid">
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">入口路径</div>
                                 <div className="settings-form-cluster-title">对外访问的真实入口</div>
+                                <div className="settings-form-cluster-note">
+                                    建议使用非根路径，并和首页伪装一起启用，减少后台直接暴露。
+                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">首页访问路径</label>
@@ -1497,6 +1657,26 @@ export default function SystemSettings() {
                                     >
                                         随机路径
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">入口摘要</div>
+                                <div className="settings-form-cluster-title">当前对外呈现方式</div>
+                            </div>
+                            <div className="settings-monitor-log-meta">
+                                <div className="settings-monitor-log-item">
+                                    <span className="settings-monitor-log-label">访问地址</span>
+                                    <span className="settings-monitor-log-value">{siteEntryPreview}</span>
+                                </div>
+                                <div className="settings-monitor-log-item">
+                                    <span className="settings-monitor-log-label">首页表现</span>
+                                    <span className="settings-monitor-log-value">
+                                        {draft.site.camouflageEnabled
+                                            ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
+                                            : '直接显示 NMS 登录页'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -1541,12 +1721,24 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                     <SettingsPanelHeader
                         title="订阅地址"
+                        subtitle="区分公开输出地址和外部转换地址，避免订阅链路混在一起。"
                     />
+                    <div className="settings-basic-note-list">
+                        <span className={`badge ${draft.subscription.publicBaseUrl ? 'badge-success' : 'badge-warning'}`}>
+                            {draft.subscription.publicBaseUrl ? '订阅公网地址已配置' : '订阅公网地址待配置'}
+                        </span>
+                        <span className={`badge ${converterBaseUrl ? 'badge-success' : 'badge-neutral'}`}>
+                            {converterBaseUrl ? '外部转换器已配置' : '未配置外部转换器'}
+                        </span>
+                    </div>
                     <div className="settings-basic-address-grid">
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">公网输出</div>
                                 <div className="settings-form-cluster-title">固定订阅链接的公开域名</div>
+                                <div className="settings-form-cluster-note">
+                                    建议填写实际对外可访问域名，减少节点地址变化时的用户感知。
+                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">订阅公网地址（可选，建议配置）</label>
@@ -1562,6 +1754,9 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">外部转换</div>
                                 <div className="settings-form-cluster-title">Clash / Mihomo / Surge 使用的转换器</div>
+                                <div className="settings-form-cluster-note">
+                                    如果不依赖外部转换器，可以保持为空。
+                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label">外部订阅转换器地址（可选）</label>
@@ -1603,6 +1798,7 @@ export default function SystemSettings() {
                         className="mb-3"
                         compact
                         title="注册与邀请码"
+                        subtitle="把注册模式、邀请码生成和当前库存放在同一处处理。"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
@@ -1611,104 +1807,176 @@ export default function SystemSettings() {
                             </div>
                         )}
                     />
-                    <div className="form-group">
-                        <SettingsToggleCard
-                            checked={draft.registration.inviteOnlyEnabled}
-                            onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                            disabled={!registrationEnabled}
-                            label="开启邀请注册"
-                            description={registrationEnabled
-                                ? '开启后注册需填写邀请码。'
-                                : '当前环境已关闭自助注册。'}
-                            activeLabel="邀请模式"
-                            inactiveLabel="普通模式"
-                        />
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                        <div className="text-sm font-medium mb-2">生成参数</div>
-                        <div className="settings-inline-grid settings-inline-grid--triple">
-                            <div className="form-group mb-0">
-                                <label className="form-label">本次生成数量</label>
-                                <input
-                                    className="form-input"
-                                    type="number"
-                                    min={1}
-                                    max={50}
-                                value={inviteGenerationDraft.count}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                        ...prev,
-                                        count: e.target.value,
-                                    }))}
-                                />
+                    <div className="settings-inline-grid settings-inline-grid--invite-workbench">
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">注册模式</div>
+                                <div className="settings-form-cluster-title">控制是否允许公开注册</div>
+                                <div className="settings-form-cluster-note">
+                                    邀请模式适合受控分发，普通模式适合公开注册入口。
+                                </div>
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">每个邀请码可用次数</label>
-                                <input
-                                    className="form-input"
-                                    type="number"
-                                    min={1}
-                                    max={1000}
-                                value={inviteGenerationDraft.usageLimit}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                        ...prev,
-                                        usageLimit: e.target.value,
-                                    }))}
-                                />
+                            <SettingsToggleCard
+                                checked={draft.registration.inviteOnlyEnabled}
+                                onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                                disabled={!registrationEnabled}
+                                label="开启邀请注册"
+                                description={registrationEnabled
+                                    ? '开启后注册需填写邀请码。'
+                                    : '当前环境已关闭自助注册。'}
+                                activeLabel="邀请模式"
+                                inactiveLabel="普通模式"
+                            />
+                            <div className="settings-mini-grid settings-mini-grid--metrics">
+                                <div className="card p-3 settings-mini-card">
+                                    <div className="text-sm text-muted">活动邀请码</div>
+                                    <div className="text-lg font-semibold">{inviteActiveCount} 个</div>
+                                    <div className="text-xs text-muted">当前可继续发放的邀请码</div>
+                                </div>
+                                <div className="card p-3 settings-mini-card">
+                                    <div className="text-sm text-muted">剩余额度</div>
+                                    <div className="text-lg font-semibold">{inviteRemainingUses} 次</div>
+                                    <div className="text-xs text-muted">所有活动邀请码可累计使用次数</div>
+                                </div>
+                                <div className="card p-3 settings-mini-card">
+                                    <div className="text-sm text-muted">已失效</div>
+                                    <div className="text-lg font-semibold">{inviteUsedCount + inviteRevokedCount} 个</div>
+                                    <div className="text-xs text-muted">已用完 {inviteUsedCount} · 已撤销 {inviteRevokedCount}</div>
+                                </div>
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">开通时长（天）</label>
-                                <input
-                                    className="form-input"
-                                    type="number"
-                                    min={0}
-                                    max={3650}
-                                value={inviteGenerationDraft.subscriptionDays}
-                                onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                        ...prev,
-                                        subscriptionDays: e.target.value,
-                                    }))}
-                                />
-                            </div>
-                            <div className="form-group mb-0 settings-form-actions">
-                                <button
-                                    className="btn btn-primary w-full"
-                                    type="button"
-                                    onClick={createInviteCode}
-                                    disabled={inviteCodeActionLoading}
-                                >
-                                    {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
-                                </button>
+                            <div className="card p-3 settings-mini-card settings-detail-card">
+                                <div className="text-sm font-medium">生成参数</div>
+                                <div className="settings-inline-grid settings-inline-grid--triple">
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">本次生成数量</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={1}
+                                            max={50}
+                                            value={inviteGenerationDraft.count}
+                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                ...prev,
+                                                count: e.target.value,
+                                            }))}
+                                        />
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">每个邀请码可用次数</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={1}
+                                            max={1000}
+                                            value={inviteGenerationDraft.usageLimit}
+                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                ...prev,
+                                                usageLimit: e.target.value,
+                                            }))}
+                                        />
+                                    </div>
+                                    <div className="form-group mb-0">
+                                        <label className="form-label">开通时长（天）</label>
+                                        <input
+                                            className="form-input"
+                                            type="number"
+                                            min={0}
+                                            max={3650}
+                                            value={inviteGenerationDraft.subscriptionDays}
+                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                ...prev,
+                                                subscriptionDays: e.target.value,
+                                            }))}
+                                        />
+                                    </div>
+                                    <div className="form-group mb-0 settings-form-actions">
+                                        <button
+                                            className="btn btn-primary w-full"
+                                            type="button"
+                                            onClick={createInviteCode}
+                                            disabled={inviteCodeActionLoading}
+                                        >
+                                            {inviteCodeActionLoading ? <span className="spinner" /> : '生成邀请码'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    {latestInviteCodes.length > 0 && (
-                        <div className="card p-3 settings-mini-card settings-detail-card mb-3">
-                            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                <div className="text-sm font-medium">本次生成的邀请码</div>
-                                <span className="text-xs text-muted">
-                                    {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
-                                </span>
+
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">邀请码库存</div>
+                                <div className="settings-form-cluster-title">最近创建与当前可用情况</div>
+                                <div className="settings-form-cluster-note">
+                                    明文邀请码只会在创建当次展示，库存面板只保留预览和使用状态。
+                                </div>
                             </div>
-                            <div className="settings-code-list">
-                                {latestInviteCodes.map((code) => (
-                                    <code key={code} className="font-mono">{code}</code>
-                                ))}
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap mt-3">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={async () => {
-                                        await copyToClipboard(latestInviteCodes.join('\n'));
-                                        toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
-                                    }}
-                                >
-                                    {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
-                                </button>
-                            </div>
-                            <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                            {inviteCodesLoading ? (
+                                <div className="text-sm text-muted">正在加载邀请码列表...</div>
+                            ) : inviteRecentRecords.length === 0 ? (
+                                <div className="text-sm text-muted">当前没有可展示的邀请码记录。需要时可先生成一批邀请码。</div>
+                            ) : (
+                                <div className="settings-invite-activity-list">
+                                    {inviteRecentRecords.map((item) => {
+                                        const statusClass = item.status === 'active'
+                                            ? 'badge-success'
+                                            : item.status === 'revoked'
+                                                ? 'badge-danger'
+                                                : 'badge-neutral';
+                                        const statusLabel = item.status === 'active'
+                                            ? '可使用'
+                                            : item.status === 'revoked'
+                                                ? '已撤销'
+                                                : '已用完';
+
+                                        return (
+                                            <div key={item.id} className="settings-invite-activity-item">
+                                                <div className="settings-invite-activity-head">
+                                                    <div className="settings-invite-activity-title">{item.preview || item.id}</div>
+                                                    <span className={`badge ${statusClass}`}>{statusLabel}</span>
+                                                </div>
+                                                <div className="settings-invite-activity-meta">
+                                                    <span>创建于 {formatDateTime(item.createdAt, locale)}</span>
+                                                    <span>剩余 {Number(item.remainingUses || 0)} / {Number(item.usageLimit || 1)}</span>
+                                                    <span>已使用 {Number(item.usedCount || 0)} 次</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            {latestInviteCodes.length > 0 ? (
+                                <div className="card p-3 settings-mini-card settings-detail-card">
+                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                        <div className="text-sm font-medium">本次生成的邀请码</div>
+                                        <span className="text-xs text-muted">
+                                            {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
+                                        </span>
+                                    </div>
+                                    <div className="settings-code-list">
+                                        {latestInviteCodes.map((code) => (
+                                            <code key={code} className="font-mono">{code}</code>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap mt-3">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={async () => {
+                                                await copyToClipboard(latestInviteCodes.join('\n'));
+                                                toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                                            }}
+                                        >
+                                            {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
+                                        </button>
+                                    </div>
+                                    <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                                </div>
+                            ) : (
+                                <div className="text-xs text-muted">生成新邀请码后，这里会显示当前批次的明文结果，便于一次性复制留档。</div>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1720,6 +1988,7 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--span-5 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="风控确认"
+                        subtitle="控制批量操作的二次确认门槛，避免高风险任务直接执行。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
@@ -1748,6 +2017,7 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--span-4 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="审计参数"
+                        subtitle="定义日志保留窗口和分页密度，控制审计面板的信息量。"
                     />
                     <div className="settings-form-cluster">
                         <div className="settings-form-cluster-head">
@@ -1770,6 +2040,7 @@ export default function SystemSettings() {
                 <div className="card p-4 settings-panel settings-panel--span-8 settings-basic-workbench">
                     <SettingsPanelHeader
                         title="IP 归属地 / 运营商"
+                        subtitle="为订阅访问和安全事件补充地理信息，便于审计定位。"
                     />
                     <div className="form-group settings-checkbox-row">
                         <SettingsToggleCard
@@ -1798,6 +2069,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="SMTP 诊断"
+                    subtitle="先验证 SMTP 链路，再处理通知发送。"
                 />
                 <div className="settings-monitor-toolbar">
                     <div className="settings-monitor-toolbar-status">
@@ -1868,6 +2140,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="节点健康监控"
+                    subtitle="查看最近巡检结果、异常分布和告警去向。"
                     actions={(
                         <div className="settings-panel-actions">
                             <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
@@ -1934,6 +2207,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="Telegram 机器人"
+                    subtitle="配置告警目标、轮询行为和摘要推送频率。"
                     actions={(
                         <button
                             className="btn btn-secondary btn-sm"
@@ -2122,6 +2396,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="备份与恢复"
+                    subtitle="把导出、服务器本机留存和恢复流程放在同一处处理。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
                             {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2151,7 +2426,7 @@ export default function SystemSettings() {
                 </div>
 
                 <div className="settings-backup-actions settings-backup-actions--triple mt-3">
-                    <div className="card p-3 settings-mini-card settings-backup-action-card">
+                    <div className="card p-3 settings-mini-card settings-backup-action-card settings-backup-action-card--danger">
                         <div className="text-sm font-medium">导出到浏览器</div>
                         <div className="text-xs text-muted mt-1">下载一份加密备份包。</div>
                         <div className="settings-backup-action-footer">
@@ -2304,6 +2579,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="数据库接入状态"
+                    subtitle="检查连接状态后，再执行读写模式切换和 Store 回填。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2473,6 +2749,15 @@ export default function SystemSettings() {
 
     const renderOperationsWorkspace = () => (
         <div className="settings-section-stack">
+            <div className="settings-summary-grid settings-summary-grid--status">
+                {operationsOverviewCards.map((item) => (
+                    <div key={item.label} className="card settings-summary-card">
+                        <div className="settings-summary-label">{item.label}</div>
+                        <div className="settings-summary-value">{item.value}</div>
+                        {item.detail ? <div className="settings-summary-detail">{item.detail}</div> : null}
+                    </div>
+                ))}
+            </div>
             {renderMonitorContent()}
             <div className="card p-4 settings-panel settings-panel--wide">
                 <SectionHeader
@@ -2518,26 +2803,156 @@ export default function SystemSettings() {
         {
             id: 'status',
             title: '系统状态',
+            eyebrow: 'Overview',
+            subtitle: '先看整体健康，再进入对应工作区处理具体配置。',
+            summary: '这里汇总站点入口、注册模式、数据库、告警链路和备份状态，适合作为每日巡检首页。',
+            badges: (
+                <>
+                    <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
+                        {readyAlertChainCount}/3 告警链路就绪
+                    </span>
+                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
+                        {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
+                    </span>
+                </>
+            ),
+            highlights: [
+                { label: '站点入口', value: siteAccessPath, detail: siteEntryPreview },
+                { label: '注册模式', value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册' },
+                {
+                    label: '数据库模式',
+                    value: dbStatus
+                        ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
+                        : '等待探测',
+                },
+                { label: '备份状态', value: backupSummaryValue, detail: latestLocalBackup?.filename || '暂无服务器本机备份' },
+            ],
+            actions: (
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={refreshStatusWorkspace}
+                    disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
+                >
+                    {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
+                </button>
+            ),
+            navSummary: '5 项核心概览',
+            navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
+                ? { label: '运行稳定', tone: 'success' }
+                : { label: '需关注', tone: 'warning' },
             content: renderStatusContent(),
         },
         {
             id: 'access',
             title: '对外访问',
+            eyebrow: 'Public Access',
+            subtitle: '管理真实入口、订阅分发地址和注册策略。',
+            summary: '先保护真实入口，再整理公网订阅地址与邀请码库存，减少用户感知到的变更。',
+            badges: (
+                <>
+                    <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
+                        {draft.site.camouflageEnabled ? '首页伪装已开启' : '首页直接展示 NMS'}
+                    </span>
+                    <span className={`badge ${registrationEnabled ? 'badge-success' : 'badge-warning'}`}>
+                        {registrationEnabled ? '运行时允许注册' : '运行时已关闭注册'}
+                    </span>
+                </>
+            ),
+            highlights: accessOverviewCards,
+            navSummary: `${registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'} · ${siteAccessPath}`,
+            navFlag: draft.subscription.publicBaseUrl
+                ? { label: '公网地址已配置', tone: 'success' }
+                : { label: '公网地址待配置', tone: 'warning' },
             content: renderAccessContent(),
         },
         {
             id: 'policy',
             title: '安全审计',
+            eyebrow: 'Policy & Audit',
+            subtitle: '定义风险确认、日志保留和归属地补充策略。',
+            summary: '这一组配置决定后台批量操作的防呆程度，以及安全审计信息的留存密度。',
+            badges: (
+                <>
+                    <span className={`badge ${draft.security.requireHighRiskConfirmation ? 'badge-success' : 'badge-neutral'}`}>
+                        {draft.security.requireHighRiskConfirmation ? '高风险二次确认已开启' : '高风险二次确认已关闭'}
+                    </span>
+                    <span className={`badge ${draft.auditIpGeo.enabled ? 'badge-success' : 'badge-neutral'}`}>
+                        {draft.auditIpGeo.enabled ? 'IP 地理信息已补充' : '不补充地理信息'}
+                    </span>
+                </>
+            ),
+            highlights: policyOverviewCards,
+            navSummary: `审计保留 ${draft.audit.retentionDays} 天`,
+            navFlag: draft.auditIpGeo.enabled
+                ? { label: '含归属地', tone: 'success' }
+                : { label: '基础审计', tone: 'neutral' },
             content: renderPolicyContent(),
         },
         {
             id: 'operations',
             title: '运维通知',
+            eyebrow: 'Ops & Alerts',
+            subtitle: '查看邮件、节点巡检和 Telegram 告警链路是否完整。',
+            summary: '先确认消息通道，再处理节点健康和告警投递，避免出问题时没有通知出口。',
+            badges: (
+                <>
+                    <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>
+                        {emailStatus?.configured ? 'SMTP 已配置' : 'SMTP 未配置'}
+                    </span>
+                    <span className={`badge ${monitorIncidentCount > 0 ? 'badge-warning' : 'badge-success'}`}>
+                        {monitorIncidentCount > 0 ? `${monitorIncidentCount} 个节点异常` : '节点巡检正常'}
+                    </span>
+                </>
+            ),
+            highlights: operationsOverviewCards,
+            actions: (
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={refreshOperationsWorkspace}
+                    disabled={emailStatusLoading || monitorStatusLoading}
+                >
+                    {(emailStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新状态'}
+                </button>
+            ),
+            navSummary: `链路 ${readyAlertChainCount}/3 就绪`,
+            navFlag: monitorIncidentCount > 0
+                ? { label: `${monitorIncidentCount} 个异常`, tone: 'warning' }
+                : { label: '运行稳定', tone: 'success' },
             content: renderOperationsWorkspace(),
         },
         {
             id: 'backup',
             title: '数据备份',
+            eyebrow: 'Data Safety',
+            subtitle: '把数据库接入、导出备份和恢复流程放在同一处管理。',
+            summary: '这里既包含数据库读写模式，也包含加密备份、服务器本机留存和恢复校验流程。',
+            badges: (
+                <>
+                    <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
+                        {dbStatus?.connection?.ready ? '数据库连接已就绪' : dbStatus?.connection?.enabled ? '数据库连接待检查' : '数据库未启用'}
+                    </span>
+                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
+                        {hasExportBackup || hasLocalBackup ? '已有备份基线' : '暂无备份基线'}
+                    </span>
+                </>
+            ),
+            highlights: backupOverviewCards,
+            actions: (
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={refreshBackupWorkspace}
+                    disabled={dbLoading || backupStatusLoading}
+                >
+                    {(dbLoading || backupStatusLoading) ? <span className="spinner" /> : '刷新状态'}
+                </button>
+            ),
+            navSummary: `DB ${dbStatus?.currentModes?.writeMode || '待探测'} · ${backupSummaryValue}`,
+            navFlag: hasExportBackup || hasLocalBackup
+                ? { label: '已有备份', tone: 'success' }
+                : { label: '建议备份', tone: 'warning' },
             content: (
                 <>
                     {renderDatabaseContent()}
@@ -2547,6 +2962,18 @@ export default function SystemSettings() {
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
+    const workspaceNavItems = SETTINGS_WORKSPACE_CONFIG.map((item) => ({
+        ...item,
+        ...(workspaceSections.find((section) => section.id === item.id) || {}),
+    }));
+    const dirtyWorkspaceLabels = workspaceNavItems
+        .filter((item) => dirtyWorkspaceIds.includes(item.id))
+        .map((item) => item.label);
+    const saveDockSummary = hasPendingChanges
+        ? `${dirtyWorkspaceCount} 个工作区待保存`
+        : activeWorkspaceSectionId === 'backup'
+            ? '数据库和备份操作即时生效'
+            : '当前没有未保存更改';
 
     if (!isAdmin) {
         return (
@@ -2578,22 +3005,41 @@ export default function SystemSettings() {
                 <div className="settings-shell">
                     <div className="card settings-nav">
                         <div className="settings-nav-list settings-nav-list--workspace">
-                            {SETTINGS_WORKSPACE_CONFIG.map((item) => {
+                            {workspaceNavItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = item.id === activeWorkspaceSectionId;
+                                const isDirty = Boolean(workspaceDirtyMap[item.id]);
+                                const navFlagToneClass = item.navFlag?.tone === 'success'
+                                    ? 'badge-success'
+                                    : item.navFlag?.tone === 'warning'
+                                        ? 'badge-warning'
+                                        : item.navFlag?.tone === 'danger'
+                                            ? 'badge-danger'
+                                            : 'badge-neutral';
                                 return (
                                     <button
                                         key={item.id}
                                         type="button"
-                                        className={`settings-nav-item${isActive ? ' is-active' : ''}`}
+                                        className={`settings-nav-item${isActive ? ' is-active' : ''}${isDirty ? ' is-dirty' : ''}`}
                                         aria-pressed={isActive}
+                                        aria-label={item.label}
                                         onClick={() => setRequestedView(item.routeTab)}
                                     >
                                         <span className="settings-nav-item-icon">
                                             <Icon />
                                         </span>
                                         <span className="settings-nav-item-copy">
-                                            <span className="settings-nav-item-label">{item.label}</span>
+                                            <span className="settings-nav-item-top">
+                                                <span className="settings-nav-item-label">{item.label}</span>
+                                                {isDirty ? <span className="settings-nav-item-dirty-dot" aria-hidden="true" /> : null}
+                                            </span>
+                                            {item.navSummary ? <span className="settings-nav-item-summary">{item.navSummary}</span> : null}
+                                            {(isDirty || item.navFlag) ? (
+                                                <span className="settings-nav-item-flags">
+                                                    {isDirty ? <span className="badge badge-warning">未保存</span> : null}
+                                                    {item.navFlag ? <span className={`badge ${navFlagToneClass}`}>{item.navFlag.label}</span> : null}
+                                                </span>
+                                            ) : null}
                                         </span>
                                     </button>
                                 );
@@ -2603,7 +3049,13 @@ export default function SystemSettings() {
 
                     <div className="settings-main">
                         <SettingsWorkspaceSection
+                            eyebrow={activeWorkspaceSection.eyebrow}
                             title={activeWorkspaceSection.title}
+                            subtitle={activeWorkspaceSection.subtitle}
+                            summary={activeWorkspaceSection.summary}
+                            badges={activeWorkspaceSection.badges}
+                            highlights={activeWorkspaceSection.highlights}
+                            actions={activeWorkspaceSection.actions}
                         >
                             {activeWorkspaceSection.content}
                         </SettingsWorkspaceSection>
@@ -2623,9 +3075,16 @@ export default function SystemSettings() {
                                         </span>
                                     </div>
                                     <span className="settings-save-dock-current">{activeWorkspaceSection.title}</span>
+                                    <span className="settings-save-dock-summary">{saveDockSummary}</span>
+                                    {hasPendingChanges ? <span className="badge badge-warning">{dirtyWorkspaceLabels.join(' / ')}</span> : null}
                                     {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
                                 </div>
                                 <div className="settings-save-dock-actions">
+                                    {hasPendingChanges ? (
+                                        <button className="btn btn-ghost btn-sm" onClick={resetPendingChanges} disabled={loading || saving}>
+                                            恢复更改
+                                        </button>
+                                    ) : null}
                                     <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
                                         {saving ? <span className="spinner" /> : '保存设置'}
                                     </button>

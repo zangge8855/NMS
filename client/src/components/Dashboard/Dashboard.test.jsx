@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render.jsx';
 import Dashboard from './Dashboard.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -41,6 +41,18 @@ vi.mock('../Layout/Header.jsx', () => ({
         </div>
     ),
 }));
+
+vi.mock('recharts', async () => {
+    const actual = await vi.importActual('recharts');
+    return {
+        ...actual,
+        ResponsiveContainer: ({ children }) => (
+            <div data-testid="responsive-container" style={{ width: 640, height: 280 }}>
+                {children}
+            </div>
+        ),
+    };
+});
 
 function mockMatchMedia(matches = false) {
     window.matchMedia = vi.fn().mockImplementation((query) => ({
@@ -326,7 +338,7 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        expect(await screen.findByText('总用户 2 · 待审核 1')).toBeInTheDocument();
+        expect(await screen.findByText('已注册 2 · 在线会话 3')).toBeInTheDocument();
         expect(await screen.findByText('港口专线')).toBeInTheDocument();
 
         const overviewCard = screen.getByText('集群概览').closest('[role="button"]');
@@ -443,17 +455,28 @@ describe('Dashboard', () => {
         });
 
         api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                    },
+                });
+            }
             throw new Error(`Unexpected POST ${url}`);
         });
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
+        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        if (!onlineCard) throw new Error('Missing online users card');
         const trafficCard = screen.getByText('累计流量').closest('[role="button"]');
         if (!trafficCard) throw new Error('Missing cumulative traffic card');
 
         await waitFor(() => {
             expect(trafficCard).toHaveTextContent('--');
             expect(trafficCard).toHaveTextContent('统计当前用户流量中');
+            expect(onlineCard).toHaveTextContent('--');
+            expect(onlineCard).toHaveTextContent('已注册 1 · 正在统计在线');
         });
 
         resolveInbounds({
@@ -476,6 +499,8 @@ describe('Dashboard', () => {
         });
 
         await waitFor(() => {
+            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineCard).toHaveTextContent('已注册 1 · 在线会话 1');
             expect(trafficCard).toHaveTextContent('300 B');
             expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
             expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
@@ -555,10 +580,118 @@ describe('Dashboard', () => {
         fireEvent.click(onlineCard.closest('[role="button"]'));
 
         await screen.findByText('在线用户明细');
-        expect(document.querySelector('.dashboard-online-mobile-card')).toBeTruthy();
+        await waitFor(() => {
+            expect(document.querySelector('.dashboard-online-mobile-card')).toBeTruthy();
+        });
         expect(document.querySelector('.dashboard-online-table')).toBeFalsy();
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+    });
+
+    it('keeps the global online card aligned with registered users when websocket totals report raw sessions', async () => {
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalOnline: 9,
+                    totalUp: 0,
+                    totalDown: 0,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                            up: 0,
+                            down: 0,
+                            onlineCount: 9,
+                            onlineUsers: [],
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            { id: 'user-a', role: 'user', username: 'Alice', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+                        ],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 'inbound-a',
+                                protocol: 'vless',
+                                enable: true,
+                                remark: 'Node A Link',
+                                settings: JSON.stringify({
+                                    clients: [{ id: 'uuid-a', email: 'alice@example.com' }],
+                                }),
+                                clientStats: [{ id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 }],
+                                up: 1000,
+                                down: 2000,
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            { email: 'alice@example.com', id: 'uuid-a' },
+                            { email: 'alice@example.com', id: 'uuid-a' },
+                            { email: 'unknown@example.com', id: 'uuid-x' },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = await screen.findByText('总在线用户');
+        const cardSurface = onlineCard.closest('[role="button"]');
+        if (!cardSurface) throw new Error('Missing online users card');
+
+        await waitFor(() => {
+            expect(cardSurface).toHaveTextContent('1');
+            expect(cardSurface).toHaveTextContent('已注册 1 · 在线会话 2');
+        });
     });
 
     it('reuses the managed-user cache across dashboard mounts', async () => {
@@ -715,7 +848,9 @@ describe('Dashboard', () => {
             expect(statusFetches).toBe(0);
             expect(intervalCallbacks.length).toBeGreaterThan(0);
 
-            intervalCallbacks[0]();
+            await act(async () => {
+                intervalCallbacks[0]();
+            });
 
             expect(userFetches).toBe(1);
             expect(statusFetches).toBe(0);

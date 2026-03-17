@@ -340,11 +340,14 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
         const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
         const onlines = Array.isArray(payload?.onlines) ? payload.onlines : [];
         const serverName = String(payload?.serverName || '').trim();
-        const onlineCounter = new Map();
+        const onlineMatchMap = new Map();
 
-        onlines.forEach((entry) => {
+        onlines.forEach((entry, index) => {
             normalizeOnlineKeys(entry).forEach((key) => {
-                onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+                if (!onlineMatchMap.has(key)) {
+                    onlineMatchMap.set(key, new Set());
+                }
+                onlineMatchMap.get(key).add(index);
             });
             const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
             if (email) {
@@ -379,9 +382,13 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                     });
                 }
                 const entry = clientsMap.get(email);
-                const onlineSessions = buildClientOnlineKeys(client, protocol).reduce((total, key) => (
-                    total + (onlineCounter.get(key) || 0)
-                ), 0);
+                const matchedOnlineEntries = new Set();
+                buildClientOnlineKeys(client, protocol).forEach((key) => {
+                    const matches = onlineMatchMap.get(key);
+                    if (!matches) return;
+                    matches.forEach((matchIndex) => matchedOnlineEntries.add(matchIndex));
+                });
+                const onlineSessions = matchedOnlineEntries.size;
                 entry.count += 1;
                 entry.totalUsed += resolveClientUsed(client);
                 entry.totalUp += safeNumber(client?.up);
@@ -642,7 +649,6 @@ export default function Dashboard() {
     const [globalPresenceLoading, setGlobalPresenceLoading] = useState(false);
     const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
     const [globalTrafficTotals, setGlobalTrafficTotals] = useState(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-    const globalTrafficRequestRef = useRef(null);
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -684,53 +690,6 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
         }
     }, []);
-
-    const hydrateGlobalTrafficTotals = useCallback(async (options = {}) => {
-        if (servers.length === 0) {
-            setGlobalTrafficTotals({ ...INITIAL_GLOBAL_TRAFFIC_TOTALS, ready: true });
-            return;
-        }
-
-        if (!options.force && globalTrafficRequestRef.current) {
-            return globalTrafficRequestRef.current;
-        }
-
-        const task = (async () => {
-            try {
-                const users = await fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []);
-                const serverPayloads = await Promise.all(
-                    servers.map(async (server) => {
-                        try {
-                            const inboundsRes = await api.get(`/panel/${server.id}/panel/api/inbounds/list`);
-                            return {
-                                serverName: server.name,
-                                inbounds: Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [],
-                                onlines: [],
-                            };
-                        } catch {
-                            return {
-                                serverName: server.name,
-                                inbounds: [],
-                                onlines: [],
-                            };
-                        }
-                    })
-                );
-
-                const presence = buildManagedOnlineSummary(Array.isArray(users) ? users : [], serverPayloads);
-                syncGlobalTrafficTotals(presence);
-            } catch {
-                setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-            }
-        })().finally(() => {
-            if (globalTrafficRequestRef.current === task) {
-                globalTrafficRequestRef.current = null;
-            }
-        });
-
-        globalTrafficRequestRef.current = task;
-        return task;
-    }, [servers, syncGlobalTrafficTotals]);
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!token) {
@@ -813,10 +772,10 @@ export default function Dashboard() {
             return next;
         });
         setServerTrendHistory((previous) => pushServerTrendSamples(previous, statusMap));
-        setGlobalStats(() => ({
+        setGlobalStats((previous) => ({
             totalUp: Number(data.totalUp || 0),
             totalDown: Number(data.totalDown || 0),
-            totalOnline: Number(data.totalOnline || 0),
+            totalOnline: previous.totalOnline,
             totalInbounds,
             activeInbounds,
             serverCount: data.serverCount || 0,
@@ -1007,6 +966,10 @@ export default function Dashboard() {
                 totalUsers: presence.rows.length,
                 pendingUsers: presence.pendingCount,
             });
+            setGlobalStats((previous) => ({
+                ...previous,
+                totalOnline: presence.onlineRows.length,
+            }));
             setGlobalPresenceReady(true);
             syncGlobalTrafficTotals(presence);
             setServerStatuses((previous) => {
@@ -1038,11 +1001,18 @@ export default function Dashboard() {
     }, [activeServerId]);
 
     useEffect(() => {
+        if (activeServerId === 'global') return;
+        setGlobalPresenceReady(false);
+        setGlobalPresenceLoading(false);
+        setGlobalOnlineUsers([]);
+        setGlobalOnlineSessionCount(0);
+    }, [activeServerId]);
+
+    useEffect(() => {
         setLoading(true);
         if (activeServerId === 'global') {
             fetchGlobalAccountSummary();
             if (hasLiveClusterSnapshot) {
-                hydrateGlobalTrafficTotals();
                 setLoading(false);
                 return;
             }
@@ -1060,26 +1030,22 @@ export default function Dashboard() {
         }
         setHasLiveClusterSnapshot(false);
         setLoading(false);
-    }, [activeServerId, fetchSingleData, fetchGlobalAccountSummary, fetchGlobalData, hasLiveClusterSnapshot, hydrateGlobalTrafficTotals]);
+    }, [activeServerId, fetchSingleData, fetchGlobalAccountSummary, fetchGlobalData, hasLiveClusterSnapshot, hydrateGlobalPresence]);
 
     useEffect(() => {
         if (activeServerId !== 'global') return;
-        if (!showOnlineDetail) return;
+        if (!hasLiveClusterSnapshot) return;
         if (globalPresenceLoading) return;
         if (globalPresenceReady) return;
         hydrateGlobalPresence();
-    }, [activeServerId, globalPresenceLoading, globalPresenceReady, hydrateGlobalPresence, showOnlineDetail]);
+    }, [activeServerId, globalPresenceLoading, globalPresenceReady, hasLiveClusterSnapshot, hydrateGlobalPresence]);
 
     useEffect(() => {
         if (!autoRefresh) return undefined;
         const interval = setInterval(() => {
             if (activeServerId === 'global') {
                 if (wsStatus === 'connected') {
-                    if (showOnlineDetail) {
-                        hydrateGlobalPresence();
-                    } else {
-                        hydrateGlobalTrafficTotals();
-                    }
+                    hydrateGlobalPresence();
                     return;
                 }
                 fetchGlobalData();
@@ -1090,7 +1056,7 @@ export default function Dashboard() {
             }
         }, AUTO_REFRESH_INTERVAL);
         return () => clearInterval(interval);
-    }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, hydrateGlobalTrafficTotals, showOnlineDetail, wsStatus]);
+    }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
 
     const refresh = () => {
         if (activeServerId !== 'global') {
@@ -1098,12 +1064,9 @@ export default function Dashboard() {
         }
         if (wsStatus === 'connected') {
             const summaryTask = fetchGlobalAccountSummary({ forceUsers: true });
-            if (showOnlineDetail) {
-                return hydrateGlobalPresence({ forceUsers: true });
-            }
             return Promise.all([
                 summaryTask,
-                hydrateGlobalTrafficTotals({ force: true, forceUsers: true }),
+                hydrateGlobalPresence({ forceUsers: true }),
             ]);
         }
         return fetchGlobalData();
@@ -1145,6 +1108,17 @@ export default function Dashboard() {
 
     // ── Global Dashboard ─────────────────────────────────
     if (activeServerId === 'global') {
+        const globalManagedOnlineCount = globalPresenceReady ? globalOnlineUsers.length : null;
+        const globalOnlineSummary = globalPresenceReady
+            ? t('pages.dashboardCommon.registeredSessionSummary', {
+                users: globalAccountSummary.totalUsers,
+                sessions: globalOnlineSessionCount,
+            })
+            : globalAccountSummary.totalUsers > 0
+                ? t('pages.dashboardCommon.registeredPendingSummary', {
+                    users: globalAccountSummary.totalUsers,
+                })
+                : t('pages.dashboardCommon.onlineUsersPending');
         const globalCards = [
             {
                 icon: HiOutlineServerStack, label: t('pages.dashboardGlobal.cards.clusterOverview'),
@@ -1162,13 +1136,15 @@ export default function Dashboard() {
             },
             {
                 icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
-                animateValue: globalStats.totalOnline,
-                renderAnimatedValue: (value) => String(value),
-                sub: globalAccountSummary.totalUsers > 0
-                    ? (locale === 'en-US'
-                        ? `Users ${globalAccountSummary.totalUsers} · Pending ${globalAccountSummary.pendingUsers}`
-                        : `总用户 ${globalAccountSummary.totalUsers} · 待审核 ${globalAccountSummary.pendingUsers}`)
-                    : (showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail')),
+                ...(globalManagedOnlineCount === null
+                    ? {
+                        value: '--',
+                    }
+                    : {
+                        animateValue: globalManagedOnlineCount,
+                        renderAnimatedValue: (value) => String(value),
+                    }),
+                sub: globalOnlineSummary,
                 onClick: () => setShowOnlineDetail((v) => !v),
                 ...DASHBOARD_ACCENT.info,
                 skeletonWidth: '6rem',
@@ -1292,7 +1268,13 @@ export default function Dashboard() {
                                     </span>
                                 )}
                             />
-                            {globalOnlineUsers.length === 0 ? (
+                            {globalPresenceLoading && !globalPresenceReady ? (
+                                <EmptyState
+                                    title={t('pages.dashboardCommon.onlineUsersPending')}
+                                    size="compact"
+                                    hideIcon
+                                />
+                            ) : globalOnlineUsers.length === 0 ? (
                                 <EmptyState
                                     title={t('pages.dashboardCommon.onlineEmpty')}
                                     size="compact"
@@ -1602,7 +1584,7 @@ export default function Dashboard() {
                                 <div className="skeleton w-full h-full opacity-10" />
                             </div>
                         ) : (
-                            <ResponsiveContainer>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                                 <AreaChart data={cpuHistory}>
                                     <defs>
                                         <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">

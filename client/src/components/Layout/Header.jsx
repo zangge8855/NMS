@@ -39,7 +39,7 @@ function clamp(value, min, max) {
 
 export default function Header({
     title,
-    eyebrow = '',
+    eyebrow: _eyebrow = '',
     subtitle = '',
     icon,
     children,
