@@ -76,6 +76,10 @@ function rejectPasswordSelfService(res) {
     });
 }
 
+export function isPasswordSelfServiceEnabled() {
+    return config.registration.passwordResetEnabled !== false;
+}
+
 function buildLoginRateKey(ip, username = '') {
     return `${String(ip || 'unknown')}|${normalizeRateUsername(username)}`;
 }
@@ -217,10 +221,11 @@ function buildUserAuditDetails(target, extra = {}) {
     };
 }
 
-function getRegistrationStatus() {
+export function getRegistrationStatus() {
     return {
         enabled: config.registration.enabled === true,
         inviteOnlyEnabled: systemSettingsStore.getRegistration().inviteOnlyEnabled === true,
+        passwordResetEnabled: isPasswordSelfServiceEnabled(),
     };
 }
 
@@ -460,6 +465,9 @@ router.post('/resend-code', async (req, res) => {
  * POST /api/auth/forgot-password — 发送密码重置验证码
  */
 router.post('/forgot-password', async (req, res) => {
+    if (!isPasswordSelfServiceEnabled()) {
+        return rejectPasswordSelfService(res);
+    }
     const clientIp = resolveClientIp(req);
     if (!checkResetRate(clientIp)) {
         appendSecurityAudit('password_reset_request_rate_limited', req, { ip: clientIp });
@@ -498,6 +506,9 @@ router.post('/forgot-password', async (req, res) => {
  * POST /api/auth/reset-password — 使用邮箱验证码重置密码
  */
 router.post('/reset-password', (req, res) => {
+    if (!isPasswordSelfServiceEnabled()) {
+        return rejectPasswordSelfService(res);
+    }
     try {
         const result = resetPasswordWithCode(req.body);
         appendSecurityAudit('password_reset_completed', req, {

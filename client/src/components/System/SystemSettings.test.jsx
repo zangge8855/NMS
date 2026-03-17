@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
@@ -235,6 +235,61 @@ function mockAdminBootstrap(overrides = {}) {
     api.get.mockImplementation((url) => Promise.resolve(overrides[url] || defaultResponses[url] || { data: { obj: {} } }));
 }
 
+function buildPutResponse(overrides = {}) {
+    return {
+        site: {
+            accessPath: '/portal',
+            camouflageEnabled: true,
+            camouflageTemplate: 'nginx',
+            camouflageTitle: 'Northline Relay',
+        },
+        registration: {
+            inviteOnlyEnabled: true,
+        },
+        security: {
+            requireHighRiskConfirmation: true,
+            mediumRiskMinTargets: 20,
+            highRiskMinTargets: 100,
+            riskTokenTtlSeconds: 180,
+        },
+        jobs: {
+            retentionDays: 90,
+            maxPageSize: 200,
+            maxRecords: 2000,
+            maxConcurrency: 10,
+            defaultConcurrency: 5,
+        },
+        audit: {
+            retentionDays: 365,
+            maxPageSize: 200,
+        },
+        subscription: {
+            publicBaseUrl: 'https://nms.example.com',
+            converterBaseUrl: 'https://converter.example.com',
+        },
+        auditIpGeo: {
+            enabled: true,
+            provider: 'ip_api',
+            endpoint: 'http://ip-api.com/json/{ip}',
+            timeoutMs: 1500,
+            cacheTtlSeconds: 21600,
+        },
+        telegram: {
+            enabled: true,
+            botTokenConfigured: true,
+            botTokenPreview: '9876...WXYZ',
+            chatId: '-1001234567890',
+            commandMenuEnabled: false,
+            opsDigestIntervalMinutes: 45,
+            dailyDigestIntervalHours: 12,
+            sendSystemStatus: true,
+            sendSecurityAudit: true,
+            sendEmergencyAlerts: true,
+        },
+        ...overrides,
+    };
+}
+
 describe('SystemSettings', () => {
     beforeEach(() => {
         useAuthMock.mockReset();
@@ -397,5 +452,76 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByRole('button', { name: '收起控制台' })).toBeInTheDocument();
         expect(screen.getAllByText('节点控制台').length).toBeGreaterThan(0);
+    });
+
+    it('preserves a newly entered Telegram bot token when saving settings', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.put.mockResolvedValue({
+            data: {
+                obj: buildPutResponse(),
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
+
+        const botTokenInput = await screen.findByLabelText('Bot Token');
+        await user.type(botTokenInput, '987654:XYZ');
+        await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/settings', expect.objectContaining({
+                telegram: expect.objectContaining({
+                    botToken: '987654:XYZ',
+                    clearBotToken: false,
+                }),
+            }));
+        });
+    });
+
+    it('preserves the Telegram token clear intent when saving settings', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.put.mockResolvedValue({
+            data: {
+                obj: buildPutResponse({
+                    telegram: {
+                        enabled: true,
+                        botTokenConfigured: false,
+                        botTokenPreview: '',
+                        chatId: '-1001234567890',
+                        commandMenuEnabled: false,
+                        opsDigestIntervalMinutes: 45,
+                        dailyDigestIntervalHours: 12,
+                        sendSystemStatus: true,
+                        sendSecurityAudit: true,
+                        sendEmergencyAlerts: true,
+                    },
+                }),
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
+
+        await screen.findByLabelText('Bot Token');
+        await user.click(screen.getByRole('button', { name: '清空已保存 Token' }));
+        await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/settings', expect.objectContaining({
+                telegram: expect.objectContaining({
+                    botToken: '',
+                    clearBotToken: true,
+                }),
+            }));
+        });
     });
 });

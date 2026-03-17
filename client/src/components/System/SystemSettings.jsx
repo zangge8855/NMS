@@ -146,8 +146,8 @@ function buildDraft(source = null) {
         },
         telegram: {
             enabled: settings.telegram?.enabled === true,
-            botToken: '',
-            clearBotToken: false,
+            botToken: toText(settings.telegram?.botToken, ''),
+            clearBotToken: settings.telegram?.clearBotToken === true,
             chatId: toText(settings.telegram?.chatId, ''),
             commandMenuEnabled: settings.telegram?.commandMenuEnabled === true,
             opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),

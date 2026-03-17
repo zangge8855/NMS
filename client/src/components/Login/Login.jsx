@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -12,7 +12,6 @@ const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
 const MODE_VERIFY = 'verify';
 const MODE_FORGOT = 'forgot';
-const SELF_SERVICE_PASSWORD_RESET_ENABLED = true;
 
 export default function Login() {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
@@ -83,8 +82,11 @@ export default function Login() {
     const [registrationStatus, setRegistrationStatus] = useState({
         enabled: true,
         inviteOnlyEnabled: false,
+        passwordResetEnabled: true,
         loading: true,
     });
+    const intervalTimersRef = useRef(new Set());
+    const timeoutTimersRef = useRef(new Set());
 
     const {
         login,
@@ -97,6 +99,7 @@ export default function Login() {
     const navigate = useNavigate();
     const registrationEnabled = registrationStatus.enabled !== false;
     const inviteOnlyEnabled = registrationStatus.inviteOnlyEnabled === true;
+    const passwordResetEnabled = registrationStatus.passwordResetEnabled !== false;
 
     useEffect(() => {
         let active = true;
@@ -109,12 +112,15 @@ export default function Login() {
                 const next = {
                     enabled: payload.enabled !== false,
                     inviteOnlyEnabled: payload.inviteOnlyEnabled === true,
+                    passwordResetEnabled: payload.passwordResetEnabled !== false,
                     loading: false,
                 };
                 setRegistrationStatus(next);
-                if (!next.enabled) {
-                    setMode((prev) => (prev === MODE_REGISTER ? MODE_LOGIN : prev));
-                }
+                setMode((prev) => {
+                    if (!next.enabled && prev === MODE_REGISTER) return MODE_LOGIN;
+                    if (!next.passwordResetEnabled && prev === MODE_FORGOT) return MODE_LOGIN;
+                    return prev;
+                });
             } catch {
                 if (!active) return;
                 setRegistrationStatus((prev) => ({
@@ -130,17 +136,34 @@ export default function Login() {
         };
     }, []);
 
+    useEffect(() => () => {
+        intervalTimersRef.current.forEach((timer) => clearInterval(timer));
+        timeoutTimersRef.current.forEach((timer) => clearTimeout(timer));
+        intervalTimersRef.current.clear();
+        timeoutTimersRef.current.clear();
+    }, []);
+
     const startCooldown = (setter, seconds = 60) => {
         setter(seconds);
         const timer = setInterval(() => {
             setter((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
+                    intervalTimersRef.current.delete(timer);
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
+        intervalTimersRef.current.add(timer);
+    };
+
+    const scheduleDeferredAction = (callback, delayMs) => {
+        const timer = setTimeout(() => {
+            timeoutTimersRef.current.delete(timer);
+            callback();
+        }, delayMs);
+        timeoutTimersRef.current.add(timer);
     };
 
     // ── Login ───────────────────────────────────────────────
@@ -224,7 +247,7 @@ export default function Login() {
             const result = await verifyEmailFn(verifyEmail, verifyCode);
             if (result.success) {
                 setSuccess(copy.verifySuccess);
-                setTimeout(() => {
+                scheduleDeferredAction(() => {
                     setMode(MODE_LOGIN);
                     setSuccess(copy.verifyFinished);
                     setError('');
@@ -258,7 +281,7 @@ export default function Login() {
 
     // ── Forgot Password ───────────────────────────────────
     const handleSendResetCode = async () => {
-        if (!SELF_SERVICE_PASSWORD_RESET_ENABLED) return;
+        if (!passwordResetEnabled) return;
         if (resetCooldown > 0) return;
         setError('');
         setSuccess('');
@@ -283,7 +306,7 @@ export default function Login() {
 
     const handleResetPassword = async (e) => {
         e.preventDefault();
-        if (!SELF_SERVICE_PASSWORD_RESET_ENABLED) return;
+        if (!passwordResetEnabled) return;
         setError('');
         setSuccess('');
 
@@ -311,7 +334,7 @@ export default function Login() {
             const result = await resetPasswordFn(resetEmail.trim(), resetCode.trim(), resetPassword);
             if (result.success) {
                 setSuccess(result.msg || t('pages.login.forgotPasswordResetDone'));
-                setTimeout(() => {
+                scheduleDeferredAction(() => {
                     switchMode(MODE_LOGIN);
                     setSuccess(t('pages.login.forgotPasswordResetDone'));
                 }, 1200);
@@ -328,7 +351,7 @@ export default function Login() {
         if (newMode === MODE_REGISTER && !registrationEnabled) {
             setMode(MODE_LOGIN);
         } else {
-            setMode(newMode === MODE_FORGOT && !SELF_SERVICE_PASSWORD_RESET_ENABLED ? MODE_LOGIN : newMode);
+            setMode(newMode === MODE_FORGOT && !passwordResetEnabled ? MODE_LOGIN : newMode);
         }
         setError('');
         setSuccess('');
@@ -338,11 +361,11 @@ export default function Login() {
         ? t('pages.login.title')
         : mode === MODE_REGISTER
             ? t('pages.login.registerTitle')
-            : mode === MODE_VERIFY
-                ? t('pages.login.verifyTitle')
-                : SELF_SERVICE_PASSWORD_RESET_ENABLED
-                    ? t('pages.login.forgotTitle')
-                    : t('pages.login.title');
+        : mode === MODE_VERIFY
+            ? t('pages.login.verifyTitle')
+            : passwordResetEnabled
+                ? t('pages.login.forgotTitle')
+                : t('pages.login.title');
 
     // ── Render ───────────────────────────────────────────────
     return (
@@ -456,7 +479,7 @@ export default function Login() {
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
-                                {SELF_SERVICE_PASSWORD_RESET_ENABLED && (
+                                {passwordResetEnabled && (
                                     <div className="verify-actions">
                                         <button
                                             type="button"
@@ -611,7 +634,7 @@ export default function Login() {
                             </form>
                         )}
 
-                        {SELF_SERVICE_PASSWORD_RESET_ENABLED && mode === MODE_FORGOT && (
+                        {passwordResetEnabled && mode === MODE_FORGOT && (
                             <form onSubmit={handleResetPassword} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />

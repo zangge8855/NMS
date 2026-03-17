@@ -37,6 +37,13 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
+function isEditableShortcutTarget(target) {
+    if (!target || !(target instanceof Element)) return false;
+    if (target.closest('[contenteditable="true"]')) return true;
+    const tagName = String(target.tagName || '').toLowerCase();
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable === true;
+}
+
 export default function Header({
     title,
     eyebrow: _eyebrow = '',
@@ -124,6 +131,7 @@ export default function Header({
         const handleGlobalShortcut = (event) => {
             const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k';
             if (!isShortcut) return;
+            if (isEditableShortcutTarget(event.target)) return;
             event.preventDefault();
             setSearchOpen(true);
             requestAnimationFrame(() => inputRef.current?.focus());

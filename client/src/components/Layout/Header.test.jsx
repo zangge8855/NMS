@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render.jsx';
 import Header from './Header.jsx';
 
@@ -90,5 +90,26 @@ describe('Header', () => {
 
         const { container: detailContainer } = renderWithRouter(<Header title="用户详情 · alice" />, { route: '/clients/user-1' });
         expect(detailContainer.querySelector('.header-icon')).toBeInTheDocument();
+    });
+
+    it('does not hijack the global search shortcut while typing inside another input', () => {
+        const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+            callback(0);
+            return 0;
+        });
+
+        renderWithRouter(
+            <>
+                <input aria-label="外部输入框" />
+                <Header title="订阅中心" />
+            </>
+        );
+
+        const externalInput = screen.getByLabelText('外部输入框');
+        externalInput.focus();
+        fireEvent.keyDown(externalInput, { key: 'k', ctrlKey: true });
+
+        expect(document.activeElement).toBe(externalInput);
+        rafSpy.mockRestore();
     });
 });

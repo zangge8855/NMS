@@ -178,6 +178,7 @@ const config = {
         defaultRole: process.env.REGISTRATION_DEFAULT_ROLE || 'user',
         verifyCodeTtlMinutes: parsePositiveInt(process.env.VERIFY_CODE_TTL_MINUTES, 15),
         passwordResetCodeTtlMinutes: parsePositiveInt(process.env.PASSWORD_RESET_CODE_TTL_MINUTES, 15),
+        passwordResetEnabled: parseBoolean(process.env.PASSWORD_RESET_ENABLED, true),
     },
     subscription: {
         defaultTtlDays: parsePositiveInt(process.env.SUB_TOKEN_DEFAULT_TTL_DAYS, 30),
