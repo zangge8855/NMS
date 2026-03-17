@@ -18,6 +18,9 @@ const DEFAULT_AUDIT_EVENT_RULES = {
 const DEFAULT_DEDUP_WINDOW_MS = 2 * 60 * 1000;
 const DEFAULT_API_BASE_URL = 'https://api.telegram.org';
 const POLL_INTERVAL_MS = 5000;
+const OPS_DIGEST_INTERVAL_MS = 30 * 60 * 1000;
+const DAILY_DIGEST_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SHORTCUT_CALLBACK_PREFIX = 'cmd:';
 const DEFAULT_QUERY_COMMANDS = [
     { command: '/status', description: '系统状态总览' },
     { command: '/online', description: '在线人数与节点分布' },
@@ -36,6 +39,19 @@ const DEFAULT_SHORTCUT_ROWS = [
     ['/online', '/traffic', '/nodes'],
     ['/access', '/expiry', '/monitor'],
 ];
+const NODE_SHORTCUT_ROWS = [
+    ['/nodes', '/status', '/alerts'],
+    ['/monitor', '/traffic'],
+];
+const SECURITY_SHORTCUT_ROWS = [
+    ['/security', '/access', '/alerts'],
+    ['/status', '/nodes'],
+];
+const EXPIRY_SHORTCUT_ROWS = [
+    ['/expiry', '/alerts', '/status'],
+    ['/traffic', '/nodes'],
+];
+const AGGREGATE_SAMPLE_LIMIT = 5;
 
 function normalizeStringArray(input = []) {
     return Array.from(new Set(
@@ -152,6 +168,31 @@ function formatBytesHuman(value = 0) {
     return `${size >= 100 || unitIndex === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
 }
 
+function formatDurationHuman(value = 0) {
+    const ms = Number(value || 0);
+    if (!Number.isFinite(ms) || ms <= 0) return '不足 1 分钟';
+    const totalMinutes = Math.max(1, Math.round(ms / 60000));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0) parts.push(`${hours} 小时`);
+    if (minutes > 0) parts.push(`${minutes} 分钟`);
+    return parts.slice(0, 3).join(' ') || '不足 1 分钟';
+}
+
+function formatWindowLabel(ms = 0) {
+    const totalMinutes = Math.max(1, Math.round(Number(ms || 0) / 60000));
+    if (totalMinutes % (24 * 60) === 0) {
+        return `最近 ${Math.max(1, totalMinutes / (24 * 60))} 天`;
+    }
+    if (totalMinutes % 60 === 0) {
+        return `最近 ${Math.max(1, totalMinutes / 60)} 小时`;
+    }
+    return `最近 ${totalMinutes} 分钟`;
+}
+
 function formatLocationCarrierText(location = '', carrier = '') {
     const parts = [String(location || '').trim(), String(carrier || '').trim()].filter(Boolean);
     return parts.join(' · ');
@@ -224,13 +265,36 @@ function formatCounterHtmlRows(counter, { limit = 5, suffix = ' 次' } = {}) {
         .map(([label, count]) => `<b>${escapeTelegramHtml(label)}</b> · ${formatHtmlValue(`${count}${suffix}`)}`);
 }
 
-function buildCommandReplyMarkup() {
+function encodeShortcutCallback(command = '') {
+    const normalized = String(command || '').trim();
+    if (!normalized.startsWith('/')) return '';
+    return `${SHORTCUT_CALLBACK_PREFIX}${normalized.slice(1)}`;
+}
+
+function decodeShortcutCallback(value = '') {
+    const text = String(value || '').trim();
+    if (!text.startsWith(SHORTCUT_CALLBACK_PREFIX)) return '';
+    const command = text.slice(SHORTCUT_CALLBACK_PREFIX.length).trim();
+    return command ? `/${command}` : '';
+}
+
+function buildCommandReplyMarkup(rows = DEFAULT_SHORTCUT_ROWS) {
     return {
-        keyboard: DEFAULT_SHORTCUT_ROWS.map((row) => row.map((command) => ({ text: command }))),
-        resize_keyboard: true,
-        is_persistent: true,
-        input_field_placeholder: '选择命令或输入 /help',
+        inline_keyboard: (Array.isArray(rows) ? rows : DEFAULT_SHORTCUT_ROWS)
+            .map((row) => (Array.isArray(row) ? row : []).map((command) => ({
+                text: String(command || '').trim(),
+                callback_data: encodeShortcutCallback(command),
+            })).filter((item) => item.text && item.callback_data))
+            .filter((row) => row.length > 0),
     };
+}
+
+function resolveShortcutRows(kind = '', payload = {}) {
+    const normalized = String(kind || payload?.type || '').trim().toLowerCase();
+    if (normalized.includes('expiry')) return EXPIRY_SHORTCUT_ROWS;
+    if (normalized.includes('security') || normalized.includes('audit') || normalized.includes('access')) return SECURITY_SHORTCUT_ROWS;
+    if (normalized.includes('server_health') || normalized.includes('node')) return NODE_SHORTCUT_ROWS;
+    return DEFAULT_SHORTCUT_ROWS;
 }
 
 function buildTelegramCommandMenu(items = []) {
@@ -257,6 +321,15 @@ function formatNotificationMessage(notification = {}) {
     const subscriptionEmail = String(meta.subscriptionEmail || '').trim();
     const stageLabel = formatStageLabel(meta.stage || meta.label);
     const userAgent = truncateLine(meta.userAgent || meta.ua || '', 200);
+    const repeatedLoginSummary = Number(meta.recentAttempts || 0) > 0
+        ? `${Number(meta.recentAttempts || 0)} 次 · ${Number(meta.distinctTargets || 0)} 个账号`
+        : '';
+    const accessSummary = Number(meta.recentDeniedCount || 0) > 0
+        ? `${Number(meta.recentDeniedCount || 0)} 次 · ${Number(meta.distinctPaths || 0) || 1} 个入口`
+        : '';
+    const recoveryDuration = Number(meta.outageDurationMs || 0) > 0
+        ? formatDurationHuman(meta.outageDurationMs)
+        : '';
 
     appendHtmlSection(blocks, '概况', [
         formatHtmlKeyValueRow('级别', severityLabel(notification.severity)),
@@ -277,6 +350,12 @@ function formatNotificationMessage(notification = {}) {
             ? formatHtmlKeyValueRow('剩余时间', `${Number(meta.remainingDays)} 天`)
             : '',
         expiryLabel ? formatHtmlKeyValueRow('到期时间', expiryLabel) : '',
+        recoveryDuration ? formatHtmlKeyValueRow('恢复耗时', recoveryDuration) : '',
+        meta.previousHealth ? formatHtmlKeyValueRow('恢复前状态', formatHealthLabel(meta.previousHealth)) : '',
+        repeatedLoginSummary ? formatHtmlKeyValueRow('近 5 分钟同源失败', repeatedLoginSummary) : '',
+        meta.suspectedBruteforce ? formatHtmlKeyValueRow('风险判定', '疑似爆破') : '',
+        meta.rateLimited ? formatHtmlKeyValueRow('限流状态', '已触发') : '',
+        accessSummary ? formatHtmlKeyValueRow('近 10 分钟同源访问', accessSummary) : '',
     ], { rawRows: true });
 
     appendHtmlSection(blocks, '来源', [
@@ -309,6 +388,9 @@ function formatAuditMessage(entry = {}, rule = {}) {
     ).trim();
     const userAgent = truncateLine(entry.userAgent || entry.details?.userAgent || '', 200);
     const tokenId = String(entry.tokenId || entry.details?.tokenId || entry.details?.token || '').trim();
+    const recentAttempts = Number(entry.recentAttempts || entry.details?.recentAttempts || 0);
+    const distinctTargets = Number(entry.distinctTargets || entry.details?.distinctTargets || 0);
+    const recentDeniedCount = Number(entry.recentDeniedCount || entry.details?.recentDeniedCount || 0);
 
     appendHtmlSection(blocks, '概况', [
         formatHtmlKeyValueRow('级别', severityLabel(rule.severity || 'warning')),
@@ -317,6 +399,10 @@ function formatAuditMessage(entry = {}, rule = {}) {
         formatHtmlKeyValueRow('时间', formatDateTime(entry.ts || new Date().toISOString())),
         formatHtmlKeyValueRow('结果', formatAuditOutcome(entry.outcome)),
         formatHtmlKeyValueRow('操作者', entry.actor || 'anonymous'),
+        recentAttempts > 0 ? formatHtmlKeyValueRow('近 5 分钟同源失败', `${recentAttempts} 次 · ${distinctTargets} 个账号`) : '',
+        entry.suspectedBruteforce || entry.details?.suspectedBruteforce ? formatHtmlKeyValueRow('风险判定', '疑似爆破') : '',
+        entry.rateLimited || entry.details?.rateLimited ? formatHtmlKeyValueRow('限流状态', '已触发') : '',
+        recentDeniedCount > 0 ? formatHtmlKeyValueRow('近 10 分钟同源访问', `${recentDeniedCount} 次`) : '',
     ], { rawRows: true });
 
     appendHtmlSection(blocks, '目标', [
@@ -401,7 +487,7 @@ export function formatCommandCatalogMessage(options = {}) {
     const blocks = [];
     appendHtmlSection(blocks, '快捷方式', [
         '输入框输入 <code>/</code> 可直接选命令',
-        '下方键盘已固定常用命令',
+        '消息下方已固定常用快捷按钮',
         '机器人启动后会自动同步命令菜单',
     ], { rawRows: true });
     appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(options.queryCommands || DEFAULT_QUERY_COMMANDS), { rawRows: true });
@@ -521,6 +607,111 @@ function formatHealthLabel(value = '') {
     return normalized || '未知';
 }
 
+function createAggregateBucket(key, payload = {}, windowMs = DEFAULT_DEDUP_WINDOW_MS) {
+    const createdAt = String(payload.createdAt || new Date().toISOString()).trim() || new Date().toISOString();
+    return {
+        key,
+        windowMs,
+        type: String(payload.type || payload.eventType || payload.kind || 'notification').trim(),
+        title: String(payload.title || payload.eventType || payload.kind || '重复事件').trim(),
+        severity: String(payload.severity || 'info').trim().toLowerCase(),
+        firstAt: createdAt,
+        lastAt: createdAt,
+        count: 0,
+        suppressedCount: 0,
+        summarySent: false,
+        sourceCounter: new Map(),
+        targetCounter: new Map(),
+        nodeCounter: new Map(),
+        pathCounter: new Map(),
+        reasonCounter: new Map(),
+        stageCounter: new Map(),
+        samples: [],
+    };
+}
+
+function updateAggregateBucket(bucket, payload = {}) {
+    const meta = payload.meta || payload.details || {};
+    const createdAt = String(payload.createdAt || new Date().toISOString()).trim() || new Date().toISOString();
+    const ip = String(meta.ip || payload.ip || '').trim();
+    const locationCarrier = formatLocationCarrierText(meta.ipLocation || payload.ipLocation, meta.ipCarrier || payload.ipCarrier);
+    const sourceLabel = [ip, locationCarrier].filter(Boolean).join(' · ');
+    const targetLabel = String(
+        meta.targetUsername
+        || meta.targetEmail
+        || meta.subscriptionEmail
+        || meta.email
+        || payload.targetEmail
+        || payload.actor
+        || ''
+    ).trim();
+    const pathLabel = [String(meta.method || payload.method || '').trim(), String(meta.path || payload.path || '').trim()]
+        .filter(Boolean)
+        .join(' ');
+    const reasonLabel = String(meta.reasonCode || meta.event || payload.eventType || payload.type || '').trim();
+    const stageLabel = String(meta.stage || meta.label || '').trim();
+    const nodeLabel = String(meta.serverId || payload.serverId || '').trim();
+    const sampleLine = truncateLine(payload.body || payload.title || payload.eventType || '', 160);
+
+    bucket.count += 1;
+    bucket.lastAt = createdAt;
+    if (payload.suppressed) {
+        bucket.suppressedCount += 1;
+    }
+    if (sourceLabel) incrementCounter(bucket.sourceCounter, sourceLabel);
+    if (targetLabel) incrementCounter(bucket.targetCounter, targetLabel);
+    if (nodeLabel) incrementCounter(bucket.nodeCounter, nodeLabel);
+    if (pathLabel) incrementCounter(bucket.pathCounter, pathLabel);
+    if (reasonLabel) incrementCounter(bucket.reasonCounter, reasonLabel);
+    if (stageLabel) incrementCounter(bucket.stageCounter, stageLabel);
+    if (sampleLine) {
+        bucket.samples.unshift(sampleLine);
+        if (bucket.samples.length > AGGREGATE_SAMPLE_LIMIT) {
+            bucket.samples.length = AGGREGATE_SAMPLE_LIMIT;
+        }
+    }
+}
+
+function formatAggregateDigestMessage(bucket = {}) {
+    const blocks = [];
+    appendHtmlSection(blocks, '概况', [
+        formatHtmlKeyValueRow('类型', bucket.title || bucket.type || '重复事件'),
+        formatHtmlKeyValueRow('级别', severityLabel(bucket.severity)),
+        formatHtmlKeyValueRow('统计窗口', formatWindowLabel(bucket.windowMs)),
+        formatHtmlKeyValueRow('累计命中', `${bucket.count || 0} 次`),
+        bucket.suppressedCount > 0 ? formatHtmlKeyValueRow('聚合抑制', `${bucket.suppressedCount} 次`) : '',
+        formatHtmlKeyValueRow('首次时间', formatDateTime(bucket.firstAt)),
+        formatHtmlKeyValueRow('最近时间', formatDateTime(bucket.lastAt)),
+    ], { rawRows: true });
+
+    appendHtmlSection(blocks, '影响', [
+        ...formatCounterHtmlRows(bucket.targetCounter, { limit: 4, suffix: ' 次' }),
+        ...formatCounterHtmlRows(bucket.nodeCounter, { limit: 4, suffix: ' 次' }),
+        ...formatCounterHtmlRows(bucket.stageCounter, { limit: 4, suffix: ' 次' }),
+    ], { rawRows: true });
+
+    appendHtmlSection(blocks, '来源', [
+        ...formatCounterHtmlRows(bucket.sourceCounter, { limit: 4, suffix: ' 次' }),
+        ...formatCounterHtmlRows(bucket.pathCounter, { limit: 4, suffix: ' 次' }),
+        ...formatCounterHtmlRows(bucket.reasonCounter, { limit: 4, suffix: ' 次' }),
+    ], { rawRows: true });
+
+    appendHtmlSection(blocks, '最近摘要', bucket.samples
+        .slice(0, AGGREGATE_SAMPLE_LIMIT)
+        .map((item, index) => `${index + 1}. ${escapeTelegramHtml(item)}`), { rawRows: true });
+
+    return joinHtmlMessage('NMS 聚合告警摘要', blocks);
+}
+
+function filterRecentItems(items = [], windowMs = 0, getTs) {
+    const cutoff = Date.now() - Math.max(0, Number(windowMs || 0));
+    return (Array.isArray(items) ? items : []).filter((item) => {
+        const rawTs = typeof getTs === 'function' ? getTs(item) : item?.ts || item?.createdAt;
+        const ts = new Date(rawTs || 0).getTime();
+        return Number.isFinite(ts) && ts >= cutoff;
+    });
+}
+
 export function createTelegramAlertService(options = {}) {
     const fetcher = typeof options.fetcher === 'function' ? options.fetcher : createDefaultFetcher();
     const overrideAlertSeverities = new Set(
@@ -529,6 +720,8 @@ export function createTelegramAlertService(options = {}) {
     const overrideAuditEvents = new Set(normalizeStringArray(options.auditEvents));
     const dedupWindowMs = Math.max(1_000, Number(options.dedupWindowMs || DEFAULT_DEDUP_WINDOW_MS));
     const dedupCache = new Map();
+    const aggregateBuckets = new Map();
+    const aggregateTimers = new Map();
     const runtimeStatus = {
         lastSentAt: null,
         lastError: '',
@@ -539,9 +732,14 @@ export function createTelegramAlertService(options = {}) {
         lastCommand: '',
         lastCommandSyncAt: null,
         lastCommandSyncError: '',
+        lastDigestAt: null,
+        lastDigestKind: '',
+        lastDigestError: '',
     };
     let running = false;
     let timer = null;
+    let opsDigestTimer = null;
+    let dailyDigestTimer = null;
     let lastUpdateId = 0;
     let initializedOffset = false;
     let commandsSynced = false;
@@ -591,6 +789,55 @@ export function createTelegramAlertService(options = {}) {
             return true;
         }
         return false;
+    }
+
+    function clearAggregateTimer(key = '') {
+        const timerRef = aggregateTimers.get(key);
+        if (timerRef) {
+            clearTimeout(timerRef);
+            aggregateTimers.delete(key);
+        }
+    }
+
+    async function flushAggregateBucket(key = '') {
+        const normalizedKey = String(key || '').trim();
+        if (!normalizedKey) return false;
+        clearAggregateTimer(normalizedKey);
+        const bucket = aggregateBuckets.get(normalizedKey);
+        if (!bucket) return false;
+        aggregateBuckets.delete(normalizedKey);
+        if (bucket.summarySent || (bucket.count || 0) <= 1 || (bucket.suppressedCount || 0) <= 0) {
+            return false;
+        }
+        return sendMessage(formatAggregateDigestMessage(bucket), `aggregate:${normalizedKey}:${bucket.firstAt}`, {
+            kind: 'aggregate_digest',
+            parseMode: 'HTML',
+            replyMarkup: buildCommandReplyMarkup(resolveShortcutRows(bucket.type, bucket)),
+        });
+    }
+
+    function noteNotificationOccurrence(payload = {}) {
+        const normalizedKey = String(payload.dedupKey || payload.type || payload.eventType || '').trim();
+        if (!normalizedKey) return;
+        const windowMs = Math.max(1_000, Number(payload.dedupWindowMs || dedupWindowMs));
+        let bucket = aggregateBuckets.get(normalizedKey);
+        if (!bucket) {
+            bucket = createAggregateBucket(normalizedKey, payload, windowMs);
+            aggregateBuckets.set(normalizedKey, bucket);
+            const timerRef = startBackgroundTimeout(() => {
+                void flushAggregateBucket(normalizedKey);
+            }, windowMs + 50);
+            aggregateTimers.set(normalizedKey, timerRef);
+        }
+        updateAggregateBucket(bucket, payload);
+        if (payload.suppressed && bucket.suppressedCount > 0 && !bucket.summarySent) {
+            bucket.summarySent = true;
+            void sendMessage(formatAggregateDigestMessage(bucket), `aggregate:${normalizedKey}:${bucket.firstAt}`, {
+                kind: 'aggregate_digest',
+                parseMode: 'HTML',
+                replyMarkup: buildCommandReplyMarkup(resolveShortcutRows(bucket.type, bucket)),
+            });
+        }
     }
 
     async function sendMessage(text, dedupKey = '', overrides = {}) {
@@ -660,13 +907,13 @@ export function createTelegramAlertService(options = {}) {
         return commandSyncPromise;
     }
 
-    async function sendCommandReply(text, chatId, kind = 'command') {
+    async function sendCommandReply(text, chatId, kind = 'command', rows = DEFAULT_SHORTCUT_ROWS) {
         await syncCommands();
         return sendMessage(text, '', {
             chatId,
             kind,
             parseMode: 'HTML',
-            replyMarkup: buildCommandReplyMarkup(),
+            replyMarkup: buildCommandReplyMarkup(rows),
         });
     }
 
@@ -683,9 +930,11 @@ export function createTelegramAlertService(options = {}) {
         const isEmergency = topics.includes('emergency_alert') || severity === 'critical';
         const isSystemStatus = topics.includes('system_status') || !topics.includes('security_audit');
         const isSecurityAudit = topics.includes('security_audit');
+        const isRecoveryNotice = topics.includes('recovery_notice');
 
         if (isSecurityAudit && settings.sendSecurityAudit) return true;
         if (isEmergency && settings.sendEmergencyAlerts) return true;
+        if (isRecoveryNotice && settings.sendSystemStatus) return true;
         if (isSystemStatus && settings.sendSystemStatus) return true;
         return false;
     }
@@ -711,6 +960,7 @@ export function createTelegramAlertService(options = {}) {
         return sendMessage(formatNotificationMessage(notification), dedupKey, {
             kind: notification.type || 'notification',
             parseMode: 'HTML',
+            replyMarkup: buildCommandReplyMarkup(resolveShortcutRows(notification.type, notification)),
         });
     }
 
@@ -725,9 +975,17 @@ export function createTelegramAlertService(options = {}) {
         }
 
         const dedupKey = `audit:${entry.eventType || entry.event || 'audit'}:${entry.actor || ''}:${entry.ip || ''}:${entry.path || ''}`;
+        noteNotificationOccurrence({
+            ...entry,
+            title: rule.label || entry.eventType || entry.event || 'audit_event',
+            severity: rule.severity || 'warning',
+            dedupKey,
+            suppressed: shouldSkipDedup(dedupKey),
+        });
         return sendMessage(formatAuditMessage(entry, rule), dedupKey, {
             kind: entry.eventType || entry.event || 'audit',
             parseMode: 'HTML',
+            replyMarkup: buildCommandReplyMarkup(resolveShortcutRows('security', entry)),
         });
     }
 
@@ -741,7 +999,7 @@ export function createTelegramAlertService(options = {}) {
         ], { rawRows: true });
         appendHtmlSection(blocks, '快捷方式', [
             '命令菜单已同步后，可直接在输入框输入 <code>/</code> 选择命令',
-            '下方聊天键盘会固定常用命令',
+            '消息下方会显示常用快捷按钮',
         ], { rawRows: true });
         appendHtmlSection(blocks, '查询命令', formatCommandHtmlRows(DEFAULT_QUERY_COMMANDS), { rawRows: true });
         appendHtmlSection(blocks, '运维命令', formatCommandHtmlRows(DEFAULT_OPERATION_COMMANDS), { rawRows: true });
@@ -764,7 +1022,7 @@ export function createTelegramAlertService(options = {}) {
         const result = await callTelegramApi('getUpdates', {
             timeout: 0,
             limit: 20,
-            allowed_updates: ['message'],
+            allowed_updates: ['message', 'callback_query'],
         });
         const latest = Array.isArray(result) ? result[result.length - 1] : null;
         lastUpdateId = Number(latest?.update_id || 0);
@@ -1044,6 +1302,123 @@ export function createTelegramAlertService(options = {}) {
         return joinHtmlMessage('NMS 用户到期提醒摘要', blocks);
     }
 
+    async function collectRecentDigestWindow(windowMs = OPS_DIGEST_INTERVAL_MS) {
+        const now = Date.now();
+        const fromIso = new Date(now - windowMs).toISOString();
+        const toIso = new Date(now).toISOString();
+        const [
+            notificationService,
+            auditStore,
+            trafficStatsStore,
+            { summarizeSubscriptionAccess },
+            { collectSubscriptionExpirySnapshot },
+        ] = await Promise.all([
+            import('./notifications.js').then((module) => module.default),
+            import('../store/auditStore.js').then((module) => module.default),
+            import('../store/trafficStatsStore.js').then((module) => module.default),
+            import('../services/subscriptionAuditService.js'),
+            import('./subscriptionExpiryNotifier.js'),
+        ]);
+
+        const notifications = filterRecentItems(
+            notificationService.getAll({ limit: 200, offset: 0 }).items,
+            windowMs,
+            (item) => item?.createdAt
+        );
+        const auditItems = filterRecentItems(
+            auditStore.queryEvents({ page: 1, pageSize: 200 }).items,
+            windowMs,
+            (item) => item?.ts
+        );
+        const securityItems = auditItems.filter((item) => DEFAULT_AUDIT_EVENT_RULES[String(item?.eventType || '').trim().toLowerCase()]);
+        await trafficStatsStore.collectIfStale(false);
+        const trafficOverview = trafficStatsStore.getOverview({ from: fromIso, to: toIso, top: 3 });
+        const accessSummary = await summarizeSubscriptionAccess({ status: 'denied', from: fromIso, to: toIso }, { includeGeo: true });
+        const expirySnapshot = collectSubscriptionExpirySnapshot({ limit: 6 });
+
+        return {
+            fromIso,
+            toIso,
+            notifications,
+            auditItems,
+            securityItems,
+            trafficOverview,
+            accessSummary,
+            expirySnapshot,
+        };
+    }
+
+    async function buildOperationsDigest(windowMs = OPS_DIGEST_INTERVAL_MS) {
+        const [statusContext, digestWindow] = await Promise.all([
+            collectStatusDigestContext(),
+            collectRecentDigestWindow(windowMs),
+        ]);
+        const severityCounter = new Map();
+        digestWindow.notifications.forEach((item) => incrementCounter(severityCounter, severityLabel(item?.severity)));
+        const eventCounter = new Map();
+        const sourceCounter = new Map();
+        digestWindow.securityItems.forEach((item) => {
+            const eventKey = String(item?.eventType || '').trim().toLowerCase();
+            const rule = DEFAULT_AUDIT_EVENT_RULES[eventKey] || { label: eventKey || 'audit_event' };
+            incrementCounter(eventCounter, rule.label);
+            incrementCounter(sourceCounter, [item?.ip, formatLocationCarrierText(item?.ipLocation, item?.ipCarrier)].filter(Boolean).join(' · '));
+        });
+
+        const abnormalNodes = Number(statusContext?.summary?.degraded || 0) + Number(statusContext?.summary?.unreachable || 0);
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('统计窗口', formatWindowLabel(windowMs)),
+            `系统通知: ${formatHtmlValue(digestWindow.notifications.length)} · 安全事件: ${formatHtmlValue(digestWindow.securityItems.length)}`,
+            `订阅拒绝: ${formatHtmlValue(digestWindow.accessSummary?.total || 0)} · 异常节点: ${formatHtmlValue(abnormalNodes)}`,
+            formatHtmlKeyValueRow('生成时间', formatDateTime(digestWindow.toIso)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '通知分布', formatCounterHtmlRows(severityCounter, { limit: 4, suffix: ' 条' }), { rawRows: true });
+        appendHtmlSection(blocks, '安全热点', [
+            ...formatCounterHtmlRows(eventCounter, { limit: 4, suffix: ' 次' }),
+            ...formatCounterHtmlRows(sourceCounter, { limit: 4, suffix: ' 次' }),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '当前状态', [
+            `节点状态: 正常 ${formatHtmlValue(statusContext?.summary?.healthy || 0)} · 降级 ${formatHtmlValue(statusContext?.summary?.degraded || 0)} · 离线 ${formatHtmlValue(statusContext?.summary?.unreachable || 0)} · 维护 ${formatHtmlValue(statusContext?.summary?.maintenance || 0)}`,
+            `在线用户: ${formatHtmlValue(statusContext?.summary?.totalOnline || 0)} · 活跃入站: ${formatHtmlValue(`${statusContext?.summary?.activeInbounds || 0}/${statusContext?.summary?.totalInbounds || 0}`)}`,
+        ], { rawRows: true });
+        return joinHtmlMessage('NMS 运维汇总摘要', blocks);
+    }
+
+    async function buildDailyDigest(windowMs = DAILY_DIGEST_INTERVAL_MS) {
+        const [statusContext, digestWindow] = await Promise.all([
+            collectStatusDigestContext(),
+            collectRecentDigestWindow(windowMs),
+        ]);
+        const topUsers = Array.isArray(digestWindow.trafficOverview?.topUsers)
+            ? digestWindow.trafficOverview.topUsers.slice(0, 3).map((item, index) => `${index + 1}. <b>${escapeTelegramHtml(item.displayLabel || item.username || item.email || '-')}</b> · ${formatHtmlValue(formatBytesHuman(item.totalBytes || 0))}`)
+            : [];
+        const topServers = Array.isArray(digestWindow.trafficOverview?.topServers)
+            ? digestWindow.trafficOverview.topServers.slice(0, 3).map((item, index) => `${index + 1}. <b>${escapeTelegramHtml(item.serverName || item.serverId || '-')}</b> · ${formatHtmlValue(formatBytesHuman(item.totalBytes || 0))}`)
+            : [];
+        const expiryStageCounter = new Map();
+        (digestWindow.expirySnapshot?.items || []).forEach((item) => incrementCounter(expiryStageCounter, item.label || item.stage));
+
+        const blocks = [];
+        appendHtmlSection(blocks, '概况', [
+            formatHtmlKeyValueRow('统计窗口', formatWindowLabel(windowMs)),
+            `系统通知: ${formatHtmlValue(digestWindow.notifications.length)} · 安全事件: ${formatHtmlValue(digestWindow.securityItems.length)}`,
+            `在线用户: ${formatHtmlValue(statusContext?.summary?.totalOnline || 0)} · 异常节点: ${formatHtmlValue((statusContext?.summary?.degraded || 0) + (statusContext?.summary?.unreachable || 0))}`,
+            formatHtmlKeyValueRow('生成时间', formatDateTime(digestWindow.toIso)),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, '24h 流量', [
+            `上行: ${formatHtmlValue(formatBytesHuman(digestWindow.trafficOverview?.totals?.upBytes || 0))} · 下行: ${formatHtmlValue(formatBytesHuman(digestWindow.trafficOverview?.totals?.downBytes || 0))}`,
+            formatHtmlKeyValueRow('合计', formatBytesHuman(digestWindow.trafficOverview?.totals?.totalBytes || 0)),
+            formatHtmlKeyValueRow('活跃用户', `${digestWindow.trafficOverview?.activeUsers || 0}/${digestWindow.trafficOverview?.registeredTotals?.totalUsers || 0}`),
+        ], { rawRows: true });
+        appendHtmlSection(blocks, 'Top 用户', topUsers, { rawRows: true });
+        appendHtmlSection(blocks, 'Top 节点', topServers, { rawRows: true });
+        appendHtmlSection(blocks, '到期提醒', [
+            `已到期: ${formatHtmlValue(digestWindow.expirySnapshot?.expiredCount || 0)} · 即将到期: ${formatHtmlValue(digestWindow.expirySnapshot?.warningCount || 0)}`,
+            ...formatCounterHtmlRows(expiryStageCounter, { limit: 4, suffix: ' 人' }),
+        ], { rawRows: true });
+        return joinHtmlMessage('NMS 每日巡检摘要', blocks);
+    }
+
     async function runMonitorDigest(actor = 'telegram') {
         const serverHealthMonitor = (await import('./serverHealthMonitor.js')).default;
         const result = await serverHealthMonitor.runOnce({ force: true });
@@ -1064,6 +1439,98 @@ export function createTelegramAlertService(options = {}) {
         return joinHtmlMessage('NMS 手动巡检完成', blocks);
     }
 
+    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '' } = {}) {
+        const normalized = normalizeCommand(command);
+        if (normalized === '/start' || normalized === '/help') {
+            return {
+                text: formatCommandCatalogMessage(),
+                kind: 'command_help',
+                rows: DEFAULT_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/status') {
+            return {
+                text: await buildStatusDigest(),
+                kind: 'status_digest',
+                rows: DEFAULT_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/online') {
+            return {
+                text: await buildOnlineDigest(),
+                kind: 'online_digest',
+                rows: NODE_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/traffic') {
+            return {
+                text: await buildTrafficDigest(),
+                kind: 'traffic_digest',
+                rows: DEFAULT_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/alerts') {
+            return {
+                text: await buildAlertsDigest(),
+                kind: 'alerts_digest',
+                rows: DEFAULT_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/security') {
+            return {
+                text: await buildSecurityDigest(),
+                kind: 'security_digest',
+                rows: SECURITY_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/nodes') {
+            return {
+                text: await buildNodeIssuesDigest(),
+                kind: 'node_digest',
+                rows: NODE_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/access') {
+            return {
+                text: await buildAccessDigest(),
+                kind: 'access_digest',
+                rows: SECURITY_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/expiry') {
+            return {
+                text: await buildExpiryDigest(),
+                kind: 'expiry_digest',
+                rows: EXPIRY_SHORTCUT_ROWS,
+            };
+        }
+
+        if (normalized === '/monitor') {
+            return {
+                text: await runMonitorDigest(actor),
+                kind: 'monitor_digest',
+                rows: NODE_SHORTCUT_ROWS,
+            };
+        }
+
+        return {
+            text: joinHtmlMessage('NMS Telegram 控制台', [
+                `<b>概况</b>\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
+            ]),
+            kind: 'command',
+            rows: DEFAULT_SHORTCUT_ROWS,
+            chatId,
+        };
+    }
+
     async function handleCommand(message) {
         const chatId = String(message?.chat?.id || '').trim();
         const command = normalizeCommand(message?.text || '');
@@ -1071,59 +1538,87 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastCommandAt = new Date().toISOString();
         runtimeStatus.lastCommand = command || String(message?.text || '').trim();
 
-        if (command === '/start' || command === '/help') {
-            await sendCommandReply(formatCommandCatalogMessage(), chatId);
-            return;
+        const reply = await dispatchCommand(command, {
+            actor: message?.from?.username || 'telegram',
+            chatId,
+        });
+        await sendCommandReply(reply.text, chatId, reply.kind, reply.rows);
+    }
+
+    async function handleCallbackQuery(callbackQuery = {}) {
+        const chatId = String(callbackQuery?.message?.chat?.id || '').trim();
+        const command = decodeShortcutCallback(callbackQuery?.data || '');
+        if (!command) return;
+
+        runtimeStatus.lastCommandAt = new Date().toISOString();
+        runtimeStatus.lastCommand = command;
+
+        await callTelegramApi('answerCallbackQuery', {
+            callback_query_id: callbackQuery.id,
+            text: '已更新',
+        });
+
+        const reply = await dispatchCommand(command, {
+            actor: callbackQuery?.from?.username || 'telegram',
+            chatId,
+        });
+        await sendCommandReply(reply.text, chatId, reply.kind, reply.rows);
+    }
+
+    async function sendPeriodicDigest(kind = 'ops') {
+        const normalized = String(kind || '').trim().toLowerCase();
+        let text = '';
+        let rows = DEFAULT_SHORTCUT_ROWS;
+        let intervalMs = OPS_DIGEST_INTERVAL_MS;
+
+        if (normalized === 'daily') {
+            text = typeof options.buildDailyDigest === 'function'
+                ? await options.buildDailyDigest()
+                : await buildDailyDigest();
+            rows = [DEFAULT_SHORTCUT_ROWS[0], EXPIRY_SHORTCUT_ROWS[0]];
+            intervalMs = DAILY_DIGEST_INTERVAL_MS;
+        } else {
+            text = typeof options.buildOperationsDigest === 'function'
+                ? await options.buildOperationsDigest()
+                : await buildOperationsDigest();
+            rows = [DEFAULT_SHORTCUT_ROWS[0], SECURITY_SHORTCUT_ROWS[0]];
         }
 
-        if (command === '/status') {
-            await sendCommandReply(await buildStatusDigest(), chatId);
-            return;
+        const sent = await sendMessage(text, `digest:${normalized}:${Math.floor(Date.now() / intervalMs)}`, {
+            kind: `digest_${normalized}`,
+            parseMode: 'HTML',
+            replyMarkup: buildCommandReplyMarkup(rows),
+        });
+        if (sent) {
+            runtimeStatus.lastDigestAt = new Date().toISOString();
+            runtimeStatus.lastDigestKind = normalized;
+            runtimeStatus.lastDigestError = '';
         }
+        return sent;
+    }
 
-        if (command === '/online') {
-            await sendCommandReply(await buildOnlineDigest(), chatId);
-            return;
+    function schedulePeriodicDigests() {
+        if (opsDigestTimer) {
+            clearInterval(opsDigestTimer);
+            opsDigestTimer = null;
         }
-
-        if (command === '/traffic') {
-            await sendCommandReply(await buildTrafficDigest(), chatId);
-            return;
+        if (dailyDigestTimer) {
+            clearInterval(dailyDigestTimer);
+            dailyDigestTimer = null;
         }
+        if (!running) return;
 
-        if (command === '/alerts') {
-            await sendCommandReply(await buildAlertsDigest(), chatId);
-            return;
-        }
+        opsDigestTimer = startBackgroundInterval(() => {
+            sendPeriodicDigest('ops').catch((error) => {
+                runtimeStatus.lastDigestError = error.message || 'telegram-ops-digest-failed';
+            });
+        }, OPS_DIGEST_INTERVAL_MS);
 
-        if (command === '/security') {
-            await sendCommandReply(await buildSecurityDigest(), chatId);
-            return;
-        }
-
-        if (command === '/nodes') {
-            await sendCommandReply(await buildNodeIssuesDigest(), chatId);
-            return;
-        }
-
-        if (command === '/access') {
-            await sendCommandReply(await buildAccessDigest(), chatId);
-            return;
-        }
-
-        if (command === '/expiry') {
-            await sendCommandReply(await buildExpiryDigest(), chatId);
-            return;
-        }
-
-        if (command === '/monitor') {
-            await sendCommandReply(await runMonitorDigest(message?.from?.username || 'telegram'), chatId);
-            return;
-        }
-
-        await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
-            `<b>概况</b>\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
-        ]), chatId, 'command');
+        dailyDigestTimer = startBackgroundInterval(() => {
+            sendPeriodicDigest('daily').catch((error) => {
+                runtimeStatus.lastDigestError = error.message || 'telegram-daily-digest-failed';
+            });
+        }, DAILY_DIGEST_INTERVAL_MS);
     }
 
     async function processUpdates(updates = []) {
@@ -1131,15 +1626,32 @@ export function createTelegramAlertService(options = {}) {
         for (const update of Array.isArray(updates) ? updates : []) {
             lastUpdateId = Math.max(lastUpdateId, Number(update?.update_id || 0));
             const message = update?.message;
-            if (!message?.text) continue;
-            if (String(message?.chat?.id || '').trim() !== String(settings.chatId || '').trim()) continue;
+            const callbackQuery = update?.callback_query;
 
-            try {
-                await handleCommand(message);
-            } catch (error) {
-                await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
-                    `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
-                ]), String(message?.chat?.id || '').trim(), 'command_error');
+            if (message?.text && String(message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
+                try {
+                    await handleCommand(message);
+                } catch (error) {
+                    await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
+                        `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
+                    ]), String(message?.chat?.id || '').trim(), 'command_error', DEFAULT_SHORTCUT_ROWS);
+                }
+                continue;
+            }
+
+            if (callbackQuery && String(callbackQuery?.message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
+                try {
+                    await handleCallbackQuery(callbackQuery);
+                } catch (error) {
+                    await callTelegramApi('answerCallbackQuery', {
+                        callback_query_id: callbackQuery.id,
+                        text: error.message || '执行失败',
+                        show_alert: false,
+                    }).catch(() => {});
+                    await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
+                        `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
+                    ]), String(callbackQuery?.message?.chat?.id || '').trim(), 'command_error', DEFAULT_SHORTCUT_ROWS);
+                }
             }
         }
     }
@@ -1157,7 +1669,7 @@ export function createTelegramAlertService(options = {}) {
         const result = await callTelegramApi('getUpdates', {
             timeout: 15,
             offset: lastUpdateId + 1,
-            allowed_updates: ['message'],
+            allowed_updates: ['message', 'callback_query'],
         });
 
         runtimeStatus.lastPollAt = new Date().toISOString();
@@ -1187,6 +1699,7 @@ export function createTelegramAlertService(options = {}) {
         running = true;
         void syncCommands();
         scheduleNextPoll(2000);
+        schedulePeriodicDigests();
     }
 
     function stop() {
@@ -1196,6 +1709,18 @@ export function createTelegramAlertService(options = {}) {
             clearTimeout(timer);
             timer = null;
         }
+        if (opsDigestTimer) {
+            clearInterval(opsDigestTimer);
+            opsDigestTimer = null;
+        }
+        if (dailyDigestTimer) {
+            clearInterval(dailyDigestTimer);
+            dailyDigestTimer = null;
+        }
+        for (const key of aggregateTimers.keys()) {
+            clearAggregateTimer(key);
+        }
+        aggregateBuckets.clear();
     }
 
     function getStatus() {
@@ -1222,6 +1747,9 @@ export function createTelegramAlertService(options = {}) {
             lastCommand: runtimeStatus.lastCommand,
             lastCommandSyncAt: runtimeStatus.lastCommandSyncAt,
             lastCommandSyncError: runtimeStatus.lastCommandSyncError,
+            lastDigestAt: runtimeStatus.lastDigestAt,
+            lastDigestKind: runtimeStatus.lastDigestKind,
+            lastDigestError: runtimeStatus.lastDigestError,
         };
     }
 
@@ -1239,8 +1767,15 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastCommand = '';
         runtimeStatus.lastCommandSyncAt = null;
         runtimeStatus.lastCommandSyncError = '';
+        runtimeStatus.lastDigestAt = null;
+        runtimeStatus.lastDigestKind = '';
+        runtimeStatus.lastDigestError = '';
         commandsSynced = false;
         commandSyncPromise = null;
+        aggregateBuckets.clear();
+        for (const key of aggregateTimers.keys()) {
+            clearAggregateTimer(key);
+        }
     }
 
     startBackgroundInterval(() => {
@@ -1258,6 +1793,8 @@ export function createTelegramAlertService(options = {}) {
         notifySecurityAudit,
         sendTestMessage,
         syncCommands,
+        noteNotificationOccurrence,
+        sendPeriodicDigest,
         start,
         stop,
         resetForTests,

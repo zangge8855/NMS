@@ -89,4 +89,11 @@ describe('Sidebar', () => {
         expect(screen.queryByText('监控')).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /仪表盘/i })).toBeInTheDocument();
     });
+
+    it('does not render the old bottom server selector anymore', () => {
+        const { container } = renderWithRouter(<Sidebar collapsed={false} open={false} onClose={vi.fn()} onToggle={vi.fn()} />, { route: '/' });
+
+        expect(container.querySelector('.server-selector')).toBeNull();
+        expect(document.body.querySelector('.server-dropdown-menu')).toBeNull();
+    });
 });

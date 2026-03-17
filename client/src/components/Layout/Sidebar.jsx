@@ -6,8 +6,6 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 import {
-    HiOutlineCloud,
-    HiOutlineServerStack,
     HiOutlineArrowRightOnRectangle,
     HiOutlineChevronLeft,
     HiOutlineChevronRight,
@@ -31,18 +29,13 @@ function clamp(value, min, max) {
 
 export default function Sidebar({ collapsed, open = false, isMobile = false, onClose, onToggle }) {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
-    const { servers, activeServer, activeServerId, selectServer } = useServer();
+    const { activeServerId } = useServer();
     const { logout, user } = useAuth();
     const { locale, t } = useI18n();
     const { unreadCount } = useNotifications();
-    const [showServerMenu, setShowServerMenu] = useState(false);
-    const [serverSearch, setServerSearch] = useState('');
     const [navFlyout, setNavFlyout] = useState(null);
     const location = useLocation();
     const navigate = useNavigate();
-    const serverSelectorRef = useRef(null);
-    const serverDropdownRef = useRef(null);
-    const serverTriggerRef = useRef(null);
     const navFlyoutRef = useRef(null);
     const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
@@ -53,8 +46,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
 
     useEffect(() => {
-        setShowServerMenu(false);
-        setServerSearch('');
         setNavFlyout(null);
         onClose?.();
     }, [location.pathname]);
@@ -71,59 +62,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
             navigate('/', { replace: true });
         }
     }, [isGlobalView, location.pathname, navigate]);
-
-    // Close server dropdown when clicking outside
-    useEffect(() => {
-        if (!showServerMenu) return;
-        const handleClickOutside = (e) => {
-            const clickedInsideSelector = serverSelectorRef.current?.contains(e.target);
-            const clickedInsideDropdown = serverDropdownRef.current?.contains(e.target);
-            if (!clickedInsideSelector && !clickedInsideDropdown) {
-                setShowServerMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showServerMenu]);
-
-    const computeServerDropdownPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
-        const viewportPadding = 12;
-        const gap = 8;
-        const desiredWidth = collapsed ? 280 : Math.max(anchorRect.width, 280);
-        const width = Math.min(desiredWidth, viewport.width - (viewportPadding * 2));
-        const left = collapsed
-            ? clamp(anchorRect.right + gap, viewportPadding, viewport.width - width - viewportPadding)
-            : clamp(anchorRect.left, viewportPadding, viewport.width - width - viewportPadding);
-
-        const measuredHeight = panelRect.height || 320;
-        const spaceBelow = viewport.height - anchorRect.bottom - viewportPadding - gap;
-        const spaceAbove = anchorRect.top - viewportPadding - gap;
-        const openUpward = spaceBelow < Math.min(280, measuredHeight) && spaceAbove > spaceBelow;
-        const maxHeight = Math.max(160, openUpward ? spaceAbove : spaceBelow);
-        const renderedHeight = Math.min(measuredHeight, maxHeight);
-        const top = openUpward
-            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
-            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
-        const originX = collapsed
-            ? 22
-            : clamp((anchorRect.left + (anchorRect.width / 2)) - left, 28, width - 28);
-
-        return {
-            top: `${top}px`,
-            left: `${left}px`,
-            width: `${width}px`,
-            maxHeight: `${maxHeight}px`,
-            transformOrigin: `${originX}px ${openUpward ? '100%' : '0%'}`,
-        };
-    }, [collapsed]);
-
-    const { panelStyle: dropdownStyle, isReady: isServerDropdownReady } = useFloatingPanel({
-        open: showServerMenu,
-        anchorRef: serverTriggerRef,
-        panelRef: serverDropdownRef,
-        computePosition: computeServerDropdownPosition,
-        deps: [serverSearch, servers.length],
-    });
 
     const showNavFlyout = collapsed && !isMobile && !!navFlyout;
 
@@ -174,59 +112,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
             }
             : {}
     );
-
-    const serverMenu = showServerMenu && (servers.length > 0 || activeServerId === 'global') && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-                ref={serverDropdownRef}
-                className={`server-dropdown-menu${isServerDropdownReady ? ' is-ready' : ''}`}
-                style={dropdownStyle || undefined}
-            >
-                {servers.length >= 4 && (
-                    <input
-                        type="text"
-                        className="server-search-input"
-                        placeholder={t('shell.searchServersPlaceholder')}
-                        value={serverSearch}
-                        onChange={(e) => setServerSearch(e.target.value)}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                )}
-                <div
-                    onClick={() => { selectServer('global'); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
-                    className={`server-dropdown-item ${activeServerId === 'global' ? 'active' : ''}`}
-                >
-                    <span className="server-dropdown-item-icon"><HiOutlineCloud /></span>
-                    <div>
-                        <div className="font-medium">{t('shell.scopeGlobalValue')}</div>
-                    </div>
-                </div>
-
-                {servers
-                    .filter((s) => {
-                        if (!serverSearch.trim()) return true;
-                        const q = serverSearch.trim().toLowerCase();
-                        return (s.name || '').toLowerCase().includes(q) || (s.url || '').toLowerCase().includes(q);
-                    })
-                    .map((s) => (
-                        <div
-                            key={s.id}
-                            onClick={() => { selectServer(s.id); setShowServerMenu(false); setServerSearch(''); onClose?.(); }}
-                            className={`server-dropdown-item ${s.id === activeServerId ? 'active' : ''}`}
-                        >
-                            <span className="server-dropdown-item-dot" />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="font-medium">{s.name}</div>
-                                <div className="text-muted text-xs">{s.url}</div>
-                            </div>
-                            <span className="server-health-dot" data-health={s.health || 'unknown'} />
-                        </div>
-                    ))}
-            </div>,
-            document.body
-        )
-        : null;
 
     const navFlyoutMenu = showNavFlyout && typeof document !== 'undefined'
         ? createPortal(
@@ -338,50 +223,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                     </button>
                 </div>
             </nav>
-            {isAdmin && (
-                <div className="server-selector" ref={serverSelectorRef}>
-                {activeServerId === 'global' ? (
-                    <button
-                        ref={serverTriggerRef}
-                        type="button"
-                        className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
-                        onClick={() => setShowServerMenu(!showServerMenu)}
-                        aria-expanded={showServerMenu}
-                    >
-                        <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
-                        <div className="server-info">
-                            <div className="server-name text-glow">{t('shell.scopeGlobalValue')}</div>
-                        </div>
-                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
-                    </button>
-                ) : activeServer ? (
-                    <button
-                        ref={serverTriggerRef}
-                        type="button"
-                        className={`server-selector-btn ${showServerMenu ? 'active' : ''}`}
-                        onClick={() => setShowServerMenu(!showServerMenu)}
-                        aria-expanded={showServerMenu}
-                    >
-                        <span className="server-dot server-dot-lg"><HiOutlineServerStack /></span>
-                        <div className="server-info">
-                            <div className="server-name text-glow">{activeServer.name}</div>
-                            <div className="server-addr text-muted">{activeServer.url}</div>
-                        </div>
-                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
-                    </button>
-                ) : (
-                    <button ref={serverTriggerRef} type="button" className="server-selector-btn" onClick={() => setShowServerMenu(!showServerMenu)} aria-expanded={showServerMenu}>
-                        <span className="server-dot server-dot-lg"><HiOutlineCloud /></span>
-                        <div className="server-info">
-                            <div className="server-name text-glow">{t('shell.selectServer')}</div>
-                        </div>
-                        <HiOutlineChevronRight className={`server-chevron${showServerMenu ? ' open' : ''}`} />
-                    </button>
-                )}
-
-                </div>
-            )}
-            {serverMenu}
         </aside>
         {navFlyoutMenu}
         </>

@@ -40,6 +40,8 @@ test('serverHealthMonitor records healthy results and emits recovery alert on tr
 
     assert.equal(result.summary.healthy, 1);
     assert.equal(notifications[0].type, 'server_health_recovered');
+    assert.equal(notifications[0].meta.previousHealth, 'unreachable');
+    assert.match(notifications[0].meta.telegramTopics.join(','), /recovery_notice/);
     assert.deepEqual(updates, [{ id: 'srv-1', patch: { health: 'healthy' } }]);
 });
 

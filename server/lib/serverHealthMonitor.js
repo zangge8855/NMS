@@ -21,14 +21,38 @@ function startBackgroundInterval(fn, delayMs) {
     return timer;
 }
 
+function formatDurationHuman(value = 0) {
+    const ms = Number(value || 0);
+    if (!Number.isFinite(ms) || ms <= 0) return '不足 1 分钟';
+    const minutes = Math.max(1, Math.round(ms / 60000));
+    const days = Math.floor(minutes / (24 * 60));
+    const hours = Math.floor((minutes % (24 * 60)) / 60);
+    const remainMinutes = minutes % 60;
+    const parts = [];
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0) parts.push(`${hours} 小时`);
+    if (remainMinutes > 0) parts.push(`${remainMinutes} 分钟`);
+    return parts.slice(0, 3).join(' ') || '不足 1 分钟';
+}
+
 function buildNotificationForState(previous, next) {
     if (next.health === HEALTHY && previous.health !== HEALTHY) {
+        const outageDurationMs = previous.checkedAt && next.checkedAt
+            ? Math.max(0, new Date(next.checkedAt).getTime() - new Date(previous.checkedAt).getTime())
+            : 0;
         return {
             type: 'server_health_recovered',
             severity: SEVERITY.INFO,
             title: `节点已恢复: ${next.name}`,
-            body: `节点 ${next.name} 已恢复可用状态`,
+            body: `节点 ${next.name} 已恢复可用状态${outageDurationMs > 0 ? `，本次异常持续约 ${formatDurationHuman(outageDurationMs)}` : ''}`,
             dedupKey: `server_health:${next.serverId}:healthy`,
+            meta: {
+                telegramTopics: ['system_status', 'recovery_notice'],
+                outageDurationMs,
+                recoveredAt: next.checkedAt || new Date().toISOString(),
+                previousReasonCode: previous.reasonCode || '',
+                previousCheckedAt: previous.checkedAt || '',
+            },
         };
     }
 
@@ -88,6 +112,9 @@ function buildNotificationForState(previous, next) {
             title: `节点检查失败: ${next.name}`,
             body: `节点 ${next.name} 状态检查失败: ${next.reasonMessage}`,
             dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'panel_request_failed'}`,
+            meta: {
+                telegramTopics: ['system_status'],
+            },
         };
     }
 
@@ -134,6 +161,9 @@ function buildNotificationForState(previous, next) {
             title: `节点连接失败: ${next.name}`,
             body: `节点 ${next.name} 无法连接到 3x-ui: ${next.reasonMessage}`,
             dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'unreachable'}`,
+            meta: {
+                telegramTopics: ['system_status', 'emergency_alert'],
+            },
         };
     }
 
@@ -217,15 +247,23 @@ class ServerHealthMonitor {
 
             const notification = buildNotificationForState(previous, result);
             if (notification) {
+                const notificationMeta = notification.meta || {};
+                const defaultTopics = new Set(Array.isArray(notificationMeta.telegramTopics) ? notificationMeta.telegramTopics : []);
+                defaultTopics.add('system_status');
+                if (notification.severity === SEVERITY.CRITICAL) {
+                    defaultTopics.add('emergency_alert');
+                }
                 notify({
                     ...notification,
                     meta: {
+                        ...notificationMeta,
                         serverId: result.serverId,
                         previousHealth: previous.health,
                         currentHealth: result.health,
                         reasonCode: result.reasonCode,
                         reasonMessage: result.reasonMessage,
                         retryable: result.retryable,
+                        telegramTopics: [...defaultTopics],
                     },
                 });
             }

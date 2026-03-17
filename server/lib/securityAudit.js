@@ -7,6 +7,18 @@ import notificationService, { SEVERITY } from './notifications.js';
 import { enrichAuditEvent } from './auditEventEnrichment.js';
 
 const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
+const LOGIN_PATTERN_WINDOW_MS = 5 * 60 * 1000;
+const ACCESS_PATTERN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_PATTERN_EVENTS = new Set([
+    'login_failed',
+    'login_denied_email_unverified',
+    'login_denied_user_disabled',
+    'login_rate_limited',
+]);
+const ACCESS_PATTERN_EVENTS = new Set([
+    'subscription_public_denied',
+    'subscription_public_denied_legacy',
+]);
 
 function ensureAuditDir() {
     if (!fs.existsSync(config.dataDir)) {
@@ -45,6 +57,70 @@ function redactSensitive(value) {
     return out;
 }
 
+function getRecentMatchingEvents(windowMs, predicate) {
+    const cutoff = Date.now() - windowMs;
+    return auditStore.queryEvents({ page: 1, pageSize: 200 }).items.filter((item) => {
+        const ts = new Date(item?.ts || 0).getTime();
+        return Number.isFinite(ts) && ts >= cutoff && predicate(item);
+    });
+}
+
+function summarizeLoginPattern(entry = {}, details = {}) {
+    const ip = String(entry.ip || '').trim();
+    if (!ip) return null;
+    const recentEvents = getRecentMatchingEvents(LOGIN_PATTERN_WINDOW_MS, (item) => (
+        LOGIN_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+        && String(item?.ip || '').trim() === ip
+    ));
+    if (recentEvents.length === 0) return null;
+
+    const targets = new Set();
+    let rateLimited = false;
+    recentEvents.forEach((item) => {
+        const candidate = String(
+            item?.details?.username
+            || item?.details?.email
+            || item?.targetEmail
+            || details?.username
+            || details?.email
+            || ''
+        ).trim().toLowerCase();
+        if (candidate) targets.add(candidate);
+        if (String(item?.eventType || '').trim().toLowerCase() === 'login_rate_limited') {
+            rateLimited = true;
+        }
+    });
+
+    return {
+        recentAttempts: recentEvents.length,
+        distinctTargets: targets.size,
+        rateLimited,
+        suspectedBruteforce: recentEvents.length >= 8 || targets.size >= 3 || rateLimited,
+    };
+}
+
+function summarizeAccessPattern(entry = {}) {
+    const ip = String(entry.ip || '').trim();
+    if (!ip) return null;
+    const recentEvents = getRecentMatchingEvents(ACCESS_PATTERN_WINDOW_MS, (item) => (
+        ACCESS_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+        && String(item?.ip || '').trim() === ip
+    ));
+    if (recentEvents.length === 0) return null;
+
+    const paths = new Set();
+    recentEvents.forEach((item) => {
+        const pathValue = String(item?.path || '').trim();
+        if (pathValue) paths.add(pathValue);
+    });
+
+    return {
+        recentDeniedCount: recentEvents.length,
+        distinctPaths: paths.size || 1,
+        suspectedScan: recentEvents.length >= 12 || paths.size >= 3,
+    };
+}
+
 function buildAuditNotification(entry = {}) {
     const eventKey = String(entry.eventType || entry.event || '').trim().toLowerCase();
     const ip = String(entry.ip || '').trim() || 'unknown';
@@ -53,37 +129,39 @@ function buildAuditNotification(entry = {}) {
     const details = entry?.details && typeof entry.details === 'object' && !Array.isArray(entry.details)
         ? entry.details
         : {};
+    const loginPattern = LOGIN_PATTERN_EVENTS.has(eventKey) ? summarizeLoginPattern(entry, details) : null;
+    const accessPattern = ACCESS_PATTERN_EVENTS.has(eventKey) ? summarizeAccessPattern(entry) : null;
 
     const definitions = {
         login_failed: {
             type: 'security_login_failed',
-            severity: SEVERITY.WARNING,
-            title: '登录失败',
-            body: `检测到登录失败请求。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: loginPattern?.suspectedBruteforce ? '疑似登录爆破' : '登录失败',
+            body: `检测到登录失败请求。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
             dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
-            telegramTopics: ['security_audit'],
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
         login_denied_email_unverified: {
             type: 'security_login_denied_email_unverified',
-            severity: SEVERITY.WARNING,
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
             title: '未验证邮箱尝试登录',
-            body: `检测到未完成邮箱验证的登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            body: `检测到未完成邮箱验证的登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
             dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
-            telegramTopics: ['security_audit'],
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
         login_denied_user_disabled: {
             type: 'security_login_denied_user_disabled',
-            severity: SEVERITY.WARNING,
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
             title: '停用账号尝试登录',
-            body: `检测到停用账号登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}`,
+            body: `检测到停用账号登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
             dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
-            telegramTopics: ['security_audit'],
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
         login_rate_limited: {
             type: 'security_attack_login_rate_limited',
             severity: SEVERITY.CRITICAL,
-            title: '登录接口触发限流',
-            body: `检测到登录接口被频繁尝试，IP ${ip} 已触发限流。路径: ${pathValue}`,
+            title: loginPattern?.distinctTargets >= 3 ? '登录接口疑似爆破并触发限流' : '登录接口触发限流',
+            body: `检测到登录接口被频繁尝试，IP ${ip} 已触发限流。路径: ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
             dedupKey: `security:${eventKey}:${ip}`,
             telegramTopics: ['security_audit', 'emergency_alert'],
         },
@@ -105,19 +183,19 @@ function buildAuditNotification(entry = {}) {
         },
         subscription_public_denied: {
             type: 'security_subscription_denied',
-            severity: SEVERITY.WARNING,
-            title: '公开订阅访问被拒绝',
-            body: `公开订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}`,
+            severity: accessPattern?.suspectedScan ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: accessPattern?.suspectedScan ? '公开订阅入口疑似扫描' : '公开订阅访问被拒绝',
+            body: `公开订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}${accessPattern ? ` · 近 10 分钟同源 ${accessPattern.recentDeniedCount} 次` : ''}`,
             dedupKey: `security:${eventKey}:${ip}:${pathValue}`,
-            telegramTopics: ['security_audit'],
+            telegramTopics: accessPattern?.suspectedScan ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
         subscription_public_denied_legacy: {
             type: 'security_subscription_denied_legacy',
-            severity: SEVERITY.WARNING,
-            title: '旧版订阅访问被拒绝',
-            body: `旧版订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}`,
+            severity: accessPattern?.suspectedScan ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: accessPattern?.suspectedScan ? '旧版订阅入口疑似扫描' : '旧版订阅访问被拒绝',
+            body: `旧版订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}${accessPattern ? ` · 近 10 分钟同源 ${accessPattern.recentDeniedCount} 次` : ''}`,
             dedupKey: `security:${eventKey}:${ip}:${pathValue}`,
-            telegramTopics: ['security_audit'],
+            telegramTopics: accessPattern?.suspectedScan ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
         batch_clients_high_risk_action: {
             type: 'security_batch_clients_high_risk_action',
@@ -160,6 +238,13 @@ function buildAuditNotification(entry = {}) {
                 path: pathValue,
                 method: String(entry.method || '').trim(),
                 telegramTopics: matched.telegramTopics,
+                recentAttempts: loginPattern?.recentAttempts || 0,
+                distinctTargets: loginPattern?.distinctTargets || 0,
+                rateLimited: loginPattern?.rateLimited || false,
+                suspectedBruteforce: loginPattern?.suspectedBruteforce || false,
+                recentDeniedCount: accessPattern?.recentDeniedCount || 0,
+                distinctPaths: accessPattern?.distinctPaths || 0,
+                suspectedScan: accessPattern?.suspectedScan || false,
             },
             dedupKey: matched.dedupKey,
         };

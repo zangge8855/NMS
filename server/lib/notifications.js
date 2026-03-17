@@ -88,7 +88,22 @@ class NotificationService extends EventEmitter {
     notify({ type, severity = SEVERITY.INFO, title, body, meta = {}, dedupKey }) {
         const key = dedupKey || `${type}:${title}`;
         const lastNotified = this.dedupCache.get(key);
+        const createdAt = new Date().toISOString();
+        const occurrence = {
+            type,
+            severity,
+            title,
+            body,
+            meta,
+            dedupKey: key,
+            dedupWindowMs: DEDUP_WINDOW_MS,
+            createdAt,
+        };
         if (lastNotified && Date.now() - lastNotified < DEDUP_WINDOW_MS) {
+            void telegramAlertService.noteNotificationOccurrence({
+                ...occurrence,
+                suppressed: true,
+            });
             return null; // 冷却期内，跳过
         }
 
@@ -101,7 +116,7 @@ class NotificationService extends EventEmitter {
             title: String(title || ''),
             body: String(body || ''),
             meta,
-            createdAt: new Date().toISOString(),
+            createdAt,
             readAt: null,
         };
 
@@ -112,6 +127,12 @@ class NotificationService extends EventEmitter {
 
         // 触发事件，让 WebSocket 层监听并广播
         this.emit('notification', notification);
+        void telegramAlertService.noteNotificationOccurrence({
+            ...notification,
+            dedupKey: key,
+            dedupWindowMs: DEDUP_WINDOW_MS,
+            suppressed: false,
+        });
         void telegramAlertService.notifyNotification(notification);
 
         this._scheduleSave();

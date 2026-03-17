@@ -71,11 +71,12 @@ test('telegramAlertService deduplicates repeated security alerts within the cool
 
     assert.equal(await service.notifySecurityAudit(auditEntry), true);
     assert.equal(await service.notifySecurityAudit(auditEntry), false);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
     assert.equal(calls[0].body.parse_mode, 'HTML');
     assert.match(calls[0].body.text, /登录频率限制/);
     assert.match(calls[0].body.text, /归属地 \/ 运营商: <b>中国 浙江 杭州 · 中国电信<\/b>/);
     assert.match(calls[0].body.text, /<b>来源<\/b>/);
+    assert.match(calls[1].body.text, /<b>NMS 聚合告警摘要<\/b>/);
 });
 
 test('telegramAlertService ignores low-severity notifications and exposes delivery status', async () => {
@@ -126,7 +127,8 @@ test('telegramAlertService exposes command polling capability for numeric chat i
     assert.match(messageCall.body.text, /<b>快捷方式<\/b>/);
     assert.match(messageCall.body.text, /<code>\/expiry<\/code> 用户到期提醒摘要/);
     assert.match(messageCall.body.text, /<b>运维命令<\/b>/);
-    assert.deepEqual(messageCall.body.reply_markup.keyboard[0].map((item) => item.text), ['/status', '/security', '/alerts']);
+    assert.deepEqual(messageCall.body.reply_markup.inline_keyboard[0].map((item) => item.text), ['/status', '/security', '/alerts']);
+    assert.deepEqual(messageCall.body.reply_markup.inline_keyboard[0].map((item) => item.callback_data), ['cmd:status', 'cmd:security', 'cmd:alerts']);
 });
 
 test('telegramAlertService forwards login failure audits with target account details', async () => {
@@ -193,6 +195,84 @@ test('telegramAlertService retries the same alert after a failed delivery', asyn
     assert.equal(await service.notifyNotification(notification), false);
     assert.equal(await service.notifyNotification(notification), true);
     assert.equal(calls.length, 2);
+});
+
+test('telegramAlertService sends an aggregate digest after repeated suppressed notifications', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        dedupWindowMs: 20,
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true };
+        },
+    });
+
+    service.noteNotificationOccurrence({
+        type: 'security_login_failed',
+        severity: 'warning',
+        title: '登录失败',
+        body: '检测到登录失败请求',
+        dedupKey: 'security:login_failed:203.0.113.7:alice',
+        dedupWindowMs: 20,
+        createdAt: '2026-03-15T10:00:00.000Z',
+        meta: {
+            ip: '203.0.113.7',
+            ipLocation: '中国 浙江 杭州',
+            ipCarrier: '中国电信',
+            targetUsername: 'alice',
+            method: 'POST',
+            path: '/api/auth/login',
+        },
+    });
+    service.noteNotificationOccurrence({
+        type: 'security_login_failed',
+        severity: 'warning',
+        title: '登录失败',
+        body: '检测到登录失败请求',
+        dedupKey: 'security:login_failed:203.0.113.7:alice',
+        dedupWindowMs: 20,
+        createdAt: '2026-03-15T10:00:10.000Z',
+        suppressed: true,
+        meta: {
+            ip: '203.0.113.7',
+            ipLocation: '中国 浙江 杭州',
+            ipCarrier: '中国电信',
+            targetUsername: 'alice',
+            method: 'POST',
+            path: '/api/auth/login',
+        },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].body.text, /<b>NMS 聚合告警摘要<\/b>/);
+    assert.match(calls[0].body.text, /累计命中: <b>2 次<\/b>/);
+    assert.match(calls[0].body.text, /聚合抑制: <b>1 次<\/b>/);
+});
+
+test('telegramAlertService can send scheduled operation digests with shortcut buttons', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true };
+        },
+        buildOperationsDigest: async () => '<b>NMS 运维汇总摘要</b>\n\n<b>概况</b>\n• 测试摘要',
+    });
+
+    const sent = await service.sendPeriodicDigest('ops');
+
+    assert.equal(sent, true);
+    assert.equal(service.getStatus().lastDigestKind, 'ops');
+    assert.match(calls[0].body.text, /<b>NMS 运维汇总摘要<\/b>/);
+    assert.deepEqual(calls[0].body.reply_markup.inline_keyboard[0].map((item) => item.text), ['/status', '/security', '/alerts']);
 });
 
 test('collectStatusDigestContext prefers sampled server traffic totals over cluster snapshot totals', async () => {
@@ -273,4 +353,5 @@ test('formatCommandCatalogMessage renders structured HTML help output', () => {
     assert.match(text, /<code>\/status<\/code> 系统状态总览/);
     assert.match(text, /<b>运维命令<\/b>/);
     assert.match(text, /<code>\/monitor<\/code> 立即执行节点巡检/);
+    assert.match(text, /消息下方已固定常用快捷按钮/);
 });
