@@ -88,6 +88,7 @@ function StatSparkline({ points = [], domain = null }) {
 function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue ?? 0);
+    const hasHead = Boolean(card.label || card.kicker);
     const handleKeyDown = (event) => {
         if (!clickable) return;
         if (event.key === 'Enter' || event.key === ' ') {
@@ -105,12 +106,14 @@ function StatCard({ card, loading }) {
             role={clickable ? 'button' : undefined}
             tabIndex={clickable ? 0 : undefined}
         >
-            <div className="dashboard-stat-card-head">
-                <div className="dashboard-stat-card-copy">
-                    <span className="dashboard-stat-card-label">{card.label}</span>
-                    {card.kicker && <span className="dashboard-stat-card-kicker">{card.kicker}</span>}
+            {hasHead && (
+                <div className="dashboard-stat-card-head">
+                    <div className="dashboard-stat-card-copy">
+                        {card.label && <span className="dashboard-stat-card-label">{card.label}</span>}
+                        {card.kicker && <span className="dashboard-stat-card-kicker">{card.kicker}</span>}
+                    </div>
                 </div>
-            </div>
+            )}
             <div className="dashboard-stat-card-body">
                 <div className="dashboard-stat-card-primary">
                     <div className="card-value dashboard-stat-card-value">
@@ -1121,7 +1124,7 @@ export default function Dashboard() {
                 : t('pages.dashboardCommon.onlineUsersPending');
         const globalCards = [
             {
-                icon: HiOutlineServerStack, label: t('pages.dashboardGlobal.cards.clusterOverview'),
+                icon: HiOutlineServerStack,
                 value: `${globalStats.onlineServers} / ${globalStats.serverCount}`,
                 kicker: t('pages.dashboardCommon.onlineTotal'),
                 sub: t('pages.dashboardGlobal.inboundSummary', {

@@ -403,6 +403,8 @@ describe('SystemSettings', () => {
         await screen.findByDisplayValue('/portal');
         expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
         expect(screen.getAllByText('运维通知').length).toBeGreaterThan(0);
+        expect(screen.queryByText('Overview')).not.toBeInTheDocument();
+        expect(document.querySelector('.settings-tab-hero')).toBeNull();
         expect(document.querySelectorAll('.settings-summary-card').length).toBe(0);
     });
 
@@ -431,8 +433,9 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
 
-        expect(await screen.findByText('邮件通知动作')).toBeInTheDocument();
-        expect(await screen.findByText('节点巡检动作')).toBeInTheDocument();
+        expect(await screen.findByText('运维动作')).toBeInTheDocument();
+        expect(await screen.findByText('测试 SMTP 与发送最新地址通知')).toBeInTheDocument();
+        expect(await screen.findByText('手动执行节点健康巡检')).toBeInTheDocument();
         expect(screen.queryByText('巡检摘要')).not.toBeInTheDocument();
         expect(screen.queryByText('DNS 1 · 认证失败 1')).not.toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();

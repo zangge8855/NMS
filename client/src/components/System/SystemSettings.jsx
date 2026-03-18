@@ -302,7 +302,7 @@ function SettingsWorkspaceSection({
         && Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
 
     return (
-        <section className="card settings-workspace-section" data-workspace={workspaceId}>
+        <section className="settings-workspace-section" data-workspace={workspaceId}>
             {hasHero ? (
                 <div className="settings-tab-hero settings-workspace-hero">
                     <div className="settings-tab-hero-copy">
@@ -1895,66 +1895,101 @@ export default function SystemSettings() {
     const renderPolicyContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-9 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="风控与审计"
-                    />
-                    <div className="form-group settings-checkbox-row">
-                        <div className="settings-toggle-strip">
-                            <SettingsToggleCard
-                                compact
-                                checked={draft.security.requireHighRiskConfirmation}
-                                onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                                label="高风险操作二次确认"
-                                description="达到高风险阈值后执行前必须再次确认。"
-                            />
-                        </div>
-                    </div>
-                    <div className="settings-field-grid settings-field-grid--compact">
-                        <div className="form-group">
-                            <label className="form-label">中风险阈值</label>
-                            <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">高风险阈值</label>
-                            <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                        </div>
-                        <div className="form-group mb-0">
-                            <label className="form-label">确认令牌有效期（秒）</label>
-                            <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                        </div>
-                    </div>
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">审计窗口</div>
-                            <div className="settings-form-cluster-title">日志保留和分页密度</div>
-                        </div>
-                        <div className="settings-field-grid settings-field-grid--compact">
-                            <div className="form-group">
-                                <label className="form-label">审计保留天数</label>
-                                <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+                    <SettingsPanelHeader title="风控、审计与归属地" />
+                    <div className="settings-inline-grid settings-inline-grid--policy">
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">风控策略</div>
+                                <div className="settings-form-cluster-title">高风险操作与审计窗口</div>
                             </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">审计分页最大条数</label>
-                                <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                            <div className="settings-toggle-strip">
+                                <SettingsToggleCard
+                                    compact
+                                    checked={draft.security.requireHighRiskConfirmation}
+                                    onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                                    label="高风险操作二次确认"
+                                    description="达到高风险阈值后执行前必须再次确认。"
+                                />
+                            </div>
+                            <div className="settings-field-grid settings-field-grid--compact">
+                                <div className="form-group">
+                                    <label className="form-label">中风险阈值</label>
+                                    <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">高风险阈值</label>
+                                    <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">确认令牌有效期（秒）</label>
+                                    <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">审计保留天数</label>
+                                    <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">审计分页最大条数</label>
+                                    <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <div className="card p-4 settings-panel settings-panel--span-3 settings-basic-workbench">
-                    <SettingsPanelHeader
-                        title="IP 归属地"
-                    />
-                    <div className="form-group settings-checkbox-row">
-                        <div className="settings-toggle-strip">
-                            <SettingsToggleCard
-                                compact
-                                checked={draft.auditIpGeo.enabled}
-                                onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                                label="归属地查询"
-                                description="为订阅访问和安全事件补充地区与运营商。"
-                            />
+                        <div className="settings-form-cluster">
+                            <div className="settings-form-cluster-head">
+                                <div className="settings-form-cluster-eyebrow">归属地增强</div>
+                                <div className="settings-form-cluster-title">访问来源与事件地区补充</div>
+                            </div>
+                            <div className="settings-toggle-strip">
+                                <SettingsToggleCard
+                                    compact
+                                    checked={draft.auditIpGeo.enabled}
+                                    onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                                    label="归属地查询"
+                                    description="为订阅访问和安全事件补充地区与运营商。"
+                                />
+                            </div>
+                            <div className="settings-field-grid settings-field-grid--compact">
+                                <div className="form-group">
+                                    <label className="form-label">Provider</label>
+                                    <input
+                                        className="form-input"
+                                        value={draft.auditIpGeo.provider}
+                                        onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)}
+                                        placeholder="ip_api"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">超时（毫秒）</label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={100}
+                                        value={draft.auditIpGeo.timeoutMs}
+                                        onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">缓存 TTL（秒）</label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={60}
+                                        value={draft.auditIpGeo.cacheTtlSeconds}
+                                        onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">查询端点</label>
+                                    <input
+                                        className="form-input font-mono"
+                                        value={draft.auditIpGeo.endpoint}
+                                        onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)}
+                                        placeholder="http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1963,48 +1998,45 @@ export default function SystemSettings() {
     );
 
     const renderMonitorContent = () => (
-        <div className="settings-grid settings-grid--monitor">
-            <div className="card p-4 settings-panel settings-diagnostics-panel settings-panel--span-5">
+        <div className="settings-section-stack">
+            <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="邮件通知动作"
+                    title="运维动作"
                 />
-                <div className="settings-form-cluster">
-                    <div className="settings-form-cluster-head">
-                        <div className="settings-form-cluster-title">测试 SMTP 与发送最新地址通知</div>
-                        <div className="settings-form-cluster-note">邮件链路状态已集中到系统状态页展示，这里只保留运维动作。</div>
+                <div className="settings-inline-grid settings-inline-grid--ops">
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">邮件链路</div>
+                            <div className="settings-form-cluster-title">测试 SMTP 与发送最新地址通知</div>
+                            <div className="settings-form-cluster-note">邮件链路状态已集中到系统状态页展示，这里只保留运维动作。</div>
+                        </div>
+                        <div className="settings-panel-actions">
+                            <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                                {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
+                            </button>
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={openNoticeModal}
+                                disabled={!emailStatus?.configured || noticeSending}
+                            >
+                                {noticeSending ? <span className="spinner" /> : '发变更通知'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="settings-panel-actions">
-                        <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                            {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
-                        </button>
-                        <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={openNoticeModal}
-                            disabled={!emailStatus?.configured || noticeSending}
-                        >
-                            {noticeSending ? <span className="spinner" /> : '发变更通知'}
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <div className="card p-4 settings-panel settings-monitor-panel settings-panel--span-7">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="节点巡检动作"
-                />
-                <div className="settings-form-cluster">
-                    <div className="settings-form-cluster-head">
-                        <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
-                        <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
-                    </div>
-                    <div className="settings-panel-actions">
-                        <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                            {monitorLoading ? <span className="spinner" /> : '立即巡检'}
-                        </button>
+                    <div className="settings-form-cluster">
+                        <div className="settings-form-cluster-head">
+                            <div className="settings-form-cluster-eyebrow">节点巡检</div>
+                            <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
+                            <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                        </div>
+                        <div className="settings-panel-actions">
+                            <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                                {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2161,9 +2193,9 @@ export default function SystemSettings() {
         </div>
     );
 
-    const renderBackupContent = () => (
-        <div className="settings-section-stack">
-            <div className="card p-4 settings-panel settings-backup-panel">
+    const renderBackupContent = ({ className = '', wrap = true } = {}) => {
+        const panel = (
+            <div className={['card', 'p-4', 'settings-panel', 'settings-backup-panel', className].filter(Boolean).join(' ')}>
                 <SectionHeader
                     className="mb-3"
                     compact
@@ -2318,12 +2350,13 @@ export default function SystemSettings() {
                     </div>
                 )}
             </div>
-        </div>
-    );
+        );
+        return wrap ? <div className="settings-section-stack">{panel}</div> : panel;
+    };
 
-    const renderDatabaseContent = () => (
-        <div className="settings-section-stack">
-            <div className="card p-4 settings-panel settings-db-panel">
+    const renderDatabaseContent = ({ className = '', compactLayout = false, wrap = true } = {}) => {
+        const panel = (
+            <div className={['card', 'p-4', 'settings-panel', 'settings-db-panel', compactLayout ? 'settings-db-panel--compact' : '', className].filter(Boolean).join(' ')}>
                 <SectionHeader
                     className="mb-3"
                     compact
@@ -2339,7 +2372,7 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载数据库状态。</div>
                 ) : (
                     <>
-                        <div className="settings-grid settings-db-grid">
+                        <div className={compactLayout ? 'settings-section-stack' : 'settings-grid settings-db-grid'}>
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
                                     <h4 className="text-base font-semibold">切换读写模式</h4>
@@ -2449,11 +2482,35 @@ export default function SystemSettings() {
                     </>
                 )}
             </div>
-        </div>
-    );
+        );
+        return wrap ? <div className="settings-section-stack">{panel}</div> : panel;
+    };
 
     const renderStatusContent = () => (
         <div className="settings-section-stack">
+            <div className="card p-3 settings-mini-card settings-detail-card settings-status-toolbar">
+                <div className="settings-status-toolbar-main">
+                    <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
+                        告警链路 {readyAlertChainCount}/3
+                    </span>
+                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
+                        {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
+                    </span>
+                    <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
+                        {dbStatus
+                            ? `DB ${dbStatus.currentModes?.readMode || 'file'} / ${dbStatus.currentModes?.writeMode || 'file'}`
+                            : 'DB 等待探测'}
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={refreshStatusWorkspace}
+                    disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
+                >
+                    {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新状态'}
+                </button>
+            </div>
             <div className="settings-summary-grid settings-summary-grid--status">
                 {overviewCards.map((item) => {
                     const badgeMeta = getSummaryToneBadgeMeta(item.tone);
@@ -2585,6 +2642,22 @@ export default function SystemSettings() {
         </div>
     );
 
+    const renderBackupWorkspace = () => (
+        <div className="settings-section-stack">
+            <div className="settings-grid settings-grid--basic settings-grid--backup-workspace">
+                {renderDatabaseContent({
+                    className: 'settings-panel--span-4',
+                    compactLayout: true,
+                    wrap: false,
+                })}
+                {renderBackupContent({
+                    className: 'settings-panel--span-8',
+                    wrap: false,
+                })}
+            </div>
+        </div>
+    );
+
     const renderOperationsWorkspace = () => (
         <div className="settings-section-stack">
             {renderMonitorContent()}
@@ -2627,7 +2700,6 @@ export default function SystemSettings() {
         {
             id: 'status',
             title: '系统状态',
-            eyebrow: 'Overview',
             badges: (
                 <>
                     <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
@@ -2664,6 +2736,7 @@ export default function SystemSettings() {
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },
             content: renderStatusContent(),
+            heroMode: 'hidden',
         },
         {
             id: 'access',
@@ -2690,12 +2763,7 @@ export default function SystemSettings() {
             id: 'backup',
             title: '数据备份',
             navSummary: '数据库 / 备份恢复',
-            content: (
-                <>
-                    {renderDatabaseContent()}
-                    {renderBackupContent()}
-                </>
-            ),
+            content: renderBackupWorkspace(),
             heroMode: 'hidden',
         },
     ];

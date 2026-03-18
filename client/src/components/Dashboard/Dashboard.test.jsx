@@ -340,8 +340,9 @@ describe('Dashboard', () => {
 
         expect(await screen.findByText('已注册 2 · 在线会话 3')).toBeInTheDocument();
         expect(await screen.findByText('港口专线')).toBeInTheDocument();
+        expect(screen.queryByText('集群概览')).not.toBeInTheDocument();
 
-        const overviewCard = screen.getByText('集群概览').closest('[role="button"]');
+        const overviewCard = screen.getByText('入站 2 / 2 已启用').closest('[role="button"]');
         if (!overviewCard) throw new Error('Missing cluster overview card');
         await waitFor(() => {
             expect(overviewCard).toHaveTextContent('2 / 2');
