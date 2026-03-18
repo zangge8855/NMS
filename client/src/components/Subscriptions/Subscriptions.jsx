@@ -113,8 +113,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             userStepKicker: 'Flow',
                 userStepTitle: 'Choose a config, then import it',
                 userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
-                pickTypeTitle: 'Choose a config',
-                pickTypeText: '',
                 copyOrScanTitle: 'Address and import',
                 copyOrScanText: 'Copy, scan and quick import stay together here.',
                 deviceOpenTitle: 'Downloads',
@@ -190,8 +188,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         userStepKicker: '使用顺序',
         userStepTitle: '选配置文件 -> 导入客户端',
         userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
-        pickTypeTitle: '选配置文件',
-        pickTypeText: '',
         copyOrScanTitle: '订阅地址与导入',
         copyOrScanText: '复制、扫码和一键导入都在这里。',
         deviceOpenTitle: '软件下载',
@@ -650,17 +646,10 @@ export default function Subscriptions() {
                                     )}
                                     {isUserOnly ? (
                                         <div className="subscription-user-flow">
-                                            <div className="subscription-user-flow-note" role="note">
-                                                <span className="subscription-user-flow-text">{ui.simpleReminder}</span>
-                                            </div>
-
                                             <div className="subscription-user-panel subscription-user-panel--import">
                                                 <div className="subscription-user-panel-topbar">
                                                     <div className="subscription-user-panel-head">
-                                                        <div className="subscription-user-panel-title">{ui.pickTypeTitle}</div>
-                                                        {ui.pickTypeText && (
-                                                            <div className="subscription-user-panel-text">{ui.pickTypeText}</div>
-                                                        )}
+                                                        <div className="subscription-user-panel-title">{ui.simpleReminder}</div>
                                                     </div>
                                                 </div>
                                                 <div className="subscription-profile-switches">

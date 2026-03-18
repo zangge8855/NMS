@@ -12791,11 +12791,12 @@ input[type="radio"]:focus-visible {
 }
 
 .subscriptions-workbench--simple .subscriptions-main-column {
-  gap: 14px;
+  gap: 10px;
 }
 
 .subscriptions-page {
   --subscription-address-measure: 406px;
+  padding-top: 18px;
 }
 
 .subscriptions-main-column,
@@ -12826,7 +12827,7 @@ input[type="radio"]:focus-visible {
 .subscription-user-flow {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .subscription-user-flow-note {
@@ -12885,14 +12886,14 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--import {
-  gap: 12px;
+  gap: 10px;
 }
 
 .subscription-user-panel-topbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .subscription-user-panel-head {
