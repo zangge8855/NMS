@@ -287,6 +287,7 @@ function SettingsPanelHeader({ title, subtitle }) {
 }
 
 function SettingsWorkspaceSection({
+    workspaceId = 'default',
     eyebrow,
     title,
     subtitle,
@@ -299,7 +300,7 @@ function SettingsWorkspaceSection({
     const hasHero = Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
 
     return (
-        <section className="card settings-workspace-section">
+        <section className="card settings-workspace-section" data-workspace={workspaceId}>
             {hasHero ? (
                 <div className="settings-tab-hero settings-workspace-hero">
                     <div className="settings-tab-hero-copy">
@@ -3093,6 +3094,7 @@ export default function SystemSettings() {
 
                     <div className="settings-main">
                         <SettingsWorkspaceSection
+                            workspaceId={activeWorkspaceSection.id}
                             eyebrow={activeWorkspaceSection.eyebrow}
                             title={activeWorkspaceSection.title}
                             subtitle={activeWorkspaceSection.subtitle}
