@@ -13006,24 +13006,34 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-address-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  flex-wrap: nowrap;
+  gap: 6px;
   align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 
 .subscription-user-address-actions .btn {
+  flex: 0 0 auto;
   min-height: 34px;
   white-space: nowrap;
 }
 
+.subscription-user-address-actions::-webkit-scrollbar {
+  display: none;
+}
+
 .subscription-user-import-btn {
   flex: 0 0 auto;
+  padding-inline: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .subscription-user-copy-btn {
   flex: 0 0 auto;
-  min-width: 142px;
+  min-width: 124px;
   font-weight: 700;
 }
 
@@ -14524,6 +14534,11 @@ input[type="radio"]:focus-visible {
 
   .subscription-user-address-actions .btn {
     width: 100%;
+  }
+
+  .subscription-user-address-actions {
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 
   .subscription-user-reset-callout {
