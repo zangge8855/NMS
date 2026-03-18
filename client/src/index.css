@@ -201,6 +201,47 @@ a:hover {
   box-shadow: var(--shadow-lg);
 }
 
+.account-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.account-profile-grid,
+.account-password-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-profile-verify,
+.account-actions,
+.account-password-submit {
+  grid-column: 1 / -1;
+}
+
+.account-profile-verify-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.account-profile-verify-row .btn {
+  min-width: 104px;
+}
+
+.account-profile-verify-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.account-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 /* --- Keyframe Animations --- */
 @keyframes fadeIn {
   from {
@@ -12929,6 +12970,7 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-address-grid {
   display: grid;
+  width: min(100%, calc(var(--subscription-address-measure) + 146px));
   grid-template-columns: minmax(0, 1fr) 136px;
   gap: 10px;
   align-items: start;
@@ -13110,13 +13152,14 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-reset-inline-divider {
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .subscription-user-reset-inline-text {
   font-size: inherit;
   line-height: inherit;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .subscription-user-step {
@@ -14809,6 +14852,21 @@ input[type="radio"]:focus-visible {
 }
 
 @media (max-width: 480px) {
+  .account-profile-grid,
+  .account-password-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-profile-verify-row {
+    grid-template-columns: 1fr;
+  }
+
+  .account-profile-verify-row .btn,
+  .account-actions .btn,
+  .account-password-submit .btn {
+    width: 100%;
+  }
+
   .subscription-profile-switches {
     grid-template-columns: 1fr;
   }

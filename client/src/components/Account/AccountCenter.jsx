@@ -24,6 +24,17 @@ function getAccountCopy(locale = 'zh-CN') {
             savingProfile: 'Saving',
             profileSaved: 'Account updated',
             profileSaveFailed: 'Failed to update account',
+            profileVerifyCode: 'Verification Code',
+            profileVerifyHint: 'Any username or email change must be confirmed through the current login email first.',
+            profileVerifySent: 'The code was sent to {email}',
+            profileVerifySend: 'Send Code',
+            profileVerifyResend: 'Resend Code',
+            profileVerifySending: 'Sending',
+            profileVerifySendFailed: 'Failed to send verification code',
+            profileVerifyRequired: 'Send the verification code to the current login email first',
+            profileVerifyCodeRequired: 'Enter the verification code from the current login email',
+            profileVerifyPlaceholder: 'Enter the 6-digit code',
+            profileNoChanges: 'No account changes to save',
             usernameRequired: 'Username is required',
             emailInvalid: 'Invalid email address',
             currentPassword: 'Current Password',
@@ -52,6 +63,17 @@ function getAccountCopy(locale = 'zh-CN') {
         savingProfile: '正在保存',
         profileSaved: '账户信息已更新',
         profileSaveFailed: '更新账户信息失败',
+        profileVerifyCode: '邮箱验证码',
+        profileVerifyHint: '修改用户名或登录邮箱前，必须先通过当前旧邮箱验证码确认。',
+        profileVerifySent: '验证码已发送到 {email}',
+        profileVerifySend: '发送验证码',
+        profileVerifyResend: '重新发送',
+        profileVerifySending: '发送中',
+        profileVerifySendFailed: '发送验证码失败',
+        profileVerifyRequired: '请先向当前旧邮箱发送验证码',
+        profileVerifyCodeRequired: '请输入当前旧邮箱收到的 6 位验证码',
+        profileVerifyPlaceholder: '输入 6 位验证码',
+        profileNoChanges: '账户信息没有变化',
         usernameRequired: '用户名不能为空',
         emailInvalid: '邮箱格式不正确',
         currentPassword: '当前密码',
@@ -80,6 +102,10 @@ export default function AccountCenter() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [profileSaving, setProfileSaving] = useState(false);
+    const [profileCode, setProfileCode] = useState('');
+    const [profileCodeSending, setProfileCodeSending] = useState(false);
+    const [profileCodeSentTo, setProfileCodeSentTo] = useState('');
+    const [profileCodeSentDraftKey, setProfileCodeSentDraftKey] = useState('');
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -89,31 +115,91 @@ export default function AccountCenter() {
     const loginUsername = normalizeUsername(user?.username);
     const roleLabel = user?.role === 'admin' ? copy.adminRole : copy.userRole;
     const profileChanged = normalizeUsername(username) !== loginUsername || normalizeEmail(email) !== loginEmail;
+    const profileDraftKey = `${normalizeUsername(username)}\n${normalizeEmail(email)}`;
 
     useEffect(() => {
         setUsername(loginUsername);
         setEmail(loginEmail);
+        setProfileCode('');
+        setProfileCodeSentTo('');
+        setProfileCodeSentDraftKey('');
     }, [loginEmail, loginUsername]);
 
-    const handleSaveProfile = async () => {
+    useEffect(() => {
+        if (!profileCodeSentDraftKey) return;
+        if (profileCodeSentDraftKey === profileDraftKey) return;
+        setProfileCode('');
+        setProfileCodeSentTo('');
+        setProfileCodeSentDraftKey('');
+    }, [profileCodeSentDraftKey, profileDraftKey]);
+
+    const validateProfileDraft = () => {
         const nextUsername = normalizeUsername(username);
         const nextEmail = normalizeEmail(email);
         if (!nextUsername) {
             toast.error(copy.usernameRequired);
-            return;
+            return null;
         }
         if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
             toast.error(copy.emailInvalid);
+            return null;
+        }
+        if (nextUsername === loginUsername && nextEmail === loginEmail) {
+            toast.error(copy.profileNoChanges);
+            return null;
+        }
+        return {
+            nextUsername,
+            nextEmail,
+            draftKey: `${nextUsername}\n${nextEmail}`,
+        };
+    };
+
+    const handleSendProfileCode = async () => {
+        const draft = validateProfileDraft();
+        if (!draft) return;
+
+        setProfileCodeSending(true);
+        try {
+            const res = await api.post('/auth/profile/send-code', {
+                username: draft.nextUsername,
+                email: draft.nextEmail,
+            });
+            const sentTo = String(res.data?.obj?.email || loginEmail || '').trim();
+            setProfileCode('');
+            setProfileCodeSentTo(sentTo);
+            setProfileCodeSentDraftKey(draft.draftKey);
+            toast.success(res.data?.msg || copy.profileVerifySent.replace('{email}', sentTo));
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || copy.profileVerifySendFailed);
+        }
+        setProfileCodeSending(false);
+    };
+
+    const handleSaveProfile = async () => {
+        const draft = validateProfileDraft();
+        if (!draft) return;
+        const code = String(profileCode || '').trim();
+        if (!profileCodeSentTo || profileCodeSentDraftKey !== draft.draftKey) {
+            toast.error(copy.profileVerifyRequired);
+            return;
+        }
+        if (!/^\d{6}$/.test(code)) {
+            toast.error(copy.profileVerifyCodeRequired);
             return;
         }
 
         setProfileSaving(true);
         try {
             const res = await api.put('/auth/profile', {
-                username: nextUsername,
-                email: nextEmail,
+                username: draft.nextUsername,
+                email: draft.nextEmail,
+                code,
             });
-            patchUser?.(res.data?.obj || { username: nextUsername, email: nextEmail });
+            patchUser?.(res.data?.obj || { username: draft.nextUsername, email: draft.nextEmail });
+            setProfileCode('');
+            setProfileCodeSentTo('');
+            setProfileCodeSentDraftKey('');
             toast.success(res.data?.msg || copy.profileSaved);
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || copy.profileSaveFailed);
@@ -199,12 +285,39 @@ export default function AccountCenter() {
                                     placeholder="user@example.com"
                                 />
                             </div>
+                            <div className="form-group mb-0 account-profile-verify">
+                                <label className="form-label" htmlFor="account-profile-code">{copy.profileVerifyCode}</label>
+                                <div className="account-profile-verify-row">
+                                    <input
+                                        id="account-profile-code"
+                                        className="form-input"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        value={profileCode}
+                                        onChange={(event) => setProfileCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
+                                        placeholder={copy.profileVerifyPlaceholder}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={handleSendProfileCode}
+                                        disabled={profileCodeSending || !profileChanged}
+                                    >
+                                        {profileCodeSending ? <span className="spinner" /> : (profileCodeSentTo ? copy.profileVerifyResend : copy.profileVerifySend)}
+                                    </button>
+                                </div>
+                                <div className="account-profile-verify-note">
+                                    {profileCodeSentTo
+                                        ? copy.profileVerifySent.replace('{email}', profileCodeSentTo)
+                                        : copy.profileVerifyHint}
+                                </div>
+                            </div>
                         </div>
                         <div className="account-actions">
                             <button
                                 className="btn btn-primary btn-sm"
                                 onClick={handleSaveProfile}
-                                disabled={profileSaving || !profileChanged}
+                                disabled={profileSaving || !profileChanged || !/^\d{6}$/.test(String(profileCode || '').trim())}
                             >
                                 {profileSaving ? <span className="spinner" /> : copy.saveProfile}
                             </button>

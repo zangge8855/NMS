@@ -1,9 +1,10 @@
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
+import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
 import userRepository from '../repositories/userRepository.js';
-import { normalizeEmailInput } from './emailAuthService.js';
+import { isValidEmail, normalizeEmailInput } from './emailAuthService.js';
 
 function normalizeUsernameInput(value) {
     return String(value || '').trim();
@@ -44,6 +45,10 @@ function buildSignedToken(payload, deps = {}) {
     return signer(payload, jwtConfig.secret, {
         expiresIn: jwtConfig.expiresIn,
     });
+}
+
+function buildExpiryIso(ttlMinutes) {
+    return new Date(Date.now() + Number(ttlMinutes || 0) * 60 * 1000).toISOString();
 }
 
 function createLoginSession(payload = {}, deps = {}) {
@@ -180,13 +185,12 @@ function changeOwnPassword(payload = {}, currentUser = {}, deps = {}) {
     };
 }
 
-function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
+function resolveOwnProfileUpdateInput(payload = {}, currentUser = {}, deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const user = resolveCurrentUserRecord(currentUser, deps);
     if (!user) {
         throw createHttpError(400, '无法识别当前用户');
     }
-
     const username = normalizeUsernameInput(payload?.username);
     const email = normalizeEmailInput(payload?.email);
     if (!username) {
@@ -195,17 +199,132 @@ function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
     if (!email) {
         throw createHttpError(400, '请提供邮箱');
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
         throw createHttpError(400, '邮箱格式不正确');
+    }
+
+    const existingByUsername = typeof userRepo.getByUsername === 'function'
+        ? userRepo.getByUsername(username)
+        : null;
+    if (existingByUsername && String(existingByUsername.id || '').trim() !== String(user.id || '').trim()) {
+        throw createHttpError(400, `用户名 "${username}" 已存在`);
+    }
+    const existingByEmail = typeof userRepo.getByEmail === 'function'
+        ? userRepo.getByEmail(email)
+        : null;
+    if (existingByEmail && String(existingByEmail.id || '').trim() !== String(user.id || '').trim()) {
+        throw createHttpError(400, `邮箱 "${email}" 已被注册`);
     }
 
     const previousUsername = normalizeUsernameInput(user.username);
     const previousEmail = normalizeEmailInput(user.email);
     const previousSubscriptionEmail = normalizeEmailInput(user.subscriptionEmail);
-    const updated = userRepo.update(user.id, { username, email });
+
+    return {
+        userRepo,
+        user,
+        username,
+        email,
+        previousUsername,
+        previousEmail,
+        previousSubscriptionEmail,
+    };
+}
+
+async function requestOwnProfileUpdateVerification(payload = {}, currentUser = {}, deps = {}) {
+    const emailSender = deps.mailer || mailer;
+    const registrationConfig = deps.registrationConfig || config.registration;
+    const {
+        userRepo,
+        user,
+        username,
+        email,
+        previousUsername,
+        previousEmail,
+    } = resolveOwnProfileUpdateInput(payload, currentUser, deps);
+
+    if (username === previousUsername && email === previousEmail) {
+        throw createHttpError(400, '账号信息没有变化');
+    }
+    if (!previousEmail) {
+        throw createHttpError(400, '当前账号未绑定登录邮箱');
+    }
+
+    const code = emailSender.generateVerifyCode();
+    const expiresAt = buildExpiryIso(registrationConfig.verifyCodeTtlMinutes);
+    try {
+        await emailSender.sendVerificationEmail(previousEmail, code, previousUsername || username);
+        userRepo.setProfileUpdateVerification(user.id, {
+            code,
+            expiresAt,
+            targetEmail: previousEmail,
+            username,
+            email,
+        });
+    } catch (error) {
+        throw createHttpError(
+            503,
+            '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+            {
+                code: 'PROFILE_VERIFICATION_EMAIL_SEND_FAILED',
+                details: {
+                    userId: String(user?.id || '').trim(),
+                    previousEmail,
+                    nextEmail: email,
+                    error: error?.message || 'send failed',
+                },
+            }
+        );
+    }
+
+    return {
+        user,
+        verificationEmail: previousEmail,
+        username,
+        email,
+        expiresAt,
+    };
+}
+
+function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
+    const {
+        userRepo,
+        user,
+        username,
+        email,
+        previousUsername,
+        previousEmail,
+        previousSubscriptionEmail,
+    } = resolveOwnProfileUpdateInput(payload, currentUser, deps);
+    const code = String(payload?.code || '').trim();
+    if (!code) {
+        throw createHttpError(400, '请提供邮箱验证码');
+    }
+    if (username === previousUsername && email === previousEmail) {
+        throw createHttpError(400, '账号信息没有变化');
+    }
+
+    if (!String(user?.profileVerifyCode || '').trim()) {
+        throw createHttpError(400, '请先发送邮箱验证码');
+    }
+    if (String(user.profileVerifyCode).trim() !== code) {
+        throw createHttpError(400, '验证码错误');
+    }
+    if (user.profileVerifyCodeExpiresAt && new Date(user.profileVerifyCodeExpiresAt) < new Date()) {
+        throw createHttpError(400, '验证码已过期，请重新发送');
+    }
+    if (normalizeEmailInput(user.profileVerifyTargetEmail) !== previousEmail) {
+        throw createHttpError(400, '验证邮箱已变化，请重新发送验证码');
+    }
+    if (normalizeUsernameInput(user.profileVerifyUsername) !== username || normalizeEmailInput(user.profileVerifyEmail) !== email) {
+        throw createHttpError(400, '账号信息已变更，请重新发送验证码');
+    }
+
+    const updated = userRepo.update(user.id, { username, email, emailVerified: true });
     if (!updated) {
         throw createHttpError(404, '用户不存在');
     }
+    userRepo.clearProfileUpdateVerification(user.id);
 
     return {
         user: updated,
@@ -216,4 +335,10 @@ function updateOwnProfile(payload = {}, currentUser = {}, deps = {}) {
     };
 }
 
-export { createLoginSession, validateSession, changeOwnPassword, updateOwnProfile };
+export {
+    createLoginSession,
+    validateSession,
+    changeOwnPassword,
+    requestOwnProfileUpdateVerification,
+    updateOwnProfile,
+};

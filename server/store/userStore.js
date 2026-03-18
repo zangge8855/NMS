@@ -70,6 +70,11 @@ function resolveSubscriptionAliasPath(user) {
     return String(user.subscriptionAliasPath || '').trim().toLowerCase();
 }
 
+function normalizeOptionalText(value) {
+    const text = String(value || '').trim();
+    return text || null;
+}
+
 class UserStore {
     constructor() {
         this._ensureDataDir();
@@ -104,6 +109,11 @@ class UserStore {
                         subscriptionEmail,
                         subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
                         enabled,
+                        profileVerifyCode: normalizeOptionalText(item?.profileVerifyCode),
+                        profileVerifyCodeExpiresAt: normalizeOptionalText(item?.profileVerifyCodeExpiresAt),
+                        profileVerifyTargetEmail: normalizeEmailValue(item?.profileVerifyTargetEmail),
+                        profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
+                        profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
                     };
                 });
             }
@@ -135,6 +145,11 @@ class UserStore {
                 enabled: true,
                 subscriptionEmail: '',
                 subscriptionAliasPath: '',
+                profileVerifyCode: null,
+                profileVerifyCodeExpiresAt: null,
+                profileVerifyTargetEmail: '',
+                profileVerifyUsername: '',
+                profileVerifyEmail: '',
                 createdAt: new Date().toISOString(),
             });
             this._save();
@@ -265,6 +280,11 @@ class UserStore {
             verifyCodeExpiresAt: null,
             resetCode: null,
             resetCodeExpiresAt: null,
+            profileVerifyCode: null,
+            profileVerifyCodeExpiresAt: null,
+            profileVerifyTargetEmail: '',
+            profileVerifyUsername: '',
+            profileVerifyEmail: '',
             passwordHash: hash,
             passwordSalt: salt,
             pbkdf2Iterations: iterations,
@@ -304,6 +324,13 @@ class UserStore {
                 if (existing && existing.id !== id) throw new Error(`邮箱 "${nextEmail}" 已被注册`);
             }
             this.users[idx].email = nextEmail;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'emailVerified')) {
+            this.users[idx].emailVerified = data.emailVerified === true;
+            if (this.users[idx].emailVerified) {
+                this.users[idx].verifyCode = null;
+                this.users[idx].verifyCodeExpiresAt = null;
+            }
         }
         if (Object.prototype.hasOwnProperty.call(data, 'subscriptionEmail')) {
             const nextBinding = normalizeEmailValue(data.subscriptionEmail);
@@ -374,6 +401,41 @@ class UserStore {
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
             createdAt: this.users[idx].createdAt,
+        };
+    }
+
+    setProfileUpdateVerification(id, payload = {}) {
+        const idx = this.users.findIndex((u) => u.id === id);
+        if (idx === -1) return null;
+
+        this.users[idx].profileVerifyCode = normalizeOptionalText(payload.code);
+        this.users[idx].profileVerifyCodeExpiresAt = normalizeOptionalText(payload.expiresAt);
+        this.users[idx].profileVerifyTargetEmail = normalizeEmailValue(payload.targetEmail);
+        this.users[idx].profileVerifyUsername = normalizeUsernameValue(payload.username);
+        this.users[idx].profileVerifyEmail = normalizeEmailValue(payload.email);
+        this._save();
+        return {
+            id: this.users[idx].id,
+            profileVerifyTargetEmail: this.users[idx].profileVerifyTargetEmail,
+            profileVerifyUsername: this.users[idx].profileVerifyUsername,
+            profileVerifyEmail: this.users[idx].profileVerifyEmail,
+        };
+    }
+
+    clearProfileUpdateVerification(id) {
+        const idx = this.users.findIndex((u) => u.id === id);
+        if (idx === -1) return null;
+
+        this.users[idx].profileVerifyCode = null;
+        this.users[idx].profileVerifyCodeExpiresAt = null;
+        this.users[idx].profileVerifyTargetEmail = '';
+        this.users[idx].profileVerifyUsername = '';
+        this.users[idx].profileVerifyEmail = '';
+        this._save();
+        return {
+            id: this.users[idx].id,
+            username: this.users[idx].username,
+            email: normalizeEmailValue(this.users[idx].email),
         };
     }
 

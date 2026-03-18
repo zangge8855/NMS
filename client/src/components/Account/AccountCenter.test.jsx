@@ -7,6 +7,7 @@ import api from '../../api/client.js';
 
 vi.mock('../../api/client.js', () => ({
     default: {
+        post: vi.fn(),
         put: vi.fn(),
     },
 }));
@@ -40,16 +41,25 @@ vi.mock('react-hot-toast', () => ({
 describe('AccountCenter', () => {
     beforeEach(() => {
         patchUserMock.mockReset();
+        api.post.mockReset();
         api.put.mockReset();
     });
 
-    it('lets the user edit username and email without showing subscription email', async () => {
+    it('requires sending a code to the current email before saving profile changes', async () => {
         const user = userEvent.setup();
+        api.post.mockResolvedValue({
+            data: {
+                obj: {
+                    email: 'alice@example.com',
+                },
+            },
+        });
         api.put.mockResolvedValue({
             data: {
                 obj: {
                     username: 'alice-next',
                     email: 'alice.next@example.com',
+                    emailVerified: true,
                 },
             },
         });
@@ -67,15 +77,24 @@ describe('AccountCenter', () => {
         await user.type(usernameInput, 'alice-next');
         await user.clear(emailInput);
         await user.type(emailInput, 'alice.next@example.com');
+        await user.click(screen.getByRole('button', { name: '发送验证码' }));
+        await user.type(screen.getByLabelText('邮箱验证码'), '123456');
         await user.click(screen.getByRole('button', { name: '保存账户' }));
+
+        expect(api.post).toHaveBeenCalledWith('/auth/profile/send-code', {
+            username: 'alice-next',
+            email: 'alice.next@example.com',
+        });
 
         expect(api.put).toHaveBeenCalledWith('/auth/profile', {
             username: 'alice-next',
             email: 'alice.next@example.com',
+            code: '123456',
         });
         expect(patchUserMock).toHaveBeenCalledWith({
             username: 'alice-next',
             email: 'alice.next@example.com',
+            emailVerified: true,
         });
     });
 });

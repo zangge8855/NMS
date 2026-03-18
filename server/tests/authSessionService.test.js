@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     changeOwnPassword,
     createLoginSession,
+    requestOwnProfileUpdateVerification,
     updateOwnProfile,
     validateSession,
 } from '../services/authSessionService.js';
@@ -209,8 +210,9 @@ test('changeOwnPassword updates password when old password is correct', () => {
     });
 });
 
-test('updateOwnProfile updates username and login email only', () => {
-    let updatedPayload = null;
+test('requestOwnProfileUpdateVerification sends a code to the current login email', async () => {
+    const sent = [];
+    const saved = [];
     const repo = {
         getById(id) {
             assert.equal(id, 'user-7');
@@ -221,6 +223,63 @@ test('updateOwnProfile updates username and login email only', () => {
                 email: 'gina@example.com',
                 subscriptionEmail: 'gina@example.com',
                 emailVerified: true,
+            };
+        },
+        setProfileUpdateVerification(id, payload) {
+            saved.push({ id, payload });
+        },
+    };
+    const fakeMailer = {
+        generateVerifyCode() {
+            return '654321';
+        },
+        async sendVerificationEmail(email, code, username) {
+            sent.push({ email, code, username });
+        },
+    };
+
+    const result = await requestOwnProfileUpdateVerification(
+        { username: 'gina-new', email: 'gina.new@example.com' },
+        { userId: 'user-7' },
+        {
+            userRepository: repo,
+            mailer: fakeMailer,
+            registrationConfig: { verifyCodeTtlMinutes: 10 },
+        }
+    );
+
+    assert.equal(result.verificationEmail, 'gina@example.com');
+    assert.deepEqual(sent, [{
+        email: 'gina@example.com',
+        code: '654321',
+        username: 'gina',
+    }]);
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].id, 'user-7');
+    assert.equal(saved[0].payload.code, '654321');
+    assert.equal(saved[0].payload.targetEmail, 'gina@example.com');
+    assert.equal(saved[0].payload.username, 'gina-new');
+    assert.equal(saved[0].payload.email, 'gina.new@example.com');
+});
+
+test('updateOwnProfile updates username and login email only after code verification', () => {
+    let updatedPayload = null;
+    const cleared = [];
+    const repo = {
+        getById(id) {
+            assert.equal(id, 'user-7');
+            return {
+                id: 'user-7',
+                username: 'gina',
+                role: 'user',
+                email: 'gina@example.com',
+                subscriptionEmail: 'gina@example.com',
+                emailVerified: true,
+                profileVerifyCode: '654321',
+                profileVerifyCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+                profileVerifyTargetEmail: 'gina@example.com',
+                profileVerifyUsername: 'gina-new',
+                profileVerifyEmail: 'gina.new@example.com',
             };
         },
         update(id, payload) {
@@ -234,10 +293,13 @@ test('updateOwnProfile updates username and login email only', () => {
                 emailVerified: true,
             };
         },
+        clearProfileUpdateVerification(id) {
+            cleared.push(id);
+        },
     };
 
     const result = updateOwnProfile(
-        { username: 'gina-new', email: 'gina.new@example.com' },
+        { username: 'gina-new', email: 'gina.new@example.com', code: '654321' },
         { userId: 'user-7' },
         { userRepository: repo }
     );
@@ -249,12 +311,15 @@ test('updateOwnProfile updates username and login email only', () => {
         payload: {
             username: 'gina-new',
             email: 'gina.new@example.com',
+            emailVerified: true,
         },
     });
+    assert.deepEqual(cleared, ['user-7']);
 });
 
 test('updateOwnProfile preserves an explicitly bound subscription email', () => {
     let updatedPayload = null;
+    const cleared = [];
     const repo = {
         getById(id) {
             assert.equal(id, 'user-8');
@@ -265,6 +330,11 @@ test('updateOwnProfile preserves an explicitly bound subscription email', () => 
                 email: 'harry@example.com',
                 subscriptionEmail: 'harry-sub@example.com',
                 emailVerified: true,
+                profileVerifyCode: '112233',
+                profileVerifyCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+                profileVerifyTargetEmail: 'harry@example.com',
+                profileVerifyUsername: 'harry-next',
+                profileVerifyEmail: 'harry.new@example.com',
             };
         },
         update(id, payload) {
@@ -278,10 +348,13 @@ test('updateOwnProfile preserves an explicitly bound subscription email', () => 
                 emailVerified: true,
             };
         },
+        clearProfileUpdateVerification(id) {
+            cleared.push(id);
+        },
     };
 
     const result = updateOwnProfile(
-        { username: 'harry-next', email: 'harry.new@example.com' },
+        { username: 'harry-next', email: 'harry.new@example.com', code: '112233' },
         { userId: 'user-8' },
         { userRepository: repo }
     );
@@ -292,8 +365,10 @@ test('updateOwnProfile preserves an explicitly bound subscription email', () => 
         payload: {
             username: 'harry-next',
             email: 'harry.new@example.com',
+            emailVerified: true,
         },
     });
+    assert.deepEqual(cleared, ['user-8']);
 });
 
 test('updateOwnProfile requires a username', () => {
@@ -312,13 +387,46 @@ test('updateOwnProfile requires a username', () => {
 
     assert.throws(
         () => updateOwnProfile(
-            { username: '   ', email: 'ivy.new@example.com' },
+            { username: '   ', email: 'ivy.new@example.com', code: '123456' },
             { userId: 'user-9' },
             { userRepository: repo }
         ),
         (error) => {
             assert.equal(error.status, 400);
             assert.equal(error.message, '请提供用户名');
+            return true;
+        }
+    );
+});
+
+test('updateOwnProfile rejects updates without a verified current-email code', () => {
+    const repo = {
+        getById() {
+            return {
+                id: 'user-10',
+                username: 'jane',
+                role: 'user',
+                email: 'jane@example.com',
+                subscriptionEmail: 'jane@example.com',
+                emailVerified: true,
+                profileVerifyCode: '333333',
+                profileVerifyCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+                profileVerifyTargetEmail: 'jane@example.com',
+                profileVerifyUsername: 'jane-next',
+                profileVerifyEmail: 'jane.new@example.com',
+            };
+        },
+    };
+
+    assert.throws(
+        () => updateOwnProfile(
+            { username: 'jane-next', email: 'jane.new@example.com', code: '000000' },
+            { userId: 'user-10' },
+            { userRepository: repo }
+        ),
+        (error) => {
+            assert.equal(error.status, 400);
+            assert.equal(error.message, '验证码错误');
             return true;
         }
     );

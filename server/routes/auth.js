@@ -16,6 +16,7 @@ import {
 import {
     changeOwnPassword,
     createLoginSession,
+    requestOwnProfileUpdateVerification,
     updateOwnProfile,
     validateSession,
 } from '../services/authSessionService.js';
@@ -868,6 +869,26 @@ router.put('/change-password', authMiddleware, (req, res) => {
     } catch (err) {
         const error = toHttpError(err, 400, '修改密码失败');
         res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/profile/send-code — 发送账户资料更新验证码
+ */
+router.post('/profile/send-code', authMiddleware, async (req, res) => {
+    try {
+        const result = await requestOwnProfileUpdateVerification(req.body, req.user);
+        return res.json({
+            success: true,
+            msg: '验证码已发送到当前登录邮箱',
+            obj: {
+                email: result.verificationEmail,
+                expiresAt: result.expiresAt,
+            },
+        });
+    } catch (err) {
+        const error = toHttpError(err, 400, '发送账户验证码失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 

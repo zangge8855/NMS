@@ -61,6 +61,14 @@ const userRepository = {
         return userStore.setEmailVerified(id);
     },
 
+    setProfileUpdateVerification(id, payload) {
+        return userStore.setProfileUpdateVerification(id, payload);
+    },
+
+    clearProfileUpdateVerification(id) {
+        return userStore.clearProfileUpdateVerification(id);
+    },
+
     setPasswordResetCode(id, code, expiresAt) {
         return userStore.setPasswordResetCode(id, code, expiresAt);
     },
