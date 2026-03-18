@@ -3,6 +3,14 @@ import {
     findSubscriptionProfile,
 } from './subscriptionProfiles.js';
 
+function buildExternalUrl(baseUrl, format, configUrl) {
+    const params = new URLSearchParams({
+        config: configUrl,
+        selectedRules: 'balanced',
+    });
+    return `${baseUrl}/${format}?${params.toString()}`;
+}
+
 describe('subscription profile bundle', () => {
     it('builds a unified Clash and Mihomo subscription URL from the merged URL', () => {
         const bundle = buildSubscriptionProfileBundle({
@@ -46,13 +54,14 @@ describe('subscription profile bundle', () => {
         const bundle = buildSubscriptionProfileBundle({
             subscriptionUrl: 'https://nms.example.com/api/subscriptions/public/t/abc/def',
             subscriptionUrlRaw: 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
-            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
-            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
-            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fnms.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Fabc%2Fdef%3Fformat%3Draw',
+            subscriptionUrlClash: buildExternalUrl('https://converter.example.com', 'clash', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
+            subscriptionUrlSingbox: buildExternalUrl('https://converter.example.com', 'singbox', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
+            subscriptionUrlSurge: buildExternalUrl('https://converter.example.com', 'surge', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
         });
 
         expect(bundle.externalConverterConfigured).toBe(true);
         expect(bundle.externalConverterBaseUrl).toBe('https://converter.example.com');
         expect(bundle.externalConverterHost).toBe('converter.example.com');
+        expect(bundle.singboxUrl).toBe(buildExternalUrl('https://converter.example.com', 'singbox', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'));
     });
 });

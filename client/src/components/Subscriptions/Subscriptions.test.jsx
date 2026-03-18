@@ -39,6 +39,14 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
+function buildExternalUrl(baseUrl, format, configUrl) {
+    const params = new URLSearchParams({
+        config: configUrl,
+        selectedRules: 'balanced',
+    });
+    return `${baseUrl}/${format}?${params.toString()}`;
+}
+
 describe('Subscriptions', () => {
     const confirmMock = vi.fn();
 
@@ -122,9 +130,9 @@ describe('Subscriptions', () => {
                             total: 2,
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
-                            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
-                            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
-                            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlClash: buildExternalUrl('https://converter.example.com', 'clash', 'https://sub.example.com/base?format=raw'),
+                            subscriptionUrlSingbox: buildExternalUrl('https://converter.example.com', 'singbox', 'https://sub.example.com/base?format=raw'),
+                            subscriptionUrlSurge: buildExternalUrl('https://converter.example.com', 'surge', 'https://sub.example.com/base?format=raw'),
                         },
                     },
                 });
@@ -140,17 +148,17 @@ describe('Subscriptions', () => {
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'clash', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.queryByText('给 Clash / Mihomo / Stash')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
         expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toHaveClass('btn-secondary');
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'singbox', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.queryByText('给 sing-box')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Surge' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'surge', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.queryByText('给 Surge')).not.toBeInTheDocument();
     });
 
@@ -201,9 +209,9 @@ describe('Subscriptions', () => {
                             total: 2,
                             subscriptionActive: true,
                             subscriptionUrl: 'https://sub.example.com/base',
-                            subscriptionUrlClash: 'https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
-                            subscriptionUrlSingbox: 'https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
-                            subscriptionUrlSurge: 'https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw',
+                            subscriptionUrlClash: buildExternalUrl('https://converter.example.com', 'clash', 'https://sub.example.com/base?format=raw'),
+                            subscriptionUrlSingbox: buildExternalUrl('https://converter.example.com', 'singbox', 'https://sub.example.com/base?format=raw'),
+                            subscriptionUrlSurge: buildExternalUrl('https://converter.example.com', 'surge', 'https://sub.example.com/base?format=raw'),
                         },
                     },
                 });
@@ -240,7 +248,7 @@ describe('Subscriptions', () => {
         expect(screen.queryByText('更多客户端下载')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/clash?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'clash', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Clash / Mihomo' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Stash' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
@@ -251,11 +259,11 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('Stash').length).toBeGreaterThan(0);
 
         await user.click(screen.getByRole('button', { name: 'Surge' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/surge?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'surge', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Surge' })).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'sing-box' }));
-        expect(await screen.findByDisplayValue('https://converter.example.com/singbox?config=https%3A%2F%2Fsub.example.com%2Fbase%3Fformat%3Draw')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue(buildExternalUrl('https://converter.example.com', 'singbox', 'https://sub.example.com/base?format=raw'))).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 sing-box' })).toBeInTheDocument();
 
         await waitFor(() => {

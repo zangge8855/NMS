@@ -414,14 +414,14 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />);
 
-        expect(await screen.findByText('注册与邀请码')).toBeInTheDocument();
+        expect((await screen.findAllByText('注册与邀请码')).length).toBeGreaterThan(0);
         expect(screen.getByText('开启邀请注册')).toBeInTheDocument();
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
     });
 
-    it('shows consolidated monitor summaries inside the monitor tab', async () => {
+    it('keeps the monitor tab focused on actions and Telegram settings', async () => {
         const user = userEvent.setup();
 
         useAuthMock.mockReturnValue({
@@ -431,11 +431,12 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
 
-        expect(await screen.findByText('SMTP 诊断')).toBeInTheDocument();
-        expect(await screen.findByText('巡检摘要')).toBeInTheDocument();
-        expect(await screen.findByText('DNS 1 · 认证失败 1')).toBeInTheDocument();
+        expect(await screen.findByText('邮件通知动作')).toBeInTheDocument();
+        expect(await screen.findByText('节点巡检动作')).toBeInTheDocument();
+        expect(screen.queryByText('巡检摘要')).not.toBeInTheDocument();
+        expect(screen.queryByText('DNS 1 · 认证失败 1')).not.toBeInTheDocument();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
-        expect(screen.getByText(/菜单已关闭/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '测试 SMTP' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');
@@ -447,11 +448,9 @@ describe('SystemSettings', () => {
         expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
         expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
-        expect(screen.getByText('摘要 45 分钟 / 12 小时')).toBeInTheDocument();
-        expect(screen.getAllByText(/目标 \*{8}7890/).length).toBeGreaterThan(0);
     });
 
-    it('shows a compact backup summary card in the backup tab', async () => {
+    it('keeps the backup tab focused on controls and backup actions', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -460,8 +459,9 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=backup' });
 
         expect(await screen.findByText('备份与恢复')).toBeInTheDocument();
-        expect(screen.getByText('备份摘要')).toBeInTheDocument();
+        expect(screen.queryByText('备份摘要')).not.toBeInTheDocument();
         expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
+        expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });
 
     it('opens the embedded node console when the console tab is selected via query string', async () => {

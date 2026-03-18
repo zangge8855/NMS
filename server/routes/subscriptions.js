@@ -2831,11 +2831,16 @@ function resolveSubscriptionConverterBaseUrl() {
     );
 }
 
+const SUBLINK_PRESET_RULES = 'balanced';
+
 function buildExternalConverterUrl(baseUrl, format, configUrl) {
     const base = normalizeHttpUrlPreservePath(baseUrl);
     const configSource = String(configUrl || '').trim();
     if (!base || !configSource) return '';
-    return appendQuery(`${base}/${format}`, { config: configSource });
+    return appendQuery(`${base}/${format}`, {
+        config: configSource,
+        selectedRules: SUBLINK_PRESET_RULES,
+    });
 }
 
 function buildTokenPublicBase(req, email, rawToken) {

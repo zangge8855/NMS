@@ -48,6 +48,14 @@ const ssV2rayLink = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTp0ZXN0LXBhc3N3b3Jk@examp
 const hy2Link = 'hy2://hy2-secret@hy2.example.com:8443?alpn=h3&sni=hy2.example.com&ports=8443,8444&hop-interval=120&upmbps=50&downmbps=100#NODE-C';
 const tuicLink = 'tuic://33333333-3333-3333-3333-333333333333:tuic-pass@tuic.example.com:443?congestion_control=bbr&sni=tuic.example.com&alpn=h3&udp-relay-mode=native#NODE-D';
 
+function buildExpectedExternalUrl(baseUrl, format, configUrl) {
+    const params = new URLSearchParams({
+        config: configUrl,
+        selectedRules: 'balanced',
+    });
+    return `${baseUrl}/${format}?${params.toString()}`;
+}
+
 describe('subscription native fallback selection', () => {
     it('returns all unique subIds in native mode', () => {
         assert.deepEqual(
@@ -187,18 +195,31 @@ describe('subscription url generation', () => {
         assert.equal(urls.subscriptionUrlRaw, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw');
         assert.equal(
             urls.subscriptionUrlClash,
-            'https://converter.example.com/clash?config=https%3A%2F%2Fnew.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Ftoken-id%2Ftoken-value%3Fformat%3Draw'
+            buildExpectedExternalUrl(
+                'https://converter.example.com',
+                'clash',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+            )
         );
         assert.equal(
             urls.subscriptionUrlSingbox,
-            'https://converter.example.com/singbox?config=https%3A%2F%2Fnew.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Ftoken-id%2Ftoken-value%3Fformat%3Draw'
+            buildExpectedExternalUrl(
+                'https://converter.example.com',
+                'singbox',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+            )
         );
         assert.equal(
             urls.subscriptionUrlSurge,
-            'https://converter.example.com/surge?config=https%3A%2F%2Fnew.example.com%2Fapi%2Fsubscriptions%2Fpublic%2Ft%2Ftoken-id%2Ftoken-value%3Fformat%3Draw'
+            buildExpectedExternalUrl(
+                'https://converter.example.com',
+                'surge',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+            )
         );
         assert.equal(urls.subscriptionConverterConfigured, true);
     });
+
 });
 
 describe('mihomo config generation', () => {

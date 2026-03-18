@@ -295,9 +295,11 @@ function SettingsWorkspaceSection({
     badges = null,
     highlights = [],
     actions = null,
+    heroMode = 'full',
     children,
 }) {
-    const hasHero = Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
+    const hasHero = heroMode !== 'hidden'
+        && Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
 
     return (
         <section className="card settings-workspace-section" data-workspace={workspaceId}>
@@ -970,20 +972,6 @@ export default function SystemSettings() {
         ]);
     };
 
-    const refreshOperationsWorkspace = async () => {
-        await Promise.all([
-            fetchEmailStatus({ quiet: true }),
-            fetchMonitorStatus({ quiet: true }),
-        ]);
-    };
-
-    const refreshBackupWorkspace = async () => {
-        await Promise.all([
-            fetchDbStatus({ quiet: true }),
-            fetchBackupStatus({ quiet: true }),
-        ]);
-    };
-
     const handleCamouflageToggle = (checked) => {
         if (!checked) {
             patchField('site', 'camouflageEnabled', false);
@@ -1545,127 +1533,6 @@ export default function SystemSettings() {
     const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
         + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
     const monitorUnreadCount = Number(monitorStatus?.notifications?.unreadCount || 0);
-    const accessOverviewCards = useMemo(() => ([
-        {
-            label: '真实入口',
-            value: siteAccessPath,
-            detail: draft.site.camouflageEnabled ? '首页伪装已开启' : '首页直接显示 NMS',
-        },
-        {
-            label: '注册模式',
-            value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册',
-            detail: registrationEnabled ? '当前运行时允许注册' : '运行时已关闭自助注册',
-        },
-        {
-            label: '活动邀请码',
-            value: `${inviteActiveCount} 个`,
-            detail: `剩余 ${inviteRemainingUses} 次使用额度`,
-        },
-        {
-            label: '订阅公网',
-            value: draft.subscription.publicBaseUrl || '未配置',
-            detail: converterBaseUrl ? '已配置外部转换器' : '未配置外部转换器',
-        },
-    ]), [
-        converterBaseUrl,
-        draft.registration.inviteOnlyEnabled,
-        draft.site.camouflageEnabled,
-        draft.subscription.publicBaseUrl,
-        inviteActiveCount,
-        inviteRemainingUses,
-        registrationEnabled,
-        siteAccessPath,
-    ]);
-    const policyOverviewCards = useMemo(() => ([
-        {
-            label: '风控确认',
-            value: draft.security.requireHighRiskConfirmation ? '已开启' : '已关闭',
-            detail: `高风险阈值 ${draft.security.highRiskMinTargets}`,
-        },
-        {
-            label: '审计保留',
-            value: `${draft.audit.retentionDays} 天`,
-            detail: `单页最多 ${draft.audit.maxPageSize} 条`,
-        },
-        {
-            label: '地理信息',
-            value: draft.auditIpGeo.enabled ? '已启用' : '未启用',
-            detail: draft.auditIpGeo.enabled ? `服务商 ${draft.auditIpGeo.provider || '-'}` : '不会补充地区与运营商',
-        },
-        {
-            label: '确认令牌',
-            value: `${draft.security.riskTokenTtlSeconds} 秒`,
-            detail: `中风险阈值 ${draft.security.mediumRiskMinTargets}`,
-        },
-    ]), [draft.audit, draft.auditIpGeo, draft.security]);
-    const operationsOverviewCards = useMemo(() => ([
-        {
-            label: 'SMTP',
-            value: emailConfiguredLabel,
-            detail: emailDeliveryLabel,
-        },
-        {
-            label: '节点巡检',
-            value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行',
-            detail: `正常 ${monitorHealthyCount} · 异常 ${monitorIncidentCount}`,
-        },
-        {
-            label: '通知中心',
-            value: `${monitorUnreadCount} 条未读`,
-            detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}`,
-        },
-        {
-            label: 'Telegram',
-            value: monitorStatus?.telegram?.enabled
-                ? '已启用'
-                : monitorStatus?.telegram?.configured
-                    ? '待启用'
-                    : '未配置',
-            detail: telegramTargetPreview !== '-' ? `目标 ${telegramTargetPreview}` : '尚未设置消息目标',
-        },
-    ]), [
-        emailConfiguredLabel,
-        emailDeliveryLabel,
-        monitorHealthyCount,
-        monitorIncidentCount,
-        monitorStatus,
-        monitorUnreadCount,
-        telegramTargetPreview,
-    ]);
-    const backupOverviewCards = useMemo(() => ([
-        {
-            label: '数据库模式',
-            value: dbStatus
-                ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
-                : '等待探测',
-            detail: dbStatus?.connection?.ready ? '数据库连接已就绪' : dbStatus?.connection?.enabled ? '数据库连接待检查' : '当前未启用数据库',
-        },
-        {
-            label: '备份状态',
-            value: backupSummaryValue,
-            detail: hasExportBackup || hasLocalBackup ? '建议定期验证恢复流程' : '建议先生成一份基线备份',
-        },
-        {
-            label: '本机备份',
-            value: `${localBackups.length} 份`,
-            detail: latestLocalBackup?.filename || '暂无服务器本机备份',
-        },
-        {
-            label: '最近恢复',
-            value: backupStatus?.lastImport?.sourceFilename || '暂无',
-            detail: formatDateTime(backupStatus?.lastImport?.restoredAt, locale),
-        },
-    ]), [
-        backupStatus,
-        backupSummaryValue,
-        dbStatus,
-        hasExportBackup,
-        hasLocalBackup,
-        latestLocalBackup,
-        localBackups.length,
-        locale,
-    ]);
-
     const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
@@ -1673,7 +1540,7 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="站点入口与订阅"
+                        title="入口与订阅"
                         actions={(
                             <div className="settings-panel-actions">
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={copySiteEntry}>
@@ -1685,26 +1552,12 @@ export default function SystemSettings() {
                             </div>
                         )}
                     />
-                    <div className="settings-basic-note-list">
-                        <span className={`badge ${siteAccessPath === '/' ? 'badge-warning' : 'badge-success'}`}>
-                            {siteAccessPath === '/' ? '真实入口位于根路径' : '真实入口已隐藏'}
-                        </span>
-                        <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
-                            {draft.site.camouflageEnabled ? '伪装首页已开启' : '伪装首页未开启'}
-                        </span>
-                        <span className={`badge ${draft.subscription.publicBaseUrl ? 'badge-success' : 'badge-warning'}`}>
-                            {draft.subscription.publicBaseUrl ? '订阅公网地址已配置' : '订阅公网地址待配置'}
-                        </span>
-                        <span className={`badge ${converterBaseUrl ? 'badge-success' : 'badge-neutral'}`}>
-                            {converterBaseUrl ? '外部转换器已配置' : '未配置外部转换器'}
-                        </span>
-                    </div>
                     <div className="settings-access-grid">
                         <div className="settings-access-stack">
                             <div className="settings-form-cluster settings-form-cluster--entry">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">入口路径</div>
-                                    <div className="settings-form-cluster-title">真实入口与首页</div>
+                                    <div className="settings-form-cluster-title">访问路径</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label">首页访问路径</label>
@@ -1724,25 +1577,15 @@ export default function SystemSettings() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="settings-monitor-log-meta settings-monitor-log-meta--address">
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">访问地址</span>
-                                        <span className="settings-monitor-log-value">{siteEntryPreview}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">首页表现</span>
-                                        <span className="settings-monitor-log-value">
-                                            {draft.site.camouflageEnabled
-                                                ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
-                                                : '直接显示 NMS 登录页'}
-                                        </span>
-                                    </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label">生成后的访问地址</label>
+                                    <input className="form-input font-mono" value={siteEntryPreview} readOnly />
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--camouflage">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">伪装页面</div>
-                                    <div className="settings-form-cluster-title">伪装模板与标题</div>
+                                    <div className="settings-form-cluster-title">伪装模板</div>
                                 </div>
                                 <div className="settings-field-grid settings-field-grid--compact">
                                     <div className="form-group mb-0">
@@ -1794,12 +1637,13 @@ export default function SystemSettings() {
                                         value={draft.subscription.publicBaseUrl}
                                         onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
                                     />
+                                    <div className="text-xs text-muted mt-1">留空时默认按当前站点地址分发订阅。</div>
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">外部转换</div>
-                                    <div className="settings-form-cluster-title">外部订阅转换</div>
+                                    <div className="settings-form-cluster-title">外部转换器</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label">外部订阅转换器地址</label>
@@ -1809,6 +1653,7 @@ export default function SystemSettings() {
                                         value={converterBaseUrl}
                                         onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
                                     />
+                                    <div className="text-xs text-muted mt-1">留空则不启用外部转换器。</div>
                                 </div>
                                 <div className="settings-access-action-row">
                                     <button
@@ -1833,26 +1678,6 @@ export default function SystemSettings() {
                                     </a>
                                 </div>
                             </div>
-                            <div className="settings-form-cluster settings-form-cluster--address-summary">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">分发摘要</div>
-                                    <div className="settings-form-cluster-title">当前对外地址</div>
-                                </div>
-                                <div className="settings-monitor-log-meta settings-monitor-log-meta--address">
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">真实入口</span>
-                                        <span className="settings-monitor-log-value">{siteAccessPath}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">订阅公网</span>
-                                        <span className="settings-monitor-log-value">{draft.subscription.publicBaseUrl || '未配置'}</span>
-                                    </div>
-                                    <div className="settings-monitor-log-item">
-                                        <span className="settings-monitor-log-label">转换器</span>
-                                        <span className="settings-monitor-log-value">{converterBaseUrl || '未配置'}</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1873,56 +1698,27 @@ export default function SystemSettings() {
                     <div className="settings-invite-layout">
                         <div className="settings-access-stack">
                             <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">注册模式</div>
-                                <div className="settings-form-cluster-title">注册方式与邀请码</div>
-                            </div>
-                            <div className="settings-toggle-strip">
-                                <SettingsToggleCard
-                                    compact
-                                    checked={draft.registration.inviteOnlyEnabled}
-                                    onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                                    disabled={!registrationEnabled}
-                                    label="开启邀请注册"
-                                    description={registrationEnabled
-                                        ? '开启后注册需填写邀请码。'
-                                        : '当前环境已关闭自助注册。'}
-                                    activeLabel="邀请模式"
-                                    inactiveLabel="普通模式"
-                                />
-                            </div>
-                            <div className="settings-mini-grid settings-mini-grid--metrics settings-mini-grid--invite">
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">活动邀请码</div>
-                                    <div className="text-lg font-semibold">{inviteActiveCount} 个</div>
-                                    <div className="text-xs text-muted">当前仍可继续使用的库存</div>
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">注册模式</div>
+                                    <div className="settings-form-cluster-title">注册与邀请码</div>
                                 </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">剩余额度</div>
-                                    <div className="text-lg font-semibold">{inviteRemainingUses} 次</div>
-                                    <div className="text-xs text-muted">活动邀请码剩余总次数</div>
+                                <div className="settings-toggle-strip">
+                                    <SettingsToggleCard
+                                        compact
+                                        checked={draft.registration.inviteOnlyEnabled}
+                                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                                        disabled={!registrationEnabled}
+                                        label="开启邀请注册"
+                                        description={registrationEnabled
+                                            ? '开启后注册需填写邀请码。'
+                                            : '当前环境已关闭自助注册。'}
+                                        activeLabel="邀请模式"
+                                        inactiveLabel="普通模式"
+                                    />
                                 </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">已使用次数</div>
-                                    <div className="text-lg font-semibold">{inviteConsumedUses} 次</div>
-                                    <div className="text-xs text-muted">邀请码累计已消耗次数</div>
-                                </div>
-                                <div className="card p-3 settings-mini-card">
-                                    <div className="text-sm text-muted">最近使用</div>
-                                    <div className="text-lg font-semibold">{inviteRecentUsedAt ? formatDateTime(inviteRecentUsedAt.usedAt, locale) : '暂无'}</div>
-                                    <div className="text-xs text-muted">
-                                        {inviteRecentUsedAt?.usedByUsername ? `最近由 ${inviteRecentUsedAt.usedByUsername} 使用` : `已用完 ${inviteUsedCount} · 已撤销 ${inviteRevokedCount}`}
-                                    </div>
-                                </div>
-                            </div>
                             </div>
                             <div className="card p-3 settings-mini-card settings-detail-card">
-                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                    <div className="text-sm font-medium">生成邀请码</div>
-                                    <span className="text-xs text-muted">
-                                        当前可用 {inviteAvailableRecords.length} 个，剩余 {inviteRemainingUses} 次
-                                    </span>
-                                </div>
+                                <div className="text-sm font-medium">生成邀请码</div>
                                 <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
                                     <div className="form-group mb-0">
                                         <label className="form-label">本次生成数量</label>
@@ -2011,7 +1807,7 @@ export default function SystemSettings() {
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">邀请码台账</div>
-                                <div className="settings-form-cluster-title">库存、进度与最近使用</div>
+                                <div className="settings-form-cluster-title">台账与使用记录</div>
                             </div>
                             {inviteCodesLoading ? (
                                 <div className="text-sm text-muted">正在加载邀请码列表...</div>
@@ -2148,7 +1944,7 @@ export default function SystemSettings() {
 
                 <div className="card p-4 settings-panel settings-panel--span-3 settings-basic-workbench">
                     <SettingsPanelHeader
-                        title="IP 归属地 / 运营商"
+                        title="IP 归属地"
                     />
                     <div className="form-group settings-checkbox-row">
                         <div className="settings-toggle-strip">
@@ -2161,13 +1957,6 @@ export default function SystemSettings() {
                             />
                         </div>
                     </div>
-                    <div className="settings-basic-note-list">
-                        <span className={`badge ${draft.auditIpGeo.enabled ? 'badge-success' : 'badge-neutral'}`}>
-                            {draft.auditIpGeo.enabled ? '已启用' : '未启用'}
-                        </span>
-                        <span className="badge badge-neutral">服务商 {draft.auditIpGeo.provider || '-'}</span>
-                        <span className="badge badge-neutral">缓存 {draft.auditIpGeo.cacheTtlSeconds}s</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -2175,132 +1964,47 @@ export default function SystemSettings() {
 
     const renderMonitorContent = () => (
         <div className="settings-grid settings-grid--monitor">
-            <div className="card p-4 settings-panel settings-diagnostics-panel settings-panel--span-7">
+            <div className="card p-4 settings-panel settings-diagnostics-panel settings-panel--span-5">
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="SMTP 诊断"
+                    title="邮件通知动作"
                 />
-                <div className="settings-monitor-toolbar">
-                    <div className="settings-monitor-toolbar-status">
-                        <span className={`badge ${emailConfiguredBadge}`}>{emailConfiguredLabel}</span>
-                        <span className={`badge ${emailVerificationBadge}`}>{emailVerificationLabel}</span>
-                        <span className={`badge ${emailDeliveryBadge}`}>{emailDeliveryLabel}</span>
+                <div className="settings-form-cluster">
+                    <div className="settings-form-cluster-head">
+                        <div className="settings-form-cluster-title">测试 SMTP 与发送最新地址通知</div>
+                        <div className="settings-form-cluster-note">邮件链路状态已集中到系统状态页展示，这里只保留运维动作。</div>
                     </div>
-                    <div className="settings-monitor-toolbar-actions">
+                    <div className="settings-panel-actions">
                         <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                            {emailTestLoading ? <span className="spinner" /> : '测试'}
+                            {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchEmailStatus()} disabled={emailStatusLoading || emailTestLoading}>
-                            {emailStatusLoading ? <span className="spinner" /> : '刷新'}
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={openNoticeModal}
+                            disabled={!emailStatus?.configured || noticeSending}
+                        >
+                            {noticeSending ? <span className="spinner" /> : '发变更通知'}
                         </button>
                     </div>
                 </div>
-                {!emailStatus ? (
-                    <div className="text-sm text-muted">尚未加载 SMTP 状态。</div>
-                ) : (
-                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="settings-monitor-log-meta">
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">发件人</span>
-                                <span className="settings-monitor-log-value">{emailStatus.from || '未设置发件人'}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">SMTP</span>
-                                <span className="settings-monitor-log-value">{(emailStatus.host || '未配置服务器')} · port {emailStatus.port || '-'} · {emailStatus.service || 'SMTP'}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近测试</span>
-                                <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastVerification?.ts, locale)}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近发送</span>
-                                <span className="settings-monitor-log-value">{formatDateTime(emailStatus.lastDelivery?.ts, locale)}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">错误</span>
-                                <span className="settings-monitor-log-value">{emailStatus.lastDelivery?.error || emailStatus.lastVerification?.error || '-'}</span>
-                            </div>
-                        </div>
-                        <div className="settings-inline-action-strip">
-                            <div className="settings-inline-action-copy">
-                                <div className="settings-inline-action-title">网址变更通知</div>
-                                <div className="settings-inline-action-note">给已注册用户发送最新地址邮件</div>
-                            </div>
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={openNoticeModal}
-                                disabled={!emailStatus?.configured || noticeSending}
-                            >
-                                {noticeSending ? <span className="spinner" /> : '发变更通知'}
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
 
-            <div className="card p-4 settings-panel settings-monitor-panel settings-panel--span-5">
+            <div className="card p-4 settings-panel settings-monitor-panel settings-panel--span-7">
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="节点健康监控"
-                    actions={(
-                        <div className="settings-panel-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={() => fetchMonitorStatus()} disabled={monitorStatusLoading}>
-                                {monitorStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                            </button>
-                            <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                                {monitorLoading ? <span className="spinner" /> : '立即巡检'}
-                            </button>
-                        </div>
-                    )}
+                    title="节点巡检动作"
                 />
-                <div className="settings-monitor-detail-grid settings-monitor-detail-grid--single">
-                    <div className="card p-3 settings-mini-card settings-detail-card settings-monitor-detail-card">
-                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                            <div className="text-sm font-medium">巡检摘要</div>
-                            <span className={`badge ${monitorStatus?.healthMonitor?.running ? 'badge-success' : 'badge-neutral'}`}>
-                                {monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-meta">
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">最近巡检</span>
-                                <span className="settings-monitor-log-value">{formatDateTime(monitorStatus?.healthMonitor?.lastRunAt, locale)}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">巡检周期</span>
-                                <span className="settings-monitor-log-value">
-                                    {Math.round(Number(monitorStatus?.healthMonitor?.intervalMs || 0) / 60000) || 0} 分钟
-                                </span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">健康统计</span>
-                                <span className="settings-monitor-log-value">
-                                    正常 {monitorStatus?.healthMonitor?.summary?.healthy || 0} / 异常 {(monitorStatus?.healthMonitor?.summary?.degraded || 0) + (monitorStatus?.healthMonitor?.summary?.unreachable || 0)}
-                                </span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">异常分布</span>
-                                <span className="settings-monitor-log-value">{monitorReasonSummary}</span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">通知中心</span>
-                                <span className="settings-monitor-log-value">
-                                    未读 {monitorStatus?.notifications?.unreadCount || 0} · 维护 {monitorStatus?.healthMonitor?.summary?.maintenance || 0} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}
-                                </span>
-                            </div>
-                            <div className="settings-monitor-log-item">
-                                <span className="settings-monitor-log-label">Telegram 告警</span>
-                                <span className="settings-monitor-log-value">
-                                    {monitorStatus?.telegram?.enabled
-                                        ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}`
-                                        : monitorStatus?.telegram?.configured
-                                        ? '已配置但未启用'
-                                        : '未配置'}
-                                </span>
-                            </div>
-                        </div>
+                <div className="settings-form-cluster">
+                    <div className="settings-form-cluster-head">
+                        <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
+                        <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                    </div>
+                    <div className="settings-panel-actions">
+                        <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                            {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2320,18 +2024,6 @@ export default function SystemSettings() {
                         </button>
                     )}
                 />
-                <div className="settings-basic-note-list mb-3">
-                    <span className={`badge ${monitorStatus?.telegram?.enabled ? 'badge-success' : 'badge-neutral'}`}>
-                        {monitorStatus?.telegram?.enabled ? '已启用' : monitorStatus?.telegram?.configured ? '已配置未启用' : '未配置'}
-                    </span>
-                    <span className="badge badge-neutral">
-                        {(monitorStatus?.telegram?.commandsEnabled ? '命令轮询开启' : '命令轮询关闭')
-                            + ` · ${((monitorStatus?.telegram?.commandMenuEnabled ?? draft.telegram.commandMenuEnabled) ? '菜单显示' : '菜单已关闭')}`}
-                    </span>
-                    <span className="badge badge-neutral">
-                        {`摘要 ${Number(draft.telegram.opsDigestIntervalMinutes || 0) > 0 ? `${draft.telegram.opsDigestIntervalMinutes} 分钟` : '关闭'} / ${Number(draft.telegram.dailyDigestIntervalHours || 0) > 0 ? `${draft.telegram.dailyDigestIntervalHours} 小时` : '关闭'}`}
-                    </span>
-                </div>
                 <div className="grid-auto-220 items-start">
                     <div className="form-group">
                         <label className="form-label" htmlFor="telegram-chat-id">Chat ID / 群组 ID</label>
@@ -2465,17 +2157,6 @@ export default function SystemSettings() {
                         inactiveLabel="不推送"
                     />
                 </div>
-                <div className="settings-basic-note-list mt-3">
-                    <span className="badge badge-neutral">目标 {telegramTargetPreview}</span>
-                    <span className="badge badge-neutral">
-                        {monitorStatus?.telegram?.lastSentAt ? `最近发送 ${formatDateTime(monitorStatus.telegram.lastSentAt, locale)}` : '尚无发送记录'}
-                    </span>
-                    <span className="badge badge-neutral">
-                        {monitorStatus?.telegram?.lastCommand
-                            ? `最近命令 ${monitorStatus.telegram.lastCommand}`
-                            : '尚无命令记录'}
-                    </span>
-                </div>
             </div>
         </div>
     );
@@ -2493,29 +2174,7 @@ export default function SystemSettings() {
                         </button>
                     )}
                 />
-                <div className="card p-3 settings-mini-card settings-detail-card">
-                    <div className="text-sm font-medium">备份摘要</div>
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">可备份 Store</span>
-                            <span className="settings-monitor-log-value">{backupStatus?.storeKeys?.length || 0} · {(backupStatus?.storeKeys || []).join(', ') || '暂无'}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近生成</span>
-                            <span className="settings-monitor-log-value">{backupStatus?.lastExport?.filename || '-'} · {formatDateTime(backupStatus?.lastExport?.createdAt, locale)}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">本机备份</span>
-                            <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近恢复</span>
-                            <span className="settings-monitor-log-value">{backupStatus?.lastImport?.sourceFilename || '-'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="settings-backup-actions settings-backup-actions--triple mt-3">
+                <div className="settings-backup-actions settings-backup-actions--triple">
                     <div className="card p-3 settings-mini-card settings-backup-action-card settings-backup-action-card--danger">
                         <div className="text-sm font-medium">导出到浏览器</div>
                         <div className="text-xs text-muted mt-1">下载一份加密备份包。</div>
@@ -2668,7 +2327,7 @@ export default function SystemSettings() {
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="数据库接入状态"
+                    title="数据库读写模式"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2680,30 +2339,6 @@ export default function SystemSettings() {
                     <div className="text-sm text-muted">尚未加载数据库状态。</div>
                 ) : (
                     <>
-                        <div className="settings-mini-grid settings-mini-grid--metrics mb-4">
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">DB 连接</div>
-                                <div className="text-lg font-semibold">
-                                    {dbStatus.connection?.enabled ? (dbStatus.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
-                                </div>
-                                <div className="text-xs text-muted">{dbStatus.connection?.error || '无错误'}</div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">当前模式</div>
-                                <div className="text-lg font-semibold">
-                                    read={dbStatus.currentModes?.readMode || 'file'} / write={dbStatus.currentModes?.writeMode || 'file'}
-                                </div>
-                                <div className="text-xs text-muted">queued {dbStatus.writesQueued || 0} · pending {dbStatus.pendingWrites || 0}</div>
-                            </div>
-                            <div className="card p-3 settings-mini-card">
-                                <div className="text-sm text-muted">写入统计</div>
-                                <div className="text-lg font-semibold">
-                                    成功 {dbStatus.writesSucceeded || 0} / 失败 {dbStatus.writesFailed || 0}
-                                </div>
-                                <div className="text-xs text-muted">最后写入: {formatDateTime(dbStatus.lastWriteAt, locale)}</div>
-                            </div>
-                        </div>
-
                         <div className="settings-grid settings-db-grid">
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
@@ -2833,6 +2468,120 @@ export default function SystemSettings() {
                     </div>
                 );})}
             </div>
+            <div className="settings-grid settings-grid--basic">
+                <div className="card p-4 settings-panel settings-panel--span-4">
+                    <SectionHeader className="mb-3" compact title="对外访问与注册状态" />
+                    <div className="settings-monitor-log-meta">
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">访问地址</span>
+                            <span className="settings-monitor-log-value">{siteEntryPreview}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">首页伪装</span>
+                            <span className="settings-monitor-log-value">
+                                {draft.site.camouflageEnabled
+                                    ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
+                                    : '已关闭'}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">订阅公网</span>
+                            <span className="settings-monitor-log-value">{draft.subscription.publicBaseUrl || '未配置'}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">外部转换器</span>
+                            <span className="settings-monitor-log-value">{converterBaseUrl || '未配置'}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">注册模式</span>
+                            <span className="settings-monitor-log-value">
+                                {registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">邀请码库存</span>
+                            <span className="settings-monitor-log-value">活动 {inviteActiveCount} 个 · 剩余 {inviteRemainingUses} 次</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="card p-4 settings-panel settings-panel--span-4">
+                    <SectionHeader className="mb-3" compact title="通知与巡检状态" />
+                    <div className="settings-monitor-log-meta">
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">SMTP</span>
+                            <span className="settings-monitor-log-value">{emailConfiguredLabel} · {emailDeliveryLabel}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">最近测试</span>
+                            <span className="settings-monitor-log-value">{formatDateTime(emailStatus?.lastVerification?.ts, locale)}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">节点巡检</span>
+                            <span className="settings-monitor-log-value">
+                                {monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}
+                                {` · 正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">异常分布</span>
+                            <span className="settings-monitor-log-value">{monitorReasonSummary}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">通知中心</span>
+                            <span className="settings-monitor-log-value">
+                                未读 {monitorUnreadCount} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">Telegram</span>
+                            <span className="settings-monitor-log-value">
+                                {monitorStatus?.telegram?.enabled
+                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}`
+                                    : monitorStatus?.telegram?.configured
+                                        ? '已配置未启用'
+                                        : '未配置'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div className="card p-4 settings-panel settings-panel--span-4">
+                    <SectionHeader className="mb-3" compact title="数据库与备份状态" />
+                    <div className="settings-monitor-log-meta">
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">DB 连接</span>
+                            <span className="settings-monitor-log-value">
+                                {dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">当前模式</span>
+                            <span className="settings-monitor-log-value">
+                                {dbStatus ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测'}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">写入排队</span>
+                            <span className="settings-monitor-log-value">
+                                queued {dbStatus?.writesQueued || 0} · pending {dbStatus?.pendingWrites || 0}
+                            </span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">备份状态</span>
+                            <span className="settings-monitor-log-value">{backupSummaryValue}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">本机备份</span>
+                            <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</span>
+                        </div>
+                        <div className="settings-monitor-log-item">
+                            <span className="settings-monitor-log-label">最近恢复</span>
+                            <span className="settings-monitor-log-value">
+                                {backupStatus?.lastImport?.sourceFilename || '暂无'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 
@@ -2858,10 +2607,6 @@ export default function SystemSettings() {
                         </button>
                     )}
                 />
-                <div className="settings-basic-note-list mb-3">
-                    <span className="badge badge-neutral">旧链接兼容</span>
-                    <span className="badge badge-neutral">减少在设置页和节点页之间来回切换</span>
-                </div>
                 {consoleExpanded ? (
                     <div className="settings-console-host settings-console-host--inline">
                         <ServerManagement embedded />
@@ -2923,111 +2668,35 @@ export default function SystemSettings() {
         {
             id: 'access',
             title: '对外访问',
-            eyebrow: 'Public Access',
-            badges: (
-                <>
-                    <span className={`badge ${draft.site.camouflageEnabled ? 'badge-success' : 'badge-neutral'}`}>
-                        {draft.site.camouflageEnabled ? '首页伪装已开启' : '首页直接展示 NMS'}
-                    </span>
-                    <span className={`badge ${registrationEnabled ? 'badge-success' : 'badge-warning'}`}>
-                        {registrationEnabled ? '运行时允许注册' : '运行时已关闭注册'}
-                    </span>
-                </>
-            ),
-            highlights: accessOverviewCards,
-            navSummary: `${registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'} · ${siteAccessPath}`,
-            navFlag: draft.subscription.publicBaseUrl
-                ? { label: '公网地址已配置', tone: 'success' }
-                : { label: '公网地址待配置', tone: 'warning' },
+            navSummary: '入口 / 订阅 / 注册',
             content: renderAccessContent(),
+            heroMode: 'hidden',
         },
         {
             id: 'policy',
             title: '安全审计',
-            eyebrow: 'Policy & Audit',
-            badges: (
-                <>
-                    <span className={`badge ${draft.security.requireHighRiskConfirmation ? 'badge-success' : 'badge-neutral'}`}>
-                        {draft.security.requireHighRiskConfirmation ? '高风险二次确认已开启' : '高风险二次确认已关闭'}
-                    </span>
-                    <span className={`badge ${draft.auditIpGeo.enabled ? 'badge-success' : 'badge-neutral'}`}>
-                        {draft.auditIpGeo.enabled ? 'IP 地理信息已补充' : '不补充地理信息'}
-                    </span>
-                </>
-            ),
-            highlights: policyOverviewCards,
-            navSummary: `审计保留 ${draft.audit.retentionDays} 天`,
-            navFlag: draft.auditIpGeo.enabled
-                ? { label: '含归属地', tone: 'success' }
-                : { label: '基础审计', tone: 'neutral' },
+            navSummary: '风控 / 审计 / 归属地',
             content: renderPolicyContent(),
+            heroMode: 'hidden',
         },
         {
             id: 'operations',
             title: '运维通知',
-            eyebrow: 'Ops & Alerts',
-            badges: (
-                <>
-                    <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>
-                        {emailStatus?.configured ? 'SMTP 已配置' : 'SMTP 未配置'}
-                    </span>
-                    <span className={`badge ${monitorIncidentCount > 0 ? 'badge-warning' : 'badge-success'}`}>
-                        {monitorIncidentCount > 0 ? `${monitorIncidentCount} 个节点异常` : '节点巡检正常'}
-                    </span>
-                </>
-            ),
-            highlights: operationsOverviewCards,
-            actions: (
-                <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={refreshOperationsWorkspace}
-                    disabled={emailStatusLoading || monitorStatusLoading}
-                >
-                    {(emailStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新状态'}
-                </button>
-            ),
-            navSummary: `链路 ${readyAlertChainCount}/3 就绪`,
-            navFlag: monitorIncidentCount > 0
-                ? { label: `${monitorIncidentCount} 个异常`, tone: 'warning' }
-                : { label: '运行稳定', tone: 'success' },
+            navSummary: '通知 / Telegram / 控制台',
             content: renderOperationsWorkspace(),
+            heroMode: 'hidden',
         },
         {
             id: 'backup',
             title: '数据备份',
-            eyebrow: 'Data Safety',
-            badges: (
-                <>
-                    <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
-                        {dbStatus?.connection?.ready ? '数据库连接已就绪' : dbStatus?.connection?.enabled ? '数据库连接待检查' : '数据库未启用'}
-                    </span>
-                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
-                        {hasExportBackup || hasLocalBackup ? '已有备份基线' : '暂无备份基线'}
-                    </span>
-                </>
-            ),
-            highlights: backupOverviewCards,
-            actions: (
-                <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={refreshBackupWorkspace}
-                    disabled={dbLoading || backupStatusLoading}
-                >
-                    {(dbLoading || backupStatusLoading) ? <span className="spinner" /> : '刷新状态'}
-                </button>
-            ),
-            navSummary: `DB ${dbStatus?.currentModes?.writeMode || '待探测'} · ${backupSummaryValue}`,
-            navFlag: hasExportBackup || hasLocalBackup
-                ? { label: '已有备份', tone: 'success' }
-                : { label: '建议备份', tone: 'warning' },
+            navSummary: '数据库 / 备份恢复',
             content: (
                 <>
                     {renderDatabaseContent()}
                     {renderBackupContent()}
                 </>
             ),
+            heroMode: 'hidden',
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
@@ -3041,8 +2710,8 @@ export default function SystemSettings() {
     const saveDockSummary = hasPendingChanges
         ? `${dirtyWorkspaceCount} 个工作区待保存`
         : activeWorkspaceSectionId === 'backup'
-            ? '数据库和备份操作即时生效'
-            : '当前没有未保存更改';
+            ? '数据库切换和备份操作即时生效'
+            : '当前工作区没有未保存更改';
 
     if (!isAdmin) {
         return (
@@ -3126,6 +2795,7 @@ export default function SystemSettings() {
                             badges={activeWorkspaceSection.badges}
                             highlights={activeWorkspaceSection.highlights}
                             actions={activeWorkspaceSection.actions}
+                            heroMode={activeWorkspaceSection.heroMode}
                         >
                             {activeWorkspaceSection.content}
                         </SettingsWorkspaceSection>
@@ -3144,7 +2814,6 @@ export default function SystemSettings() {
                                                         : '配置已加载'}
                                         </span>
                                     </div>
-                                    <span className="settings-save-dock-current">{activeWorkspaceSection.title}</span>
                                     <span className="settings-save-dock-summary">{saveDockSummary}</span>
                                     {hasPendingChanges ? <span className="badge badge-warning">{dirtyWorkspaceLabels.join(' / ')}</span> : null}
                                     {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
