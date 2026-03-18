@@ -12830,33 +12830,6 @@ input[type="radio"]:focus-visible {
   gap: 8px;
 }
 
-.subscription-user-flow-note {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 6px 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--surface-soft);
-}
-
-.subscription-user-flow-label {
-  font-size: 13px;
-  line-height: 1.5;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.subscription-user-flow-text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
 .subscription-user-hero {
   display: flex;
   align-items: flex-start;
@@ -12909,6 +12882,10 @@ input[type="radio"]:focus-visible {
   color: var(--text-primary);
 }
 
+.subscription-user-panel-title--flow {
+  margin-bottom: 2px;
+}
+
 .subscription-user-panel-text {
   font-size: 12px;
   line-height: 1.6;
@@ -12943,11 +12920,18 @@ input[type="radio"]:focus-visible {
   max-width: none;
 }
 
+.subscription-user-address-shell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .subscription-user-address-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 136px;
   gap: 10px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .subscription-user-address-main {
@@ -13098,8 +13082,10 @@ input[type="radio"]:focus-visible {
   min-width: 0;
   flex: 1 1 240px;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .subscription-user-reset-inline-icon {
@@ -13110,15 +13096,26 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-reset-inline-title {
-  font-size: 11px;
-  line-height: 1.55;
+  font-size: inherit;
+  line-height: inherit;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
+.subscription-user-reset-inline-note {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subscription-user-reset-inline-divider {
+  color: var(--text-muted);
+}
+
 .subscription-user-reset-inline-text {
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: inherit;
+  line-height: inherit;
   color: var(--text-muted);
 }
 
@@ -13166,14 +13163,6 @@ input[type="radio"]:focus-visible {
   max-width: 52ch;
 }
 
-.subscription-hero-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  padding-bottom: 10px;
-}
-
 .subscription-hero-copy {
   display: flex;
   flex-direction: column;
@@ -13210,6 +13199,31 @@ input[type="radio"]:focus-visible {
   border-radius: 16px;
   border: 1px solid rgba(99, 102, 241, 0.16);
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+.subscription-admin-focus--overview {
+  gap: 14px;
+}
+
+.subscription-admin-focus-main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subscription-admin-focus--overview .subscription-hero-copy {
+  gap: 4px;
+}
+
+.subscription-admin-focus--overview .subscription-hero-text {
+  max-width: 60ch;
+}
+
+.subscription-admin-focus--overview .subscription-admin-focus-copy {
+  padding-top: 8px;
+  border-top: 1px solid var(--stroke-soft);
 }
 
 .subscription-admin-focus-copy {
@@ -13318,6 +13332,43 @@ input[type="radio"]:focus-visible {
   min-height: 34px;
   padding-inline: 12px;
   justify-content: center;
+}
+
+.subscription-profile-switches--compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.subscription-profile-switches--compact .btn {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding-inline: 12px;
+}
+
+.subscription-import-disclosure {
+  display: none;
+}
+
+.subscription-import-disclosure-toggle {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.subscription-import-disclosure-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.subscription-import-disclosure-actions {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
 }
 
 .subscription-link-card-meta {
@@ -13535,7 +13586,8 @@ input[type="radio"]:focus-visible {
 .subscription-user-panel--link .subscription-inline-qr--user-side {
   padding: 12px 10px;
   gap: 6px;
-  min-height: 100%;
+  min-height: 0;
+  align-self: start;
 }
 
 .subscription-user-panel--link .subscription-inline-qr-text,
@@ -13543,17 +13595,6 @@ input[type="radio"]:focus-visible {
   max-width: 15ch;
 }
 
-
-.subscription-inline-tip {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--surface-soft);
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
 
 .subscription-user-meta-bar {
   display: flex;
@@ -14453,20 +14494,17 @@ input[type="radio"]:focus-visible {
     padding: 14px;
   }
 
-  .subscription-hero-summary {
-    flex-direction: column;
-  }
-
-  .subscription-hero-badges {
-    justify-content: flex-start;
-  }
-
   .subscription-admin-focus {
     flex-direction: column;
   }
 
   .subscription-admin-focus-badges {
     justify-content: flex-start;
+  }
+
+  .subscription-admin-focus--overview .subscription-admin-focus-copy {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .subscription-focus-steps {
@@ -14505,19 +14543,6 @@ input[type="radio"]:focus-visible {
     gap: 12px;
   }
 
-  .subscription-user-flow-note {
-    align-items: flex-start;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 14px;
-  }
-
-  .subscription-user-flow-label,
-  .subscription-user-flow-text {
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
   .subscription-user-panel {
     gap: 10px;
     padding: 14px;
@@ -14551,6 +14576,31 @@ input[type="radio"]:focus-visible {
     min-height: 38px;
     padding-inline: 10px;
     font-size: 12px;
+  }
+
+  .subscription-profile-switches--compact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+  }
+
+  .subscription-profile-switches--compact .btn {
+    width: 100%;
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
+  .subscription-import-disclosure {
+    display: block;
+  }
+
+  .subscription-import-disclosure-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-import-disclosure .btn {
+    width: 100%;
   }
 
   .subscription-link-card-meta {
@@ -14650,10 +14700,20 @@ input[type="radio"]:focus-visible {
   }
 
   .subscription-user-reset-inline-copy,
+  .subscription-user-reset-inline-note,
   .subscription-user-reset-inline-title,
   .subscription-user-reset-inline-text {
     font-size: 12px;
     line-height: 1.5;
+  }
+
+  .subscription-user-reset-inline-copy {
+    flex-wrap: wrap;
+  }
+
+  .subscription-user-reset-inline-note {
+    white-space: normal;
+    overflow: visible;
   }
 
   .subscription-inline-qr--featured {
@@ -14750,6 +14810,10 @@ input[type="radio"]:focus-visible {
 
 @media (max-width: 480px) {
   .subscription-profile-switches {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-profile-switches--compact {
     grid-template-columns: 1fr;
   }
 
