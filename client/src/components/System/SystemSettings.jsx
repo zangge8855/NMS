@@ -1662,7 +1662,7 @@ export default function SystemSettings() {
     const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-access-panel">
                     <SectionHeader
                         className="mb-3"
                         compact
@@ -1694,7 +1694,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="settings-access-grid">
                         <div className="settings-access-stack">
-                            <div className="settings-form-cluster">
+                            <div className="settings-form-cluster settings-form-cluster--entry">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">入口路径</div>
                                     <div className="settings-form-cluster-title">真实入口与首页</div>
@@ -1717,7 +1717,7 @@ export default function SystemSettings() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="settings-monitor-log-meta">
+                                <div className="settings-monitor-log-meta settings-monitor-log-meta--address">
                                     <div className="settings-monitor-log-item">
                                         <span className="settings-monitor-log-label">访问地址</span>
                                         <span className="settings-monitor-log-value">{siteEntryPreview}</span>
@@ -1732,7 +1732,7 @@ export default function SystemSettings() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="settings-form-cluster">
+                            <div className="settings-form-cluster settings-form-cluster--camouflage">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">伪装页面</div>
                                     <div className="settings-form-cluster-title">伪装模板与标题</div>
@@ -1771,7 +1771,7 @@ export default function SystemSettings() {
                             </div>
                         </div>
                         <div className="settings-access-stack">
-                            <div className="settings-form-cluster">
+                            <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">订阅公网</div>
                                     <div className="settings-form-cluster-title">订阅公网地址</div>
@@ -1786,7 +1786,7 @@ export default function SystemSettings() {
                                     />
                                 </div>
                             </div>
-                            <div className="settings-form-cluster">
+                            <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">外部转换</div>
                                     <div className="settings-form-cluster-title">外部订阅转换</div>
@@ -1823,12 +1823,12 @@ export default function SystemSettings() {
                                     </a>
                                 </div>
                             </div>
-                            <div className="settings-form-cluster">
+                            <div className="settings-form-cluster settings-form-cluster--address-summary">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">分发摘要</div>
                                     <div className="settings-form-cluster-title">当前对外地址</div>
                                 </div>
-                                <div className="settings-monitor-log-meta">
+                                <div className="settings-monitor-log-meta settings-monitor-log-meta--address">
                                     <div className="settings-monitor-log-item">
                                         <span className="settings-monitor-log-label">真实入口</span>
                                         <span className="settings-monitor-log-value">{siteAccessPath}</span>
@@ -1878,7 +1878,7 @@ export default function SystemSettings() {
                                 activeLabel="邀请模式"
                                 inactiveLabel="普通模式"
                             />
-                            <div className="settings-mini-grid settings-mini-grid--metrics">
+                            <div className="settings-mini-grid settings-mini-grid--metrics settings-mini-grid--invite">
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">活动邀请码</div>
                                     <div className="text-lg font-semibold">{inviteActiveCount} 个</div>
