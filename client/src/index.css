@@ -12790,6 +12790,10 @@ input[type="radio"]:focus-visible {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.subscriptions-workbench--simple .subscriptions-main-column {
+  gap: 14px;
+}
+
 .subscriptions-main-column,
 .subscriptions-side-column {
   min-width: 0;
@@ -12818,7 +12822,7 @@ input[type="radio"]:focus-visible {
 .subscription-user-flow {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .subscription-user-flow-note {
@@ -12826,8 +12830,8 @@ input[type="radio"]:focus-visible {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 6px 8px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid var(--stroke-soft);
   background: var(--surface-soft);
 }
@@ -12868,16 +12872,16 @@ input[type="radio"]:focus-visible {
 .subscription-user-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
   border: 1px solid var(--stroke-soft);
   background: var(--surface-soft);
   min-width: 0;
 }
 
 .subscription-user-panel--import {
-  gap: 14px;
+  gap: 12px;
 }
 
 .subscription-user-panel-topbar {
@@ -12920,11 +12924,11 @@ input[type="radio"]:focus-visible {
 .subscription-link-card--user-focus {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   max-width: 620px;
-  padding: 16px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid rgba(59, 130, 246, 0.18);
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.1), rgba(15, 23, 42, 0.02));
   box-shadow: 0 18px 36px -28px rgba(59, 130, 246, 0.45);
@@ -12936,8 +12940,8 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-address-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 156px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 136px;
+  gap: 10px;
   align-items: stretch;
 }
 
@@ -12945,7 +12949,7 @@ input[type="radio"]:focus-visible {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .subscription-user-address-head {
@@ -12963,7 +12967,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-address-label {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.35;
   font-weight: 700;
   color: var(--text-primary);
@@ -12972,12 +12976,12 @@ input[type="radio"]:focus-visible {
 .subscription-user-address-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
   align-items: stretch;
 }
 
 .subscription-user-address-actions .btn {
-  min-height: 36px;
+  min-height: 34px;
   white-space: nowrap;
 }
 
@@ -12987,20 +12991,21 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-copy-btn {
   flex: 0 0 auto;
-  min-width: 156px;
+  min-width: 142px;
   font-weight: 700;
 }
 
 .subscription-user-address-note {
-  font-size: 11px;
-  line-height: 1.55;
+  font-size: 10px;
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
 .subscription-address-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(110px, 142px));
+  gap: 6px;
+  justify-content: flex-start;
   align-items: stretch;
 }
 
@@ -13009,10 +13014,10 @@ input[type="radio"]:focus-visible {
   min-width: 0;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
-  min-height: 78px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 10px;
+  border-radius: 12px;
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.04);
 }
@@ -13041,19 +13046,19 @@ input[type="radio"]:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .subscription-address-status-label {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.25;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--text-muted);
 }
 
 .subscription-address-status-meta {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 700;
   color: var(--text-secondary);
@@ -13061,8 +13066,8 @@ input[type="radio"]:focus-visible {
 
 .subscription-address-status-value {
   min-width: 0;
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
   font-weight: 700;
   color: var(--text-primary);
   overflow-wrap: anywhere;
@@ -13072,14 +13077,14 @@ input[type="radio"]:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding-top: 10px;
+  gap: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--stroke-soft);
 }
 
 .subscription-user-reset-inline-btn {
   flex: 0 0 auto;
-  min-width: 132px;
+  min-width: 118px;
   font-weight: 700;
 }
 
@@ -13100,15 +13105,15 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-reset-inline-title {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.55;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .subscription-user-reset-inline-text {
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-muted);
 }
 
@@ -13160,8 +13165,8 @@ input[type="radio"]:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
-  padding-bottom: 14px;
+  gap: 12px;
+  padding-bottom: 10px;
 }
 
 .subscription-hero-copy {
@@ -13172,14 +13177,14 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-hero-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .subscription-hero-text {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--text-secondary);
   max-width: 48ch;
 }
@@ -13195,9 +13200,9 @@ input[type="radio"]:focus-visible {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid rgba(99, 102, 241, 0.16);
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(255, 255, 255, 0.02));
 }
@@ -13219,7 +13224,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-admin-focus-value {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.35;
   font-weight: 700;
   color: var(--text-primary);
@@ -13228,8 +13233,8 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-admin-focus-meta {
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
@@ -13299,20 +13304,22 @@ input[type="radio"]:focus-visible {
 
 .subscription-profile-switches {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  padding-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 7px;
+  padding-bottom: 8px;
 }
 
 .subscription-profile-switches .btn {
+  min-height: 34px;
+  padding-inline: 12px;
   justify-content: center;
 }
 
 .subscription-link-card-meta {
   display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(99, 102, 241, 0.14);
   background: rgba(99, 102, 241, 0.06);
 }
@@ -13351,8 +13358,8 @@ input[type="radio"]:focus-visible {
 
 .subscription-profile-notes {
   display: grid;
-  gap: 6px;
-  padding-bottom: 12px;
+  gap: 4px;
+  padding-bottom: 8px;
 }
 
 .subscription-link-grid {
@@ -13377,8 +13384,8 @@ input[type="radio"]:focus-visible {
   display: grid;
   width: 100%;
   max-width: none;
-  grid-template-columns: minmax(0, 1fr) minmax(152px, 168px);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 148px;
+  gap: 10px;
   align-items: stretch;
 }
 
@@ -13395,16 +13402,18 @@ input[type="radio"]:focus-visible {
   flex-direction: column;
   justify-content: space-between;
   height: 100%;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px solid rgba(99, 102, 241, 0.14);
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(255, 255, 255, 0.02));
 }
 
 .subscription-url-input {
+  width: min(100%, 560px);
   max-width: 100%;
-  height: 42px;
+  height: 38px;
+  font-size: 11px;
 }
 
 .subscription-copy-btn {
@@ -13417,10 +13426,10 @@ input[type="radio"]:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 14px 12px;
-  border-radius: 16px;
+  padding: 12px 10px;
+  border-radius: 14px;
   border: 1px solid var(--stroke-soft);
   background: linear-gradient(180deg, var(--surface-soft), rgba(255, 255, 255, 0.02));
   min-width: 0;
@@ -13433,23 +13442,28 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-inline-qr-surface {
-  padding: 8px;
+  padding: 6px;
   margin-inline: auto;
 }
 
+.subscription-inline-qr-surface svg {
+  width: 108px;
+  height: 108px;
+}
+
 .subscription-inline-qr-title {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.3;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .subscription-inline-qr-text {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.45;
   color: var(--text-secondary);
   text-align: center;
-  max-width: 18ch;
+  max-width: 15ch;
 }
 
 .subscription-inline-quick-actions {
@@ -13474,10 +13488,10 @@ input[type="radio"]:focus-visible {
 
 .subscription-inline-quick-hint {
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: var(--text-muted);
   text-align: center;
-  max-width: 18ch;
+  max-width: 15ch;
 }
 
 .subscription-user-panel--link .subscription-link-with-qr--user {
@@ -13499,7 +13513,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--link .subscription-url-input {
-  width: 100%;
+  width: min(100%, 520px);
   max-width: none;
 }
 
@@ -13508,8 +13522,8 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--link .subscription-user-address-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(144px, 156px);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 136px;
+  gap: 10px;
 }
 
 .subscription-user-panel--link .subscription-inline-qr,
@@ -13526,13 +13540,13 @@ input[type="radio"]:focus-visible {
 
 
 .subscription-inline-tip {
-  margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
   border: 1px solid var(--stroke-soft);
   background: var(--surface-soft);
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
