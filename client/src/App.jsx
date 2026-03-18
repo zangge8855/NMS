@@ -16,6 +16,7 @@ const Inbounds = lazy(() => import('./components/Inbounds/Inbounds.jsx'));
 const UsersHub = lazy(() => import('./components/Users/UsersHub.jsx'));
 const UserDetail = lazy(() => import('./components/Users/UserDetail.jsx'));
 const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions.jsx'));
+const DownloadsCenter = lazy(() => import('./components/Subscriptions/DownloadsCenter.jsx'));
 const AccountCenter = lazy(() => import('./components/Account/AccountCenter.jsx'));
 const Logs = lazy(() => import('./components/Logs/Logs.jsx'));
 const Tools = lazy(() => import('./components/Tools/Tools.jsx'));
@@ -96,8 +97,9 @@ function ProtectedLayout() {
                         <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
                         <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
+                        <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
+                        <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
                         <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />

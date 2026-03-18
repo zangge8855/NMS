@@ -13608,6 +13608,17 @@ input[type="radio"]:focus-visible {
   margin-top: 0;
 }
 
+.subscription-downloads-page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.subscription-downloads-page-card .subscription-client-links {
+  margin-top: 0;
+  padding: 0 16px 16px;
+}
+
 .subscription-client-links-section {
   display: flex;
   flex-direction: column;

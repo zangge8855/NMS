@@ -8,7 +8,6 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
-import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -335,10 +334,6 @@ export default function Subscriptions() {
         })),
         [availableProfiles, isUserOnly]
     );
-    const userProfileLabelOverrides = useMemo(
-        () => (isUserOnly ? { v2rayn: getUserFacingProfileLabel({ key: 'v2rayn' }) } : {}),
-        [isUserOnly]
-    );
     const selectedImportActions = useMemo(
         () => buildSelectedImportActions(result?.bundle, profileKey, locale),
         [result, profileKey, locale]
@@ -397,7 +392,7 @@ export default function Subscriptions() {
             tone: expiryProgressState.tone,
         },
     ];
-    const shouldShowSideColumn = !isUserOnly || !!result;
+    const shouldShowSideColumn = !isUserOnly;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -958,23 +953,6 @@ export default function Subscriptions() {
 
                     {shouldShowSideColumn && (
                         <div className="subscriptions-side-column">
-                            {result && (
-                                <div className="card subscription-downloads-card">
-                                    <SectionHeader
-                                        className="card-header section-header section-header--compact"
-                                        title={ui.deviceOpenTitle}
-                                        subtitle={ui.deviceOpenText || null}
-                                    />
-                                    <SubscriptionClientLinks
-                                        bundle={result.bundle}
-                                        compact
-                                        showHeading={false}
-                                        showImportMethods={false}
-                                        profileLabelOverrides={isUserOnly ? userProfileLabelOverrides : {}}
-                                    />
-                                </div>
-                            )}
-
                         {!isUserOnly && (
                             <div className="card subscription-guide-card">
                                 <SectionHeader
