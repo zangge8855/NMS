@@ -710,17 +710,6 @@ export default function Subscriptions() {
                                                                 dir="ltr"
                                                                 spellCheck={false}
                                                             />
-                                                            <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                                                                {statusCards.map((item) => (
-                                                                    <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
-                                                                        <div className="subscription-address-status-head">
-                                                                            <div className="subscription-address-status-label">{item.label}</div>
-                                                                            <div className="subscription-address-status-meta">{item.meta}</div>
-                                                                        </div>
-                                                                        <div className="subscription-address-status-value">{item.value}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
                                                             <div className="subscription-user-address-actions">
                                                                 <button
                                                                     className="btn btn-primary btn-sm subscription-user-copy-btn"
@@ -733,6 +722,17 @@ export default function Subscriptions() {
                                                                     <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
                                                                         {item.label}
                                                                     </a>
+                                                                ))}
+                                                            </div>
+                                                            <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                                {statusCards.map((item) => (
+                                                                    <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
+                                                                        <div className="subscription-address-status-head">
+                                                                            <div className="subscription-address-status-label">{item.label}</div>
+                                                                            <div className="subscription-address-status-meta">{item.meta}</div>
+                                                                        </div>
+                                                                        <div className="subscription-address-status-value">{item.value}</div>
+                                                                    </div>
                                                                 ))}
                                                             </div>
                                                             <div className="subscription-user-address-note">

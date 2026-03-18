@@ -12794,6 +12794,10 @@ input[type="radio"]:focus-visible {
   gap: 14px;
 }
 
+.subscriptions-page {
+  --subscription-address-measure: 406px;
+}
+
 .subscriptions-main-column,
 .subscriptions-side-column {
   min-width: 0;
@@ -13003,9 +13007,9 @@ input[type="radio"]:focus-visible {
 
 .subscription-address-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(110px, 142px));
-  gap: 6px;
-  justify-content: flex-start;
+  width: min(100%, var(--subscription-address-measure));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
   align-items: stretch;
 }
 
@@ -13013,10 +13017,10 @@ input[type="radio"]:focus-visible {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 4px;
-  min-height: 64px;
-  padding: 8px 10px;
+  justify-content: flex-start;
+  gap: 3px;
+  min-height: 54px;
+  padding: 7px 9px;
   border-radius: 12px;
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.04);
@@ -13046,19 +13050,19 @@ input[type="radio"]:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
 }
 
 .subscription-address-status-label {
-  font-size: 10px;
-  line-height: 1.25;
+  font-size: 9px;
+  line-height: 1.2;
   letter-spacing: 0.03em;
   color: var(--text-muted);
 }
 
 .subscription-address-status-meta {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   font-weight: 700;
   color: var(--text-secondary);
@@ -13066,8 +13070,8 @@ input[type="radio"]:focus-visible {
 
 .subscription-address-status-value {
   min-width: 0;
-  font-size: 12px;
-  line-height: 1.3;
+  font-size: 11px;
+  line-height: 1.25;
   font-weight: 700;
   color: var(--text-primary);
   overflow-wrap: anywhere;
@@ -13410,7 +13414,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-url-input {
-  width: min(100%, 560px);
+  width: min(100%, var(--subscription-address-measure));
   max-width: 100%;
   height: 38px;
   font-size: 11px;
@@ -13513,7 +13517,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-panel--link .subscription-url-input {
-  width: min(100%, 520px);
+  width: min(100%, var(--subscription-address-measure));
   max-width: none;
 }
 
