@@ -67,7 +67,7 @@ describe('AccountCenter', () => {
         await user.type(usernameInput, 'alice-next');
         await user.clear(emailInput);
         await user.type(emailInput, 'alice.next@example.com');
-        await user.click(screen.getByRole('button', { name: '保存账号' }));
+        await user.click(screen.getByRole('button', { name: '保存账户' }));
 
         expect(api.put).toHaveBeenCalledWith('/auth/profile', {
             username: 'alice-next',

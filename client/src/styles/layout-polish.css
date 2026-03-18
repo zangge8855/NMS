@@ -2408,6 +2408,21 @@
   max-width: 280px;
 }
 
+.settings-toggle-collection--telegram {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-toggle-collection--telegram > .settings-toggle-card {
+  min-width: 0;
+  max-width: none;
+}
+
+.settings-toggle-collection--telegram .settings-toggle-card--compact {
+  align-self: stretch;
+}
+
 .settings-toggle-card {
   position: relative;
   display: grid;
@@ -3520,6 +3535,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .settings-toggle-collection--telegram {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .settings-field-grid--invite-generate,
   .settings-backup-inspection-grid,
   .settings-invite-ledger-meta,
@@ -4045,6 +4064,10 @@
   .settings-toggle-strip,
   .settings-toggle-collection {
     width: 100%;
+  }
+
+  .settings-toggle-collection--telegram {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-toggle-strip > .settings-toggle-card,

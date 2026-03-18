@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -92,20 +92,31 @@ describe('Subscriptions', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        renderWithRouter(<Subscriptions />);
+        const { container } = renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        const mainColumn = container.querySelector('.subscriptions-main-column');
+        const sideColumn = container.querySelector('.subscriptions-side-column');
+        expect(mainColumn).not.toBeNull();
+        expect(sideColumn).not.toBeNull();
+        if (!mainColumn || !sideColumn) throw new Error('Subscription columns not rendered');
+        expect(container.querySelector('.subscription-user-address-kicker')).toBeNull();
+        expect(container.querySelector('.subscription-current-profile-card')).toBeNull();
+        expect(container.querySelector('.subscription-link-card-meta')).not.toBeNull();
+        expect(within(mainColumn).queryByText('软件下载')).not.toBeInTheDocument();
+        expect(within(sideColumn).getByText('软件下载')).toBeInTheDocument();
         expect(screen.getByText('选配置文件 -> 复制或导入')).toBeInTheDocument();
         expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'v2rayN / Shadowrocket' })).toBeInTheDocument();
         expect(screen.queryByText('通用链接')).not.toBeInTheDocument();
-        expect(screen.getAllByText('软件下载').length).toBeGreaterThan(0);
         expect(screen.getByText('适用软件')).toBeInTheDocument();
         expect(screen.getAllByText('v2rayN').length).toBeGreaterThan(0);
         expect(screen.queryByText('给 v2rayN / v2rayNG / Shadowrocket')).not.toBeInTheDocument();
         expect(screen.getByText('已用流量')).toBeInTheDocument();
         expect(screen.getByText('可用流量')).toBeInTheDocument();
         expect(screen.getByText('到期时间')).toBeInTheDocument();
+        expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '修改登录密码' })).not.toBeInTheDocument();
         expect(screen.queryByText('你的订阅地址')).not.toBeInTheDocument();
         expect(screen.queryByText('用户邮箱')).not.toBeInTheDocument();
         expect(screen.queryByText('节点合并订阅（自动生成并持久保留）')).not.toBeInTheDocument();
@@ -219,17 +230,27 @@ describe('Subscriptions', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        renderWithRouter(<Subscriptions />);
+        const { container } = renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        const mainColumn = container.querySelector('.subscriptions-main-column');
+        const sideColumn = container.querySelector('.subscriptions-side-column');
+        expect(mainColumn).not.toBeNull();
+        expect(sideColumn).not.toBeNull();
+        if (!mainColumn || !sideColumn) throw new Error('Subscription columns not rendered');
+        expect(container.querySelector('.subscription-user-address-kicker')).toBeNull();
+        expect(container.querySelector('.subscription-current-profile-card')).toBeNull();
+        expect(container.querySelector('.subscription-link-card-meta')).not.toBeNull();
+        expect(within(mainColumn).queryByText('软件下载')).not.toBeInTheDocument();
+        expect(within(sideColumn).getByText('软件下载')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toBeInTheDocument();
         expect(screen.getAllByText('当前用户').length).toBeGreaterThan(0);
         expect(screen.getAllByRole('link', { name: 'admin@example.com' }).length).toBeGreaterThan(0);
         expect(screen.getByText('查看范围: 全部节点 · 已匹配 0/0')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
-        expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(1);
-        expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(1);
+        expect((await screen.findAllByRole('link', { name: 'Shadowrocket' })).length).toBeGreaterThan(0);
+        expect((await screen.findAllByRole('link', { name: 'Surge' })).length).toBeGreaterThan(0);
         expect(screen.getByRole('button', { name: '通用链接' })).toBeInTheDocument();
         expect(screen.queryByText('v2rayN / Shadowrocket')).not.toBeInTheDocument();
         expect(screen.getAllByText('FlClash').length).toBeGreaterThan(0);
@@ -245,6 +266,8 @@ describe('Subscriptions', () => {
         expect(screen.getAllByText('FlClash / Sparkle').length).toBeGreaterThan(0);
         expect(screen.getAllByText('FlClash / CMFA').length).toBeGreaterThan(0);
         expect(await screen.findByText('converter.example.com')).toBeInTheDocument();
+        expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '修改登录密码' })).not.toBeInTheDocument();
         expect(screen.queryByText('更多客户端下载')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Clash / Mihomo' }));
@@ -402,9 +425,7 @@ describe('Subscriptions', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
-    it('allows users to change their own login password from the subscription center', async () => {
-        const user = userEvent.setup();
-
+    it('keeps account password controls out of the user subscription center', async () => {
         useAuth.mockReturnValue({
             user: {
                 role: 'user',
@@ -429,31 +450,17 @@ describe('Subscriptions', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        api.put.mockResolvedValue({
-            data: {
-                success: true,
-            },
-        });
-
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        await user.type(screen.getByLabelText('当前密码'), 'OldPass123!');
-        await user.type(screen.getByLabelText('新密码'), 'NewPass123!');
-        await user.type(screen.getByLabelText('确认新密码'), 'NewPass123!');
-        await user.click(screen.getByRole('button', { name: '修改登录密码' }));
-
-        await waitFor(() => {
-            expect(api.put).toHaveBeenCalledWith('/auth/change-password', {
-                oldPassword: 'OldPass123!',
-                newPassword: 'NewPass123!',
-            });
-        });
+        expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('新密码')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('确认新密码')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '修改登录密码' })).not.toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
     });
 
-    it('allows admins to change their own login password independently of the selected subscription user', async () => {
-        const user = userEvent.setup();
-
+    it('keeps account password controls out of the admin subscription center', async () => {
         useAuth.mockReturnValue({
             user: {
                 role: 'admin',
@@ -488,27 +495,14 @@ describe('Subscriptions', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        api.put.mockResolvedValue({
-            data: {
-                success: true,
-            },
-        });
-
         renderWithRouter(<Subscriptions />);
 
         await screen.findByDisplayValue('https://sub.example.com/base');
-        expect(screen.getByText('review-admin · 管理员')).toBeInTheDocument();
-
-        await user.type(screen.getByLabelText('当前密码'), 'AdminOld123!');
-        await user.type(screen.getByLabelText('新密码'), 'AdminNew123!');
-        await user.type(screen.getByLabelText('确认新密码'), 'AdminNew123!');
-        await user.click(screen.getByRole('button', { name: '修改登录密码' }));
-
-        await waitFor(() => {
-            expect(api.put).toHaveBeenCalledWith('/auth/change-password', {
-                oldPassword: 'AdminOld123!',
-                newPassword: 'AdminNew123!',
-            });
-        });
+        expect(screen.queryByText('review-admin · 管理员')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('当前密码')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('新密码')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('确认新密码')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '修改登录密码' })).not.toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
     });
 });

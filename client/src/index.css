@@ -12807,24 +12807,12 @@ input[type="radio"]:focus-visible {
 
 .subscription-primary-card,
 .subscription-token-card,
+.subscription-downloads-card,
 .subscription-guide-card,
 .subscription-summary-card,
-.subscription-qr-card,
-.subscription-password-card {
+.subscription-qr-card {
   overflow: hidden;
   border-radius: var(--radius-lg);
-}
-
-.subscription-password-submit-shell {
-  display: flex;
-  min-height: 100%;
-  align-items: flex-end;
-}
-
-.subscription-password-submit-btn {
-  width: 100%;
-  min-height: 40px;
-  justify-content: center;
 }
 
 .subscription-user-flow {
@@ -12922,10 +12910,6 @@ input[type="radio"]:focus-visible {
   padding-bottom: 0;
 }
 
-.subscription-user-panel--clients {
-  gap: 10px;
-}
-
 .subscription-user-import-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 188px;
@@ -12966,7 +12950,7 @@ input[type="radio"]:focus-visible {
 
 .subscription-user-address-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -12975,7 +12959,7 @@ input[type="radio"]:focus-visible {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .subscription-user-address-label {
@@ -12983,13 +12967,6 @@ input[type="radio"]:focus-visible {
   line-height: 1.35;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.subscription-user-address-kicker {
-  font-size: 15px;
-  line-height: 1.35;
-  font-weight: 700;
-  color: var(--accent-primary);
 }
 
 .subscription-user-address-actions {
@@ -13094,7 +13071,7 @@ input[type="radio"]:focus-visible {
 .subscription-user-address-foot {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--stroke-soft);
@@ -13110,25 +13087,23 @@ input[type="radio"]:focus-visible {
   display: flex;
   min-width: 0;
   flex: 1 1 240px;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.subscription-user-reset-inline-title {
-  display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  font-size: 12px;
-  line-height: 1.55;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
-.subscription-user-reset-inline-title svg {
+.subscription-user-reset-inline-icon {
   width: 15px;
   height: 15px;
   color: var(--accent-danger);
   flex: 0 0 auto;
+}
+
+.subscription-user-reset-inline-title {
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .subscription-user-reset-inline-text {
@@ -13333,29 +13308,13 @@ input[type="radio"]:focus-visible {
   justify-content: center;
 }
 
-.subscription-current-profile-card {
+.subscription-link-card-meta {
   display: grid;
-  gap: 4px;
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  background: rgba(99, 102, 241, 0.08);
-}
-
-.subscription-current-profile-label {
-  font-size: 11px;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.subscription-current-profile-value {
-  font-size: 18px;
-  line-height: 1.25;
-  font-weight: 700;
-  color: var(--text-primary);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  background: rgba(99, 102, 241, 0.06);
 }
 
 .subscription-current-profile-hint {
@@ -13371,8 +13330,9 @@ input[type="radio"]:focus-visible {
   padding-top: 6px;
 }
 
-.subscription-current-profile-tools--inline {
-  padding-top: 2px;
+.subscription-current-profile-tools--embedded {
+  padding-top: 0;
+  gap: 6px;
 }
 
 .subscription-current-profile-tools-label {
@@ -14563,14 +14523,9 @@ input[type="radio"]:focus-visible {
     font-size: 12px;
   }
 
-  .subscription-current-profile-card {
+  .subscription-link-card-meta {
     gap: 6px;
-    margin-bottom: 8px;
-    padding: 10px 12px;
-  }
-
-  .subscription-current-profile-value {
-    font-size: 16px;
+    padding: 9px 10px;
   }
 
   .subscription-admin-focus {
@@ -14642,10 +14597,6 @@ input[type="radio"]:focus-visible {
     gap: 8px;
   }
 
-  .subscription-user-address-kicker {
-    font-size: 14px;
-  }
-
   .subscription-url-input {
     height: 40px;
     font-size: 11px;
@@ -14668,6 +14619,7 @@ input[type="radio"]:focus-visible {
     padding-top: 8px;
   }
 
+  .subscription-user-reset-inline-copy,
   .subscription-user-reset-inline-title,
   .subscription-user-reset-inline-text {
     font-size: 12px;
@@ -14871,10 +14823,6 @@ input[type="radio"]:focus-visible {
   .subscription-link-card--user-focus,
   .subscription-link-card--import-focus {
     padding: 12px;
-  }
-
-  .subscription-user-address-kicker {
-    font-size: 13px;
   }
 
   .subscription-inline-qr--featured .subscription-inline-qr-surface svg {

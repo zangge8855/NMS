@@ -409,6 +409,8 @@ describe('SystemSettings', () => {
     });
 
     it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
+        const user = userEvent.setup();
+
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -421,6 +423,26 @@ describe('SystemSettings', () => {
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '展开台账' })).toBeInTheDocument();
+        expect(screen.queryByText('INV-ALPHA')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '展开台账' }));
+
+        expect(await screen.findByText('INV-ALPHA')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '收起台账' })).toBeInTheDocument();
+    });
+
+    it('keeps the status workspace focused on operational state without duplicating access settings', async () => {
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
+
+        expect(await screen.findByText('通知与巡检状态')).toBeInTheDocument();
+        expect(screen.getByText('数据库与备份状态')).toBeInTheDocument();
+        expect(screen.queryByText('对外访问与注册状态')).not.toBeInTheDocument();
     });
 
     it('keeps the monitor tab focused on actions and Telegram settings', async () => {
@@ -451,6 +473,8 @@ describe('SystemSettings', () => {
         expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
         expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
+        expect(screen.queryByText('节点控制台')).not.toBeInTheDocument();
+        expect(screen.queryByText('嵌入式节点控制台')).not.toBeInTheDocument();
     });
 
     it('keeps the backup tab focused on controls and backup actions', async () => {
@@ -467,7 +491,7 @@ describe('SystemSettings', () => {
         expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });
 
-    it('opens the embedded node console when the console tab is selected via query string', async () => {
+    it('maps the legacy console query tab back to the monitor workspace without rendering a console panel', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -475,8 +499,10 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=console' });
 
-        expect(await screen.findByRole('button', { name: '收起控制台' })).toBeInTheDocument();
-        expect(screen.getAllByText('节点控制台').length).toBeGreaterThan(0);
+        expect(await screen.findByText('运维动作')).toBeInTheDocument();
+        expect(screen.queryByText('节点控制台')).not.toBeInTheDocument();
+        expect(screen.queryByText('嵌入式节点控制台')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '收起控制台' })).not.toBeInTheDocument();
     });
 
     it('preserves a newly entered Telegram bot token when saving settings', async () => {
@@ -566,6 +592,7 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />);
 
         expect(await screen.findByText('邀请码台账')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: '展开台账' }));
         expect(screen.getByText('INV-ALPHA')).toBeInTheDocument();
         expect(screen.getByText('已用 2 / 5')).toBeInTheDocument();
         expect(screen.getAllByText(/alice/).length).toBeGreaterThan(0);

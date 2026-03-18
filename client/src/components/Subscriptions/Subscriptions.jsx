@@ -12,7 +12,6 @@ import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
@@ -107,11 +106,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             noQr: 'No QR code is available for this format.',
             noQuickImport: 'This config does not support one-tap import. Copy the address instead.',
             resetLink: 'Reset Subscription Link',
-            passwordTitle: 'Current Login Password',
-            currentPassword: 'Current Password',
-            newPassword: 'New Password',
-            confirmPassword: 'Confirm New Password',
-            changePassword: 'Change Login Password',
             copiedAddress: '{label} subscription address copied',
             selectedNode: 'Node {id}',
             currentNode: 'Current node ({id})',
@@ -189,11 +183,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         noQr: '当前格式暂无二维码',
         noQuickImport: '当前配置文件不支持一键导入，复制地址即可。',
         resetLink: '重置订阅链接',
-        passwordTitle: '当前登录账号密码',
-        currentPassword: '当前密码',
-        newPassword: '新密码',
-        confirmPassword: '确认新密码',
-        changePassword: '修改登录密码',
         copiedAddress: '{label} 订阅地址已复制',
         selectedNode: '节点 {id}',
         currentNode: '当前节点 ({id})',
@@ -311,10 +300,6 @@ export default function Subscriptions() {
     const [result, setResult] = useState(null);
     const [profileKey, setProfileKey] = useState('v2rayn');
     const [resetLoading, setResetLoading] = useState(false);
-    const [oldPassword, setOldPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordLoading, setPasswordLoading] = useState(false);
     const ui = useMemo(
         () => getSubscriptionCopy(locale, { userCount: users.length, nodeCount: Number(result?.total || 0) }),
         [locale, users.length, result?.total]
@@ -330,12 +315,15 @@ export default function Subscriptions() {
         () => (Array.isArray(activeProfile?.supportedClients) ? activeProfile.supportedClients : []),
         [activeProfile]
     );
+    const activeProfileSupportedClientsLabel = useMemo(
+        () => activeProfile?.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件'),
+        [activeProfile, locale]
+    );
     const activeProfileLabel = useMemo(
         () => (isUserOnly ? getUserFacingProfileLabel(activeProfile) : String(activeProfile?.label || '').trim()),
         [activeProfile, isUserOnly]
     );
-    const shouldShowUserProfileHint = activeProfileSupportedClients.length === 0
-        && !!String(activeProfile?.hint || '').trim();
+    const shouldShowProfileContext = activeProfileSupportedClients.length > 0;
     const availableProfiles = useMemo(
         () => (Array.isArray(result?.bundle?.availableProfiles) ? result.bundle.availableProfiles : []),
         [result]
@@ -366,7 +354,6 @@ export default function Subscriptions() {
         ? (locale === 'en-US' ? 'Manual input only' : '仅支持手动输入')
         : `${locale === 'en-US' ? 'User list' : '用户列表'} ${users.length}`;
     const toolbarScopeLabel = `${locale === 'en-US' ? 'Scope' : '范围'} · ${summaryScopeLabel}`;
-    const accountMeta = `${user?.username || '-'}${user?.role === 'admin' ? ` · ${ui.adminRole}` : ''}`;
     const usedTrafficBytes = Number(result?.usedTrafficBytes || 0);
     const trafficLimitBytes = Number(result?.trafficLimitBytes || 0);
     const remainingTrafficBytes = Number(result?.remainingTrafficBytes || 0);
@@ -410,6 +397,7 @@ export default function Subscriptions() {
             tone: expiryProgressState.tone,
         },
     ];
+    const shouldShowSideColumn = !isUserOnly || !!result;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -562,42 +550,6 @@ export default function Subscriptions() {
         setResetLoading(false);
     };
 
-    const handleChangePassword = async () => {
-        const currentPassword = String(oldPassword || '');
-        const nextPassword = String(newPassword || '');
-        const repeatedPassword = String(confirmPassword || '');
-
-        if (!currentPassword || !nextPassword || !repeatedPassword) {
-            toast.error(t('comp.subscriptions.fillAllPwdFields'));
-            return;
-        }
-        if (nextPassword !== repeatedPassword) {
-            toast.error(t('comp.subscriptions.passwordMismatch'));
-            return;
-        }
-
-        const passwordError = getPasswordPolicyError(nextPassword, locale);
-        if (passwordError) {
-            toast.error(passwordError);
-            return;
-        }
-
-        setPasswordLoading(true);
-        try {
-            await api.put('/auth/change-password', {
-                oldPassword: currentPassword,
-                newPassword: nextPassword,
-            });
-            setOldPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            toast.success(t('comp.subscriptions.passwordUpdated'));
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.passwordUpdateFailed'));
-        }
-        setPasswordLoading(false);
-    };
-
     return (
         <>
             <Header title={t('pages.subscriptions.title')} />
@@ -672,7 +624,7 @@ export default function Subscriptions() {
                     />
                 )}
 
-                <div className={`subscriptions-workbench${isUserOnly ? ' subscriptions-workbench--simple' : ''}`}>
+                <div className={`subscriptions-workbench${shouldShowSideColumn ? '' : ' subscriptions-workbench--simple'}`}>
                     <div className="subscriptions-main-column">
                         {!result ? (
                             <div className="card subscription-empty-card">
@@ -728,37 +680,33 @@ export default function Subscriptions() {
                                                         </button>
                                                     ))}
                                                 </div>
-                                                {activeProfile?.label && (shouldShowUserProfileHint || activeProfileSupportedClients.length > 0) && (
-                                                    <div className="subscription-current-profile-card">
-                                                        {activeProfileSupportedClients.length > 0 && (
-                                                            <div className="subscription-current-profile-tools">
-                                                                <span className="subscription-current-profile-tools-label">
-                                                                    {activeProfile.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件')}
-                                                                </span>
-                                                                <div className="subscription-current-profile-tools-list">
-                                                                    {activeProfileSupportedClients.map((client) => (
-                                                                        <span key={client} className="badge badge-neutral">{client}</span>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {shouldShowUserProfileHint && (
-                                                            <div className="subscription-current-profile-hint">{activeProfile.hint}</div>
-                                                        )}
-                                                    </div>
-                                                )}
                                                 <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr">
                                                     <div className="subscription-user-address-grid">
                                                         <div className="subscription-user-address-main">
                                                             <div className="subscription-user-address-head">
                                                                 <div className="subscription-user-address-copy">
                                                                     <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
-                                                                    <div className="subscription-user-address-kicker">{activeProfileLabel || ui.currentProfileFallback}</div>
                                                                 </div>
                                                                 <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
                                                                     {result.subscriptionActive ? ui.available : ui.unavailable}
                                                                 </span>
                                                             </div>
+                                                            {shouldShowProfileContext && (
+                                                                <div className="subscription-link-card-meta">
+                                                                    {activeProfileSupportedClients.length > 0 && (
+                                                                        <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                                                            <span className="subscription-current-profile-tools-label">
+                                                                                {activeProfileSupportedClientsLabel}
+                                                                            </span>
+                                                                    <div className="subscription-current-profile-tools-list">
+                                                                                {activeProfileSupportedClients.map((client) => (
+                                                                                    <span key={client} className="badge badge-neutral">{client}</span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                             <input
                                                                 className="form-input font-mono text-xs subscription-url-input"
                                                                 value={activeProfile?.url || ''}
@@ -828,30 +776,12 @@ export default function Subscriptions() {
                                                             {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
                                                         </button>
                                                         <div className="subscription-user-reset-inline-copy">
-                                                            <div className="subscription-user-reset-inline-title">
-                                                                <HiOutlineExclamationTriangle />
-                                                                <span>{ui.resetRiskTitle}</span>
-                                                            </div>
-                                                            <div className="subscription-user-reset-inline-text">{ui.resetRiskText}</div>
+                                                            <HiOutlineExclamationTriangle className="subscription-user-reset-inline-icon" />
+                                                            <span className="subscription-user-reset-inline-title">{ui.resetRiskTitle}</span>
+                                                            <span className="subscription-user-reset-inline-text">{ui.resetRiskText}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-
-                                            <div className="subscription-user-panel subscription-user-panel--clients">
-                                                <div className="subscription-user-panel-head">
-                                                    <div className="subscription-user-panel-title">{ui.deviceOpenTitle}</div>
-                                                    {ui.deviceOpenText && (
-                                                        <div className="subscription-user-panel-text">{ui.deviceOpenText}</div>
-                                                    )}
-                                                </div>
-                                                <SubscriptionClientLinks
-                                                    bundle={result.bundle}
-                                                    compact
-                                                    showHeading={false}
-                                                    showImportMethods={false}
-                                                    profileLabelOverrides={userProfileLabelOverrides}
-                                                />
                                             </div>
                                         </div>
                                     ) : (
@@ -907,19 +837,6 @@ export default function Subscriptions() {
                                                 ))}
                                             </div>
                                             <div className="subscription-profile-notes">
-                                                <div className="text-xs text-muted">{activeProfile?.hint || ui.currentProfileFallback}</div>
-                                                {Array.isArray(activeProfile?.supportedClients) && activeProfile.supportedClients.length > 0 && (
-                                                    <div className="subscription-current-profile-tools subscription-current-profile-tools--inline">
-                                                        <span className="subscription-current-profile-tools-label">
-                                                            {activeProfile.supportedClientsLabel || (locale === 'en-US' ? 'Compatible Clients' : '适用软件')}
-                                                        </span>
-                                                        <div className="subscription-current-profile-tools-list">
-                                                            {activeProfile.supportedClients.map((client) => (
-                                                                <span key={client} className="badge badge-neutral">{client}</span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
                                                 <div className="text-xs text-muted">{ui.manualImportHint}</div>
                                                 {isAdmin && result.bundle?.externalConverterConfigured && (
                                                     <div className="text-xs text-muted">
@@ -944,12 +861,27 @@ export default function Subscriptions() {
                                                         <div className="subscription-user-address-head">
                                                             <div className="subscription-user-address-copy">
                                                                 <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
-                                                                <div className="subscription-user-address-kicker">{activeProfile?.label || ui.currentProfileFallback}</div>
                                                             </div>
                                                             <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
                                                                 {result.subscriptionActive ? ui.available : ui.unavailable}
                                                             </span>
                                                         </div>
+                                                    {shouldShowProfileContext && (
+                                                        <div className="subscription-link-card-meta">
+                                                            {activeProfileSupportedClients.length > 0 && (
+                                                                <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                                                    <span className="subscription-current-profile-tools-label">
+                                                                        {activeProfileSupportedClientsLabel}
+                                                                    </span>
+                                                                    <div className="subscription-current-profile-tools-list">
+                                                                        {activeProfileSupportedClients.map((client) => (
+                                                                            <span key={client} className="badge badge-neutral">{client}</span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <div className="subscription-link-grid">
                                                         <input
                                                             className="form-input font-mono text-xs subscription-url-input"
@@ -1017,7 +949,6 @@ export default function Subscriptions() {
                                             <div className="subscription-inline-tip">
                                                 {ui.simpleReminder}
                                             </div>
-                                            <SubscriptionClientLinks bundle={result.bundle} />
                                         </>
                                     )}
                                 </div>
@@ -1025,7 +956,25 @@ export default function Subscriptions() {
                         )}
                     </div>
 
-                    <div className="subscriptions-side-column">
+                    {shouldShowSideColumn && (
+                        <div className="subscriptions-side-column">
+                            {result && (
+                                <div className="card subscription-downloads-card">
+                                    <SectionHeader
+                                        className="card-header section-header section-header--compact"
+                                        title={ui.deviceOpenTitle}
+                                        subtitle={ui.deviceOpenText || null}
+                                    />
+                                    <SubscriptionClientLinks
+                                        bundle={result.bundle}
+                                        compact
+                                        showHeading={false}
+                                        showImportMethods={false}
+                                        profileLabelOverrides={isUserOnly ? userProfileLabelOverrides : {}}
+                                    />
+                                </div>
+                            )}
+
                         {!isUserOnly && (
                             <div className="card subscription-guide-card">
                                 <SectionHeader
@@ -1100,64 +1049,8 @@ export default function Subscriptions() {
 
                             </>
                         )}
-
-                        <div className="card subscription-password-card">
-                            <SectionHeader
-                                className="card-header section-header section-header--compact"
-                                title={ui.passwordTitle}
-                                meta={(
-                                    <span className="text-xs text-muted">
-                                        {accountMeta}
-                                    </span>
-                                )}
-                            />
-                            <div className="grid grid-auto-220 gap-3 items-end">
-                                <div className="form-group mb-0">
-                                    <label className="form-label">{ui.currentPassword}</label>
-                                    <input
-                                        type="password"
-                                        className="form-input"
-                                        aria-label={ui.currentPassword}
-                                        value={oldPassword}
-                                        onChange={(e) => setOldPassword(e.target.value)}
-                                        autoComplete="current-password"
-                                    />
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">{ui.newPassword}</label>
-                                    <input
-                                        type="password"
-                                        className="form-input"
-                                        aria-label={ui.newPassword}
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        autoComplete="new-password"
-                                    />
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">{ui.confirmPassword}</label>
-                                    <input
-                                        type="password"
-                                        className="form-input"
-                                        aria-label={ui.confirmPassword}
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        autoComplete="new-password"
-                                    />
-                                </div>
-                                <div className="subscription-password-submit-shell">
-                                    <button
-                                        className="btn btn-primary btn-sm subscription-password-submit-btn"
-                                        onClick={handleChangePassword}
-                                        disabled={passwordLoading || !oldPassword || !newPassword || !confirmPassword}
-                                    >
-                                        {passwordLoading ? <span className="spinner" /> : ui.changePassword}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="text-xs text-muted mt-3">{getPasswordPolicyHint(locale)}</div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </>

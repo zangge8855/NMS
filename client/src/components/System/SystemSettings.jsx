@@ -13,7 +13,6 @@ import {
     HiOutlineChartBarSquare,
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
-    HiOutlineCommandLine,
     HiOutlineExclamationTriangle,
     HiOutlineServerStack,
     HiOutlineShieldCheck,
@@ -23,7 +22,6 @@ import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
-import ServerManagement from '../Server/Server.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -214,14 +212,7 @@ const SETTINGS_TAB_CONFIG = [
         label: '运维监控',
         icon: HiOutlineServerStack,
         eyebrow: 'Ops',
-        summary: '诊断、控制台、巡检',
-    },
-    {
-        id: 'console',
-        label: '节点控制台',
-        icon: HiOutlineCommandLine,
-        eyebrow: 'Console',
-        summary: '远程节点操作',
+        summary: '通知、诊断、巡检',
     },
 ];
 
@@ -260,6 +251,7 @@ const SETTINGS_WORKSPACE_CONFIG = [
 
 function resolveSettingsTab(value) {
     if (value === 'basic') return 'access';
+    if (value === 'console') return 'monitor';
     return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
 }
 
@@ -268,7 +260,7 @@ function resolveWorkspaceSection(value) {
     if (normalized === 'status') return 'status';
     if (normalized === 'policy') return 'policy';
     if (normalized === 'db' || normalized === 'backup') return 'backup';
-    if (normalized === 'monitor' || normalized === 'console') return 'operations';
+    if (normalized === 'monitor') return 'operations';
     return 'access';
 }
 
@@ -495,7 +487,7 @@ export default function SystemSettings() {
         usageLimit: 1,
         subscriptionDays: 30,
     });
-    const [consoleExpanded, setConsoleExpanded] = useState(() => requestedView === 'console');
+    const [inviteLedgerExpanded, setInviteLedgerExpanded] = useState(false);
     const lazyLoadRef = useRef({
         settings: false,
         dbStatus: false,
@@ -858,10 +850,11 @@ export default function SystemSettings() {
     }, [activeWorkspaceSectionId, isAdmin]);
 
     useEffect(() => {
-        if (requestedView === 'console') {
-            setConsoleExpanded(true);
-        }
-    }, [requestedView]);
+        if (searchParams.get('tab') !== 'console') return;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('tab', 'monitor');
+        setSearchParams(nextParams, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     useEffect(() => {
         if (!noticeModalOpen) return undefined;
@@ -1808,82 +1801,105 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster-head">
                                 <div className="settings-form-cluster-eyebrow">邀请码台账</div>
                                 <div className="settings-form-cluster-title">台账与使用记录</div>
+                                <div className="settings-form-cluster-note">
+                                    活动 {inviteActiveCount} 个 · 剩余 {inviteRemainingUses} 次 · 默认折叠避免挤占设置区。
+                                </div>
                             </div>
                             {inviteCodesLoading ? (
                                 <div className="text-sm text-muted">正在加载邀请码列表...</div>
                             ) : inviteRecords.length === 0 ? (
                                 <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
                             ) : (
-                                <div className="settings-invite-ledger">
-                                    {inviteRecords.map((item) => {
-                                        const statusMeta = getInviteStatusMeta(item);
-                                        const usageLimit = Math.max(1, Number(item.usageLimit || 1));
-                                        const usedCount = Math.max(0, Number(item.usedCount || 0));
-                                        const remainingUses = Math.max(0, Number(item.remainingUses || 0));
-                                        const progressWidth = `${Math.min(100, Math.round((usedCount / usageLimit) * 100))}%`;
-                                        const actionBusy = inviteCodeActionKey === `revoke:${item.id}`;
-
-                                        return (
-                                            <div key={item.id} className="settings-invite-ledger-item">
-                                                <div className="settings-invite-ledger-top">
-                                                    <div className="settings-invite-ledger-title-block">
-                                                        <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
-                                                        <div className="settings-invite-ledger-subtitle">
-                                                            创建于 {formatDateTime(item.createdAt, locale)}
-                                                            {item.createdBy ? ` · 创建者 ${item.createdBy}` : ''}
-                                                        </div>
-                                                    </div>
-                                                    <span className={`badge ${statusMeta.className}`}>{statusMeta.label}</span>
-                                                </div>
-                                                <div className="settings-invite-ledger-usage">
-                                                    <div className="settings-invite-ledger-usage-head">
-                                                        <span>已用 {usedCount} / {usageLimit}</span>
-                                                        <span>剩余 {remainingUses} 次</span>
-                                                    </div>
-                                                    <div className="settings-invite-ledger-progress" aria-hidden="true">
-                                                        <span className="settings-invite-ledger-progress-bar" style={{ width: progressWidth }} />
-                                                    </div>
-                                                </div>
-                                                <div className="settings-invite-ledger-meta">
-                                                    <div className="settings-invite-ledger-meta-item">
-                                                        <span className="settings-invite-ledger-meta-label">开通时长</span>
-                                                        <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
-                                                    </div>
-                                                    <div className="settings-invite-ledger-meta-item">
-                                                        <span className="settings-invite-ledger-meta-label">最近使用</span>
-                                                        <span className="settings-invite-ledger-meta-value">
-                                                            {item.usedAt
-                                                                ? `${formatDateTime(item.usedAt, locale)}${item.usedByUsername ? ` · ${item.usedByUsername}` : ''}`
-                                                                : '未使用'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="settings-invite-ledger-meta-item">
-                                                        <span className="settings-invite-ledger-meta-label">状态说明</span>
-                                                        <span className="settings-invite-ledger-meta-value">
-                                                            {item.status === 'revoked'
-                                                                ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
-                                                                : item.status === 'used'
-                                                                    ? '已达到使用上限'
-                                                                    : '仍可继续发放'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                {item.status === 'active' ? (
-                                                    <div className="settings-invite-ledger-actions">
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-ghost btn-sm"
-                                                            onClick={() => revokeInviteCode(item)}
-                                                            disabled={inviteCodeActionLoading}
-                                                        >
-                                                            {actionBusy ? <span className="spinner" /> : '撤销邀请码'}
-                                                        </button>
-                                                    </div>
-                                                ) : null}
+                                <>
+                                    <div className="settings-inline-action-strip">
+                                        <div className="settings-inline-action-copy">
+                                            <div className="settings-inline-action-title">共 {inviteRecords.length} 条邀请码记录</div>
+                                            <div className="settings-inline-action-note">
+                                                {inviteLedgerExpanded ? '已展开完整台账，可直接查看使用记录。' : '需要排查或复核时再展开完整台账。'}
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setInviteLedgerExpanded((prev) => !prev)}
+                                            aria-expanded={inviteLedgerExpanded}
+                                        >
+                                            {inviteLedgerExpanded ? '收起台账' : '展开台账'}
+                                        </button>
+                                    </div>
+                                    {inviteLedgerExpanded ? (
+                                        <div className="settings-invite-ledger">
+                                            {inviteRecords.map((item) => {
+                                                const statusMeta = getInviteStatusMeta(item);
+                                                const usageLimit = Math.max(1, Number(item.usageLimit || 1));
+                                                const usedCount = Math.max(0, Number(item.usedCount || 0));
+                                                const remainingUses = Math.max(0, Number(item.remainingUses || 0));
+                                                const progressWidth = `${Math.min(100, Math.round((usedCount / usageLimit) * 100))}%`;
+                                                const actionBusy = inviteCodeActionKey === `revoke:${item.id}`;
+
+                                                return (
+                                                    <div key={item.id} className="settings-invite-ledger-item">
+                                                        <div className="settings-invite-ledger-top">
+                                                            <div className="settings-invite-ledger-title-block">
+                                                                <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
+                                                                <div className="settings-invite-ledger-subtitle">
+                                                                    创建于 {formatDateTime(item.createdAt, locale)}
+                                                                    {item.createdBy ? ` · 创建者 ${item.createdBy}` : ''}
+                                                                </div>
+                                                            </div>
+                                                            <span className={`badge ${statusMeta.className}`}>{statusMeta.label}</span>
+                                                        </div>
+                                                        <div className="settings-invite-ledger-usage">
+                                                            <div className="settings-invite-ledger-usage-head">
+                                                                <span>已用 {usedCount} / {usageLimit}</span>
+                                                                <span>剩余 {remainingUses} 次</span>
+                                                            </div>
+                                                            <div className="settings-invite-ledger-progress" aria-hidden="true">
+                                                                <span className="settings-invite-ledger-progress-bar" style={{ width: progressWidth }} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="settings-invite-ledger-meta">
+                                                            <div className="settings-invite-ledger-meta-item">
+                                                                <span className="settings-invite-ledger-meta-label">开通时长</span>
+                                                                <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
+                                                            </div>
+                                                            <div className="settings-invite-ledger-meta-item">
+                                                                <span className="settings-invite-ledger-meta-label">最近使用</span>
+                                                                <span className="settings-invite-ledger-meta-value">
+                                                                    {item.usedAt
+                                                                        ? `${formatDateTime(item.usedAt, locale)}${item.usedByUsername ? ` · ${item.usedByUsername}` : ''}`
+                                                                        : '未使用'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="settings-invite-ledger-meta-item">
+                                                                <span className="settings-invite-ledger-meta-label">状态说明</span>
+                                                                <span className="settings-invite-ledger-meta-value">
+                                                                    {item.status === 'revoked'
+                                                                        ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
+                                                                        : item.status === 'used'
+                                                                            ? '已达到使用上限'
+                                                                            : '仍可继续发放'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {item.status === 'active' ? (
+                                                            <div className="settings-invite-ledger-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-ghost btn-sm"
+                                                                    onClick={() => revokeInviteCode(item)}
+                                                                    disabled={inviteCodeActionLoading}
+                                                                >
+                                                                    {actionBusy ? <span className="spinner" /> : '撤销邀请码'}
+                                                                </button>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : null}
+                                </>
                             )}
                         </div>
                     </div>
@@ -2526,42 +2542,7 @@ export default function SystemSettings() {
                 );})}
             </div>
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-4">
-                    <SectionHeader className="mb-3" compact title="对外访问与注册状态" />
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">访问地址</span>
-                            <span className="settings-monitor-log-value">{siteEntryPreview}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">首页伪装</span>
-                            <span className="settings-monitor-log-value">
-                                {draft.site.camouflageEnabled
-                                    ? `${draft.site.camouflageTemplate || 'corporate'} · ${draft.site.camouflageTitle || '未命名'}`
-                                    : '已关闭'}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">订阅公网</span>
-                            <span className="settings-monitor-log-value">{draft.subscription.publicBaseUrl || '未配置'}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">外部转换器</span>
-                            <span className="settings-monitor-log-value">{converterBaseUrl || '未配置'}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">注册模式</span>
-                            <span className="settings-monitor-log-value">
-                                {registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册'}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">邀请码库存</span>
-                            <span className="settings-monitor-log-value">活动 {inviteActiveCount} 个 · 剩余 {inviteRemainingUses} 次</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="card p-4 settings-panel settings-panel--span-4">
+                <div className="card p-4 settings-panel settings-panel--span-6">
                     <SectionHeader className="mb-3" compact title="通知与巡检状态" />
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
@@ -2601,7 +2582,7 @@ export default function SystemSettings() {
                         </div>
                     </div>
                 </div>
-                <div className="card p-4 settings-panel settings-panel--span-4">
+                <div className="card p-4 settings-panel settings-panel--span-6">
                     <SectionHeader className="mb-3" compact title="数据库与备份状态" />
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
@@ -2661,38 +2642,6 @@ export default function SystemSettings() {
     const renderOperationsWorkspace = () => (
         <div className="settings-section-stack">
             {renderMonitorContent()}
-            <div className="card p-4 settings-panel settings-panel--wide">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="节点控制台"
-                    actions={(
-                        <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                                const next = !consoleExpanded;
-                                setConsoleExpanded(next);
-                                setRequestedView(next ? 'console' : DEFAULT_SETTINGS_TAB);
-                            }}
-                        >
-                            {consoleExpanded ? '收起控制台' : '打开节点控制台'}
-                        </button>
-                    )}
-                />
-                {consoleExpanded ? (
-                    <div className="settings-console-host settings-console-host--inline">
-                        <ServerManagement embedded />
-                    </div>
-                ) : (
-                    <div className="card p-3 settings-mini-card settings-detail-card settings-console-placeholder">
-                        <div className="text-sm font-medium">嵌入式节点控制台</div>
-                        <div className="text-xs text-muted mt-1">
-                            需要查看面板状态、执行备份或处理 geofile 时，可在这里直接展开节点控制台。
-                        </div>
-                    </div>
-                )}
-            </div>
         </div>
     );
 
@@ -2755,7 +2704,7 @@ export default function SystemSettings() {
         {
             id: 'operations',
             title: '运维通知',
-            navSummary: '通知 / Telegram / 控制台',
+            navSummary: '运维动作 / Telegram',
             content: renderOperationsWorkspace(),
             heroMode: 'hidden',
         },
@@ -2884,7 +2833,6 @@ export default function SystemSettings() {
                                     </div>
                                     <span className="settings-save-dock-summary">{saveDockSummary}</span>
                                     {hasPendingChanges ? <span className="badge badge-warning">{dirtyWorkspaceLabels.join(' / ')}</span> : null}
-                                    {requestedView === 'console' ? <span className="badge badge-success">兼容旧控制台入口</span> : null}
                                 </div>
                                 <div className="settings-save-dock-actions">
                                     {hasPendingChanges ? (

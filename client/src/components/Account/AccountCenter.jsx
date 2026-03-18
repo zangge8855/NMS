@@ -38,8 +38,8 @@ function getAccountCopy(locale = 'zh-CN') {
     }
 
     return {
-        title: '账号',
-        profileTitle: '账号信息',
+        title: '账户',
+        profileTitle: '账户信息',
         passwordTitle: '登录密码',
         username: '用户名',
         role: '角色',
@@ -48,10 +48,10 @@ function getAccountCopy(locale = 'zh-CN') {
         unverified: '未验证',
         userRole: '用户',
         adminRole: '管理员',
-        saveProfile: '保存账号',
+        saveProfile: '保存账户',
         savingProfile: '正在保存',
-        profileSaved: '账号信息已更新',
-        profileSaveFailed: '更新账号信息失败',
+        profileSaved: '账户信息已更新',
+        profileSaveFailed: '更新账户信息失败',
         usernameRequired: '用户名不能为空',
         emailInvalid: '邮箱格式不正确',
         currentPassword: '当前密码',
