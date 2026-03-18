@@ -360,17 +360,24 @@ function SettingsToggleCard({
     description,
     activeLabel = '已开启',
     inactiveLabel = '已关闭',
+    compact = false,
 }) {
+    const detailText = compact
+        ? [checked ? activeLabel : inactiveLabel, description].filter(Boolean).join(' · ')
+        : description;
+
     return (
-        <label className={`settings-toggle-card${checked ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}>
+        <label className={`settings-toggle-card${compact ? ' settings-toggle-card--compact' : ''}${checked ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}>
             <div className="settings-toggle-copy">
                 <div className="settings-toggle-label">{label}</div>
-                {description ? <div className="settings-toggle-description">{description}</div> : null}
+                {detailText ? <div className={`settings-toggle-description${compact ? ' is-visible' : ''}`}>{detailText}</div> : null}
             </div>
             <div className="settings-toggle-side">
-                <span className={`badge settings-toggle-badge ${checked ? 'badge-success' : 'badge-neutral'}`}>
-                    {checked ? activeLabel : inactiveLabel}
-                </span>
+                {!compact ? (
+                    <span className={`badge settings-toggle-badge ${checked ? 'badge-success' : 'badge-neutral'}`}>
+                        {checked ? activeLabel : inactiveLabel}
+                    </span>
+                ) : null}
                 <input
                     type="checkbox"
                     className="settings-toggle-input"
@@ -1760,14 +1767,17 @@ export default function SystemSettings() {
                                         />
                                     </div>
                                 </div>
-                                <SettingsToggleCard
-                                    checked={draft.site.camouflageEnabled}
-                                    onChange={(e) => handleCamouflageToggle(e.target.checked)}
-                                    label="站点伪装首页"
-                                    description="开启后，首页和错误路径展示公开首页；只有真实入口路径会进入 NMS。"
-                                    activeLabel="已开启"
-                                    inactiveLabel="已关闭"
-                                />
+                                <div className="settings-toggle-strip">
+                                    <SettingsToggleCard
+                                        compact
+                                        checked={draft.site.camouflageEnabled}
+                                        onChange={(e) => handleCamouflageToggle(e.target.checked)}
+                                        label="站点伪装首页"
+                                        description="开启后首页和错误路径展示公开首页。"
+                                        activeLabel="已开启"
+                                        inactiveLabel="已关闭"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="settings-access-stack">
@@ -1867,17 +1877,20 @@ export default function SystemSettings() {
                                 <div className="settings-form-cluster-eyebrow">注册模式</div>
                                 <div className="settings-form-cluster-title">注册方式与邀请码</div>
                             </div>
-                            <SettingsToggleCard
-                                checked={draft.registration.inviteOnlyEnabled}
-                                onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                                disabled={!registrationEnabled}
-                                label="开启邀请注册"
-                                description={registrationEnabled
-                                    ? '开启后注册需填写邀请码。'
-                                    : '当前环境已关闭自助注册。'}
-                                activeLabel="邀请模式"
-                                inactiveLabel="普通模式"
-                            />
+                            <div className="settings-toggle-strip">
+                                <SettingsToggleCard
+                                    compact
+                                    checked={draft.registration.inviteOnlyEnabled}
+                                    onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                                    disabled={!registrationEnabled}
+                                    label="开启邀请注册"
+                                    description={registrationEnabled
+                                        ? '开启后注册需填写邀请码。'
+                                        : '当前环境已关闭自助注册。'}
+                                    activeLabel="邀请模式"
+                                    inactiveLabel="普通模式"
+                                />
+                            </div>
                             <div className="settings-mini-grid settings-mini-grid--metrics settings-mini-grid--invite">
                                 <div className="card p-3 settings-mini-card">
                                     <div className="text-sm text-muted">活动邀请码</div>
@@ -2091,12 +2104,15 @@ export default function SystemSettings() {
                         title="风控与审计"
                     />
                     <div className="form-group settings-checkbox-row">
-                        <SettingsToggleCard
-                            checked={draft.security.requireHighRiskConfirmation}
-                            onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                            label="高风险操作二次确认"
-                            description="达到高风险阈值后执行前必须再次确认。"
-                        />
+                        <div className="settings-toggle-strip">
+                            <SettingsToggleCard
+                                compact
+                                checked={draft.security.requireHighRiskConfirmation}
+                                onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                                label="高风险操作二次确认"
+                                description="达到高风险阈值后执行前必须再次确认。"
+                            />
+                        </div>
                     </div>
                     <div className="settings-field-grid settings-field-grid--compact">
                         <div className="form-group">
@@ -2135,12 +2151,15 @@ export default function SystemSettings() {
                         title="IP 归属地 / 运营商"
                     />
                     <div className="form-group settings-checkbox-row">
-                        <SettingsToggleCard
-                            checked={draft.auditIpGeo.enabled}
-                            onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                            label="归属地查询"
-                            description="为订阅访问和安全事件补充地区与运营商。"
-                        />
+                        <div className="settings-toggle-strip">
+                            <SettingsToggleCard
+                                compact
+                                checked={draft.auditIpGeo.enabled}
+                                onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                                label="归属地查询"
+                                description="为订阅访问和安全事件补充地区与运营商。"
+                            />
+                        </div>
                     </div>
                     <div className="settings-basic-note-list">
                         <span className={`badge ${draft.auditIpGeo.enabled ? 'badge-success' : 'badge-neutral'}`}>
@@ -2399,8 +2418,9 @@ export default function SystemSettings() {
                         <div className="text-xs text-muted mt-1">单位：小时，填 0 关闭定时报。</div>
                     </div>
                 </div>
-                <div className="settings-field-grid settings-field-grid--compact mt-3">
+                <div className="settings-toggle-collection settings-toggle-collection--telegram mt-3">
                     <SettingsToggleCard
+                        compact
                         checked={draft.telegram.enabled}
                         onChange={(event) => patchField('telegram', 'enabled', event.target.checked)}
                         label="启用 Telegram 告警"
@@ -2409,6 +2429,7 @@ export default function SystemSettings() {
                         inactiveLabel="未启用"
                     />
                     <SettingsToggleCard
+                        compact
                         checked={draft.telegram.commandMenuEnabled}
                         onChange={(event) => patchField('telegram', 'commandMenuEnabled', event.target.checked)}
                         label="Telegram 命令菜单"
@@ -2417,6 +2438,7 @@ export default function SystemSettings() {
                         inactiveLabel="隐藏"
                     />
                     <SettingsToggleCard
+                        compact
                         checked={draft.telegram.sendSystemStatus}
                         onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
                         label="系统状态"
@@ -2425,6 +2447,7 @@ export default function SystemSettings() {
                         inactiveLabel="不推送"
                     />
                     <SettingsToggleCard
+                        compact
                         checked={draft.telegram.sendSecurityAudit}
                         onChange={(event) => patchField('telegram', 'sendSecurityAudit', event.target.checked)}
                         label="审计告警"
@@ -2433,6 +2456,7 @@ export default function SystemSettings() {
                         inactiveLabel="不推送"
                     />
                     <SettingsToggleCard
+                        compact
                         checked={draft.telegram.sendEmergencyAlerts}
                         onChange={(event) => patchField('telegram', 'sendEmergencyAlerts', event.target.checked)}
                         label="紧急告警"

@@ -2345,7 +2345,28 @@
 
 .settings-checkbox-row {
   display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.settings-toggle-strip,
+.settings-toggle-collection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
   align-items: stretch;
+  min-width: 0;
+}
+
+.settings-toggle-strip > .settings-toggle-card {
+  flex: 0 1 420px;
+  max-width: min(100%, 460px);
+}
+
+.settings-toggle-collection > .settings-toggle-card {
+  flex: 1 1 240px;
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .settings-toggle-card {
@@ -2361,6 +2382,10 @@
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.settings-toggle-card--compact {
+  align-self: flex-start;
 }
 
 .settings-toggle-card:hover,
@@ -2386,6 +2411,10 @@
   min-width: 0;
 }
 
+.settings-toggle-card--compact .settings-toggle-copy {
+  gap: 3px;
+}
+
 .settings-toggle-label {
   color: var(--text-primary);
   font-size: 13px;
@@ -2395,6 +2424,14 @@
 
 .settings-toggle-description {
   display: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.settings-toggle-description.is-visible {
+  display: block;
 }
 
 .settings-sensitive-field {
@@ -2425,6 +2462,10 @@
   gap: 8px;
   flex-shrink: 0;
   position: relative;
+}
+
+.settings-toggle-card--compact .settings-toggle-side {
+  margin-left: auto;
 }
 
 .settings-toggle-badge {
@@ -3954,6 +3995,19 @@
 
   .settings-monitor-toolbar-actions .btn {
     width: 100%;
+  }
+
+  .settings-toggle-strip,
+  .settings-toggle-collection {
+    width: 100%;
+  }
+
+  .settings-toggle-strip > .settings-toggle-card,
+  .settings-toggle-collection > .settings-toggle-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex-basis: 100%;
   }
 
   .settings-notice-preview-panel {
