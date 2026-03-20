@@ -1253,20 +1253,12 @@ export default function AuditCenter() {
                             </div>
 
                             {eventsLoading ? (
-                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
-                                    <table className="table audit-events-table">
-                                        <tbody>
-                                            <tr><td colSpan={7}><SkeletonTable rows={5} cols={7} /></td></tr>
-                                        </tbody>
-                                    </table>
+                                <div className="glass-panel mb-4 audit-table-shell audit-events-table-shell p-4">
+                                    <SkeletonTable rows={5} cols={7} />
                                 </div>
                             ) : eventsData.items.length === 0 ? (
-                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
-                                    <table className="table audit-events-table">
-                                        <tbody>
-                                            <tr><td colSpan={7}><EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} /></td></tr>
-                                        </tbody>
-                                    </table>
+                                <div className="glass-panel mb-4 audit-table-shell audit-events-table-shell p-4">
+                                    <EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} />
                                 </div>
                             ) : isCompactLayout ? (
                                 <AuditEventsMobileList
@@ -1501,21 +1493,25 @@ export default function AuditCenter() {
                                 {trafficOverview?.userLevelSupported === false && (
                                     <div className="text-xs text-muted mb-2">{copy.traffic.userLevelNoCounts}</div>
                                 )}
-                                <div className="table-container audit-nested-table-shell">
-                                    <table className="table">
-                                        <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
-                                        <tbody>
-                                            {topUsers.length === 0 ? (
-                                                <tr><td colSpan={2} className="text-center">{copy.states.noData}</td></tr>
-                                            ) : topUsers.map((item) => (
-                                                <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
-                                                    <td data-label={copy.tables.user}>{formatTrafficUserLabel(item)}</td>
-                                                    <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {topUsers.length === 0 ? (
+                                    <div className="p-4">
+                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
+                                    </div>
+                                ) : (
+                                    <div className="table-container audit-nested-table-shell">
+                                        <table className="table">
+                                            <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
+                                            <tbody>
+                                                {topUsers.map((item) => (
+                                                    <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
+                                                        <td data-label={copy.tables.user}>{formatTrafficUserLabel(item)}</td>
+                                                        <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
@@ -1523,21 +1519,25 @@ export default function AuditCenter() {
                                     title={copy.traffic.topServers}
                                     subtitle={copy.traffic.topServersScope}
                                 />
-                                <div className="table-container audit-nested-table-shell">
-                                    <table className="table">
-                                        <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
-                                        <tbody>
-                                            {topServers.length === 0 ? (
-                                                <tr><td colSpan={2} className="text-center">{copy.states.noData}</td></tr>
-                                            ) : topServers.map((item) => (
-                                                <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
-                                                    <td data-label={copy.tables.node}>{item.serverName}</td>
-                                                    <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {topServers.length === 0 ? (
+                                    <div className="p-4">
+                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
+                                    </div>
+                                ) : (
+                                    <div className="table-container audit-nested-table-shell">
+                                        <table className="table">
+                                            <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
+                                            <tbody>
+                                                {topServers.map((item) => (
+                                                    <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
+                                                        <td data-label={copy.tables.node}>{item.serverName}</td>
+                                                        <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
@@ -1609,20 +1609,12 @@ export default function AuditCenter() {
                         </div>
 
                         {accessLoading ? (
-                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
-                                <table className="table audit-subscriptions-table">
-                                    <tbody>
-                                        <tr><td colSpan={6}><SkeletonTable rows={5} cols={6} /></td></tr>
-                                    </tbody>
-                                </table>
+                            <div className="glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell p-4">
+                                <SkeletonTable rows={5} cols={6} />
                             </div>
                         ) : accessData.items.length === 0 ? (
-                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
-                                <table className="table audit-subscriptions-table">
-                                    <tbody>
-                                        <tr><td colSpan={6}><EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} /></td></tr>
-                                    </tbody>
-                                </table>
+                            <div className="glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell p-4">
+                                <EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} />
                             </div>
                         ) : isCompactLayout ? (
                             <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />

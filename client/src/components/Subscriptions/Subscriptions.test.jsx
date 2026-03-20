@@ -123,6 +123,20 @@ describe('Subscriptions', () => {
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
     });
 
+    it('shows the shared empty state when a user has no assigned subscription identity yet', async () => {
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: '',
+            },
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        expect(await screen.findByText('管理员尚未为当前账号分配订阅链接')).toBeInTheDocument();
+        expect(api.get).not.toHaveBeenCalled();
+    });
+
     it('hides redundant compatibility hint copy in the user current-profile card for every profile', async () => {
         const user = userEvent.setup();
 

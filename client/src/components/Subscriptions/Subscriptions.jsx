@@ -14,6 +14,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
@@ -631,12 +632,11 @@ export default function Subscriptions() {
                     <div className="subscriptions-main-column">
                         {!result ? (
                             <div className="card subscription-empty-card">
-                                <div className="empty-state">
-                                    <div className="empty-state-icon"><HiOutlineLink /></div>
-                                    <div className="empty-state-text">
-                                        {isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
-                                    </div>
-                                </div>
+                                <EmptyState
+                                    title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
+                                    icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
+                                    surface
+                                />
                             </div>
                         ) : (
                             <>

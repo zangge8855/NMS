@@ -185,6 +185,10 @@ function getUsersHubCopy(locale = 'zh-CN') {
             provisionModalTitle: 'Enable Subscription',
             passwordCopied: 'Password copied to clipboard',
             userListLoadFailedTitle: 'Failed to load user list',
+            noMatchUsersTitle: 'No matching users',
+            noMatchUsersSubtitle: 'Try a different search term.',
+            noUsersTitle: 'No registered users',
+            noUsersSubtitle: 'Add a user from the action bar above.',
             degradedDataTitle: 'Node data partially unavailable',
             degradedDataIntro: 'The user list is available, but some node data failed to load. Traffic and online status may be incomplete.',
         };
@@ -199,6 +203,10 @@ function getUsersHubCopy(locale = 'zh-CN') {
         provisionModalTitle: '开通订阅',
         passwordCopied: '密码已复制到剪贴板',
         userListLoadFailedTitle: '用户列表加载失败',
+        noMatchUsersTitle: '未找到匹配用户',
+        noMatchUsersSubtitle: '请尝试其他搜索词',
+        noUsersTitle: '暂无注册用户',
+        noUsersSubtitle: '点击上方按钮添加用户',
         degradedDataTitle: '节点数据已降级显示',
         degradedDataIntro: '基础用户列表已加载，但部分节点的入站配置或在线状态读取失败，流量和在线统计可能不完整。',
     };
@@ -1306,13 +1314,6 @@ export default function UsersHub() {
                     </div>
                 </div>
 
-                {primaryError && !loading && (
-                    <div className="glass-panel mb-4" role="alert">
-                        <div className="text-sm font-semibold">{copy.userListLoadFailedTitle}</div>
-                        <div className="text-sm text-muted mt-1">{primaryError}</div>
-                    </div>
-                )}
-
                 {partialErrors.length > 0 && !primaryError && !loading && (
                     <div className="glass-panel mb-4" role="status">
                         <div className="text-sm font-semibold">{copy.degradedDataTitle}</div>
@@ -1364,11 +1365,29 @@ export default function UsersHub() {
                             </div>
                         ) : enrichedUsers.length === 0 ? (
                             <div className="glass-panel p-4">
-                                <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
+                                <EmptyState
+                                    title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
+                                    subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                                />
                             </div>
                         ) : (
                             enrichedUsers.map((user, index) => renderMobileUserCard(user, index))
                         )}
+                    </div>
+                ) : loading ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" />
+                    </div>
+                ) : primaryError ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                    </div>
+                ) : enrichedUsers.length === 0 ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <EmptyState
+                            title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
+                            subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                        />
                     </div>
                 ) : (
                     <div className="table-container glass-panel users-table-shell">
@@ -1401,33 +1420,22 @@ export default function UsersHub() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading ? (
-                                    <tr><td colSpan={9}><SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" /></td></tr>
-                                ) : primaryError ? (
-                                    <tr><td colSpan={9}>
-                                        <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
-                                    </td></tr>
-                                ) : enrichedUsers.length === 0 ? (
-                                    <tr><td colSpan={9}>
-                                        <EmptyState title={searchTerm ? '未找到匹配用户' : '暂无注册用户'} subtitle={searchTerm ? '请尝试其他搜索词' : '点击上方按钮添加用户'} />
-                                    </td></tr>
-                                ) : (
-                                    enrichedUsers.map((user, index) => {
-                                        const sequenceNumber = sequenceDirection === 'asc'
-                                            ? index + 1
-                                            : enrichedUsers.length - index;
-                                        const displayEmail = user.email || user.subscriptionEmail || '';
-                                        const userExpiryLabel = user.statsPending
-                                            ? syncingCopy.detail
-                                            : user.clientData.count > 0
-                                            ? formatExpiryLabel(user.clientData.expiryValues, locale)
-                                            : '未开通';
-                                        return (
-                                            <tr
-                                                key={user.id}
-                                                className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
-                                                onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
-                                            >
+                                {enrichedUsers.map((user, index) => {
+                                    const sequenceNumber = sequenceDirection === 'asc'
+                                        ? index + 1
+                                        : enrichedUsers.length - index;
+                                    const displayEmail = user.email || user.subscriptionEmail || '';
+                                    const userExpiryLabel = user.statsPending
+                                        ? syncingCopy.detail
+                                        : user.clientData.count > 0
+                                        ? formatExpiryLabel(user.clientData.expiryValues, locale)
+                                        : '未开通';
+                                    return (
+                                        <tr
+                                            key={user.id}
+                                            className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
+                                            onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
+                                        >
                                                 <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                                 <td data-label="序号" onClick={(e) => e.stopPropagation()}>
                                                     <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
@@ -1490,10 +1498,9 @@ export default function UsersHub() {
                                                         {renderUserActionButtons(user)}
                                                     </div>
                                                 </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

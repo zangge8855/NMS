@@ -29,6 +29,7 @@ describe('Capabilities', () => {
     beforeEach(() => {
         api.get.mockReset();
         useServer.mockReset();
+        window.localStorage.clear();
     });
 
     it('treats global view as no selected node and skips capability requests', () => {
@@ -89,5 +90,33 @@ describe('Capabilities', () => {
         expect(await screen.findByText('协议 1 · 工具 1')).toBeInTheDocument();
         expect(screen.getByText('证书检查')).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
+    });
+
+    it('uses shared empty states for empty capability tables and localizes the chrome in English', async () => {
+        window.localStorage.setItem('nms_locale', 'en-US');
+        useServer.mockReturnValue({
+            activeServerId: 'server-b',
+        });
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    protocolDetails: [],
+                    tools: {},
+                    systemModules: [],
+                    batchActions: {
+                        clients: [],
+                        inbounds: [],
+                    },
+                    subscriptionModes: [],
+                },
+            },
+        });
+
+        renderWithRouter(<Capabilities />);
+
+        expect(await screen.findByText('Protocols 0 · Tools 0')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+        expect(screen.getByText('No matrix entries')).toBeInTheDocument();
+        expect(screen.getByText('No tool entries')).toBeInTheDocument();
     });
 });

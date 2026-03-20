@@ -45,7 +45,13 @@ vi.mock('../UI/ModalShell.jsx', () => ({
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({
-    default: ({ title }) => <div>{title}</div>,
+    default: ({ title, subtitle, action }) => (
+        <div>
+            <div>{title}</div>
+            {subtitle ? <div>{subtitle}</div> : null}
+            {action}
+        </div>
+    ),
 }));
 
 vi.mock('../UI/SkeletonTable.jsx', () => ({
@@ -192,6 +198,35 @@ describe('Inbounds', () => {
 
         expect(within(bobRow).getByText('离线')).toBeInTheDocument();
         expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
+    });
+
+    it('renders a standalone empty state when the current scope has no inbounds', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Inbounds />);
+
+        expect(await screen.findByText('暂无入站规则')).toBeInTheDocument();
+        expect(screen.getByText('当前筛选范围内没有可管理的入站配置')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: '添加入站' })).toHaveLength(2);
+        expect(screen.queryByRole('columnheader', { name: '备注' })).not.toBeInTheDocument();
     });
 
     it('renders compact user cards instead of the wide user table on mobile', async () => {

@@ -203,6 +203,70 @@ describe('Dashboard', () => {
         });
     });
 
+    it('shows a dedicated empty state when the selected node has no inbound rules', async () => {
+        localStorage.setItem('nms_locale', 'en-US');
+
+        const panelApi = vi.fn((method, path) => {
+            if (method === 'get' && path === '/panel/api/server/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            cpu: 12.5,
+                            mem: { current: 256, total: 1024 },
+                            uptime: 3600,
+                        },
+                    },
+                });
+            }
+            if (method === 'get' && path === '/panel/api/server/cpuHistory/30') {
+                return Promise.resolve({
+                    data: {
+                        obj: [10, 12, 9],
+                    },
+                });
+            }
+            if (method === 'get' && path === '/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            if (method === 'post' && path === '/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected panelApi call: ${method} ${path}`);
+        });
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            panelApi,
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        expect(await screen.findByText('No inbound rules yet')).toBeInTheDocument();
+        expect(screen.getByText('This node does not have any inbound configuration to show yet')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Remark' })).not.toBeInTheDocument();
+    });
+
     it('counts online users by matched managed accounts instead of raw online sessions', async () => {
         useServer.mockReturnValue({
             activeServerId: 'global',

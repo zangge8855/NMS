@@ -9,36 +9,163 @@ import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 
-function renderAvailability(value) {
-    if (value === true) return <span className="badge badge-success">可用</span>;
-    if (value === false) return <span className="badge badge-danger">不可用</span>;
-    return <span className="badge badge-neutral">未探测</span>;
+function getCapabilitiesCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            refresh: 'Refresh',
+            toolbarSummary: (protocolCount, toolCount) => `Protocols ${protocolCount} · Tools ${toolCount}`,
+            selectServerTitle: 'Select a server first',
+            selectServerSubtitle: 'Capability probing only works in a single-node view. Switch to a specific node first.',
+            loadingTitle: 'Loading...',
+            noDataTitle: 'No capability data yet',
+            noDataSubtitle: 'Capability results will appear after you switch to a specific node.',
+            protocolSectionTitle: 'Protocol Naming Alignment',
+            protocolCount: (count) => `${count} protocols`,
+            noProtocols: 'No inbound protocols detected',
+            legacyKeysLabel: (keys) => `Legacy aliases: ${keys.join(', ')}`,
+            noLegacyKeys: 'No legacy aliases',
+            matrixSectionTitle: 'Official Capability Matrix',
+            matrixColumns: {
+                capability: 'Capability',
+                support: '3x-ui',
+                status: 'NMS Status',
+                entry: 'Entry',
+                note: 'Notes',
+            },
+            toolsSectionTitle: 'Tools and Interfaces',
+            toolsColumns: {
+                tool: 'Tool',
+                availability: 'Node Availability',
+                status: 'NMS Status',
+                entry: 'Entry',
+                source: 'Source',
+            },
+            batchSectionTitle: 'Batch Action Support',
+            clientBatch: 'User Batch Actions',
+            inboundBatch: 'Inbound Batch Actions',
+            subscriptionModesTitle: 'Subscription Aggregation Modes',
+            docsLink: 'Official Docs',
+            noMatrixTitle: 'No matrix entries',
+            noMatrixSubtitle: 'This node did not return any system capability modules.',
+            noToolsTitle: 'No tool entries',
+            noToolsSubtitle: 'This node did not return any tool or interface capability results.',
+            availability: {
+                available: 'Available',
+                unavailable: 'Unavailable',
+                unprobed: 'Unprobed',
+            },
+            support: {
+                supported: 'Supported',
+                missing: 'Not Integrated',
+            },
+            alignment: {
+                integrated: 'Integrated',
+                apiAvailableUiMissing: 'API Available / UI Missing',
+                guidedOnly: 'Guided Only',
+                unsupported: 'Intentionally Unsupported',
+                unknown: 'Unknown',
+            },
+            source: {
+                probed: 'Probed',
+                unprobed: 'Unprobed',
+            },
+            fetchFailed: 'Failed to load capability data',
+        };
+    }
+
+    return {
+        refresh: '刷新',
+        toolbarSummary: (protocolCount, toolCount) => `协议 ${protocolCount} · 工具 ${toolCount}`,
+        selectServerTitle: '请先选择一台服务器',
+        selectServerSubtitle: '能力探测仅支持单节点视图，请先切换到具体节点。',
+        loadingTitle: '加载中...',
+        noDataTitle: '暂无能力数据',
+        noDataSubtitle: '切换到具体节点后会显示当前节点的能力探测结果。',
+        protocolSectionTitle: '协议命名对齐',
+        protocolCount: (count) => `${count} 种`,
+        noProtocols: '未检测到入站协议',
+        legacyKeysLabel: (keys) => `兼容旧命名: ${keys.join(', ')}`,
+        noLegacyKeys: '无旧命名兼容项',
+        matrixSectionTitle: '官方能力矩阵',
+        matrixColumns: {
+            capability: '能力',
+            support: '3x-ui',
+            status: 'NMS 状态',
+            entry: '入口',
+            note: '说明',
+        },
+        toolsSectionTitle: '工具与接口',
+        toolsColumns: {
+            tool: '工具',
+            availability: '节点可用性',
+            status: 'NMS 状态',
+            entry: '入口',
+            source: '来源',
+        },
+        batchSectionTitle: '批量动作支持',
+        clientBatch: '用户批量',
+        inboundBatch: '入站批量',
+        subscriptionModesTitle: '订阅聚合模式',
+        docsLink: '官方文档',
+        noMatrixTitle: '暂无能力矩阵数据',
+        noMatrixSubtitle: '当前节点暂未返回系统模块能力信息。',
+        noToolsTitle: '暂无工具能力数据',
+        noToolsSubtitle: '当前节点暂未返回工具与接口探测结果。',
+        availability: {
+            available: '可用',
+            unavailable: '不可用',
+            unprobed: '未探测',
+        },
+        support: {
+            supported: '已支持',
+            missing: '未接入',
+        },
+        alignment: {
+            integrated: '已集成',
+            apiAvailableUiMissing: 'API 可达 / UI 缺失',
+            guidedOnly: '仅文档引导',
+            unsupported: '明确不接入',
+            unknown: '未知',
+        },
+        source: {
+            probed: '已探测',
+            unprobed: '未探测',
+        },
+        fetchFailed: '获取能力信息失败',
+    };
 }
 
-function renderBooleanSupport(value) {
-    return value ? <span className="badge badge-success">已支持</span> : <span className="badge badge-warning">未接入</span>;
+function renderAvailability(value, copy) {
+    if (value === true) return <span className="badge badge-success">{copy.availability.available}</span>;
+    if (value === false) return <span className="badge badge-danger">{copy.availability.unavailable}</span>;
+    return <span className="badge badge-neutral">{copy.availability.unprobed}</span>;
 }
 
-function renderAlignmentStatus(value) {
-    if (value === 'integrated') return <span className="badge badge-success">已集成</span>;
-    if (value === 'api_available_ui_missing') return <span className="badge badge-warning">API 可达 / UI 缺失</span>;
-    if (value === 'guided_only') return <span className="badge badge-neutral">仅文档引导</span>;
-    if (value === 'intentionally_unsupported') return <span className="badge badge-danger">明确不接入</span>;
-    return <span className="badge badge-neutral">未知</span>;
+function renderBooleanSupport(value, copy) {
+    return value ? <span className="badge badge-success">{copy.support.supported}</span> : <span className="badge badge-warning">{copy.support.missing}</span>;
 }
 
-function renderProbeSource(source) {
-    if (source === 'probed') return '已探测';
-    if (source === 'unprobed') return '未探测';
+function renderAlignmentStatus(value, copy) {
+    if (value === 'integrated') return <span className="badge badge-success">{copy.alignment.integrated}</span>;
+    if (value === 'api_available_ui_missing') return <span className="badge badge-warning">{copy.alignment.apiAvailableUiMissing}</span>;
+    if (value === 'guided_only') return <span className="badge badge-neutral">{copy.alignment.guidedOnly}</span>;
+    if (value === 'intentionally_unsupported') return <span className="badge badge-danger">{copy.alignment.unsupported}</span>;
+    return <span className="badge badge-neutral">{copy.alignment.unknown}</span>;
+}
+
+function renderProbeSource(source, copy) {
+    if (source === 'probed') return copy.source.probed;
+    if (source === 'unprobed') return copy.source.unprobed;
     return source || '-';
 }
 
 export default function Capabilities() {
     const { activeServerId } = useServer();
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
+    const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
 
     const fetchCapabilities = async () => {
         if (!hasTargetServer) {
@@ -50,7 +177,7 @@ export default function Capabilities() {
             const res = await api.get(`/capabilities/${activeServerId}`);
             setData(res.data?.obj || null);
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '获取能力信息失败';
+            const msg = err.response?.data?.msg || err.message || copy.fetchFailed;
             toast.error(msg);
         }
         setLoading(false);
@@ -85,8 +212,8 @@ export default function Capabilities() {
                 <Header title={t('pages.capabilities.title')} />
                 <div className="page-content page-enter">
                     <EmptyState
-                        title="请先选择一台服务器"
-                        subtitle="能力探测仅支持单节点视图，请先切换到具体节点。"
+                        title={copy.selectServerTitle}
+                        subtitle={copy.selectServerSubtitle}
                         icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
                         surface
                     />
@@ -104,15 +231,15 @@ export default function Capabilities() {
                     compact
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> 刷新
+                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                         </button>
                     )}
-                    meta={<span>协议 {protocolList.length} · 工具 {toolEntries.length}</span>}
+                    meta={<span>{copy.toolbarSummary(protocolList.length, toolEntries.length)}</span>}
                 />
                 {!data ? (
                     <EmptyState
-                        title={loading ? '加载中...' : '暂无能力数据'}
-                        subtitle="切换到具体节点后会显示当前节点的能力探测结果。"
+                        title={loading ? copy.loadingTitle : copy.noDataTitle}
+                        subtitle={copy.noDataSubtitle}
                         surface
                     />
                 ) : (
@@ -120,11 +247,11 @@ export default function Capabilities() {
                         <div className="card mb-8">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="协议命名对齐"
-                                meta={<span className="text-sm text-muted">{protocolList.length} 种</span>}
+                                title={copy.protocolSectionTitle}
+                                meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
                             />
                             {protocolList.length === 0 ? (
-                                <div className="text-sm text-muted">未检测到入站协议</div>
+                                <div className="text-sm text-muted">{copy.noProtocols}</div>
                             ) : (
                                 <div className="capability-protocol-grid">
                                     {protocolList.map((item) => (
@@ -135,8 +262,8 @@ export default function Capabilities() {
                                             </div>
                                             <div className="text-xs text-muted">
                                                 {Array.isArray(item.legacyKeys) && item.legacyKeys.length > 0
-                                                    ? `兼容旧命名: ${item.legacyKeys.join(', ')}`
-                                                    : '无旧命名兼容项'}
+                                                    ? copy.legacyKeysLabel(item.legacyKeys)
+                                                    : copy.noLegacyKeys}
                                             </div>
                                         </div>
                                     ))}
@@ -147,93 +274,111 @@ export default function Capabilities() {
                         <div className="card mb-8">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="官方能力矩阵"
+                                title={copy.matrixSectionTitle}
                             />
-                            <div className="table-container">
-                                <table className="table capability-matrix-table">
-                                    <thead>
-                                        <tr>
-                                            <th>能力</th>
-                                            <th className="table-cell-center capability-support-column">3x-ui</th>
-                                            <th className="table-cell-center capability-status-column">NMS 状态</th>
-                                            <th className="table-cell-center capability-entry-column">入口</th>
-                                            <th>说明</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {systemModules.length === 0 ? (
-                                            <tr><td colSpan={5} className="text-center">暂无数据</td></tr>
-                                        ) : systemModules.map((module) => (
-                                            <tr key={module.key}>
-                                                <td data-label="能力">
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <span>{module.label}</span>
-                                                        <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
-                                                            官方文档
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                                <td data-label="3x-ui" className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true)}</td>
-                                                <td data-label="NMS 状态" className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status)}</td>
-                                                <td data-label="入口" className="table-cell-center capability-entry-cell">
-                                                    <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
-                                                </td>
-                                                <td data-label="说明" className="text-sm text-muted">{module.note || '-'}</td>
+                            {systemModules.length === 0 ? (
+                                <div className="p-4">
+                                    <EmptyState
+                                        title={copy.noMatrixTitle}
+                                        subtitle={copy.noMatrixSubtitle}
+                                        size="compact"
+                                        hideIcon
+                                    />
+                                </div>
+                            ) : (
+                                <div className="table-container">
+                                    <table className="table capability-matrix-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{copy.matrixColumns.capability}</th>
+                                                <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>
+                                                <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>
+                                                <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>
+                                                <th>{copy.matrixColumns.note}</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {systemModules.map((module) => (
+                                                <tr key={module.key}>
+                                                    <td data-label={copy.matrixColumns.capability}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            <span>{module.label}</span>
+                                                            <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
+                                                                {copy.docsLink}
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
+                                                    <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
+                                                    <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
+                                                        <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
+                                                    </td>
+                                                    <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
 
                         <div className="card mb-8">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="工具与接口"
+                                title={copy.toolsSectionTitle}
                             />
-                            <div className="table-container">
-                                <table className="table capability-tools-table">
-                                    <thead>
-                                        <tr>
-                                            <th>工具</th>
-                                            <th className="table-cell-center capability-availability-column">节点可用性</th>
-                                            <th className="table-cell-center capability-status-column">NMS 状态</th>
-                                            <th className="table-cell-center capability-entry-column">入口</th>
-                                            <th>来源</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {toolEntries.length === 0 ? (
-                                            <tr><td colSpan={5} className="text-center">暂无数据</td></tr>
-                                        ) : toolEntries.map((tool) => (
-                                            <tr key={tool.key}>
-                                                <td data-label="工具">
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <span>{tool.label || tool.key}</span>
-                                                        <span className="text-xs text-muted">{tool.description || '-'}</span>
-                                                    </div>
-                                                </td>
-                                                <td data-label="节点可用性" className="table-cell-center capability-availability-cell">{renderAvailability(tool.available)}</td>
-                                                <td data-label="NMS 状态" className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status)}</td>
-                                                <td data-label="入口" className="table-cell-center capability-entry-cell">
-                                                    <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
-                                                </td>
-                                                <td data-label="来源" className="text-sm text-muted">{renderProbeSource(tool.source)}</td>
+                            {toolEntries.length === 0 ? (
+                                <div className="p-4">
+                                    <EmptyState
+                                        title={copy.noToolsTitle}
+                                        subtitle={copy.noToolsSubtitle}
+                                        size="compact"
+                                        hideIcon
+                                    />
+                                </div>
+                            ) : (
+                                <div className="table-container">
+                                    <table className="table capability-tools-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{copy.toolsColumns.tool}</th>
+                                                <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>
+                                                <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>
+                                                <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>
+                                                <th>{copy.toolsColumns.source}</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {toolEntries.map((tool) => (
+                                                <tr key={tool.key}>
+                                                    <td data-label={copy.toolsColumns.tool}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            <span>{tool.label || tool.key}</span>
+                                                            <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
+                                                    <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
+                                                    <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
+                                                        <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
+                                                    </td>
+                                                    <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
 
                         <div className="card mb-8">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="批量动作支持"
+                                title={copy.batchSectionTitle}
                             />
                             <div className="capability-batch-grid">
                                 <div className="capability-stack">
-                                    <div className="text-sm text-muted mb-2">用户批量</div>
+                                    <div className="text-sm text-muted mb-2">{copy.clientBatch}</div>
                                     <div className="flex gap-2 flex-wrap">
                                         {(data.batchActions?.clients || []).map((x) => (
                                             <span key={`c-${x}`} className="badge badge-neutral">{x}</span>
@@ -241,7 +386,7 @@ export default function Capabilities() {
                                     </div>
                                 </div>
                                 <div className="capability-stack">
-                                    <div className="text-sm text-muted mb-2">入站批量</div>
+                                    <div className="text-sm text-muted mb-2">{copy.inboundBatch}</div>
                                     <div className="flex gap-2 flex-wrap">
                                         {(data.batchActions?.inbounds || []).map((x) => (
                                             <span key={`i-${x}`} className="badge badge-neutral">{x}</span>
@@ -254,7 +399,7 @@ export default function Capabilities() {
                         <div className="card">
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
-                                title="订阅聚合模式"
+                                title={copy.subscriptionModesTitle}
                             />
                             <div className="flex gap-2 flex-wrap">
                                 {(data.subscriptionModes || []).map((mode) => (

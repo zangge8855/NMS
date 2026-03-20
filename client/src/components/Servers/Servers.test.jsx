@@ -1,8 +1,17 @@
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import Servers from './Servers.jsx';
+
+vi.mock('../../api/client.js', () => ({
+    default: {
+        get: vi.fn(),
+        put: vi.fn(),
+    },
+}));
 
 vi.mock('../../contexts/ServerContext.jsx', () => ({
     useServer: vi.fn(),
@@ -21,7 +30,12 @@ vi.mock('../UI/ModalShell.jsx', () => ({
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({
-    default: ({ title }) => <div>{title}</div>,
+    default: ({ title, subtitle }) => (
+        <div>
+            <div>{title}</div>
+            {subtitle ? <div>{subtitle}</div> : null}
+        </div>
+    ),
 }));
 
 vi.mock('react-hot-toast', () => ({
@@ -32,6 +46,12 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 describe('Servers', () => {
+    async function waitForServerOrderLoad() {
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/system/servers/order');
+        });
+    }
+
     beforeEach(() => {
         window.matchMedia.mockImplementation((query) => ({
             matches: false,
@@ -43,6 +63,9 @@ describe('Servers', () => {
             removeEventListener: vi.fn(),
             dispatchEvent: vi.fn(),
         }));
+        api.get.mockReset();
+        api.put.mockReset();
+        api.get.mockResolvedValue({ data: { obj: [] } });
         useServer.mockReset();
     });
 
@@ -72,6 +95,7 @@ describe('Servers', () => {
         });
 
         renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
 
         const nameTrigger = screen.getByRole('button', { name: longName });
         expect(nameTrigger).toHaveAttribute('title', longName);
@@ -121,6 +145,7 @@ describe('Servers', () => {
         });
 
         const { container } = renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
 
         expect(container.querySelector('.servers-table')).toBeNull();
         const mobileCard = container.querySelector('.servers-mobile-card');
@@ -158,9 +183,44 @@ describe('Servers', () => {
         });
 
         renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
 
         await screen.findAllByText('未分组节点');
         expect(screen.queryByText('未设置环境')).not.toBeInTheDocument();
         expect(screen.queryByText('环境：')).not.toBeInTheDocument();
+    });
+
+    it('keeps the no-match empty state aligned with the visible search and group filters', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: '新加坡边缘节点',
+                url: 'https://panel.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'production',
+                environment: 'prod',
+                health: 'healthy',
+                tags: ['edge'],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
+
+        await user.type(screen.getByPlaceholderText('搜索名称 / URL / 标签'), 'tokyo');
+
+        expect(await screen.findByText('没有匹配的服务器')).toBeInTheDocument();
+        expect(screen.getByText('请调整搜索关键词或分组筛选条件')).toBeInTheDocument();
     });
 });

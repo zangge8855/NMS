@@ -497,23 +497,12 @@ export default function SystemSettings() {
         registrationRuntime: false,
         inviteCodes: false,
     });
-    const emailConfiguredBadge = emailStatus?.configured ? 'badge-success' : 'badge-warning';
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
-    const emailDeliveryBadge = emailStatus?.lastDelivery?.success === true
-        ? 'badge-success'
-        : emailStatus?.lastDelivery?.success === false
-            ? 'badge-danger'
-            : 'badge-neutral';
     const emailDeliveryLabel = emailStatus?.lastDelivery?.success === true
         ? '最近发送成功'
         : emailStatus?.lastDelivery?.success === false
             ? '最近发送失败'
             : '暂无发送记录';
-    const emailVerificationBadge = emailStatus?.lastVerification?.success === true
-        ? 'badge-success'
-        : emailStatus?.lastVerification?.success === false
-            ? 'badge-danger'
-            : 'badge-neutral';
     const emailVerificationLabel = emailStatus?.lastVerification?.success === true
         ? '连接测试成功'
         : emailStatus?.lastVerification?.success === false
@@ -567,10 +556,6 @@ export default function SystemSettings() {
     ), [workspaceDirtyMap]);
     const dirtyWorkspaceCount = dirtyWorkspaceIds.length;
     const inviteRecords = useMemo(() => (Array.isArray(_inviteCodes) ? _inviteCodes : []), [_inviteCodes]);
-    const inviteActiveCount = useMemo(
-        () => inviteRecords.filter((item) => item.status === 'active' && Number(item.remainingUses || 0) > 0).length,
-        [inviteRecords]
-    );
     const inviteRemainingUses = useMemo(
         () => inviteRecords.reduce((sum, item) => sum + Math.max(0, Number(item.remainingUses || 0)), 0),
         [inviteRecords]
@@ -1802,7 +1787,7 @@ export default function SystemSettings() {
                                 <div className="settings-form-cluster-eyebrow">邀请码台账</div>
                                 <div className="settings-form-cluster-title">台账与使用记录</div>
                                 <div className="settings-form-cluster-note">
-                                    活动 {inviteActiveCount} 个 · 剩余 {inviteRemainingUses} 次 · 默认折叠避免挤占设置区。
+                                    活动 {inviteAvailableRecords.length} 个 · 剩余 {inviteRemainingUses} 次 · 已用尽 {inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。
                                 </div>
                             </div>
                             {inviteCodesLoading ? (
@@ -1815,7 +1800,9 @@ export default function SystemSettings() {
                                         <div className="settings-inline-action-copy">
                                             <div className="settings-inline-action-title">共 {inviteRecords.length} 条邀请码记录</div>
                                             <div className="settings-inline-action-note">
-                                                {inviteLedgerExpanded ? '已展开完整台账，可直接查看使用记录。' : '需要排查或复核时再展开完整台账。'}
+                                                {inviteLedgerExpanded
+                                                    ? `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
+                                                    : `需要排查或复核时再展开完整台账。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`}
                                             </div>
                                         </div>
                                         <button
@@ -2395,7 +2382,7 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">Read Mode</label>
+                                        <label className="form-label">读取模式</label>
                                         <select
                                             className="form-select"
                                             value={dbModeDraft.readMode}
@@ -2408,7 +2395,7 @@ export default function SystemSettings() {
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Write Mode</label>
+                                        <label className="form-label">写入模式</label>
                                         <select
                                             className="form-select"
                                             value={dbModeDraft.writeMode}
@@ -2447,7 +2434,7 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">Store Keys（逗号分隔，留空=全部）</label>
+                                        <label className="form-label">数据键（逗号分隔，留空表示全部）</label>
                                         <input
                                             className="form-input"
                                             value={dbBackfillDraft.keysText}
@@ -2465,7 +2452,7 @@ export default function SystemSettings() {
                                                 onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
                                                 disabled={!isAdmin}
                                             />
-                                            Dry Run
+                                            仅预演
                                         </label>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
@@ -2488,7 +2475,7 @@ export default function SystemSettings() {
                                     </button>
                                     {dbBackfillResult && (
                                         <div className="text-sm text-muted settings-db-card-result">
-                                            total: {dbBackfillResult.total || 0}，success: {dbBackfillResult.success || 0}，failed: {dbBackfillResult.failed || 0}
+                                            总计 {dbBackfillResult.total || 0} · 成功 {dbBackfillResult.success || 0} · 失败 {dbBackfillResult.failed || 0}
                                         </div>
                                     )}
                                 </div>
@@ -2551,7 +2538,7 @@ export default function SystemSettings() {
                         </div>
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">最近测试</span>
-                            <span className="settings-monitor-log-value">{formatDateTime(emailStatus?.lastVerification?.ts, locale)}</span>
+                            <span className="settings-monitor-log-value">{emailVerificationLabel} · {formatDateTime(emailStatus?.lastVerification?.ts, locale)}</span>
                         </div>
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">节点巡检</span>

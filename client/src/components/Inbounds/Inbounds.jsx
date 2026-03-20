@@ -1090,56 +1090,52 @@ export default function Inbounds() {
                     </div>
                 )}
 
-                <div className="table-container glass-panel inbounds-table-shell">
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th className="cell-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
-                                        onChange={toggleSelectAll}
-                                        className="cursor-pointer"
-                                    />
-                                </th>
-                                <th className="inbounds-expand-col" aria-hidden="true" />
-                                <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>序号</th>
-                                {filterServerId === 'all' && (
-                                    <th className="inbounds-node-col">节点</th>
-                                )}
-                                <th className="inbounds-remark-col">备注</th>
-                                <th className="inbounds-protocol-col">协议</th>
-                                <th className="inbounds-port-col">监听:端口</th>
-                                <th className="table-cell-center inbounds-users-col">用户数</th>
-                                <th className="inbounds-traffic-col">流量 (上/下)</th>
-                                <th className="table-cell-center inbounds-status-col">状态</th>
-                                <th className="table-cell-actions inbounds-actions-col">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                {loading ? (
+                    <div className="table-container glass-panel inbounds-table-shell p-4">
+                        <SkeletonTable rows={5} cols={tableColSpan} />
+                    </div>
+                ) : filteredInbounds.length === 0 ? (
+                    <div className="table-container glass-panel inbounds-table-shell p-6">
+                        <EmptyState
+                            icon={<HiOutlineInbox />}
+                            title={t('pages.inbounds.emptyTitle')}
+                            subtitle={t('pages.inbounds.emptySubtitle')}
+                            action={(
+                                <button type="button" className="btn btn-primary" onClick={handleAdd}>
+                                    <HiOutlinePlusCircle /> {t('pages.inbounds.addAction')}
+                                </button>
+                            )}
+                        />
+                    </div>
+                ) : (
+                    <div className="table-container glass-panel inbounds-table-shell">
+                        <table className="table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={tableColSpan} className="p-4">
-                                        <SkeletonTable rows={5} cols={tableColSpan} />
-                                    </td>
-                                </tr>
-                            ) : filteredInbounds.length === 0 ? (
-                                <tr>
-                                    <td colSpan={tableColSpan} className="p-6">
-                                        <EmptyState
-                                            icon={<HiOutlineInbox />}
-                                            title="暂无入站规则"
-                                            subtitle="当前节点下没有配置任何入站"
-                                            action={(
-                                                <button type="button" className="btn btn-primary" onClick={handleAdd}>
-                                                    <HiOutlinePlusCircle /> 添加入站
-                                                </button>
-                                            )}
+                                    <th className="cell-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
+                                            onChange={toggleSelectAll}
+                                            className="cursor-pointer"
                                         />
-                                    </td>
+                                    </th>
+                                    <th className="inbounds-expand-col" aria-hidden="true" />
+                                    <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>序号</th>
+                                    {filterServerId === 'all' && (
+                                        <th className="inbounds-node-col">节点</th>
+                                    )}
+                                    <th className="inbounds-remark-col">备注</th>
+                                    <th className="inbounds-protocol-col">协议</th>
+                                    <th className="inbounds-port-col">监听:端口</th>
+                                    <th className="table-cell-center inbounds-users-col">用户数</th>
+                                    <th className="inbounds-traffic-col">流量 (上/下)</th>
+                                    <th className="table-cell-center inbounds-status-col">状态</th>
+                                    <th className="table-cell-actions inbounds-actions-col">操作</th>
                                 </tr>
-                            ) : (
-                                filteredInbounds.map((ib, index) => {
+                            </thead>
+                            <tbody>
+                                {filteredInbounds.map((ib, index) => {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
@@ -1569,11 +1565,11 @@ export default function Inbounds() {
                                             )}
                                         </React.Fragment>
                                     );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
                 <InboundModal
                     isOpen={isModalOpen}

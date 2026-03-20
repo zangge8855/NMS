@@ -56,7 +56,7 @@ describe('BatchResultModal', () => {
         expect(screen.getByText('Total 2')).toBeInTheDocument();
         expect(screen.getByText('Success 1')).toBeInTheDocument();
         expect(screen.getByText('Failed 1')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: 'Action' })).toBeInTheDocument();
         expect(screen.getByText('No execution results yet')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Action' })).not.toBeInTheDocument();
     });
 });

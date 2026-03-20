@@ -356,34 +356,30 @@ export default function Tasks({ embedded = false }) {
                     )}
                 </div>
 
-                <div className={tableShellClassName}>
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>{copy.time}</th>
-                                <th>{copy.typeAction}</th>
-                                <th>{copy.server}</th>
-                                <th className="table-cell-right">{copy.totalCol}</th>
-                                <th className="table-cell-right">{copy.successCol}</th>
-                                <th className="table-cell-right">{copy.failedCol}</th>
-                                <th className="table-cell-actions">{copy.actions}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                {loading ? (
+                    <div className={`${tableShellClassName} p-4`}>
+                        <SkeletonTable rows={5} cols={7} />
+                    </div>
+                ) : filteredTasks.length === 0 ? (
+                    <div className={`${tableShellClassName} p-4`}>
+                        <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
+                    </div>
+                ) : (
+                    <div className={tableShellClassName}>
+                        <table className="table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={7} className="text-center" style={{ padding: '16px' }}>
-                                        <SkeletonTable rows={5} cols={7} />
-                                    </td>
+                                    <th>{copy.time}</th>
+                                    <th>{copy.typeAction}</th>
+                                    <th>{copy.server}</th>
+                                    <th className="table-cell-right">{copy.totalCol}</th>
+                                    <th className="table-cell-right">{copy.successCol}</th>
+                                    <th className="table-cell-right">{copy.failedCol}</th>
+                                    <th className="table-cell-actions">{copy.actions}</th>
                                 </tr>
-                            ) : filteredTasks.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7}>
-                                        <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredTasks.map((task) => (
+                            </thead>
+                            <tbody>
+                                {filteredTasks.map((task) => (
                                     <tr key={task.id}>
                                         <td data-label={copy.time}>{formatDateTime(task.createdAt, locale)}</td>
                                         <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
@@ -418,11 +414,11 @@ export default function Tasks({ embedded = false }) {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
                 <div className={paginationClassName}>
                     <div className="page-pagination-meta">{copy.retained.replace('{count}', String(filteredTasks.length))}</div>

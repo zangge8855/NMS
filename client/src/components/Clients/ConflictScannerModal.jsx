@@ -18,6 +18,8 @@ import {
     getConflictTypeLabels,
 } from '../../utils/clientConflict.js';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
 
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
@@ -231,13 +233,17 @@ export default function ConflictScannerModal({
                     </div>
 
                     {scanning ? (
-                        <div className="table-pad-64 text-center"><span className="spinner" /></div>
-                    ) : conflictGroups.length === 0 ? (
-                        <div className="empty-state empty-state-compact">
-                            <div className="empty-state-icon"><HiOutlineCheckCircle /></div>
-                            <div className="empty-state-text">未检测到可识别冲突</div>
-                            <div className="empty-state-sub">同一身份在同协议下未发现参数分歧。</div>
+                        <div className="glass-panel p-4">
+                            <SkeletonTable rows={4} cols={4} />
                         </div>
+                    ) : conflictGroups.length === 0 ? (
+                        <EmptyState
+                            title="未检测到可识别冲突"
+                            subtitle="同一身份在同协议下未发现参数分歧。"
+                            icon={<HiOutlineCheckCircle />}
+                            size="compact"
+                            surface
+                        />
                     ) : (
                         <div className="flex flex-col gap-4">
                             {conflictGroups.map((group) => (

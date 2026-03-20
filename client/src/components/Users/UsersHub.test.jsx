@@ -38,7 +38,12 @@ vi.mock('../UI/SkeletonTable.jsx', () => ({
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({
-    default: ({ title }) => <div>{title}</div>,
+    default: ({ title, subtitle }) => (
+        <div>
+            <div>{title}</div>
+            {subtitle ? <div>{subtitle}</div> : null}
+        </div>
+    ),
 }));
 
 vi.mock('../Subscriptions/SubscriptionClientLinks.jsx', () => ({
@@ -233,7 +238,7 @@ describe('UsersHub ordering', () => {
 
         renderWithRouter(<UsersHub />);
 
-        expect(screen.getByRole('columnheader', { name: '账号' })).toBeInTheDocument();
+        expect(await screen.findByRole('columnheader', { name: '账号' })).toBeInTheDocument();
         expect(screen.queryByRole('columnheader', { name: '用户名' })).not.toBeInTheDocument();
         expect(screen.queryByRole('columnheader', { name: '邮箱' })).not.toBeInTheDocument();
 
@@ -439,10 +444,35 @@ describe('UsersHub ordering', () => {
 
         renderWithRouter(<UsersHub />);
 
-        await waitFor(() => {
-            expect(screen.getAllByText('用户列表加载失败').length).toBeGreaterThan(0);
-        });
+        expect(await screen.findByText('用户列表加载失败')).toBeInTheDocument();
         expect(screen.getByText('user list unavailable')).toBeInTheDocument();
+    });
+
+    it('localizes the empty-state copy when no users exist in English', async () => {
+        window.localStorage.setItem('nms_locale', 'en-US');
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('No registered users')).toBeInTheDocument();
+        expect(screen.getByText('Add a user from the action bar above.')).toBeInTheDocument();
     });
 
     it('keeps rendering users when node data only partially fails', async () => {

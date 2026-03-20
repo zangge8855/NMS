@@ -111,8 +111,6 @@ export default function Servers() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const deferredSearchKeyword = useDeferredValue(searchKeyword);
     const [filterGroup, setFilterGroup] = useState('all');
-    const [filterEnvironment] = useState('all');
-    const [filterHealth] = useState('all');
     const confirmAction = useConfirm();
 
     const resetForm = () => {
@@ -553,8 +551,6 @@ export default function Servers() {
         const keyword = String(deferredSearchKeyword || '').trim().toLowerCase();
         return orderedServers.filter((server) => {
             if (filterGroup !== 'all' && String(server.group || '') !== filterGroup) return false;
-            if (filterEnvironment !== 'all' && String(server.environment || 'unknown') !== filterEnvironment) return false;
-            if (filterHealth !== 'all' && String(server.health || 'unknown') !== filterHealth) return false;
             if (!keyword) return true;
             const tagsText = Array.isArray(server.tags) ? server.tags.join(' ') : '';
             const text = [
@@ -570,7 +566,7 @@ export default function Servers() {
                 .join(' ');
             return text.includes(keyword);
         });
-    }, [orderedServers, deferredSearchKeyword, filterGroup, filterEnvironment, filterHealth]);
+    }, [orderedServers, deferredSearchKeyword, filterGroup]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
     const activeServer = useMemo(
@@ -585,6 +581,10 @@ export default function Servers() {
                 current: '当前视角',
                 global: '全局视角',
                 filterSummary: `显示 ${filteredServers.length} / ${servers.length}`,
+                searchPlaceholder: '搜索名称 / URL / 标签',
+                allGroups: '全部分组',
+                noMatchTitle: '没有匹配的服务器',
+                noMatchSubtitle: '请调整搜索关键词或分组筛选条件',
             }
             : {
                 total: 'Servers',
@@ -592,6 +592,10 @@ export default function Servers() {
                 current: 'Current scope',
                 global: 'Global scope',
                 filterSummary: `Showing ${filteredServers.length} / ${servers.length}`,
+                searchPlaceholder: 'Search by name / URL / tag',
+                allGroups: 'All groups',
+                noMatchTitle: 'No matching servers',
+                noMatchSubtitle: 'Adjust the search keyword or group filter.',
             }
     ), [filteredServers.length, locale, servers.length]);
     const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
@@ -815,12 +819,12 @@ export default function Servers() {
                     <div className="flex items-center gap-3 servers-filter-bar">
                         <input
                             className="form-input servers-filter-search"
-                            placeholder="搜索名称 / URL / 标签"
+                            placeholder={uiText.searchPlaceholder}
                             value={searchKeyword}
                             onChange={(e) => setSearchKeyword(e.target.value)}
                         />
                         <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-                            <option value="all">全部分组</option>
+                            <option value="all">{uiText.allGroups}</option>
                             {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                         </select>
                         <div className="text-sm text-muted servers-filter-summary">
@@ -838,8 +842,8 @@ export default function Servers() {
                     />
                 ) : filteredServers.length === 0 ? (
                     <EmptyState
-                        title="没有匹配的服务器"
-                        subtitle="请调整分组、环境或健康状态筛选条件"
+                        title={uiText.noMatchTitle}
+                        subtitle={uiText.noMatchSubtitle}
                         icon={<HiOutlineServerStack />}
                         size="compact"
                         surface

@@ -1530,12 +1530,12 @@ export default function Dashboard() {
                         meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
                     />
                     {inbounds.length === 0 ? (
-                        <div className="table-container border-none overflow-x-auto">
-                            <table className="table">
-                                <tbody>
-                                    <tr><td colSpan={6} className="table-empty">{t('pages.dashboardNode.inboundsEmpty')}</td></tr>
-                                </tbody>
-                            </table>
+                        <div className="table-container border-none overflow-x-auto p-4">
+                            <EmptyState
+                                title={t('pages.dashboardNode.inboundsEmpty')}
+                                subtitle={t('pages.dashboardNode.inboundsEmptySubtitle')}
+                                size="compact"
+                            />
                         </div>
                     ) : isCompactLayout ? (
                         <InboundSummaryMobileList inbounds={inbounds} loading={loading} t={t} />

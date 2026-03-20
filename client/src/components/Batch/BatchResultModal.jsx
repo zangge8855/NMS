@@ -3,6 +3,7 @@ import { HiOutlineXMark } from 'react-icons/hi2';
 import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatTaskActionLabel } from '../../utils/taskLabels.js';
+import EmptyState from '../UI/EmptyState.jsx';
 
 const BATCH_RESULT_COPY = {
     'zh-CN': {
@@ -83,27 +84,25 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                         </div>
                     </div>
 
-                    <div className="table-container table-scroll table-scroll-md batch-result-table">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>{copy.status}</th>
-                                    <th>{copy.action}</th>
-                                    <th>{copy.node}</th>
-                                    <th>{copy.inbound}</th>
-                                    <th>{copy.target}</th>
-                                    <th>{copy.result}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {results.length === 0 ? (
+                    {results.length === 0 ? (
+                        <div className="card p-4">
+                            <EmptyState title={copy.empty} size="compact" hideIcon />
+                        </div>
+                    ) : (
+                        <div className="table-container table-scroll table-scroll-md batch-result-table">
+                            <table className="table">
+                                <thead>
                                     <tr>
-                                        <td colSpan={6} className="text-center" style={{ padding: '24px' }}>
-                                            {copy.empty}
-                                        </td>
+                                        <th>{copy.status}</th>
+                                        <th>{copy.action}</th>
+                                        <th>{copy.node}</th>
+                                        <th>{copy.inbound}</th>
+                                        <th>{copy.target}</th>
+                                        <th>{copy.result}</th>
                                     </tr>
-                                ) : (
-                                    results.map((item, idx) => (
+                                </thead>
+                                <tbody>
+                                    {results.map((item, idx) => (
                                         <tr key={`${idx}-${item.serverId || 'x'}-${item.inboundId || 'x'}`}>
                                             <td data-label={copy.result}>
                                                 <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
@@ -118,11 +117,11 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                                                 {item.msg || '-'}
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         </ModalShell>
