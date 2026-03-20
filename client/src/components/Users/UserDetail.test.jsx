@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
+import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import UserDetail from './UserDetail.jsx';
 
 vi.mock('../../api/client.js', () => ({
@@ -91,11 +92,22 @@ describe('UserDetail', () => {
         api.post.mockReset();
         api.delete.mockReset();
         useServer.mockReset();
+        invalidateServerPanelDataCache();
         useServer.mockReturnValue({
             servers: [],
             loading: false,
         });
         mockMatchMedia(false);
+        api.post.mockImplementation((url) => {
+            if (String(url || '').includes('/panel/api/inbounds/onlines')) {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
 
         api.get.mockImplementation((url) => {
             if (url === '/users/user-1/detail') {
@@ -236,6 +248,94 @@ describe('UserDetail', () => {
 
         expect(await screen.findByText('Node A')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/i })).toBeInTheDocument();
+    });
+
+    it('shows a live online indicator for node records with matched sessions', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-a', name: 'Node A' }],
+            loading: false,
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            user: {
+                                id: 'user-1',
+                                username: 'alice',
+                                email: 'alice@example.com',
+                                subscriptionEmail: 'alice@example.com',
+                                emailVerified: true,
+                                role: 'user',
+                                enabled: true,
+                                createdAt: '2026-03-11T10:00:00.000Z',
+                                lastLoginAt: '2026-03-11T11:00:00.000Z',
+                            },
+                            policy: null,
+                            recentAudit: { items: [], total: 0 },
+                            subscriptionAccess: { items: [], total: 0 },
+                            tokens: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            remark: 'Inbound A',
+                            port: 443,
+                            settings: JSON.stringify({
+                                clients: [{
+                                    email: 'alice@example.com',
+                                    id: '11111111-1111-1111-1111-111111111111',
+                                    enable: true,
+                                    expiryTime: 0,
+                                    up: 0,
+                                    down: 0,
+                                }],
+                            }),
+                            clientStats: [],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                email: 'alice@example.com',
+                                id: '11111111-1111-1111-1111-111111111111',
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />, {
+            route: '/clients/user-1?tab=clients',
+            initialEntries: ['/clients/user-1?tab=clients'],
+        });
+
+        await screen.findByText('用户详情 · alice');
+        await user.click(screen.getByRole('button', { name: '节点' }));
+
+        expect(await screen.findByText('Node A')).toBeInTheDocument();
+        expect(screen.getByText('在线')).toBeInTheDocument();
+        expect(screen.getByText('1 会话')).toBeInTheDocument();
+        expect(document.querySelector('.user-detail-presence.is-online')).toBeTruthy();
     });
 
     it('renders audit events with structured facts and hides masked audit values', async () => {

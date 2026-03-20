@@ -89,6 +89,18 @@ function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue ?? 0);
     const hasHead = Boolean(card.label || card.kicker);
+    const renderedValue = loading
+        ? null
+        : card.animateValue !== undefined
+            ? (
+                card.renderAnimatedValue
+                    ? card.renderAnimatedValue(animatedValue)
+                    : `${animatedValue}${card.animateSuffix || ''}`
+            )
+            : card.value;
+    const renderedValueTitle = typeof renderedValue === 'string' || typeof renderedValue === 'number'
+        ? String(renderedValue)
+        : undefined;
     const handleKeyDown = (event) => {
         if (!clickable) return;
         if (event.key === 'Enter' || event.key === ' ') {
@@ -116,18 +128,14 @@ function StatCard({ card, loading }) {
             )}
             <div className="dashboard-stat-card-body">
                 <div className="dashboard-stat-card-primary">
-                    <div className="card-value dashboard-stat-card-value">
+                    <div className="card-value dashboard-stat-card-value" title={renderedValueTitle}>
                         {loading ? (
                             <div
                                 className="skeleton dashboard-stat-card-skeleton mt-1"
                                 style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
                             />
-                        ) : card.animateValue !== undefined ? (
-                            card.renderAnimatedValue
-                                ? card.renderAnimatedValue(animatedValue)
-                                : `${animatedValue}${card.animateSuffix || ''}`
                         ) : (
-                            card.value
+                            <span className="dashboard-stat-card-value-text">{renderedValue}</span>
                         )}
                     </div>
                     {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
@@ -1251,7 +1259,7 @@ export default function Dashboard() {
                     </button>
                 </Header>
                 <div className="page-content page-enter">
-                    <div className="stats-grid mb-8">
+                    <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, idx) => (
                             <StatCard key={idx} card={card} loading={loading} />
                         ))}
@@ -1458,7 +1466,7 @@ export default function Dashboard() {
                 </button>
             </Header>
             <div className="page-content page-enter">
-                <div className="stats-grid">
+                <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, idx) => (
                         <StatCard key={idx} card={card} loading={loading} />
                     ))}

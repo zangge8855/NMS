@@ -12,7 +12,9 @@ function getAccountCopy(locale = 'zh-CN') {
         return {
             title: 'Account',
             profileTitle: 'Account Info',
+            profileSubtitle: 'Review the current login identity and confirm any change from the existing mailbox first.',
             passwordTitle: 'Password',
+            passwordSubtitle: 'Rotate the login password here and keep it aligned with the active password policy.',
             username: 'Username',
             role: 'Role',
             email: 'Login Email',
@@ -51,7 +53,9 @@ function getAccountCopy(locale = 'zh-CN') {
     return {
         title: '账户',
         profileTitle: '账户信息',
+        profileSubtitle: '检查当前登录身份，并在修改前先通过旧邮箱完成验证码确认。',
         passwordTitle: '登录密码',
+        passwordSubtitle: '在这里更新登录密码，并确保新密码符合当前密码策略。',
         username: '用户名',
         role: '角色',
         email: '登录邮箱',
@@ -252,6 +256,7 @@ export default function AccountCenter() {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title={copy.profileTitle}
+                            subtitle={copy.profileSubtitle}
                         />
                         <div className="account-profile-grid">
                             <div className="form-group mb-0">
@@ -328,6 +333,7 @@ export default function AccountCenter() {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title={copy.passwordTitle}
+                            subtitle={copy.passwordSubtitle}
                         />
                         <div className="account-password-grid">
                             <div className="form-group mb-0">
@@ -373,7 +379,7 @@ export default function AccountCenter() {
                                 </button>
                             </div>
                         </div>
-                        <div className="text-xs text-muted mt-3">{getPasswordPolicyHint(locale)}</div>
+                        <div className="account-card-note">{getPasswordPolicyHint(locale)}</div>
                     </div>
                 </div>
             </div>

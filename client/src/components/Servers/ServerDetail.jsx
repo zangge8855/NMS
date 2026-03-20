@@ -32,7 +32,9 @@ function StatMini({ label, value, suffix }) {
         : (typeof value === 'number' ? `${animated}${suffix || ''}` : `${value}${suffix || ''}`);
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value">{displayValue}</div>
+            <div className="stat-mini-value" title={displayValue}>
+                <span className="stat-mini-value-text">{displayValue}</span>
+            </div>
             <div className="stat-mini-label">{label}</div>
         </div>
     );

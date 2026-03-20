@@ -154,6 +154,7 @@ export default function ServerManagement({ embedded = false }) {
             .filter((item) => item.supportedByNms === false),
         [capabilities]
     );
+    const scopeSummary = isGlobalView ? `${servers.length} 台节点` : (activeServerMeta?.name || activeServerId);
 
     const handleStopXray = async () => {
         const targets = getTargets();
@@ -354,12 +355,20 @@ export default function ServerManagement({ embedded = false }) {
                 <PageToolbar
                     className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
                     compact
+                    main={(
+                        <div className="server-console-toolbar-copy">
+                            <div className="server-console-toolbar-title">节点控制工作台</div>
+                            <div className="server-console-toolbar-note">
+                                集中查看当前作用域，并执行 Xray、Geo、备份与节点工具相关操作。
+                            </div>
+                        </div>
+                    )}
                     actions={(
                         <>
                             <div className="server-console-scope-card" aria-live="polite">
                                 <div className="server-console-scope-label">{isGlobalView ? '当前作用域' : '当前节点'}</div>
                                 <div className="server-console-scope-value">
-                                    {isGlobalView ? `${servers.length} 台节点` : (activeServerMeta?.name || activeServerId)}
+                                    {scopeSummary}
                                 </div>
                             </div>
                             <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
@@ -375,21 +384,24 @@ export default function ServerManagement({ embedded = false }) {
                     meta={<span>{isGlobalView ? '批量控制模式' : '单节点控制模式'}</span>}
                 />
                 {lastRun && (
-                    <div className="card mb-6">
+                    <div className="card mb-6 server-console-result-card">
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title="最近一次执行结果"
+                            subtitle={lastRun.title}
                             meta={(
                                 <span className={`badge ${lastRun.failed.length === 0 ? 'badge-success' : 'badge-warning'}`}>
                                     {lastRun.success}/{lastRun.total} 成功
                                 </span>
                             )}
                         />
-                        <div className="text-sm text-muted mb-2">{lastRun.title}</div>
+                        <div className="server-console-result-summary">
+                            本次共处理 {lastRun.total} 个目标，成功 {lastRun.success} 个，失败 {lastRun.failed.length} 个。
+                        </div>
                         {lastRun.failed.length > 0 && (
-                            <div className="text-sm">
+                            <div className="server-console-result-list">
                                 {lastRun.failed.map((item) => (
-                                    <div key={`${item.serverName}-${item.msg}`} className="mb-1">
+                                    <div key={`${item.serverName}-${item.msg}`} className="server-console-result-item">
                                         {item.serverName}: {item.msg}
                                     </div>
                                 ))}
@@ -400,7 +412,11 @@ export default function ServerManagement({ embedded = false }) {
 
                 <div className="server-console-grid">
                     <div className="card">
-                        <SectionHeader className="card-header section-header section-header--compact" title="Xray 控制" />
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title="Xray 控制"
+                            subtitle="停止、重启服务，必要时查看当前节点配置。"
+                        />
                         <div className="server-console-action-row mb-3">
                             <button className="btn btn-danger btn-sm" onClick={handleStopXray} disabled={loading.stop}>
                                 <HiOutlineStop /> {isGlobalView ? '全部停止' : '停止'}
@@ -414,7 +430,7 @@ export default function ServerManagement({ embedded = false }) {
                                 </button>
                             )}
                         </div>
-                        <div className="text-xs text-muted">
+                        <div className="server-console-note">
                             停止和升级会影响当前节点代理转发，请在低峰期操作。
                         </div>
                     </div>
@@ -423,6 +439,7 @@ export default function ServerManagement({ embedded = false }) {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title="Xray 版本"
+                            subtitle="从当前节点可用的版本列表中选择目标版本后执行安装。"
                             actions={(
                                 <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
                                     <HiOutlineArrowPath /> 刷新
@@ -441,7 +458,11 @@ export default function ServerManagement({ embedded = false }) {
                     </div>
 
                     <div className="card">
-                        <SectionHeader className="card-header section-header section-header--compact" title="Geo 文件" />
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title="Geo 文件"
+                            subtitle="更新 GeoIP 与 GeoSite 数据，批量模式会广播到所有节点。"
+                        />
                         <div className="server-console-action-row">
                             <button className="btn btn-primary btn-sm" onClick={() => handleUpdateGeo()} disabled={loading['geo-all']}>
                                 <HiOutlineGlobeAlt /> {isGlobalView ? '全节点更新' : '全部更新'}
@@ -456,7 +477,11 @@ export default function ServerManagement({ embedded = false }) {
                     </div>
 
                     <div className="card">
-                        <SectionHeader className="card-header section-header section-header--compact" title="数据与备份" />
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title="数据与备份"
+                            subtitle="批量模式只保留 Telegram 备份，数据库导入导出仍限定单节点。"
+                        />
                         <div className="server-console-action-row">
                             <button className="btn btn-primary btn-sm" onClick={handleBackupTelegram} disabled={loading.tgBackup}>
                                 {isGlobalView ? '全节点 Telegram 备份' : 'Telegram 备份'}
@@ -465,14 +490,13 @@ export default function ServerManagement({ embedded = false }) {
                                 <HiOutlineCloudArrowDown /> 导出数据库
                             </button>
                             <label
-                                className={`btn btn-secondary btn-sm ${isGlobalView ? 'disabled' : ''}`}
-                                style={{ cursor: isGlobalView ? 'not-allowed' : 'pointer', opacity: isGlobalView ? 0.6 : 1 }}
+                                className={`btn btn-secondary btn-sm server-console-import-label${isGlobalView ? ' disabled is-disabled' : ''}`}
                             >
                                 <HiOutlineCloudArrowUp /> 导入数据库
                                 <input type="file" accept=".db" onChange={handleImportDb} hidden disabled={isGlobalView} />
                             </label>
                         </div>
-                        <div className="text-xs text-muted mt-3">
+                        <div className="server-console-note mt-3">
                             数据库导入/导出仅支持单节点，集群态不会执行该类动作。
                         </div>
                     </div>
@@ -482,6 +506,7 @@ export default function ServerManagement({ embedded = false }) {
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
                                 title="节点工具"
+                                subtitle="仅展示支持在控制台直接执行的节点工具接口。"
                                 actions={(
                                     <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
                                         <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
@@ -489,7 +514,7 @@ export default function ServerManagement({ embedded = false }) {
                                 )}
                             />
                             {toolEntries.length === 0 ? (
-                                <div className="text-sm text-muted">当前节点未暴露可执行工具接口。</div>
+                                <div className="server-console-note">当前节点未暴露可执行工具接口。</div>
                             ) : (
                                 <div className="server-console-tool-grid">
                                     {toolEntries.map((tool) => (
@@ -502,7 +527,7 @@ export default function ServerManagement({ embedded = false }) {
                                             </div>
                                             <div className="text-sm text-muted mb-3">{tool.description || '-'}</div>
                                             {toolResults[tool.key] && (
-                                                <pre className="log-viewer" style={{ maxHeight: '180px', fontSize: '11px', marginBottom: '12px' }}>
+                                                <pre className="log-viewer server-console-log server-console-log--compact">
                                                     {toolResults[tool.key]}
                                                 </pre>
                                             )}
@@ -533,6 +558,7 @@ export default function ServerManagement({ embedded = false }) {
                             <SectionHeader
                                 className="card-header section-header section-header--compact"
                                 title="官方能力引导"
+                                subtitle="对于 NMS 尚未接管的能力，直接跳转到上游文档查看说明。"
                             />
                             <div className="server-console-guide-grid">
                                 {guidedModules.map((module) => (
@@ -573,7 +599,7 @@ export default function ServerManagement({ embedded = false }) {
                             <button className="modal-close" onClick={() => setShowConfig(false)}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
-                            <pre className="log-viewer" style={{ maxHeight: '500px', fontSize: '11px' }}>
+                            <pre className="log-viewer server-console-log server-console-log--modal">
                                 {configJson}
                             </pre>
                         </div>

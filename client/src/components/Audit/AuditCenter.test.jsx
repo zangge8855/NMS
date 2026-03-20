@@ -168,6 +168,9 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit' });
 
         expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
+        expect(screen.getByText('按事件、结果、目标用户和节点回看系统操作历史，优先定位敏感变更。')).toBeInTheDocument();
+        expect(screen.getByText('筛选操作记录')).toBeInTheDocument();
+        expect(screen.getByText('按关键词、事件类型、结果、目标用户和节点缩小范围。')).toBeInTheDocument();
         expect(screen.queryByPlaceholderText('节点 ID')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: '更多筛选' }));
@@ -227,8 +230,10 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
 
         expect(await screen.findByText('Alice')).toBeInTheDocument();
+        expect(screen.getByText('筛选订阅访问')).toBeInTheDocument();
         expect(screen.queryByText('暂无访问记录')).not.toBeInTheDocument();
         expect(screen.getByRole('option', { name: '已撤销' })).toBeInTheDocument();
+        expect(document.querySelector('.audit-access-ua-text')).toBeTruthy();
 
         const subscriptionsTable = document.querySelector('.audit-subscriptions-table');
         if (!subscriptionsTable) throw new Error('Missing subscriptions table');
@@ -352,6 +357,8 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
         expect((await screen.findAllByText('活跃账号')).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('先看累计流量和采样状态，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });

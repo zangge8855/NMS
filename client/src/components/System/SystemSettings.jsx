@@ -310,7 +310,7 @@ function SettingsWorkspaceSection({
                             {highlights.map((item) => (
                                 <div key={item.label} className="settings-tab-highlight-card settings-workspace-highlight-card">
                                     <div className="settings-tab-highlight-label">{item.label}</div>
-                                    <div className="settings-tab-highlight-value">{item.value}</div>
+                                    <div className="settings-tab-highlight-value" title={String(item.value ?? '')}>{item.value}</div>
                                     {item.detail ? <div className="settings-tab-highlight-detail">{item.detail}</div> : null}
                                 </div>
                             ))}
@@ -2364,6 +2364,7 @@ export default function SystemSettings() {
                     className="mb-3"
                     compact
                     title="数据库读写模式"
+                    subtitle="切换数据库读写策略，或把现有 Store 数据回填到数据库。"
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : '刷新状态'}
@@ -2379,6 +2380,7 @@ export default function SystemSettings() {
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
                                     <h4 className="text-base font-semibold">切换读写模式</h4>
+                                    <div className="settings-panel-subtitle">先确认当前连接状态，再决定读取模式、写入模式和是否同步加载内存缓存。</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
@@ -2407,15 +2409,17 @@ export default function SystemSettings() {
                                             ))}
                                         </select>
                                     </div>
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                        <input
-                                            type="checkbox"
-                                            checked={dbModeDraft.hydrateOnReadDb}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
-                                            disabled={!isAdmin}
-                                        />
-                                        read=db 时同步加载到内存缓存
-                                    </label>
+                                    <div className="settings-db-inline-options">
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                            <input
+                                                type="checkbox"
+                                                checked={dbModeDraft.hydrateOnReadDb}
+                                                onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
+                                                disabled={!isAdmin}
+                                            />
+                                            read=db 时同步加载到内存缓存
+                                        </label>
+                                    </div>
                                 </div>
                                 <div className="settings-db-card-foot">
                                     <button
@@ -2431,6 +2435,7 @@ export default function SystemSettings() {
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
                                     <h4 className="text-base font-semibold">Store 回填到数据库</h4>
+                                    <div className="settings-panel-subtitle">按数据键选择回填范围，可先预演，再执行正式写入。</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
@@ -2444,7 +2449,7 @@ export default function SystemSettings() {
                                         />
                                         <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
                                     </div>
-                                    <div className="flex gap-3 flex-wrap">
+                                    <div className="settings-db-inline-options">
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
@@ -2490,23 +2495,29 @@ export default function SystemSettings() {
     };
 
     const renderStatusContent = () => (
-        <div className="settings-section-stack">
-            <div className="card p-3 settings-mini-card settings-detail-card settings-status-toolbar">
-                <div className="settings-status-toolbar-main">
-                    <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
-                        告警链路 {readyAlertChainCount}/3
-                    </span>
-                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
-                        {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
-                    </span>
-                    <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
-                        {dbStatus
-                            ? `DB ${dbStatus.currentModes?.readMode || 'file'} / ${dbStatus.currentModes?.writeMode || 'file'}`
-                            : 'DB 等待探测'}
-                    </span>
-                </div>
-                <button
-                    type="button"
+            <div className="settings-section-stack">
+                <div className="card p-3 settings-mini-card settings-detail-card settings-status-toolbar">
+                    <div className="settings-status-toolbar-main">
+                        <div className="settings-status-toolbar-copy">
+                            <div className="settings-status-toolbar-title">核心状态概览</div>
+                            <div className="settings-status-toolbar-note">先确认告警链路、数据库模式和备份基线，再决定是否进入对应工作区继续调整。</div>
+                        </div>
+                        <div className="settings-status-toolbar-badges">
+                            <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
+                                告警链路 {readyAlertChainCount}/3
+                            </span>
+                            <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
+                                {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
+                            </span>
+                            <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
+                                {dbStatus
+                                    ? `DB ${dbStatus.currentModes?.readMode || 'file'} / ${dbStatus.currentModes?.writeMode || 'file'}`
+                                    : 'DB 等待探测'}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={refreshStatusWorkspace}
                     disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
@@ -2523,14 +2534,17 @@ export default function SystemSettings() {
                             <div className="settings-summary-label">{item.title}</div>
                             <span className={`badge settings-summary-badge ${badgeMeta.className}`}>{badgeMeta.label}</span>
                         </div>
-                        <div className="settings-summary-value">{item.value}</div>
+                        <div className="settings-summary-value" title={String(item.value ?? '')}>{item.value}</div>
                         {item.detail ? <div className="settings-summary-detail">{item.detail}</div> : null}
                     </div>
                 );})}
             </div>
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--span-6">
-                    <SectionHeader className="mb-3" compact title="通知与巡检状态" />
+                    <div className="settings-panel-head mb-3">
+                        <div className="settings-panel-title">通知与巡检状态</div>
+                        <div className="settings-panel-subtitle">集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。</div>
+                    </div>
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">SMTP</span>
@@ -2570,7 +2584,10 @@ export default function SystemSettings() {
                     </div>
                 </div>
                 <div className="card p-4 settings-panel settings-panel--span-6">
-                    <SectionHeader className="mb-3" compact title="数据库与备份状态" />
+                    <div className="settings-panel-head mb-3">
+                        <div className="settings-panel-title">数据库与备份状态</div>
+                        <div className="settings-panel-subtitle">把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。</div>
+                    </div>
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">DB 连接</span>

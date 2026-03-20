@@ -75,6 +75,8 @@ describe('ServerManagement', () => {
         renderWithRouter(<ServerManagement />);
 
         expect(await screen.findByText('批量控制模式')).toBeInTheDocument();
+        expect(screen.getByText('节点控制工作台')).toBeInTheDocument();
+        expect(screen.getByText('集中查看当前作用域，并执行 Xray、Geo、备份与节点工具相关操作。')).toBeInTheDocument();
         expect(screen.getByText('当前作用域')).toBeInTheDocument();
         expect(screen.getByText('1 台节点')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: '1.8.0' })).toBeInTheDocument();

@@ -106,6 +106,9 @@ export default function Tools() {
         () => tools.filter((item) => item.available !== false),
         [tools]
     );
+    const toolbarMeta = copy.meta
+        .replace('{enabled}', String(enabledTools.length))
+        .replace('{total}', String(tools.length));
 
     const handleGenerate = async (tool) => {
         if (!hasTargetServer) {
@@ -159,12 +162,18 @@ export default function Tools() {
                 <PageToolbar
                     className="card rounded-xl mb-6 tools-toolbar"
                     compact
+                    main={(
+                        <div className="tools-toolbar-copy">
+                            <div className="tools-toolbar-title">{copy.toolbarTitle}</div>
+                            <div className="tools-toolbar-note">{copy.toolbarSubtitle}</div>
+                        </div>
+                    )}
                     actions={(
                         <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchCatalog} disabled={catalogLoading}>
                             <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
                         </button>
                     )}
-                    meta={<span>{copy.meta.replace('{enabled}', String(enabledTools.length)).replace('{total}', String(tools.length))}</span>}
+                    meta={<span>{toolbarMeta}</span>}
                 />
                 {tools.length === 0 && !catalogLoading ? (
                     <EmptyState

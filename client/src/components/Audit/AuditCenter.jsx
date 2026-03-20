@@ -393,6 +393,11 @@ const EMPTY_EVENT_FILTERS = Object.freeze({
     serverId: '',
 });
 
+const EMPTY_ACCESS_FILTERS = Object.freeze({
+    email: '',
+    status: '',
+});
+
 const MASKED_AUDIT_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
 function getAuditCopy(locale = 'zh-CN') {
@@ -955,14 +960,15 @@ export default function AuditCenter() {
         }
     };
 
-    const fetchAccess = async (targetPage = accessPage) => {
+    const fetchAccess = async (targetPage = accessPage, filtersOverride = null) => {
         setAccessLoading(true);
         try {
+            const sourceFilters = filtersOverride || accessFilters;
             const params = new URLSearchParams();
             params.append('page', String(targetPage));
             params.append('pageSize', '30');
-            if (accessFilters.email) params.append('email', accessFilters.email);
-            if (accessFilters.status) params.append('status', accessFilters.status);
+            if (sourceFilters.email) params.append('email', sourceFilters.email);
+            if (sourceFilters.status) params.append('status', sourceFilters.status);
             const [res, summaryRes] = await Promise.all([
                 api.get(`/subscriptions/access?${params.toString()}`),
                 api.get(`/subscriptions/access/summary?${params.toString()}`),
@@ -1121,11 +1127,21 @@ export default function AuditCenter() {
             icon: HiOutlineCommandLine,
         },
     ]), [copy]);
+    const activeAuditTab = useMemo(
+        () => auditTabs.find((item) => item.id === tab) || auditTabs[0] || null,
+        [auditTabs, tab]
+    );
     const currentTabBusy = (
         (tab === 'events' && eventsLoading)
         || (tab === 'traffic' && trafficLoading)
         || (tab === 'subscriptions' && accessLoading)
     );
+
+    const handleResetAccessFilters = () => {
+        const nextFilters = { ...EMPTY_ACCESS_FILTERS };
+        setAccessFilters(nextFilters);
+        fetchAccess(1, nextFilters);
+    };
 
     return (
         <>
@@ -1143,6 +1159,9 @@ export default function AuditCenter() {
                                 <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
                             </div>
                         </div>
+                        {activeAuditTab?.summary ? (
+                            <div className="audit-nav-summary">{activeAuditTab.summary}</div>
+                        ) : null}
                         <div className="tabs audit-tabs" role="tablist" aria-label={copy.workspace.navLabel}>
                             {auditTabs.map((item) => {
                                 const Icon = item.icon;
@@ -1169,8 +1188,12 @@ export default function AuditCenter() {
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
                             <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
-                                <div className="audit-control-head audit-control-head--compact">
-                                    <div className="audit-control-actions audit-control-actions--split">
+                                <div className="audit-control-head">
+                                    <div className="audit-control-copy">
+                                        <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
+                                        <div className="audit-control-text">{copy.workspace.eventsFiltersSubtitle}</div>
+                                    </div>
+                                    <div className="audit-control-actions">
                                         <div className="audit-control-action-group">
                                             <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
                                                 <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
@@ -1340,23 +1363,30 @@ export default function AuditCenter() {
                 {tab === 'traffic' && (
                     <>
                         <div className="card mb-8 audit-traffic-overview">
-                            <div className="audit-traffic-overview-actions">
-                                <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
-                                    <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
-                                    <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
+                            <div className="audit-traffic-overview-head">
+                                <div className="audit-traffic-overview-copy">
+                                    <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
+                                    <div className="audit-traffic-overview-title">{copy.tabs.traffic}</div>
+                                    <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
                                 </div>
-                                <select
-                                    className="form-select w-130"
-                                    value={trafficGranularity}
-                                    onChange={(e) => setTrafficGranularity(e.target.value)}
-                                >
-                                    <option value="auto">{copy.filters.autoGranularity}</option>
-                                    <option value="hour">{copy.filters.byHour}</option>
-                                    <option value="day">{copy.filters.byDay}</option>
-                                </select>
-                                <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                    <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
-                                </button>
+                                <div className="audit-traffic-overview-actions">
+                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
+                                        <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
+                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
+                                    </div>
+                                    <select
+                                        className="form-select w-130"
+                                        value={trafficGranularity}
+                                        onChange={(e) => setTrafficGranularity(e.target.value)}
+                                    >
+                                        <option value="auto">{copy.filters.autoGranularity}</option>
+                                        <option value="hour">{copy.filters.byHour}</option>
+                                        <option value="day">{copy.filters.byDay}</option>
+                                    </select>
+                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
+                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
+                                    </button>
+                                </div>
                             </div>
                             <div className="audit-traffic-overview-body">
                                 <div className="audit-traffic-total-card">
@@ -1546,14 +1576,27 @@ export default function AuditCenter() {
                 {tab === 'subscriptions' && (
                     <>
                         <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
-                            <div className="audit-control-head audit-control-head--compact">
+                            <div className="audit-control-head">
+                                <div className="audit-control-copy">
+                                    <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
+                                    <div className="audit-control-text">{copy.workspace.subscriptionsFiltersSubtitle}</div>
+                                </div>
                                 <div className="audit-control-actions">
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
-                                        <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                    </button>
-                                    <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
-                                        <HiOutlineTrash /> {copy.actions.clear}
-                                    </button>
+                                    <div className="audit-control-action-group">
+                                        <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
+                                            <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
+                                        </button>
+                                        {activeAccessFilterCount > 0 && (
+                                            <button className="btn btn-ghost btn-sm" onClick={handleResetAccessFilters}>
+                                                {copy.actions.resetFilters}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="audit-control-action-group audit-control-action-group--secondary">
+                                        <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
+                                            <HiOutlineTrash /> {copy.actions.clear}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <div className="audit-control-meta audit-control-meta--compact">
@@ -1627,8 +1670,8 @@ export default function AuditCenter() {
                                             <th>{copy.tables.user}</th>
                                             <th className="table-cell-center audit-access-result-column">{copy.tables.result}</th>
                                             <th>{copy.tables.realIp}</th>
-                                            <th>{copy.tables.locationCarrier}</th>
-                                            <th>UA</th>
+                                            <th className="audit-access-location-column">{copy.tables.locationCarrier}</th>
+                                            <th className="audit-access-ua-column">UA</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1636,6 +1679,7 @@ export default function AuditCenter() {
                                             const geoDisplay = resolveAccessGeoDisplay(item);
                                             const userLabel = formatAccessUserLabel(item, copy);
                                             const userMeta = formatAccessUserMeta(item, copy);
+                                            const userAgentLabel = formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true);
                                             return (
                                             <tr key={item.id}>
                                                 <td data-label={copy.tables.time} className="cell-mono audit-access-time-cell" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
@@ -1654,14 +1698,16 @@ export default function AuditCenter() {
                                                         {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
                                                     </div>
                                                 </td>
-                                                <td data-label={copy.tables.locationCarrier} className="text-xs">
+                                                <td data-label={copy.tables.locationCarrier} className="text-xs audit-access-location-cell">
                                                     <div className="audit-access-location">
                                                         <span>{geoDisplay.location}</span>
                                                         {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
                                                     </div>
                                                 </td>
-                                                <td data-label={copy.tables.ua} className="text-xs" style={{ wordBreak: 'break-all', lineHeight: '1.4' }}>
-                                                    {formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true)}
+                                                <td data-label={copy.tables.ua} className="text-xs audit-access-ua-cell">
+                                                    <div className="audit-access-ua-text" title={userAgentLabel}>
+                                                        {userAgentLabel}
+                                                    </div>
                                                 </td>
                                             </tr>
                                             );

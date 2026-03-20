@@ -9,6 +9,7 @@ import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, copyToClipboard, formatDateOnly, formatDateTime } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
+import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
@@ -76,6 +77,22 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
         progress: clampProgress((remainingDays / 30) * 100),
         tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
         meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays}天`,
+    };
+}
+
+function resolveClientPresence(client, copy) {
+    const sessions = Number(client?.onlineSessions || 0);
+    if (sessions > 0) {
+        return {
+            online: true,
+            label: copy.labels.online,
+            detail: copy.labels.onlineSessions.replace('{count}', String(sessions)),
+        };
+    }
+    return {
+        online: false,
+        label: copy.labels.offline,
+        detail: '',
     };
 }
 
@@ -180,6 +197,9 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 accessCount: 'Subscription Access',
                 auditCount: 'Audit Records',
                 clientSummaryLoading: 'Loading node summary...',
+                online: 'Online',
+                offline: 'Offline',
+                onlineSessions: '{count} sessions',
                 accessPolicy: 'Access Policy',
                 unlimited: 'Unlimited',
                 blocked: 'Blocked',
@@ -334,6 +354,9 @@ function getUserDetailCopy(locale = 'zh-CN') {
             accessCount: '订阅访问',
             auditCount: '审计记录',
             clientSummaryLoading: '节点汇总加载中...',
+            online: '在线',
+            offline: '离线',
+            onlineSessions: '{count} 会话',
             accessPolicy: '访问策略',
             unlimited: '不限',
             blocked: '禁止',
@@ -404,9 +427,12 @@ function UserAvatar({ username }) {
 
 function StatCard({ label, value }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
+    const displayValue = typeof value === 'number' ? String(animated) : '...';
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value">{typeof value === 'number' ? animated : '...'}</div>
+            <div className="stat-mini-value" title={displayValue}>
+                <span className="stat-mini-value-text">{displayValue}</span>
+            </div>
             <div className="stat-mini-label">{label}</div>
         </div>
     );
@@ -663,12 +689,13 @@ export default function UserDetail() {
             }
             const emailSet = new Set(trackedEmails);
             const clients = [];
-            const serverResults = await fetchServerPanelData(api, servers, { includeOnlines: false });
+            const serverResults = await fetchServerPanelData(api, servers, { includeOnlines: true });
             if (requestId !== clientRequestIdRef.current) return;
 
             serverResults.forEach((result) => {
                 const server = result.server;
                 const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+                const onlineMatchMap = buildOnlineMatchMap(result?.onlines);
                 inbounds.forEach((ib) => {
                     const ibClients = mergeInboundClientStats(ib);
                     if (ibClients.length === 0) return;
@@ -688,6 +715,7 @@ export default function UserDetail() {
                             down: Number(cl.down) || 0,
                             expiryTime: Number(cl.expiryTime) || 0,
                             enable: cl.enable !== false,
+                            onlineSessions: countClientOnlineSessions(cl, protocol, onlineMatchMap),
                         });
                     });
                 });
@@ -1399,11 +1427,22 @@ export default function UserDetail() {
                                     <div className="user-detail-client-list">
                                         {clientData.map((client, index) => {
                                             const supportState = clientIpSupportByServer[client.serverId];
+                                            const presence = resolveClientPresence(client, copy);
                                             return (
                                                 <div key={`${client.serverId}-${client.inboundId || index}`} className="user-detail-client-card">
                                                     <div className="user-detail-client-head">
                                                         <div className="user-detail-client-copy">
-                                                            <div className="user-detail-client-title">{client.serverName}</div>
+                                                            <div className="user-detail-client-title-row">
+                                                                <div className="user-detail-client-title">{client.serverName}</div>
+                                                                <span
+                                                                    className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
+                                                                    title={presence.detail || presence.label}
+                                                                >
+                                                                    <span className="user-detail-presence-dot" aria-hidden="true" />
+                                                                    <span className="user-detail-presence-label">{presence.label}</span>
+                                                                    {presence.detail ? <span className="user-detail-presence-detail">{presence.detail}</span> : null}
+                                                                </span>
+                                                            </div>
                                                             <div className="user-detail-client-subtitle">{client.inboundRemark || client.inboundId}</div>
                                                         </div>
                                                         <span className={`badge ${client.enable ? 'badge-success' : 'badge-danger'}`}>
@@ -1450,9 +1489,22 @@ export default function UserDetail() {
                                             <tbody>
                                                 {clientData.map((c, i) => {
                                                     const supportState = clientIpSupportByServer[c.serverId];
+                                                    const presence = resolveClientPresence(c, copy);
                                                     return (
                                                     <tr key={i}>
-                                                        <td data-label={copy.labels.server}>{c.serverName}</td>
+                                                        <td data-label={copy.labels.server} className="user-detail-server-cell">
+                                                            <div className="user-detail-server-stack">
+                                                                <span className="user-detail-server-name">{c.serverName}</span>
+                                                                <span
+                                                                    className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
+                                                                    title={presence.detail || presence.label}
+                                                                >
+                                                                    <span className="user-detail-presence-dot" aria-hidden="true" />
+                                                                    <span className="user-detail-presence-label">{presence.label}</span>
+                                                                    {presence.detail ? <span className="user-detail-presence-detail">{presence.detail}</span> : null}
+                                                                </span>
+                                                            </div>
+                                                        </td>
                                                         <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
                                                         <td data-label={copy.labels.protocol} className="table-cell-center user-detail-protocol-cell"><span className="badge badge-neutral">{c.protocol}</span></td>
                                                         <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes((c.up || 0) + (c.down || 0))}</td>

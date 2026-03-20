@@ -195,12 +195,15 @@ describe('Dashboard', () => {
 
         const trafficCard = screen.getByText('总流量').closest('.dashboard-stat-card');
         if (!trafficCard) throw new Error('Missing single-server traffic card');
+        expect(trafficCard.closest('.dashboard-stats-grid')).toBeTruthy();
 
         await waitFor(() => {
             expect(trafficCard).toHaveTextContent('300 B');
             expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
             expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
         });
+
+        expect(trafficCard.querySelector('.dashboard-stat-card-value-text')).toBeTruthy();
     });
 
     it('shows a dedicated empty state when the selected node has no inbound rules', async () => {

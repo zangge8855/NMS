@@ -67,6 +67,8 @@ describe('AccountCenter', () => {
         renderWithRouter(<AccountCenter />);
 
         expect(screen.queryByLabelText('订阅邮箱')).not.toBeInTheDocument();
+        expect(screen.getByText('检查当前登录身份，并在修改前先通过旧邮箱完成验证码确认。')).toBeInTheDocument();
+        expect(screen.getByText('在这里更新登录密码，并确保新密码符合当前密码策略。')).toBeInTheDocument();
 
         const usernameInput = screen.getByLabelText('用户名');
         const emailInput = screen.getByLabelText('登录邮箱');

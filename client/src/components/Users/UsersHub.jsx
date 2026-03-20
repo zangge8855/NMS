@@ -8,10 +8,11 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
-import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
+import { normalizeEmail } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
+import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
 import { fetchManagedUsers, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
@@ -81,49 +82,6 @@ function formatExpiryLabel(expiryValues, locale = 'zh-CN') {
     if (!expiryValues || expiryValues.length === 0) return '永久';
     const earliest = Math.min(...expiryValues);
     return formatDateOnly(earliest, locale);
-}
-
-function normalizeOnlineValue(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function normalizeOnlineKeys(item) {
-    if (typeof item === 'string') {
-        const value = normalizeOnlineValue(item);
-        return value ? [value] : [];
-    }
-    if (!item || typeof item !== 'object') {
-        return [];
-    }
-    return Array.from(new Set(
-        [
-            item.email,
-            item.user,
-            item.username,
-            item.clientEmail,
-            item.client,
-            item.remark,
-            item.id,
-            item.password,
-        ]
-            .map((value) => normalizeOnlineValue(value))
-            .filter(Boolean)
-    ));
-}
-
-function buildClientOnlineKeys(client, protocol) {
-    const keys = new Set();
-    const email = normalizeOnlineValue(client?.email);
-    const identifier = normalizeOnlineValue(getClientIdentifier(client, protocol));
-    const id = normalizeOnlineValue(client?.id);
-    const password = normalizeOnlineValue(client?.password);
-
-    if (email) keys.add(email);
-    if (identifier) keys.add(identifier);
-    if (id) keys.add(id);
-    if (password) keys.add(password);
-
-    return Array.from(keys);
 }
 
 function getOnlineStatus(clientCount, sessions) {
@@ -413,7 +371,7 @@ export default function UsersHub() {
                 const server = result.server;
                 const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
                 const onlines = Array.isArray(result?.onlines) ? result.onlines : [];
-                const onlineCounter = new Map();
+                const onlineMatchMap = buildOnlineMatchMap(onlines);
 
                 if (result?.inboundsError) {
                     nextPartialErrors.push({
@@ -433,9 +391,6 @@ export default function UsersHub() {
                 }
 
                 onlines.forEach((entry) => {
-                    normalizeOnlineKeys(entry).forEach((key) => {
-                        onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
-                    });
                     const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
                     if (email) {
                         onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
@@ -483,9 +438,7 @@ export default function UsersHub() {
                             emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 });
                         }
                         const entry = emailMap.get(email);
-                        const onlineSessions = buildClientOnlineKeys(cl, protocol).reduce((total, key) => (
-                            total + (onlineCounter.get(key) || 0)
-                        ), 0);
+                        const onlineSessions = countClientOnlineSessions(cl, protocol, onlineMatchMap);
                         entry.count += 1;
                         entry.totalUsed += resolveClientUsed(cl);
                         entry.totalUp += safeNumber(cl?.up);
