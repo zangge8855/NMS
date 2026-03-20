@@ -51,11 +51,11 @@ function buildLinks(toolLookup, keys = []) {
         .filter(Boolean);
 }
 
-function buildRule(toolLookup, profileLookup, toolKeys = [], profileKey) {
+function buildRule(toolLookup, profileLookup, toolKeys = [], profileKey, profileLabelOverride = '') {
     const tools = toolKeys
         .map((key) => toolLookup.get(key)?.label)
         .filter(Boolean);
-    const profileLabel = profileLookup.get(profileKey)?.label;
+    const profileLabel = String(profileLabelOverride || profileLookup.get(profileKey)?.label || '').trim();
     if (!tools.length || !profileLabel) return null;
     return {
         key: `${toolKeys.join('-')}::${profileKey}`,
@@ -123,7 +123,7 @@ export default function SubscriptionClientLinks({
             appLinks: buildLinks(toolLookup, ['flclash', 'v2rayn', 'sparkle']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn'),
+                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn', 'v2rayN'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -134,7 +134,7 @@ export default function SubscriptionClientLinks({
             appLinks: buildLinks(toolLookup, ['flclash', 'sparkle', 'v2rayn']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn'),
+                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn', 'v2rayN'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -145,7 +145,7 @@ export default function SubscriptionClientLinks({
             appLinks: buildLinks(toolLookup, ['flclash', 'cmfa', 'exclave']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['exclave'], 'v2rayn'),
+                buildRule(toolLookup, profileLookup, ['exclave'], 'v2rayn', 'Exclave'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -156,7 +156,7 @@ export default function SubscriptionClientLinks({
             appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['stash'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn'),
+                buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn', 'Shadowrocket'),
                 buildRule(toolLookup, profileLookup, ['surge'], 'surge'),
                 buildRule(toolLookup, profileLookup, ['singbox'], 'singbox'),
             ].filter(Boolean),

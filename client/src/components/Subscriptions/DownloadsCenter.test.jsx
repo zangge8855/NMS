@@ -16,6 +16,7 @@ describe('DownloadsCenter', () => {
         expect(screen.getAllByText('推荐配置文件').length).toBeGreaterThan(0);
         expect(screen.getAllByRole('link', { name: 'FlClash' }).length).toBeGreaterThan(0);
         expect(screen.getAllByRole('link', { name: 'Shadowrocket' }).length).toBeGreaterThan(0);
+        expect(screen.queryByText('通用链接')).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: '导入到 Shadowrocket' })).not.toBeInTheDocument();
         expect(screen.queryByText('订阅地址与导入')).not.toBeInTheDocument();
     });

@@ -170,7 +170,7 @@ function buildNoticeDraft(source = null, fallbackUrl = '') {
     };
 }
 
-const DEFAULT_SETTINGS_TAB = 'access';
+const DEFAULT_SETTINGS_TAB = 'status';
 const SETTINGS_TAB_CONFIG = [
     {
         id: 'status',
@@ -1461,17 +1461,7 @@ export default function SystemSettings() {
         ? (dbStatus?.connection?.ready ? '连接已就绪' : '连接未就绪')
         : '未启用';
     const dbQueueLabel = `queued ${dbStatus?.writesQueued || 0} · pending ${dbStatus?.pendingWrites || 0}`;
-    const converterStatusLabel = converterBaseUrl ? '已启用外部转换' : '未启用外部转换';
-    const publicBaseUrlLabel = draft.subscription.publicBaseUrl ? '已设置公网地址' : '跟随站点地址';
     const geoStatusLabel = draft.auditIpGeo.enabled ? '已启用' : '未启用';
-    const telegramStatusLabel = monitorStatus?.telegram?.enabled
-        ? '已启用'
-        : monitorStatus?.telegram?.configured
-            ? '已配置未启用'
-            : '未配置';
-    const latestExportFilename = backupStatus?.lastExport?.filename || '暂无';
-    const latestRestoreFilename = backupStatus?.lastImport?.sourceFilename || '暂无';
-
     const overviewCards = useMemo(() => ([
         {
             title: '站点入口',
@@ -1514,37 +1504,6 @@ export default function SystemSettings() {
         readyAlertChainCount,
         alertChainStates,
     ]);
-    const accessHighlights = useMemo(() => ([
-        {
-            label: '访问入口',
-            value: siteAccessPath,
-            detail: siteEntryPreview,
-        },
-        {
-            label: '订阅公网',
-            value: publicBaseUrlLabel,
-            detail: draft.subscription.publicBaseUrl || '未单独设置时将回落到站点地址。',
-        },
-        {
-            label: '外部转换',
-            value: converterStatusLabel,
-            detail: converterBaseUrl || '当前不启用外部订阅转换器。',
-        },
-        {
-            label: '注册模式',
-            value: registrationModeLabel,
-            detail: camouflageStatusLabel,
-        },
-    ]), [
-        camouflageStatusLabel,
-        converterBaseUrl,
-        converterStatusLabel,
-        draft.subscription.publicBaseUrl,
-        publicBaseUrlLabel,
-        registrationModeLabel,
-        siteAccessPath,
-        siteEntryPreview,
-    ]);
     const policyHighlights = useMemo(() => ([
         {
             label: '高风险确认',
@@ -1577,38 +1536,6 @@ export default function SystemSettings() {
         draft.security.riskTokenTtlSeconds,
         geoStatusLabel,
     ]);
-    const backupHighlights = useMemo(() => ([
-        {
-            label: '数据库模式',
-            value: dbModeLabel,
-            detail: dbConnectionLabel,
-        },
-        {
-            label: '写入排队',
-            value: dbQueueLabel,
-            detail: dbStatus?.lastWriteAt ? `最近写入 ${formatDateTime(dbStatus.lastWriteAt, locale)}` : '最近暂无写入记录',
-        },
-        {
-            label: '备份基线',
-            value: backupSummaryValue,
-            detail: latestExportFilename,
-        },
-        {
-            label: '最近恢复',
-            value: latestRestoreFilename,
-            detail: formatDateTime(backupStatus?.lastImport?.restoredAt, locale),
-        },
-    ]), [
-        backupStatus,
-        backupSummaryValue,
-        dbConnectionLabel,
-        dbModeLabel,
-        dbQueueLabel,
-        dbStatus,
-        latestExportFilename,
-        latestRestoreFilename,
-        locale,
-    ]);
     const monitorReasonSummary = useMemo(() => {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
             .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
@@ -1623,38 +1550,6 @@ export default function SystemSettings() {
     const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
         + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
     const monitorUnreadCount = Number(monitorStatus?.notifications?.unreadCount || 0);
-    const operationsHighlights = useMemo(() => ([
-        {
-            label: 'SMTP 状态',
-            value: emailConfiguredLabel,
-            detail: `${emailDeliveryLabel} · ${emailVerificationLabel}`,
-        },
-        {
-            label: 'Telegram',
-            value: telegramStatusLabel,
-            detail: telegramTargetPreview !== '-' ? telegramTargetPreview : '尚未指定有效通知目标',
-        },
-        {
-            label: '节点巡检',
-            value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行',
-            detail: `正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`,
-        },
-        {
-            label: '通知中心',
-            value: `未读 ${monitorUnreadCount}`,
-            detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}`,
-        },
-    ]), [
-        emailConfiguredLabel,
-        emailDeliveryLabel,
-        emailVerificationLabel,
-        monitorHealthyCount,
-        monitorIncidentCount,
-        monitorStatus,
-        monitorUnreadCount,
-        telegramStatusLabel,
-        telegramTargetPreview,
-    ]);
     const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
@@ -2791,7 +2686,6 @@ export default function SystemSettings() {
             eyebrow: 'Access',
             subtitle: '统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。',
             summary: '保持外部访问路径清晰，再处理订阅外链与注册发放策略，和其他工作区的节奏一致。',
-            highlights: accessHighlights,
             navSummary: '入口 / 订阅 / 注册',
             content: renderAccessContent(),
             heroMode: 'full',
@@ -2812,8 +2706,7 @@ export default function SystemSettings() {
             title: '运维通知',
             eyebrow: 'Operations',
             subtitle: '把邮件、Telegram 和节点巡检动作放在同一页执行与复核。',
-            summary: '顶部先确认链路与巡检状态，再进入下面的动作卡片执行测试、通知或巡检。',
-            highlights: operationsHighlights,
+            summary: '链路状态和巡检概览集中在系统状态页查看，这里只保留测试、通知和 Telegram 配置动作。',
             navSummary: '运维动作 / Telegram',
             content: renderOperationsWorkspace(),
             heroMode: 'full',
@@ -2823,8 +2716,7 @@ export default function SystemSettings() {
             title: '数据备份',
             eyebrow: 'Backup',
             subtitle: '数据库模式、备份导出和恢复校验放在一个工作区统一处理。',
-            summary: '先看当前读写模式与备份基线，再决定执行回填、导出或恢复，避免误操作。',
-            highlights: backupHighlights,
+            summary: '数据库模式和备份基线集中在系统状态页查看，这里只保留切换、导出和恢复操作。',
             navSummary: '数据库 / 备份恢复',
             content: renderBackupWorkspace(),
             heroMode: 'full',

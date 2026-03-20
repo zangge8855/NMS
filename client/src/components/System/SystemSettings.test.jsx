@@ -336,7 +336,7 @@ describe('SystemSettings', () => {
         });
         mockAdminBootstrap();
 
-        renderWithRouter(<SystemSettings />);
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
 
         expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '随机路径' })).toBeInTheDocument();
@@ -348,7 +348,7 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
     });
 
-    it('lazy-loads only the access workspace dependencies on the default tab', async () => {
+    it('lazy-loads only the status workspace dependencies on the default tab', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -356,17 +356,17 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />);
 
-        expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
+        expect(await screen.findByText('通知与巡检状态')).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/system/settings');
         expect(api.get).toHaveBeenCalledWith('/auth/registration-status');
-        expect(api.get).toHaveBeenCalledWith('/system/invite-codes');
-        expect(api.get).not.toHaveBeenCalledWith('/system/db/status');
-        expect(api.get).not.toHaveBeenCalledWith('/system/email/status');
-        expect(api.get).not.toHaveBeenCalledWith('/system/backup/status');
-        expect(api.get).not.toHaveBeenCalledWith('/system/monitor/status');
+        expect(api.get).toHaveBeenCalledWith('/system/db/status');
+        expect(api.get).toHaveBeenCalledWith('/system/email/status');
+        expect(api.get).toHaveBeenCalledWith('/system/backup/status');
+        expect(api.get).toHaveBeenCalledWith('/system/monitor/status');
+        expect(api.get).not.toHaveBeenCalledWith('/system/invite-codes');
     });
 
-    it('shows a dedicated status tab while keeping the default access workspace focused', async () => {
+    it('shows the status workspace by default while keeping access in a dedicated tab', async () => {
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });
@@ -400,14 +400,14 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />);
 
-        await screen.findByDisplayValue('/portal');
+        await screen.findByText('通知与巡检状态');
         expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
-        expect(screen.getAllByText('运维通知').length).toBeGreaterThan(0);
+        expect(screen.getByRole('button', { name: '对外访问' })).toBeInTheDocument();
         expect(screen.queryByText('Overview')).not.toBeInTheDocument();
         expect(document.querySelector('.settings-tab-hero')).not.toBeNull();
-        expect(screen.getAllByText('对外访问').length).toBeGreaterThan(0);
-        expect(document.querySelectorAll('.settings-workspace-highlight-card').length).toBeGreaterThan(0);
-        expect(screen.getByText('统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。')).toBeInTheDocument();
+        expect(screen.getByText('把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。')).toBeInTheDocument();
+        expect(screen.queryByText('统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。')).not.toBeInTheDocument();
+        expect(screen.queryByDisplayValue('/portal')).not.toBeInTheDocument();
     });
 
     it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
@@ -418,12 +418,13 @@ describe('SystemSettings', () => {
         });
         mockAdminBootstrap();
 
-        renderWithRouter(<SystemSettings />);
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
 
         expect((await screen.findAllByText('注册与邀请码')).length).toBeGreaterThan(0);
         expect(screen.getByText('开启邀请注册')).toBeInTheDocument();
         expect(screen.queryByText('当前注册状态')).not.toBeInTheDocument();
         expect(screen.queryByText('邀请码情况')).not.toBeInTheDocument();
+        expect(document.querySelector('[data-workspace="access"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByRole('button', { name: '生成邀请码' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '展开台账' })).toBeInTheDocument();
         expect(screen.queryByText('INV-ALPHA')).not.toBeInTheDocument();
@@ -464,6 +465,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('手动执行节点健康巡检')).toBeInTheDocument();
         expect(screen.queryByText('巡检摘要')).not.toBeInTheDocument();
         expect(screen.queryByText('DNS 1 · 认证失败 1')).not.toBeInTheDocument();
+        expect(document.querySelector('[data-workspace="operations"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '测试 SMTP' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
@@ -491,6 +493,7 @@ describe('SystemSettings', () => {
 
         expect(await screen.findByText('备份与恢复')).toBeInTheDocument();
         expect(screen.queryByText('备份摘要')).not.toBeInTheDocument();
+        expect(document.querySelector('[data-workspace="backup"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
         expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });
@@ -593,7 +596,7 @@ describe('SystemSettings', () => {
             },
         });
 
-        renderWithRouter(<SystemSettings />);
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
 
         expect(await screen.findByText('邀请码台账')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: '展开台账' }));
