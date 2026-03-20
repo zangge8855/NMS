@@ -8360,32 +8360,49 @@ body::before {
 .audit-traffic-total-card {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
   min-width: 0;
   padding: 18px;
   border-radius: 18px;
   border: 1px solid rgba(16, 185, 129, 0.16);
   background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  text-align: center;
 }
 
 .audit-traffic-total-label {
+  width: 100%;
+  max-width: 24ch;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-secondary);
+  font-weight: 600;
+  text-align: center;
 }
 
 .audit-traffic-total-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   font-size: clamp(2rem, 4vw, 2.8rem);
   line-height: 1;
   letter-spacing: -0.04em;
   font-weight: 700;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .audit-traffic-total-note {
+  width: 100%;
+  max-width: 28ch;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-muted);
+  text-align: center;
 }
 
 .audit-traffic-split-grid {
@@ -8393,16 +8410,22 @@ body::before {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: auto;
+  width: 100%;
+  max-width: 420px;
 }
 
 .audit-traffic-split-card {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: 88px;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
+  text-align: center;
 }
 
 .audit-traffic-split-card--up {
@@ -8414,20 +8437,24 @@ body::before {
 }
 
 .audit-traffic-split-label {
+  width: 100%;
   font-size: 11px;
   line-height: 1.2;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 700;
+  text-align: center;
 }
 
 .audit-traffic-split-value {
+  width: 100%;
   font-size: 18px;
   line-height: 1.35;
   font-weight: 700;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .audit-traffic-mini-grid {
