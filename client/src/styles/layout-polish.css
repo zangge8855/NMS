@@ -945,6 +945,11 @@
   line-height: 1.45;
 }
 
+.tasks-embedded-shell {
+  display: grid;
+  gap: 14px;
+}
+
 .tasks-mobile-shell {
   display: grid;
   gap: 12px;

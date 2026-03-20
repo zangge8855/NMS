@@ -265,11 +265,11 @@ export default function Tasks({ embedded = false }) {
         return count;
     }, [actionFilter, failedOnlyFilter, retryGroupBy, serverFilter, typeFilter]);
 
-    const shellClassName = embedded ? '' : 'page-content page-enter';
-    const filterCardClassName = embedded ? 'card mb-8 p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
+    const shellClassName = embedded ? 'tasks-embedded-shell' : 'page-content page-enter';
+    const filterCardClassName = embedded ? 'card p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
     // Converge on the shared table shell instead of page-specific container variants.
-    const tableShellClassName = 'table-container mb-8';
-    const mobileListShellClassName = 'tasks-mobile-shell mb-8';
+    const tableShellClassName = embedded ? 'table-container' : 'table-container mb-8';
+    const mobileListShellClassName = embedded ? 'tasks-mobile-shell' : 'tasks-mobile-shell mb-8';
     const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
     const paginationClassName = 'audit-pagination page-pagination';
     const filterSelectClassName = 'form-select rounded-lg';

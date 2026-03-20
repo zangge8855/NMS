@@ -1187,7 +1187,7 @@ export default function AuditCenter() {
                 {tab === 'events' && (
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
-                            <div className="card mb-6 p-4 audit-control-card audit-control-card-events">
+                            <div className="card p-4 audit-control-card audit-control-card-events">
                                 <div className="audit-control-head">
                                     <div className="audit-control-copy">
                                         <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
@@ -1276,11 +1276,11 @@ export default function AuditCenter() {
                             </div>
 
                             {eventsLoading ? (
-                                <div className="glass-panel mb-4 audit-table-shell audit-events-table-shell p-4">
+                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
                                     <SkeletonTable rows={5} cols={7} />
                                 </div>
                             ) : eventsData.items.length === 0 ? (
-                                <div className="glass-panel mb-4 audit-table-shell audit-events-table-shell p-4">
+                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
                                     <EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} />
                                 </div>
                             ) : isCompactLayout ? (
@@ -1291,7 +1291,7 @@ export default function AuditCenter() {
                                     onSelect={setSelectedEvent}
                                 />
                             ) : (
-                                <div className="table-container glass-panel mb-4 audit-table-shell audit-events-table-shell">
+                                <div className="table-container glass-panel audit-table-shell audit-events-table-shell">
                                     <table className="table audit-events-table">
                                         <thead>
                                             <tr>
@@ -1362,7 +1362,7 @@ export default function AuditCenter() {
 
                 {tab === 'traffic' && (
                     <>
-                        <div className="card mb-8 audit-traffic-overview">
+                        <div className="card audit-traffic-overview">
                             <div className="audit-traffic-overview-head">
                                 <div className="audit-traffic-overview-copy">
                                     <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
@@ -1430,7 +1430,7 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="grid-auto-280-tight mb-8 audit-chart-grid">
+                        <div className="grid-auto-280-tight audit-chart-grid">
                             <div className="card audit-chart-card">
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
@@ -1575,7 +1575,7 @@ export default function AuditCenter() {
 
                 {tab === 'subscriptions' && (
                     <>
-                        <div className="card mb-8 p-4 audit-control-card audit-control-card-subscriptions">
+                        <div className="card p-4 audit-control-card audit-control-card-subscriptions">
                             <div className="audit-control-head">
                                 <div className="audit-control-copy">
                                     <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
@@ -1630,7 +1630,7 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
-                        <div className="stats-grid mb-8 audit-stats-grid">
+                        <div className="stats-grid audit-stats-grid">
                             <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">{copy.traffic.pv}</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.total || 0}</div>
@@ -1652,17 +1652,17 @@ export default function AuditCenter() {
                         </div>
 
                         {accessLoading ? (
-                            <div className="glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell p-4">
+                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
                                 <SkeletonTable rows={5} cols={6} />
                             </div>
                         ) : accessData.items.length === 0 ? (
-                            <div className="glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell p-4">
+                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
                                 <EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} />
                             </div>
                         ) : isCompactLayout ? (
                             <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />
                         ) : (
-                            <div className="table-container glass-panel mb-8 audit-table-shell audit-subscriptions-table-shell">
+                            <div className="table-container glass-panel audit-table-shell audit-subscriptions-table-shell">
                                 <table className="table audit-subscriptions-table">
                                     <thead>
                                         <tr>
