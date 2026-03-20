@@ -404,8 +404,10 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
         expect(screen.getAllByText('运维通知').length).toBeGreaterThan(0);
         expect(screen.queryByText('Overview')).not.toBeInTheDocument();
-        expect(document.querySelector('.settings-tab-hero')).toBeNull();
-        expect(document.querySelectorAll('.settings-summary-card').length).toBe(0);
+        expect(document.querySelector('.settings-tab-hero')).not.toBeNull();
+        expect(screen.getAllByText('对外访问').length).toBeGreaterThan(0);
+        expect(document.querySelectorAll('.settings-workspace-highlight-card').length).toBeGreaterThan(0);
+        expect(screen.getByText('统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。')).toBeInTheDocument();
     });
 
     it('keeps registration status in the shared summary cards and leaves the access panel focused on actions', async () => {
@@ -440,9 +442,11 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
 
+        expect(await screen.findByText('把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。')).toBeInTheDocument();
         expect(await screen.findByText('通知与巡检状态')).toBeInTheDocument();
         expect(screen.getByText('数据库与备份状态')).toBeInTheDocument();
         expect(screen.queryByText('对外访问与注册状态')).not.toBeInTheDocument();
+        expect(screen.queryByText('核心状态概览')).not.toBeInTheDocument();
     });
 
     it('keeps the monitor tab focused on actions and Telegram settings', async () => {

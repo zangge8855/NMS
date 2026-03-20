@@ -325,13 +325,6 @@ function SettingsWorkspaceSection({
     );
 }
 
-function getSummaryToneBadgeMeta(tone) {
-    if (tone === 'success') return { className: 'badge-success', label: '正常' };
-    if (tone === 'warning') return { className: 'badge-warning', label: '关注' };
-    if (tone === 'danger') return { className: 'badge-danger', label: '关闭' };
-    return { className: 'badge-neutral', label: '待检查' };
-}
-
 function getMonitorReasonLabel(reasonCode) {
     if (reasonCode === 'dns_error') return 'DNS';
     if (reasonCode === 'connect_timeout') return '超时';
@@ -1457,45 +1450,164 @@ export default function SystemSettings() {
         Boolean(monitorStatus?.healthMonitor?.running),
         Boolean(monitorStatus?.telegram?.enabled),
     ].filter(Boolean).length;
+    const registrationModeLabel = registrationEnabled
+        ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册')
+        : '已关闭注册';
+    const camouflageStatusLabel = draft.site.camouflageEnabled ? '伪装首页已开启' : '伪装首页已关闭';
+    const dbModeLabel = dbStatus
+        ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
+        : '等待探测';
+    const dbConnectionLabel = dbStatus?.connection?.enabled
+        ? (dbStatus?.connection?.ready ? '连接已就绪' : '连接未就绪')
+        : '未启用';
+    const dbQueueLabel = `queued ${dbStatus?.writesQueued || 0} · pending ${dbStatus?.pendingWrites || 0}`;
+    const converterStatusLabel = converterBaseUrl ? '已启用外部转换' : '未启用外部转换';
+    const publicBaseUrlLabel = draft.subscription.publicBaseUrl ? '已设置公网地址' : '跟随站点地址';
+    const geoStatusLabel = draft.auditIpGeo.enabled ? '已启用' : '未启用';
+    const telegramStatusLabel = monitorStatus?.telegram?.enabled
+        ? '已启用'
+        : monitorStatus?.telegram?.configured
+            ? '已配置未启用'
+            : '未配置';
+    const latestExportFilename = backupStatus?.lastExport?.filename || '暂无';
+    const latestRestoreFilename = backupStatus?.lastImport?.sourceFilename || '暂无';
 
     const overviewCards = useMemo(() => ([
         {
             title: '站点入口',
             value: siteAccessPath,
+            detail: siteEntryPreview,
             tone: siteAccessPath === '/' ? 'warning' : 'success',
         },
         {
             title: '注册模式',
-            value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册',
+            value: registrationModeLabel,
+            detail: camouflageStatusLabel,
             tone: registrationEnabled ? 'success' : 'neutral',
         },
         {
             title: '数据库模式',
-            value: dbStatus
-                ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
-                : '等待探测',
+            value: dbModeLabel,
+            detail: `${dbConnectionLabel} · ${dbQueueLabel}`,
             tone: dbStatus?.connection?.ready ? 'success' : dbStatus?.connection?.enabled ? 'warning' : 'neutral',
         },
         {
-            title: '告警链路',
-            value: alertChainStates.join(' · '),
+            title: '告警与备份',
+            value: `${readyAlertChainCount}/3 告警链路就绪`,
+            detail: `${alertChainStates.join(' · ')} · ${backupSummaryValue}`,
             tone: readyAlertChainCount === 3 ? 'success' : readyAlertChainCount > 0 ? 'warning' : 'neutral',
-        },
-        {
-            title: '备份状态',
-            value: backupSummaryValue,
-            tone: hasExportBackup || hasLocalBackup ? 'success' : 'warning',
         },
     ]), [
         backupSummaryValue,
+        camouflageStatusLabel,
+        dbConnectionLabel,
+        dbModeLabel,
+        dbQueueLabel,
         dbStatus,
         draft.registration.inviteOnlyEnabled,
-        emailStatus,
         hasExportBackup,
         hasLocalBackup,
-        monitorStatus,
+        registrationModeLabel,
         registrationEnabled,
         siteAccessPath,
+        siteEntryPreview,
+        readyAlertChainCount,
+        alertChainStates,
+    ]);
+    const accessHighlights = useMemo(() => ([
+        {
+            label: '访问入口',
+            value: siteAccessPath,
+            detail: siteEntryPreview,
+        },
+        {
+            label: '订阅公网',
+            value: publicBaseUrlLabel,
+            detail: draft.subscription.publicBaseUrl || '未单独设置时将回落到站点地址。',
+        },
+        {
+            label: '外部转换',
+            value: converterStatusLabel,
+            detail: converterBaseUrl || '当前不启用外部订阅转换器。',
+        },
+        {
+            label: '注册模式',
+            value: registrationModeLabel,
+            detail: camouflageStatusLabel,
+        },
+    ]), [
+        camouflageStatusLabel,
+        converterBaseUrl,
+        converterStatusLabel,
+        draft.subscription.publicBaseUrl,
+        publicBaseUrlLabel,
+        registrationModeLabel,
+        siteAccessPath,
+        siteEntryPreview,
+    ]);
+    const policyHighlights = useMemo(() => ([
+        {
+            label: '高风险确认',
+            value: draft.security.requireHighRiskConfirmation ? '已开启' : '未开启',
+            detail: `令牌有效期 ${draft.security.riskTokenTtlSeconds} 秒`,
+        },
+        {
+            label: '风险阈值',
+            value: `中 ${draft.security.mediumRiskMinTargets} / 高 ${draft.security.highRiskMinTargets}`,
+            detail: '超过阈值时会进入更严格的确认流程。',
+        },
+        {
+            label: '审计留存',
+            value: `${draft.audit.retentionDays} 天`,
+            detail: `单页最多 ${draft.audit.maxPageSize} 条`,
+        },
+        {
+            label: '归属地增强',
+            value: geoStatusLabel,
+            detail: `${draft.auditIpGeo.provider || 'ip_api'} · TTL ${draft.auditIpGeo.cacheTtlSeconds} 秒`,
+        },
+    ]), [
+        draft.audit.maxPageSize,
+        draft.audit.retentionDays,
+        draft.auditIpGeo.cacheTtlSeconds,
+        draft.auditIpGeo.provider,
+        draft.security.highRiskMinTargets,
+        draft.security.mediumRiskMinTargets,
+        draft.security.requireHighRiskConfirmation,
+        draft.security.riskTokenTtlSeconds,
+        geoStatusLabel,
+    ]);
+    const backupHighlights = useMemo(() => ([
+        {
+            label: '数据库模式',
+            value: dbModeLabel,
+            detail: dbConnectionLabel,
+        },
+        {
+            label: '写入排队',
+            value: dbQueueLabel,
+            detail: dbStatus?.lastWriteAt ? `最近写入 ${formatDateTime(dbStatus.lastWriteAt, locale)}` : '最近暂无写入记录',
+        },
+        {
+            label: '备份基线',
+            value: backupSummaryValue,
+            detail: latestExportFilename,
+        },
+        {
+            label: '最近恢复',
+            value: latestRestoreFilename,
+            detail: formatDateTime(backupStatus?.lastImport?.restoredAt, locale),
+        },
+    ]), [
+        backupStatus,
+        backupSummaryValue,
+        dbConnectionLabel,
+        dbModeLabel,
+        dbQueueLabel,
+        dbStatus,
+        latestExportFilename,
+        latestRestoreFilename,
+        locale,
     ]);
     const monitorReasonSummary = useMemo(() => {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
@@ -1511,6 +1623,38 @@ export default function SystemSettings() {
     const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
         + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
     const monitorUnreadCount = Number(monitorStatus?.notifications?.unreadCount || 0);
+    const operationsHighlights = useMemo(() => ([
+        {
+            label: 'SMTP 状态',
+            value: emailConfiguredLabel,
+            detail: `${emailDeliveryLabel} · ${emailVerificationLabel}`,
+        },
+        {
+            label: 'Telegram',
+            value: telegramStatusLabel,
+            detail: telegramTargetPreview !== '-' ? telegramTargetPreview : '尚未指定有效通知目标',
+        },
+        {
+            label: '节点巡检',
+            value: monitorStatus?.healthMonitor?.running ? '运行中' : '未运行',
+            detail: `正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`,
+        },
+        {
+            label: '通知中心',
+            value: `未读 ${monitorUnreadCount}`,
+            detail: `DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0}`,
+        },
+    ]), [
+        emailConfiguredLabel,
+        emailDeliveryLabel,
+        emailVerificationLabel,
+        monitorHealthyCount,
+        monitorIncidentCount,
+        monitorStatus,
+        monitorUnreadCount,
+        telegramStatusLabel,
+        telegramTargetPreview,
+    ]);
     const renderAccessContent = () => (
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
@@ -2496,49 +2640,6 @@ export default function SystemSettings() {
 
     const renderStatusContent = () => (
             <div className="settings-section-stack">
-                <div className="card p-3 settings-mini-card settings-detail-card settings-status-toolbar">
-                    <div className="settings-status-toolbar-main">
-                        <div className="settings-status-toolbar-copy">
-                            <div className="settings-status-toolbar-title">核心状态概览</div>
-                            <div className="settings-status-toolbar-note">先确认告警链路、数据库模式和备份基线，再决定是否进入对应工作区继续调整。</div>
-                        </div>
-                        <div className="settings-status-toolbar-badges">
-                            <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
-                                告警链路 {readyAlertChainCount}/3
-                            </span>
-                            <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
-                                {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
-                            </span>
-                            <span className={`badge ${dbStatus?.connection?.ready ? 'badge-success' : dbStatus?.connection?.enabled ? 'badge-warning' : 'badge-neutral'}`}>
-                                {dbStatus
-                                    ? `DB ${dbStatus.currentModes?.readMode || 'file'} / ${dbStatus.currentModes?.writeMode || 'file'}`
-                                    : 'DB 等待探测'}
-                            </span>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={refreshStatusWorkspace}
-                    disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
-                >
-                    {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新状态'}
-                </button>
-            </div>
-            <div className="settings-summary-grid settings-summary-grid--status">
-                {overviewCards.map((item) => {
-                    const badgeMeta = getSummaryToneBadgeMeta(item.tone);
-                    return (
-                    <div key={item.title} className="card settings-summary-card" data-tone={item.tone || 'neutral'}>
-                        <div className="settings-summary-head">
-                            <div className="settings-summary-label">{item.title}</div>
-                            <span className={`badge settings-summary-badge ${badgeMeta.className}`}>{badgeMeta.label}</span>
-                        </div>
-                        <div className="settings-summary-value" title={String(item.value ?? '')}>{item.value}</div>
-                        {item.detail ? <div className="settings-summary-detail">{item.detail}</div> : null}
-                    </div>
-                );})}
-            </div>
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--span-6">
                     <div className="settings-panel-head mb-3">
@@ -2653,6 +2754,9 @@ export default function SystemSettings() {
         {
             id: 'status',
             title: '系统状态',
+            eyebrow: 'Status',
+            subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
+            summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
             badges: (
                 <>
                     <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
@@ -2663,17 +2767,7 @@ export default function SystemSettings() {
                     </span>
                 </>
             ),
-            highlights: [
-                { label: '站点入口', value: siteAccessPath, detail: siteEntryPreview },
-                { label: '注册模式', value: registrationEnabled ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册') : '已关闭注册' },
-                {
-                    label: '数据库模式',
-                    value: dbStatus
-                        ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
-                        : '等待探测',
-                },
-                { label: '备份状态', value: backupSummaryValue, detail: latestLocalBackup?.filename || '暂无服务器本机备份' },
-            ],
+            highlights: overviewCards.map(({ title, value, detail }) => ({ label: title, value, detail })),
             actions: (
                 <button
                     type="button"
@@ -2689,35 +2783,51 @@ export default function SystemSettings() {
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },
             content: renderStatusContent(),
-            heroMode: 'hidden',
+            heroMode: 'full',
         },
         {
             id: 'access',
             title: '对外访问',
+            eyebrow: 'Access',
+            subtitle: '统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。',
+            summary: '保持外部访问路径清晰，再处理订阅外链与注册发放策略，和其他工作区的节奏一致。',
+            highlights: accessHighlights,
             navSummary: '入口 / 订阅 / 注册',
             content: renderAccessContent(),
-            heroMode: 'hidden',
+            heroMode: 'full',
         },
         {
             id: 'policy',
             title: '安全审计',
+            eyebrow: 'Security',
+            subtitle: '风控阈值、审计保留窗口和 IP 归属地增强统一收口。',
+            summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
+            highlights: policyHighlights,
             navSummary: '风控 / 审计 / 归属地',
             content: renderPolicyContent(),
-            heroMode: 'hidden',
+            heroMode: 'full',
         },
         {
             id: 'operations',
             title: '运维通知',
+            eyebrow: 'Operations',
+            subtitle: '把邮件、Telegram 和节点巡检动作放在同一页执行与复核。',
+            summary: '顶部先确认链路与巡检状态，再进入下面的动作卡片执行测试、通知或巡检。',
+            highlights: operationsHighlights,
             navSummary: '运维动作 / Telegram',
             content: renderOperationsWorkspace(),
-            heroMode: 'hidden',
+            heroMode: 'full',
         },
         {
             id: 'backup',
             title: '数据备份',
+            eyebrow: 'Backup',
+            subtitle: '数据库模式、备份导出和恢复校验放在一个工作区统一处理。',
+            summary: '先看当前读写模式与备份基线，再决定执行回填、导出或恢复，避免误操作。',
+            highlights: backupHighlights,
             navSummary: '数据库 / 备份恢复',
             content: renderBackupWorkspace(),
-            heroMode: 'hidden',
+            heroMode: 'full',
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
