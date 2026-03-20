@@ -69,11 +69,12 @@ function toLocalDateTimeString(timestamp) {
 }
 
 function getUserStatus(user, clientCount) {
-    if (!user.enabled && clientCount === 0) return { key: 'pending', label: '待审核', badge: 'badge-warning' };
-    if (user.enabled && clientCount === 0) return { key: 'enabled', label: '已启用', badge: 'badge-info' };
-    if (user.enabled && clientCount > 0) return { key: 'active', label: '已开通', badge: 'badge-success' };
-    if (!user.enabled && clientCount > 0) return { key: 'disabled', label: '已停用', badge: 'badge-danger' };
-    return { key: 'unknown', label: '未知', badge: 'badge-neutral' };
+    if (!user.enabled && user.emailVerified !== true && clientCount === 0) {
+        return { key: 'pending', label: '待审核', badge: 'badge-warning' };
+    }
+    if (!user.enabled) return { key: 'disabled', label: '已停用', badge: 'badge-danger' };
+    if (clientCount > 0) return { key: 'active', label: '已开通', badge: 'badge-success' };
+    return { key: 'enabled', label: '已启用', badge: 'badge-info' };
 }
 
 function formatExpiryLabel(expiryValues, locale = 'zh-CN') {
@@ -163,6 +164,60 @@ function getSyncingBadgeCopy(locale = 'zh-CN') {
         detail: '正在刷新节点统计',
         summary: '节点统计同步中...',
     };
+}
+
+function createEmptyUserClientData() {
+    return {
+        count: 0,
+        totalUsed: 0,
+        totalUp: 0,
+        totalDown: 0,
+        expiryValues: [],
+        onlineSessions: 0,
+    };
+}
+
+function resolveTrackedUserEmails(user) {
+    return Array.from(new Set(
+        [user?.subscriptionEmail, user?.email]
+            .map((value) => normalizeEmail(value))
+            .filter(Boolean)
+    ));
+}
+
+function mergeUserClientDataRecords(records = []) {
+    const merged = createEmptyUserClientData();
+    const expiryValues = [];
+
+    records.forEach((record) => {
+        if (!record || typeof record !== 'object') return;
+        merged.count += Number(record.count || 0);
+        merged.totalUsed += Number(record.totalUsed || 0);
+        merged.totalUp += Number(record.totalUp || 0);
+        merged.totalDown += Number(record.totalDown || 0);
+        merged.onlineSessions += Number(record.onlineSessions || 0);
+        if (Array.isArray(record.expiryValues)) {
+            expiryValues.push(...record.expiryValues.map((value) => Number(value || 0)).filter((value) => value > 0));
+        }
+    });
+
+    merged.expiryValues = Array.from(new Set(expiryValues)).sort((left, right) => left - right);
+    return merged;
+}
+
+function resolveUserClientData(user, clientsMap, onlineMap) {
+    const emails = resolveTrackedUserEmails(user);
+    const matchedClientData = emails
+        .map((email) => clientsMap.get(email))
+        .filter(Boolean);
+    const mergedClientData = mergeUserClientDataRecords(matchedClientData);
+    if (mergedClientData.onlineSessions === 0) {
+        mergedClientData.onlineSessions = emails.reduce(
+            (total, email) => total + Number(onlineMap.get(email) || 0),
+            0
+        );
+    }
+    return mergedClientData;
 }
 
 function compareUsersFallback(a, b) {
@@ -292,6 +347,8 @@ export default function UsersHub() {
     const [editUser, setEditUser] = useState(null);
     const [editUsername, setEditUsername] = useState('');
     const [editEmail, setEditEmail] = useState('');
+    const [editSubscriptionEmail, setEditSubscriptionEmail] = useState('');
+    const [editSubscriptionFollowLogin, setEditSubscriptionFollowLogin] = useState(false);
     const [editEnabled, setEditEnabled] = useState(true);
     const [editPassword, setEditPassword] = useState('');
     const [showEditPassword, setShowEditPassword] = useState(false);
@@ -506,12 +563,8 @@ export default function UsersHub() {
     const allOrderedUsers = useMemo(() => {
         return users
             .map((user) => {
-                const subEmail = normalizeEmail(user.subscriptionEmail);
-                const loginEmail = normalizeEmail(user.email);
-                const clientData = clientsMap.get(subEmail) || clientsMap.get(loginEmail) || { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 };
-                const onlineSessions = statsReady
-                    ? (clientData.onlineSessions || onlineMap.get(subEmail) || onlineMap.get(loginEmail) || 0)
-                    : 0;
+                const clientData = resolveUserClientData(user, clientsMap, onlineMap);
+                const onlineSessions = statsReady ? Number(clientData.onlineSessions || 0) : 0;
                 const status = statsReady
                     ? getUserStatus(user, clientData.count)
                     : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral' };
@@ -996,19 +1049,34 @@ export default function UsersHub() {
     }, [provisionResult]);
 
     // --- Edit user modal ---
+    const handleEditEmailChange = (value) => {
+        setEditEmail(value);
+        if (editSubscriptionFollowLogin) {
+            setEditSubscriptionEmail(value);
+        }
+    };
+
+    const handleEditSubscriptionEmailChange = (value) => {
+        setEditSubscriptionEmail(value);
+        setEditSubscriptionFollowLogin(normalizeEmail(value) === normalizeEmail(editEmail));
+    };
+
     const openEditModal = (user) => {
         setEditUser(user);
         setEditUsername(user.username || '');
         setEditEmail(user.email || '');
+        const initialSubscriptionEmail = user.subscriptionEmail || user.email || '';
+        setEditSubscriptionEmail(initialSubscriptionEmail);
+        setEditSubscriptionFollowLogin(
+            normalizeEmail(initialSubscriptionEmail) === normalizeEmail(user.email || '')
+        );
         setEditEnabled(user.enabled !== false);
         setEditPassword('');
         setShowEditPassword(false);
         setEditSaving(false);
 
         // Pre-fill expiry from client data
-        const subEmail = normalizeEmail(user.subscriptionEmail);
-        const loginEmail = normalizeEmail(user.email);
-        const cd = clientsMap.get(subEmail) || clientsMap.get(loginEmail);
+        const cd = resolveUserClientData(user, clientsMap, onlineMap);
         if (cd && cd.expiryValues && cd.expiryValues.length > 0) {
             const earliest = Math.min(...cd.expiryValues);
             setEditExpiryDate(toLocalDateTimeString(earliest));
@@ -1058,6 +1126,8 @@ export default function UsersHub() {
     const closeEditModal = () => {
         setEditOpen(false);
         setEditUser(null);
+        setEditSubscriptionEmail('');
+        setEditSubscriptionFollowLogin(false);
         setEditSaving(false);
     };
 
@@ -1077,7 +1147,13 @@ export default function UsersHub() {
             return;
         }
 
-        const payload = { username, email };
+        const subscriptionEmail = normalizeEmail(editSubscriptionEmail);
+        if (subscriptionEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subscriptionEmail)) {
+            toast.error('订阅绑定邮箱格式不正确');
+            return;
+        }
+
+        const payload = { username, email, subscriptionEmail };
         const enabledChanged = editEnabled !== (editUser.enabled !== false);
         if (editPassword) {
             const passwordError = getPasswordPolicyError(editPassword, locale);
@@ -1414,7 +1490,7 @@ export default function UsersHub() {
                                     <th className="table-cell-center users-status-column">状态</th>
                                     <th className="table-cell-center users-online-column">在线状态</th>
                                     <th className="table-cell-center users-node-count-column">节点数</th>
-                                    <th className="text-right users-traffic-column">已用流量</th>
+                                    <th className="table-cell-right users-traffic-column">已用流量</th>
                                     <th className="table-cell-center users-expiry-column">到期时间</th>
                                     <th className="table-cell-actions users-actions-column">操作</th>
                                 </tr>
@@ -1619,8 +1695,23 @@ export default function UsersHub() {
                                         type="email"
                                         className="form-input"
                                         value={editEmail}
-                                        onChange={(e) => setEditEmail(e.target.value)}
+                                        onChange={(e) => handleEditEmailChange(e.target.value)}
                                     />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">订阅绑定邮箱</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        value={editSubscriptionEmail}
+                                        onChange={(e) => handleEditSubscriptionEmailChange(e.target.value)}
+                                        placeholder="留空表示暂不单独绑定"
+                                    />
+                                    <p className="text-muted text-sm mt-1">
+                                        {editSubscriptionFollowLogin
+                                            ? '当前跟随登录邮箱变更，现有节点凭据和订阅令牌会原地迁移。'
+                                            : '可单独指定订阅客户端绑定邮箱；修改时会保留现有节点凭据和订阅链接。'}
+                                    </p>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">账号状态</label>

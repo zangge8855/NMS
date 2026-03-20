@@ -90,10 +90,10 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                         </div>
                     ) : (
                         <div className="table-container table-scroll table-scroll-md batch-result-table">
-                            <table className="table">
+                            <table className="table batch-result-detail-table">
                                 <thead>
                                     <tr>
-                                        <th>{copy.status}</th>
+                                        <th className="table-cell-center batch-result-status-column">{copy.status}</th>
                                         <th>{copy.action}</th>
                                         <th>{copy.node}</th>
                                         <th>{copy.inbound}</th>
@@ -104,7 +104,7 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                                 <tbody>
                                     {results.map((item, idx) => (
                                         <tr key={`${idx}-${item.serverId || 'x'}-${item.inboundId || 'x'}`}>
-                                            <td data-label={copy.result}>
+                                            <td data-label={copy.status} className="table-cell-center batch-result-status-cell">
                                                 <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                     {item.success ? copy.success : copy.failed}
                                                 </span>

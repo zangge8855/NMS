@@ -1109,7 +1109,7 @@ export default function Inbounds() {
                     </div>
                 ) : (
                     <div className="table-container glass-panel inbounds-table-shell">
-                        <table className="table">
+                        <table className="table inbounds-table">
                             <thead>
                                 <tr>
                                     <th className="cell-checkbox">
@@ -1126,10 +1126,10 @@ export default function Inbounds() {
                                         <th className="inbounds-node-col">节点</th>
                                     )}
                                     <th className="inbounds-remark-col">备注</th>
-                                    <th className="inbounds-protocol-col">协议</th>
-                                    <th className="inbounds-port-col">监听:端口</th>
+                                    <th className="table-cell-center inbounds-protocol-col">协议</th>
+                                    <th className="table-cell-right inbounds-port-col">监听:端口</th>
                                     <th className="table-cell-center inbounds-users-col">用户数</th>
-                                    <th className="inbounds-traffic-col">流量 (上/下)</th>
+                                    <th className="table-cell-right inbounds-traffic-col">流量 (上/下)</th>
                                     <th className="table-cell-center inbounds-status-col">状态</th>
                                     <th className="table-cell-actions inbounds-actions-col">操作</th>
                                 </tr>
@@ -1296,14 +1296,14 @@ export default function Inbounds() {
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
-                                                <td data-label="协议" className="whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
-                                                <td data-label="端口" className="cell-mono text-sm whitespace-nowrap">{ib.listen || '*'}:{ib.port}</td>
+                                                <td data-label="协议" className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
+                                                <td data-label="端口" className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label="用户数" className="table-cell-center inbounds-users-cell">
                                                     <span className="cell-mono inbounds-user-count" title={`共 ${clients.length} 位用户`}>
                                                         {clients.length}
                                                     </span>
                                                 </td>
-                                                <td data-label="流量" className="text-sm">
+                                                <td data-label="流量" className="table-cell-right text-sm inbounds-traffic-cell">
                                                     <div className="inbounds-traffic-stack">
                                                         <span className="text-success">↑{formatBytes(ib.trafficUp)}</span>
                                                         <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
@@ -1398,12 +1398,12 @@ export default function Inbounds() {
                                                                         <th className="inbounds-clients-col-email">Email</th>
                                                                         <th className="inbounds-clients-col-id">ID/密码（脱敏）</th>
                                                                         <th className="inbounds-clients-col-usage">已用流量</th>
-                                                                        <th className="inbounds-clients-col-total">总量</th>
-                                                                        <th className="inbounds-clients-col-ip">IP 限制</th>
-                                                                        <th className="inbounds-clients-col-traffic">上 / 下行</th>
-                                                                        <th className="inbounds-clients-col-expiry">到期时间</th>
-                                                                        <th className="inbounds-clients-col-status">状态</th>
-                                                                        <th className="inbounds-clients-col-actions">操作</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-total">总量</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-ip">IP 限制</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-traffic">上 / 下行</th>
+                                                                        <th className="table-cell-center inbounds-clients-col-expiry">到期时间</th>
+                                                                        <th className="table-cell-center inbounds-clients-col-status">状态</th>
+                                                                        <th className="table-cell-actions inbounds-clients-col-actions">操作</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1484,16 +1484,16 @@ export default function Inbounds() {
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="总量" className="inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td data-label="IP 限制" className="inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td data-label="上 / 下行" className="inbounds-clients-col-traffic">
+                                                                            <td data-label="总量" className="table-cell-right cell-mono-right inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td data-label="IP 限制" className="table-cell-right cell-mono-right inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
+                                                                            <td data-label="上 / 下行" className="table-cell-right inbounds-clients-col-traffic">
                                                                                 <div className="inbounds-client-traffic-stack">
                                                                                     <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                     <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="到期时间" className="inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
-                                                                            <td data-label="状态" className="inbounds-clients-col-status">
+                                                                            <td data-label="到期时间" className="table-cell-center cell-mono inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
+                                                                            <td data-label="状态" className="table-cell-center inbounds-clients-col-status">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
                                                                                         {cl.enable !== false ? '启用' : '禁用'}
@@ -1510,7 +1510,7 @@ export default function Inbounds() {
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="操作" className="inbounds-clients-col-actions">
+                                                                            <td data-label="操作" className="table-cell-actions inbounds-clients-col-actions">
                                                                                 <div className="inbounds-client-actions flex gap-2">
                                                                                     <button
                                                                                         type="button"

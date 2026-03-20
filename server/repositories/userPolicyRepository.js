@@ -9,6 +9,10 @@ const userPolicyRepository = {
         return userPolicyStore.upsert(email, payload, actor);
     },
 
+    reassignEmail(sourceEmail, targetEmail, actor) {
+        return userPolicyStore.reassignEmail(sourceEmail, targetEmail, actor);
+    },
+
     remove(email) {
         return userPolicyStore.remove(email);
     },

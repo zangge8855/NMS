@@ -3005,6 +3005,22 @@ function resolveSingboxBuildOptions(req) {
     };
 }
 
+function verifyPublicTokenRequest(hintedEmail, tokenId, tokenSecret, store = subscriptionTokenStore) {
+    const normalizedHint = normalizeEmail(hintedEmail);
+    if (!normalizedHint) {
+        return store.verifyByTokenId(tokenId, tokenSecret);
+    }
+
+    const verification = store.verify(normalizedHint, tokenId, tokenSecret);
+    if (verification.ok || verification.reason !== 'not-found') {
+        return {
+            ...verification,
+            email: normalizedHint,
+        };
+    }
+    return store.verifyByTokenId(tokenId, tokenSecret);
+}
+
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const hintedEmail = normalizeEmail(emailFromPath || req.params.email);
     const tokenId = String(req.params.tokenId || '').trim();
@@ -3031,9 +3047,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.status(403).send('invalid subscription token');
     }
 
-    const verification = hintedEmail
-        ? subscriptionTokenStore.verify(hintedEmail, tokenId, tokenSecret)
-        : subscriptionTokenStore.verifyByTokenId(tokenId, tokenSecret);
+    const verification = verifyPublicTokenRequest(hintedEmail, tokenId, tokenSecret);
     const email = normalizeEmail(verification?.email || hintedEmail);
     if (!verification.ok) {
         appendSecurityAudit('subscription_public_denied', req, {
@@ -3673,4 +3687,5 @@ export {
     summarizeSubscriptionUsage,
     sortInboundsForServer,
     sortServersForSubscription,
+    verifyPublicTokenRequest,
 };

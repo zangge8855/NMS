@@ -150,6 +150,53 @@ class UserPolicyStore {
         };
     }
 
+    reassignEmail(sourceEmail, targetEmail, actor = 'admin') {
+        const normalizedSource = normalizeEmail(sourceEmail);
+        const normalizedTarget = normalizeEmail(targetEmail);
+        if (!normalizedSource || !normalizedTarget || normalizedSource === normalizedTarget) {
+            return {
+                moved: false,
+                fromEmail: normalizedSource,
+                toEmail: normalizedTarget,
+                policy: normalizedTarget ? this.get(normalizedTarget) : null,
+            };
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(this.policies, normalizedSource)) {
+            return {
+                moved: false,
+                fromEmail: normalizedSource,
+                toEmail: normalizedTarget,
+                policy: null,
+            };
+        }
+        if (Object.prototype.hasOwnProperty.call(this.policies, normalizedTarget)) {
+            throw new Error(`订阅策略 "${normalizedTarget}" 已存在，无法安全迁移`);
+        }
+
+        const nowIso = new Date().toISOString();
+        const sanitized = sanitizePolicy(this.policies[normalizedSource] || {});
+        this.policies[normalizedTarget] = {
+            ...sanitized,
+            updatedAt: nowIso,
+            updatedBy: String(actor || 'admin'),
+        };
+        delete this.policies[normalizedSource];
+        this._save();
+
+        return {
+            moved: true,
+            fromEmail: normalizedSource,
+            toEmail: normalizedTarget,
+            policy: {
+                email: normalizedTarget,
+                ...sanitized,
+                updatedAt: nowIso,
+                updatedBy: String(actor || 'admin'),
+            },
+        };
+    }
+
     remove(email) {
         const normalizedEmail = normalizeEmail(email);
         if (!normalizedEmail) return false;

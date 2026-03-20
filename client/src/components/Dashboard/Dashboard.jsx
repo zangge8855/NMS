@@ -1299,7 +1299,7 @@ export default function Dashboard() {
                                                 <tr>
                                                     <th>{t('pages.dashboardCommon.userIdentifier')}</th>
                                                     <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
-                                                    <th className="text-right">{t('pages.dashboardCommon.sessions')}</th>
+                                                    <th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1325,7 +1325,7 @@ export default function Dashboard() {
                                                                 {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
                                                             </div>
                                                         </td>
-                                                        <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                        <td data-label={t('pages.dashboardCommon.sessions')} className="table-cell-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                                     </tr>
                                                 ))}
                                                 {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
@@ -1488,7 +1488,7 @@ export default function Dashboard() {
                             ) : (
                                 <div className="table-container table-scroll table-scroll-md overflow-x-auto">
                                     <table className="table dashboard-online-table">
-                                        <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="text-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
+                                        <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
                                         <tbody>
                                                 {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
                                                     <tr key={`single-online-${row.userId || row.label}`}>
@@ -1500,7 +1500,7 @@ export default function Dashboard() {
                                                                 )}
                                                             </div>
                                                         </td>
-                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="text-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="table-cell-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                                 </tr>
                                             ))}
                                             {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (
@@ -1541,30 +1541,30 @@ export default function Dashboard() {
                         <InboundSummaryMobileList inbounds={inbounds} loading={loading} t={t} />
                     ) : (
                         <div className="table-container border-none overflow-x-auto">
-                            <table className="table">
+                            <table className="table dashboard-inbound-summary-table">
                                 <thead>
                                     <tr>
                                         <th>{t('pages.dashboardNode.tableRemark')}</th>
-                                        <th>{t('pages.dashboardNode.tableProtocol')}</th>
-                                        <th className="text-right">{t('pages.dashboardNode.tablePort')}</th>
-                                        <th className="text-center">{t('pages.dashboardNode.tableStatus')}</th>
-                                        <th className="text-right">{t('pages.dashboardNode.tableUp')}</th>
-                                        <th className="text-right">{t('pages.dashboardNode.tableDown')}</th>
+                                        <th className="table-cell-center dashboard-inbound-protocol-column">{t('pages.dashboardNode.tableProtocol')}</th>
+                                        <th className="table-cell-right dashboard-inbound-port-column">{t('pages.dashboardNode.tablePort')}</th>
+                                        <th className="table-cell-center dashboard-inbound-status-column">{t('pages.dashboardNode.tableStatus')}</th>
+                                        <th className="table-cell-right dashboard-inbound-up-column">{t('pages.dashboardNode.tableUp')}</th>
+                                        <th className="table-cell-right dashboard-inbound-down-column">{t('pages.dashboardNode.tableDown')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {inbounds.slice(0, 10).map((ib) => (
                                         <tr key={ib.id}>
                                             <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-white truncate max-w-[200px]">{ib.remark || '-'}</td>
-                                            <td data-label={t('pages.dashboardNode.tableProtocol')}><span className="badge badge-info">{ib.protocol}</span></td>
-                                            <td data-label={t('pages.dashboardNode.tablePort')} className="text-right font-mono">{ib.port}</td>
-                                            <td data-label={t('pages.dashboardNode.tableStatus')} className="text-center">
+                                            <td data-label={t('pages.dashboardNode.tableProtocol')} className="table-cell-center dashboard-inbound-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
+                                            <td data-label={t('pages.dashboardNode.tablePort')} className="table-cell-right font-mono dashboard-inbound-port-cell">{ib.port}</td>
+                                            <td data-label={t('pages.dashboardNode.tableStatus')} className="table-cell-center dashboard-inbound-status-cell">
                                                 <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>{ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}</span>
                                             </td>
-                                            <td data-label={t('pages.dashboardNode.tableUp')} className="text-right font-mono">
+                                            <td data-label={t('pages.dashboardNode.tableUp')} className="table-cell-right font-mono dashboard-inbound-up-cell">
                                                 {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.up)}
                                             </td>
-                                            <td data-label={t('pages.dashboardNode.tableDown')} className="text-right font-mono">
+                                            <td data-label={t('pages.dashboardNode.tableDown')} className="table-cell-right font-mono dashboard-inbound-down-cell">
                                                 {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.down)}
                                             </td>
                                         </tr>

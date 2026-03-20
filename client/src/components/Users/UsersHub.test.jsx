@@ -118,6 +118,13 @@ describe('UsersHub ordering', () => {
                     },
                 });
             }
+            if (url.startsWith('/user-policy/')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {},
+                    },
+                });
+            }
             if (url === '/panel/server-a/panel/api/inbounds/list') {
                 return Promise.resolve({
                     data: {
@@ -513,5 +520,81 @@ describe('UsersHub ordering', () => {
             expect(screen.getByText(/入站配置失败: Node A/)).toBeInTheDocument();
             expect(screen.getByText(/在线状态失败: Node A/)).toBeInTheDocument();
         });
+    });
+
+    it('lets the edit form auto-follow the login email until the subscription binding is manually overridden', async () => {
+        const user = userEvent.setup();
+        renderWithRouter(<UsersHub />);
+
+        const aliceCell = await screen.findByText('alice');
+        const aliceRow = aliceCell.closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+
+        await user.click(within(aliceRow).getByRole('button', { name: '编辑 / 状态' }));
+        await screen.findByText('编辑用户 - alice');
+
+        const emailInputs = document.querySelectorAll('.modal input[type="email"]');
+        expect(emailInputs).toHaveLength(2);
+        const loginEmailInput = emailInputs[0];
+        const subscriptionEmailInput = emailInputs[1];
+
+        await user.clear(loginEmailInput);
+        await user.type(loginEmailInput, 'alice.new@example.com');
+        expect(subscriptionEmailInput).toHaveValue('alice.new@example.com');
+
+        await user.clear(subscriptionEmailInput);
+        await user.type(subscriptionEmailInput, 'bind@example.com');
+
+        await user.clear(loginEmailInput);
+        await user.type(loginEmailInput, 'alice.final@example.com');
+        expect(subscriptionEmailInput).toHaveValue('bind@example.com');
+
+        await user.click(screen.getByRole('button', { name: '保存' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/auth/users/user-a', expect.objectContaining({
+                username: 'alice',
+                email: 'alice.final@example.com',
+                subscriptionEmail: 'bind@example.com',
+            }));
+        });
+    });
+
+    it('shows disabled users as disabled even when they have no deployed clients', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-disabled',
+                            username: 'dora',
+                            email: 'dora@example.com',
+                            subscriptionEmail: 'dora@example.com',
+                            role: 'user',
+                            enabled: false,
+                            emailVerified: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const doraCell = await screen.findByText('dora');
+        const doraRow = doraCell.closest('tr');
+        if (!doraRow) throw new Error('Missing Dora row');
+
+        expect(within(doraRow).getByText('已停用')).toBeInTheDocument();
+        expect(within(doraRow).queryByText('待审核')).not.toBeInTheDocument();
     });
 });

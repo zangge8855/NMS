@@ -21,6 +21,10 @@ const subscriptionTokenRepository = {
         return subscriptionTokenStore.revokeAllByEmail(email, reason);
     },
 
+    reassignEmail(sourceEmail, targetEmail, options) {
+        return subscriptionTokenStore.reassignEmail(sourceEmail, targetEmail, options);
+    },
+
     getFirstActiveTokenByName(email, name) {
         return subscriptionTokenStore.getFirstActiveTokenByName(email, name);
     },

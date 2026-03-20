@@ -79,6 +79,14 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     };
 }
 
+function collectTrackedUserEmails(user) {
+    return Array.from(new Set(
+        [user?.subscriptionEmail, user?.email]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+    ));
+}
+
 function getUserDetailCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
         return {
@@ -637,7 +645,8 @@ export default function UserDetail() {
     const fetchClients = async () => {
         const requestId = clientRequestIdRef.current + 1;
         clientRequestIdRef.current = requestId;
-        if (!detail?.user?.subscriptionEmail && !detail?.user?.email) {
+        const trackedEmails = collectTrackedUserEmails(detail?.user);
+        if (trackedEmails.length === 0) {
             if (requestId !== clientRequestIdRef.current) return;
             setClientData([]);
             setClientsFetched(true);
@@ -652,7 +661,7 @@ export default function UserDetail() {
                 setClientsLoading(false);
                 return;
             }
-            const email = (detail.user.subscriptionEmail || detail.user.email || '').toLowerCase();
+            const emailSet = new Set(trackedEmails);
             const clients = [];
             const serverResults = await fetchServerPanelData(api, servers, { includeOnlines: false });
             if (requestId !== clientRequestIdRef.current) return;
@@ -665,13 +674,14 @@ export default function UserDetail() {
                     if (ibClients.length === 0) return;
                     const protocol = String(ib.protocol || '').toLowerCase();
                     ibClients.forEach((cl) => {
-                        if ((cl.email || '').toLowerCase() !== email) return;
+                        const clientEmail = String(cl.email || '').trim().toLowerCase();
+                        if (!emailSet.has(clientEmail)) return;
                         clients.push({
                             serverId: server.id,
                             serverName: server.name,
                             inboundId: ib.id,
                             inboundRemark: ib.remark || '',
-                            email: cl.email || email,
+                            email: clientEmail,
                             protocol,
                             port: ib.port,
                             up: Number(cl.up) || 0,
@@ -1448,7 +1458,7 @@ export default function UserDetail() {
                                                         <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes((c.up || 0) + (c.down || 0))}</td>
                                                         <td data-label={copy.labels.expiryTime} className="table-cell-center cell-mono user-detail-expiry-cell">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
                                                         <td data-label={copy.labels.status} className="table-cell-center user-detail-status-cell"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
-                                                        <td data-label={copy.labels.actions} className="table-cell-actions">
+                                                        <td data-label={copy.labels.actions} className="table-cell-actions user-detail-actions-cell">
                                                             {renderClientActionButton(c, supportState)}
                                                         </td>
                                                     </tr>

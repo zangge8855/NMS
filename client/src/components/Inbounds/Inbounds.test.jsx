@@ -178,6 +178,7 @@ describe('Inbounds', () => {
         const { container } = renderWithRouter(<Inbounds />);
 
         const inboundName = await screen.findByText('Main Inbound');
+        expect(container.querySelector('.inbounds-table')).toBeTruthy();
         const summaryRow = inboundName.closest('tr');
         if (!summaryRow) throw new Error('Missing inbound summary row');
 

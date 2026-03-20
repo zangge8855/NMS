@@ -541,7 +541,7 @@ export default function ServerDetail() {
                                                 <tr>
                                                     <th>备注</th>
                                                     <th className="table-cell-center server-detail-protocol-column">协议</th>
-                                                    <th className="table-cell-center server-detail-port-column">端口</th>
+                                                    <th className="table-cell-right server-detail-port-column">端口</th>
                                                     <th className="table-cell-center server-detail-clients-column">客户端数</th>
                                                     <th className="table-cell-right server-detail-traffic-column">流量</th>
                                                     <th className="table-cell-center server-detail-status-column">状态</th>
@@ -560,7 +560,7 @@ export default function ServerDetail() {
                                                                 <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                             </td>
                                                             <td data-label="协议" className="table-cell-center server-detail-protocol-cell"><span className="badge badge-neutral">{ib.protocol}</span></td>
-                                                            <td data-label="端口" className="table-cell-center cell-mono server-detail-port-cell">{ib.port}</td>
+                                                            <td data-label="端口" className="table-cell-right cell-mono-right server-detail-port-cell">{ib.port}</td>
                                                             <td data-label="客户端数" className="table-cell-center cell-mono server-detail-clients-cell">{clients}</td>
                                                             <td data-label="流量" className="table-cell-right cell-mono-right server-detail-traffic-cell">{formatBytes((ib.up || 0) + (ib.down || 0))}</td>
                                                             <td data-label="状态" className="table-cell-center server-detail-status-cell"><span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>{ib.enable !== false ? '启用' : '禁用'}</span></td>
@@ -604,13 +604,13 @@ export default function ServerDetail() {
                                 ) : (
                                     <div className="table-container">
                                         <table className="table server-detail-online-table">
-                                            <thead><tr><th className="table-cell-center server-detail-sequence-column">#</th><th>用户标识</th><th className="table-cell-center server-detail-sessions-column">会话数</th><th className="table-cell-actions server-detail-online-actions-column">操作</th></tr></thead>
+                                            <thead><tr><th className="table-cell-center server-detail-sequence-column">#</th><th>用户标识</th><th className="table-cell-right server-detail-sessions-column">会话数</th><th className="table-cell-actions server-detail-online-actions-column">操作</th></tr></thead>
                                             <tbody>
                                                 {onlineUsers.map((item, i) => (
                                                     <tr key={item.email}>
                                                         <td data-label="序号" className="table-cell-center cell-mono server-detail-sequence-cell">{i + 1}</td>
                                                         <td data-label="用户标识" className="font-mono">{item.email}</td>
-                                                        <td data-label="会话数" className="table-cell-center cell-mono server-detail-sessions-cell">{item.sessions}</td>
+                                                        <td data-label="会话数" className="table-cell-right cell-mono-right server-detail-sessions-cell">{item.sessions}</td>
                                                         <td data-label="操作" className="table-cell-actions">
                                                             <button
                                                                 type="button"

@@ -1,6 +1,8 @@
 import React from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import ModalShell from './ModalShell.jsx';
+import EmptyState from './EmptyState.jsx';
+import SkeletonTable from './SkeletonTable.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatDateTime } from '../../utils/format.js';
 
@@ -12,6 +14,7 @@ const CLIENT_IP_COPY = {
         clear: '清空记录',
         loadFailed: '加载失败',
         empty: '暂无节点访问 IP 记录',
+        emptySubtitle: '当节点侧产生新的代理访问后，可刷新查看最新记录。',
         ip: 'IP',
         count: '次数',
         lastSeen: '最近时间',
@@ -25,6 +28,7 @@ const CLIENT_IP_COPY = {
         clear: 'Clear Records',
         loadFailed: 'Load Failed',
         empty: 'No node access IP records',
+        emptySubtitle: 'Refresh after the node records new proxy traffic for this user.',
         ip: 'IP',
         count: 'Count',
         lastSeen: 'Last Seen',
@@ -84,21 +88,26 @@ export default function ClientIpModal({
                     )}
 
                     {loading ? (
-                        <div className="flex items-center justify-center" style={{ minHeight: '180px' }}>
-                            <span className="spinner" />
+                        <div className="p-4">
+                            <SkeletonTable rows={4} cols={4} />
                         </div>
                     ) : items.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-state-text">{copy.empty}</div>
+                        <div className="p-4">
+                            <EmptyState
+                                title={copy.empty}
+                                subtitle={copy.emptySubtitle}
+                                size="compact"
+                                hideIcon
+                            />
                         </div>
                     ) : (
                         <div className="table-container">
-                            <table className="table">
+                            <table className="table client-ip-table">
                                 <thead>
                                     <tr>
                                         <th>{copy.ip}</th>
-                                        <th>{copy.count}</th>
-                                        <th>{copy.lastSeen}</th>
+                                        <th className="table-cell-center client-ip-count-column">{copy.count}</th>
+                                        <th className="table-cell-center client-ip-last-seen-column">{copy.lastSeen}</th>
                                         <th>{copy.note}</th>
                                     </tr>
                                 </thead>
@@ -106,9 +115,9 @@ export default function ClientIpModal({
                                     {items.map((item) => (
                                         <tr key={item.ip}>
                                             <td data-label={copy.ip} className="font-mono" style={{ wordBreak: 'break-all' }}>{item.ip}</td>
-                                            <td data-label={copy.count}>{item.count > 0 ? item.count : '-'}</td>
-                                            <td data-label={copy.lastSeen}>{formatDateTime(item.lastSeen, locale)}</td>
-                                            <td data-label={copy.note} className="text-xs text-muted">
+                                            <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
+                                            <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
+                                            <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
                                                 {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
                                             </td>
                                         </tr>

@@ -1272,23 +1272,23 @@ export default function AuditCenter() {
                                     <table className="table audit-events-table">
                                         <thead>
                                             <tr>
-                                                <th>{copy.tables.time}</th>
+                                                <th className="audit-event-time-column">{copy.tables.time}</th>
                                                 <th>{copy.tables.event}</th>
-                                                <th>{copy.tables.result}</th>
+                                                <th className="table-cell-center audit-event-result-column">{copy.tables.result}</th>
                                                 <th>{copy.tables.actor}</th>
-                                                <th>{copy.tables.node}</th>
+                                                <th className="table-cell-center audit-event-node-column">{copy.tables.node}</th>
                                                 <th>{copy.tables.user}</th>
-                                                <th>{copy.tables.action}</th>
+                                                <th className="table-cell-actions audit-event-action-column">{copy.tables.action}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {eventsData.items.map((item) => (
                                                 <tr key={item.id}>
-                                                    <td data-label={copy.tables.time}>{formatDateTime(item.ts, locale)}</td>
+                                                    <td data-label={copy.tables.time} className="cell-mono audit-event-time-cell">{formatDateTime(item.ts, locale)}</td>
                                                     <td data-label={copy.tables.event}>{formatAuditEventLabel(item, locale)}</td>
-                                                    <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
+                                                    <td data-label={copy.tables.result} className="table-cell-center audit-event-result-cell"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
                                                     <td data-label={copy.tables.actor}>{formatAuditActorLabel(item, locale)}</td>
-                                                    <td data-label={copy.tables.node}>{item.serverId || '-'}</td>
+                                                    <td data-label={copy.tables.node} className="table-cell-center audit-event-node-cell">{item.serverId || '-'}</td>
                                                     <td data-label={copy.tables.user}>
                                                         <div className="audit-event-target">
                                                             <span className="audit-event-target-label">{resolveAuditTarget(item)}</span>
@@ -1499,13 +1499,13 @@ export default function AuditCenter() {
                                     </div>
                                 ) : (
                                     <div className="table-container audit-nested-table-shell">
-                                        <table className="table">
-                                            <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
+                                        <table className="table audit-leaderboard-table audit-top-users-table">
+                                            <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th></tr></thead>
                                             <tbody>
                                                 {topUsers.map((item) => (
                                                     <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
-                                                        <td data-label={copy.tables.user}>{formatTrafficUserLabel(item)}</td>
-                                                        <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                        <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">{formatTrafficUserLabel(item)}</td>
+                                                        <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1525,13 +1525,13 @@ export default function AuditCenter() {
                                     </div>
                                 ) : (
                                     <div className="table-container audit-nested-table-shell">
-                                        <table className="table">
-                                            <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right">{copy.tables.traffic}</th></tr></thead>
+                                        <table className="table audit-leaderboard-table audit-top-servers-table">
+                                            <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th></tr></thead>
                                             <tbody>
                                                 {topServers.map((item) => (
                                                     <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
-                                                        <td data-label={copy.tables.node}>{item.serverName}</td>
-                                                        <td data-label={copy.tables.traffic} className="table-cell-right">{formatBytes(item.totalBytes)}</td>
+                                                        <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">{item.serverName}</td>
+                                                        <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1623,9 +1623,9 @@ export default function AuditCenter() {
                                 <table className="table audit-subscriptions-table">
                                     <thead>
                                         <tr>
-                                            <th>{copy.tables.time}</th>
+                                            <th className="audit-access-time-column">{copy.tables.time}</th>
                                             <th>{copy.tables.user}</th>
-                                            <th>{copy.tables.result}</th>
+                                            <th className="table-cell-center audit-access-result-column">{copy.tables.result}</th>
                                             <th>{copy.tables.realIp}</th>
                                             <th>{copy.tables.locationCarrier}</th>
                                             <th>UA</th>
@@ -1638,7 +1638,7 @@ export default function AuditCenter() {
                                             const userMeta = formatAccessUserMeta(item, copy);
                                             return (
                                             <tr key={item.id}>
-                                                <td data-label={copy.tables.time} style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
+                                                <td data-label={copy.tables.time} className="cell-mono audit-access-time-cell" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
                                                 <td data-label={copy.tables.user}>
                                                     <div className="audit-access-user">
                                                         <span className="audit-access-user-label">{userLabel}</span>
@@ -1647,8 +1647,8 @@ export default function AuditCenter() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td data-label={copy.tables.result}><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
-                                                <td data-label={copy.tables.realIp} style={{ wordBreak: 'break-all' }}>
+                                                <td data-label={copy.tables.result} className="table-cell-center audit-access-result-cell"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
+                                                <td data-label={copy.tables.realIp} className="audit-access-ip-cell" style={{ wordBreak: 'break-all' }}>
                                                     <div className="flex flex-col gap-1">
                                                         <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
                                                         {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}

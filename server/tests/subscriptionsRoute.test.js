@@ -22,8 +22,10 @@ const {
     summarizeSubscriptionUsage,
     sortInboundsForServer,
     sortServersForSubscription,
+    verifyPublicTokenRequest,
 } = await import('../routes/subscriptions.js');
 const { default: systemSettingsStore } = await import('../store/systemSettingsStore.js');
+const { default: subscriptionTokenStore } = await import('../store/subscriptionTokenStore.js');
 
 const vmessPayload = Buffer.from(JSON.stringify({
     v: '2',
@@ -220,6 +222,32 @@ describe('subscription url generation', () => {
         assert.equal(urls.subscriptionConverterConfigured, true);
     });
 
+});
+
+describe('public token verification', () => {
+    it('falls back to token-id lookup for legacy email-path links after email migration', () => {
+        const sourceEmail = 'legacy-path@example.com';
+        const targetEmail = 'migrated-path@example.com';
+        const issued = subscriptionTokenStore.issue(sourceEmail, {
+            name: 'legacy-path-test',
+            noExpiry: true,
+            ignoreActiveLimit: true,
+            createdBy: 'test',
+        });
+
+        subscriptionTokenStore.reassignEmail(sourceEmail, targetEmail, {
+            tokenIds: [issued.metadata.id],
+        });
+
+        const verification = verifyPublicTokenRequest(
+            sourceEmail,
+            issued.publicTokenId,
+            issued.tokenSecret
+        );
+
+        assert.equal(verification.ok, true);
+        assert.equal(verification.email, targetEmail);
+    });
 });
 
 describe('mihomo config generation', () => {

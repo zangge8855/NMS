@@ -161,6 +161,163 @@ function ensurePersistentSubscriptionToken(email, actor = 'admin', deps = {}) {
     }
 }
 
+function buildPanelListFailureMessage(error) {
+    return `${error?.code === 'PANEL_INBOUND_LIST_FAILED' ? 'List inbounds failed' : 'Auth failed'}: ${error.message}`;
+}
+
+function createEmailMigrationResult(sourceEmail = '', targetEmail = '') {
+    return {
+        fromEmail: sourceEmail,
+        toEmail: targetEmail,
+        total: 0,
+        updated: 0,
+        failed: 0,
+        rolledBack: 0,
+        rollbackFailed: 0,
+        details: [],
+    };
+}
+
+async function migrateManagedSubscriptionEmail(sourceEmail, targetEmail, options = {}, deps = {}) {
+    const servers = deps.serverRepository || serverRepository;
+    const listInbounds = deps.listPanelInbounds || listPanelInbounds;
+    const updateClient = deps.postUpdateClient || postUpdateClient;
+
+    const fromEmail = normalizeEmailInput(sourceEmail);
+    const toEmail = normalizeEmailInput(targetEmail);
+    const result = createEmailMigrationResult(fromEmail, toEmail);
+    if (!fromEmail || !toEmail || fromEmail === toEmail) {
+        return result;
+    }
+
+    const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
+    const plannedMigrations = [];
+
+    for (const server of allServers) {
+        let panelContext;
+        try {
+            panelContext = await listInbounds(server.id);
+        } catch (error) {
+            result.failed += 1;
+            result.details.push({
+                serverId: server.id,
+                serverName: server.name,
+                status: 'failed',
+                error: buildPanelListFailureMessage(error),
+            });
+            continue;
+        }
+
+        const client = panelContext.client;
+        const inbounds = panelContext.inbounds;
+        for (const inbound of inbounds) {
+            const protocol = String(inbound.protocol || '').toLowerCase();
+            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+
+            const existingClients = parseInboundClients(inbound);
+            const sourceMatch = existingClients.find((item) => normalizeEmailInput(item.email) === fromEmail);
+            if (!sourceMatch) continue;
+
+            result.total += 1;
+            const targetMatch = existingClients.find((item) => normalizeEmailInput(item.email) === toEmail);
+            if (targetMatch) {
+                result.failed += 1;
+                result.details.push({
+                    serverId: server.id,
+                    serverName: server.name,
+                    inboundId: inbound.id,
+                    inboundRemark: inbound.remark || '',
+                    protocol,
+                    status: 'failed',
+                    error: 'target-email-client-exists',
+                });
+                continue;
+            }
+
+            plannedMigrations.push({
+                serverId: server.id,
+                serverName: server.name,
+                inboundId: inbound.id,
+                inboundRemark: inbound.remark || '',
+                protocol,
+                client,
+                clientIdentifier: resolveClientIdentifier(sourceMatch, protocol),
+                sourceClient: sourceMatch,
+            });
+        }
+    }
+
+    if (result.failed > 0) {
+        return result;
+    }
+
+    const appliedMigrations = [];
+    for (const item of plannedMigrations) {
+        const nextClient = {
+            ...item.sourceClient,
+            email: toEmail,
+        };
+
+        try {
+            await updateClient(item.client, item.inboundId, item.clientIdentifier, nextClient);
+            appliedMigrations.push(item);
+            result.updated += 1;
+            result.details.push({
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: item.inboundId,
+                inboundRemark: item.inboundRemark,
+                protocol: item.protocol,
+                status: 'migrated',
+            });
+        } catch (error) {
+            result.failed += 1;
+            result.details.push({
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: item.inboundId,
+                inboundRemark: item.inboundRemark,
+                protocol: item.protocol,
+                status: 'failed',
+                error: error.message || 'client-email-migration-failed',
+            });
+            break;
+        }
+    }
+
+    if (result.failed === 0) {
+        return result;
+    }
+
+    for (const item of [...appliedMigrations].reverse()) {
+        try {
+            await updateClient(item.client, item.inboundId, item.clientIdentifier, item.sourceClient);
+            result.rolledBack += 1;
+            result.details.push({
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: item.inboundId,
+                inboundRemark: item.inboundRemark,
+                protocol: item.protocol,
+                status: 'rolled_back',
+            });
+        } catch (error) {
+            result.rollbackFailed += 1;
+            result.details.push({
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: item.inboundId,
+                inboundRemark: item.inboundRemark,
+                protocol: item.protocol,
+                status: 'rollback_failed',
+                error: error.message || 'client-email-rollback-failed',
+            });
+        }
+    }
+
+    return result;
+}
+
 async function autoDeployClients(subscriptionEmail, policy, options = {}, deps = {}) {
     const servers = deps.serverRepository || serverRepository;
     const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
@@ -209,7 +366,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                error: `${error?.code === 'PANEL_INBOUND_LIST_FAILED' ? 'List inbounds failed' : 'Auth failed'}: ${error.message}`,
+                error: buildPanelListFailureMessage(error),
             });
             result.failed += 1;
             result.total += 1;
@@ -442,7 +599,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                error: `${error?.code === 'PANEL_INBOUND_LIST_FAILED' ? 'List inbounds failed' : 'Auth failed'}: ${error.message}`,
+                error: buildPanelListFailureMessage(error),
             });
             continue;
         }
@@ -667,6 +824,7 @@ export {
     autoSetManagedClientsEnabled,
     createSharedCredentials,
     ensurePersistentSubscriptionToken,
+    migrateManagedSubscriptionEmail,
     provisionSubscriptionForUser,
     rotateManagedSubscriptionCredentials,
 };

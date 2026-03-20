@@ -1173,27 +1173,27 @@ export default function Servers() {
                                                 <span className="badge badge-danger">失败 {batchResult.summary?.failed || 0}</span>
                                             </div>
                                             <div className="table-container table-scroll table-scroll-sm">
-                                                <table className="table">
+                                                <table className="table servers-batch-result-table">
                                                     <thead>
                                                         <tr>
-                                                            <th>行号</th>
+                                                            <th className="table-cell-right servers-batch-line-column">行号</th>
                                                             <th>名称</th>
                                                             <th>地址</th>
                                                             <th>Path</th>
-                                                            <th>状态</th>
+                                                            <th className="table-cell-center servers-batch-status-column">状态</th>
                                                             <th>结果</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {(batchResult.results || []).map((item) => (
                                                             <tr key={`batch-add-${item.line}-${item.url || item.name || ''}`}>
-                                                                <td data-label="行号" className="cell-mono-right">{item.line || '-'}</td>
+                                                                <td data-label="行号" className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '-'}</td>
                                                                 <td data-label="名称">{item.name || '-'}</td>
                                                                 <td data-label="地址" className="table-word-220 cell-mono">
                                                                     {item.url || '-'}
                                                                 </td>
                                                                 <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
-                                                                <td data-label="状态">
+                                                                <td data-label="状态" className="table-cell-center servers-batch-status-cell">
                                                                     <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                                         {item.success ? t('comp.common.success') : t('comp.common.failed')}
                                                                     </span>

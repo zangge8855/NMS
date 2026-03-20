@@ -15,6 +15,7 @@ process.env.NODE_ENV = 'test';
 
 const {
     autoSetManagedClientsEnabled,
+    migrateManagedSubscriptionEmail,
     provisionSubscriptionForUser,
     rotateManagedSubscriptionCredentials,
 } = await import('../services/subscriptionSyncService.js');
@@ -156,6 +157,112 @@ describe('subscriptionSyncService', () => {
         assert.equal(updates[0].clientData.enable, true);
         assert.equal(result.details[1].reason, 'inbound-not-allowed');
         assert.equal(result.details[2].reason, 'server-not-allowed');
+    });
+
+    it('migrates managed subscription email in place without rotating client credentials', async () => {
+        const updates = [];
+        const result = await migrateManagedSubscriptionEmail('user@example.com', 'user.new@example.com', {}, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'user@example.com',
+                                id: '11111111-1111-1111-1111-111111111111',
+                                subId: 'sub-a',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                    {
+                        id: 102,
+                        protocol: 'trojan',
+                        enable: true,
+                        remark: 'Inbound B',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'user@example.com',
+                                id: 'fallback-id',
+                                password: 'trojan-pass',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+        });
+
+        assert.equal(result.updated, 2);
+        assert.equal(result.failed, 0);
+        assert.equal(updates[0].clientIdentifier, '11111111-1111-1111-1111-111111111111');
+        assert.equal(updates[0].clientData.id, '11111111-1111-1111-1111-111111111111');
+        assert.equal(updates[0].clientData.subId, 'sub-a');
+        assert.equal(updates[0].clientData.email, 'user.new@example.com');
+        assert.equal(updates[1].clientIdentifier, 'trojan-pass');
+        assert.equal(updates[1].clientData.password, 'trojan-pass');
+        assert.equal(updates[1].clientData.email, 'user.new@example.com');
+        assert.equal(result.details[0].status, 'migrated');
+    });
+
+    it('aborts migration when the target email already exists on an inbound', async () => {
+        const updates = [];
+        const result = await migrateManagedSubscriptionEmail('user@example.com', 'user.new@example.com', {}, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [
+                                {
+                                    email: 'user@example.com',
+                                    id: '11111111-1111-1111-1111-111111111111',
+                                    enable: true,
+                                },
+                                {
+                                    email: 'user.new@example.com',
+                                    id: '22222222-2222-2222-2222-222222222222',
+                                    enable: true,
+                                },
+                            ],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+        });
+
+        assert.equal(result.updated, 0);
+        assert.equal(result.failed, 1);
+        assert.equal(updates.length, 0);
+        assert.equal(result.details[0].error, 'target-email-client-exists');
     });
 
     it('rotates managed client credentials and subId for matching clients', async () => {

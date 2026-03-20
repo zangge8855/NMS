@@ -571,25 +571,27 @@
 .capability-tools-table td.capability-status-cell,
 .capability-tools-table td.capability-entry-cell,
 .user-detail-clients-table th.user-detail-protocol-column,
+.user-detail-clients-table th.user-detail-traffic-column,
 .user-detail-clients-table th.user-detail-expiry-column,
 .user-detail-clients-table th.user-detail-status-column,
 .user-detail-clients-table th.user-detail-actions-column,
 .user-detail-clients-table td.user-detail-protocol-cell,
+.user-detail-clients-table td.user-detail-actions-cell,
 .user-detail-clients-table td.user-detail-expiry-cell,
 .user-detail-clients-table td.user-detail-status-cell,
+.client-ip-count-column,
+.client-ip-last-seen-column,
+.client-ip-count-cell,
+.client-ip-last-seen-cell,
 .server-detail-inbounds-table th.server-detail-protocol-column,
-.server-detail-inbounds-table th.server-detail-port-column,
 .server-detail-inbounds-table th.server-detail-clients-column,
 .server-detail-inbounds-table th.server-detail-status-column,
 .server-detail-inbounds-table td.server-detail-protocol-cell,
-.server-detail-inbounds-table td.server-detail-port-cell,
 .server-detail-inbounds-table td.server-detail-clients-cell,
 .server-detail-inbounds-table td.server-detail-status-cell,
 .server-detail-online-table th.server-detail-sequence-column,
-.server-detail-online-table th.server-detail-sessions-column,
 .server-detail-online-table th.server-detail-online-actions-column,
 .server-detail-online-table td.server-detail-sequence-cell,
-.server-detail-online-table td.server-detail-sessions-cell,
 .conflict-scanner-table th.conflict-scanner-enabled-column,
 .conflict-scanner-table th.conflict-scanner-expiry-column,
 .conflict-scanner-table th.conflict-scanner-source-column,
@@ -628,6 +630,116 @@
 
 .users-online-stack {
   justify-content: center;
+}
+
+.users-table th.users-traffic-column,
+.users-table td.users-traffic-cell,
+.user-detail-clients-table td.user-detail-traffic-cell {
+  text-align: right;
+}
+
+.users-traffic-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dashboard-inbound-summary-table th.dashboard-inbound-protocol-column,
+.dashboard-inbound-summary-table th.dashboard-inbound-status-column,
+.dashboard-inbound-summary-table td.dashboard-inbound-protocol-cell,
+.dashboard-inbound-summary-table td.dashboard-inbound-status-cell,
+.batch-result-detail-table th.batch-result-status-column,
+.batch-result-detail-table td.batch-result-status-cell,
+.servers-batch-result-table th.servers-batch-status-column,
+.servers-batch-result-table td.servers-batch-status-cell,
+.audit-events-table th.audit-event-result-column,
+.audit-events-table td.audit-event-result-cell,
+.audit-events-table th.audit-event-node-column,
+.audit-events-table td.audit-event-node-cell,
+.audit-subscriptions-table th.audit-access-result-column,
+.audit-subscriptions-table td.audit-access-result-cell {
+  text-align: center;
+}
+
+.dashboard-inbound-summary-table td.dashboard-inbound-port-cell,
+.dashboard-inbound-summary-table td.dashboard-inbound-up-cell,
+.dashboard-inbound-summary-table td.dashboard-inbound-down-cell,
+.servers-batch-result-table th.servers-batch-line-column,
+.servers-batch-result-table td.servers-batch-line-cell,
+.server-detail-inbounds-table th.server-detail-port-column,
+.server-detail-inbounds-table td.server-detail-port-cell,
+.server-detail-online-table th.server-detail-sessions-column,
+.server-detail-online-table td.server-detail-sessions-cell,
+.tasks-table th.tasks-total-column,
+.tasks-table th.tasks-success-column,
+.tasks-table th.tasks-failed-column,
+.tasks-table td.tasks-total-cell,
+.tasks-table td.tasks-success-cell,
+.tasks-table td.tasks-failed-cell,
+.audit-leaderboard-table th.audit-leaderboard-traffic-column,
+.audit-leaderboard-table td.audit-leaderboard-traffic-cell {
+  text-align: right;
+}
+
+.dashboard-inbound-summary-table td.dashboard-inbound-protocol-cell .badge,
+.dashboard-inbound-summary-table td.dashboard-inbound-status-cell .badge,
+.batch-result-detail-table td.batch-result-status-cell .badge,
+.servers-batch-result-table td.servers-batch-status-cell .badge,
+.audit-events-table td.audit-event-result-cell .badge,
+.audit-subscriptions-table td.audit-access-result-cell .badge,
+.audit-events-table td.table-cell-actions .btn,
+.tasks-table td.tasks-actions-cell .btn {
+  margin-inline: auto;
+}
+
+.tasks-table td.tasks-time-cell,
+.audit-subscriptions-table td.audit-access-time-cell,
+.client-ip-table td.client-ip-last-seen-cell {
+  white-space: nowrap;
+}
+
+.tasks-table td.tasks-server-cell,
+.audit-leaderboard-table td.audit-leaderboard-label-cell,
+.client-ip-table td.client-ip-note-cell {
+  line-height: 1.45;
+}
+
+.inbounds-table td.inbounds-traffic-cell,
+.inbounds-clients-table th.inbounds-clients-col-total,
+.inbounds-clients-table th.inbounds-clients-col-ip,
+.inbounds-clients-table th.inbounds-clients-col-traffic,
+.inbounds-clients-table td.inbounds-clients-col-total,
+.inbounds-clients-table td.inbounds-clients-col-ip,
+.inbounds-clients-table td.inbounds-clients-col-traffic {
+  text-align: right;
+}
+
+.inbounds-table td.inbounds-port-cell,
+.inbounds-table th.inbounds-port-col {
+  text-align: right;
+}
+
+.inbounds-table td.inbounds-protocol-cell,
+.inbounds-table th.inbounds-protocol-col {
+  text-align: center;
+}
+
+.inbounds-traffic-stack,
+.inbounds-client-traffic-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.inbounds-clients-table td.inbounds-clients-col-status .badge,
+.inbounds-clients-table td.inbounds-clients-col-actions .inbounds-client-actions {
+  margin-inline: auto;
+}
+
+.inbounds-clients-table td.inbounds-clients-col-status .inbounds-client-status-stack {
+  align-items: center;
 }
 
 .users-actions-cell .users-row-actions,

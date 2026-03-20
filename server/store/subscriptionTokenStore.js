@@ -309,6 +309,48 @@ class SubscriptionTokenStore {
         return count;
     }
 
+    reassignEmail(sourceEmail, targetEmail, options = {}) {
+        const normalizedSource = normalizeEmail(sourceEmail);
+        const normalizedTarget = normalizeEmail(targetEmail);
+        if (!normalizedSource || !normalizedTarget || normalizedSource === normalizedTarget) {
+            return {
+                moved: 0,
+                fromEmail: normalizedSource,
+                toEmail: normalizedTarget,
+                tokenIds: [],
+                publicTokenIds: [],
+            };
+        }
+
+        const scopedIds = Array.isArray(options.tokenIds) && options.tokenIds.length > 0
+            ? new Set(options.tokenIds.map((item) => String(item || '').trim()).filter(Boolean))
+            : null;
+
+        const movedRecords = [];
+        this.tokens.forEach((record) => {
+            if (record.email !== normalizedSource) return;
+            const tokenId = String(record.id || '').trim();
+            const publicTokenId = this._resolvePublicId(record);
+            if (scopedIds && !scopedIds.has(tokenId) && !scopedIds.has(publicTokenId)) {
+                return;
+            }
+            record.email = normalizedTarget;
+            movedRecords.push(record);
+        });
+
+        if (movedRecords.length > 0) {
+            this._save();
+        }
+
+        return {
+            moved: movedRecords.length,
+            fromEmail: normalizedSource,
+            toEmail: normalizedTarget,
+            tokenIds: movedRecords.map((record) => String(record.id || '').trim()).filter(Boolean),
+            publicTokenIds: movedRecords.map((record) => this._resolvePublicId(record)).filter(Boolean),
+        };
+    }
+
     getByEmailAndId(email, tokenId) {
         const normalizedEmail = normalizeEmail(email);
         const record = this.tokens.find(

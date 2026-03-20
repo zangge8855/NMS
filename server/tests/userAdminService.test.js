@@ -10,6 +10,7 @@ import {
     provisionManagedUserSubscription,
     resyncManagedUserNodes,
     setManagedUserEnabled,
+    updateManagedUser,
     updateManagedUserExpiry,
     updateManagedUserPolicyByEmail,
 } from '../services/userAdminService.js';
@@ -217,6 +218,194 @@ test('buildManagedUserSyncJobPayload flattens sync details for retry history', (
     assert.equal(payload.output.results[0].success, false);
     assert.equal(payload.output.results[1].stage, 'client_deploy');
     assert.equal(payload.output.results[1].success, true);
+});
+
+test('updateManagedUser auto-follows login email and migrates managed subscription state without rotating credentials', async () => {
+    const calls = [];
+    const result = await updateManagedUser(
+        'u-10',
+        {
+            username: 'alice',
+            email: 'alice.new@example.com',
+        },
+        'ops',
+        {
+            userRepository: {
+                getById() {
+                    return {
+                        id: 'u-10',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        role: 'user',
+                    };
+                },
+                getByUsername() {
+                    return { id: 'u-10' };
+                },
+                getByEmail() {
+                    return null;
+                },
+                getBySubscriptionEmail() {
+                    return null;
+                },
+                update(id, data) {
+                    calls.push({ type: 'user:update', id, data });
+                    return {
+                        id,
+                        username: data.username,
+                        email: data.email,
+                        subscriptionEmail: data.subscriptionEmail,
+                        role: 'user',
+                        enabled: true,
+                    };
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1', name: 'Node A' }];
+                },
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'alice@example.com',
+                                id: '11111111-1111-1111-1111-111111111111',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                calls.push({ type: 'client:update', inboundId, clientIdentifier, clientData });
+                return {};
+            },
+            userPolicyRepository: {
+                reassignEmail(fromEmail, toEmail, actor) {
+                    calls.push({ type: 'policy:reassign', fromEmail, toEmail, actor });
+                    return {
+                        moved: true,
+                        fromEmail,
+                        toEmail,
+                        policy: { email: toEmail },
+                    };
+                },
+            },
+            subscriptionTokenRepository: {
+                reassignEmail(fromEmail, toEmail) {
+                    calls.push({ type: 'token:reassign', fromEmail, toEmail });
+                    return {
+                        moved: 1,
+                        fromEmail,
+                        toEmail,
+                        tokenIds: ['tok-1'],
+                        publicTokenIds: ['pub-1'],
+                    };
+                },
+            },
+        }
+    );
+
+    assert.equal(result.user.email, 'alice.new@example.com');
+    assert.equal(result.user.subscriptionEmail, 'alice.new@example.com');
+    assert.equal(result.subscriptionMigration.updated, 1);
+    assert.equal(calls[0].type, 'client:update');
+    assert.equal(calls[0].clientIdentifier, '11111111-1111-1111-1111-111111111111');
+    assert.equal(calls[0].clientData.id, '11111111-1111-1111-1111-111111111111');
+    assert.equal(calls[0].clientData.email, 'alice.new@example.com');
+    assert.deepEqual(
+        calls.slice(1).map((item) => item.type),
+        ['policy:reassign', 'token:reassign', 'user:update']
+    );
+    assert.equal(calls[3].data.subscriptionEmail, 'alice.new@example.com');
+});
+
+test('updateManagedUser rolls back client email migration when policy migration fails', async () => {
+    const updates = [];
+    let clientEmail = 'alice@example.com';
+    await assert.rejects(
+        updateManagedUser(
+            'u-11',
+            {
+                subscriptionEmail: 'alice.new@example.com',
+            },
+            'ops',
+            {
+                userRepository: {
+                    getById() {
+                        return {
+                            id: 'u-11',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                        };
+                    },
+                    getBySubscriptionEmail() {
+                        return null;
+                    },
+                    update() {
+                        throw new Error('should-not-update-user');
+                    },
+                },
+                serverRepository: {
+                    list() {
+                        return [{ id: 'srv-1', name: 'Node A' }];
+                    },
+                },
+                listPanelInbounds: async () => ({
+                    client: { post: async () => ({}) },
+                    inbounds: [
+                        {
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            remark: 'Inbound A',
+                            settings: JSON.stringify({
+                                clients: [{
+                                    email: clientEmail,
+                                    id: '11111111-1111-1111-1111-111111111111',
+                                    enable: true,
+                                    expiryTime: 0,
+                                    limitIp: 0,
+                                    totalGB: 0,
+                                }],
+                            }),
+                        },
+                    ],
+                }),
+                postUpdateClient: async (_panelClient, _inboundId, _clientIdentifier, clientData) => {
+                    clientEmail = clientData.email;
+                    updates.push(clientData.email);
+                    return {};
+                },
+                userPolicyRepository: {
+                    reassignEmail() {
+                        throw new Error('policy-conflict');
+                    },
+                },
+                subscriptionTokenRepository: {
+                    reassignEmail() {
+                        throw new Error('should-not-reassign-token');
+                    },
+                },
+            }
+        ),
+        /policy-conflict/
+    );
+
+    assert.deepEqual(updates, ['alice.new@example.com', 'alice@example.com']);
 });
 
 test('updateManagedUserExpiry writes policy then deploys clients', async () => {

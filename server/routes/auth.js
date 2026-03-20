@@ -630,11 +630,17 @@ router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
 /**
  * PUT /api/auth/users/:id — 更新用户信息
  */
-router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
+router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const result = updateManagedUser(req.params.id, req.body);
+        const result = await updateManagedUser(
+            req.params.id,
+            req.body,
+            String(req.user?.username || 'admin')
+        );
         appendSecurityAudit('user_updated', req, buildUserAuditDetails(result.user, {
             targetUser: result.user.username,
+            previousSubscriptionEmail: result.target?.subscriptionEmail || '',
+            subscriptionMigrationChanged: result.subscriptionMigration?.fromEmail !== result.subscriptionMigration?.toEmail,
         }));
         res.json({ success: true, obj: result.user });
     } catch (err) {
@@ -646,13 +652,18 @@ router.put('/users/:id', authMiddleware, adminOnly, (req, res) => {
 /**
  * PUT /api/auth/users/:id/subscription-binding — 管理员绑定用户订阅邮箱
  */
-router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, (req, res) => {
+router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const result = updateUserSubscriptionBinding(req.params.id, req.body);
+        const result = await updateUserSubscriptionBinding(
+            req.params.id,
+            req.body,
+            String(req.user?.username || 'admin')
+        );
         appendSecurityAudit('user_subscription_binding_updated', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
             subscriptionEmail: result.updated?.subscriptionEmail || '',
+            previousSubscriptionEmail: result.target?.subscriptionEmail || '',
         }));
         return res.json({
             success: true,

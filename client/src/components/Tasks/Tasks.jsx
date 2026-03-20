@@ -366,24 +366,24 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 ) : (
                     <div className={tableShellClassName}>
-                        <table className="table">
+                        <table className="table tasks-table">
                             <thead>
                                 <tr>
-                                    <th>{copy.time}</th>
+                                    <th className="tasks-time-column">{copy.time}</th>
                                     <th>{copy.typeAction}</th>
                                     <th>{copy.server}</th>
-                                    <th className="table-cell-right">{copy.totalCol}</th>
-                                    <th className="table-cell-right">{copy.successCol}</th>
-                                    <th className="table-cell-right">{copy.failedCol}</th>
-                                    <th className="table-cell-actions">{copy.actions}</th>
+                                    <th className="table-cell-right tasks-total-column">{copy.totalCol}</th>
+                                    <th className="table-cell-right tasks-success-column">{copy.successCol}</th>
+                                    <th className="table-cell-right tasks-failed-column">{copy.failedCol}</th>
+                                    <th className="table-cell-actions tasks-actions-column">{copy.actions}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredTasks.map((task) => (
                                     <tr key={task.id}>
-                                        <td data-label={copy.time}>{formatDateTime(task.createdAt, locale)}</td>
+                                        <td data-label={copy.time} className="cell-mono tasks-time-cell">{formatDateTime(task.createdAt, locale)}</td>
                                         <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
-                                        <td data-label={copy.server} className="text-sm text-muted">
+                                        <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
                                             {(() => {
                                                 const servers = getTaskServers(task);
                                                 if (servers.length === 0) return '-';
@@ -392,10 +392,10 @@ export default function Tasks({ embedded = false }) {
                                                 return `${head} +${servers.length - 2}`;
                                             })()}
                                         </td>
-                                        <td data-label={copy.totalCol} className="table-cell-right">{task.summary?.total ?? '-'}</td>
-                                        <td data-label={copy.successCol} className="table-cell-right">{task.summary?.success ?? '-'}</td>
-                                        <td data-label={copy.failedCol} className="table-cell-right">{task.summary?.failed ?? '-'}</td>
-                                        <td data-label={copy.actions} className="table-cell-actions">
+                                        <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
+                                        <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>
+                                        <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
+                                        <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
                                             <div className="table-row-actions tasks-row-actions">
                                             <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                                 <HiOutlineEye />
