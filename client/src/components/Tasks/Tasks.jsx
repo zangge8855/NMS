@@ -17,6 +17,7 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import { formatDateTime } from '../../utils/format.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const TASKS_COPY = {
     'zh-CN': {
@@ -91,9 +92,113 @@ function getTasksCopy(locale = 'zh-CN') {
     return TASKS_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
 }
 
+function getTaskServers(task) {
+    const results = Array.isArray(task?.results) ? task.results : [];
+    return Array.from(new Set(
+        results
+            .map((item) => item.serverName || item.serverId)
+            .filter(Boolean)
+    ));
+}
+
+function formatTaskServerSummary(task) {
+    const servers = getTaskServers(task);
+    if (servers.length === 0) return '-';
+    const head = servers.slice(0, 2).join(', ');
+    if (servers.length <= 2) return head;
+    return `${head} +${servers.length - 2}`;
+}
+
+function getTaskResultBadge(task, copy) {
+    const failed = Number(task?.summary?.failed || 0);
+    if (failed > 0) {
+        return {
+            className: 'badge-danger',
+            label: `${copy.failedCol} ${failed}`,
+        };
+    }
+    return {
+        className: 'badge-success',
+        label: `${copy.successCol} ${Number(task?.summary?.success || 0)}`,
+    };
+}
+
+function TaskMobileList({
+    tasks = [],
+    copy,
+    locale,
+    retryingId,
+    onView,
+    onRetryFailed,
+}) {
+    return (
+        <div className="tasks-mobile-list audit-mobile-list">
+            {tasks.map((task) => {
+                const badge = getTaskResultBadge(task, copy);
+                const failedCount = Number(task?.summary?.failed || 0);
+                return (
+                    <div key={task.id} className="tasks-mobile-card audit-mobile-card">
+                        <div className="audit-mobile-card-head">
+                            <div className="audit-mobile-card-copy">
+                                <div className="audit-mobile-card-title">{formatTaskActionPair(task.type, task.action, locale)}</div>
+                                <div className="audit-mobile-card-subtitle">{formatDateTime(task.createdAt, locale)}</div>
+                            </div>
+                            <span className={`badge ${badge.className}`}>{badge.label}</span>
+                        </div>
+                        <div className="audit-mobile-card-grid tasks-mobile-grid">
+                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
+                                <span className="audit-mobile-card-label">{copy.server}</span>
+                                <span className="audit-mobile-card-value tasks-mobile-server-value">
+                                    {formatTaskServerSummary(task)}
+                                </span>
+                            </div>
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.totalCol}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.total ?? '-'}</span>
+                            </div>
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.successCol}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.success ?? '-'}</span>
+                            </div>
+                            <div className="audit-mobile-card-item">
+                                <span className="audit-mobile-card-label">{copy.failedCol}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.failed ?? '-'}</span>
+                            </div>
+                        </div>
+                        <div className="audit-mobile-card-actions tasks-mobile-actions">
+                            <button
+                                className="btn btn-secondary btn-sm rounded-lg"
+                                onClick={() => onView(task.id)}
+                                title={copy.viewDetail}
+                                aria-label={copy.viewDetail}
+                            >
+                                <HiOutlineEye />
+                                <span>{copy.viewDetail}</span>
+                            </button>
+                            {failedCount > 0 && (
+                                <button
+                                    className="btn btn-primary btn-sm rounded-lg"
+                                    onClick={() => onRetryFailed(task)}
+                                    disabled={retryingId === task.id}
+                                    title={copy.retryFailedItems}
+                                    aria-label={copy.retryFailedItems}
+                                >
+                                    {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
+                                    <span>{copy.retryFailedItems}</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getTasksCopy(locale);
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState([]);
@@ -120,16 +225,6 @@ export default function Tasks({ embedded = false }) {
     useEffect(() => {
         fetchTasks();
     }, []);
-
-    const getTaskServers = (task) => {
-        const results = Array.isArray(task?.results) ? task.results : [];
-        const values = Array.from(new Set(
-            results
-                .map((item) => item.serverName || item.serverId)
-                .filter(Boolean)
-        ));
-        return values;
-    };
 
     const typeOptions = useMemo(() => (
         Array.from(new Set(tasks.map((task) => task.type).filter(Boolean))).sort()
@@ -174,6 +269,7 @@ export default function Tasks({ embedded = false }) {
     const filterCardClassName = embedded ? 'card mb-8 p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
     // Converge on the shared table shell instead of page-specific container variants.
     const tableShellClassName = 'table-container mb-8';
+    const mobileListShellClassName = 'tasks-mobile-shell mb-8';
     const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
     const paginationClassName = 'audit-pagination page-pagination';
     const filterSelectClassName = 'form-select rounded-lg';
@@ -364,6 +460,17 @@ export default function Tasks({ embedded = false }) {
                     <div className={`${tableShellClassName} p-4`}>
                         <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
                     </div>
+                ) : isCompactLayout ? (
+                    <div className={mobileListShellClassName}>
+                        <TaskMobileList
+                            tasks={filteredTasks}
+                            copy={copy}
+                            locale={locale}
+                            retryingId={retryingId}
+                            onView={handleView}
+                            onRetryFailed={handleRetryFailed}
+                        />
+                    </div>
                 ) : (
                     <div className={tableShellClassName}>
                         <table className="table tasks-table">
@@ -384,13 +491,7 @@ export default function Tasks({ embedded = false }) {
                                         <td data-label={copy.time} className="cell-mono tasks-time-cell">{formatDateTime(task.createdAt, locale)}</td>
                                         <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
                                         <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
-                                            {(() => {
-                                                const servers = getTaskServers(task);
-                                                if (servers.length === 0) return '-';
-                                                const head = servers.slice(0, 2).join(', ');
-                                                if (servers.length <= 2) return head;
-                                                return `${head} +${servers.length - 2}`;
-                                            })()}
+                                            {formatTaskServerSummary(task)}
                                         </td>
                                         <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
                                         <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>

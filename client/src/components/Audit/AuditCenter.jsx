@@ -1731,7 +1731,11 @@ export default function AuditCenter() {
                 )}
 
                 {tab === 'logs' && (
-                    <Suspense fallback={<div className="flex items-center justify-center" style={{ padding: '64px 0' }}><span className="spinner" /></div>}>
+                    <Suspense fallback={(
+                        <div className="glass-panel audit-table-shell audit-tab-loading-shell">
+                            <span className="spinner spinner-20" />
+                        </div>
+                    )}>
                         <Logs embedded sourceMode="panel" displayLabel={copy.tabs.logs} />
                     </Suspense>
                 )}

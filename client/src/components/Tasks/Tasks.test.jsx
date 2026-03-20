@@ -45,12 +45,26 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
+function mockMatchMedia(matches = false) {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+}
+
 describe('Tasks', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.delete.mockReset();
         api.post.mockReset();
         window.localStorage.clear();
+        mockMatchMedia(false);
     });
 
     it('renders a standalone loading shell before tasks are loaded', async () => {
@@ -88,5 +102,42 @@ describe('Tasks', () => {
         expect(await screen.findByText('暂无批量任务')).toBeInTheDocument();
         expect(screen.getByText('执行批量操作后将在此显示')).toBeInTheDocument();
         expect(screen.queryByRole('columnheader', { name: '时间' })).not.toBeInTheDocument();
+    });
+
+    it('renders compact mobile cards instead of the desktop table on mobile', async () => {
+        mockMatchMedia(true);
+        api.get.mockResolvedValueOnce({
+            data: {
+                obj: {
+                    items: [
+                        {
+                            id: 'task-1',
+                            createdAt: '2026-03-13T10:00:00.000Z',
+                            type: 'clients',
+                            action: 'update',
+                            summary: {
+                                total: 6,
+                                success: 4,
+                                failed: 2,
+                            },
+                            results: [
+                                { serverName: 'Node A' },
+                                { serverName: 'Node B' },
+                                { serverName: 'Node C' },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+
+        renderWithRouter(<Tasks embedded />);
+
+        expect(await screen.findByText('用户 / 更新')).toBeInTheDocument();
+        expect(document.querySelector('.tasks-mobile-card')).toBeTruthy();
+        expect(screen.queryByRole('columnheader', { name: '时间' })).not.toBeInTheDocument();
+        expect(screen.getByText('Node A, Node B +1')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '查看详情' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '重试失败项' })).toBeInTheDocument();
     });
 });

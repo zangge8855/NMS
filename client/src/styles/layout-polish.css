@@ -945,6 +945,76 @@
   line-height: 1.45;
 }
 
+.tasks-mobile-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.tasks-mobile-list {
+  display: grid;
+  gap: 12px;
+}
+
+.tasks-mobile-card .tasks-mobile-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tasks-mobile-server-value {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.tasks-mobile-actions .btn {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  justify-content: center;
+}
+
+.audit-tab-loading-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 168px;
+  padding: 20px;
+}
+
+.node-health-empty-shell {
+  padding: 16px;
+}
+
+.node-health-empty-shell .empty-state {
+  min-height: 0;
+  padding: 10px 8px;
+}
+
+.node-health-empty-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .audit-tab-loading-shell {
+    min-height: 144px;
+    padding: 16px;
+  }
+
+  .node-health-empty-shell {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .tasks-mobile-card .tasks-mobile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tasks-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 .inbounds-table td.inbounds-traffic-cell,
 .inbounds-clients-table th.inbounds-clients-col-total,
 .inbounds-clients-table th.inbounds-clients-col-ip,

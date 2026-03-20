@@ -9,6 +9,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBytes } from '../../utils/format.js';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import {
     HiOutlineServerStack,
     HiOutlineSignal,
@@ -203,9 +204,12 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
 
     if (!servers || servers.length === 0) {
         return (
-            <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-                <HiOutlineServerStack style={{ fontSize: '32px', color: 'var(--text-muted)', marginBottom: '8px' }} />
-                <div className="text-sm text-muted">{t('pages.nodeHealth.empty')}</div>
+            <div className="card node-health-empty-shell">
+                <EmptyState
+                    title={t('pages.nodeHealth.empty')}
+                    size="compact"
+                    icon={<HiOutlineServerStack className="node-health-empty-icon" />}
+                />
             </div>
         );
     }
