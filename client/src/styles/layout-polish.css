@@ -5903,6 +5903,27 @@ p, .empty-state-body, td {
     justify-content: flex-start;
   }
 
+  .audit-control-card {
+    gap: 10px;
+  }
+
+  .audit-control-head {
+    gap: 10px;
+  }
+
+  .audit-control-copy {
+    flex: 0 0 auto;
+  }
+
+  .audit-control-meta {
+    gap: 6px;
+  }
+
+  .audit-filter-stack,
+  .audit-filter-grid {
+    gap: 8px;
+  }
+
   .audit-filter-grid--events-primary,
   .audit-filter-grid--events-secondary {
     grid-template-columns: minmax(0, 1fr);
