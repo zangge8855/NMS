@@ -251,21 +251,33 @@ function SettingsWorkspaceSection({
     heroMode = 'full',
     children,
 }) {
+    const showHeroCopy = heroMode === 'full';
+    const showHeroStrip = heroMode === 'cards' && Boolean(badges || actions);
     const hasHero = heroMode !== 'hidden'
-        && Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0);
+        && (showHeroCopy
+            ? Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0)
+            : Boolean(showHeroStrip || highlights.length > 0));
 
     return (
         <section className="settings-workspace-section" data-workspace={workspaceId}>
             {hasHero ? (
-                <div className="settings-tab-hero settings-workspace-hero">
-                    <div className="settings-tab-hero-copy">
-                        {eyebrow ? <div className="settings-tab-hero-eyebrow">{eyebrow}</div> : null}
-                        {title ? <div className="settings-tab-hero-title">{title}</div> : null}
-                        {subtitle ? <div className="settings-workspace-hero-subtitle">{subtitle}</div> : null}
-                        {summary ? <div className="settings-tab-hero-summary">{summary}</div> : null}
-                        {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
-                        {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
-                    </div>
+                <div className={`settings-tab-hero settings-workspace-hero settings-workspace-hero--${heroMode}`}>
+                    {showHeroCopy ? (
+                        <div className="settings-tab-hero-copy">
+                            {eyebrow ? <div className="settings-tab-hero-eyebrow">{eyebrow}</div> : null}
+                            {title ? <div className="settings-tab-hero-title">{title}</div> : null}
+                            {subtitle ? <div className="settings-workspace-hero-subtitle">{subtitle}</div> : null}
+                            {summary ? <div className="settings-tab-hero-summary">{summary}</div> : null}
+                            {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
+                            {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
+                        </div>
+                    ) : null}
+                    {showHeroStrip ? (
+                        <div className="settings-workspace-hero-strip">
+                            {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
+                            {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
+                        </div>
+                    ) : null}
                     {highlights.length > 0 ? (
                         <div className="settings-tab-hero-grid settings-workspace-highlight-grid">
                             {highlights.map((item) => (
@@ -2714,12 +2726,11 @@ export default function SystemSettings() {
                     {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
                 </button>
             ),
-            navSummary: '5 项核心概览',
             navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },
             content: renderStatusContent(),
-            heroMode: 'full',
+            heroMode: 'cards',
         },
         {
             id: 'access',
@@ -2727,9 +2738,8 @@ export default function SystemSettings() {
             eyebrow: 'Access',
             subtitle: '统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。',
             summary: '保持外部访问路径清晰，再处理订阅外链与注册发放策略，和其他工作区的节奏一致。',
-            navSummary: '入口 / 订阅 / 注册',
             content: renderAccessContent(),
-            heroMode: 'full',
+            heroMode: 'hidden',
         },
         {
             id: 'policy',
@@ -2738,9 +2748,8 @@ export default function SystemSettings() {
             subtitle: '风控阈值、审计保留窗口和 IP 归属地增强统一收口。',
             summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
             highlights: policyHighlights,
-            navSummary: '风控 / 审计 / 归属地',
             content: renderPolicyContent(),
-            heroMode: 'full',
+            heroMode: 'cards',
         },
         {
             id: 'operations',
@@ -2748,9 +2757,8 @@ export default function SystemSettings() {
             eyebrow: 'Operations',
             subtitle: '把邮件、Telegram 和节点巡检动作放在同一页执行与复核。',
             summary: '链路状态和巡检概览集中在系统状态页查看，这里只保留测试、通知和 Telegram 配置动作。',
-            navSummary: '运维动作 / Telegram',
             content: renderOperationsWorkspace(),
-            heroMode: 'full',
+            heroMode: 'hidden',
         },
         {
             id: 'backup',
@@ -2758,9 +2766,8 @@ export default function SystemSettings() {
             eyebrow: 'Backup',
             subtitle: '数据库模式、备份导出和恢复校验放在一个工作区统一处理。',
             summary: '数据库模式和备份基线集中在系统状态页查看，这里只保留切换、导出和恢复操作。',
-            navSummary: '数据库 / 备份恢复',
             content: renderBackupWorkspace(),
-            heroMode: 'full',
+            heroMode: 'hidden',
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];

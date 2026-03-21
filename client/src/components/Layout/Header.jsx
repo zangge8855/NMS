@@ -306,8 +306,8 @@ export default function Header({
                         />
                         <kbd className="header-search-kbd">{shortcutLabel}</kbd>
                     </div>
+                    {children ? <div className="header-primary-actions">{children}</div> : null}
                     <div className="header-controls">
-                        {children}
                         <button
                             type="button"
                             className="theme-toggle-btn language-toggle-btn"

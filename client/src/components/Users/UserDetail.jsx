@@ -547,6 +547,20 @@ function normalizeDetailTab(value) {
     return 'overview';
 }
 
+function normalizeUserDetailPayload(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+    const nextUser = payload.user && typeof payload.user === 'object'
+        ? {
+            ...payload.user,
+            enabled: payload.user.enabled !== false,
+        }
+        : payload.user;
+    return {
+        ...payload,
+        user: nextUser,
+    };
+}
+
 export default function UserDetail() {
     const { locale, t } = useI18n();
     const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
@@ -556,6 +570,7 @@ export default function UserDetail() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
+    const detailRequestIdRef = useRef(0);
     const clientRequestIdRef = useRef(0);
     const serverInventoryKey = useMemo(
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
@@ -602,19 +617,32 @@ export default function UserDetail() {
         setSearchParams(nextParams, { replace: true });
     };
 
-    const fetchDetail = async () => {
-        setLoading(true);
+    const fetchDetail = async (options = {}) => {
+        const requestId = detailRequestIdRef.current + 1;
+        detailRequestIdRef.current = requestId;
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && detail !== null);
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get(`/users/${encodeURIComponent(userId)}/detail`);
+            if (requestId !== detailRequestIdRef.current) return null;
             if (res.data?.success) {
-                setDetail(res.data.obj);
+                const nextDetail = normalizeUserDetailPayload(res.data.obj);
+                setDetail(nextDetail);
+                return nextDetail;
             } else {
                 toast.error(res.data?.msg || copy.labels.loadUserFailed);
             }
         } catch (err) {
+            if (requestId !== detailRequestIdRef.current) return null;
             toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
+        } finally {
+            if (requestId === detailRequestIdRef.current) {
+                setLoading(false);
+            }
         }
-        setLoading(false);
+        return null;
     };
 
     const loadSubscription = async (options = {}) => {
@@ -738,8 +766,9 @@ export default function UserDetail() {
         setSubscriptionResult(null);
         setSubscriptionFetched(false);
         setClientIpSupportByServer({});
+        detailRequestIdRef.current += 1;
         clientRequestIdRef.current += 1;
-        fetchDetail();
+        fetchDetail({ preserveCurrent: false });
     }, [userId]);
 
     useEffect(() => {
@@ -941,13 +970,26 @@ export default function UserDetail() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled: newEnabled });
             if (res.data?.success) {
+                const confirmedEnabled = typeof res.data?.obj?.enabled === 'boolean'
+                    ? res.data.obj.enabled
+                    : newEnabled;
+                setDetail((prev) => {
+                    if (!prev?.user) return prev;
+                    return {
+                        ...prev,
+                        user: {
+                            ...prev.user,
+                            enabled: confirmedEnabled,
+                        },
+                    };
+                });
                 const message = res.data?.msg || (newEnabled ? copy.labels.userEnabled : copy.labels.userDisabled);
                 if (res.data?.obj?.partialFailure) {
                     toast.error(message);
                 } else {
                     toast.success(message);
                 }
-                fetchDetail();
+                await fetchDetail({ preserveCurrent: true });
             }
         } catch (err) {
             toast.error(err.response?.data?.msg || copy.labels.actionFailed);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -83,6 +83,42 @@ function mockMatchMedia(matches = false) {
         removeListener: vi.fn(),
         dispatchEvent: vi.fn(),
     }));
+}
+
+function createDeferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+
+function buildUserDetailResponse(enabled = true, overrides = {}) {
+    return {
+        data: {
+            success: true,
+            obj: {
+                user: {
+                    id: 'user-1',
+                    username: 'alice',
+                    email: 'alice@example.com',
+                    subscriptionEmail: 'alice@example.com',
+                    emailVerified: true,
+                    role: 'user',
+                    enabled,
+                    createdAt: '2026-03-11T10:00:00.000Z',
+                    lastLoginAt: '2026-03-11T11:00:00.000Z',
+                },
+                policy: null,
+                recentAudit: { items: [], total: 0 },
+                subscriptionAccess: { items: [], total: 0 },
+                tokens: [],
+                ...overrides,
+            },
+        },
+    };
 }
 
 describe('UserDetail', () => {
@@ -573,5 +609,67 @@ describe('UserDetail', () => {
         expect(document.querySelector('.table-container table')).toBeFalsy();
         expect(screen.getByText('JP Relay')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/ })).toBeInTheDocument();
+    });
+
+    it('keeps the enabled badge in sync when a stale detail refresh resolves after re-enabling the user', async () => {
+        const user = userEvent.setup();
+        const refreshDeferred = createDeferred();
+        const toggleDeferred = createDeferred();
+        let detailCallCount = 0;
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                detailCallCount += 1;
+                if (detailCallCount === 1) {
+                    return Promise.resolve(buildUserDetailResponse(false));
+                }
+                if (detailCallCount === 2) {
+                    return refreshDeferred.promise;
+                }
+                if (detailCallCount === 3) {
+                    return toggleDeferred.promise;
+                }
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+        api.put.mockResolvedValue({
+            data: {
+                success: true,
+                msg: '用户已启用',
+                obj: {
+                    enabled: true,
+                },
+            },
+        });
+
+        renderWithRouter(<UserDetail />);
+
+        await screen.findByText('用户详情 · alice');
+        const badgeGroup = document.querySelector('.user-profile-badges');
+        const actionGroup = document.querySelector('.user-profile-actions');
+        if (!badgeGroup || !actionGroup) {
+            throw new Error('Missing profile card controls');
+        }
+
+        expect(within(badgeGroup).getByText('已停用')).toBeInTheDocument();
+
+        await user.click(within(actionGroup).getByRole('button', { name: '刷新' }));
+        await user.click(within(actionGroup).getByRole('button', { name: '已启用' }));
+
+        await waitFor(() => {
+            expect(within(badgeGroup).getByText('已启用')).toBeInTheDocument();
+        });
+
+        toggleDeferred.resolve(buildUserDetailResponse(true));
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/auth/users/user-1/set-enabled', { enabled: true });
+        });
+
+        refreshDeferred.resolve(buildUserDetailResponse(false));
+        await waitFor(() => {
+            expect(within(badgeGroup).getByText('已启用')).toBeInTheDocument();
+            expect(within(badgeGroup).queryByText('已停用')).not.toBeInTheDocument();
+            expect(within(actionGroup).getByRole('button', { name: '已停用' })).toBeInTheDocument();
+        });
     });
 });

@@ -84,6 +84,18 @@ describe('Header', () => {
         expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
     });
 
+    it('renders custom page actions in a dedicated primary actions region', () => {
+        const { container } = renderWithRouter(
+            <Header title="仪表盘">
+                <button type="button">刷新数据</button>
+            </Header>
+        );
+
+        const primaryActions = container.querySelector('.header-primary-actions');
+        expect(primaryActions).not.toBeNull();
+        expect(primaryActions).toContainElement(screen.getByRole('button', { name: '刷新数据' }));
+    });
+
     it('reuses the sidebar navigation icon for top-level pages and nested detail pages', () => {
         const { container: auditContainer } = renderWithRouter(<Header title="审计中心" />, { route: '/audit' });
         expect(auditContainer.querySelector('.header-icon')).toBeInTheDocument();

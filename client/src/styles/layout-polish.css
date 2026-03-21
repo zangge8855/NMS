@@ -1705,6 +1705,21 @@
   box-shadow: none;
 }
 
+.settings-workspace-hero--cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.settings-workspace-hero-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .settings-workspace-hero-subtitle {
   color: var(--text-secondary);
   font-size: 13px;
@@ -6251,4 +6266,566 @@ p, .empty-state-body, td {
 
 [data-theme="light"] .inbound-remark-pill {
   box-shadow: none;
+}
+
+/* Final whole-site content alignment sweep. */
+.page-content,
+.page-content--wide,
+.header-shell,
+.header-left,
+.header-actions,
+.header-primary-actions,
+.header-controls,
+.page-toolbar,
+.page-toolbar-main,
+.page-toolbar-actions,
+.page-toolbar-meta,
+.section-header,
+.section-header-copy,
+.section-header-side,
+.section-header-actions,
+.card,
+.table-container,
+.glass-panel,
+.settings-shell,
+.settings-main,
+.settings-workspace-section,
+.settings-workspace-hero,
+.subscriptions-workbench,
+.subscriptions-main-column,
+.subscriptions-side-column,
+.account-shell,
+.servers-toolbar,
+.inbounds-toolbar,
+.users-toolbar,
+.subscriptions-toolbar,
+.audit-traffic-toolbar,
+.settings-toolbar,
+.audit-filter-card,
+.servers-filter-card {
+  min-width: 0;
+}
+
+.page-content {
+  width: min(100%, var(--page-shell-max));
+  max-width: var(--page-shell-max);
+  padding: clamp(18px, 2vw, 28px) clamp(16px, 2.4vw, 32px) clamp(24px, 2.8vw, 36px);
+}
+
+.page-content--wide {
+  width: min(100%, var(--page-shell-wide-max));
+  max-width: var(--page-shell-wide-max);
+  padding-inline: clamp(16px, 2vw, 24px);
+}
+
+.page-content > *,
+.card > *,
+.glass-panel > *,
+.table-container > *,
+.settings-main > *,
+.subscriptions-main-column > *,
+.subscriptions-side-column > * {
+  min-width: 0;
+}
+
+.page-content > :is(
+  .card,
+  .glass-panel,
+  .table-container,
+  .settings-shell,
+  .subscriptions-workbench,
+  .account-shell,
+  .stats-grid,
+  .dashboard-stats-grid,
+  .grid-auto-280-tight,
+  .grid-auto-240,
+  .grid-auto-220,
+  .grid-auto-160,
+  .tools-grid,
+  .server-console-grid,
+  .capability-protocol-grid,
+  .capability-tools-grid
+) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.header {
+  min-height: auto;
+  padding: 14px clamp(16px, 2.4vw, 32px) 12px;
+}
+
+.header-shell {
+  align-items: flex-start;
+  gap: 14px 20px;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  flex: 1 1 420px;
+  align-items: flex-start;
+}
+
+.header-title-group {
+  justify-content: flex-start;
+  gap: 5px;
+  max-width: min(78ch, 100%);
+}
+
+.header-actions {
+  flex: 1 1 320px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  max-width: none;
+}
+
+.header-primary-actions,
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.header-search {
+  flex: 1 1 240px;
+  width: min(360px, 100%);
+  max-width: 100%;
+  min-width: min(240px, 100%);
+}
+
+.page-toolbar,
+.section-header {
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+
+.page-toolbar-main,
+.section-header-copy {
+  flex: 1 1 320px;
+}
+
+.page-toolbar-actions,
+.section-header-side {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.section-header-side {
+  align-items: flex-end;
+}
+
+.page-toolbar-meta,
+.section-header-meta,
+.section-header-subtitle,
+.header-subtitle,
+.users-toolbar-summary,
+.inbounds-toolbar-summary,
+.servers-filter-summary,
+.servers-summary-value,
+.settings-workspace-hero-subtitle,
+.subscription-user-panel-text,
+.subscription-user-panel-title,
+.subscription-user-panel-title--flow,
+.subscription-guide-card .card-subtitle,
+.audit-control-text,
+.audit-nav-summary,
+.audit-traffic-overview-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-stats-grid,
+.stat-mini-grid,
+.tools-grid,
+.server-console-grid,
+.capability-protocol-grid,
+.subscriptions-workbench,
+.account-profile-grid,
+.account-password-grid,
+.audit-chart-grid,
+.audit-leaderboard-grid,
+.settings-summary-grid {
+  align-items: stretch;
+}
+
+.dashboard-stats-grid > *,
+.stat-mini-grid > *,
+.tools-grid > *,
+.server-console-grid > *,
+.capability-protocol-grid > *,
+.subscriptions-workbench > *,
+.account-profile-grid > *,
+.account-password-grid > *,
+.audit-chart-grid > *,
+.audit-leaderboard-grid > *,
+.settings-summary-grid > * {
+  min-width: 0;
+  align-self: stretch;
+}
+
+.servers-toolbar,
+.inbounds-toolbar,
+.users-toolbar,
+.subscriptions-toolbar,
+.audit-traffic-toolbar,
+.settings-toolbar,
+.audit-filter-card,
+.servers-filter-card {
+  width: 100%;
+  max-width: 100%;
+}
+
+.users-toolbar-main,
+.inbounds-toolbar-main,
+.subscriptions-toolbar-main,
+.audit-filter-bar,
+.settings-toolbar-copy,
+.servers-toolbar-summary {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.users-toolbar-actions,
+.inbounds-toolbar-actions,
+.subscriptions-toolbar-actions,
+.audit-traffic-toolbar-actions,
+.settings-toolbar-actions,
+.servers-toolbar-actions {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.users-toolbar-summary {
+  flex: 1 1 180px;
+  text-align: right;
+}
+
+.users-toolbar .account-search-shell,
+.users-toolbar :is(.form-input, .form-select),
+.inbounds-toolbar .form-select,
+.servers-toolbar :is(.form-input, .form-select),
+.subscriptions-toolbar :is(.form-input, .form-select),
+.audit-filter-card :is(.form-input, .form-select),
+.audit-traffic-overview-actions .form-select,
+.settings-toolbar :is(.form-input, .form-select) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.servers-filter-search {
+  max-width: min(360px, 100%);
+}
+
+.servers-filter-select {
+  width: auto;
+  max-width: 100%;
+}
+
+.servers-filter-summary {
+  margin-left: 0;
+  max-width: 100%;
+}
+
+.table-container {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .header-actions {
+    flex-basis: 100%;
+  }
+
+  .users-toolbar-summary {
+    text-align: left;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    padding: 16px 16px 24px;
+  }
+
+  .header-shell,
+  .header-left,
+  .header-actions,
+  .header-primary-actions,
+  .header-controls,
+  .page-toolbar,
+  .page-toolbar-main,
+  .page-toolbar-actions,
+  .section-header,
+  .section-header-copy,
+  .section-header-side,
+  .section-header-actions,
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .users-toolbar,
+  .subscriptions-toolbar,
+  .audit-traffic-toolbar,
+  .settings-toolbar {
+    width: 100%;
+  }
+
+  .header-actions,
+  .header-primary-actions,
+  .header-controls,
+  .page-toolbar-actions,
+  .section-header-side,
+  .section-header-actions,
+  .users-toolbar-actions,
+  .inbounds-toolbar-actions,
+  .subscriptions-toolbar-actions,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .servers-toolbar-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .header-actions,
+  .section-header-side {
+    align-items: flex-start;
+  }
+
+  .header-search,
+  .users-toolbar-main,
+  .inbounds-toolbar-main,
+  .subscriptions-toolbar-main,
+  .audit-filter-bar,
+  .settings-toolbar-copy,
+  .servers-toolbar-summary,
+  .users-toolbar-actions,
+  .inbounds-toolbar-actions,
+  .subscriptions-toolbar-actions,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions,
+  .servers-toolbar-actions {
+    flex-basis: 100%;
+  }
+
+  .section-header-meta,
+  .page-toolbar-meta,
+  .users-toolbar-summary,
+  .servers-filter-summary {
+    text-align: left;
+  }
+}
+
+/* Final status-card alignment sweep. */
+.dashboard-stats-grid,
+.stat-mini-grid,
+.audit-stats-grid,
+.audit-traffic-mini-grid,
+.settings-summary-grid,
+.settings-workspace-highlight-grid,
+.settings-tab-hero-grid,
+.subscription-summary-grid,
+.subscription-address-status-grid {
+  align-items: stretch;
+}
+
+.dashboard-stat-card,
+.stat-mini-card,
+.audit-stat-card,
+.audit-traffic-mini-card,
+.settings-summary-card,
+.settings-tab-highlight-card,
+.settings-workspace-highlight-card,
+.subscription-summary-item,
+.subscription-address-status-card,
+.logs-summary-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.dashboard-stat-card-head,
+.settings-summary-head,
+.audit-stat-card .card-header,
+.subscription-address-status-head {
+  min-height: 40px;
+}
+
+.dashboard-stat-card-copy,
+.settings-summary-head,
+.subscription-summary-item,
+.subscription-address-status-card,
+.audit-traffic-mini-card {
+  min-width: 0;
+}
+
+.dashboard-stat-card-body,
+.dashboard-stat-card-primary {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.dashboard-stat-card-primary {
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.dashboard-stat-card-value,
+.settings-summary-value,
+.settings-tab-highlight-value,
+.audit-traffic-mini-value,
+.audit-stat-card .card-value,
+.subscription-summary-value,
+.subscription-address-status-value,
+.subscription-summary-item > .subscription-email-link,
+.stat-mini-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-stat-card-subtitle,
+.settings-summary-detail,
+.settings-tab-highlight-detail,
+.audit-traffic-mini-note,
+.subscription-summary-meta {
+  margin-top: auto;
+}
+
+.dashboard-stat-card-subtitle {
+  min-height: calc(1.6em * 2);
+}
+
+.stat-mini-card {
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 116px;
+}
+
+.stat-mini-value {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 auto;
+}
+
+.stat-mini-label {
+  margin-top: auto;
+  min-height: calc(1.45em * 2);
+}
+
+.audit-traffic-mini-card {
+  justify-content: flex-start;
+}
+
+.audit-traffic-mini-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 2.8rem;
+}
+
+.audit-traffic-mini-note {
+  width: 100%;
+}
+
+.audit-stat-card {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 16px;
+}
+
+.audit-stat-card .card-header {
+  margin-bottom: 0;
+}
+
+.audit-stat-card .card-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 2.8rem;
+}
+
+.settings-summary-card,
+.settings-tab-highlight-card,
+.settings-workspace-highlight-card {
+  gap: 8px;
+}
+
+.settings-summary-value,
+.settings-tab-highlight-value {
+  min-height: calc(1.2em * 2);
+}
+
+.settings-summary-detail,
+.settings-tab-highlight-detail {
+  display: block;
+}
+
+.subscription-summary-item {
+  gap: 8px;
+}
+
+.subscription-summary-label {
+  min-height: calc(1.45em * 2);
+}
+
+.subscription-summary-value,
+.subscription-summary-item > .subscription-email-link {
+  display: block;
+  min-height: 2.9rem;
+}
+
+.subscription-summary-item > .subscription-email-link {
+  line-height: 1.5;
+}
+
+.subscription-summary-value--email,
+.subscription-summary-item > .subscription-email-link {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.subscription-address-status-card {
+  gap: 6px;
+}
+
+.subscription-address-status-head {
+  align-items: flex-start;
+}
+
+.subscription-address-status-label {
+  min-height: 1.6rem;
+}
+
+.subscription-address-status-value {
+  display: flex;
+  align-items: flex-start;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 768px) {
+  .dashboard-stat-card-head,
+  .settings-summary-head,
+  .audit-stat-card .card-header,
+  .subscription-address-status-head {
+    min-height: 0;
+  }
+
+  .dashboard-stat-card-subtitle,
+  .stat-mini-label,
+  .subscription-summary-label,
+  .settings-summary-value,
+  .settings-tab-highlight-value,
+  .subscription-summary-value,
+  .subscription-summary-item > .subscription-email-link {
+    min-height: 0;
+  }
 }
