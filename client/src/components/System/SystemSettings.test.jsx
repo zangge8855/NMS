@@ -461,7 +461,8 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=monitor' });
 
         expect(await screen.findByText('运维动作')).toBeInTheDocument();
-        expect(await screen.findByText('测试 SMTP 与发送最新地址通知')).toBeInTheDocument();
+        expect(await screen.findByText('邮件链路')).toBeInTheDocument();
+        expect(await screen.findByText('发送最新地址通知')).toBeInTheDocument();
         expect(await screen.findByText('手动执行节点健康巡检')).toBeInTheDocument();
         expect(screen.queryByText('巡检摘要')).not.toBeInTheDocument();
         expect(screen.queryByText('DNS 1 · 认证失败 1')).not.toBeInTheDocument();

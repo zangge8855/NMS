@@ -2385,6 +2385,18 @@
   align-items: stretch;
 }
 
+.settings-ops-stack {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  align-content: stretch;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.settings-ops-stack > * {
+  min-width: 0;
+}
+
 .settings-inline-grid--triple {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -2500,6 +2512,7 @@
 .settings-ops-card-main {
   flex: 1 1 auto;
   gap: 10px;
+  justify-content: space-between;
 }
 
 .settings-ops-card-head {
@@ -2518,6 +2531,37 @@
   font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+
+.settings-ops-card--smtp {
+  padding: 18px;
+  border-color: rgba(59, 130, 246, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.022) 100%);
+}
+
+.settings-ops-card--smtp .settings-form-cluster-title {
+  font-size: clamp(18px, 1.4vw, 22px);
+  line-height: 1.2;
+}
+
+.settings-ops-card--smtp .settings-form-cluster-note {
+  max-width: 50ch;
+}
+
+.settings-ops-card--notice {
+  border-color: rgba(245, 158, 11, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.14), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.042) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.settings-ops-card--health {
+  border-color: rgba(34, 197, 94, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.14), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.042) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .settings-ops-actions {
@@ -4149,6 +4193,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .settings-ops-stack {
+    grid-template-rows: none;
+  }
+
   .settings-toggle-collection--telegram {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4535,6 +4583,10 @@
 
   .settings-ops-card {
     min-height: 0;
+  }
+
+  .settings-ops-card--smtp {
+    padding: 16px;
   }
 
   .settings-ops-card .settings-form-cluster-note {
