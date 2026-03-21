@@ -195,6 +195,31 @@ function checkResetRate(ip) {
     return data.count <= RESET_RATE_MAX;
 }
 
+// --- Verification code rate limiter ---
+const VERIFY_RATE_WINDOW = 15 * 60 * 1000; // 15 minutes
+const VERIFY_RATE_MAX = 10;
+const VERIFY_RATE_MAP_LIMIT = 10000;
+const verifyAttempts = new Map();
+
+startCleanupInterval(() => {
+    const now = Date.now();
+    for (const [ip, data] of verifyAttempts) {
+        if (now - data.firstAttempt > VERIFY_RATE_WINDOW) verifyAttempts.delete(ip);
+    }
+}, 60_000);
+
+function checkVerifyRate(ip) {
+    const now = Date.now();
+    const data = verifyAttempts.get(ip);
+    if (!data || now - data.firstAttempt > VERIFY_RATE_WINDOW) {
+        if (verifyAttempts.size >= VERIFY_RATE_MAP_LIMIT) return true;
+        verifyAttempts.set(ip, { count: 1, firstAttempt: now });
+        return true;
+    }
+    data.count++;
+    return data.count <= VERIFY_RATE_MAX;
+}
+
 function buildUserAuditDetails(target, extra = {}) {
     const fallbackEmail = normalizeEmailInput(target?.email);
     const fallbackSubscriptionEmail = normalizeEmailInput(
@@ -408,6 +433,11 @@ router.post('/register', async (req, res) => {
  * POST /api/auth/verify-email — 邮箱验证
  */
 router.post('/verify-email', (req, res) => {
+    const clientIp = resolveClientIp(req);
+    if (!checkVerifyRate(clientIp)) {
+        appendSecurityAudit('verify_email_rate_limited', req, { ip: clientIp });
+        return res.status(429).json({ success: false, msg: '验证尝试过于频繁，请稍后再试' });
+    }
     try {
         const result = verifyEmailCode(req.body);
         if (result.alreadyVerified) {
@@ -509,6 +539,11 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', (req, res) => {
     if (!isPasswordSelfServiceEnabled()) {
         return rejectPasswordSelfService(res);
+    }
+    const clientIp = resolveClientIp(req);
+    if (!checkVerifyRate(clientIp)) {
+        appendSecurityAudit('password_reset_verify_rate_limited', req, { ip: clientIp });
+        return res.status(429).json({ success: false, msg: '重置尝试过于频繁，请稍后再试' });
     }
     try {
         const result = resetPasswordWithCode(req.body);

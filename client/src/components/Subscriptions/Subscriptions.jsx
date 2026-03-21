@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineExclamationTriangle, HiOutlineLink } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -636,6 +636,11 @@ export default function Subscriptions() {
                                     title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
                                     icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
                                     surface
+                                    action={isUserOnly && !defaultIdentity ? (
+                                        <Link className="btn btn-secondary" to="/downloads">
+                                            <HiOutlineArrowDownTray /> {t('comp.common.goDownloads')}
+                                        </Link>
+                                    ) : undefined}
                                 />
                             </div>
                         ) : (

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Component, Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { ServerProvider } from './contexts/ServerContext.jsx';
@@ -8,6 +8,7 @@ import { useI18n } from './contexts/LanguageContext.jsx';
 import { Toaster } from 'react-hot-toast';
 import { HiOutlineBars3 } from 'react-icons/hi2';
 import useMediaQuery from './hooks/useMediaQuery.js';
+import { getLocaleMessage } from './i18n/messages.js';
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
@@ -26,6 +27,54 @@ const Capabilities = lazy(() => import('./components/Capabilities/Capabilities.j
 const AuditCenter = lazy(() => import('./components/Audit/AuditCenter.jsx'));
 const SystemSettings = lazy(() => import('./components/System/SystemSettings.jsx'));
 
+
+class ErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, info) {
+        console.error('[ErrorBoundary]', error, info?.componentStack);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+            return (
+                <div style={{
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                }}>
+                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
+                        {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                    </div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+                        {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                    </div>
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => window.location.reload()}
+                    >
+                        {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function PageFallback() {
     return (
@@ -137,6 +186,7 @@ export default function App() {
     }
 
     return (
+        <ErrorBoundary>
         <ThemeProvider>
             <Toaster
                 position="top-right"
@@ -164,5 +214,6 @@ export default function App() {
                 <Route path="/*" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/login" replace />} />
             </Routes>
         </ThemeProvider>
+        </ErrorBoundary>
     );
 }

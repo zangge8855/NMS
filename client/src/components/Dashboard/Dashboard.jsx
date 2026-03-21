@@ -663,7 +663,14 @@ export default function Dashboard() {
 
     // Shared State
     const [loading, setLoading] = useState(true);
-    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [autoRefresh, setAutoRefresh] = useState(() => {
+        try {
+            const stored = localStorage.getItem('nms_dashboard_autorefresh');
+            return stored === null ? true : stored !== 'false';
+        } catch {
+            return true;
+        }
+    });
     const [showOnlineDetail, setShowOnlineDetail] = useState(false);
     const singleServerCpuSparkline = useMemo(
         () => cpuHistory.map((item) => Number(item?.cpu)).filter((value) => Number.isFinite(value)),
@@ -1085,6 +1092,7 @@ export default function Dashboard() {
     const toggleAutoRefresh = () => {
         setAutoRefresh((previous) => {
             const next = !previous;
+            try { localStorage.setItem('nms_dashboard_autorefresh', String(next)); } catch { /* ignore */ }
             if (next) {
                 refresh();
             }
@@ -1210,7 +1218,7 @@ export default function Dashboard() {
             },
             {
                 title: locale === 'en-US' ? 'Inbounds' : '入站管理',
-                detail: `${globalStats.activeInbounds} / ${globalStats.totalInbounds} 已启用`,
+                detail: t('pages.dashboardCommon.enabledCount', { active: globalStats.activeInbounds, total: globalStats.totalInbounds }),
                 meta: locale === 'en-US' ? 'Adjust node order, users, and policy limits' : '调整节点顺序、用户和限制策略',
                 icon: HiOutlineSignal,
                 tone: 'warning',
@@ -1260,8 +1268,8 @@ export default function Dashboard() {
                 </Header>
                 <div className="page-content page-enter">
                     <div className="stats-grid dashboard-stats-grid mb-8">
-                        {globalCards.map((card, idx) => (
-                            <StatCard key={idx} card={card} loading={loading} />
+                        {globalCards.map((card) => (
+                            <StatCard key={card.label} card={card} loading={loading} />
                         ))}
                     </div>
 
@@ -1315,7 +1323,7 @@ export default function Dashboard() {
                                                     <tr key={`global-online-${row.userId || row.label}`}>
                                                         <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
                                                             <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                                <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                                <div className="dashboard-online-name font-medium">{row.displayName}</div>
                                                                 {row.email && row.email !== row.displayName && (
                                                                     <div className="dashboard-online-email">{row.email}</div>
                                                                 )}
@@ -1350,7 +1358,7 @@ export default function Dashboard() {
                     <div className="card mb-6">
                         <SectionHeader
                             className="dashboard-section-head"
-                            title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
+                            title={t('pages.dashboardCommon.quickActionsTitle')}
                         />
                         <QuickActionGrid actions={globalQuickActions} />
                     </div>
@@ -1410,7 +1418,7 @@ export default function Dashboard() {
     const singleQuickActions = [
         {
             title: locale === 'en-US' ? 'Inbounds' : '入站管理',
-            detail: `${activeInbounds} / ${inbounds.length} 已启用`,
+            detail: t('pages.dashboardCommon.enabledCount', { active: activeInbounds, total: inbounds.length }),
             meta: locale === 'en-US' ? 'Inspect inbounds, users, and limit policies on this node' : '查看当前节点下的入站、用户与限制配置',
             icon: HiOutlineSignal,
             tone: 'warning',
@@ -1467,8 +1475,8 @@ export default function Dashboard() {
             </Header>
             <div className="page-content page-enter">
                 <div className="stats-grid dashboard-stats-grid">
-                    {statCards.map((card, idx) => (
-                        <StatCard key={idx} card={card} loading={loading} />
+                    {statCards.map((card) => (
+                        <StatCard key={card.label} card={card} loading={loading} />
                     ))}
                 </div>
 
@@ -1502,7 +1510,7 @@ export default function Dashboard() {
                                                     <tr key={`single-online-${row.userId || row.label}`}>
                                                         <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
                                                             <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                                <div className="dashboard-online-name text-white font-medium">{row.displayName}</div>
+                                                                <div className="dashboard-online-name font-medium">{row.displayName}</div>
                                                                 {row.email && row.email !== row.displayName && (
                                                                     <div className="dashboard-online-email">{row.email}</div>
                                                                 )}
@@ -1525,7 +1533,7 @@ export default function Dashboard() {
                 <div className="card mb-6">
                     <SectionHeader
                         className="dashboard-section-head"
-                        title={locale === 'en-US' ? 'Quick Actions' : '运维捷径'}
+                        title={t('pages.dashboardCommon.quickActionsTitle')}
                     />
                     <QuickActionGrid actions={singleQuickActions} />
                 </div>

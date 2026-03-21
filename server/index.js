@@ -57,8 +57,10 @@ export function createApp(options = {}) {
     app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
     // ── Request ID ───────────────────────────────────────────
+    const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     app.use((req, res, _next) => {
-        req.id = req.headers['x-request-id'] || randomUUID();
+        const external = String(req.headers['x-request-id'] || '').trim();
+        req.id = (external && REQUEST_ID_PATTERN.test(external)) ? external : randomUUID();
         res.setHeader('X-Request-Id', req.id);
         _next();
     });

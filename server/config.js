@@ -10,6 +10,9 @@ const isProduction = nodeEnv === 'production';
 const DEFAULT_JWT_SECRET = 'default-secret-change-me';
 const jwtSecret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const credentialsSecret = process.env.CREDENTIALS_SECRET || jwtSecret;
+if (!process.env.CREDENTIALS_SECRET && !isProduction) {
+    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to JWT_SECRET. Set a dedicated secret for production.');
+}
 const adminUsername = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
 const enforceStrictSecurity = isProduction || process.env.ENFORCE_STRICT_SECURITY === 'true';

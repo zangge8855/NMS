@@ -171,88 +171,94 @@ function buildNoticeDraft(source = null, fallbackUrl = '') {
 }
 
 const DEFAULT_SETTINGS_TAB = 'status';
-const SETTINGS_TAB_CONFIG = [
-    {
-        id: 'status',
-        label: '系统状态',
-        icon: HiOutlineChartBarSquare,
-        eyebrow: 'Overview',
-        summary: '关键状态一览',
-    },
-    {
-        id: 'access',
-        label: '入口与订阅',
-        icon: HiOutlineCog6Tooth,
-        eyebrow: 'Access',
-        summary: '入口、订阅、注册配置',
-    },
-    {
-        id: 'policy',
-        label: '策略与审计',
-        icon: HiOutlineShieldCheck,
-        eyebrow: 'Policy',
-        summary: '任务容量、风控、审计',
-    },
-    {
-        id: 'db',
-        label: '数据与备份',
-        icon: HiOutlineCircleStack,
-        eyebrow: 'Storage',
-        summary: '数据库、备份、恢复',
-    },
-    {
-        id: 'backup',
-        label: '安全与备份',
-        icon: HiOutlineArrowDownTray,
-        eyebrow: 'Backup',
-        summary: '加密备份与凭据轮换',
-    },
-    {
-        id: 'monitor',
-        label: '运维监控',
-        icon: HiOutlineServerStack,
-        eyebrow: 'Ops',
-        summary: '通知、诊断、巡检',
-    },
-];
+function buildSettingsTabConfig(t) {
+    return [
+        {
+            id: 'status',
+            label: t('pages.settings.tabStatus'),
+            icon: HiOutlineChartBarSquare,
+            eyebrow: 'Overview',
+            summary: t('pages.settings.tabStatusSummary'),
+        },
+        {
+            id: 'access',
+            label: t('pages.settings.tabAccess'),
+            icon: HiOutlineCog6Tooth,
+            eyebrow: 'Access',
+            summary: t('pages.settings.tabAccessSummary'),
+        },
+        {
+            id: 'policy',
+            label: t('pages.settings.tabPolicy'),
+            icon: HiOutlineShieldCheck,
+            eyebrow: 'Policy',
+            summary: t('pages.settings.tabPolicySummary'),
+        },
+        {
+            id: 'db',
+            label: t('pages.settings.tabDb'),
+            icon: HiOutlineCircleStack,
+            eyebrow: 'Storage',
+            summary: t('pages.settings.tabDbSummary'),
+        },
+        {
+            id: 'backup',
+            label: t('pages.settings.tabNotify'),
+            icon: HiOutlineArrowDownTray,
+            eyebrow: 'Backup',
+            summary: t('pages.settings.tabNotifySummary'),
+        },
+        {
+            id: 'monitor',
+            label: t('pages.settings.tabConsole'),
+            icon: HiOutlineServerStack,
+            eyebrow: 'Ops',
+            summary: t('pages.settings.tabConsoleSummary'),
+        },
+    ];
+}
 
-const SETTINGS_WORKSPACE_CONFIG = [
-    {
-        id: 'status',
-        label: '系统状态',
-        icon: HiOutlineChartBarSquare,
-        routeTab: 'status',
-    },
-    {
-        id: 'access',
-        label: '对外访问',
-        icon: HiOutlineCog6Tooth,
-        routeTab: 'access',
-    },
-    {
-        id: 'policy',
-        label: '安全审计',
-        icon: HiOutlineShieldCheck,
-        routeTab: 'policy',
-    },
-    {
-        id: 'operations',
-        label: '运维通知',
-        icon: HiOutlineServerStack,
-        routeTab: 'monitor',
-    },
-    {
-        id: 'backup',
-        label: '数据备份',
-        icon: HiOutlineArrowDownTray,
-        routeTab: 'backup',
-    },
-];
+function buildSettingsWorkspaceConfig(t) {
+    return [
+        {
+            id: 'status',
+            label: t('pages.settings.tabStatus'),
+            icon: HiOutlineChartBarSquare,
+            routeTab: 'status',
+        },
+        {
+            id: 'access',
+            label: t('pages.settings.tabAccess'),
+            icon: HiOutlineCog6Tooth,
+            routeTab: 'access',
+        },
+        {
+            id: 'policy',
+            label: t('pages.settings.tabPolicy'),
+            icon: HiOutlineShieldCheck,
+            routeTab: 'policy',
+        },
+        {
+            id: 'operations',
+            label: t('pages.settings.tabNotify'),
+            icon: HiOutlineServerStack,
+            routeTab: 'monitor',
+        },
+        {
+            id: 'backup',
+            label: t('pages.settings.tabDb'),
+            icon: HiOutlineArrowDownTray,
+            routeTab: 'backup',
+        },
+    ];
+}
+
+const VALID_SETTINGS_TAB_IDS = new Set(['status', 'access', 'policy', 'db', 'backup', 'monitor']);
 
 function resolveSettingsTab(value) {
     if (value === 'basic') return 'access';
     if (value === 'console') return 'monitor';
-    return SETTINGS_TAB_CONFIG.some((item) => item.id === value) ? value : DEFAULT_SETTINGS_TAB;
+    return VALID_SETTINGS_TAB_IDS.has(value) ? value : DEFAULT_SETTINGS_TAB;
 }
 
 function resolveWorkspaceSection(value) {
@@ -2723,7 +2729,7 @@ export default function SystemSettings() {
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
-    const workspaceNavItems = SETTINGS_WORKSPACE_CONFIG.map((item) => ({
+    const workspaceNavItems = buildSettingsWorkspaceConfig(t).map((item) => ({
         ...item,
         ...(workspaceSections.find((section) => section.id === item.id) || {}),
     }));

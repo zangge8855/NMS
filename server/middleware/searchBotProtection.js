@@ -58,6 +58,8 @@ export function buildRobotsTxt() {
         'User-agent: Cohere-AI',
         'Disallow: /',
         '',
+        'Crawl-delay: 10',
+        '',
     ].join('\n');
 }
 

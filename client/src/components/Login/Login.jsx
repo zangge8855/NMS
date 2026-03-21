@@ -475,7 +475,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !password}
+                                    disabled={loading || !username || !password}
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
