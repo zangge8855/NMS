@@ -8811,7 +8811,7 @@ body::before {
 .settings-nav-list--workspace {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .settings-nav-item {
@@ -10175,15 +10175,9 @@ body::before {
     padding-bottom: 2px;
   }
 
-  .settings-nav-list--workspace {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-  }
-
   .settings-nav-item {
     flex: 0 0 auto;
-    min-width: 152px;
+    min-width: 0;
   }
 
   .settings-save-dock-actions,
@@ -10277,16 +10271,6 @@ body::before {
 @media (max-width: 420px) {
   .settings-main {
     padding-bottom: 16px;
-  }
-
-  .settings-nav-list--workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-nav-item {
-    min-width: 138px;
-    min-height: 48px;
-    padding: 10px 12px;
   }
 
   .settings-nav-item-label,
