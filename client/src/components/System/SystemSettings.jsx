@@ -2590,10 +2590,22 @@ export default function SystemSettings() {
             <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--span-6">
-                    <div className="settings-panel-head mb-3">
-                        <div className="settings-panel-title">通知与巡检状态</div>
-                        <div className="settings-panel-subtitle">集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。</div>
-                    </div>
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title="通知与巡检状态"
+                        subtitle="集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。"
+                        actions={(
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={refreshStatusWorkspace}
+                                disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
+                            >
+                                {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
+                            </button>
+                        )}
+                    />
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">SMTP</span>
@@ -2633,10 +2645,12 @@ export default function SystemSettings() {
                     </div>
                 </div>
                 <div className="card p-4 settings-panel settings-panel--span-6">
-                    <div className="settings-panel-head mb-3">
-                        <div className="settings-panel-title">数据库与备份状态</div>
-                        <div className="settings-panel-subtitle">把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。</div>
-                    </div>
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title="数据库与备份状态"
+                        subtitle="把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。"
+                    />
                     <div className="settings-monitor-log-meta">
                         <div className="settings-monitor-log-item">
                             <span className="settings-monitor-log-label">DB 连接</span>
@@ -2706,16 +2720,6 @@ export default function SystemSettings() {
             subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
             summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
             highlights: overviewCards.map(({ title, value, detail }) => ({ label: title, value, detail })),
-            actions: (
-                <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={refreshStatusWorkspace}
-                    disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
-                >
-                    {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
-                </button>
-            ),
             navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },

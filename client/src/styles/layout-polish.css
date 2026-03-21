@@ -1714,7 +1714,7 @@
 .settings-workspace-hero-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px 12px;
   flex-wrap: wrap;
   min-width: 0;
@@ -1732,6 +1732,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.settings-workspace-hero-actions {
+  margin-left: auto;
 }
 
 .settings-workspace-hero-actions .btn {
@@ -2554,23 +2558,26 @@
 
 .settings-ops-card-main {
   flex: 1 1 auto;
+  width: 100%;
   gap: 10px;
   justify-content: space-between;
 }
 
 .settings-ops-card-head {
   gap: 6px;
+  min-height: 108px;
 }
 
 .settings-ops-card .settings-form-cluster-title {
   font-size: 15px;
+  min-height: calc(1.35em * 2);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .settings-ops-card .settings-form-cluster-note {
   max-width: none;
-  min-height: 0;
+  min-height: calc(1.6em * 3);
   font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -4099,11 +4106,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  [data-workspace="status"] .settings-workspace-highlight-grid,
-  [data-workspace="policy"] .settings-workspace-highlight-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .settings-grid--backup-workspace {
     grid-template-columns: minmax(0, 1fr) !important;
   }
@@ -4690,6 +4692,15 @@
   [data-workspace="status"] .settings-workspace-highlight-grid,
   [data-workspace="policy"] .settings-workspace-highlight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-ops-card-head {
+    min-height: 0;
+  }
+
+  .settings-ops-card .settings-form-cluster-title,
+  .settings-ops-card .settings-form-cluster-note {
+    min-height: 0;
   }
 
   .settings-monitor-toolbar {
