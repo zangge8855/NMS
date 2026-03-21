@@ -141,6 +141,20 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(result.role, ROLES.user);
     });
 
+    it('should authenticate a user with the registered email address', () => {
+        const created = userStore.add({
+            username: 'mailuser',
+            email: 'mailuser@example.com',
+            password: 'Pass1234!',
+            role: ROLES.user,
+        });
+
+        const result = userStore.authenticate('mailuser@example.com', 'Pass1234!');
+        assert.ok(result, 'Should authenticate with email');
+        assert.equal(result.username, created.username);
+        assert.equal(result.role, ROLES.user);
+    });
+
     it('should reject duplicate username', () => {
         assert.throws(
             () => userStore.add({ username: 'user1', password: 'another123', role: ROLES.user }),

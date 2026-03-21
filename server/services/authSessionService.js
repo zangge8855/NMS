@@ -10,6 +10,29 @@ function normalizeUsernameInput(value) {
     return String(value || '').trim();
 }
 
+function resolveLoginIdentifier(payload = {}) {
+    return normalizeUsernameInput(payload?.identifier || payload?.username || payload?.email);
+}
+
+function findUserByLoginIdentifier(userRepo, identifier) {
+    const normalizedIdentifier = normalizeUsernameInput(identifier);
+    if (!normalizedIdentifier || !userRepo) return null;
+
+    if (typeof userRepo.getByLoginIdentifier === 'function') {
+        return userRepo.getByLoginIdentifier(normalizedIdentifier);
+    }
+
+    const normalizedEmail = normalizeEmailInput(normalizedIdentifier);
+    if (normalizedEmail && isValidEmail(normalizedEmail) && typeof userRepo.getByEmail === 'function') {
+        const emailUser = userRepo.getByEmail(normalizedEmail);
+        if (emailUser) return emailUser;
+    }
+
+    return typeof userRepo.getByUsername === 'function'
+        ? userRepo.getByUsername(normalizedIdentifier)
+        : null;
+}
+
 function resolveUserSubscriptionEmail(user) {
     if (!user || typeof user !== 'object') return '';
     if (Object.prototype.hasOwnProperty.call(user, 'subscriptionEmail')) {
@@ -54,17 +77,23 @@ function buildExpiryIso(ttlMinutes) {
 function createLoginSession(payload = {}, deps = {}) {
     const userRepo = deps.userRepository || userRepository;
     const authConfig = deps.authConfig || config.auth;
-    const username = String(payload?.username || '').trim();
+    const loginIdentifier = resolveLoginIdentifier(payload);
     const password = typeof payload?.password === 'string' ? payload.password : '';
-    const user = userRepo.authenticate(username, password);
+    const user = userRepo.authenticate(loginIdentifier, password);
 
     if (!user) {
-        const existingUser = username ? userRepo.getByUsername(username) : null;
-        const adminUser = userRepo.getByUsername('admin') || userRepo.list().find((item) => item.role === 'admin');
+        const existingUser = loginIdentifier ? findUserByLoginIdentifier(userRepo, loginIdentifier) : null;
+        const listedUsers = typeof userRepo.list === 'function' ? userRepo.list() : [];
+        const adminUser = (typeof userRepo.getByUsername === 'function' ? userRepo.getByUsername('admin') : null)
+            || listedUsers.find((item) => item.role === 'admin');
         const legacyUsername = String(adminUser?.username || 'admin').trim();
-        const usernameMatchesLegacy = !username || username === legacyUsername;
+        const legacyEmail = normalizeEmailInput(adminUser?.email);
+        const normalizedIdentifierEmail = normalizeEmailInput(loginIdentifier);
+        const identifierMatchesLegacy = !loginIdentifier
+            || loginIdentifier === legacyUsername
+            || (legacyEmail && normalizedIdentifierEmail === legacyEmail);
 
-        if (usernameMatchesLegacy && authConfig.allowLegacyPasswordLogin !== false && password === authConfig.adminPassword) {
+        if (identifierMatchesLegacy && authConfig.allowLegacyPasswordLogin !== false && password === authConfig.adminPassword) {
             const tokenPayload = {
                 role: 'admin',
                 username: legacyUsername || 'admin',

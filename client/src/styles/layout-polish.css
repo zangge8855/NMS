@@ -6,6 +6,8 @@
 
 .app-layout {
   overflow: visible;
+  width: 100%;
+  min-width: 0;
 }
 
 :root {
@@ -19,7 +21,15 @@
 }
 
 .main-content {
+  width: calc(100% - var(--sidebar-width));
+  max-width: calc(100% - var(--sidebar-width));
+  min-width: 0;
   transition: margin-left 300ms ease-in-out, width 300ms ease-in-out, max-width 300ms ease-in-out !important;
+}
+
+.main-content.collapsed {
+  width: calc(100% - var(--sidebar-collapsed));
+  max-width: calc(100% - var(--sidebar-collapsed));
 }
 
 .sidebar-nav {
@@ -1277,6 +1287,17 @@
 .servers-table-shell {
   overflow: auto;
   max-width: 100%;
+}
+
+.users-table-shell,
+.audit-table-shell,
+.settings-table-shell,
+.inbounds-table-shell,
+.servers-table-shell,
+.audit-nested-table-shell,
+.batch-result-table {
+  border: 1px solid var(--surface-card-border);
+  background: var(--surface-card-bg);
 }
 
 .servers-table {
@@ -4909,8 +4930,8 @@
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 
@@ -4992,12 +5013,12 @@ p, .empty-state-body, td {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-display);
 }
 .sidebar-logo-subtitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-secondary);
   opacity: 0.85;
   letter-spacing: 0.5px;
   margin-left: 4px;
@@ -5112,6 +5133,24 @@ p, .empty-state-body, td {
     width: 100%;
     min-width: 0;
     flex: none;
+  }
+
+  .users-table-shell,
+  .servers-table-shell,
+  .inbounds-table-shell {
+    overflow: visible;
+  }
+
+  .users-table,
+  .servers-table,
+  .inbounds-table-shell .table,
+  .inbounds-clients-table {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .inbounds-remark-cell {
+    max-width: none;
   }
 
   .card,

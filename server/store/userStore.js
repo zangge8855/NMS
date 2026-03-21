@@ -188,6 +188,19 @@ class UserStore {
         return this.users.find(u => normalizeEmailValue(u.email) === normalized) || null;
     }
 
+    getByLoginIdentifier(identifier) {
+        const normalizedIdentifier = normalizeUsernameValue(identifier);
+        if (!normalizedIdentifier) return null;
+
+        const normalizedEmail = normalizeEmailValue(identifier);
+        if (normalizedEmail && normalizedEmail.includes('@')) {
+            const userByEmail = this.getByEmail(normalizedEmail);
+            if (userByEmail) return userByEmail;
+        }
+
+        return this.getByUsername(normalizedIdentifier);
+    }
+
     getBySubscriptionEmail(subscriptionEmail) {
         const normalized = normalizeEmailValue(subscriptionEmail);
         if (!normalized) return null;
@@ -204,12 +217,12 @@ class UserStore {
      * 验证用户凭据
      * @returns {object|null} 用户对象 (不含密码) 或 null
      */
-    authenticate(username, password) {
-        const normalizedUsername = normalizeUsernameValue(username);
+    authenticate(identifier, password) {
+        const normalizedIdentifier = normalizeUsernameValue(identifier);
         const hasPassword = typeof password === 'string' || Buffer.isBuffer(password);
 
         // 兼容旧版单密码登录: 无用户名时用 config.auth.adminPassword
-        if (config.auth.allowLegacyPasswordLogin && !normalizedUsername && hasPassword && password === config.auth.adminPassword) {
+        if (config.auth.allowLegacyPasswordLogin && !normalizedIdentifier && hasPassword && password === config.auth.adminPassword) {
             const admin = this.users.find(u => u.role === ROLES.admin);
             if (admin) {
                 admin.lastLoginAt = new Date().toISOString();
@@ -220,7 +233,7 @@ class UserStore {
 
         if (!hasPassword) return null;
 
-        const user = this.getByUsername(normalizedUsername);
+        const user = this.getByLoginIdentifier(normalizedIdentifier);
         if (!user) return null;
         if (!verifyPassword(password, user.passwordHash, user.passwordSalt, user.pbkdf2Iterations)) return null;
         user.lastLoginAt = new Date().toISOString();

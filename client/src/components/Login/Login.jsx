@@ -56,7 +56,7 @@ export default function Login() {
             : t('shell.themeDark');
 
     // Login fields
-    const [username, setUsername] = useState('');
+    const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
 
     // Register fields
@@ -173,7 +173,7 @@ export default function Login() {
         setSuccess('');
         setLoading(true);
         try {
-            const result = await login(username, password);
+            const result = await login(loginIdentifier.trim(), password);
             if (result.success) {
                 navigate('/', { replace: true });
             } else if (result.needVerify) {
@@ -444,17 +444,20 @@ export default function Login() {
                         {mode === MODE_LOGIN && (
                             <form onSubmit={handleLogin} className="auth-form">
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.username')}</label>
+                                    <label className="form-label">{t('pages.login.loginIdentifier')}</label>
                                     <div className="input-icon-wrapper">
                                         <HiOutlineUser className="input-icon" />
                                         <input
                                             type="text"
                                             className="form-input input-with-icon"
-                                            placeholder={t('pages.login.usernamePlaceholder')}
-                                            value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder={t('pages.login.loginIdentifierPlaceholder')}
+                                            value={loginIdentifier}
+                                            onChange={(e) => setLoginIdentifier(e.target.value)}
                                             autoFocus
                                             autoComplete="username"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            spellCheck={false}
                                         />
                                     </div>
                                 </div>
@@ -475,7 +478,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !username || !password}
+                                    disabled={loading || !loginIdentifier.trim() || !password}
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
@@ -507,6 +510,9 @@ export default function Login() {
                                             onChange={(e) => setRegUsername(e.target.value)}
                                             autoFocus
                                             autoComplete="username"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            spellCheck={false}
                                         />
                                     </div>
                                 </div>
@@ -521,6 +527,9 @@ export default function Login() {
                                             value={regEmail}
                                             onChange={(e) => setRegEmail(e.target.value)}
                                             autoComplete="email"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            spellCheck={false}
                                         />
                                     </div>
                                 </div>
@@ -568,6 +577,9 @@ export default function Login() {
                                                 value={inviteCode}
                                                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                                                 autoComplete="off"
+                                                autoCapitalize="characters"
+                                                autoCorrect="off"
+                                                spellCheck={false}
                                             />
                                         </div>
                                         <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
@@ -658,6 +670,9 @@ export default function Login() {
                                             value={resetEmail}
                                             onChange={(e) => setResetEmail(e.target.value)}
                                             autoComplete="email"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            spellCheck={false}
                                         />
                                     </div>
                                 </div>

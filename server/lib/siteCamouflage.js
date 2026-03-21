@@ -494,6 +494,15 @@ function createRenderModel(options = {}) {
     const archiveNoticeEn = statusCode === 200 ? 'Older entries are folded back on a fixed cycle.' : 'This path is not included in the current public edition.';
     const deliveryNoticeZh = '更多内容将在后续批次补充。';
     const deliveryNoticeEn = 'Additional material will appear in later batches.';
+    const companyExperienceYears = '25';
+    const serviceRegionZh = '中国';
+    const serviceRegionEn = 'China';
+    const contactPhone = '400-820-6789';
+    const contactEmail = 'contact@edgeprecision.cn';
+    const trustTextZh = `已在中国制造场景累计交付 ${companyExperienceYears} 年项目经验`;
+    const trustTextEn = `${companyExperienceYears} years of delivery experience across manufacturing programs in China`;
+    const companyFootnoteZh = `${title} · 中国制造项目经验 ${companyExperienceYears} 年`;
+    const companyFootnoteEn = `${title} · ${companyExperienceYears} years supporting industrial programs in China`;
     const pageTitleZh = `${title} | ${statusLabelZh}`;
     const pageTitleEn = `${title} | ${statusLabelEn}`;
     const generatedDateZh = `${year}年${month}月${day}日`;
@@ -528,6 +537,15 @@ function createRenderModel(options = {}) {
         archiveNoticeEn,
         deliveryNoticeZh,
         deliveryNoticeEn,
+        companyExperienceYears,
+        serviceRegionZh,
+        serviceRegionEn,
+        contactPhone,
+        contactEmail,
+        trustTextZh,
+        trustTextEn,
+        companyFootnoteZh,
+        companyFootnoteEn,
         currentYear: String(now.getUTCFullYear()),
         generatedDateZh,
         generatedDateEn,

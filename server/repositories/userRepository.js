@@ -21,6 +21,10 @@ const userRepository = {
         return userStore.getByEmail(email);
     },
 
+    getByLoginIdentifier(identifier) {
+        return userStore.getByLoginIdentifier(identifier);
+    },
+
     getBySubscriptionEmail(email) {
         return userStore.getBySubscriptionEmail(email);
     },
@@ -29,8 +33,8 @@ const userRepository = {
         return userStore.getBySubscriptionAliasPath(path);
     },
 
-    authenticate(username, password) {
-        return userStore.authenticate(username, password);
+    authenticate(identifier, password) {
+        return userStore.authenticate(identifier, password);
     },
 
     setSubscriptionEmail(id, email) {

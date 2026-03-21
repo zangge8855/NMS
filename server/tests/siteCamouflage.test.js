@@ -54,7 +54,11 @@ describe('site camouflage renderer', () => {
         assert.match(html, /智能视觉设备/);
         assert.match(html, /产品矩阵/);
         assert.match(html, /在线检测单元/);
+        assert.match(html, /25 年|25 years/);
+        assert.match(html, /中国|China/);
+        assert.match(html, /contact@edgeprecision\.cn/);
         assert.match(html, /\/media\/industrial\/facility-overview\.png/);
+        assert.doesNotMatch(html, /上海|Zhangjiang|Pudong/i);
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
         assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);
         assert.doesNotMatch(html, /目录状态 200/);

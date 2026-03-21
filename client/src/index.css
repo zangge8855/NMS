@@ -3794,7 +3794,7 @@ input[type="radio"]:focus-visible {
   left: 60%;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-info) 38%, transparent) 0%, transparent 70%);
   opacity: 0.08;
   animation-delay: -8s;
   animation-duration: 15s;
@@ -15974,14 +15974,23 @@ input[type="radio"]:focus-visible {
 .login-page {
   position: relative;
   display: flex;
+  width: 100%;
+  min-height: 100dvh;
   align-items: center;
   justify-content: center;
-  padding: 96px 24px 36px;
+  padding:
+    calc(96px + env(safe-area-inset-top))
+    calc(24px + env(safe-area-inset-right))
+    calc(36px + env(safe-area-inset-bottom))
+    calc(24px + env(safe-area-inset-left));
   background:
     radial-gradient(circle at 18% 18%, rgba(70, 126, 255, 0.08), transparent 36%),
     radial-gradient(circle at 82% 14%, rgba(45, 212, 191, 0.06), transparent 30%),
     linear-gradient(180deg, #07111f 0%, #081425 52%, #0a1322 100%);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
 }
 
 .login-bg-glow {
@@ -15997,12 +16006,14 @@ input[type="radio"]:focus-visible {
 
 .login-top-actions {
   position: absolute;
-  top: 28px;
-  right: 28px;
+  top: calc(28px + env(safe-area-inset-top));
+  right: calc(28px + env(safe-area-inset-right));
+  left: calc(28px + env(safe-area-inset-left));
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -16022,6 +16033,8 @@ input[type="radio"]:focus-visible {
 }
 
 .login-card {
+  width: 100%;
+  max-width: 100%;
   padding: 32px 30px 30px;
   border-radius: 22px;
   background: rgba(12, 18, 32, 0.94);
@@ -16214,6 +16227,7 @@ input[type="radio"]:focus-visible {
   border-width: 1px;
   box-shadow: none;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .success-alert {
@@ -16268,12 +16282,17 @@ input[type="radio"]:focus-visible {
 @media (max-width: 640px) {
   .login-page {
     align-items: flex-start;
-    padding: 84px 16px 24px;
+    padding:
+      calc(84px + env(safe-area-inset-top))
+      calc(16px + env(safe-area-inset-right))
+      calc(24px + env(safe-area-inset-bottom))
+      calc(16px + env(safe-area-inset-left));
   }
 
   .login-top-actions {
-    top: 16px;
-    right: 16px;
+    top: calc(16px + env(safe-area-inset-top));
+    right: calc(16px + env(safe-area-inset-right));
+    left: calc(16px + env(safe-area-inset-left));
   }
 
   .login-shell {
@@ -16415,9 +16434,13 @@ input[type="radio"]:focus-visible {
     font-size: 16px;
   }
 
-  .login-brand-name,
-  .login-brand-subtitle {
+  .login-brand-name {
     font-size: 18px;
+  }
+
+  .login-brand-subtitle {
+    font-size: 12px;
+    line-height: 1.4;
   }
 }
 

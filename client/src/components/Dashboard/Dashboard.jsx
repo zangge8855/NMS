@@ -1268,8 +1268,12 @@ export default function Dashboard() {
                 </Header>
                 <div className="page-content page-enter">
                     <div className="stats-grid dashboard-stats-grid mb-8">
-                        {globalCards.map((card) => (
-                            <StatCard key={card.label} card={card} loading={loading} />
+                        {globalCards.map((card, index) => (
+                            <StatCard
+                                key={`${card.label || card.kicker || 'global-card'}-${index}`}
+                                card={card}
+                                loading={loading}
+                            />
                         ))}
                     </div>
 
@@ -1475,8 +1479,12 @@ export default function Dashboard() {
             </Header>
             <div className="page-content page-enter">
                 <div className="stats-grid dashboard-stats-grid">
-                    {statCards.map((card) => (
-                        <StatCard key={card.label} card={card} loading={loading} />
+                    {statCards.map((card, index) => (
+                        <StatCard
+                            key={`${card.label || card.kicker || 'node-card'}-${index}`}
+                            card={card}
+                            loading={loading}
+                        />
                     ))}
                 </div>
 

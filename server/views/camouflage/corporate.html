@@ -132,7 +132,28 @@
 
         .{{class:brand-mark}}::before { width: 26px; height: 6px; top: 14px; left: 11px; }
         .{{class:brand-mark}}::after { width: 18px; height: 6px; top: 28px; left: 18px; }
-        .{{class:brand-copy}} { min-width: 0; }
+        .{{class:brand-copy}} {
+            min-width: 0;
+            display: grid;
+            gap: 3px;
+            align-content: center;
+        }
+
+        .{{class:brand-title}} {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+        }
+
+        .{{class:brand-subtitle}} {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.38;
+        }
 
         .{{class:nav-links}} {
             display: flex;
@@ -287,8 +308,13 @@
             flex-wrap: wrap;
         }
 
+        .{{class:lead}} {
+            max-width: 56ch;
+        }
+
         .{{class:counter-item}} {
             text-align: left;
+            min-width: 88px;
         }
 
         .{{class:counter-value}} {
@@ -438,9 +464,10 @@
         }
 
         .{{class:section-heading}} p {
-            margin: 0;
+            margin: 0 auto;
             color: var(--muted);
             font-size: 14px;
+            max-width: 60ch;
         }
 
         /* Product grid */
@@ -767,6 +794,10 @@
                 padding-top: 20px;
             }
 
+            .{{class:brand}} {
+                width: 100%;
+            }
+
             .{{class:meta-grid}} {
                 grid-template-columns: minmax(0, 1fr);
             }
@@ -774,6 +805,10 @@
             .{{class:hero-copy}} {
                 min-height: 420px;
                 padding: 22px;
+            }
+
+            .{{class:brand-title}} {
+                font-size: 17px;
             }
 
             .{{class:footer-grid}} {
@@ -800,8 +835,8 @@
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
                 <div class="{{class:brand-copy}}">
-                    <div style="font-size: 18px; font-weight: 700;">{{title}}</div>
-                    <div class="{{class:muted}}">
+                    <div class="{{class:brand-title}}">{{title}}</div>
+                    <div class="{{class:brand-subtitle}}">
                         <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
                         <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                     </div>
@@ -846,12 +881,12 @@
                                 <div class="{{class:counter-label}}"><span data-lang="zh-CN">检测速度</span><span data-lang="en-US" hidden>Detection speed</span></div>
                             </div>
                             <div class="{{class:counter-item}}">
-                                <div class="{{class:counter-value}}" data-count="800" data-suffix="+" data-decimals="0">0</div>
-                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">全球部署</span><span data-lang="en-US" hidden>Global deployments</span></div>
+                                <div class="{{class:counter-value}}" data-count="{{companyExperienceYears}}" data-decimals="0">0</div>
+                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">项目经验 / 年</span><span data-lang="en-US" hidden>Years in delivery</span></div>
                             </div>
                             <div class="{{class:counter-item}}">
-                                <div class="{{class:counter-value}}" data-count="6" data-suffix="+" data-decimals="0">0</div>
-                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">行业覆盖</span><span data-lang="en-US" hidden>Industries served</span></div>
+                                <div class="{{class:counter-value}}" data-count="24" data-suffix="h" data-decimals="0">0</div>
+                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">初步响应</span><span data-lang="en-US" hidden>First response</span></div>
                             </div>
                         </div>
                         <div class="{{class:button-row}}">
@@ -877,12 +912,12 @@
                             <div class="{{class:meta-value}}">0.3s - 2.0s</div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Updated</span></span>
-                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">项目经验</span><span data-lang="en-US" hidden>Track record</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{companyExperienceYears}} 年</span><span data-lang="en-US" hidden>{{companyExperienceYears}} years</span></div>
                         </div>
                         <div class="{{class:meta-card}}">
-                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料版本</span><span data-lang="en-US" hidden>Revision</span></span>
-                            <div class="{{class:meta-value}}">{{editionCode}}</div>
+                            <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务区域</span><span data-lang="en-US" hidden>Region</span></span>
+                            <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{serviceRegionZh}}</span><span data-lang="en-US" hidden>{{serviceRegionEn}}</span></div>
                         </div>
                     </div>
                 </div>
@@ -900,8 +935,8 @@
                 <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><path d="M4 16 L16 6 L28 16 L16 26 Z" fill="#7dd3fc"/><rect x="34" y="12" width="40" height="8" rx="2" fill="#94a3b8"/></svg>
             </div>
             <div class="{{class:trust-text}}">
-                <span data-lang="zh-CN">服务超过 200 家制造企业</span>
-                <span data-lang="en-US" hidden>Trusted by over 200 manufacturing enterprises</span>
+                <span data-lang="zh-CN">{{trustTextZh}}</span>
+                <span data-lang="en-US" hidden>{{trustTextEn}}</span>
             </div>
         </section>
 
@@ -1038,29 +1073,29 @@
                 <div class="{{class:contact-item}}">
                     <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     <div>
-                        <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">总部地址</span><span data-lang="en-US" hidden>Headquarters</span></div>
-                        <div class="{{class:muted}}"><span data-lang="zh-CN">上海市浦东新区张江高科技园区博云路 2 号 8 层</span><span data-lang="en-US" hidden>8F, No. 2 Boyun Road, Zhangjiang Hi-Tech Park, Pudong, Shanghai</span></div>
+                        <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">服务区域</span><span data-lang="en-US" hidden>Region</span></div>
+                        <div class="{{class:muted}}"><span data-lang="zh-CN">{{serviceRegionZh}}</span><span data-lang="en-US" hidden>{{serviceRegionEn}}</span></div>
                     </div>
                 </div>
                 <div class="{{class:contact-item}}">
                     <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                     <div>
                         <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">服务热线</span><span data-lang="en-US" hidden>Hotline</span></div>
-                        <div class="{{class:muted}}">400-820-6789</div>
+                        <div class="{{class:muted}}">{{contactPhone}}</div>
                     </div>
                 </div>
                 <div class="{{class:contact-item}}">
                     <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     <div>
                         <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">商务邮箱</span><span data-lang="en-US" hidden>Email</span></div>
-                        <div class="{{class:muted}}">sales@visiontech-auto.com</div>
+                        <div class="{{class:muted}}">{{contactEmail}}</div>
                     </div>
                 </div>
             </div>
             <div class="{{class:contact-cta}}">
                 <h2><span data-lang="zh-CN">获取定制方案</span><span data-lang="en-US" hidden>Get a Custom Solution</span></h2>
                 <p><span data-lang="zh-CN">描述您的产线需求，工程团队将在 24 小时内提供初步检测方案与报价。</span><span data-lang="en-US" hidden>Describe your production line requirements and our engineering team will provide a preliminary inspection plan and quote within 24 hours.</span></p>
-                <a class="{{class:button}}" href="mailto:sales@visiontech-auto.com"><span data-lang="zh-CN">立即咨询</span><span data-lang="en-US" hidden>Contact now</span></a>
+                <a class="{{class:button}}" href="mailto:{{contactEmail}}"><span data-lang="zh-CN">立即咨询</span><span data-lang="en-US" hidden>Contact now</span></a>
             </div>
         </section>
 
@@ -1088,15 +1123,15 @@
                 </div>
                 <div>
                     <div class="{{class:footer-col-title}}"><span data-lang="zh-CN">联系方式</span><span data-lang="en-US" hidden>Contact</span></div>
-                    <span class="{{class:footer-link}}">400-820-6789</span>
-                    <span class="{{class:footer-link}}">sales@visiontech-auto.com</span>
-                    <span class="{{class:footer-link}}"><span data-lang="zh-CN">上海市浦东新区张江高科技园区</span><span data-lang="en-US" hidden>Zhangjiang, Pudong, Shanghai</span></span>
+                    <span class="{{class:footer-link}}">{{contactPhone}}</span>
+                    <span class="{{class:footer-link}}">{{contactEmail}}</span>
+                    <span class="{{class:footer-link}}"><span data-lang="zh-CN">{{serviceRegionZh}}</span><span data-lang="en-US" hidden>{{serviceRegionEn}}</span></span>
                 </div>
             </div>
             <div class="{{class:footer-bottom}}">
                 <div class="{{class:footer-note}}">
-                    <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
-                    <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
+                    <span data-lang="zh-CN">{{companyFootnoteZh}}</span>
+                    <span data-lang="en-US" hidden>{{companyFootnoteEn}}</span>
                 </div>
                 <div class="{{class:footer-certs}}">
                     <span class="{{class:cert-badge}}">

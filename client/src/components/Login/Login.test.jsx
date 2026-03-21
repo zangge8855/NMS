@@ -78,4 +78,40 @@ describe('Login', () => {
         expect(screen.getAllByRole('heading', { name: '找回密码' }).length).toBeGreaterThan(0);
         expect(screen.getByRole('button', { name: '发送验证码' })).toBeInTheDocument();
     });
+
+    it('submits the login form with an email identifier', async () => {
+        const user = userEvent.setup();
+        const loginMock = vi.fn().mockResolvedValue({ success: false, msg: '用户名、邮箱或密码错误' });
+
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    enabled: true,
+                    inviteOnlyEnabled: false,
+                    passwordResetEnabled: true,
+                },
+            },
+        });
+        useAuthMock.mockReturnValue({
+            login: loginMock,
+            register: vi.fn(),
+            verifyEmail: vi.fn(),
+            resendCode: vi.fn(),
+            requestPasswordReset: vi.fn(),
+            resetPassword: vi.fn(),
+        });
+
+        renderWithRouter(<Login />);
+
+        await user.type(
+            await screen.findByPlaceholderText('请输入用户名或注册邮箱'),
+            ' alice@example.com '
+        );
+        await user.type(screen.getByPlaceholderText('请输入密码'), 'Pass1234!');
+        await user.click(screen.getByRole('button', { name: '登录' }));
+
+        await waitFor(() => {
+            expect(loginMock).toHaveBeenCalledWith('alice@example.com', 'Pass1234!');
+        });
+    });
 });

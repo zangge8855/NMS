@@ -76,10 +76,10 @@ export function AuthProvider({ children }) {
         checkAuth();
     }, [checkAuth]);
 
-    /** 登录 (username + password) */
-    const login = async (username, password) => {
+    /** 登录 (username/email + password) */
+    const login = async (identifier, password) => {
         try {
-            const res = await api.post('/auth/login', { username, password });
+            const res = await api.post('/auth/login', { identifier, username: identifier, password });
             if (res.data.success) {
                 setStoredToken(res.data.token);
                 setToken(res.data.token);

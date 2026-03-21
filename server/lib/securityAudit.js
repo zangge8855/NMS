@@ -44,6 +44,7 @@ const ACCESS_PATTERN_EVENTS = new Set([
 // inside appendSecurityAudit.  getRecentMatchingEvents reads from this buffer.
 const recentSecurityEvents = [];
 const MAX_RECENT_EVENTS = 500;
+const AUDIT_PATTERN_QUERY_PAGE_SIZE = 200;
 const SECURITY_PATTERN_EVENT_TYPES = new Set([
     ...LOGIN_PATTERN_EVENTS,
     ...ACCESS_PATTERN_EVENTS,
@@ -91,15 +92,41 @@ function getRecentMatchingEvents(windowMs, predicate) {
     return recentSecurityEvents.filter((item) => item.ts >= cutoff && predicate(item));
 }
 
-function summarizeLoginPattern(entry = {}, details = {}) {
-    const ip = String(entry.ip || '').trim();
-    if (!ip) return null;
-    const recentEvents = getRecentMatchingEvents(LOGIN_PATTERN_WINDOW_MS, (item) => (
-        LOGIN_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
-        && String(item?.ip || '').trim() === ip
-    ));
-    if (recentEvents.length === 0) return null;
+function normalizeSecurityPatternEvent(item = {}) {
+    const normalizedTs = typeof item?.ts === 'number'
+        ? item.ts
+        : new Date(item?.ts || 0).getTime();
+    return {
+        id: String(item?.id || '').trim(),
+        eventType: String(item?.eventType || item?.event || '').trim().toLowerCase(),
+        ip: String(item?.ip || '').trim(),
+        ts: Number.isFinite(normalizedTs) ? normalizedTs : 0,
+        details: item?.details && typeof item.details === 'object' && !Array.isArray(item.details)
+            ? item.details
+            : {},
+        path: String(item?.path || '').trim(),
+        targetEmail: String(item?.targetEmail || '').trim().toLowerCase(),
+    };
+}
 
+function getRecentPersistedMatchingEvents(windowMs, predicate) {
+    const cutoff = Date.now() - windowMs;
+    try {
+        const result = auditStore.queryEvents({
+            page: 1,
+            pageSize: AUDIT_PATTERN_QUERY_PAGE_SIZE,
+        });
+        const items = Array.isArray(result?.items) ? result.items : [];
+        return items
+            .map((item) => normalizeSecurityPatternEvent(item))
+            .filter((item) => item.ts >= cutoff && predicate(item));
+    } catch {
+        return [];
+    }
+}
+
+function buildLoginPatternSummary(recentEvents = [], details = {}) {
+    if (!Array.isArray(recentEvents) || recentEvents.length === 0) return null;
     const targets = new Set();
     let rateLimited = false;
     recentEvents.forEach((item) => {
@@ -125,14 +152,45 @@ function summarizeLoginPattern(entry = {}, details = {}) {
     };
 }
 
-function summarizeAccessPattern(entry = {}) {
+function isLoginPatternStronger(candidate = null, baseline = null) {
+    if (!candidate) return false;
+    if (!baseline) return true;
+    if (candidate.suspectedBruteforce !== baseline.suspectedBruteforce) {
+        return candidate.suspectedBruteforce;
+    }
+    if (candidate.rateLimited !== baseline.rateLimited) {
+        return candidate.rateLimited;
+    }
+    if (candidate.recentAttempts !== baseline.recentAttempts) {
+        return candidate.recentAttempts > baseline.recentAttempts;
+    }
+    if (candidate.distinctTargets !== baseline.distinctTargets) {
+        return candidate.distinctTargets > baseline.distinctTargets;
+    }
+    return false;
+}
+
+function summarizeLoginPattern(entry = {}, details = {}) {
     const ip = String(entry.ip || '').trim();
     if (!ip) return null;
-    const recentEvents = getRecentMatchingEvents(ACCESS_PATTERN_WINDOW_MS, (item) => (
-        ACCESS_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+    const matchesIp = (item) => (
+        LOGIN_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
         && String(item?.ip || '').trim() === ip
-    ));
-    if (recentEvents.length === 0) return null;
+    );
+    const bufferedEvents = getRecentMatchingEvents(LOGIN_PATTERN_WINDOW_MS, matchesIp);
+    const bufferedSummary = buildLoginPatternSummary(bufferedEvents, details);
+    if (bufferedSummary?.suspectedBruteforce) return bufferedSummary;
+
+    const persistedEvents = getRecentPersistedMatchingEvents(LOGIN_PATTERN_WINDOW_MS, matchesIp);
+    const persistedSummary = buildLoginPatternSummary(persistedEvents, details);
+    if (isLoginPatternStronger(persistedSummary, bufferedSummary)) {
+        return persistedSummary;
+    }
+    return bufferedSummary || persistedSummary;
+}
+
+function buildAccessPatternSummary(recentEvents = []) {
+    if (!Array.isArray(recentEvents) || recentEvents.length === 0) return null;
 
     const paths = new Set();
     recentEvents.forEach((item) => {
@@ -145,6 +203,40 @@ function summarizeAccessPattern(entry = {}) {
         distinctPaths: paths.size || 1,
         suspectedScan: recentEvents.length >= 12 || paths.size >= 3,
     };
+}
+
+function isAccessPatternStronger(candidate = null, baseline = null) {
+    if (!candidate) return false;
+    if (!baseline) return true;
+    if (candidate.suspectedScan !== baseline.suspectedScan) {
+        return candidate.suspectedScan;
+    }
+    if (candidate.recentDeniedCount !== baseline.recentDeniedCount) {
+        return candidate.recentDeniedCount > baseline.recentDeniedCount;
+    }
+    if (candidate.distinctPaths !== baseline.distinctPaths) {
+        return candidate.distinctPaths > baseline.distinctPaths;
+    }
+    return false;
+}
+
+function summarizeAccessPattern(entry = {}) {
+    const ip = String(entry.ip || '').trim();
+    if (!ip) return null;
+    const matchesIp = (item) => (
+        ACCESS_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+        && String(item?.ip || '').trim() === ip
+    );
+    const bufferedEvents = getRecentMatchingEvents(ACCESS_PATTERN_WINDOW_MS, matchesIp);
+    const bufferedSummary = buildAccessPatternSummary(bufferedEvents);
+    if (bufferedSummary?.suspectedScan) return bufferedSummary;
+
+    const persistedEvents = getRecentPersistedMatchingEvents(ACCESS_PATTERN_WINDOW_MS, matchesIp);
+    const persistedSummary = buildAccessPatternSummary(persistedEvents);
+    if (isAccessPatternStronger(persistedSummary, bufferedSummary)) {
+        return persistedSummary;
+    }
+    return bufferedSummary || persistedSummary;
 }
 
 function buildAuditNotification(entry = {}) {
@@ -252,28 +344,28 @@ function buildAuditNotification(entry = {}) {
     const matched = definitions[eventKey];
     if (!matched) return null;
 
-        return {
-            type: matched.type,
-            severity: matched.severity,
-            title: matched.title,
-            body: matched.body,
-            meta: {
-                event: eventKey,
-                ip,
-                actor,
-                path: pathValue,
-                method: String(entry.method || '').trim(),
-                telegramTopics: matched.telegramTopics,
-                recentAttempts: loginPattern?.recentAttempts || 0,
-                distinctTargets: loginPattern?.distinctTargets || 0,
-                rateLimited: loginPattern?.rateLimited || false,
-                suspectedBruteforce: loginPattern?.suspectedBruteforce || false,
-                recentDeniedCount: accessPattern?.recentDeniedCount || 0,
-                distinctPaths: accessPattern?.distinctPaths || 0,
-                suspectedScan: accessPattern?.suspectedScan || false,
-            },
-            dedupKey: matched.dedupKey,
-        };
+    return {
+        type: matched.type,
+        severity: matched.severity,
+        title: matched.title,
+        body: matched.body,
+        meta: {
+            event: eventKey,
+            ip,
+            actor,
+            path: pathValue,
+            method: String(entry.method || '').trim(),
+            telegramTopics: matched.telegramTopics,
+            recentAttempts: loginPattern?.recentAttempts || 0,
+            distinctTargets: loginPattern?.distinctTargets || 0,
+            rateLimited: loginPattern?.rateLimited || false,
+            suspectedBruteforce: loginPattern?.suspectedBruteforce || false,
+            recentDeniedCount: accessPattern?.recentDeniedCount || 0,
+            distinctPaths: accessPattern?.distinctPaths || 0,
+            suspectedScan: accessPattern?.suspectedScan || false,
+        },
+        dedupKey: matched.dedupKey,
+    };
 }
 
 function applyAuditNotificationEnrichment(notification = {}, entry = {}) {
@@ -342,4 +434,8 @@ export function appendSecurityAudit(event, req, details = {}, options = {}) {
     } catch {
         // Ignore audit errors to avoid affecting main request flow.
     }
+}
+
+export function __resetRecentSecurityEventsForTests() {
+    recentSecurityEvents.length = 0;
 }

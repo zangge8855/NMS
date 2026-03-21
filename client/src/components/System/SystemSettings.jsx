@@ -11,7 +11,6 @@ import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
     HiOutlineChartBarSquare,
-    HiOutlineCircleStack,
     HiOutlineCog6Tooth,
     HiOutlineExclamationTriangle,
     HiOutlineServerStack,
@@ -171,52 +170,6 @@ function buildNoticeDraft(source = null, fallbackUrl = '') {
 }
 
 const DEFAULT_SETTINGS_TAB = 'status';
-function buildSettingsTabConfig(t) {
-    return [
-        {
-            id: 'status',
-            label: t('pages.settings.tabStatus'),
-            icon: HiOutlineChartBarSquare,
-            eyebrow: 'Overview',
-            summary: t('pages.settings.tabStatusSummary'),
-        },
-        {
-            id: 'access',
-            label: t('pages.settings.tabAccess'),
-            icon: HiOutlineCog6Tooth,
-            eyebrow: 'Access',
-            summary: t('pages.settings.tabAccessSummary'),
-        },
-        {
-            id: 'policy',
-            label: t('pages.settings.tabPolicy'),
-            icon: HiOutlineShieldCheck,
-            eyebrow: 'Policy',
-            summary: t('pages.settings.tabPolicySummary'),
-        },
-        {
-            id: 'db',
-            label: t('pages.settings.tabDb'),
-            icon: HiOutlineCircleStack,
-            eyebrow: 'Storage',
-            summary: t('pages.settings.tabDbSummary'),
-        },
-        {
-            id: 'backup',
-            label: t('pages.settings.tabNotify'),
-            icon: HiOutlineArrowDownTray,
-            eyebrow: 'Backup',
-            summary: t('pages.settings.tabNotifySummary'),
-        },
-        {
-            id: 'monitor',
-            label: t('pages.settings.tabConsole'),
-            icon: HiOutlineServerStack,
-            eyebrow: 'Ops',
-            summary: t('pages.settings.tabConsoleSummary'),
-        },
-    ];
-}
 
 function buildSettingsWorkspaceConfig(t) {
     return [

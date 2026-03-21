@@ -402,7 +402,7 @@ describe('SystemSettings', () => {
 
         await screen.findByText('通知与巡检状态');
         expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '对外访问' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '入口与订阅' })).toBeInTheDocument();
         expect(screen.queryByText('Overview')).not.toBeInTheDocument();
         expect(document.querySelector('.settings-tab-hero')).not.toBeNull();
         expect(screen.getByText('把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。')).toBeInTheDocument();

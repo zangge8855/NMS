@@ -249,7 +249,8 @@ describe('client build helpers', () => {
         assert.match(html, /产品矩阵/);
         assert.match(html, /在线检测单元/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /最近更新/);
+        assert.match(html, /项目经验|Track record/);
+        assert.match(html, /中国|China/);
         assert.match(html, /site_lang_pref/);
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
         assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);

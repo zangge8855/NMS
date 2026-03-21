@@ -6,6 +6,7 @@ import { resolveClientIp } from '../lib/requestIp.js';
 import jobStore from '../store/jobStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import {
+    isValidEmail,
     normalizeEmailInput,
     registerUser,
     resendVerificationCode,
@@ -68,6 +69,10 @@ startCleanupInterval(() => {
 function normalizeRateUsername(username) {
     const normalized = String(username || '').trim().toLowerCase();
     return normalized || '*';
+}
+
+function resolveLoginIdentifier(body = {}) {
+    return String(body?.identifier || body?.username || body?.email || '').trim();
 }
 
 function rejectPasswordSelfService(res) {
@@ -258,17 +263,19 @@ export function getRegistrationStatus() {
 /**
  * POST /api/auth/login
  * 支持两种模式:
- *   1. username + password (新版多用户)
+ *   1. username/email + password (新版多用户)
  *   2. password only (向后兼容旧版单密码)
  */
 router.post('/login', (req, res) => {
     const clientIp = resolveClientIp(req);
-    const username = String(req.body?.username || '').trim();
+    const loginIdentifier = resolveLoginIdentifier(req.body);
+    const normalizedLoginEmail = normalizeEmailInput(loginIdentifier);
     const auditBase = {
         ip: clientIp,
-        username: username || '(none)',
+        username: loginIdentifier || '(none)',
+        ...(normalizedLoginEmail && isValidEmail(normalizedLoginEmail) ? { email: normalizedLoginEmail } : {}),
     };
-    const rateState = getLoginRateState(clientIp, username);
+    const rateState = getLoginRateState(clientIp, loginIdentifier);
     if (rateState.blocked) {
         appendSecurityAudit('login_rate_limited', req, auditBase);
         return res.status(429).json({
@@ -279,8 +286,8 @@ router.post('/login', (req, res) => {
 
     const result = createLoginSession(req.body);
     if (!result.success) {
-        recordLoginFailure(clientIp, username);
-        const failState = getLoginRateState(clientIp, username);
+        recordLoginFailure(clientIp, loginIdentifier);
+        const failState = getLoginRateState(clientIp, loginIdentifier);
         if (failState.blocked) {
             appendSecurityAudit('login_rate_limited', req, {
                 ...auditBase,
@@ -319,16 +326,21 @@ router.post('/login', (req, res) => {
             ...auditBase,
             ...(result.audit || {}),
         });
-        return res.status(401).json({ success: false, msg: '用户名或密码错误' });
+        return res.status(401).json({ success: false, msg: '用户名、邮箱或密码错误' });
     }
 
     req.user = {
         userId: result.audit?.userId || '',
-        username: result.audit?.username || result.user?.username || username || '',
+        username: result.audit?.username || result.user?.username || loginIdentifier || '',
         role: result.audit?.role || result.user?.role || 'user',
     };
     appendSecurityAudit('login_success', req, { ip: clientIp, ...result.audit });
-    clearLoginRate(clientIp, result.audit?.username);
+    const clearIdentifiers = new Set([
+        loginIdentifier,
+        result.audit?.username,
+        result.audit?.email,
+    ].map((value) => String(value || '').trim()).filter(Boolean));
+    clearIdentifiers.forEach((value) => clearLoginRate(clientIp, value));
     res.json({
         success: true,
         token: result.token,

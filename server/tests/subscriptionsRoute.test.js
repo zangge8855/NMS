@@ -2,7 +2,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import yaml from '../../client/node_modules/js-yaml/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.DATA_DIR = path.join('/tmp', 'nms-subscriptions-route-test');
@@ -49,6 +48,88 @@ const ssObfsLink = 'ss://YWVzLTEyOC1nY206dGVzdC1wYXNzd29yZC0xMjM0@test.example.c
 const ssV2rayLink = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTp0ZXN0LXBhc3N3b3Jk@example.com:443/?plugin=v2ray-plugin%3Bmode%3Dwebsocket%3Bhost%3Dexample.com%3Bpath%3D%2Fv2ray%3Btls#NODE-SS2';
 const hy2Link = 'hy2://hy2-secret@hy2.example.com:8443?alpn=h3&sni=hy2.example.com&ports=8443,8444&hop-interval=120&upmbps=50&downmbps=100#NODE-C';
 const tuicLink = 'tuic://33333333-3333-3333-3333-333333333333:tuic-pass@tuic.example.com:443?congestion_control=bbr&sni=tuic.example.com&alpn=h3&udp-relay-mode=native#NODE-D';
+
+function parseYamlScalar(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (text === 'null') return null;
+    if (text === 'true') return true;
+    if (text === 'false') return false;
+    if (/^-?\d+(?:\.\d+)?$/.test(text)) return Number(text);
+    if (text.startsWith('"')) return JSON.parse(text);
+    return text;
+}
+
+function countIndent(line) {
+    return line.length - line.trimStart().length;
+}
+
+function parseGeneratedYamlBlock(lines, startIndex = 0, indent = 0) {
+    const line = lines[startIndex];
+    const trimmed = line?.slice(indent) || '';
+    if (trimmed.startsWith('-')) {
+        const items = [];
+        let index = startIndex;
+        while (index < lines.length) {
+            const currentLine = lines[index];
+            if (!currentLine.trim()) {
+                index += 1;
+                continue;
+            }
+            const currentIndent = countIndent(currentLine);
+            if (currentIndent < indent) break;
+            const currentTrimmed = currentLine.slice(indent);
+            if (!currentTrimmed.startsWith('-')) break;
+            const remainder = currentTrimmed.slice(1).trimStart();
+            if (remainder) {
+                items.push(parseYamlScalar(remainder));
+                index += 1;
+                continue;
+            }
+            const parsedChild = parseGeneratedYamlBlock(lines, index + 1, indent + 2);
+            items.push(parsedChild.value);
+            index = parsedChild.nextIndex;
+        }
+        return { value: items, nextIndex: index };
+    }
+
+    const objectValue = {};
+    let index = startIndex;
+    while (index < lines.length) {
+        const currentLine = lines[index];
+        if (!currentLine.trim()) {
+            index += 1;
+            continue;
+        }
+        const currentIndent = countIndent(currentLine);
+        if (currentIndent < indent) break;
+        const currentTrimmed = currentLine.slice(indent);
+        if (currentTrimmed.startsWith('-')) break;
+        const separatorIndex = currentTrimmed.indexOf(':');
+        if (separatorIndex < 0) {
+            index += 1;
+            continue;
+        }
+        const key = currentTrimmed.slice(0, separatorIndex);
+        const remainder = currentTrimmed.slice(separatorIndex + 1).trimStart();
+        if (remainder) {
+            objectValue[key] = parseYamlScalar(remainder);
+            index += 1;
+            continue;
+        }
+        const parsedChild = parseGeneratedYamlBlock(lines, index + 1, indent + 2);
+        objectValue[key] = parsedChild.value;
+        index = parsedChild.nextIndex;
+    }
+    return { value: objectValue, nextIndex: index };
+}
+
+function parseGeneratedYaml(yamlText) {
+    const normalized = String(yamlText || '')
+        .split('\n')
+        .filter((line) => line.trim() && !line.startsWith('#SUBSCRIBED '));
+    return parseGeneratedYamlBlock(normalized, 0, 0).value;
+}
 
 function buildExpectedExternalUrl(baseUrl, format, configUrl) {
     const params = new URLSearchParams({
@@ -256,7 +337,7 @@ describe('mihomo config generation', () => {
             [vmessLink, vlessLink, trojanLink, ssObfsLink, hy2Link, tuicLink, 'socks://unsupported.example.com'],
             'https://sub.example.com/base?format=clash'
         );
-        const parsed = yaml.load(yamlText);
+        const parsed = parseGeneratedYaml(yamlText);
 
         assert.ok(yamlText.startsWith('#SUBSCRIBED https://sub.example.com/base?format=clash\n'));
         assert.equal(parsed.mode, 'rule');

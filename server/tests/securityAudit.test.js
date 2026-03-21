@@ -2,12 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import auditStore from '../store/auditStore.js';
-import { appendSecurityAudit } from '../lib/securityAudit.js';
+import {
+    __resetRecentSecurityEventsForTests,
+    appendSecurityAudit,
+} from '../lib/securityAudit.js';
 import notificationService from '../lib/notifications.js';
 import ipGeoResolver from '../lib/ipGeoResolver.js';
 import ipIspResolver from '../lib/ipIspResolver.js';
 
 test('appendSecurityAudit forwards explicit outcome to audit store', (t) => {
+    __resetRecentSecurityEventsForTests();
     t.mock.method(fs, 'existsSync', () => true);
     t.mock.method(fs, 'appendFileSync', () => {});
     const appendEventMock = t.mock.method(auditStore, 'appendEvent', () => {});
@@ -34,8 +38,12 @@ test('appendSecurityAudit forwards explicit outcome to audit store', (t) => {
 });
 
 test('appendSecurityAudit escalates rate-limited login events into notifications', async (t) => {
+    __resetRecentSecurityEventsForTests();
     t.mock.method(fs, 'existsSync', () => true);
     t.mock.method(fs, 'appendFileSync', () => {});
+    t.mock.method(auditStore, 'queryEvents', () => {
+        throw new Error('ring buffer path should not query audit history');
+    });
     t.mock.method(auditStore, 'appendEvent', () => ({
         eventType: 'login_rate_limited',
         actor: 'anonymous',
@@ -74,6 +82,7 @@ test('appendSecurityAudit escalates rate-limited login events into notifications
 });
 
 test('appendSecurityAudit marks repeated login failures as suspected brute force', async (t) => {
+    __resetRecentSecurityEventsForTests();
     t.mock.method(fs, 'existsSync', () => true);
     t.mock.method(fs, 'appendFileSync', () => {});
     t.mock.method(auditStore, 'queryEvents', () => ({
