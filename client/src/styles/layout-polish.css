@@ -4128,6 +4128,32 @@
   }
 }
 
+@media (min-width: 1121px) {
+  .settings-ops-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px 18px;
+  }
+
+  .settings-ops-actions {
+    width: auto;
+    min-width: 0;
+    justify-self: end;
+    align-self: center;
+  }
+
+  .settings-ops-actions--single {
+    grid-template-columns: max-content;
+  }
+
+  .settings-ops-actions .btn {
+    width: auto;
+    min-width: 118px;
+    padding-inline: 14px;
+  }
+}
+
 @media (max-width: 1120px) {
   .audit-filter-grid--events {
     grid-template-columns: repeat(3, minmax(0, 1fr));
