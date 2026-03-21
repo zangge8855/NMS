@@ -71,6 +71,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
                 commandMenuEnabled: true,
                 opsDigestIntervalMinutes: 45,
                 dailyDigestIntervalHours: 12,
+                sendDailyBackup: true,
                 sendSystemStatus: true,
                 sendSecurityAudit: true,
                 sendEmergencyAlerts: true,
@@ -84,6 +85,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(updated.telegram.commandMenuEnabled, true);
         assert.equal(updated.telegram.opsDigestIntervalMinutes, 45);
         assert.equal(updated.telegram.dailyDigestIntervalHours, 12);
+        assert.equal(updated.telegram.sendDailyBackup, true);
 
         const telegram = systemSettingsStore.getTelegram();
         assert.equal(telegram.botToken, '123456:ABCDEF-token');
@@ -92,6 +94,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(telegram.commandMenuEnabled, true);
         assert.equal(telegram.opsDigestIntervalMinutes, 45);
         assert.equal(telegram.dailyDigestIntervalHours, 12);
+        assert.equal(telegram.sendDailyBackup, true);
     });
 
     it('allows explicitly clearing a previously saved telegram token', () => {

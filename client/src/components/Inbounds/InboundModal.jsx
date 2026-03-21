@@ -544,6 +544,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     const [expiryDateTime, setExpiryDateTime] = useState('');
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
     const [selectedServerIds, setSelectedServerIds] = useState([]);
+    const [syncExistingSubscriptions, setSyncExistingSubscriptions] = useState(false);
 
     // Raw JSON State (always the source of truth for submission)
     const [settings, setSettings] = useState(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
@@ -733,6 +734,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             setSettings(editingInbound.settings);
             setStreamSettings(editingInbound.streamSettings || JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
             setSniffing(editingInbound.sniffing || JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+            setSyncExistingSubscriptions(false);
 
             // Try to parse simplified state
             try {
@@ -803,6 +805,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             setSettings(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
             setStreamSettings(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
             setSniffing(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+            setSyncExistingSubscriptions(false);
             setSimpleStream({
                 network: 'tcp',
                 security: 'none',
@@ -1411,6 +1414,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 const batchPayload = await attachBatchRiskToken({
                     action: 'add',
                     targets,
+                    syncExistingSubscriptions,
                 }, {
                     type: 'inbounds',
                     action: 'add',
@@ -1423,11 +1427,21 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     total: targets.length,
                     failed: targets.length,
                 };
+                const syncSummary = output?.subscriptionSync || null;
                 onBatchResult?.('批量添加入站结果', output || null);
                 if (summary.failed === 0) {
-                    toast.success(`成功部署到 ${summary.success} 个服务器`);
+                    if (syncSummary && syncExistingSubscriptions) {
+                        toast.success(`成功部署到 ${summary.success} 个服务器，并补齐 ${syncSummary.syncedUsers || 0} 个用户订阅`);
+                    } else {
+                        toast.success(`成功部署到 ${summary.success} 个服务器`);
+                    }
                 } else {
-                    toast.error(`部署完成: ${summary.success} 成功, ${summary.failed} 失败`);
+                    const baseMessage = `部署完成: ${summary.success} 成功, ${summary.failed} 失败`;
+                    if (syncSummary && syncExistingSubscriptions) {
+                        toast.error(`${baseMessage}；已补齐 ${syncSummary.syncedUsers || 0} 个用户订阅`);
+                    } else {
+                        toast.error(baseMessage);
+                    }
                 }
             }
             onSuccess();
@@ -1492,6 +1506,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </label>
                                     ))}
                                 </div>
+                                <label className="mt-3 flex items-start gap-2 cursor-pointer text-sm text-secondary">
+                                    <input
+                                        type="checkbox"
+                                        checked={syncExistingSubscriptions}
+                                        onChange={(e) => setSyncExistingSubscriptions(e.target.checked)}
+                                    />
+                                    <span>新增后补齐到已有用户订阅，仅同步策略允许的用户</span>
+                                </label>
                             </div>
                         )}
 

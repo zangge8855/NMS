@@ -376,6 +376,18 @@ describe('Dashboard', () => {
                     },
                 });
             }
+            if (url === '/traffic/overview') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            totals: {
+                                upBytes: 180,
+                                downBytes: 360,
+                            },
+                        },
+                    },
+                });
+            }
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -412,6 +424,7 @@ describe('Dashboard', () => {
         const overviewCard = screen.getByText('入站 2 / 2 已启用').closest('[role="button"]');
         if (!overviewCard) throw new Error('Missing cluster overview card');
         await waitFor(() => {
+            expect(overviewCard).toHaveTextContent('节点总计');
             expect(overviewCard).toHaveTextContent('2 / 2');
             expect(overviewCard).toHaveTextContent('入站 2 / 2 已启用');
         });
@@ -439,6 +452,18 @@ describe('Dashboard', () => {
             expect(trafficCard).toHaveTextContent(/↑\s*220 B/);
             expect(trafficCard).toHaveTextContent(/↓\s*440 B/);
         });
+
+        const todayTrafficCard = screen.getByText('今日流量').closest('[role="button"]');
+        if (!todayTrafficCard) throw new Error('Missing today traffic card');
+        await waitFor(() => {
+            expect(todayTrafficCard).toHaveTextContent('540 B');
+            expect(todayTrafficCard).toHaveTextContent(/↑\s*180 B/);
+            expect(todayTrafficCard).toHaveTextContent(/↓\s*360 B/);
+        });
+
+        const nodeATile = screen.getByText('Node A').closest('.node-health-tile');
+        if (!nodeATile) throw new Error('Missing Node A health tile');
+        expect(nodeATile).toHaveTextContent('300 B');
 
         fireEvent.click(onlineCard);
 

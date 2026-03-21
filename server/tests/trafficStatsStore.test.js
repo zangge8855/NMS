@@ -274,7 +274,7 @@ describe('traffic stats inbound fallback', () => {
         assert.equal(overview.totals.totalBytes, 30);
     });
 
-    it('builds server trend from cumulative server snapshots instead of traffic deltas', () => {
+    it('builds server trend from snapshot deltas aggregated into each bucket', () => {
         const store = new TrafficStatsStore();
         store.importState({
             samples: [
@@ -334,20 +334,20 @@ describe('traffic stats inbound fallback', () => {
         assert.equal(trend.points.length, 2);
         assert.deepEqual(trend.points[0], {
             ts: '2026-03-13T00:00:00.000Z',
-            upBytes: 180,
-            downBytes: 70,
-            totalBytes: 250,
+            upBytes: 80,
+            downBytes: 20,
+            totalBytes: 100,
         });
         assert.deepEqual(trend.points[1], {
             ts: '2026-03-13T01:00:00.000Z',
-            upBytes: 220,
-            downBytes: 90,
-            totalBytes: 310,
+            upBytes: 40,
+            downBytes: 20,
+            totalBytes: 60,
         });
         assert.deepEqual(trend.totals, {
-            upBytes: 220,
-            downBytes: 90,
-            totalBytes: 310,
+            upBytes: 120,
+            downBytes: 40,
+            totalBytes: 160,
         });
     });
 });

@@ -551,29 +551,46 @@ class TrafficStatsStore {
         ));
     }
 
-    _aggregateSnapshotTrend(samples, granularity) {
+    _aggregateSnapshotDeltaTrend(samples, granularity, range = {}) {
         const bucketMap = new Map();
-        for (const sample of samples) {
-            const sourceDate = new Date(sample.ts);
-            const sampleTs = sourceDate.getTime();
+        const fromTs = Number.isFinite(range.fromTs) ? range.fromTs : Number.NEGATIVE_INFINITY;
+        const toTs = Number.isFinite(range.toTs) ? range.toTs : Number.POSITIVE_INFINITY;
+        const orderedSamples = Array.isArray(samples)
+            ? [...samples]
+                .map((item) => {
+                    const sampleTs = new Date(item.ts).getTime();
+                    return Number.isFinite(sampleTs) ? { ...item, _sampleTs: sampleTs } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => a._sampleTs - b._sampleTs)
+            : [];
+
+        let previousSample = null;
+        for (const sample of orderedSamples) {
+            const sampleTs = sample._sampleTs;
+            const deltaUp = calculateTrafficDelta(sample.upBytes, previousSample?.upBytes);
+            const deltaDown = calculateTrafficDelta(sample.downBytes, previousSample?.downBytes);
+            const deltaTotal = deltaUp + deltaDown;
+            previousSample = sample;
+
+            if (sampleTs < fromTs || sampleTs > toTs) continue;
+
             const bucketDate = granularity === 'day'
-                ? floorToDay(sourceDate)
-                : floorToHour(sourceDate);
+                ? floorToDay(new Date(sampleTs))
+                : floorToHour(new Date(sampleTs));
             const bucket = bucketDate.toISOString();
-            const current = bucketMap.get(bucket);
-            if (!current || sampleTs >= current._sampleTs) {
-                bucketMap.set(bucket, {
-                    ts: bucket,
-                    upBytes: toNonNegativeInt(sample.upBytes, 0),
-                    downBytes: toNonNegativeInt(sample.downBytes, 0),
-                    totalBytes: toNonNegativeInt(sample.totalBytes, 0),
-                    _sampleTs: sampleTs,
-                });
-            }
+            const current = bucketMap.get(bucket) || {
+                ts: bucket,
+                upBytes: 0,
+                downBytes: 0,
+                totalBytes: 0,
+            };
+            current.upBytes += deltaUp;
+            current.downBytes += deltaDown;
+            current.totalBytes += deltaTotal;
+            bucketMap.set(bucket, current);
         }
-        return Array.from(bucketMap.values())
-            .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
-            .map(({ _sampleTs, ...item }) => item);
+        return Array.from(bucketMap.values()).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     }
 
     async _collectFromServer(serverMeta, collectedAtIso) {
@@ -836,7 +853,7 @@ class TrafficStatsStore {
                 totals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
             };
         }
-        const range = this._buildTimeRange(options, { defaultDays: 14 });
+        const range = this._buildTimeRange(options, { defaultDays: 30 });
         const selectedGranularity = String(options.granularity || 'auto').toLowerCase();
         const granularity = selectedGranularity === 'auto'
             ? chooseAutoGranularity(range.fromTs, range.toTs)
@@ -868,25 +885,30 @@ class TrafficStatsStore {
 
     getServerTrend(serverId, options = {}) {
         const normalizedServerId = String(serverId || '').trim();
-        const range = this._buildTimeRange(options, { defaultDays: 14 });
+        const range = this._buildTimeRange(options, { defaultDays: 30 });
         const selectedGranularity = String(options.granularity || 'auto').toLowerCase();
         const granularity = selectedGranularity === 'auto'
             ? chooseAutoGranularity(range.fromTs, range.toTs)
             : (selectedGranularity === 'day' ? 'day' : 'hour');
 
-        const samples = this._filterSamples({
+        const samples = this.samples.filter((item) => (
+            normalizeSampleKind(item?.kind) === SAMPLE_KIND_SERVER_SNAPSHOT
+            && String(item?.serverId || '').trim() === normalizedServerId
+        ));
+        const points = this._aggregateSnapshotDeltaTrend(samples, granularity, {
             fromTs: range.fromTs,
             toTs: range.toTs,
-            serverId: normalizedServerId,
-            kind: SAMPLE_KIND_SERVER_SNAPSHOT,
         });
-        const points = this._aggregateSnapshotTrend(samples, granularity);
-        const latestPoint = points.length > 0 ? points[points.length - 1] : { upBytes: 0, downBytes: 0, totalBytes: 0 };
-        const totals = {
-            upBytes: toNonNegativeInt(latestPoint.upBytes, 0),
-            downBytes: toNonNegativeInt(latestPoint.downBytes, 0),
-            totalBytes: toNonNegativeInt(latestPoint.totalBytes, 0),
-        };
+        const totals = points.reduce((acc, item) => {
+            acc.upBytes += item.upBytes;
+            acc.downBytes += item.downBytes;
+            acc.totalBytes += item.totalBytes;
+            return acc;
+        }, {
+            upBytes: 0,
+            downBytes: 0,
+            totalBytes: 0,
+        });
 
         return {
             serverId: normalizedServerId,

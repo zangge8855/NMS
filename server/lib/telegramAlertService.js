@@ -20,6 +20,7 @@ const DEFAULT_API_BASE_URL = 'https://api.telegram.org';
 const POLL_INTERVAL_MS = 5000;
 const OPS_DIGEST_INTERVAL_MS = 30 * 60 * 1000;
 const DAILY_DIGEST_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DAILY_BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const DEFAULT_QUERY_COMMANDS = [
     { command: '/status', description: '系统状态总览' },
     { command: '/online', description: '在线人数与节点分布' },
@@ -150,6 +151,15 @@ function truncateMessageText(value, limit = 3900) {
     return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }
 
+function truncateCaptionText(value, limit = 900) {
+    const text = String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .trim();
+    if (!text) return '';
+    if (text.length <= limit) return text;
+    return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
+}
+
 function startBackgroundInterval(fn, delayMs) {
     const timer = setInterval(fn, delayMs);
     if (typeof timer?.unref === 'function') {
@@ -184,6 +194,32 @@ function createDefaultFetcher() {
         }
         return response.json().catch(() => ({}));
     };
+}
+
+function createDefaultDocumentFetcher() {
+    return async ({ url, formData }) => {
+        if (typeof fetch !== 'function') {
+            throw new Error('fetch-unavailable');
+        }
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!response.ok) {
+            const payload = await response.text().catch(() => '');
+            throw new Error(`telegram-http-${response.status}${payload ? `:${payload}` : ''}`);
+        }
+        return response.json().catch(() => ({}));
+    };
+}
+
+function buildDayKey(value = Date.now()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = String(date.getFullYear()).padStart(4, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function severityLabel(severity = 'info') {
@@ -852,6 +888,9 @@ function filterRecentItems(items = [], windowMs = 0, getTs) {
 
 export function createTelegramAlertService(options = {}) {
     const fetcher = typeof options.fetcher === 'function' ? options.fetcher : createDefaultFetcher();
+    const documentFetcher = typeof options.documentFetcher === 'function'
+        ? options.documentFetcher
+        : createDefaultDocumentFetcher();
     const overrideAlertSeverities = new Set(
         normalizeStringArray(options.alertSeverities).filter((item) => ['info', 'warning', 'critical'].includes(item))
     );
@@ -873,16 +912,39 @@ export function createTelegramAlertService(options = {}) {
         lastDigestAt: null,
         lastDigestKind: '',
         lastDigestError: '',
+        lastBackupAt: null,
+        lastBackupAttemptAt: null,
+        lastBackupFilename: '',
+        lastBackupError: '',
     };
     let running = false;
     let timer = null;
     let opsDigestTimer = null;
     let dailyDigestTimer = null;
+    let dailyBackupTimer = null;
     let lastUpdateId = 0;
     let initializedOffset = false;
     let commandsSynced = false;
     let commandMenuCleared = false;
     let commandSyncPromise = null;
+
+    async function resolveBackupHelpers() {
+        const module = (
+            typeof options.buildBackupArchive === 'function'
+            && typeof options.recordTelegramBackupMeta === 'function'
+        )
+            ? null
+            : await import('./systemBackup.js');
+
+        return {
+            buildBackupArchive: typeof options.buildBackupArchive === 'function'
+                ? options.buildBackupArchive
+                : module.createBackupArchive,
+            saveTelegramBackupMeta: typeof options.recordTelegramBackupMeta === 'function'
+                ? options.recordTelegramBackupMeta
+                : module.recordTelegramBackupMeta,
+        };
+    }
 
     function resolveSettings() {
         const stored = typeof options.getSettings === 'function'
@@ -902,6 +964,7 @@ export function createTelegramAlertService(options = {}) {
             commandMenuEnabled: commandMenuEnabled === true,
             botTokenPreview: botToken ? maskToken(botToken) : (stored?.botTokenPreview || ''),
             chatIdPreview: chatId ? maskChatId(chatId) : '',
+            sendDailyBackup: options.sendDailyBackup ?? stored?.sendDailyBackup ?? false,
             sendSystemStatus: options.sendSystemStatus ?? stored?.sendSystemStatus ?? true,
             sendSecurityAudit: options.sendSecurityAudit ?? stored?.sendSecurityAudit ?? true,
             sendEmergencyAlerts: options.sendEmergencyAlerts ?? stored?.sendEmergencyAlerts ?? true,
@@ -1022,6 +1085,141 @@ export function createTelegramAlertService(options = {}) {
                 dedupCache.delete(String(dedupKey).trim());
             }
             runtimeStatus.lastError = error.message || 'telegram-send-failed';
+            return false;
+        }
+    }
+
+    async function sendDocument({
+        buffer,
+        filename = '',
+        caption = '',
+        kind = 'document',
+        parseMode = 'HTML',
+    } = {}) {
+        const settings = resolveSettings();
+        if (!settings.enabled || !settings.configured) {
+            throw new Error('telegram-not-configured');
+        }
+        if (!Buffer.isBuffer(buffer) || buffer.byteLength === 0) {
+            throw new Error('telegram-document-empty');
+        }
+        if (typeof FormData !== 'function' || typeof Blob !== 'function') {
+            throw new Error('telegram-formdata-unavailable');
+        }
+
+        const formData = new FormData();
+        formData.append('chat_id', settings.chatId);
+        if (caption) {
+            formData.append('caption', truncateCaptionText(caption, 900));
+        }
+        if (parseMode) {
+            formData.append('parse_mode', parseMode);
+        }
+        formData.append(
+            'document',
+            new Blob([buffer], { type: 'application/octet-stream' }),
+            String(filename || 'nms_backup.nmsbak')
+        );
+
+        await documentFetcher({
+            url: `${settings.apiBaseUrl.replace(/\/$/, '')}/bot${settings.botToken}/sendDocument`,
+            formData,
+            filename: String(filename || 'nms_backup.nmsbak'),
+            caption,
+            chatId: settings.chatId,
+            parseMode,
+            buffer,
+            kind,
+        });
+
+        runtimeStatus.lastSentAt = new Date().toISOString();
+        runtimeStatus.lastError = '';
+        runtimeStatus.lastSentKind = kind;
+        return true;
+    }
+
+    async function sendBackupArchive(actor = 'system', options = {}) {
+        const settings = resolveSettings();
+        if (!settings.enabled || !settings.configured) {
+            throw new Error('Telegram 未启用或配置不完整');
+        }
+
+        runtimeStatus.lastBackupAttemptAt = new Date().toISOString();
+        const sentAt = new Date().toISOString();
+        const reason = String(options.reason || 'manual').trim() || 'manual';
+        const { buildBackupArchive, saveTelegramBackupMeta } = await resolveBackupHelpers();
+        let archive = null;
+        try {
+            archive = buildBackupArchive({
+                keys: options.keys,
+            });
+            const title = reason === 'daily' ? 'NMS 每日加密备份' : 'NMS 加密备份';
+            const caption = [
+                `<b>${escapeTelegramHtml(title)}</b>`,
+                `文件: <code>${escapeTelegramHtml(archive.filename)}</code>`,
+                `时间: <b>${escapeTelegramHtml(formatDateTime(sentAt))}</b>`,
+                `范围: <b>${escapeTelegramHtml(String(archive.meta?.storeKeys?.join(', ') || 'all'))}</b>`,
+            ].join('\n');
+            await sendDocument({
+                buffer: archive.buffer,
+                filename: archive.filename,
+                caption,
+                kind: reason === 'daily' ? 'backup_daily' : 'backup_manual',
+                parseMode: 'HTML',
+            });
+            const meta = saveTelegramBackupMeta({
+                status: 'sent',
+                ts: sentAt,
+                filename: archive.filename,
+                bytes: archive.meta?.bytes || archive.buffer.byteLength,
+                storeKeys: archive.meta?.storeKeys || [],
+                chatIdPreview: settings.chatIdPreview,
+                actor,
+                reason,
+            });
+            runtimeStatus.lastBackupAt = meta.ts;
+            runtimeStatus.lastBackupFilename = meta.filename;
+            runtimeStatus.lastBackupError = '';
+            return {
+                ...meta,
+                archive: {
+                    filename: archive.filename,
+                    bytes: archive.meta?.bytes || archive.buffer.byteLength,
+                    storeKeys: archive.meta?.storeKeys || [],
+                },
+            };
+        } catch (error) {
+            saveTelegramBackupMeta({
+                status: 'failed',
+                ts: sentAt,
+                filename: archive?.filename || '',
+                bytes: archive?.meta?.bytes || archive?.buffer?.byteLength || 0,
+                storeKeys: archive?.meta?.storeKeys || [],
+                chatIdPreview: settings.chatIdPreview,
+                actor,
+                reason,
+                error: error.message || 'telegram-backup-failed',
+            });
+            runtimeStatus.lastBackupFilename = archive?.filename || '';
+            runtimeStatus.lastBackupError = error.message || 'telegram-backup-failed';
+            throw error;
+        }
+    }
+
+    async function maybeSendDailyBackup() {
+        const settings = resolveSettings();
+        if (!running || !settings.enabled || !settings.configured || !settings.sendDailyBackup) {
+            return false;
+        }
+        const todayKey = buildDayKey();
+        if (todayKey && buildDayKey(runtimeStatus.lastBackupAt) === todayKey) {
+            return false;
+        }
+        try {
+            await sendBackupArchive('system', { reason: 'daily' });
+            return true;
+        } catch (error) {
+            runtimeStatus.lastBackupError = error.message || 'telegram-daily-backup-failed';
             return false;
         }
     }
@@ -1806,6 +2004,10 @@ export function createTelegramAlertService(options = {}) {
             clearInterval(dailyDigestTimer);
             dailyDigestTimer = null;
         }
+        if (dailyBackupTimer) {
+            clearInterval(dailyBackupTimer);
+            dailyBackupTimer = null;
+        }
         if (!running) return;
 
         const settings = resolveSettings();
@@ -1826,6 +2028,15 @@ export function createTelegramAlertService(options = {}) {
                     runtimeStatus.lastDigestError = error.message || 'telegram-daily-digest-failed';
                 });
             }, dailyIntervalMs);
+        }
+
+        if (settings.sendDailyBackup) {
+            dailyBackupTimer = startBackgroundInterval(() => {
+                maybeSendDailyBackup().catch((error) => {
+                    runtimeStatus.lastBackupError = error.message || 'telegram-daily-backup-failed';
+                });
+            }, DAILY_BACKUP_CHECK_INTERVAL_MS);
+            void maybeSendDailyBackup();
         }
     }
 
@@ -1908,6 +2119,10 @@ export function createTelegramAlertService(options = {}) {
             clearInterval(dailyDigestTimer);
             dailyDigestTimer = null;
         }
+        if (dailyBackupTimer) {
+            clearInterval(dailyBackupTimer);
+            dailyBackupTimer = null;
+        }
         for (const key of aggregateTimers.keys()) {
             clearAggregateTimer(key);
         }
@@ -1933,6 +2148,7 @@ export function createTelegramAlertService(options = {}) {
             botTokenPreview: settings.botTokenPreview || maskToken(settings.botToken),
             alertSeverities: [...settings.alertSeverities],
             watchedAuditEvents: settings.auditEvents.size > 0 ? [...settings.auditEvents] : Object.keys(DEFAULT_AUDIT_EVENT_RULES),
+            sendDailyBackup: settings.sendDailyBackup,
             sendSystemStatus: settings.sendSystemStatus,
             sendSecurityAudit: settings.sendSecurityAudit,
             sendEmergencyAlerts: settings.sendEmergencyAlerts,
@@ -1953,6 +2169,10 @@ export function createTelegramAlertService(options = {}) {
             lastDigestAt: runtimeStatus.lastDigestAt,
             lastDigestKind: runtimeStatus.lastDigestKind,
             lastDigestError: runtimeStatus.lastDigestError,
+            lastBackupAt: runtimeStatus.lastBackupAt,
+            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+            lastBackupFilename: runtimeStatus.lastBackupFilename,
+            lastBackupError: runtimeStatus.lastBackupError,
         };
     }
 
@@ -1973,6 +2193,10 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastDigestAt = null;
         runtimeStatus.lastDigestKind = '';
         runtimeStatus.lastDigestError = '';
+        runtimeStatus.lastBackupAt = null;
+        runtimeStatus.lastBackupAttemptAt = null;
+        runtimeStatus.lastBackupFilename = '';
+        runtimeStatus.lastBackupError = '';
         commandsSynced = false;
         commandMenuCleared = false;
         commandSyncPromise = null;
@@ -1999,6 +2223,7 @@ export function createTelegramAlertService(options = {}) {
         syncCommands,
         noteNotificationOccurrence,
         sendPeriodicDigest,
+        sendBackupArchive,
         reloadSettings,
         start,
         stop,

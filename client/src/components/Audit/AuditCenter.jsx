@@ -36,6 +36,8 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 
+const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
+
 const AUDIT_COPY = {
     'zh-CN': {
         tabs: {
@@ -105,8 +107,7 @@ const AUDIT_COPY = {
             noFilters: '未设置筛选',
             filtersActive: '已启用 {count} 项',
             dataWindowYear: '近一年',
-            dataWindow30d: '近 30 天',
-            dataWindow14d: '近 14 天',
+            dataWindowTraffic: '近 30 天',
             noUserSelected: '未选择用户',
             noServerSelected: '未选择节点',
             userTrafficSupport: '用户流量明细',
@@ -146,10 +147,12 @@ const AUDIT_COPY = {
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
             totalTrafficScope: '当前累计 · 已注册用户总流量',
+            totalTrafficCurrentNote: '按已注册用户当前计数汇总',
+            totalTrafficSampledNote: '最近 30 天采样汇总',
             activeAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
-            userTrendScope: '当前所选用户 · 最近 14 天趋势',
-            serverTrendScope: '当前所选节点 · 最近 14 天累计流量采样',
+            userTrendScope: '当前所选用户 · 最近 30 天趋势',
+            serverTrendScope: '当前所选节点 · 最近 30 天趋势',
             topUsersScope: '最近 30 天 · 已注册用户排行',
             topServersScope: '当前累计 · 全部节点排行',
             selectUser: '请选择用户',
@@ -278,8 +281,7 @@ const AUDIT_COPY = {
             noFilters: 'No filters',
             filtersActive: '{count} active',
             dataWindowYear: 'Last 1 year',
-            dataWindow30d: 'Last 30 days',
-            dataWindow14d: 'Last 14 days',
+            dataWindowTraffic: 'Last 30 days',
             noUserSelected: 'No user selected',
             noServerSelected: 'No node selected',
             userTrafficSupport: 'User Traffic Detail',
@@ -319,10 +321,12 @@ const AUDIT_COPY = {
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
             totalTrafficScope: 'Current cumulative · registered user traffic',
+            totalTrafficCurrentNote: 'Summed from current registered-user counters',
+            totalTrafficSampledNote: 'Summed from last 30 days samples',
             activeAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
-            userTrendScope: 'Selected user · last 14 days',
-            serverTrendScope: 'Selected node · last 14 days cumulative samples',
+            userTrendScope: 'Selected user · last 30 days',
+            serverTrendScope: 'Selected node · last 30 days',
             topUsersScope: 'Last 30 days · registered user ranking',
             topServersScope: 'Current cumulative · all nodes ranking',
             selectUser: 'Select a user',
@@ -905,7 +909,7 @@ export default function AuditCenter() {
         setTrafficLoading(true);
         try {
             const params = new URLSearchParams();
-            params.append('days', '30');
+            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
             const payload = res.data?.obj || null;
@@ -935,7 +939,7 @@ export default function AuditCenter() {
         }
         try {
             const params = new URLSearchParams();
-            params.append('days', '14');
+            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
             setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
@@ -951,7 +955,7 @@ export default function AuditCenter() {
         }
         try {
             const params = new URLSearchParams();
-            params.append('days', '14');
+            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
             setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
@@ -1072,11 +1076,19 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
+    const usesRegisteredTrafficTotals = Boolean(
+        trafficOverview?.registeredTotals
+        && typeof trafficOverview.registeredTotals === 'object'
+        && !Array.isArray(trafficOverview.registeredTotals)
+    );
     const trafficTotals = trafficOverview?.registeredTotals || trafficOverview?.totals || {
         upBytes: 0,
         downBytes: 0,
         totalBytes: 0,
     };
+    const trafficTotalsNote = usesRegisteredTrafficTotals
+        ? copy.traffic.totalTrafficCurrentNote
+        : copy.traffic.totalTrafficSampledNote;
     const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
         ? trafficOverview.collection.warnings.length
         : 0;
@@ -1392,7 +1404,7 @@ export default function AuditCenter() {
                                 <div className="audit-traffic-total-card">
                                     <div className="audit-traffic-total-label">{copy.traffic.totalTrafficScope}</div>
                                     <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
-                                    <div className="audit-traffic-total-note">{copy.workspace.dataWindow30d}</div>
+                                    <div className="audit-traffic-total-note">{trafficTotalsNote}</div>
                                     <div className="audit-traffic-split-grid">
                                         <div className="audit-traffic-split-card audit-traffic-split-card--up">
                                             <div className="audit-traffic-split-label">{copy.traffic.uploadTraffic}</div>
@@ -1423,7 +1435,7 @@ export default function AuditCenter() {
                                         <div className="audit-traffic-mini-note">
                                             {trafficWarningCount > 0
                                                 ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
-                                                : copy.workspace.dataWindow14d}
+                                                : copy.workspace.dataWindowTraffic}
                                         </div>
                                     </div>
                                 </div>

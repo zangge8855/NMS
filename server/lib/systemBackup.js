@@ -7,6 +7,7 @@ import { collectStoreSnapshots, listStoreKeys, restoreStoreSnapshots } from '../
 
 let lastExportMeta = null;
 let lastImportMeta = null;
+let lastTelegramBackupMeta = null;
 const ENCRYPTED_BACKUP_FORMAT = 'nms-backup-encrypted';
 const ENCRYPTED_BACKUP_VERSION = 2;
 const BACKUP_CIPHER = 'aes-256-gcm';
@@ -351,14 +352,37 @@ function getBackupStatus(deps = {}) {
         storeKeys: listStoreKeys(),
         lastExport: lastExportMeta ? { ...lastExportMeta } : null,
         lastImport: lastImportMeta ? { ...lastImportMeta } : null,
+        lastTelegramBackup: lastTelegramBackupMeta ? { ...lastTelegramBackupMeta } : null,
         localBackupDir: backupDirPath(deps),
         localBackups: listLocalBackups(deps),
+    };
+}
+
+function recordTelegramBackupMeta(input = {}) {
+    const status = String(input.status || '').trim().toLowerCase() === 'failed' ? 'failed' : 'sent';
+    const ts = String(input.ts || input.sentAt || new Date().toISOString()).trim() || new Date().toISOString();
+
+    lastTelegramBackupMeta = {
+        status,
+        ts,
+        filename: String(input.filename || '').trim(),
+        bytes: Math.max(0, Number(input.bytes || 0)),
+        storeKeys: normalizeStoreKeysInput(input.storeKeys),
+        chatIdPreview: String(input.chatIdPreview || '').trim(),
+        actor: String(input.actor || 'system').trim() || 'system',
+        reason: String(input.reason || 'manual').trim() || 'manual',
+        error: status === 'failed' ? String(input.error || '').trim() : '',
+    };
+
+    return {
+        ...lastTelegramBackupMeta,
     };
 }
 
 function resetBackupStatusForTests() {
     lastExportMeta = null;
     lastImportMeta = null;
+    lastTelegramBackupMeta = null;
 }
 
 export {
@@ -372,5 +396,6 @@ export {
     restoreLocalBackupArchive,
     saveBackupArchiveLocally,
     getBackupStatus,
+    recordTelegramBackupMeta,
     resetBackupStatusForTests,
 };

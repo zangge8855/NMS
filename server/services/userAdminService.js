@@ -157,6 +157,182 @@ function applyInboundRetryScope(policy = null, targetInboundKeys = []) {
     };
 }
 
+function buildInboundScopeKey(serverId = '', inboundId = '') {
+    const normalizedServerId = String(serverId || '').trim();
+    const normalizedInboundId = String(inboundId || '').trim();
+    if (!normalizedServerId || !normalizedInboundId) return '';
+    return `${normalizedServerId}:${normalizedInboundId}`;
+}
+
+function isPolicyServerAllowed(policy = {}, serverId = '') {
+    const normalizedServerId = String(serverId || '').trim();
+    const mode = String(policy?.serverScopeMode || 'all').trim().toLowerCase();
+    if (!normalizedServerId || mode === 'none') return false;
+    if (mode !== 'selected') return true;
+    const allowed = new Set(normalizeStringList(policy?.allowedServerIds));
+    return allowed.has(normalizedServerId);
+}
+
+function isPolicyProtocolAllowed(policy = {}, protocol = '') {
+    const normalizedProtocol = String(protocol || '').trim().toLowerCase();
+    const mode = String(policy?.protocolScopeMode || 'all').trim().toLowerCase();
+    if (!normalizedProtocol || mode === 'none') return false;
+    if (mode !== 'selected') return true;
+    const allowed = new Set(normalizeStringList(policy?.allowedProtocols).map((item) => String(item || '').trim().toLowerCase()));
+    return allowed.has(normalizedProtocol);
+}
+
+async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'admin', deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const serverRepo = deps.serverRepository || serverRepository;
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
+    const deployClients = deps.autoDeployClients || autoDeployClients;
+    const candidates = Array.isArray(addedInbounds)
+        ? addedInbounds
+            .map((item) => ({
+                serverId: String(item?.serverId || '').trim(),
+                serverName: String(item?.serverName || '').trim(),
+                inboundId: String(item?.inboundId || item?.id || '').trim(),
+                inboundRemark: String(item?.inboundRemark || item?.remark || '').trim(),
+                protocol: String(item?.protocol || '').trim().toLowerCase(),
+                port: Number(item?.port || 0),
+            }))
+            .filter((item) => item.serverId && item.inboundId && item.protocol)
+        : [];
+
+    const result = {
+        requestedInboundCount: candidates.length,
+        totalUsers: 0,
+        eligibleUsers: 0,
+        syncedUsers: 0,
+        skippedUsers: 0,
+        failedUsers: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        details: [],
+    };
+
+    if (candidates.length === 0) {
+        return result;
+    }
+
+    const allServers = Array.isArray(serverRepo.list()) ? serverRepo.list() : [];
+    const serverMap = new Map(allServers.map((item) => [String(item?.id || '').trim(), item]));
+    const users = (Array.isArray(userRepo.list()) ? userRepo.list() : []).filter((item) => item?.role !== 'admin');
+
+    for (const targetUser of users) {
+        result.totalUsers += 1;
+
+        const subscriptionEmail = resolveUserSubscriptionEmail(targetUser);
+        if (!subscriptionEmail) {
+            result.skippedUsers += 1;
+            result.details.push({
+                userId: String(targetUser?.id || '').trim(),
+                username: String(targetUser?.username || '').trim(),
+                subscriptionEmail: '',
+                status: 'skipped',
+                reason: 'missing-subscription-email',
+                actor,
+                matchedInboundKeys: [],
+            });
+            continue;
+        }
+
+        const policy = policyRepo.get(subscriptionEmail);
+        const explicitInboundKeys = new Set(normalizeStringList(policy?.allowedInboundKeys));
+        const eligibleInbounds = candidates.filter((item) => {
+            if (!isPolicyServerAllowed(policy, item.serverId)) return false;
+            if (!isPolicyProtocolAllowed(policy, item.protocol)) return false;
+            if (explicitInboundKeys.size > 0 && !explicitInboundKeys.has(buildInboundScopeKey(item.serverId, item.inboundId))) {
+                return false;
+            }
+            return true;
+        });
+
+        if (eligibleInbounds.length === 0) {
+            result.skippedUsers += 1;
+            result.details.push({
+                userId: String(targetUser?.id || '').trim(),
+                username: String(targetUser?.username || '').trim(),
+                subscriptionEmail,
+                status: 'skipped',
+                reason: explicitInboundKeys.size > 0 ? 'explicit-inbound-scope' : 'policy-scope',
+                actor,
+                matchedInboundKeys: [],
+            });
+            continue;
+        }
+
+        result.eligibleUsers += 1;
+        const allowedInboundKeys = eligibleInbounds
+            .map((item) => buildInboundScopeKey(item.serverId, item.inboundId))
+            .filter(Boolean);
+        const targetServers = Array.from(new Set(eligibleInbounds.map((item) => item.serverId)))
+            .map((serverId) => serverMap.get(serverId))
+            .filter(Boolean);
+        if (targetServers.length === 0) {
+            result.skippedUsers += 1;
+            result.details.push({
+                userId: String(targetUser?.id || '').trim(),
+                username: String(targetUser?.username || '').trim(),
+                subscriptionEmail,
+                status: 'skipped',
+                reason: 'missing-server-context',
+                actor,
+                matchedInboundKeys: allowedInboundKeys,
+            });
+            continue;
+        }
+
+        try {
+            const deployment = await deployClients(subscriptionEmail, policy, {
+                allServers: targetServers,
+                allowedInboundKeys,
+                clientEnabled: targetUser?.enabled !== false,
+            });
+            result.created += Number(deployment?.created || 0);
+            result.updated += Number(deployment?.updated || 0);
+            result.skipped += Number(deployment?.skipped || 0);
+            result.failed += Number(deployment?.failed || 0);
+
+            if (Number(deployment?.failed || 0) > 0) {
+                result.failedUsers += 1;
+            } else {
+                result.syncedUsers += 1;
+            }
+
+            result.details.push({
+                userId: String(targetUser?.id || '').trim(),
+                username: String(targetUser?.username || '').trim(),
+                subscriptionEmail,
+                status: Number(deployment?.failed || 0) > 0 ? 'partial_failure' : 'synced',
+                actor,
+                matchedInboundKeys: allowedInboundKeys,
+                created: Number(deployment?.created || 0),
+                updated: Number(deployment?.updated || 0),
+                skipped: Number(deployment?.skipped || 0),
+                failed: Number(deployment?.failed || 0),
+            });
+        } catch (error) {
+            result.failedUsers += 1;
+            result.failed += 1;
+            result.details.push({
+                userId: String(targetUser?.id || '').trim(),
+                username: String(targetUser?.username || '').trim(),
+                subscriptionEmail,
+                status: 'failed',
+                actor,
+                matchedInboundKeys: allowedInboundKeys,
+                error: error.message || 'auto-deploy-failed',
+            });
+        }
+    }
+
+    return result;
+}
+
 async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {}, deps = {}) {
     const serverRepo = deps.serverRepository || serverRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
@@ -963,6 +1139,7 @@ export {
     bulkSetUsersEnabled,
     buildUsersCsv,
     resyncManagedUserNodes,
+    syncAddedInboundsToExistingUsers,
     updateManagedUser,
     updateManagedUserPolicyByEmail,
     updateUserSubscriptionBinding,

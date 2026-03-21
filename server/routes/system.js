@@ -392,6 +392,44 @@ router.post('/backup/local', adminOnly, (req, res) => {
     }
 });
 
+router.post('/backup/telegram', adminOnly, async (req, res) => {
+    try {
+        const keys = normalizeStoreKeys(req.body?.keys);
+        const output = await telegramAlertService.sendBackupArchive(
+            req.user?.username || req.user?.role || 'admin',
+            {
+                reason: 'manual',
+                keys,
+            }
+        );
+        appendSecurityAudit('system_backup_sent_telegram', req, {
+            filename: output.archive?.filename || output.filename || '',
+            bytes: output.archive?.bytes || output.bytes || 0,
+            storeCount: output.archive?.storeKeys?.length || output.storeKeys?.length || 0,
+            chatIdPreview: telegramAlertService.getStatus().chatIdPreview,
+        }, {
+            outcome: 'success',
+        });
+        return res.json({
+            success: true,
+            msg: '加密备份已发送到 Telegram',
+            obj: output,
+        });
+    } catch (error) {
+        appendSecurityAudit('system_backup_sent_telegram', req, {
+            chatIdPreview: telegramAlertService.getStatus().chatIdPreview,
+            error: error.message || 'telegram-backup-failed',
+        }, {
+            outcome: 'failed',
+        });
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '发送 Telegram 备份失败',
+            obj: telegramAlertService.getStatus(),
+        });
+    }
+});
+
 router.get('/backup/local/:filename/download', adminOnly, (req, res) => {
     try {
         const output = readLocalBackupArchive(req.params.filename);

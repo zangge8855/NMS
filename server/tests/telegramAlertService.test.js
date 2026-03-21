@@ -157,6 +157,46 @@ test('telegramAlertService clears Telegram command menus by default', async () =
     assert.deepEqual(messageCall.body.reply_markup, { remove_keyboard: true });
 });
 
+test('telegramAlertService sends encrypted backups as Telegram documents and tracks backup status', async () => {
+    const documentCalls = [];
+    const recorded = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        sendDailyBackup: true,
+        fetcher: async () => ({ ok: true, result: {} }),
+        documentFetcher: async (payload) => {
+            documentCalls.push(payload);
+            return { ok: true, result: { message_id: 1 } };
+        },
+        buildBackupArchive: () => ({
+            filename: 'nms_backup_20260321_080000.nmsbak',
+            buffer: Buffer.from('backup-data'),
+            meta: {
+                bytes: 11,
+                storeKeys: ['users', 'servers'],
+            },
+        }),
+        recordTelegramBackupMeta: (meta) => {
+            recorded.push(meta);
+            return meta;
+        },
+    });
+
+    const result = await service.sendBackupArchive('admin', { reason: 'manual' });
+
+    assert.equal(documentCalls.length, 1);
+    assert.match(documentCalls[0].url, /\/bot123456:ABCDEF\/sendDocument$/);
+    assert.equal(result.archive.filename, 'nms_backup_20260321_080000.nmsbak');
+    assert.equal(result.archive.bytes, 11);
+    assert.equal(service.getStatus().sendDailyBackup, true);
+    assert.equal(service.getStatus().lastBackupFilename, 'nms_backup_20260321_080000.nmsbak');
+    assert.equal(service.getStatus().lastSentKind, 'backup_manual');
+    assert.equal(recorded[0].status, 'sent');
+    assert.equal(recorded[0].reason, 'manual');
+});
+
 test('formatCommandCatalogMessage keeps manual command guidance in the help text', () => {
     const message = formatCommandCatalogMessage();
 

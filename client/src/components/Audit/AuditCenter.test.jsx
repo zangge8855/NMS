@@ -303,7 +303,9 @@ describe('AuditCenter localization', () => {
     });
 
     it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {
+        const requestedUrls = [];
         api.get.mockImplementation((url) => {
+            requestedUrls.push(url);
             if (url.startsWith('/traffic/overview?')) {
                 return Promise.resolve({
                     data: {
@@ -325,7 +327,13 @@ describe('AuditCenter localization', () => {
                                     totalBytes: 2048,
                                 },
                             ],
-                            topServers: [],
+                            topServers: [
+                                {
+                                    serverId: 'server-a',
+                                    serverName: 'Node A',
+                                    totalBytes: 4096,
+                                },
+                            ],
                             collection: {
                                 warnings: [],
                             },
@@ -351,14 +359,37 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
+            if (url.startsWith('/traffic/servers/server-a/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            serverId: 'server-a',
+                            granularity: 'day',
+                            points: [],
+                            totals: {
+                                upBytes: 1024,
+                                downBytes: 3072,
+                                totalBytes: 4096,
+                            },
+                        },
+                    },
+                });
+            }
             throw new Error(`Unexpected GET ${url}`);
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
         expect((await screen.findAllByText('活跃账号')).length).toBeGreaterThan(0);
+        await waitFor(() => {
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('days=30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('days=30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('days=30'))).toBe(true);
+        });
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
         expect(screen.getAllByText('先看累计流量和采样状态，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
+        expect(screen.getByText('当前所选节点 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });

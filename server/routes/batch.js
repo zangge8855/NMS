@@ -8,6 +8,7 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 import {
     buildManagedUserSyncJobPayload,
     resyncManagedUserNodes,
+    syncAddedInboundsToExistingUsers,
 } from '../services/userAdminService.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
@@ -426,13 +427,20 @@ async function executeInboundAction({ action, target, payload }) {
             if (!inboundData.protocol) throw new Error('Missing protocol');
             if (!inboundData.port) throw new Error('Missing port');
 
-            await postForm(client, '/panel/api/inbounds/add', {
+            const response = await postForm(client, '/panel/api/inbounds/add', {
                 ...inboundData,
                 id: undefined,
             });
+            const createdInbound = response?.data?.obj && typeof response.data.obj === 'object'
+                ? response.data.obj
+                : {};
 
             return {
                 ...baseResult,
+                inboundId: createdInbound.id ?? createdInbound.inboundId ?? baseResult.inboundId,
+                remark: toStringValue(createdInbound.remark || inboundData.remark),
+                protocol: toStringValue(createdInbound.protocol || inboundData.protocol),
+                port: toNumberValue(createdInbound.port, inboundData.port),
                 success: true,
                 msg: 'Inbound added',
             };
@@ -517,7 +525,15 @@ async function performClientBatch({ action, targets, concurrency, globalClient }
     return { output: summarizeBatchResults(action, results) };
 }
 
-async function performInboundBatch({ action, targets, payload, serverIds, concurrency }) {
+async function performInboundBatch({
+    action,
+    targets,
+    payload,
+    serverIds,
+    concurrency,
+    syncExistingSubscriptions = false,
+    actor = 'admin',
+}) {
     if (!INBOUND_ACTIONS.has(action)) {
         return {
             error: {
@@ -552,7 +568,39 @@ async function performInboundBatch({ action, targets, payload, serverIds, concur
             }),
             concurrency
         );
-        return { output: summarizeBatchResults(action, results) };
+        const output = summarizeBatchResults(action, results);
+        if (syncExistingSubscriptions) {
+            const syncedInbounds = results
+                .filter((item) => item?.success === true)
+                .map((item) => ({
+                    serverId: item.serverId,
+                    serverName: item.serverName,
+                    inboundId: item.inboundId,
+                    inboundRemark: item.remark,
+                    protocol: item.protocol,
+                    port: item.port,
+                }))
+                .filter((item) => item.serverId && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '');
+            try {
+                output.subscriptionSync = await syncAddedInboundsToExistingUsers(syncedInbounds, actor);
+            } catch (error) {
+                output.subscriptionSync = {
+                    requestedInboundCount: syncedInbounds.length,
+                    totalUsers: 0,
+                    eligibleUsers: 0,
+                    syncedUsers: 0,
+                    skippedUsers: 0,
+                    failedUsers: 1,
+                    created: 0,
+                    updated: 0,
+                    skipped: 0,
+                    failed: 1,
+                    details: [],
+                    error: error.message || 'subscription-sync-failed',
+                };
+            }
+        }
+        return { output };
     }
 
     if (!Array.isArray(targets) || targets.length === 0) {
@@ -911,6 +959,8 @@ async function retryHistoryItem(historyItem, req) {
             payload: retryRequest.payload || null,
             serverIds: retryRequest.serverIds || [],
             concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
+            syncExistingSubscriptions: normalizeBoolean(retryRequest.syncExistingSubscriptions, false),
+            actor: req.user?.username || req.user?.role || 'admin',
         });
     } else if (historyItem.type === 'user_sync') {
         const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
@@ -1102,6 +1152,7 @@ router.post('/inbounds', async (req, res) => {
     const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
     const payload = req.body?.payload || null;
     const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : [];
+    const syncExistingSubscriptions = normalizeBoolean(req.body?.syncExistingSubscriptions, false);
     const concurrency = normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback());
     if (!INBOUND_ACTIONS.has(action)) {
         return res.status(400).json({
@@ -1142,6 +1193,8 @@ router.post('/inbounds', async (req, res) => {
         payload,
         serverIds,
         concurrency,
+        syncExistingSubscriptions,
+        actor: req.user?.username || req.user?.role || 'admin',
     });
     if (run.error) {
         return res.status(run.error.status).json({
@@ -1164,6 +1217,7 @@ router.post('/inbounds', async (req, res) => {
             targets,
             payload,
             serverIds,
+            syncExistingSubscriptions,
             concurrency,
         },
         { risk: riskCheck.risk }

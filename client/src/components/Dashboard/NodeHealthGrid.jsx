@@ -60,7 +60,8 @@ function NodeTile({ server, serverData, trend = [] }) {
     const cpu = serverData?.status?.cpu ?? 0;
     const mem = serverData?.status?.mem;
     const memPercent = mem ? ((mem.current / mem.total) * 100) : 0;
-    const traffic = (serverData?.up || 0) + (serverData?.down || 0);
+    const trafficReady = serverData?.managedTrafficReady === true;
+    const traffic = trafficReady ? Number(serverData?.managedTrafficTotal || 0) : null;
     const remarkPreview = Array.isArray(serverData?.nodeRemarkPreview)
         ? serverData.nodeRemarkPreview
         : Array.isArray(serverData?.nodeRemarks)
@@ -141,7 +142,7 @@ function NodeTile({ server, serverData, trend = [] }) {
                     <div>
                         <div>{t('pages.nodeHealth.traffic')}</div>
                         <div className="node-health-tile-value">
-                            {formatBytes(traffic)}
+                            {trafficReady ? formatBytes(traffic) : '--'}
                         </div>
                     </div>
                 </div>

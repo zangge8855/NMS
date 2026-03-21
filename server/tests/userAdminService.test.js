@@ -10,6 +10,7 @@ import {
     provisionManagedUserSubscription,
     resyncManagedUserNodes,
     setManagedUserEnabled,
+    syncAddedInboundsToExistingUsers,
     updateManagedUser,
     updateManagedUserExpiry,
     updateManagedUserPolicyByEmail,
@@ -60,6 +61,98 @@ test('bulkSetUsersEnabled aggregates per-user results and delegates sync behavio
     assert.deepEqual(calls, [
         { id: 'ok', payload: { enabled: true }, actor: 'admin' },
         { id: 'missing', payload: { enabled: true }, actor: 'admin' },
+    ]);
+});
+
+test('syncAddedInboundsToExistingUsers only deploys to policy-eligible users', async () => {
+    const deployments = [];
+    const result = await syncAddedInboundsToExistingUsers(
+        [
+            {
+                serverId: 'srv-1',
+                serverName: 'Node A',
+                inboundId: 101,
+                inboundRemark: 'Premium A',
+                protocol: 'vless',
+                port: 443,
+            },
+        ],
+        'ops',
+        {
+            userRepository: {
+                list() {
+                    return [
+                        { id: 'u-1', username: 'alice', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+                        { id: 'u-2', username: 'bob', role: 'user', email: 'bob@example.com', subscriptionEmail: 'bob@example.com', enabled: true },
+                        { id: 'u-3', username: 'cara', role: 'user', email: 'cara@example.com', subscriptionEmail: 'cara@example.com', enabled: false },
+                        { id: 'admin-1', username: 'root', role: 'admin', email: 'root@example.com', subscriptionEmail: 'root@example.com', enabled: true },
+                    ];
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1', name: 'Node A' }];
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    if (email === 'alice@example.com') {
+                        return {
+                            serverScopeMode: 'selected',
+                            allowedServerIds: ['srv-1'],
+                            protocolScopeMode: 'selected',
+                            allowedProtocols: ['vless'],
+                            allowedInboundKeys: [],
+                        };
+                    }
+                    if (email === 'bob@example.com') {
+                        return {
+                            serverScopeMode: 'selected',
+                            allowedServerIds: ['srv-1'],
+                            protocolScopeMode: 'selected',
+                            allowedProtocols: ['vless'],
+                            allowedInboundKeys: ['srv-1:old'],
+                        };
+                    }
+                    return {
+                        serverScopeMode: 'selected',
+                        allowedServerIds: ['srv-1'],
+                        protocolScopeMode: 'selected',
+                        allowedProtocols: ['trojan'],
+                        allowedInboundKeys: [],
+                    };
+                },
+            },
+            autoDeployClients: async (email, policy, options) => {
+                deployments.push({ email, policy, options });
+                return { total: 1, created: 1, updated: 0, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(result.requestedInboundCount, 1);
+    assert.equal(result.totalUsers, 3);
+    assert.equal(result.eligibleUsers, 1);
+    assert.equal(result.syncedUsers, 1);
+    assert.equal(result.skippedUsers, 2);
+    assert.equal(result.failedUsers, 0);
+    assert.equal(result.created, 1);
+    assert.deepEqual(deployments, [
+        {
+            email: 'alice@example.com',
+            policy: {
+                serverScopeMode: 'selected',
+                allowedServerIds: ['srv-1'],
+                protocolScopeMode: 'selected',
+                allowedProtocols: ['vless'],
+                allowedInboundKeys: [],
+            },
+            options: {
+                allServers: [{ id: 'srv-1', name: 'Node A' }],
+                allowedInboundKeys: ['srv-1:101'],
+                clientEnabled: true,
+            },
+        },
     ]);
 });
 

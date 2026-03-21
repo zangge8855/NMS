@@ -42,6 +42,11 @@ const INITIAL_GLOBAL_TRAFFIC_TOTALS = {
     totalDown: 0,
     ready: false,
 };
+const INITIAL_DAILY_TRAFFIC_TOTALS = {
+    totalUp: 0,
+    totalDown: 0,
+    ready: false,
+};
 const DASHBOARD_ACCENT = {
     primary: { tone: 'primary' },
     info: { tone: 'info' },
@@ -303,6 +308,16 @@ function normalizeOnlineValue(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function buildTodayTrafficRange() {
+    const now = new Date();
+    const from = new Date(now);
+    from.setHours(0, 0, 0, 0);
+    return {
+        from: from.toISOString(),
+        to: now.toISOString(),
+    };
+}
+
 function normalizeOnlineKeys(item) {
     if (typeof item === 'string') {
         const value = normalizeOnlineValue(item);
@@ -346,11 +361,23 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
     const clientsMap = new Map();
     const onlineMap = new Map();
     const onlineServerMap = new Map();
+    const managedEmailSet = new Set();
+    const serverTrafficByServerId = {};
+
+    (Array.isArray(users) ? users : [])
+        .filter((user) => user?.role !== 'admin')
+        .forEach((user) => {
+            const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
+            const loginEmail = normalizeEmail(user?.email);
+            if (subscriptionEmail) managedEmailSet.add(subscriptionEmail);
+            if (loginEmail) managedEmailSet.add(loginEmail);
+        });
 
     serverPayloads.forEach((payload) => {
         const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
         const onlines = Array.isArray(payload?.onlines) ? payload.onlines : [];
         const serverName = String(payload?.serverName || '').trim();
+        const serverId = String(payload?.serverId || '').trim();
         const onlineMatchMap = new Map();
 
         onlines.forEach((entry, index) => {
@@ -404,6 +431,13 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 entry.totalUsed += resolveClientUsed(client);
                 entry.totalUp += safeNumber(client?.up);
                 entry.totalDown += safeNumber(client?.down);
+                if (serverId && managedEmailSet.has(email)) {
+                    const bucket = serverTrafficByServerId[serverId] || { up: 0, down: 0, total: 0 };
+                    bucket.up += safeNumber(client?.up);
+                    bucket.down += safeNumber(client?.down);
+                    bucket.total += safeNumber(client?.up) + safeNumber(client?.down);
+                    serverTrafficByServerId[serverId] = bucket;
+                }
                 entry.onlineSessions += onlineSessions;
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
@@ -464,6 +498,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
         totalUp,
         totalDown,
         totalUsed: totalUp + totalDown,
+        serverTrafficByServerId,
     };
 }
 
@@ -660,6 +695,7 @@ export default function Dashboard() {
     const [globalPresenceLoading, setGlobalPresenceLoading] = useState(false);
     const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
     const [globalTrafficTotals, setGlobalTrafficTotals] = useState(INITIAL_GLOBAL_TRAFFIC_TOTALS);
+    const [dailyTrafficTotals, setDailyTrafficTotals] = useState(INITIAL_DAILY_TRAFFIC_TOTALS);
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -694,6 +730,22 @@ export default function Dashboard() {
             totalDown: Number(presence?.totalDown || 0),
             ready: true,
         });
+    }, []);
+    const fetchDailyTrafficTotals = useCallback(async () => {
+        try {
+            const range = buildTodayTrafficRange();
+            const res = await api.get('/traffic/overview', {
+                params: range,
+            });
+            const totals = res.data?.obj?.totals || {};
+            return {
+                totalUp: Number(totals.upBytes || 0),
+                totalDown: Number(totals.downBytes || 0),
+                ready: true,
+            };
+        } catch {
+            return INITIAL_DAILY_TRAFFIC_TOTALS;
+        }
     }, []);
 
     const fetchGlobalAccountSummary = useCallback(async (options = {}) => {
@@ -782,6 +834,8 @@ export default function Dashboard() {
                 next[serverId] = {
                     ...serverData,
                     managedOnlineCount: previous?.[serverId]?.managedOnlineCount ?? 0,
+                    managedTrafficTotal: previous?.[serverId]?.managedTrafficTotal ?? 0,
+                    managedTrafficReady: previous?.[serverId]?.managedTrafficReady === true,
                     nodeRemarks: previous?.[serverId]?.nodeRemarks || [],
                     nodeRemarkPreview: previous?.[serverId]?.nodeRemarkPreview || [],
                     nodeRemarkCount: previous?.[serverId]?.nodeRemarkCount || 0,
@@ -826,6 +880,7 @@ export default function Dashboard() {
             setInbounds(singleInbounds);
 
             const presence = buildManagedOnlineSummary(users, [{
+                serverId: activeServerId,
                 inbounds: singleInbounds,
                 onlines: singleOnlines,
                 serverName: activeServer?.name || '',
@@ -851,6 +906,7 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
             setGlobalTrafficTotals({ ...INITIAL_GLOBAL_TRAFFIC_TOTALS, ready: true });
+            setDailyTrafficTotals({ ...INITIAL_DAILY_TRAFFIC_TOTALS, ready: true });
             setLoading(false);
             return;
         }
@@ -861,8 +917,9 @@ export default function Dashboard() {
                 totalInbounds: 0, activeInbounds: 0,
                 serverCount: servers.length, onlineServers: 0,
             };
-            const [usersRes] = await Promise.all([
+            const [usersRes, todayTraffic] = await Promise.all([
                 fetchManagedUsers(api).catch(() => []),
+                fetchDailyTrafficTotals(),
                 ...servers.map(async (server) => {
                     try {
                         const [statusRes, inboundsRes, onlineRes] = await Promise.all([
@@ -875,6 +932,7 @@ export default function Dashboard() {
                         const sOnlines = normalizeOnlineList(onlineRes.data?.obj || [], server.name);
 
                         results[server.id] = withServerRemarkMeta({
+                            serverId: server.id,
                             online: true, status: sStatus, name: server.name,
                             inboundCount: sInbounds.length, onlineCount: sOnlines.length,
                             onlineUsers: sOnlines,
@@ -894,6 +952,7 @@ export default function Dashboard() {
             const presence = buildManagedOnlineSummary(
                 users,
                 Object.values(results).map((item) => ({
+                    serverId: item?.serverId || '',
                     inbounds: item?.rawInbounds || [],
                     onlines: item?.rawOnlines || [],
                     serverName: item?.name || '',
@@ -903,6 +962,7 @@ export default function Dashboard() {
             stats.totalUp = presence.totalUp;
             stats.totalDown = presence.totalDown;
             syncGlobalTrafficTotals(presence);
+            setDailyTrafficTotals(todayTraffic);
             const managedOnlineCountByServer = new Map();
             presence.onlineRows.forEach((row) => {
                 row.servers.forEach((serverName) => {
@@ -911,6 +971,8 @@ export default function Dashboard() {
             });
             Object.values(results).forEach((item) => {
                 item.managedOnlineCount = managedOnlineCountByServer.get(item?.name || '') || 0;
+                item.managedTrafficTotal = Number(presence.serverTrafficByServerId?.[item?.serverId || '']?.total || 0);
+                item.managedTrafficReady = true;
             });
 
             setServerStatuses(results);
@@ -930,9 +992,10 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(false);
             setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
+            setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
         }
         setLoading(false);
-    }, [servers, syncGlobalTrafficTotals]);
+    }, [fetchDailyTrafficTotals, servers, syncGlobalTrafficTotals]);
 
     const hydrateGlobalPresence = useCallback(async (options = {}) => {
         if (servers.length === 0) {
@@ -941,37 +1004,42 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
             setGlobalTrafficTotals({ ...INITIAL_GLOBAL_TRAFFIC_TOTALS, ready: true });
+            setDailyTrafficTotals({ ...INITIAL_DAILY_TRAFFIC_TOTALS, ready: true });
             return;
         }
 
         setGlobalPresenceLoading(true);
         try {
-            const users = await fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []);
-            const serverPayloads = await Promise.all(
-                servers.map(async (server) => {
-                    try {
-                        const [inboundsRes, onlineRes] = await Promise.all([
-                            api.get(`/panel/${server.id}/panel/api/inbounds/list`),
-                            api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
-                        ]);
-                        return {
-                            server,
-                            inbounds: Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [],
-                            onlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
-                        };
-                    } catch {
-                        return {
-                            server,
-                            inbounds: [],
-                            onlines: [],
-                        };
-                    }
-                })
-            );
+            const [users, todayTraffic, serverPayloads] = await Promise.all([
+                fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []),
+                fetchDailyTrafficTotals(),
+                Promise.all(
+                    servers.map(async (server) => {
+                        try {
+                            const [inboundsRes, onlineRes] = await Promise.all([
+                                api.get(`/panel/${server.id}/panel/api/inbounds/list`),
+                                api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
+                            ]);
+                            return {
+                                server,
+                                inbounds: Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [],
+                                onlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
+                            };
+                        } catch {
+                            return {
+                                server,
+                                inbounds: [],
+                                onlines: [],
+                            };
+                        }
+                    })
+                ),
+            ]);
 
             const presence = buildManagedOnlineSummary(
                 Array.isArray(users) ? users : [],
                 serverPayloads.map((item) => ({
+                    serverId: item.server.id,
                     inbounds: item.inbounds,
                     onlines: item.onlines,
                     serverName: item.server.name,
@@ -990,15 +1058,19 @@ export default function Dashboard() {
             }));
             setGlobalPresenceReady(true);
             syncGlobalTrafficTotals(presence);
+            setDailyTrafficTotals(todayTraffic);
             setServerStatuses((previous) => {
                 const next = { ...previous };
                 serverPayloads.forEach((item) => {
                     const current = previous?.[item.server.id] || {};
                     next[item.server.id] = withServerRemarkMeta({
                         ...current,
+                        serverId: current.serverId || item.server.id,
                         name: current.name || item.server.name,
                         rawInbounds: item.inbounds,
                         rawOnlines: item.onlines,
+                        managedTrafficTotal: Number(presence.serverTrafficByServerId?.[item.server.id]?.total || 0),
+                        managedTrafficReady: true,
                     }, item.server.name);
                 });
                 return next;
@@ -1009,13 +1081,15 @@ export default function Dashboard() {
             setGlobalOnlineSessionCount(0);
             setGlobalPresenceReady(false);
             setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
+            setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
         }
         setGlobalPresenceLoading(false);
-    }, [servers, syncGlobalTrafficTotals]);
+    }, [fetchDailyTrafficTotals, servers, syncGlobalTrafficTotals]);
 
     useEffect(() => {
         if (activeServerId === 'global') return;
         setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
+        setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
     }, [activeServerId]);
 
     useEffect(() => {
@@ -1184,6 +1258,24 @@ export default function Dashboard() {
                 onClick: () => navigate('/audit?tab=traffic'),
                 skeletonWidth: '9rem',
                 sparkline: clusterThroughputSparkline,
+            },
+            {
+                icon: HiOutlineCloud,
+                label: t('pages.dashboardGlobal.cards.todayTraffic'),
+                ...(dailyTrafficTotals.ready ? {
+                    animateValue: dailyTrafficTotals.totalUp + dailyTrafficTotals.totalDown,
+                    renderAnimatedValue: (value) => formatBytes(value),
+                    sub: t('pages.dashboardCommon.trafficSplit', {
+                        up: formatBytes(dailyTrafficTotals.totalUp),
+                        down: formatBytes(dailyTrafficTotals.totalDown),
+                    }),
+                } : {
+                    value: '--',
+                    sub: t('pages.dashboardCommon.trafficPending'),
+                }),
+                ...DASHBOARD_ACCENT.info,
+                onClick: () => navigate('/audit?tab=traffic'),
+                skeletonWidth: '8.5rem',
             },
             {
                 icon: HiOutlineChartBarSquare, label: t('pages.dashboardGlobal.cards.cumulativeTraffic'),

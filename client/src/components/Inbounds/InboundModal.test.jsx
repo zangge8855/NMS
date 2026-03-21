@@ -3,6 +3,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import api from '../../api/client.js';
 import { renderWithRouter } from '../../test/render.jsx';
 import InboundModal from './InboundModal.jsx';
+import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -51,6 +52,7 @@ describe('InboundModal', () => {
     beforeEach(() => {
         api.get.mockReset();
         api.post.mockReset();
+        attachBatchRiskToken.mockReset();
 
         api.get.mockImplementation((url) => {
             if (url === '/protocol-schemas') {
@@ -64,6 +66,7 @@ describe('InboundModal', () => {
             }
             throw new Error(`Unexpected GET ${url}`);
         });
+        attachBatchRiskToken.mockImplementation(async (payload) => payload);
     });
 
     it('stays open after clicking the add inbound trigger', async () => {
@@ -82,5 +85,39 @@ describe('InboundModal', () => {
 
         const selects = await screen.findAllByRole('combobox');
         expect(selects[0]).toHaveValue('vless');
+    }, 15000);
+
+    it('passes syncExistingSubscriptions when the checkbox is enabled', async () => {
+        api.post.mockResolvedValue({
+            data: {
+                obj: {
+                    summary: {
+                        total: 1,
+                        success: 1,
+                        failed: 0,
+                    },
+                    results: [],
+                    subscriptionSync: {
+                        syncedUsers: 2,
+                    },
+                },
+            },
+        });
+
+        renderWithRouter(<InboundModalHarness />);
+
+        fireEvent.click(screen.getByRole('button', { name: '添加入站' }));
+        fireEvent.click(await screen.findByRole('checkbox', { name: '新增后补齐到已有用户订阅，仅同步策略允许的用户' }));
+        fireEvent.click(screen.getByRole('button', { name: '保存配置' }));
+
+        await screen.findByText('添加入站');
+        expect(attachBatchRiskToken).toHaveBeenCalledWith(expect.objectContaining({
+            action: 'add',
+            syncExistingSubscriptions: true,
+        }), expect.any(Object));
+        expect(api.post).toHaveBeenCalledWith('/batch/inbounds', expect.objectContaining({
+            action: 'add',
+            syncExistingSubscriptions: true,
+        }));
     }, 15000);
 });

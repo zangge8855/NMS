@@ -96,6 +96,7 @@ function mockAdminBootstrap(overrides = {}) {
                         commandMenuEnabled: false,
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        sendDailyBackup: true,
                         sendSystemStatus: true,
                         sendSecurityAudit: true,
                         sendEmergencyAlerts: true,
@@ -204,6 +205,7 @@ function mockAdminBootstrap(overrides = {}) {
                         botTokenPreview: '1234...ABCD',
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        sendDailyBackup: true,
                         lastSentAt: '2026-03-15T06:30:00.000Z',
                         lastError: '',
                         lastCommandAt: '2026-03-15T06:35:00.000Z',
@@ -303,6 +305,7 @@ function buildPutResponse(overrides = {}) {
             commandMenuEnabled: false,
             opsDigestIntervalMinutes: 45,
             dailyDigestIntervalHours: 12,
+            sendDailyBackup: true,
             sendSystemStatus: true,
             sendSecurityAudit: true,
             sendEmergencyAlerts: true,
@@ -479,6 +482,7 @@ describe('SystemSettings', () => {
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
         expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
         expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
+        expect(screen.getByText('每日备份到 Telegram')).toBeInTheDocument();
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
         expect(screen.queryByText('节点控制台')).not.toBeInTheDocument();
         expect(screen.queryByText('嵌入式节点控制台')).not.toBeInTheDocument();
@@ -496,6 +500,7 @@ describe('SystemSettings', () => {
         expect(screen.queryByText('备份摘要')).not.toBeInTheDocument();
         expect(document.querySelector('[data-workspace="backup"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
+        expect(screen.getByText('发送到 Telegram')).toBeInTheDocument();
         expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });
 
@@ -560,6 +565,7 @@ describe('SystemSettings', () => {
                         commandMenuEnabled: false,
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        sendDailyBackup: true,
                         sendSystemStatus: true,
                         sendSecurityAudit: true,
                         sendEmergencyAlerts: true,

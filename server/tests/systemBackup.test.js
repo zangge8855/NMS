@@ -10,6 +10,7 @@ import {
     getBackupStatus,
     inspectBackupArchive,
     parseBackupArchive,
+    recordTelegramBackupMeta,
     resetBackupStatusForTests,
     restoreBackupArchive,
     restoreLocalBackupArchive,
@@ -53,6 +54,27 @@ test('getBackupStatus exposes last export metadata', () => {
     assert.equal(status.lastExport.storeKeys[0], 'users');
     assert.ok(status.lastExport.bytes > 0);
     assert.equal(status.lastExport.encrypted, true);
+});
+
+test('getBackupStatus exposes the latest Telegram backup delivery metadata', () => {
+    resetBackupStatusForTests();
+    recordTelegramBackupMeta({
+        status: 'sent',
+        ts: '2026-03-21T08:00:00.000Z',
+        filename: 'nms_backup_20260321.nmsbak',
+        bytes: 2048,
+        storeKeys: ['users', 'servers'],
+        reason: 'daily',
+        actor: 'system',
+        chatIdPreview: '********7890',
+    });
+
+    const status = getBackupStatus();
+
+    assert.equal(status.lastTelegramBackup.status, 'sent');
+    assert.equal(status.lastTelegramBackup.filename, 'nms_backup_20260321.nmsbak');
+    assert.deepEqual(status.lastTelegramBackup.storeKeys, ['users', 'servers']);
+    assert.equal(status.lastTelegramBackup.reason, 'daily');
 });
 
 test('inspectBackupArchive returns restorable metadata from a backup buffer', () => {

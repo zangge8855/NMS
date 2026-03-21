@@ -11,6 +11,7 @@ import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
     HiOutlineChartBarSquare,
+    HiOutlineCloud,
     HiOutlineCog6Tooth,
     HiOutlineExclamationTriangle,
     HiOutlineServerStack,
@@ -149,6 +150,7 @@ function buildDraft(source = null) {
             commandMenuEnabled: settings.telegram?.commandMenuEnabled === true,
             opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),
             dailyDigestIntervalHours: toInt(settings.telegram?.dailyDigestIntervalHours, 24),
+            sendDailyBackup: settings.telegram?.sendDailyBackup === true,
             sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
             sendSecurityAudit: settings.telegram?.sendSecurityAudit !== false,
             sendEmergencyAlerts: settings.telegram?.sendEmergencyAlerts !== false,
@@ -412,6 +414,7 @@ export default function SystemSettings() {
     const [backupInspectLoading, setBackupInspectLoading] = useState(false);
     const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
     const [backupLocalSaving, setBackupLocalSaving] = useState(false);
+    const [backupTelegramSending, setBackupTelegramSending] = useState(false);
     const [backupLocalActionKey, setBackupLocalActionKey] = useState('');
     const [backupFile, setBackupFile] = useState(null);
     const [backupInspection, setBackupInspection] = useState(null);
@@ -1145,6 +1148,22 @@ export default function SystemSettings() {
         setBackupLocalSaving(false);
     };
 
+    const sendBackupToTelegram = async () => {
+        if (!isAdmin) return;
+        setBackupTelegramSending(true);
+        try {
+            const res = await api.post('/system/backup/telegram');
+            toast.success(res.data?.msg || '加密备份已发送到 Telegram');
+            await Promise.all([
+                fetchBackupStatus({ quiet: true }),
+                fetchMonitorStatus({ quiet: true }),
+            ]);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '发送 Telegram 备份失败');
+        }
+        setBackupTelegramSending(false);
+    };
+
     const downloadLocalBackup = async (filename) => {
         if (!isAdmin || !filename) return;
         const actionKey = `download:${filename}`;
@@ -1368,6 +1387,7 @@ export default function SystemSettings() {
 
     const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
     const latestLocalBackup = localBackups[0] || null;
+    const lastTelegramBackup = backupStatus?.lastTelegramBackup || null;
     const hasExportBackup = Boolean(backupStatus?.lastExport?.createdAt);
     const hasLocalBackup = Boolean(latestLocalBackup?.createdAt);
     const backupSummaryValue = hasExportBackup && hasLocalBackup
@@ -2180,6 +2200,15 @@ export default function SystemSettings() {
                     />
                     <SettingsToggleCard
                         compact
+                        checked={draft.telegram.sendDailyBackup}
+                        onChange={(event) => patchField('telegram', 'sendDailyBackup', event.target.checked)}
+                        label="每日备份到 Telegram"
+                        description="启用后会把当天的 NMS 加密备份包自动发到当前 Chat。"
+                        activeLabel="已启用"
+                        inactiveLabel="未启用"
+                    />
+                    <SettingsToggleCard
+                        compact
                         checked={draft.telegram.sendSystemStatus}
                         onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
                         label="系统状态"
@@ -2243,6 +2272,19 @@ export default function SystemSettings() {
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
+                        <div className="text-sm font-medium">发送到 Telegram</div>
+                        <div className="text-xs text-muted mt-1">把当前 NMS 加密备份包直接发送到已配置的 Telegram Chat。</div>
+                        <div className="settings-backup-action-footer">
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={sendBackupToTelegram}
+                                disabled={backupTelegramSending || backupLoading || backupRestoreLoading || backupLocalSaving || !draft.telegram.enabled}
+                            >
+                                {backupTelegramSending ? <span className="spinner" /> : <><HiOutlineCloud /> 发送 Telegram 备份</>}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="card p-3 settings-mini-card settings-backup-action-card">
                         <div className="text-sm font-medium">从文件恢复</div>
                         <div className="text-xs text-muted mt-1">上传备份包后恢复。</div>
                         <div className="settings-backup-action-footer">
@@ -2259,6 +2301,30 @@ export default function SystemSettings() {
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
+                    <div className="settings-backup-local-head">
+                        <div>
+                            <div className="text-sm font-medium">Telegram 备份状态</div>
+                            <div className="text-xs text-muted mt-1">
+                                {draft.telegram.sendDailyBackup
+                                    ? '已启用每日自动发送；手动发送会复用同一目标 Chat。'
+                                    : '当前仅支持手动发送，启用上方开关后会按日自动发送。'}
+                            </div>
+                        </div>
+                        <span className={`badge ${lastTelegramBackup?.status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
+                            {lastTelegramBackup?.status === 'failed' ? '最近发送失败' : lastTelegramBackup?.ts ? '最近已发送' : '暂无记录'}
+                        </span>
+                    </div>
+                    <div className="text-sm text-muted">
+                        {lastTelegramBackup?.ts
+                            ? `${formatDateTime(lastTelegramBackup.ts, locale)} · ${lastTelegramBackup.filename || '未记录文件名'}`
+                            : '还没有 Telegram 备份记录。'}
+                    </div>
+                    {lastTelegramBackup?.error ? (
+                        <div className="text-xs text-danger">{lastTelegramBackup.error}</div>
+                    ) : null}
                 </div>
 
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
