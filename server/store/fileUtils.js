@@ -24,6 +24,7 @@ export function saveObjectAtomic(file, data) {
             fs.writeFileSync(file, content, 'utf8');
         } catch (writeErr) {
             console.error(`[Store Error] Failed to fallback write to ${file}:`, writeErr);
+            throw writeErr;
         }
     } finally {
         if (fs.existsSync(tempFile)) {

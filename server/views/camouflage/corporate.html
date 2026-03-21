@@ -49,6 +49,32 @@
 
         [data-lang][hidden] { display: none !important; }
 
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .{{class:fade-in}} {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .{{class:fade-in}}.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         .{{class:page}} {
             width: min(1180px, calc(100vw - 32px));
             margin: 0 auto;
@@ -69,10 +95,9 @@
         }
 
         .{{class:site-nav}} {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto;
-            gap: 16px;
+            display: flex;
             align-items: center;
+            gap: 16px;
             padding: 16px 18px;
             border-radius: 22px;
             margin-bottom: 22px;
@@ -109,28 +134,12 @@
         .{{class:brand-mark}}::after { width: 18px; height: 6px; top: 28px; left: 18px; }
         .{{class:brand-copy}} { min-width: 0; }
 
-        .{{class:nav-chip}} {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-height: 34px;
-            padding: 0 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(52, 211, 153, 0.18);
-            background: rgba(52, 211, 153, 0.12);
-            color: var(--text);
-            font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
         .{{class:nav-links}} {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-            min-width: 0;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
         }
 
         .{{class:nav-link}} {
@@ -145,6 +154,7 @@
             font-size: 12px;
             font-weight: 600;
             white-space: nowrap;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
         }
 
         .{{class:nav-link}}:hover {
@@ -152,6 +162,43 @@
             border-color: rgba(255, 255, 255, 0.12);
             background: rgba(255, 255, 255, 0.04);
         }
+
+        .{{class:nav-search}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .{{class:nav-search}}:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .{{class:nav-cta}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #d7f7ff, #7dd3fc);
+            color: #03111f;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .{{class:nav-cta}}:hover { opacity: 0.88; }
 
         .{{class:lang-switch}} {
             display: inline-flex;
@@ -233,6 +280,30 @@
             font-size: 14px;
         }
 
+        .{{class:hero-counters}} {
+            display: flex;
+            gap: 24px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .{{class:counter-item}} {
+            text-align: left;
+        }
+
+        .{{class:counter-value}} {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--accent);
+            line-height: 1.1;
+        }
+
+        .{{class:counter-label}} {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
         .{{class:button-row}} {
             display: flex;
             flex-wrap: wrap;
@@ -252,12 +323,20 @@
             font-weight: 700;
             text-decoration: none;
             font-size: 13px;
+            transition: opacity 0.2s;
         }
+
+        .{{class:button}}:hover { opacity: 0.88; }
 
         .{{class:button-muted}} {
             background: rgba(255, 255, 255, 0.08);
             color: var(--text);
             border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .{{class:button-muted}}:hover {
+            background: rgba(255, 255, 255, 0.14);
+            opacity: 1;
         }
 
         .{{class:stack}} {
@@ -283,37 +362,20 @@
             height: auto;
         }
 
-        .{{class:notice}} {
-            padding: 16px 18px;
-            border-radius: 18px;
-            border: 1px solid rgba(56, 189, 248, 0.18);
-            background: var(--accent-soft);
-            color: var(--text);
-            line-height: 1.7;
-            font-size: 14px;
-        }
-
-        .{{class:meta-grid}},
-        .{{class:section-grid}},
-        .{{class:status-strip}} {
+        .{{class:meta-grid}} {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
         }
 
-        .{{class:meta-grid}} {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .{{class:meta-card}},
-        .{{class:status-item}} {
+        .{{class:meta-card}} {
             padding: 16px 18px;
             border-radius: 18px;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .{{class:meta-label}},
-        .{{class:status-label}} {
+        .{{class:meta-label}} {
             display: block;
             margin-bottom: 6px;
             color: rgba(226, 232, 240, 0.56);
@@ -322,26 +384,93 @@
             letter-spacing: 0.12em;
         }
 
-        .{{class:meta-value}},
-        .{{class:status-value}} {
+        .{{class:meta-value}} {
             color: var(--text);
             font-size: 16px;
             line-height: 1.45;
             font-weight: 700;
         }
 
-        .{{class:status-strip}} {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+        /* Trust bar */
+        .{{class:trust-bar}} {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            padding: 28px 18px;
             margin-bottom: 18px;
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
         }
 
+        .{{class:trust-logos}} {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .{{class:trust-logo}} {
+            opacity: 0.38;
+            transition: opacity 0.3s;
+        }
+
+        .{{class:trust-logo}}:hover { opacity: 0.65; }
+
+        .{{class:trust-text}} {
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* Section headings */
+        .{{class:section-heading}} {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .{{class:section-heading}} h2 {
+            margin: 0 0 8px;
+            font-size: clamp(1.4rem, 3vw, 2rem);
+            letter-spacing: -0.02em;
+        }
+
+        .{{class:section-heading}} p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* Product grid */
         .{{class:section-grid}} {
+            display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
             margin-bottom: 18px;
         }
 
         .{{class:section-card}} {
             border-radius: var(--radius-lg);
+            padding: 0;
+            overflow: hidden;
+            transition: transform 0.28s ease, border-color 0.28s ease;
+        }
+
+        .{{class:section-card}}:hover {
+            transform: translateY(-4px);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .{{class:card-image}} {
+            display: block;
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+
+        .{{class:card-body}} {
             padding: 22px;
         }
 
@@ -351,17 +480,284 @@
             line-height: 1.28;
         }
 
-        .{{class:footer}} {
-            border-radius: 22px;
-            padding: 16px 18px;
+        .{{class:card-specs}} {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
         }
 
+        .{{class:spec-tag}} {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.18);
+            font-size: 11px;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        /* Scenario section */
+        .{{class:scenario-grid}} {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .{{class:scenario-card}} {
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+            transition: transform 0.28s ease, border-color 0.28s ease;
+        }
+
+        .{{class:scenario-card}}:hover {
+            transform: translateY(-4px);
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .{{class:scenario-image}} {
+            display: block;
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .{{class:scenario-body}} {
+            padding: 22px;
+        }
+
+        .{{class:scenario-tag}} {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.12);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            font-size: 11px;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        /* Delivery steps */
+        .{{class:delivery-grid}} {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .{{class:delivery-card}} {
+            border-radius: var(--radius-lg);
+            padding: 28px 22px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+            transition: transform 0.28s ease, border-color 0.28s ease;
+            text-align: center;
+        }
+
+        .{{class:delivery-card}}:hover {
+            transform: translateY(-4px);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .{{class:step-circle}} {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(52, 211, 153, 0.14));
+            border: 1px solid rgba(56, 189, 248, 0.24);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .{{class:step-icon}} {
+            display: block;
+            margin: 0 auto 12px;
+            opacity: 0.7;
+        }
+
+        /* Contact CTA */
+        .{{class:contact-section}} {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .{{class:contact-info}} {
+            border-radius: var(--radius-xl);
+            padding: 32px 28px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .{{class:contact-item}} {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .{{class:contact-item}}:last-child { margin-bottom: 0; }
+
+        .{{class:contact-icon}} {
+            flex: 0 0 20px;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        .{{class:contact-cta}} {
+            border-radius: var(--radius-xl);
+            padding: 32px 28px;
+            border: 1px solid rgba(56, 189, 248, 0.18);
+            background: linear-gradient(160deg, rgba(56, 189, 248, 0.08), rgba(52, 211, 153, 0.06));
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .{{class:contact-cta}} h2 {
+            margin: 0 0 12px;
+            font-size: 24px;
+        }
+
+        .{{class:contact-cta}} p {
+            margin: 0 0 20px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* Footer */
+        .{{class:footer}} {
+            border-radius: 22px;
+            padding: 32px 28px 20px;
+        }
+
+        .{{class:footer-grid}} {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .{{class:footer-col-title}} {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: var(--text);
+        }
+
+        .{{class:footer-link}} {
+            display: block;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            line-height: 2;
+            transition: color 0.2s;
+        }
+
+        .{{class:footer-link}}:hover { color: var(--text); }
+
+        .{{class:footer-bottom}} {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .{{class:footer-certs}} {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .{{class:cert-badge}} {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* Cookie banner */
+        .{{class:cookie-banner}} {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            background: var(--panel-strong);
+            border-top: 1px solid var(--panel-border);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 9999;
+            animation: slideUp 0.4s ease forwards;
+        }
+
+        .{{class:cookie-banner}}.hidden {
+            display: none;
+        }
+
+        .{{class:cookie-text}} {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .{{class:cookie-btn}} {
+            min-height: 34px;
+            padding: 0 16px;
+            border: 0;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #d7f7ff, #7dd3fc);
+            color: #03111f;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .{{class:cookie-btn}}:hover { opacity: 0.88; }
+
         @media (max-width: 960px) {
-            .{{class:site-nav}},
+            .{{class:site-nav}} { flex-wrap: wrap; }
+            .{{class:nav-links}} { display: none; }
             .{{class:hero}},
-            .{{class:status-strip}},
-            .{{class:section-grid}} {
+            .{{class:section-grid}},
+            .{{class:scenario-grid}},
+            .{{class:delivery-grid}},
+            .{{class:contact-section}} {
                 grid-template-columns: minmax(0, 1fr);
+            }
+            .{{class:footer-grid}} {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
@@ -379,11 +775,27 @@
                 min-height: 420px;
                 padding: 22px;
             }
+
+            .{{class:footer-grid}} {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .{{class:footer-bottom}} {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .{{class:cookie-banner}} {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <main class="{{class:page}}">
+        <!-- Nav -->
         <nav class="{{class:site-nav}}">
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
@@ -395,18 +807,23 @@
                     </div>
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-                <span class="{{class:nav-chip}}">
-                    <span data-lang="zh-CN">{{statusLabelZh}}</span>
-                    <span data-lang="en-US" hidden>{{statusLabelEn}}</span>
+            <div class="{{class:nav-links}}">
+                <a class="{{class:nav-link}}" href="#products"><span data-lang="zh-CN">产品</span><span data-lang="en-US" hidden>Products</span></a>
+                <a class="{{class:nav-link}}" href="#scenarios"><span data-lang="zh-CN">方案</span><span data-lang="en-US" hidden>Solutions</span></a>
+                <a class="{{class:nav-link}}" href="#delivery"><span data-lang="zh-CN">服务</span><span data-lang="en-US" hidden>Services</span></a>
+                <a class="{{class:nav-link}}" href="#contact"><span data-lang="zh-CN">关于</span><span data-lang="en-US" hidden>About</span></a>
+                <span class="{{class:nav-search}}" aria-label="Search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 </span>
-                <div class="{{class:lang-switch}}">
-                    <button type="button" class="{{class:lang-button}}" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
-                    <button type="button" class="{{class:lang-button}}" data-lang-toggle="en-US" aria-pressed="false">English</button>
-                </div>
+                <a class="{{class:nav-cta}}" href="#contact"><span data-lang="zh-CN">获取方案</span><span data-lang="en-US" hidden>Get a quote</span></a>
+            </div>
+            <div class="{{class:lang-switch}}">
+                <button type="button" class="{{class:lang-button}}" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
+                <button type="button" class="{{class:lang-button}}" data-lang-toggle="en-US" aria-pressed="false">English</button>
             </div>
         </nav>
 
+        <!-- Hero -->
         <section class="{{class:hero}}">
             <section class="{{class:hero-panel}}">
                 <div class="{{class:hero-copy}}">
@@ -423,6 +840,20 @@
                             <span data-lang="zh-CN">高精度视觉检测与自动化单元，面向电子制造、新能源和精密装配产线。</span>
                             <span data-lang="en-US" hidden>High-precision inspection and automation units for electronics, battery manufacturing, and precision assembly lines.</span>
                         </p>
+                        <div class="{{class:hero-counters}}">
+                            <div class="{{class:counter-item}}">
+                                <div class="{{class:counter-value}}" data-count="0.3" data-suffix="s" data-decimals="1">0</div>
+                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">检测速度</span><span data-lang="en-US" hidden>Detection speed</span></div>
+                            </div>
+                            <div class="{{class:counter-item}}">
+                                <div class="{{class:counter-value}}" data-count="800" data-suffix="+" data-decimals="0">0</div>
+                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">全球部署</span><span data-lang="en-US" hidden>Global deployments</span></div>
+                            </div>
+                            <div class="{{class:counter-item}}">
+                                <div class="{{class:counter-value}}" data-count="6" data-suffix="+" data-decimals="0">0</div>
+                                <div class="{{class:counter-label}}"><span data-lang="zh-CN">行业覆盖</span><span data-lang="en-US" hidden>Industries served</span></div>
+                            </div>
+                        </div>
                         <div class="{{class:button-row}}">
                             <a class="{{class:button}}" href="#products"><span data-lang="zh-CN">产品矩阵</span><span data-lang="en-US" hidden>Product line</span></a>
                             <a class="{{class:button}} {{class:button-muted}}" href="#delivery"><span data-lang="zh-CN">交付流程</span><span data-lang="en-US" hidden>Delivery</span></a>
@@ -458,76 +889,240 @@
             </aside>
         </section>
 
-        <section class="{{class:status-strip}}">
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">行业覆盖</span><span data-lang="en-US" hidden>Sectors</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">电子装联 / 电芯封装 / 精密装配</span><span data-lang="en-US" hidden>Electronics / cell packaging / precision assembly</span></div>
+        <!-- Trust bar -->
+        <section class="{{class:trust-bar}} {{class:fade-in}}">
+            <div class="{{class:trust-logos}}">
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><rect x="4" y="8" width="24" height="16" rx="3" fill="#7dd3fc"/><rect x="32" y="12" width="44" height="8" rx="2" fill="#94a3b8"/></svg>
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><circle cx="16" cy="16" r="12" fill="#7dd3fc"/><rect x="34" y="12" width="40" height="8" rx="2" fill="#94a3b8"/></svg>
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><polygon points="16,4 28,28 4,28" fill="#7dd3fc"/><rect x="34" y="12" width="42" height="8" rx="2" fill="#94a3b8"/></svg>
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><rect x="4" y="4" width="24" height="24" rx="12" fill="none" stroke="#7dd3fc" stroke-width="3"/><rect x="34" y="12" width="38" height="8" rx="2" fill="#94a3b8"/></svg>
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><rect x="4" y="6" width="10" height="20" rx="2" fill="#7dd3fc"/><rect x="18" y="10" width="10" height="16" rx="2" fill="#7dd3fc" opacity="0.6"/><rect x="34" y="12" width="42" height="8" rx="2" fill="#94a3b8"/></svg>
+                <svg class="{{class:trust-logo}}" width="80" height="32" viewBox="0 0 80 32"><path d="M4 16 L16 6 L28 16 L16 26 Z" fill="#7dd3fc"/><rect x="34" y="12" width="40" height="8" rx="2" fill="#94a3b8"/></svg>
             </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">部署方式</span><span data-lang="en-US" hidden>Deployment</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">在线检测 / 旁路复核 / 工艺回溯</span><span data-lang="en-US" hidden>Inline inspection / side review / process traceability</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">当前批次</span><span data-lang="en-US" hidden>Current batch</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{seasonLabelZh}}</span><span data-lang="en-US" hidden>{{seasonLabelEn}}</span></div>
+            <div class="{{class:trust-text}}">
+                <span data-lang="zh-CN">服务超过 200 家制造企业</span>
+                <span data-lang="en-US" hidden>Trusted by over 200 manufacturing enterprises</span>
             </div>
         </section>
 
-        <section class="{{class:section-grid}}" id="products">
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">在线检测单元</span><span data-lang="en-US" hidden>Inline inspection cell</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">集成相机、光源、治具与边缘推理模块，在产线节拍内完成判定与结果输出。</span>
-                    <span data-lang="en-US" hidden>Cameras, lighting, fixtures, and edge inference modules are combined to complete inspection within production takt time.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">边缘分析工作站</span><span data-lang="en-US" hidden>Edge analytics station</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">统一归档缺陷图像、批次参数与复核记录，支持快速回溯和工艺比对。</span>
-                    <span data-lang="en-US" hidden>Defect imagery, batch parameters, and review records are archived together for fast trace-back and process comparison.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">自动化协同接口</span><span data-lang="en-US" hidden>Automation interface</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">联动 PLC、MES 与机械手，实现剔除、复判、节拍同步与异常留痕。</span>
-                    <span data-lang="en-US" hidden>Links with PLC, MES, and robotics for reject handling, rechecks, takt synchronization, and exception logging.</span>
-                </p>
-            </article>
+        <!-- Product matrix -->
+        <section class="{{class:fade-in}}" id="products" style="margin-bottom:18px;">
+            <div class="{{class:section-heading}}">
+                <h2><span data-lang="zh-CN">产品矩阵</span><span data-lang="en-US" hidden>Product Line</span></h2>
+                <p><span data-lang="zh-CN">覆盖视觉检测、边缘分析与自动化协同的完整产品体系</span><span data-lang="en-US" hidden>Complete product portfolio spanning vision inspection, edge analytics, and automation integration</span></p>
+            </div>
+            <div class="{{class:section-grid}}">
+                <article class="{{class:section-card}}">
+                    <img class="{{class:card-image}}" src="{{asset:inspectionImage}}" alt="" />
+                    <div class="{{class:card-body}}">
+                        <h2 class="{{class:card-title}}"><span data-lang="zh-CN">在线检测单元</span><span data-lang="en-US" hidden>Inline inspection cell</span></h2>
+                        <p class="{{class:card-copy}}">
+                            <span data-lang="zh-CN">集成相机、光源、治具与边缘推理模块，在产线节拍内完成判定与结果输出。</span>
+                            <span data-lang="en-US" hidden>Cameras, lighting, fixtures, and edge inference modules are combined to complete inspection within production takt time.</span>
+                        </p>
+                        <div class="{{class:card-specs}}">
+                            <span class="{{class:spec-tag}}">0.3s</span>
+                            <span class="{{class:spec-tag}}">5MP</span>
+                            <span class="{{class:spec-tag}}">IP65</span>
+                        </div>
+                    </div>
+                </article>
+                <article class="{{class:section-card}}">
+                    <img class="{{class:card-image}}" src="{{asset:telemetryImage}}" alt="" />
+                    <div class="{{class:card-body}}">
+                        <h2 class="{{class:card-title}}"><span data-lang="zh-CN">边缘分析工作站</span><span data-lang="en-US" hidden>Edge analytics station</span></h2>
+                        <p class="{{class:card-copy}}">
+                            <span data-lang="zh-CN">统一归档缺陷图像、批次参数与复核记录，支持快速回溯和工艺比对。</span>
+                            <span data-lang="en-US" hidden>Defect imagery, batch parameters, and review records are archived together for fast trace-back and process comparison.</span>
+                        </p>
+                        <div class="{{class:card-specs}}">
+                            <span class="{{class:spec-tag}}">10TB</span>
+                            <span class="{{class:spec-tag}}">GPU</span>
+                            <span class="{{class:spec-tag}}">REST API</span>
+                        </div>
+                    </div>
+                </article>
+                <article class="{{class:section-card}}">
+                    <img class="{{class:card-image}}" src="{{asset:heroImage}}" alt="" />
+                    <div class="{{class:card-body}}">
+                        <h2 class="{{class:card-title}}"><span data-lang="zh-CN">自动化协同接口</span><span data-lang="en-US" hidden>Automation interface</span></h2>
+                        <p class="{{class:card-copy}}">
+                            <span data-lang="zh-CN">联动 PLC、MES 与机械手，实现剔除、复判、节拍同步与异常留痕。</span>
+                            <span data-lang="en-US" hidden>Links with PLC, MES, and robotics for reject handling, rechecks, takt synchronization, and exception logging.</span>
+                        </p>
+                        <div class="{{class:card-specs}}">
+                            <span class="{{class:spec-tag}}">Modbus</span>
+                            <span class="{{class:spec-tag}}">OPC UA</span>
+                            <span class="{{class:spec-tag}}">MQTT</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
         </section>
 
-        <section class="{{class:section-grid}}" id="delivery">
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场评估</span><span data-lang="en-US" hidden>Site assessment</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">围绕节拍、来料差异、光学条件和治具空间完成快速勘查与方案收敛。</span>
-                    <span data-lang="en-US" hidden>Cycle time, incoming variation, optics, and fixture space are evaluated to converge on a workable deployment plan.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">联调实施</span><span data-lang="en-US" hidden>Commissioning</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">完成设备上架、工艺参数整定、通信联调和生产节拍验证。</span>
-                    <span data-lang="en-US" hidden>Deployment includes installation, parameter tuning, communications integration, and production takt validation.</span>
-                </p>
-            </article>
-            <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">培训巡检</span><span data-lang="en-US" hidden>Training and inspection</span></h2>
-                <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">针对操作、复判和维护岗位提供培训，并按周期执行远程或现场巡检。</span>
-                    <span data-lang="en-US" hidden>Operator, review, and maintenance teams receive training with scheduled remote or on-site inspection support.</span>
-                </p>
-            </article>
+        <!-- Application scenarios -->
+        <section class="{{class:fade-in}}" id="scenarios" style="margin-bottom:18px;">
+            <div class="{{class:section-heading}}">
+                <h2><span data-lang="zh-CN">应用场景</span><span data-lang="en-US" hidden>Industry Applications</span></h2>
+                <p><span data-lang="zh-CN">深耕多个高精度制造领域，提供成熟的视觉检测解决方案</span><span data-lang="en-US" hidden>Proven vision inspection solutions across high-precision manufacturing sectors</span></p>
+            </div>
+            <div class="{{class:scenario-grid}}">
+                <article class="{{class:scenario-card}}">
+                    <img class="{{class:scenario-image}}" src="{{asset:operationsImage}}" alt="" />
+                    <div class="{{class:scenario-body}}">
+                        <span class="{{class:scenario-tag}}"><span data-lang="zh-CN">电子装联</span><span data-lang="en-US" hidden>Electronics</span></span>
+                        <h3 class="{{class:card-title}}"><span data-lang="zh-CN">电子装联检测</span><span data-lang="en-US" hidden>Electronics assembly inspection</span></h3>
+                        <p class="{{class:card-copy}}"><span data-lang="zh-CN">覆盖 SMT 焊点质量、引脚共面性、BGA 空洞率检测，节拍低于 0.5s。</span><span data-lang="en-US" hidden>Covers SMT solder quality, pin coplanarity, and BGA void inspection with cycle times under 0.5s.</span></p>
+                    </div>
+                </article>
+                <article class="{{class:scenario-card}}">
+                    <img class="{{class:scenario-image}}" src="{{asset:machineVisionImage}}" alt="" />
+                    <div class="{{class:scenario-body}}">
+                        <span class="{{class:scenario-tag}}"><span data-lang="zh-CN">新能源</span><span data-lang="en-US" hidden>New energy</span></span>
+                        <h3 class="{{class:card-title}}"><span data-lang="zh-CN">新能源电芯检测</span><span data-lang="en-US" hidden>Battery cell inspection</span></h3>
+                        <p class="{{class:card-copy}}"><span data-lang="zh-CN">电芯封装外观、极耳焊接质量、涂布均匀性在线全检，支持多型号切换。</span><span data-lang="en-US" hidden>Full inline inspection of cell packaging, tab welding, and coating uniformity with multi-model switching.</span></p>
+                    </div>
+                </article>
+                <article class="{{class:scenario-card}}">
+                    <img class="{{class:scenario-image}}" src="{{asset:corridorImage}}" alt="" />
+                    <div class="{{class:scenario-body}}">
+                        <span class="{{class:scenario-tag}}"><span data-lang="zh-CN">精密装配</span><span data-lang="en-US" hidden>Precision assembly</span></span>
+                        <h3 class="{{class:card-title}}"><span data-lang="zh-CN">精密装配引导</span><span data-lang="en-US" hidden>Precision assembly guidance</span></h3>
+                        <p class="{{class:card-copy}}"><span data-lang="zh-CN">视觉引导定位、装配到位确认、尺寸公差实时判定，漏检率低于 0.01%。</span><span data-lang="en-US" hidden>Vision-guided positioning, assembly confirmation, and real-time tolerance verification with miss rates below 0.01%.</span></p>
+                    </div>
+                </article>
+            </div>
         </section>
 
+        <!-- Delivery process -->
+        <section class="{{class:fade-in}}" id="delivery" style="margin-bottom:18px;">
+            <div class="{{class:section-heading}}">
+                <h2><span data-lang="zh-CN">交付流程</span><span data-lang="en-US" hidden>Delivery Process</span></h2>
+                <p><span data-lang="zh-CN">标准化三阶段交付，确保项目快速落地</span><span data-lang="en-US" hidden>Standardized three-phase delivery for rapid project deployment</span></p>
+            </div>
+            <div class="{{class:delivery-grid}}">
+                <article class="{{class:delivery-card}}">
+                    <div class="{{class:step-circle}}">1</div>
+                    <svg class="{{class:step-icon}}" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                    <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场评估</span><span data-lang="en-US" hidden>Site assessment</span></h2>
+                    <p class="{{class:card-copy}}">
+                        <span data-lang="zh-CN">围绕节拍、来料差异、光学条件和治具空间完成快速勘查与方案收敛。</span>
+                        <span data-lang="en-US" hidden>Cycle time, incoming variation, optics, and fixture space are evaluated to converge on a workable deployment plan.</span>
+                    </p>
+                </article>
+                <article class="{{class:delivery-card}}">
+                    <div class="{{class:step-circle}}">2</div>
+                    <svg class="{{class:step-icon}}" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M17 12h.01"/><path d="M7 12h.01"/></svg>
+                    <h2 class="{{class:card-title}}"><span data-lang="zh-CN">联调实施</span><span data-lang="en-US" hidden>Commissioning</span></h2>
+                    <p class="{{class:card-copy}}">
+                        <span data-lang="zh-CN">完成设备上架、工艺参数整定、通信联调和生产节拍验证。</span>
+                        <span data-lang="en-US" hidden>Deployment includes installation, parameter tuning, communications integration, and production takt validation.</span>
+                    </p>
+                </article>
+                <article class="{{class:delivery-card}}">
+                    <div class="{{class:step-circle}}">3</div>
+                    <svg class="{{class:step-icon}}" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    <h2 class="{{class:card-title}}"><span data-lang="zh-CN">培训巡检</span><span data-lang="en-US" hidden>Training and inspection</span></h2>
+                    <p class="{{class:card-copy}}">
+                        <span data-lang="zh-CN">针对操作、复判和维护岗位提供培训，并按周期执行远程或现场巡检。</span>
+                        <span data-lang="en-US" hidden>Operator, review, and maintenance teams receive training with scheduled remote or on-site inspection support.</span>
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- Contact / CTA -->
+        <section class="{{class:contact-section}} {{class:fade-in}}" id="contact">
+            <div class="{{class:contact-info}}">
+                <h2 style="margin:0 0 20px; font-size:22px;"><span data-lang="zh-CN">联系我们</span><span data-lang="en-US" hidden>Contact Us</span></h2>
+                <div class="{{class:contact-item}}">
+                    <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <div>
+                        <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">总部地址</span><span data-lang="en-US" hidden>Headquarters</span></div>
+                        <div class="{{class:muted}}"><span data-lang="zh-CN">上海市浦东新区张江高科技园区博云路 2 号 8 层</span><span data-lang="en-US" hidden>8F, No. 2 Boyun Road, Zhangjiang Hi-Tech Park, Pudong, Shanghai</span></div>
+                    </div>
+                </div>
+                <div class="{{class:contact-item}}">
+                    <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    <div>
+                        <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">服务热线</span><span data-lang="en-US" hidden>Hotline</span></div>
+                        <div class="{{class:muted}}">400-820-6789</div>
+                    </div>
+                </div>
+                <div class="{{class:contact-item}}">
+                    <svg class="{{class:contact-icon}}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <div>
+                        <div style="font-weight:600; margin-bottom:4px;"><span data-lang="zh-CN">商务邮箱</span><span data-lang="en-US" hidden>Email</span></div>
+                        <div class="{{class:muted}}">sales@visiontech-auto.com</div>
+                    </div>
+                </div>
+            </div>
+            <div class="{{class:contact-cta}}">
+                <h2><span data-lang="zh-CN">获取定制方案</span><span data-lang="en-US" hidden>Get a Custom Solution</span></h2>
+                <p><span data-lang="zh-CN">描述您的产线需求，工程团队将在 24 小时内提供初步检测方案与报价。</span><span data-lang="en-US" hidden>Describe your production line requirements and our engineering team will provide a preliminary inspection plan and quote within 24 hours.</span></p>
+                <a class="{{class:button}}" href="mailto:sales@visiontech-auto.com"><span data-lang="zh-CN">立即咨询</span><span data-lang="en-US" hidden>Contact now</span></a>
+            </div>
+        </section>
+
+        <!-- Footer -->
         <footer class="{{class:footer}}">
-            <div class="{{class:footer-note}}">
-                <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
-                <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
+            <div class="{{class:footer-grid}}">
+                <div>
+                    <div class="{{class:footer-col-title}}"><span data-lang="zh-CN">公司</span><span data-lang="en-US" hidden>Company</span></div>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">关于我们</span><span data-lang="en-US" hidden>About us</span></a>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">企业资质</span><span data-lang="en-US" hidden>Certifications</span></a>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">合作伙伴</span><span data-lang="en-US" hidden>Partners</span></a>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">加入我们</span><span data-lang="en-US" hidden>Careers</span></a>
+                </div>
+                <div>
+                    <div class="{{class:footer-col-title}}"><span data-lang="zh-CN">产品</span><span data-lang="en-US" hidden>Products</span></div>
+                    <a class="{{class:footer-link}}" href="#products"><span data-lang="zh-CN">在线检测单元</span><span data-lang="en-US" hidden>Inline inspection cell</span></a>
+                    <a class="{{class:footer-link}}" href="#products"><span data-lang="zh-CN">边缘分析工作站</span><span data-lang="en-US" hidden>Edge analytics station</span></a>
+                    <a class="{{class:footer-link}}" href="#products"><span data-lang="zh-CN">自动化协同接口</span><span data-lang="en-US" hidden>Automation interface</span></a>
+                </div>
+                <div>
+                    <div class="{{class:footer-col-title}}"><span data-lang="zh-CN">服务支持</span><span data-lang="en-US" hidden>Support</span></div>
+                    <a class="{{class:footer-link}}" href="#delivery"><span data-lang="zh-CN">交付流程</span><span data-lang="en-US" hidden>Delivery process</span></a>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">技术文档</span><span data-lang="en-US" hidden>Documentation</span></a>
+                    <a class="{{class:footer-link}}" href="#"><span data-lang="zh-CN">远程运维</span><span data-lang="en-US" hidden>Remote support</span></a>
+                </div>
+                <div>
+                    <div class="{{class:footer-col-title}}"><span data-lang="zh-CN">联系方式</span><span data-lang="en-US" hidden>Contact</span></div>
+                    <span class="{{class:footer-link}}">400-820-6789</span>
+                    <span class="{{class:footer-link}}">sales@visiontech-auto.com</span>
+                    <span class="{{class:footer-link}}"><span data-lang="zh-CN">上海市浦东新区张江高科技园区</span><span data-lang="en-US" hidden>Zhangjiang, Pudong, Shanghai</span></span>
+                </div>
+            </div>
+            <div class="{{class:footer-bottom}}">
+                <div class="{{class:footer-note}}">
+                    <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
+                    <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
+                </div>
+                <div class="{{class:footer-certs}}">
+                    <span class="{{class:cert-badge}}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        ISO 9001
+                    </span>
+                    <span class="{{class:cert-badge}}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                        CE
+                    </span>
+                </div>
             </div>
         </footer>
     </main>
+
+    <!-- Cookie banner -->
+    <div class="{{class:cookie-banner}}" id="cookieBanner">
+        <span class="{{class:cookie-text}}">
+            <span data-lang="zh-CN">本站使用 Cookie 以提升浏览体验。继续使用即表示您同意我们的 Cookie 政策。</span>
+            <span data-lang="en-US" hidden>This site uses cookies to improve your browsing experience. By continuing to use this site, you agree to our cookie policy.</span>
+        </span>
+        <button type="button" class="{{class:cookie-btn}}" id="cookieAccept">
+            <span data-lang="zh-CN">我知道了</span>
+            <span data-lang="en-US" hidden>Got it</span>
+        </button>
+    </div>
 
     <script>
         (function () {
@@ -566,6 +1161,63 @@
                 }
             } catch (_) {}
             applyLanguage(initialLanguage);
+
+            /* Scroll fade-in with IntersectionObserver */
+            var fadeEls = document.querySelectorAll('.{{class:fade-in}}');
+            if (typeof IntersectionObserver !== 'undefined') {
+                var fadeObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            fadeObserver.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.15 });
+                fadeEls.forEach(function (el) { fadeObserver.observe(el); });
+            } else {
+                fadeEls.forEach(function (el) { el.classList.add('visible'); });
+            }
+
+            /* Counter animation */
+            var counterEls = document.querySelectorAll('[data-count]');
+            if (typeof IntersectionObserver !== 'undefined' && counterEls.length) {
+                var counterObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (!entry.isIntersecting) return;
+                        var el = entry.target;
+                        counterObserver.unobserve(el);
+                        var target = parseFloat(el.getAttribute('data-count'));
+                        var suffix = el.getAttribute('data-suffix') || '';
+                        var decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
+                        var duration = 1200;
+                        var start = performance.now();
+                        function tick(now) {
+                            var progress = Math.min((now - start) / duration, 1);
+                            var eased = 1 - Math.pow(1 - progress, 3);
+                            var current = (target * eased).toFixed(decimals);
+                            el.textContent = current + suffix;
+                            if (progress < 1) requestAnimationFrame(tick);
+                        }
+                        requestAnimationFrame(tick);
+                    });
+                }, { threshold: 0.5 });
+                counterEls.forEach(function (el) { counterObserver.observe(el); });
+            }
+
+            /* Cookie banner */
+            var cookieBanner = document.getElementById('cookieBanner');
+            var cookieAccept = document.getElementById('cookieAccept');
+            try {
+                if (localStorage.getItem('cookie_accepted') === '1') {
+                    cookieBanner.classList.add('hidden');
+                }
+            } catch (_) {}
+            if (cookieAccept) {
+                cookieAccept.addEventListener('click', function () {
+                    cookieBanner.classList.add('hidden');
+                    try { localStorage.setItem('cookie_accepted', '1'); } catch (_) {}
+                });
+            }
         })();
     </script>
 </body>

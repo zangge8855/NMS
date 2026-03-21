@@ -7,6 +7,24 @@ import notificationService, { SEVERITY } from './notifications.js';
 import { enrichAuditEvent } from './auditEventEnrichment.js';
 
 const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
+
+// Persistent write stream for audit log — avoids blocking the event loop on
+// every appendSecurityAudit call.  The stream is created lazily so the data
+// directory can be ensured first.
+let auditStream = null;
+function getAuditStream() {
+    if (!auditStream) {
+        ensureAuditDir();
+        auditStream = fs.createWriteStream(AUDIT_FILE, { flags: 'a' });
+        auditStream.on('error', (err) => {
+            console.error('[SecurityAudit] write stream error:', err);
+            // Discard broken stream so the next call creates a fresh one.
+            auditStream = null;
+        });
+    }
+    return auditStream;
+}
+
 const LOGIN_PATTERN_WINDOW_MS = 5 * 60 * 1000;
 const ACCESS_PATTERN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_PATTERN_EVENTS = new Set([
@@ -18,6 +36,17 @@ const LOGIN_PATTERN_EVENTS = new Set([
 const ACCESS_PATTERN_EVENTS = new Set([
     'subscription_public_denied',
     'subscription_public_denied_legacy',
+]);
+
+// ── Lightweight in-memory sliding window for pattern matching ──
+// Instead of querying auditStore for 200 records on every call, we maintain a
+// small ring buffer of security-relevant event summaries that is appended to
+// inside appendSecurityAudit.  getRecentMatchingEvents reads from this buffer.
+const recentSecurityEvents = [];
+const MAX_RECENT_EVENTS = 500;
+const SECURITY_PATTERN_EVENT_TYPES = new Set([
+    ...LOGIN_PATTERN_EVENTS,
+    ...ACCESS_PATTERN_EVENTS,
 ]);
 
 function ensureAuditDir() {
@@ -59,10 +88,7 @@ function redactSensitive(value) {
 
 function getRecentMatchingEvents(windowMs, predicate) {
     const cutoff = Date.now() - windowMs;
-    return auditStore.queryEvents({ page: 1, pageSize: 200 }).items.filter((item) => {
-        const ts = new Date(item?.ts || 0).getTime();
-        return Number.isFinite(ts) && ts >= cutoff && predicate(item);
-    });
+    return recentSecurityEvents.filter((item) => item.ts >= cutoff && predicate(item));
 }
 
 function summarizeLoginPattern(entry = {}, details = {}) {
@@ -277,7 +303,7 @@ export function appendSecurityAudit(event, req, details = {}, options = {}) {
             path: req?.originalUrl || null,
             details: safeDetails,
         };
-        fs.appendFileSync(AUDIT_FILE, `${JSON.stringify(entry)}\n`, 'utf8');
+        getAuditStream().write(`${JSON.stringify(entry)}\n`);
 
         const storedEntry = auditStore.appendEvent({
             event,
@@ -285,6 +311,23 @@ export function appendSecurityAudit(event, req, details = {}, options = {}) {
             details: safeDetails,
             outcome: typeof options?.outcome === 'string' ? options.outcome : '',
         });
+
+        // Push security-relevant events into the in-memory ring buffer so
+        // pattern queries avoid hitting the full audit store.
+        const eventKey = String(event || '').trim().toLowerCase();
+        if (SECURITY_PATTERN_EVENT_TYPES.has(eventKey)) {
+            recentSecurityEvents.push({
+                eventType: eventKey,
+                ip: entry.ip,
+                ts: Date.now(),
+                details: safeDetails,
+                path: entry.path,
+            });
+            if (recentSecurityEvents.length > MAX_RECENT_EVENTS) {
+                recentSecurityEvents.splice(0, recentSecurityEvents.length - MAX_RECENT_EVENTS);
+            }
+        }
+
         const notification = buildAuditNotification(storedEntry);
         if (notification) {
             void (async () => {

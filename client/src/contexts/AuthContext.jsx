@@ -41,8 +41,8 @@ export function AuthProvider({ children }) {
     }, [navigate]);
 
     const checkAuth = useCallback(async () => {
-        const token = getStoredToken();
-        if (!token) {
+        const storedToken = getStoredToken();
+        if (!storedToken) {
             setIsAuthenticated(false);
             setUser(null);
             setLoading(false);
@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
                 setIsAuthenticated(false);
                 setUser(null);
             } else {
-                const decoded = decodeJwtPayload(token);
+                const decoded = decodeJwtPayload(storedToken);
                 setIsAuthenticated(true);
                 setUser((prev) => prev || {
                     username: String(decoded?.username || ''),

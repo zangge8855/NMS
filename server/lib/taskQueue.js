@@ -27,6 +27,8 @@ function startBackgroundInterval(fn, delayMs) {
     return timer;
 }
 
+const MAX_TASKS = 1000;
+
 class TaskQueue extends EventEmitter {
     constructor() {
         super();
@@ -42,6 +44,12 @@ class TaskQueue extends EventEmitter {
      * @returns {{ taskId: string, abort: () => void }}
      */
     create({ type, actor, meta = {} }) {
+        if (this.tasks.size >= MAX_TASKS) {
+            this.prune();
+            if (this.tasks.size >= MAX_TASKS) {
+                throw new Error('Task queue is full');
+            }
+        }
         const taskId = crypto.randomUUID();
         const controller = new AbortController();
         const now = new Date().toISOString();

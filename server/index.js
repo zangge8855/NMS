@@ -103,6 +103,19 @@ export function createApp(options = {}) {
     });
     app.use('/api', apiLimiter);
 
+    // ── Public subscription rate limiter ────────────────────────
+    // The global apiLimiter skips /subscriptions/public/ so clients can fetch
+    // subscriptions freely; add a dedicated, more lenient limiter to prevent
+    // unlimited probing of public subscription endpoints.
+    const publicSubLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 60,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        message: { success: false, msg: 'Too many requests' },
+    });
+    app.use('/api/subscriptions/public', publicSubLimiter);
+
     // ── API Routes ─────────────────────────────────────────────
     // Auth routes (login/register — no auth required on most)
     app.use('/api/auth', authRoutes);

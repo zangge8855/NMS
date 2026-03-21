@@ -303,7 +303,7 @@ router.post('/login', (req, res) => {
         role: result.audit?.role || result.user?.role || 'user',
     };
     appendSecurityAudit('login_success', req, { ip: clientIp, ...result.audit });
-    clearLoginRate(clientIp, result.audit.username);
+    clearLoginRate(clientIp, result.audit?.username);
     res.json({
         success: true,
         token: result.token,
