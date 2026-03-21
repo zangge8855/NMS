@@ -2705,16 +2705,6 @@ export default function SystemSettings() {
             eyebrow: 'Status',
             subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
             summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
-            badges: (
-                <>
-                    <span className={`badge ${readyAlertChainCount === 3 ? 'badge-success' : readyAlertChainCount > 0 ? 'badge-warning' : 'badge-neutral'}`}>
-                        {readyAlertChainCount}/3 告警链路就绪
-                    </span>
-                    <span className={`badge ${hasExportBackup || hasLocalBackup ? 'badge-success' : 'badge-warning'}`}>
-                        {hasExportBackup || hasLocalBackup ? '已有可用备份' : '建议立即生成基线备份'}
-                    </span>
-                </>
-            ),
             highlights: overviewCards.map(({ title, value, detail }) => ({ label: title, value, detail })),
             actions: (
                 <button
