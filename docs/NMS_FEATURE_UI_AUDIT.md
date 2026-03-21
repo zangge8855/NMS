@@ -2,7 +2,7 @@
 
 ## 中文
 
-审计日期：2026-03-11
+审计日期：2026-03-21
 
 ### 已完成项
 
@@ -24,6 +24,13 @@
 - 入站、服务器、用户等主要表格重新统一了对齐规则、紧凑列宽和 badge 语言
 - Telegram 告警、状态摘要和帮助命令已经统一为结构化 HTML 消息，重点数值加粗，命令说明改成对齐表格
 - 用户管理、用户详情、通知中心和仪表盘都补上了分阶段加载或共享缓存，后台首屏等待感明显下降
+- 伪装首页的 `corporate` 模板已经重写为完整的工业自动化企业官网，包含导航栏、动画计数器、客户信任条、产品矩阵、应用场景、交付流程、联系信息、四列 Footer、ISO/CE 认证标识和 Cookie 横幅
+- 普通用户新增独立的软件下载中心（Downloads）和自助账户中心（Account），与订阅页分离
+- 审计日志写入改为持久化流（替代 `appendFileSync`），模式匹配改用内存环形缓冲，减少事件循环阻塞
+- 任务队列增加容量上限（1000），超限时自动清理已完成任务
+- 公开订阅端点增加独立轻量限流器，与管理 API 限流策略分离
+- 搜索引擎与扫描器探测拦截中间件已加入请求处理链
+- GitHub Actions CI/CD 工作流已配置：CI 自动测试，Docker 工作流自动构建并推送镜像到 GHCR
 
 ### 当前状态良好区域
 
@@ -56,7 +63,7 @@
 
 ## English
 
-Audit date: 2026-03-11
+Audit date: 2026-03-21
 
 ### Completed
 
@@ -82,6 +89,13 @@ Audit date: 2026-03-11
 - The sidebar no longer carries a duplicated monitor group or bottom single-node switcher, and account / sign-out actions sit closer to the main navigation
 - Telegram digests, alerts, and help output now share one structured HTML message system with bold key values and aligned command tables
 - Dashboard, Users, User Detail, and Notification Center now use staged loading and shared cache paths to reduce first-open waiting time
+- The corporate camouflage template has been rewritten into a full industrial automation company homepage with navigation, animated counters, trust bar, product matrix, application scenarios, delivery steps, contact section, four-column footer, ISO/CE certification badges, and a cookie consent banner
+- End users now have a dedicated Downloads center and self-service Account center, separated from the Subscriptions page
+- Audit log writing switched to a persistent write stream (replacing `appendFileSync`) with an in-memory ring buffer for pattern matching, reducing event-loop blocking
+- Task queue now enforces a capacity cap (1000) with automatic pruning of completed tasks on overflow
+- Public subscription endpoints now have a dedicated lightweight rate limiter, separated from the admin API rate limiter
+- Search bot and scanner protection middleware has been added to the request pipeline
+- GitHub Actions CI/CD workflows are now configured: CI auto-tests on push/PR, Docker workflow auto-builds and pushes images to GHCR
 
 ### Areas in good shape
 

@@ -28,13 +28,15 @@ NMS 由三层组成：
 
 ### 关键模块
 
-- 认证与安全：`auth`, `middleware/auth.js`, `services/authSessionService.js`
-- 节点与面板：`routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
-- 用户与订阅管理：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
-- 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
-- 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
+- 认证与安全：`auth`, `middleware/auth.js`, `services/authSessionService.js`, `services/emailAuthService.js`
+- 节点与面板：`routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`, `lib/serverHealthMonitor.js`, `lib/serverStatusService.js`
+- 用户与订阅管理：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`, `lib/clientEntitlements.js`
+- 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`, `lib/subscriptionAlias.js`
+- 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`, `lib/auditEventEnrichment.js`
 - 系统设置与邀请码：`routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
-- Telegram 通知与汇总：`lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`
+- Telegram 通知与汇总：`lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`, `lib/alertEngine.js`
+- 安全加固：`lib/securityAudit.js`（持久化写入流 + 内存环形缓冲）, `lib/batchRiskControl.js`, `lib/taskQueue.js`（队列容量上限）, `lib/requestIp.js`, `lib/ipGeoResolver.js`, `lib/ipIspResolver.js`
+- 站点伪装：`lib/siteCamouflage.js`, `middleware/siteCamouflage.js`, `middleware/searchBotProtection.js`
 
 ### 存储模式
 
@@ -59,7 +61,19 @@ NMS 由三层组成：
 - 管理：Dashboard、Inbounds、Users、Audit、3x-ui Capabilities、Node Tools
 - 运维：Settings、Servers
 - 系统工作台：Settings 内包含对外访问、安全审计、运维通知、数据备份，以及独立的系统状态与 Node Console
-- 用户自助：Subscriptions
+- 用户自助：Subscriptions、Downloads（软件下载）、Account（账户中心）
+
+### 防护与伪装
+
+- `searchBotProtection` 中间件拦截搜索引擎爬虫和常见扫描器的探测请求
+- 站点伪装支持三套模板：`corporate`（工业自动化企业官网）、`blog`（行业观察博客）、`nginx`（默认 Nginx 页面）
+- 伪装模板使用启动时随机化的 CSS class 后缀，避免指纹识别
+- 公开订阅端点有独立的轻量限流器（60 次/分钟），与管理 API 限流策略分离
+
+### CI/CD
+
+- GitHub Actions CI（`.github/workflows/ci.yml`）在每次 push/PR 时自动运行服务端测试、客户端 lint + 测试 + 构建
+- Docker 工作流（`.github/workflows/docker.yml`）在 CI 通过后自动构建并推送镜像到 GHCR，支持手动触发
 
 ### 安全边界
 
@@ -76,6 +90,9 @@ NMS 由三层组成：
 - WebSocket 用于受控实时能力，连接前先通过 ticket 授权
 - `serverHealthMonitor` 在后台持续采样节点状态
 - `telegramAlertService` 负责结构化通知投递、可选命令菜单管理、周期摘要与重复事件聚合
+- `subscriptionExpiryNotifier` 定期检查订阅到期并触发通知
+- `securityAudit` 使用持久化写入流（替代 `appendFileSync`）和内存滑动窗口环形缓冲进行安全模式匹配，避免阻塞事件循环
+- `taskQueue` 设有容量上限（1000），超限时自动清理已完成任务
 - 批量任务与日志、流量统计都具有独立保留策略
 
 ### 前端加载策略
@@ -120,13 +137,15 @@ NMS is built from three layers:
 
 ### Key modules
 
-- Auth and security: `auth`, `middleware/auth.js`, `services/authSessionService.js`
-- Servers and panel access: `routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`
-- Users and subscription administration: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`
-- Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`
-- Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`
+- Auth and security: `auth`, `middleware/auth.js`, `services/authSessionService.js`, `services/emailAuthService.js`
+- Servers and panel access: `routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`, `lib/serverHealthMonitor.js`, `lib/serverStatusService.js`
+- Users and subscription administration: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`, `lib/clientEntitlements.js`
+- Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`, `lib/subscriptionAlias.js`
+- Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`, `lib/auditEventEnrichment.js`
 - System settings and invite codes: `routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
-- Telegram notifications and digests: `lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`
+- Telegram notifications and digests: `lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`, `lib/alertEngine.js`
+- Security hardening: `lib/securityAudit.js` (persistent write stream + in-memory ring buffer), `lib/batchRiskControl.js`, `lib/taskQueue.js` (queue capacity cap), `lib/requestIp.js`, `lib/ipGeoResolver.js`, `lib/ipIspResolver.js`
+- Site camouflage: `lib/siteCamouflage.js`, `middleware/siteCamouflage.js`, `middleware/searchBotProtection.js`
 
 ### Storage modes
 
@@ -151,7 +170,19 @@ Related environment variables:
 - Manage: Dashboard, Inbounds, Users, Audit, 3x-ui Capabilities, Node Tools
 - Operate: Settings, Servers
 - System workbench: `Settings` now groups external access, security audit, operations notifications, data backup, plus a separate system-status tab and the embedded Node Console
-- End-user self-service: Subscriptions
+- End-user self-service: Subscriptions, Downloads, Account
+
+### Protection and camouflage
+
+- `searchBotProtection` middleware blocks search engine crawlers and common scanner probes
+- Site camouflage supports three templates: `corporate` (industrial automation company homepage), `blog` (industry journal), `nginx` (default Nginx page)
+- Camouflage templates use startup-randomized CSS class suffixes to prevent fingerprinting
+- Public subscription endpoints have a dedicated lightweight rate limiter (60 req/min), separated from the admin API rate limiter
+
+### CI/CD
+
+- GitHub Actions CI (`.github/workflows/ci.yml`) runs server tests, client lint + tests + build on every push/PR
+- Docker workflow (`.github/workflows/docker.yml`) builds and pushes images to GHCR after CI passes, with manual dispatch support
 
 ### Security boundaries
 
@@ -168,6 +199,9 @@ Related environment variables:
 - WebSocket features use ticket-based authorization
 - `serverHealthMonitor` samples server health in the background
 - `telegramAlertService` handles structured Telegram delivery, optional command-menu management, periodic digests, and repeated-event aggregation
+- `subscriptionExpiryNotifier` periodically checks subscription expiry and dispatches notifications
+- `securityAudit` uses a persistent write stream (replacing `appendFileSync`) and an in-memory sliding-window ring buffer for security pattern matching, avoiding event-loop blocking
+- `taskQueue` enforces a capacity cap (1000) and auto-prunes completed tasks on overflow
 - Batch jobs, audit records, and traffic stats each have dedicated retention controls
 
 ### Frontend loading strategy

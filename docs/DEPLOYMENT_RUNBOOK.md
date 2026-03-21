@@ -52,6 +52,26 @@ pm2 save
 
 The production startup entry now runs a preflight that fails fast when `.env` is unsafe or `client/dist/index.html` is missing.
 
+### Option 1.5: CI/CD Automated Build
+
+The repository includes GitHub Actions workflows:
+
+- **CI** (`.github/workflows/ci.yml`): runs server tests, client lint + tests + build on every push to `main` and every PR
+- **Docker** (`.github/workflows/docker.yml`): after CI passes on `main`, automatically builds and pushes a multi-arch Docker image to GHCR (`ghcr.io/<owner>/nms:latest` and `ghcr.io/<owner>/nms:<commit-sha>`); also supports manual dispatch
+
+To use the automated Docker image:
+
+```bash
+docker pull ghcr.io/<your-github-user-or-org>/nms:latest
+docker run -d \
+  --name nms \
+  -p 3001:3001 \
+  --env-file .env \
+  -v /opt/nms/data:/app/data \
+  -v /opt/nms/logs:/app/logs \
+  ghcr.io/<your-github-user-or-org>/nms:latest
+```
+
 ### Option 2: Docker Deployment
 
 The root `Dockerfile` already builds the client, installs server production dependencies, and starts the runtime on port `3001`.
@@ -109,6 +129,10 @@ NMS is easier to operate in production because it already includes:
 - health monitoring and notification stats
 - file / dual-write / database runtime modes
 - admin-side audit records for sensitive system actions
+- search bot and scanner protection middleware
+- dedicated public subscription rate limiter (60 req/min)
+- persistent audit write stream and in-memory ring buffer for pattern detection
+- task queue capacity management with auto-pruning
 
 ### Post-Deploy Validation
 
@@ -259,6 +283,10 @@ NMS 自带了一些生产环境里很实用的能力:
 - 节点健康巡检与通知统计
 - 文件 / 双写 / 数据库运行模式
 - 关键系统操作的管理员审计记录
+- 搜索引擎与扫描器探测拦截中间件
+- 公开订阅端点独立限流（60 次/分钟）
+- 审计日志持久化写入流与内存环形缓冲模式匹配
+- 任务队列容量管理与自动清理
 
 ### 上线后验证
 
