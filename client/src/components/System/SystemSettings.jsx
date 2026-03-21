@@ -2007,13 +2007,15 @@ export default function SystemSettings() {
                     title="运维动作"
                 />
                 <div className="settings-inline-grid settings-inline-grid--ops">
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">邮件链路</div>
-                            <div className="settings-form-cluster-title">测试 SMTP 与发送最新地址通知</div>
-                            <div className="settings-form-cluster-note">邮件链路状态已集中到系统状态页展示，这里只保留运维动作。</div>
+                    <div className="settings-form-cluster settings-ops-card settings-ops-card--notify">
+                        <div className="settings-ops-card-main">
+                            <div className="settings-form-cluster-head settings-ops-card-head">
+                                <div className="settings-form-cluster-eyebrow">邮件链路</div>
+                                <div className="settings-form-cluster-title">测试 SMTP 与发送最新地址通知</div>
+                                <div className="settings-form-cluster-note">邮件链路状态已集中到系统状态页展示，这里只保留运维动作。</div>
+                            </div>
                         </div>
-                        <div className="settings-panel-actions">
+                        <div className="settings-panel-actions settings-ops-actions settings-ops-actions--dual">
                             <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
                                 {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
                             </button>
@@ -2027,13 +2029,15 @@ export default function SystemSettings() {
                         </div>
                     </div>
 
-                    <div className="settings-form-cluster">
-                        <div className="settings-form-cluster-head">
-                            <div className="settings-form-cluster-eyebrow">节点巡检</div>
-                            <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
-                            <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                    <div className="settings-form-cluster settings-ops-card settings-ops-card--health">
+                        <div className="settings-ops-card-main">
+                            <div className="settings-form-cluster-head settings-ops-card-head">
+                                <div className="settings-form-cluster-eyebrow">节点巡检</div>
+                                <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
+                                <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                            </div>
                         </div>
-                        <div className="settings-panel-actions">
+                        <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
                             <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
                                 {monitorLoading ? <span className="spinner" /> : '立即巡检'}
                             </button>

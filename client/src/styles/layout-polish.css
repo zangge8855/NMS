@@ -2380,6 +2380,11 @@
   gap: 10px 12px;
 }
 
+.settings-inline-grid--ops {
+  grid-template-columns: minmax(0, 1.14fr) minmax(300px, 0.86fr);
+  align-items: stretch;
+}
+
 .settings-inline-grid--triple {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -2476,6 +2481,66 @@
   gap: 12px;
 }
 
+.settings-ops-card {
+  display: flex;
+  min-height: 170px;
+  padding: 14px;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.042) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.settings-ops-card-main,
+.settings-ops-card-head {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.settings-ops-card-main {
+  flex: 1 1 auto;
+  gap: 10px;
+}
+
+.settings-ops-card-head {
+  gap: 6px;
+}
+
+.settings-ops-card .settings-form-cluster-title {
+  font-size: 16px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.settings-ops-card .settings-form-cluster-note {
+  max-width: 42ch;
+  min-height: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.settings-ops-actions {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.settings-ops-actions--dual {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-ops-actions--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-ops-actions .btn {
+  width: 100%;
+  min-height: 40px;
+  justify-content: center;
+}
+
 .settings-inline-grid--ops .settings-form-cluster-head {
   gap: 6px;
   flex: 1 1 auto;
@@ -2497,6 +2562,18 @@
   width: 100%;
   min-height: 40px;
   justify-content: center;
+}
+
+.settings-inline-grid--ops .settings-ops-card .settings-form-cluster-note {
+  min-height: 0;
+}
+
+.settings-inline-grid--ops .settings-ops-actions--dual {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-inline-grid--ops .settings-ops-actions--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .settings-inline-action-row {
@@ -4067,7 +4144,8 @@
   }
 
   .settings-access-grid,
-  .settings-invite-layout {
+  .settings-invite-layout,
+  .settings-inline-grid--ops {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4453,6 +4531,14 @@
 
   .settings-inline-grid--ops .settings-panel-actions {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-ops-card {
+    min-height: 0;
+  }
+
+  .settings-ops-card .settings-form-cluster-note {
+    max-width: none;
   }
 
   .settings-invite-ledger,
