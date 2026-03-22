@@ -7776,7 +7776,7 @@ p, .empty-state-body, td {
   .page-content,
   .page-content--wide {
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px) !important;
   }
 
   .header {
@@ -8232,5 +8232,388 @@ p, .empty-state-body, td {
   .user-detail-page .user-detail-client-metrics,
   .dashboard-page .dashboard-inbound-mobile-stats {
     gap: 6px;
+  }
+}
+
+/* Final header alignment pass. */
+.header-shell {
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-icon {
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: center;
+  gap: 4px;
+}
+
+.header-eyebrow,
+.header-title,
+.header-subtitle {
+  text-align: left;
+}
+
+@media (min-width: 769px) {
+  .header-shell {
+    align-items: center;
+  }
+
+  .header-left {
+    align-items: center;
+  }
+
+  .header-actions {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-shell {
+    align-items: center;
+  }
+
+  .header-left {
+    align-items: center;
+  }
+
+  .header-title-group {
+    justify-content: center;
+    gap: 3px;
+  }
+}
+
+/* Final density repair pass for shared content primitives. */
+.empty-state {
+  min-height: 0;
+  padding: 28px 18px;
+  gap: 10px;
+}
+
+.empty-state-icon {
+  margin-bottom: 2px;
+}
+
+.empty-state-title {
+  line-height: 1.35;
+}
+
+.empty-state-sub {
+  line-height: 1.55;
+}
+
+.empty-state-action.mt-4 {
+  margin-top: 10px !important;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  margin-bottom: 6px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  min-height: 40px;
+  padding: 9px 14px;
+}
+
+.user-profile-card {
+  gap: 18px;
+  padding: 16px;
+}
+
+.user-profile-name {
+  margin-bottom: 2px;
+}
+
+.user-profile-email {
+  margin-bottom: 10px;
+}
+
+.user-profile-meta {
+  gap: 10px 12px;
+}
+
+.user-detail-tabs {
+  margin-top: 16px;
+}
+
+.user-detail-tab-content {
+  min-height: 0;
+  padding: 16px;
+}
+
+.stat-mini-grid {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat-mini-card {
+  padding: 12px;
+}
+
+.subscription-user-panel,
+.subscription-user-panel--import {
+  gap: 8px;
+}
+
+.subscription-user-panel-topbar,
+.subscription-user-panel-head {
+  gap: 4px;
+}
+
+.settings-form-cluster {
+  gap: 10px;
+  padding: 14px;
+}
+
+.settings-form-cluster + .settings-form-cluster {
+  margin-top: 10px;
+}
+
+.users-mobile-card,
+.servers-mobile-card,
+.audit-mobile-card,
+.tasks-mobile-card,
+.user-detail-client-card,
+.dashboard-online-mobile-card,
+.dashboard-inbound-mobile-card {
+  gap: 10px;
+}
+
+.users-mobile-card-head,
+.servers-mobile-card-top,
+.audit-mobile-card-head,
+.dashboard-online-mobile-head,
+.dashboard-inbound-mobile-head,
+.user-detail-client-head {
+  gap: 10px;
+}
+
+.servers-mobile-card-main,
+.audit-mobile-card-copy,
+.dashboard-online-mobile-copy,
+.dashboard-inbound-mobile-copy,
+.user-detail-client-copy {
+  gap: 6px;
+}
+
+.servers-mobile-meta,
+.audit-mobile-card-grid,
+.dashboard-inbound-mobile-stats,
+.user-detail-client-metrics {
+  gap: 8px;
+}
+
+.servers-mobile-meta-item,
+.audit-mobile-card-item,
+.user-detail-client-metric,
+.dashboard-inbound-mobile-stat {
+  padding: 9px 10px;
+}
+
+@media (max-width: 768px) {
+  .empty-state {
+    padding: 20px 12px;
+    gap: 8px;
+  }
+
+  .empty-state-icon {
+    font-size: 30px;
+  }
+
+  .empty-state-title {
+    font-size: 14px;
+  }
+
+  .empty-state-sub {
+    max-width: 34ch;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .empty-state-action.mt-4 {
+    margin-top: 8px !important;
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-label {
+    margin-bottom: 5px;
+    font-size: 10px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .user-profile-card {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .user-profile-name {
+    font-size: 18px;
+  }
+
+  .user-profile-email {
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .user-profile-meta {
+    gap: 8px 10px;
+    font-size: 12px;
+  }
+
+  .user-detail-tabs {
+    margin-top: 12px;
+  }
+
+  .user-detail-tab-content {
+    padding: 12px;
+  }
+
+  .stat-mini-grid {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .stat-mini-card {
+    padding: 10px;
+  }
+
+  .subscription-user-panel,
+  .subscription-user-panel--import {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .subscription-user-panel-topbar,
+  .subscription-user-panel-head {
+    gap: 3px;
+  }
+
+  .settings-form-cluster {
+    gap: 8px;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .settings-form-cluster + .settings-form-cluster {
+    margin-top: 8px;
+  }
+
+  .users-mobile-card,
+  .servers-mobile-card,
+  .audit-mobile-card,
+  .tasks-mobile-card,
+  .user-detail-client-card,
+  .dashboard-online-mobile-card,
+  .dashboard-inbound-mobile-card {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .users-mobile-card-head,
+  .servers-mobile-card-top,
+  .audit-mobile-card-head,
+  .dashboard-online-mobile-head,
+  .dashboard-inbound-mobile-head,
+  .user-detail-client-head {
+    gap: 8px;
+  }
+
+  .servers-mobile-card-main,
+  .audit-mobile-card-copy,
+  .dashboard-online-mobile-copy,
+  .dashboard-inbound-mobile-copy,
+  .user-detail-client-copy {
+    gap: 4px;
+  }
+
+  .servers-mobile-title,
+  .users-mobile-name,
+  .audit-mobile-card-title,
+  .dashboard-online-mobile-name,
+  .dashboard-inbound-mobile-title,
+  .user-detail-client-title {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .servers-mobile-url,
+  .users-mobile-email,
+  .audit-mobile-card-subtitle,
+  .dashboard-online-mobile-email,
+  .dashboard-inbound-mobile-kicker,
+  .user-detail-client-subtitle {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .servers-mobile-meta,
+  .audit-mobile-card-grid,
+  .dashboard-inbound-mobile-stats,
+  .user-detail-client-metrics {
+    gap: 6px;
+  }
+
+  .servers-mobile-meta-item,
+  .audit-mobile-card-item,
+  .user-detail-client-metric,
+  .dashboard-inbound-mobile-stat {
+    padding: 8px 9px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .empty-state {
+    padding: 16px 10px;
+    gap: 6px;
+  }
+
+  .user-detail-tab-content {
+    padding: 10px;
+  }
+
+  .subscription-user-panel,
+  .subscription-user-panel--import,
+  .settings-form-cluster {
+    padding: 9px;
+  }
+
+  .users-mobile-card,
+  .servers-mobile-card,
+  .audit-mobile-card,
+  .tasks-mobile-card,
+  .user-detail-client-card,
+  .dashboard-online-mobile-card,
+  .dashboard-inbound-mobile-card {
+    padding: 9px;
+    border-radius: 12px;
   }
 }
