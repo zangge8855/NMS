@@ -8110,8 +8110,43 @@ p, .empty-state-body, td {
   .settings-page .settings-summary-card,
   .settings-page .settings-tab-highlight-card,
   .settings-page .settings-workspace-highlight-card {
-    gap: 8px;
-    padding: 10px;
+    gap: 7px;
+    padding: 9px;
+  }
+
+  .settings-page .settings-panel {
+    gap: 7px;
+    padding: 9px;
+  }
+
+  .settings-page .settings-panel > .section-header {
+    display: contents;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-copy {
+    display: none;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side {
+    display: flex;
+    width: auto;
+    margin-left: 0;
+    margin-bottom: 2px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions {
+    width: auto;
+    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions .btn {
+    width: auto;
+    min-height: 34px;
   }
 
   .settings-page .settings-panel .section-header-side,
@@ -8126,7 +8161,86 @@ p, .empty-state-body, td {
   .settings-page .settings-access-panel .settings-panel-actions .btn,
   .settings-page .settings-ops-panel .settings-panel-actions .btn,
   .settings-page .settings-telegram-panel .settings-panel-actions .btn {
-    width: 100%;
+    width: auto;
+  }
+
+  .settings-page .settings-panel .settings-form-cluster,
+  .settings-page .settings-panel .settings-mini-card,
+  .settings-page .settings-panel .settings-detail-card,
+  .settings-page .settings-panel .settings-backup-action-card,
+  .settings-page .settings-panel .settings-db-control-card,
+  .settings-page .settings-panel .settings-monitor-log-item,
+  .settings-page .settings-panel .settings-invite-activity-item,
+  .settings-page .settings-panel .settings-backup-local-item {
+    min-height: 0;
+  }
+
+  .settings-page .settings-panel .settings-form-cluster {
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .settings-page .settings-panel .settings-form-cluster-head,
+  .settings-page .settings-panel .settings-db-card-head,
+  .settings-page .settings-panel .settings-backup-local-head,
+  .settings-page .settings-panel .settings-ops-card-head {
+    gap: 3px;
+  }
+
+  .settings-page .settings-panel .settings-mini-card,
+  .settings-page .settings-panel .settings-detail-card,
+  .settings-page .settings-panel .settings-backup-action-card,
+  .settings-page .settings-panel .settings-db-control-card,
+  .settings-page .settings-panel .settings-monitor-log-item {
+    gap: 6px;
+    padding: 9px 10px;
+  }
+
+  .settings-page .settings-panel .settings-backup-action-card,
+  .settings-page .settings-panel .settings-monitor-log-item {
+    min-height: 0;
+  }
+
+  .settings-page .settings-panel .settings-monitor-log-meta,
+  .settings-page .settings-panel .settings-backup-local-grid,
+  .settings-page .settings-panel .settings-backup-actions,
+  .settings-page .settings-panel .settings-ops-grid,
+  .settings-page .settings-panel .settings-access-grid,
+  .settings-page .settings-panel .settings-access-stack,
+  .settings-page .settings-panel .settings-db-grid,
+  .settings-page .settings-panel .settings-invite-layout {
+    gap: 8px;
+  }
+
+  .settings-page .settings-panel .settings-inline-action-strip {
+    gap: 6px 8px;
+    padding-top: 6px;
+  }
+
+  .settings-page .settings-panel .settings-access-action-row,
+  .settings-page .settings-panel .settings-backup-local-actions,
+  .settings-page .settings-panel .settings-backup-inspection-actions,
+  .settings-page .settings-panel .settings-invite-ledger-actions {
+    gap: 6px;
+  }
+
+  .settings-page .settings-panel .mt-3,
+  .settings-page .settings-panel .settings-toggle-collection.mt-3 {
+    margin-top: 8px !important;
+  }
+
+  .settings-page .settings-panel .mb-2 {
+    margin-bottom: 4px !important;
+  }
+
+  .settings-page .settings-panel .mt-1,
+  .settings-page .settings-panel .text-xs.text-muted.mt-1 {
+    margin-top: 2px !important;
+  }
+
+  .settings-page .settings-panel .settings-mini-card.mt-3,
+  .settings-page .settings-panel .settings-detail-card.mt-3 {
+    margin-top: 8px !important;
   }
 
   .audit-page .audit-nav-topbar,
@@ -8602,8 +8716,66 @@ p, .empty-state-body, td {
 
   .subscription-user-panel,
   .subscription-user-panel--import,
-  .settings-form-cluster {
+  .settings-form-cluster,
+  .settings-page .settings-panel {
     padding: 9px;
+  }
+
+  .settings-page .settings-panel,
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side {
+    margin-bottom: 1px;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions,
+  .settings-page .settings-panel-actions {
+    gap: 5px;
+  }
+
+  .settings-page .settings-panel .settings-form-cluster,
+  .settings-page .settings-panel .settings-mini-card,
+  .settings-page .settings-panel .settings-detail-card,
+  .settings-page .settings-panel .settings-backup-action-card,
+  .settings-page .settings-panel .settings-db-control-card,
+  .settings-page .settings-panel .settings-monitor-log-item {
+    padding: 8px 9px;
+    gap: 5px;
+  }
+
+  .settings-page .settings-panel .settings-monitor-log-meta,
+  .settings-page .settings-panel .settings-backup-local-grid,
+  .settings-page .settings-panel .settings-backup-actions,
+  .settings-page .settings-panel .settings-ops-grid,
+  .settings-page .settings-panel .settings-access-grid,
+  .settings-page .settings-panel .settings-access-stack,
+  .settings-page .settings-panel .settings-db-grid,
+  .settings-page .settings-panel .settings-invite-layout {
+    gap: 6px;
+  }
+
+  .settings-page .settings-panel .settings-mini-card.mt-3,
+  .settings-page .settings-panel .settings-detail-card.mt-3 {
+    margin-top: 6px !important;
+  }
+
+  .settings-page .settings-panel .mt-3,
+  .settings-page .settings-panel .settings-toggle-collection.mt-3 {
+    margin-top: 6px !important;
+  }
+
+  .settings-page .settings-panel .mb-2 {
+    margin-bottom: 3px !important;
+  }
+
+  .settings-page .settings-panel .mt-1,
+  .settings-page .settings-panel .text-xs.text-muted.mt-1 {
+    margin-top: 1px !important;
   }
 
   .users-mobile-card,

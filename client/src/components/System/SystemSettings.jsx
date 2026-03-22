@@ -1711,7 +1711,7 @@ export default function SystemSettings() {
                     </div>
                 </div>
 
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-registration-panel">
                     <SectionHeader
                         className="mb-3"
                         compact
@@ -2657,7 +2657,7 @@ export default function SystemSettings() {
     const renderStatusContent = () => (
             <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-6">
+                <div className="card p-4 settings-panel settings-panel--span-6 settings-status-panel">
                     <SectionHeader
                         className="mb-3"
                         compact
@@ -2712,7 +2712,7 @@ export default function SystemSettings() {
                         </div>
                     </div>
                 </div>
-                <div className="card p-4 settings-panel settings-panel--span-6">
+                <div className="card p-4 settings-panel settings-panel--span-6 settings-status-db-panel">
                     <SectionHeader
                         className="mb-3"
                         compact
