@@ -1,6 +1,6 @@
 import { HiOutlineCog6Tooth, HiOutlineCpuChip, HiOutlineRss, HiOutlineServerStack, HiOutlineSignal, HiOutlineUserCircle } from 'react-icons/hi2';
 import { describe, expect, it } from 'vitest';
-import { getVisibleNavSections, navSections } from './navConfig.js';
+import { getVisibleMobileNavItems, getVisibleNavSections, navSections } from './navConfig.js';
 
 describe('navConfig', () => {
     it('folds dashboard into manage and keeps audit under manage for admins', () => {
@@ -40,5 +40,15 @@ describe('navConfig', () => {
 
         expect(items.find((item) => item.path === '/account')?.icon).toBe(HiOutlineUserCircle);
         expect(items.find((item) => item.path === '/subscriptions')?.icon).toBe(HiOutlineRss);
+    });
+
+    it('shows admin mobile nav in sidebar order without servers or settings', () => {
+        const items = getVisibleMobileNavItems({
+            isAdmin: true,
+            isGlobalView: true,
+            locale: 'zh-CN',
+        });
+
+        expect(items.map((item) => item.path)).toEqual(['/', '/inbounds', '/clients', '/audit']);
     });
 });

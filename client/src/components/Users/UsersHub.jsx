@@ -1305,7 +1305,7 @@ export default function UsersHub() {
                 title={t('pages.usersHub.title')}
                 eyebrow={t('pages.usersHub.eyebrow')}
             />
-            <div className="page-content page-enter page-content--wide">
+            <div className="page-content page-enter page-content--wide users-page">
                 <div className="users-toolbar glass-panel mb-6">
                     <div className="users-toolbar-main">
                         <div className="account-search-shell flex-1 max-w-sm">

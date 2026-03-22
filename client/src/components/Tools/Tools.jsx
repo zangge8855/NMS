@@ -138,7 +138,7 @@ export default function Tools() {
         return (
             <>
                 <Header title={t('pages.tools.title')} />
-                <div className="page-content page-enter">
+                <div className="page-content page-enter tools-page">
                     <EmptyState
                         title={copy.selectServerFirst}
                         subtitle={copy.selectServerHint}
@@ -158,7 +158,7 @@ export default function Tools() {
     return (
         <>
             <Header title={t('pages.tools.title')} />
-            <div className="page-content page-enter">
+            <div className="page-content page-enter tools-page">
                 <PageToolbar
                     className="card rounded-xl mb-6 tools-toolbar"
                     compact

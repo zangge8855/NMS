@@ -908,7 +908,7 @@ export default function Servers() {
                 title={t('pages.servers.title')}
                 eyebrow={t('pages.servers.eyebrow')}
             />
-            <div className="page-content page-content--wide page-enter">
+            <div className="page-content page-content--wide page-enter servers-page">
                 <div className="servers-toolbar glass-panel mb-6">
                     {selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">

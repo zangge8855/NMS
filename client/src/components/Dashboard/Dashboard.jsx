@@ -1209,7 +1209,7 @@ export default function Dashboard() {
                     title={t('pages.dashboardEmpty.title')}
                 />
                 
-                <div className="page-content page-enter">
+                <div className="page-content page-enter dashboard-page">
                     <EmptyState
                         title={t('pages.dashboardEmpty.bodyTitle')}
                         subtitle={t('pages.dashboardEmpty.bodySubtitle')}
@@ -1384,7 +1384,7 @@ export default function Dashboard() {
                         </span>
                     </button>
                 </Header>
-                <div className="page-content page-enter">
+                <div className="page-content page-enter dashboard-page">
                     <ResourceTopologyCard
                         dbStatus={dbStatus}
                         servers={servers}
@@ -1602,7 +1602,7 @@ export default function Dashboard() {
                     </span>
                 </button>
             </Header>
-            <div className="page-content page-enter">
+            <div className="page-content page-enter dashboard-page">
                 <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (
                         <StatCard

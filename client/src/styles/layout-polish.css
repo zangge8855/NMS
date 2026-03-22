@@ -2566,6 +2566,57 @@
   min-height: 0;
 }
 
+.settings-ops-card-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-ops-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-ops-meta-grid--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-ops-meta-item {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-ops-meta-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-ops-meta-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-ops-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .settings-ops-card .settings-form-cluster-title {
   font-size: 15px;
   line-height: 1.35;
@@ -2613,6 +2664,8 @@
   width: 100%;
   gap: 8px;
   align-items: stretch;
+  padding-top: 2px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .settings-ops-actions--dual {
@@ -2745,6 +2798,10 @@
 }
 
 .settings-ops-panel {
+  gap: 10px;
+}
+
+.settings-telegram-panel {
   gap: 10px;
 }
 
@@ -4706,19 +4763,23 @@
   }
 
   .settings-access-panel,
-  .settings-ops-panel {
+  .settings-ops-panel,
+  .settings-telegram-panel {
     gap: 8px;
     padding: 12px;
   }
 
   .settings-access-panel .section-header,
-  .settings-ops-panel .section-header {
+  .settings-ops-panel .section-header,
+  .settings-telegram-panel .section-header {
     gap: 8px;
+    padding-bottom: 4px;
   }
 
   .settings-access-panel .section-header.mb-3,
-  .settings-ops-panel .section-header.mb-3 {
-    margin-bottom: 8px !important;
+  .settings-ops-panel .section-header.mb-3,
+  .settings-telegram-panel .section-header.mb-3 {
+    margin-bottom: 6px !important;
   }
 
   .settings-access-grid,
@@ -4731,6 +4792,10 @@
     gap: 8px;
     padding: 12px;
     border-radius: 14px;
+  }
+
+  .settings-access-panel .settings-form-cluster {
+    height: auto;
   }
 
   .settings-access-panel .settings-form-cluster-head,
@@ -4747,17 +4812,77 @@
   }
 
   .settings-access-panel .form-label,
-  .settings-ops-panel .form-label {
+  .settings-ops-panel .form-label,
+  .settings-telegram-panel .form-label {
     margin-bottom: 4px;
   }
 
-  .settings-access-panel .text-xs.text-muted {
+  .settings-access-panel .text-xs.text-muted,
+  .settings-telegram-panel .text-xs.text-muted {
     margin-top: 4px !important;
     line-height: 1.45;
   }
 
   .settings-ops-card-main {
     gap: 8px;
+  }
+
+  .settings-access-panel .section-header-side,
+  .settings-telegram-panel .section-header-side {
+    width: 100%;
+    margin-left: 0;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .settings-access-panel .section-header-actions,
+  .settings-telegram-panel .section-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+
+  .settings-access-panel .section-header-actions > *,
+  .settings-telegram-panel .section-header-actions > * {
+    width: 100%;
+  }
+
+  .settings-access-panel .section-header-actions .btn,
+  .settings-telegram-panel .section-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .settings-telegram-panel .grid-auto-220 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .settings-telegram-panel .settings-sensitive-field {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .settings-telegram-panel .settings-sensitive-field .btn {
+    width: 100%;
+    min-height: 36px;
+  }
+
+  .settings-telegram-panel .settings-toggle-collection--telegram {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 8px !important;
+  }
+
+  .settings-telegram-panel .settings-toggle-card {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .settings-telegram-panel .settings-toggle-description.is-visible {
+    line-height: 1.4;
   }
 
   [data-workspace="status"] .settings-workspace-highlight-grid,
@@ -4788,6 +4913,14 @@
   .settings-ops-card {
     min-height: 0;
     padding: 14px;
+  }
+
+  .settings-ops-meta-grid {
+    gap: 6px;
+  }
+
+  .settings-ops-meta-item {
+    padding: 8px 9px;
   }
 
   .settings-ops-card .settings-form-cluster-note {
@@ -5040,7 +5173,8 @@
   }
 
   .settings-access-panel,
-  .settings-ops-panel {
+  .settings-ops-panel,
+  .settings-telegram-panel {
     padding: 10px;
   }
 
@@ -5062,6 +5196,7 @@
 
   .settings-access-panel .settings-panel-actions,
   .settings-ops-panel .settings-panel-actions,
+  .settings-telegram-panel .settings-panel-actions,
   .settings-access-panel .settings-inline-action-row,
   .settings-access-action-row {
     gap: 6px;
@@ -5070,6 +5205,47 @@
   .settings-access-panel .settings-panel-actions .btn,
   .settings-ops-actions .btn {
     min-height: 36px;
+  }
+
+  .settings-ops-card-kicker {
+    gap: 6px;
+  }
+
+  .settings-ops-meta-grid,
+  .settings-ops-meta-grid--triple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-ops-summary {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .settings-access-panel .section-header,
+  .settings-telegram-panel .section-header {
+    gap: 6px;
+    padding-bottom: 2px;
+  }
+
+  .settings-access-stack {
+    gap: 6px;
+  }
+
+  .settings-access-panel .settings-form-cluster {
+    height: auto;
+  }
+
+  .settings-telegram-panel .grid-auto-220 {
+    gap: 8px;
+  }
+
+  .settings-telegram-panel .settings-sensitive-field,
+  .settings-telegram-panel .settings-toggle-collection--telegram {
+    gap: 6px;
+  }
+
+  .settings-telegram-panel .settings-toggle-card {
+    padding: 8px 9px;
   }
 
   [data-workspace="status"] .settings-workspace-highlight-grid,
@@ -5491,7 +5667,7 @@ p, .empty-state-body, td {
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     padding-right: var(--mobile-page-pad);
     padding-bottom: 12px;
-    padding-left: calc(var(--mobile-page-pad) + 48px);
+    padding-left: var(--mobile-page-pad);
   }
 
   .header-shell {
@@ -7030,5 +7206,1031 @@ p, .empty-state-body, td {
   [data-workspace="status"] .settings-workspace-highlight-grid,
   [data-workspace="policy"] .settings-workspace-highlight-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- Mobile density sweep for account and subscription surfaces --- */
+@media (max-width: 768px) {
+  .account-page .account-shell,
+  .subscriptions-page .subscriptions-workbench,
+  .subscriptions-page .subscriptions-main-column,
+  .subscriptions-page .subscriptions-side-column {
+    gap: 10px;
+  }
+
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card {
+    padding: 12px;
+  }
+
+  .account-page .card-header.section-header,
+  .subscriptions-page .card-header.section-header {
+    gap: 6px;
+    padding-bottom: 8px;
+    margin-bottom: 8px !important;
+  }
+
+  .account-page .section-header-title,
+  .subscriptions-page .section-header-title {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .account-page .section-header-subtitle,
+  .account-page .account-profile-verify-note,
+  .account-page .account-card-note,
+  .subscriptions-page .section-header-subtitle,
+  .subscriptions-page .subscription-user-panel-text,
+  .subscriptions-page .subscription-guide-card .card-subtitle,
+  .subscriptions-page .subscription-client-links-caption {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .account-page .account-profile-verify-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .account-page .account-profile-verify-row .btn,
+  .account-page .account-actions .btn,
+  .account-page .account-password-submit .btn {
+    width: 100%;
+  }
+
+  .account-page .account-role-row,
+  .account-page .account-actions,
+  .account-page .account-password-submit {
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-client-links-section,
+  .subscriptions-page .subscription-user-panel,
+  .subscriptions-page .subscription-user-flow {
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card .subscription-client-links {
+    padding: 0;
+  }
+
+  .subscriptions-page .subscription-user-panel {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .subscriptions-page .subscription-user-panel-topbar,
+  .subscriptions-page .subscription-client-links-heading {
+    gap: 4px;
+  }
+
+  .subscriptions-page .subscription-user-panel-title {
+    font-size: 14px;
+  }
+
+  .subscriptions-page .subscription-device-card {
+    padding: 10px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .subscriptions-page .subscription-device-card-head,
+  .subscriptions-page .subscription-device-compact-layout,
+  .subscriptions-page .subscription-device-block,
+  .subscriptions-page .subscription-device-rules {
+    gap: 5px;
+  }
+
+  .subscriptions-page .subscription-device-compact-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-device-compact-label {
+    padding-top: 6px;
+    font-size: 9px;
+  }
+
+  .subscriptions-page .subscription-device-title {
+    font-size: 13px;
+  }
+
+  .subscriptions-page .subscription-device-text {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card {
+    padding: 10px;
+  }
+
+  .account-page .card-header.section-header,
+  .subscriptions-page .card-header.section-header {
+    padding-bottom: 6px;
+    margin-bottom: 6px !important;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .subscriptions-page .subscription-client-links-section,
+  .subscriptions-page .subscription-user-panel,
+  .subscriptions-page .subscription-user-flow {
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-user-panel {
+    padding: 10px;
+  }
+
+  .subscriptions-page .subscription-device-card {
+    padding: 9px;
+    gap: 5px;
+  }
+}
+
+/* --- Site-wide desktop/mobile layout consistency audit --- */
+@media (min-width: 769px) {
+  .page-content.page-content--wide {
+    padding-inline: clamp(14px, 1.8vw, 22px);
+  }
+
+  .page-content .card .card-header.section-header {
+    gap: 10px 14px;
+    padding-bottom: 10px;
+    margin-bottom: 10px !important;
+  }
+
+  .page-content .card .section-header-title {
+    line-height: 1.3;
+  }
+
+  .page-content .card .section-header-subtitle {
+    line-height: 1.55;
+  }
+
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content .card,
+  .page-content .table-container,
+  .page-content .glass-panel {
+    border-radius: 14px;
+  }
+
+  .page-content .card .card-header.section-header {
+    gap: 6px;
+    padding-bottom: 8px;
+    margin-bottom: 8px !important;
+  }
+
+  .page-content .card .section-header-title {
+    font-size: 15px;
+    line-height: 1.28;
+  }
+
+  .page-content .card .section-header-subtitle {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-content .card,
+  .page-content .table-container,
+  .page-content .glass-panel {
+    border-radius: 12px;
+  }
+
+  .page-content .card .card-header.section-header {
+    padding-bottom: 6px;
+    margin-bottom: 6px !important;
+  }
+}
+
+/* --- Table and status-card consistency sweep --- */
+@media (min-width: 769px) {
+  .page-content .table-container {
+    overflow-x: auto;
+  }
+
+  .subscriptions-workbench,
+  .audit-chart-grid,
+  .audit-leaderboard-grid,
+  .server-detail-overview-grid,
+  .server-detail-mobile-list,
+  .tools-grid,
+  .server-console-grid,
+  .capability-protocol-grid {
+    gap: 14px;
+  }
+
+  .dashboard-quick-grid,
+  .node-health-grid,
+  .audit-mobile-card-grid,
+  .user-detail-client-metrics,
+  .server-detail-mobile-card-grid {
+    gap: 12px;
+  }
+
+  .dashboard-stats-grid,
+  .audit-stats-grid,
+  .subscription-summary-grid,
+  .settings-summary-grid,
+  .settings-workspace-highlight-grid {
+    gap: 14px;
+  }
+
+  .dashboard-stat-card,
+  .stat-mini-card,
+  .audit-stat-card,
+  .audit-traffic-mini-card,
+  .settings-summary-card,
+  .settings-tab-highlight-card,
+  .settings-workspace-highlight-card,
+  .subscription-summary-item,
+  .subscription-address-status-card,
+  .logs-summary-card {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .subscriptions-workbench,
+  .audit-chart-grid,
+  .audit-leaderboard-grid,
+  .server-detail-overview-grid,
+  .server-detail-mobile-list,
+  .tools-grid,
+  .server-console-grid,
+  .capability-protocol-grid {
+    gap: 10px;
+  }
+
+  .dashboard-quick-grid,
+  .node-health-grid,
+  .audit-mobile-card-grid,
+  .user-detail-client-metrics,
+  .server-detail-mobile-card-grid {
+    gap: 8px;
+  }
+
+  .page-content .table tr {
+    gap: 8px 10px;
+    padding: 14px 12px 12px;
+    border-radius: 14px;
+  }
+
+  .page-content .table td {
+    gap: 4px;
+  }
+
+  .page-content .table td::before {
+    font-size: 9.5px;
+  }
+
+  .page-content .table td:last-child,
+  .page-content .table td.table-cell-actions {
+    padding-top: 8px;
+  }
+
+  .page-content .table-row-actions,
+  .page-content .table td .flex.gap-2 {
+    gap: 6px;
+  }
+
+  .dashboard-stats-grid,
+  .audit-stats-grid,
+  .audit-traffic-mini-grid,
+  .subscription-summary-grid,
+  .settings-summary-grid,
+  .settings-workspace-highlight-grid,
+  .settings-tab-hero-grid {
+    gap: 10px;
+  }
+
+  .dashboard-stat-card,
+  .stat-mini-card,
+  .audit-stat-card,
+  .audit-traffic-mini-card,
+  .settings-summary-card,
+  .settings-tab-highlight-card,
+  .settings-workspace-highlight-card,
+  .subscription-summary-item,
+  .subscription-address-status-card,
+  .logs-summary-card {
+    gap: 8px;
+    padding: 12px;
+    min-height: 0;
+  }
+
+  .dashboard-quick-card,
+  .node-health-tile,
+  .audit-mobile-card-item,
+  .user-detail-client-metric,
+  .server-detail-mobile-card-item {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .server-detail-mobile-card,
+  .audit-traffic-overview {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .dashboard-quick-card {
+    gap: 10px;
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .dashboard-quick-card-arrow {
+    display: none;
+  }
+
+  .dashboard-quick-card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  .node-health-tile {
+    padding: 12px;
+  }
+
+  .audit-mobile-card-actions,
+  .user-detail-client-actions,
+  .server-detail-mobile-card-actions {
+    gap: 6px;
+  }
+
+  .audit-mobile-card-actions .btn,
+  .user-detail-client-actions .btn,
+  .server-detail-mobile-card-actions .btn {
+    width: 100%;
+  }
+
+  .dashboard-stat-card-head,
+  .settings-summary-head,
+  .audit-stat-card .card-header,
+  .subscription-address-status-head {
+    min-height: 0;
+  }
+
+  .dashboard-stat-card-value,
+  .audit-stat-card .card-value,
+  .audit-traffic-mini-value,
+  .settings-tab-highlight-value,
+  .settings-summary-value,
+  .subscription-summary-value {
+    font-size: clamp(22px, 6.5vw, 28px);
+  }
+}
+
+@media (max-width: 640px) {
+  .subscriptions-workbench,
+  .audit-chart-grid,
+  .audit-leaderboard-grid,
+  .server-detail-overview-grid,
+  .server-detail-mobile-list,
+  .tools-grid,
+  .server-console-grid,
+  .capability-protocol-grid {
+    gap: 8px;
+  }
+
+  .dashboard-quick-grid,
+  .node-health-grid,
+  .audit-mobile-card-grid,
+  .user-detail-client-metrics,
+  .server-detail-mobile-card-grid {
+    gap: 6px;
+  }
+
+  .page-content .table tr {
+    gap: 7px 8px;
+    padding: 12px 10px 10px;
+    border-radius: 12px;
+  }
+
+  .dashboard-stat-card,
+  .stat-mini-card,
+  .audit-stat-card,
+  .audit-traffic-mini-card,
+  .settings-summary-card,
+  .settings-tab-highlight-card,
+  .settings-workspace-highlight-card,
+  .subscription-summary-item,
+  .subscription-address-status-card,
+  .logs-summary-card {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .dashboard-quick-card,
+  .node-health-tile,
+  .audit-mobile-card-item,
+  .user-detail-client-metric,
+  .server-detail-mobile-card-item {
+    padding: 9px;
+  }
+
+  .server-detail-mobile-card,
+  .audit-traffic-overview {
+    padding: 10px;
+    border-radius: 14px;
+  }
+}
+
+/* --- Final desktop/mobile layout audit sweep --- */
+@media (min-width: 769px) {
+  .servers-page .servers-toolbar,
+  .servers-page .servers-filter-card,
+  .audit-page .audit-nav,
+  .audit-page .audit-control-card,
+  .audit-page .audit-tab-hero,
+  .settings-page .settings-nav,
+  .settings-page .settings-toolbar,
+  .users-page .users-toolbar,
+  .inbounds-page .inbounds-toolbar,
+  .tools-page .tools-toolbar,
+  .capabilities-page .capabilities-toolbar,
+  .server-console-page .server-console-toolbar,
+  .tasks-page .audit-tab-hero,
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-downloads-page-card {
+    gap: 12px;
+  }
+
+  .users-page .users-table-shell,
+  .servers-page .servers-table-shell,
+  .audit-page .audit-table-shell,
+  .audit-page .audit-nested-table-shell,
+  .inbounds-page .inbounds-table-shell,
+  .tasks-page .table-container,
+  .capabilities-page .table-container,
+  .user-detail-page .table-container {
+    overflow-x: auto;
+  }
+
+  .account-page .section-header-copy,
+  .subscriptions-page .section-header-copy,
+  .tools-page .section-header-copy,
+  .capabilities-page .section-header-copy,
+  .server-console-page .section-header-copy,
+  .dashboard-page .section-header-copy,
+  .user-detail-page .section-header-copy {
+    gap: 4px;
+  }
+
+  .account-page .section-header-subtitle,
+  .subscriptions-page .section-header-subtitle,
+  .tools-page .section-header-subtitle,
+  .capabilities-page .section-header-subtitle,
+  .server-console-page .section-header-subtitle,
+  .dashboard-page .section-header-subtitle,
+  .user-detail-page .section-header-subtitle {
+    max-width: 74ch;
+  }
+
+  .subscriptions-page .subscription-client-links,
+  .subscriptions-page .subscription-client-links-section,
+  .subscriptions-page .subscription-downloads-page-card,
+  .user-detail-page .user-detail-subscription-layout,
+  .user-detail-page .subscription-link-with-qr {
+    gap: 12px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card .subscription-client-links {
+    padding: 0 12px 12px;
+  }
+
+  .subscriptions-page .subscription-device-grid {
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-device-card,
+  .tools-page .tool-card,
+  .capabilities-page .capability-protocol-card,
+  .server-console-page .server-console-tool-card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .user-detail-page .glass-panel,
+  .user-detail-page .user-detail-client-card,
+  .dashboard-page .dashboard-online-mobile-card,
+  .dashboard-page .dashboard-inbound-mobile-card {
+    gap: 12px;
+  }
+
+  .server-console-page .server-console-grid,
+  .server-console-page .server-console-tool-grid,
+  .server-console-page .server-console-guide-grid,
+  .tools-page .tools-grid,
+  .servers-page .servers-mobile-list,
+  .audit-page .audit-shell,
+  .audit-page .audit-main,
+  .capabilities-page .capability-protocol-grid {
+    gap: 12px;
+  }
+
+  .tasks-page .tasks-mobile-shell,
+  .tasks-page .tasks-mobile-list,
+  .user-detail-page .timeline-list {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
+  }
+
+  .header {
+    min-height: 68px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+    padding-bottom: 10px;
+  }
+
+  .header-shell {
+    gap: 8px 10px;
+  }
+
+  .header-title {
+    font-size: 20px;
+  }
+
+  .header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .page-content .card,
+  .page-content .glass-panel,
+  .page-content .table-container,
+  .page-content .page-toolbar {
+    padding: 12px;
+  }
+
+  .page-content .section-header-copy,
+  .page-content .page-toolbar-main {
+    gap: 4px;
+  }
+
+  .page-content .section-header-title {
+    font-size: 14px;
+  }
+
+  .page-content .section-header-subtitle,
+  .page-content .page-toolbar-meta,
+  .page-content .page-pagination-meta,
+  .page-content .text-sm.text-muted {
+    line-height: 1.45;
+  }
+
+  .page-content .section-header-subtitle,
+  .page-content .page-toolbar-meta,
+  .page-content .page-pagination-meta {
+    font-size: 11px;
+  }
+
+  .servers-page .servers-toolbar,
+  .servers-page .servers-filter-card,
+  .audit-page .audit-nav,
+  .audit-page .audit-control-card,
+  .audit-page .audit-tab-hero,
+  .settings-page .settings-nav,
+  .settings-page .settings-toolbar,
+  .users-page .users-toolbar,
+  .inbounds-page .inbounds-toolbar,
+  .tools-page .tools-toolbar,
+  .capabilities-page .capabilities-toolbar,
+  .server-console-page .server-console-toolbar,
+  .tasks-page .audit-tab-hero,
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .users-page .users-mobile-list,
+  .servers-page .servers-mobile-list,
+  .audit-page .audit-shell,
+  .audit-page .audit-main,
+  .audit-page .audit-tab-panel,
+  .audit-page .audit-mobile-list,
+  .tasks-page .tasks-mobile-shell,
+  .tasks-page .tasks-mobile-list,
+  .dashboard-page .dashboard-online-mobile-list,
+  .dashboard-page .dashboard-inbound-mobile-list,
+  .user-detail-page .user-detail-client-list,
+  .user-detail-page .timeline-list,
+  .subscriptions-page .subscription-client-links,
+  .subscriptions-page .subscription-client-links-section,
+  .user-detail-page .user-detail-subscription-layout,
+  .user-detail-page .subscription-link-with-qr,
+  .tools-page .tools-grid,
+  .capabilities-page .capability-protocol-grid,
+  .capabilities-page .capability-batch-grid,
+  .server-console-page .server-console-grid,
+  .server-console-page .server-console-tool-grid,
+  .server-console-page .server-console-guide-grid {
+    gap: 8px;
+  }
+
+  .users-page .users-mobile-list-head,
+  .users-page .users-mobile-card,
+  .servers-page .servers-mobile-card,
+  .audit-page .audit-mobile-card,
+  .audit-page .audit-tab-highlight-card,
+  .audit-page .audit-stat-card,
+  .audit-page .audit-traffic-mini-card,
+  .audit-page .audit-traffic-total-card,
+  .audit-page .audit-traffic-split-card,
+  .tasks-page .tasks-mobile-card,
+  .dashboard-page .dashboard-online-mobile-card,
+  .dashboard-page .dashboard-inbound-mobile-card,
+  .user-detail-page .user-detail-client-card,
+  .tools-page .tool-card,
+  .capabilities-page .capability-protocol-card,
+  .server-console-page .server-console-result-card,
+  .server-console-page .server-console-tool-card,
+  .subscriptions-page .subscription-device-card,
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-inline-qr--featured {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .users-page .users-mobile-card-head,
+  .servers-page .servers-mobile-head,
+  .audit-page .audit-mobile-card-head,
+  .tasks-page .audit-mobile-card-head,
+  .dashboard-page .dashboard-online-mobile-head,
+  .dashboard-page .dashboard-inbound-mobile-head,
+  .user-detail-page .user-detail-client-head,
+  .capabilities-page .capability-card-head,
+  .server-console-page .server-console-tool-head {
+    gap: 8px;
+  }
+
+  .users-page .users-mobile-name,
+  .servers-page .servers-mobile-name,
+  .dashboard-page .dashboard-online-mobile-name,
+  .dashboard-page .dashboard-inbound-mobile-title,
+  .user-detail-page .user-detail-client-title,
+  .subscriptions-page .subscription-device-title {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .users-page .users-mobile-email,
+  .servers-page .servers-mobile-url,
+  .servers-page .servers-mobile-meta-item,
+  .dashboard-page .dashboard-online-mobile-email,
+  .dashboard-page .dashboard-inbound-mobile-kicker,
+  .subscriptions-page .subscription-device-text,
+  .user-detail-page .user-detail-client-subtitle,
+  .tools-page .tools-toolbar-note,
+  .server-console-page .server-console-note,
+  .server-console-page .server-console-result-summary,
+  .account-page .account-profile-verify-note,
+  .account-page .account-card-note,
+  .subscriptions-page .subscription-client-links-caption,
+  .subscriptions-page .subscription-user-panel-text {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .users-page .users-mobile-metrics,
+  .servers-page .servers-mobile-meta,
+  .servers-page .servers-mobile-actions,
+  .audit-page .audit-mobile-card-grid,
+  .tasks-page .tasks-mobile-grid,
+  .dashboard-page .dashboard-inbound-mobile-stats,
+  .user-detail-page .user-detail-client-metrics,
+  .server-detail-mobile-card-grid {
+    gap: 6px;
+  }
+
+  .users-page .users-row-actions,
+  .servers-page .servers-row-actions,
+  .servers-page .servers-mobile-actions,
+  .audit-page .audit-mobile-card-actions,
+  .tasks-page .tasks-mobile-actions,
+  .user-detail-page .user-detail-client-actions,
+  .server-console-page .server-console-action-row,
+  .server-console-page .server-console-select-row,
+  .tools-page .tool-card-actions,
+  .subscriptions-page .subscription-device-actions {
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card .subscription-client-links {
+    padding: 0;
+  }
+
+  .subscriptions-page .subscription-device-grid,
+  .subscriptions-page .subscription-client-links--compact .subscription-device-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-device-card-head,
+  .subscriptions-page .subscription-device-compact-layout,
+  .subscriptions-page .subscription-device-block,
+  .subscriptions-page .subscription-device-rules,
+  .subscriptions-page .subscription-user-panel-topbar,
+  .subscriptions-page .subscription-client-links-heading {
+    gap: 4px;
+  }
+
+  .subscriptions-page .subscription-device-compact-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-device-compact-label {
+    padding-top: 5px;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .account-page .account-profile-verify-row,
+  .capabilities-page .capability-batch-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .account-page .account-role-row,
+  .account-page .account-actions,
+  .account-page .account-password-submit,
+  .user-detail-page .user-profile-actions {
+    gap: 6px;
+  }
+
+  .account-page .account-actions .btn,
+  .account-page .account-password-submit .btn,
+  .account-page .account-profile-verify-row .btn,
+  .user-detail-page .user-profile-actions .btn,
+  .server-console-page .server-console-action-row .btn,
+  .server-console-page .server-console-select-row .btn,
+  .tools-page .tool-card-actions .btn {
+    width: 100%;
+  }
+
+  .servers-page .servers-table-shell,
+  .audit-page .audit-table-shell,
+  .audit-page .audit-nested-table-shell,
+  .inbounds-page .inbounds-row,
+  .users-page .users-row,
+  .tasks-page .table tr,
+  .capabilities-page .table tr {
+    padding: 12px 10px 10px;
+  }
+
+  .inbounds-page .inbounds-clients-panel {
+    padding: 10px;
+  }
+
+  .inbounds-page .inbounds-clients-toolbar,
+  .inbounds-page .inbounds-clients-selection-bar,
+  .inbounds-page .inbounds-row-actions,
+  .inbounds-page .inbounds-client-actions,
+  .inbounds-page .inbounds-sequence-cell,
+  .inbounds-page .inbounds-node-cell-inner {
+    gap: 6px;
+  }
+
+  .dashboard-page .dashboard-quick-grid,
+  .dashboard-page .node-health-grid,
+  .dashboard-page .dashboard-stats-grid,
+  .audit-page .audit-stats-grid,
+  .audit-page .audit-traffic-mini-grid {
+    gap: 8px;
+  }
+
+  .dashboard-page .dashboard-stat-card,
+  .dashboard-page .dashboard-quick-card,
+  .dashboard-page .node-health-tile {
+    min-height: 0;
+  }
+
+  .dashboard-page .dashboard-stat-card-head,
+  .dashboard-page .dashboard-online-label,
+  .dashboard-page .node-health-tile-head,
+  .dashboard-page .node-health-tile-meta {
+    gap: 8px;
+  }
+
+  .user-detail-page .glass-panel {
+    padding: 12px;
+  }
+
+  .user-detail-page .user-profile-card,
+  .user-detail-page .user-detail-tab-content {
+    gap: 10px;
+  }
+
+  .user-detail-page .subscription-link-grid,
+  .user-detail-page .subscription-link-grid--compact,
+  .user-detail-page .subscription-address-status-grid {
+    gap: 8px;
+  }
+
+  .user-detail-page .subscription-user-address-foot,
+  .user-detail-page .subscription-user-reset-inline-copy,
+  .user-detail-page .subscription-profile-switches {
+    gap: 6px;
+  }
+
+  .tools-page .tools-toolbar-copy,
+  .server-console-page .server-console-toolbar-copy,
+  .capabilities-page .capability-stack {
+    gap: 4px;
+  }
+
+  .server-console-page .server-console-result-list {
+    gap: 6px;
+  }
+
+  .server-console-page .server-console-result-item {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+  .settings-page .settings-shell,
+  .settings-page .settings-grid,
+  .settings-page .settings-tab-shell,
+  .settings-page .settings-summary-grid,
+  .settings-page .settings-workspace-highlight-grid {
+    gap: 8px;
+  }
+
+  .settings-page .settings-panel,
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .settings-page .settings-panel .section-header-side,
+  .settings-page .settings-panel-actions,
+  .settings-page .settings-access-panel .settings-panel-actions,
+  .settings-page .settings-ops-panel .settings-panel-actions,
+  .settings-page .settings-telegram-panel .settings-panel-actions {
+    gap: 6px;
+  }
+
+  .settings-page .settings-panel-actions .btn,
+  .settings-page .settings-access-panel .settings-panel-actions .btn,
+  .settings-page .settings-ops-panel .settings-panel-actions .btn,
+  .settings-page .settings-telegram-panel .settings-panel-actions .btn {
+    width: 100%;
+  }
+
+  .audit-page .audit-nav-topbar,
+  .audit-page .audit-control-head,
+  .audit-page .audit-control-actions,
+  .audit-page .audit-control-action-group,
+  .audit-page .audit-control-meta,
+  .audit-page .audit-traffic-overview-head,
+  .audit-page .audit-traffic-overview-actions {
+    gap: 6px;
+  }
+
+  .audit-page .audit-filter-grid,
+  .audit-page .audit-filter-stack {
+    gap: 8px;
+  }
+
+  .servers-page .servers-toolbar-summary,
+  .servers-page .servers-filter-bar {
+    gap: 8px;
+  }
+
+  .server-detail-page .glass-panel,
+  .server-detail-page .user-detail-tab-content,
+  .server-detail-page .server-detail-mobile-list,
+  .server-detail-page .timeline-list,
+  .server-detail-page .server-detail-overview-grid {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-content,
+  .page-content--wide {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+  }
+
+  .header {
+    min-height: 64px;
+    padding-bottom: 8px;
+  }
+
+  .header-title {
+    font-size: 18px;
+  }
+
+  .page-content .card,
+  .page-content .glass-panel,
+  .page-content .table-container,
+  .page-content .page-toolbar,
+  .users-page .users-mobile-card,
+  .servers-page .servers-mobile-card,
+  .audit-page .audit-mobile-card,
+  .audit-page .audit-tab-highlight-card,
+  .audit-page .audit-stat-card,
+  .audit-page .audit-traffic-mini-card,
+  .audit-page .audit-traffic-total-card,
+  .audit-page .audit-traffic-split-card,
+  .tasks-page .tasks-mobile-card,
+  .dashboard-page .dashboard-online-mobile-card,
+  .dashboard-page .dashboard-inbound-mobile-card,
+  .user-detail-page .user-detail-client-card,
+  .tools-page .tool-card,
+  .capabilities-page .capability-protocol-card,
+  .server-console-page .server-console-result-card,
+  .server-console-page .server-console-tool-card,
+  .subscriptions-page .subscription-device-card,
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-inline-qr--featured {
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .page-content .section-header-title {
+    font-size: 13px;
+  }
+
+  .users-page .users-mobile-list,
+  .tasks-page .tasks-mobile-shell,
+  .tasks-page .tasks-mobile-list,
+  .dashboard-page .dashboard-online-mobile-list,
+  .dashboard-page .dashboard-inbound-mobile-list,
+  .user-detail-page .user-detail-client-list,
+  .subscriptions-page .subscription-client-links,
+  .subscriptions-page .subscription-client-links-section,
+  .tools-page .tools-grid,
+  .capabilities-page .capability-protocol-grid,
+  .server-console-page .server-console-grid,
+  .server-console-page .server-console-tool-grid,
+  .server-console-page .server-console-guide-grid {
+    gap: 6px;
+  }
+
+  .subscriptions-page .subscription-device-compact-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .account-page .account-profile-verify-row,
+  .user-detail-page .subscription-address-status-grid,
+  .user-detail-page .user-detail-client-metrics,
+  .dashboard-page .dashboard-inbound-mobile-stats {
+    gap: 6px;
   }
 }

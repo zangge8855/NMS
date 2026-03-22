@@ -381,7 +381,7 @@ export default function ServerDetail() {
                     title={t('pages.serverDetail.title')}
                     eyebrow={t('pages.serverDetail.eyebrow')}
                 />
-                <div className="page-content page-enter">
+                <div className="page-content page-enter server-detail-page">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
                     </div>
@@ -397,7 +397,7 @@ export default function ServerDetail() {
                     title={t('pages.serverDetail.title')}
                     eyebrow={t('pages.serverDetail.eyebrow')}
                 />
-                <div className="page-content page-enter">
+                <div className="page-content page-enter server-detail-page">
                     <EmptyState title="服务器不存在" subtitle="该服务器可能已被删除" action={
                         <button className="btn btn-secondary" onClick={() => navigate('/servers')}>
                             <HiOutlineArrowLeft /> 返回服务器列表
@@ -429,7 +429,7 @@ export default function ServerDetail() {
                 eyebrow={t('pages.serverDetail.eyebrow')}
                 allowTitleWrap
             />
-            <div className="page-content page-enter">
+            <div className="page-content page-enter server-detail-page">
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
                     <HiOutlineArrowLeft /> 返回服务器列表
                 </button>

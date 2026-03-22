@@ -45,7 +45,7 @@ export const navSections = [
 export const footerNavItems = [];
 
 const mobileNavPresets = {
-    admin: ['/', '/audit', '/servers', '/settings'],
+    admin: ['/', '/inbounds', '/clients', '/audit'],
     user: ['/subscriptions', '/downloads', '/account'],
 };
 

@@ -337,7 +337,7 @@ export default function ServerManagement({ embedded = false }) {
                         eyebrow={t('pages.serverConsole.eyebrow')}
                     />
                 )}
-                <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter'}>
+                <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter server-console-page'}>
                     <EmptyState
                         title="请先选择一台服务器"
                         subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
@@ -351,7 +351,7 @@ export default function ServerManagement({ embedded = false }) {
 
     const content = (
         <>
-            <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter'}>
+            <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter server-console-page'}>
                 <PageToolbar
                     className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
                     compact

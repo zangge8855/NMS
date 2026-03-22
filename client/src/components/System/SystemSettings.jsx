@@ -2063,9 +2063,22 @@ export default function SystemSettings() {
                     <div className="settings-form-cluster settings-ops-card settings-ops-card--smtp">
                         <div className="settings-ops-card-main">
                             <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-form-cluster-eyebrow">邮件链路</div>
+                                <div className="settings-ops-card-kicker">
+                                    <div className="settings-form-cluster-eyebrow">邮件链路</div>
+                                    <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>{emailConfiguredLabel}</span>
+                                </div>
                                 <div className="settings-form-cluster-title">测试 SMTP</div>
                                 <div className="settings-form-cluster-note">先验证 SMTP 配置和邮件链路，再执行通知发送。</div>
+                            </div>
+                            <div className="settings-ops-meta-grid">
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">连接验证</div>
+                                    <div className="settings-ops-meta-value">{emailVerificationLabel}</div>
+                                </div>
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">最近发送</div>
+                                    <div className="settings-ops-meta-value">{emailDeliveryLabel}</div>
+                                </div>
                             </div>
                         </div>
                         <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
@@ -2078,9 +2091,24 @@ export default function SystemSettings() {
                     <div className="settings-form-cluster settings-ops-card settings-ops-card--notice">
                         <div className="settings-ops-card-main">
                             <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-form-cluster-eyebrow">变更通知</div>
+                                <div className="settings-ops-card-kicker">
+                                    <div className="settings-form-cluster-eyebrow">变更通知</div>
+                                    <span className={`badge ${emailStatus?.configured ? 'badge-info' : 'badge-warning'}`}>
+                                        {emailStatus?.configured ? '可发送' : '待配置 SMTP'}
+                                    </span>
+                                </div>
                                 <div className="settings-form-cluster-title">发送最新地址通知</div>
                                 <div className="settings-form-cluster-note">向用户发送最新地址或订阅变更提醒，发送前会校验当前邮件配置。</div>
+                            </div>
+                            <div className="settings-ops-meta-grid">
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">发送范围</div>
+                                    <div className="settings-ops-meta-value">注册用户</div>
+                                </div>
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">当前入口</div>
+                                    <div className="settings-ops-meta-value">{siteAccessPath}</div>
+                                </div>
                             </div>
                         </div>
                         <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
@@ -2097,9 +2125,28 @@ export default function SystemSettings() {
                     <div className="settings-form-cluster settings-ops-card settings-ops-card--health">
                         <div className="settings-ops-card-main">
                             <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-form-cluster-eyebrow">节点巡检</div>
+                                <div className="settings-ops-card-kicker">
+                                    <div className="settings-form-cluster-eyebrow">节点巡检</div>
+                                    <span className={`badge ${monitorIncidentCount > 0 ? 'badge-warning' : 'badge-success'}`}>
+                                        {monitorIncidentCount > 0 ? '有异常' : '状态平稳'}
+                                    </span>
+                                </div>
                                 <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
                                 <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                            </div>
+                            <div className="settings-ops-meta-grid settings-ops-meta-grid--triple">
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">健康</div>
+                                    <div className="settings-ops-meta-value">{monitorHealthyCount}</div>
+                                </div>
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">异常</div>
+                                    <div className="settings-ops-meta-value">{monitorIncidentCount}</div>
+                                </div>
+                                <div className="settings-ops-meta-item">
+                                    <div className="settings-ops-meta-label">未读</div>
+                                    <div className="settings-ops-meta-value">{monitorUnreadCount}</div>
+                                </div>
                             </div>
                         </div>
                         <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
@@ -2111,7 +2158,7 @@ export default function SystemSettings() {
                 </div>
             </div>
 
-            <div className="card p-4 settings-panel settings-panel--wide">
+            <div className="card p-4 settings-panel settings-panel--wide settings-telegram-panel">
                 <SectionHeader
                     className="mb-3"
                     compact
@@ -2807,7 +2854,7 @@ export default function SystemSettings() {
                     subtitle={t('pages.settings.limitedSubtitle')}
                     eyebrow={t('pages.settings.eyebrow')}
                 />
-                <div className="page-content page-enter">
+                <div className="page-content page-enter settings-page">
                     <EmptyState
                         title="仅管理员可访问系统设置"
                         subtitle="请使用管理员账号登录后再修改系统参数、备份或监控配置。"
@@ -2825,7 +2872,7 @@ export default function SystemSettings() {
                 title={t('pages.settings.title')}
                 eyebrow={t('pages.settings.eyebrow')}
             />
-            <div className="page-content page-content--wide page-enter">
+            <div className="page-content page-content--wide page-enter settings-page">
                 <div className="settings-shell">
                     <div className="card settings-nav">
                         <div className="settings-nav-list settings-nav-list--workspace">

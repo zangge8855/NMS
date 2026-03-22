@@ -1022,7 +1022,7 @@ export default function Inbounds() {
                     title={t('pages.inbounds.title')}
                     eyebrow={t('pages.inbounds.eyebrow')}
                 />
-                <div className="page-content page-content--wide page-enter">
+                <div className="page-content page-content--wide page-enter inbounds-page">
                     <EmptyState
                         title="请先在「服务器管理」添加节点"
                         subtitle="接入至少一台 3x-ui 节点后，再统一维护入站和客户端。"
@@ -1040,7 +1040,7 @@ export default function Inbounds() {
                 title={t('pages.inbounds.title')}
                 eyebrow={t('pages.inbounds.eyebrow')}
             />
-            <div className="page-content page-content--wide page-enter">
+            <div className="page-content page-content--wide page-enter inbounds-page">
                 <div className="inbounds-toolbar glass-panel mb-6">
                     <div className="inbounds-toolbar-main">
                         <select

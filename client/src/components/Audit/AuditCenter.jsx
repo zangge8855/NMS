@@ -1174,7 +1174,7 @@ export default function AuditCenter() {
                 title={t('pages.audit.title')}
                 eyebrow={t('pages.audit.eyebrow')}
             />
-            <div className="page-content page-enter page-content--wide">
+            <div className="page-content page-enter page-content--wide audit-page">
                 <div className="audit-shell">
                     <div className="card audit-nav">
                         <div className="audit-nav-topbar">

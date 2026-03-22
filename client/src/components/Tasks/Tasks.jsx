@@ -265,7 +265,7 @@ export default function Tasks({ embedded = false }) {
         return count;
     }, [actionFilter, failedOnlyFilter, retryGroupBy, serverFilter, typeFilter]);
 
-    const shellClassName = embedded ? 'tasks-embedded-shell' : 'page-content page-enter';
+    const shellClassName = embedded ? 'tasks-embedded-shell' : 'page-content page-enter tasks-page';
     const filterCardClassName = embedded ? 'card p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
     // Converge on the shared table shell instead of page-specific container variants.
     const tableShellClassName = embedded ? 'table-container' : 'table-container mb-8';

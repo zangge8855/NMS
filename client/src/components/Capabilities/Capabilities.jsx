@@ -210,7 +210,7 @@ export default function Capabilities() {
         return (
             <>
                 <Header title={t('pages.capabilities.title')} />
-                <div className="page-content page-enter">
+                <div className="page-content page-enter capabilities-page">
                     <EmptyState
                         title={copy.selectServerTitle}
                         subtitle={copy.selectServerSubtitle}
@@ -225,7 +225,7 @@ export default function Capabilities() {
     return (
         <>
             <Header title={t('pages.capabilities.title')} />
-            <div className="page-content page-enter">
+            <div className="page-content page-enter capabilities-page">
                 <PageToolbar
                     className="card mb-6 capabilities-toolbar"
                     compact
