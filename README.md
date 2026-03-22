@@ -108,7 +108,7 @@ Default runtime endpoints:
 ### Stack And Layout
 
 ```text
-client/   React + Vite admin app
+client/   React + Vite + Ant Design admin app
 server/   Express API, WebSocket, stores, services
 docs/     Deployment, usage, architecture, and review notes
 data/     Default file-backed storage
@@ -259,7 +259,7 @@ docker run -d \
 ### 技术栈与目录
 
 ```text
-client/   React + Vite 管理端
+client/   React + Vite + Ant Design 管理端
 server/   Express API、WebSocket、存储层与服务层
 docs/     部署、使用、架构与评审文档
 data/     默认文件存储目录
