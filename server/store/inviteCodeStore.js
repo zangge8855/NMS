@@ -78,6 +78,12 @@ function normalizeText(value) {
     return String(value || '').trim();
 }
 
+function normalizeTargetEmail(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : '';
+}
+
 function normalizePositiveInt(value, fallback, options = {}) {
     const parsed = Number.parseInt(String(value), 10);
     let output = Number.isInteger(parsed) ? parsed : fallback;
@@ -105,6 +111,7 @@ function normalizeRecord(input = {}) {
     const createdAt = normalizeText(input.createdAt) || new Date().toISOString();
     const preview = normalizeText(input.preview);
     const createdBy = normalizeText(input.createdBy);
+    const targetEmail = normalizeTargetEmail(input.targetEmail);
     const usedAt = normalizeText(input.usedAt);
     const usedByUserId = normalizeText(input.usedByUserId);
     const usedByUsername = normalizeText(input.usedByUsername);
@@ -124,6 +131,7 @@ function normalizeRecord(input = {}) {
         preview,
         createdAt,
         createdBy,
+        targetEmail,
         usageLimit,
         subscriptionDays,
         usedCount,
@@ -195,6 +203,7 @@ class InviteCodeStore {
             status: resolveStatus(record),
             createdAt: record.createdAt,
             createdBy: record.createdBy || '',
+            targetEmail: record.targetEmail || '',
             usageLimit,
             subscriptionDays: normalizeSubscriptionDays(record.subscriptionDays, 0),
             usedCount,
@@ -237,6 +246,7 @@ class InviteCodeStore {
                 preview: buildPreview(code),
                 createdAt: new Date().toISOString(),
                 createdBy: normalizeText(options.createdBy),
+                targetEmail: normalizeTargetEmail(options.targetEmail),
                 usageLimit,
                 subscriptionDays,
                 usedCount: 0,

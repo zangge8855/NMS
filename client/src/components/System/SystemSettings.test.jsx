@@ -620,4 +620,34 @@ describe('SystemSettings', () => {
             expect(api.delete).toHaveBeenCalledWith('/system/invite-codes/invite-1');
         });
     });
+
+    it('sends an invite email to a specific address from the access workspace', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.post.mockResolvedValue({
+            data: {
+                msg: '邀请码已发送至 invitee@example.com',
+                obj: {
+                    recipientEmail: 'invitee@example.com',
+                },
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
+
+        const emailInput = await screen.findByPlaceholderText('invitee@example.com');
+        await user.type(emailInput, 'invitee@example.com');
+        await user.click(screen.getByRole('button', { name: '发送邀请邮件' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/system/invite-codes/send', {
+                email: 'invitee@example.com',
+                subscriptionDays: 30,
+            });
+        });
+    });
 });

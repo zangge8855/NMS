@@ -7,6 +7,8 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 import inviteCodeStore from '../store/inviteCodeStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
+import { toHttpError } from '../lib/httpError.js';
+import { normalizeClientBasePath } from '../lib/clientBuild.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
@@ -43,6 +45,7 @@ import {
     resolveRegisteredUserNoticeRecipients,
     sendRegisteredUserNoticeCampaign,
 } from '../services/registeredUserNoticeService.js';
+import { createAndSendInviteRegistrationEmail } from '../services/inviteRegistrationService.js';
 import {
     applySecurityBootstrap,
     getSecurityBootstrapStatus,
@@ -71,6 +74,25 @@ function normalizeStoreKeys(input) {
     }
     if (!Array.isArray(input)) return [];
     return Array.from(new Set(input.map((item) => String(item || '').trim()).filter(Boolean)));
+}
+
+function buildSiteEntryUrl(req) {
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+        .split(',')[0]
+        .trim()
+        .toLowerCase();
+    const protocol = forwardedProto || String(req.protocol || 'http').trim().toLowerCase() || 'http';
+    const host = String(req.get('host') || req.headers.host || '').trim();
+    if (!host) return '';
+
+    const siteAccessPath = normalizeClientBasePath(systemSettingsStore.getSite().accessPath, '/');
+    const pathname = siteAccessPath === '/' ? '/' : `${siteAccessPath}/`;
+
+    try {
+        return new URL(pathname, `${protocol}://${host}`).toString();
+    } catch {
+        return '';
+    }
 }
 
 router.use(authMiddleware);
@@ -152,6 +174,59 @@ router.post('/invite-codes', adminOnly, (req, res) => {
         return res.status(400).json({
             success: false,
             msg: error.message || '创建邀请码失败',
+        });
+    }
+});
+
+router.post('/invite-codes/send', adminOnly, async (req, res) => {
+    if (!getEmailStatus().configured) {
+        return res.status(400).json({
+            success: false,
+            msg: 'SMTP 未配置，无法发送邀请码邮件',
+        });
+    }
+
+    try {
+        const result = await createAndSendInviteRegistrationEmail({
+            email: req.body?.email,
+            usageLimit: 1,
+            subscriptionDays: req.body?.subscriptionDays,
+            actor: req.user?.username || req.user?.role || 'admin',
+            registrationUrl: buildSiteEntryUrl(req),
+        });
+
+        appendSecurityAudit('invite_code_email_sent', req, {
+            inviteId: result.invite?.id || '',
+            preview: result.invite?.preview || '',
+            email: result.recipientEmail,
+            targetEmail: result.recipientEmail,
+            usageLimit: Number(result.usageLimit || 1),
+            subscriptionDays: Number(result.subscriptionDays || 0),
+        }, { outcome: 'success' });
+
+        return res.json({
+            success: true,
+            msg: `邀请码已发送至 ${result.recipientEmail}`,
+            obj: {
+                recipientEmail: result.recipientEmail,
+                registrationUrl: result.registrationUrl,
+                usageLimit: result.usageLimit,
+                subscriptionDays: result.subscriptionDays,
+                invite: result.invite,
+            },
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 400, '发送邀请码失败');
+        appendSecurityAudit('invite_code_email_sent', req, {
+            email: String(req.body?.email || '').trim().toLowerCase(),
+            inviteId: httpError.details?.inviteId || '',
+            preview: httpError.details?.preview || '',
+            error: httpError.message || '发送邀请码失败',
+        }, { outcome: 'failed' });
+
+        return res.status(httpError.status || 400).json({
+            success: false,
+            msg: httpError.message || '发送邀请码失败',
         });
     }
 });

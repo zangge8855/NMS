@@ -63,7 +63,22 @@ async function registerUser(payload = {}, deps = {}) {
         }
         try {
             invite = inviteStore.assertUsable(inviteCode);
+            const inviteTargetEmail = normalizeEmailInput(invite?.targetEmail);
+            if (inviteTargetEmail && inviteTargetEmail !== email) {
+                throw createHttpError(400, '邀请码仅限指定邮箱使用', {
+                    code: 'INVITE_CODE_EMAIL_MISMATCH',
+                    details: {
+                        username,
+                        email,
+                        inviteTargetEmail,
+                        inviteCodePresent: true,
+                    },
+                });
+            }
         } catch (error) {
+            if (error?.code === 'INVITE_CODE_EMAIL_MISMATCH') {
+                throw error;
+            }
             throw createHttpError(400, error.message || '邀请码无效', {
                 code: 'INVITE_CODE_INVALID',
                 details: {

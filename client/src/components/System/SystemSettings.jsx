@@ -25,6 +25,8 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import SiteAccessDangerModal from './SiteAccessDangerModal.jsx';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
     return Number.isInteger(parsed) ? parsed : fallback;
@@ -449,6 +451,10 @@ export default function SystemSettings() {
     const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
         count: '1',
         usageLimit: '1',
+        subscriptionDays: '30',
+    });
+    const [inviteEmailDraft, setInviteEmailDraft] = useState({
+        email: '',
         subscriptionDays: '30',
     });
     const [latestInviteCodes, setLatestInviteCodes] = useState([]);
@@ -1023,6 +1029,36 @@ export default function SystemSettings() {
             }
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
+        }
+        setInviteCodeActionKey('');
+    };
+
+    const sendInviteEmail = async () => {
+        if (!isAdmin) return;
+        const email = toText(inviteEmailDraft.email, '').toLowerCase();
+        const subscriptionDays = toBoundedInt(inviteEmailDraft.subscriptionDays, 30, 0, 3650);
+
+        if (!EMAIL_PATTERN.test(email)) {
+            toast.error('请输入有效邮箱');
+            return;
+        }
+
+        setInviteCodeActionKey('send-email');
+        try {
+            const res = await api.post('/system/invite-codes/send', {
+                email,
+                subscriptionDays,
+            });
+            setInviteEmailDraft((prev) => ({
+                ...prev,
+                email: '',
+                subscriptionDays: String(subscriptionDays),
+            }));
+            toast.success(res.data?.msg || `邀请码已发送至 ${email}`);
+            await fetchInviteCodes({ quiet: true });
+            await fetchEmailStatus({ quiet: true });
+        } catch (error) {
+            toast.error(error.response?.data?.msg || error.message || '发送邀请码失败');
         }
         setInviteCodeActionKey('');
     };
@@ -1746,91 +1782,150 @@ export default function SystemSettings() {
                                     />
                                 </div>
                             </div>
-                            <div className="card p-3 settings-mini-card settings-detail-card">
-                                <div className="text-sm font-medium">生成邀请码</div>
-                                <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">本次生成数量</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
-                                            min={1}
-                                            max={50}
-                                            value={inviteGenerationDraft.count}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                count: e.target.value,
-                                            }))}
-                                        />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">每个邀请码可用次数</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
-                                            min={1}
-                                            max={1000}
-                                            value={inviteGenerationDraft.usageLimit}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                usageLimit: e.target.value,
-                                            }))}
-                                        />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">开通时长（天）</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
-                                            min={0}
-                                            max={3650}
-                                            value={inviteGenerationDraft.subscriptionDays}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                subscriptionDays: e.target.value,
-                                            }))}
-                                        />
-                                    </div>
-                                    <div className="form-group mb-0 settings-form-actions">
-                                        <button
-                                            className="btn btn-primary w-full"
-                                            type="button"
-                                            onClick={createInviteCode}
-                                            disabled={inviteCodeActionLoading}
-                                        >
-                                            {inviteCodeActionKey === 'create' ? <span className="spinner" /> : '生成邀请码'}
-                                        </button>
-                                    </div>
+                            <div className="settings-form-cluster settings-invite-workbench">
+                                <div className="settings-form-cluster-head">
+                                    <div className="settings-form-cluster-eyebrow">邀请码发放</div>
+                                    <div className="settings-form-cluster-title">生成与投递工作台</div>
+                                    <div className="settings-form-cluster-note">把直接生成、指定邮箱发送和最近一次生成结果放在同一个卡片里，减少不必要的空白分块。</div>
                                 </div>
+                                <div className="settings-invite-workbench-grid">
+                                    <section className="settings-invite-workbench-section">
+                                        <div className="settings-invite-workbench-section-head">
+                                            <div className="settings-invite-workbench-section-title">直接生成邀请码</div>
+                                            <div className="settings-invite-workbench-section-note">适合批量发放或临时复制给用户。</div>
+                                        </div>
+                                        <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
+                                            <div className="form-group mb-0">
+                                                <label className="form-label">本次生成数量</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={50}
+                                                    value={inviteGenerationDraft.count}
+                                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                        ...prev,
+                                                        count: e.target.value,
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="form-group mb-0">
+                                                <label className="form-label">每个邀请码可用次数</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={1000}
+                                                    value={inviteGenerationDraft.usageLimit}
+                                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                        ...prev,
+                                                        usageLimit: e.target.value,
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="form-group mb-0">
+                                                <label className="form-label">开通时长（天）</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    max={3650}
+                                                    value={inviteGenerationDraft.subscriptionDays}
+                                                    onChange={(e) => setInviteGenerationDraft((prev) => ({
+                                                        ...prev,
+                                                        subscriptionDays: e.target.value,
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="form-group mb-0 settings-form-actions">
+                                                <button
+                                                    className="btn btn-primary w-full"
+                                                    type="button"
+                                                    onClick={createInviteCode}
+                                                    disabled={inviteCodeActionLoading}
+                                                >
+                                                    {inviteCodeActionKey === 'create' ? <span className="spinner" /> : '生成邀请码'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section className="settings-invite-workbench-section">
+                                        <div className="settings-invite-workbench-section-head">
+                                            <div className="settings-invite-workbench-section-title">指定邮箱发送</div>
+                                            <div className="settings-invite-workbench-section-note">自动生成单次邀请码并绑定该邮箱，注册时必须使用同一邮箱。</div>
+                                        </div>
+                                        <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-email">
+                                            <div className="form-group mb-0">
+                                                <label className="form-label">目标邮箱</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="email"
+                                                    placeholder="invitee@example.com"
+                                                    value={inviteEmailDraft.email}
+                                                    onChange={(e) => setInviteEmailDraft((prev) => ({
+                                                        ...prev,
+                                                        email: e.target.value,
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="form-group mb-0">
+                                                <label className="form-label">开通时长（天）</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    max={3650}
+                                                    value={inviteEmailDraft.subscriptionDays}
+                                                    onChange={(e) => setInviteEmailDraft((prev) => ({
+                                                        ...prev,
+                                                        subscriptionDays: e.target.value,
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="form-group mb-0 settings-form-actions">
+                                                <button
+                                                    className="btn btn-primary w-full"
+                                                    type="button"
+                                                    onClick={sendInviteEmail}
+                                                    disabled={inviteCodeActionLoading || !inviteEmailDraft.email.trim()}
+                                                >
+                                                    {inviteCodeActionKey === 'send-email' ? <span className="spinner" /> : '发送邀请邮件'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                {latestInviteCodes.length > 0 ? (
+                                    <div className="settings-invite-workbench-latest">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                                            <div className="text-sm font-medium">本次生成的邀请码</div>
+                                            <span className="text-xs text-muted">
+                                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
+                                            </span>
+                                        </div>
+                                        <div className="settings-code-list">
+                                            {latestInviteCodes.map((code) => (
+                                                <code key={code} className="font-mono">{code}</code>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap mt-3">
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={async () => {
+                                                    await copyToClipboard(latestInviteCodes.join('\n'));
+                                                    toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                                                }}
+                                            >
+                                                {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
+                                            </button>
+                                        </div>
+                                        <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                                    </div>
+                                ) : null}
                             </div>
-                            {latestInviteCodes.length > 0 ? (
-                                <div className="card p-3 settings-mini-card settings-detail-card">
-                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                        <div className="text-sm font-medium">本次生成的邀请码</div>
-                                        <span className="text-xs text-muted">
-                                            {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
-                                        </span>
-                                    </div>
-                                    <div className="settings-code-list">
-                                        {latestInviteCodes.map((code) => (
-                                            <code key={code} className="font-mono">{code}</code>
-                                        ))}
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-wrap mt-3">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={async () => {
-                                                await copyToClipboard(latestInviteCodes.join('\n'));
-                                                toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
-                                            }}
-                                        >
-                                            {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
-                                        </button>
-                                    </div>
-                                    <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
-                                </div>
-                            ) : null}
                         </div>
 
                         <div className="settings-form-cluster">
@@ -1897,6 +1992,10 @@ export default function SystemSettings() {
                                                             </div>
                                                         </div>
                                                         <div className="settings-invite-ledger-meta">
+                                                            <div className="settings-invite-ledger-meta-item">
+                                                                <span className="settings-invite-ledger-meta-label">绑定邮箱</span>
+                                                                <span className="settings-invite-ledger-meta-value">{item.targetEmail || '未绑定'}</span>
+                                                            </div>
                                                             <div className="settings-invite-ledger-meta-item">
                                                                 <span className="settings-invite-ledger-meta-label">开通时长</span>
                                                                 <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>

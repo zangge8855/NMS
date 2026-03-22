@@ -120,6 +120,19 @@ describe('InviteCodeStore', { concurrency: false }, () => {
         assert.throws(() => store.assertUsable(firstCode), /用完/);
     });
 
+    it('persists a bound target email for email-delivered invites', () => {
+        const store = createStore('bound-email');
+        const created = store.create({
+            createdBy: 'admin',
+            targetEmail: ' Invitee@Example.com ',
+            subscriptionDays: 45,
+        });
+
+        assert.equal(created.invite.targetEmail, 'invitee@example.com');
+        assert.equal(store.assertUsable(created.code).targetEmail, 'invitee@example.com');
+        assert.equal(store.list()[0].targetEmail, 'invitee@example.com');
+    });
+
     it('hydrates legacy single-use invite records from disk', () => {
         const legacyDataDir = getCaseDataDir('legacy-hydrate');
         const legacyFile = path.join(legacyDataDir, 'invite_codes.json');

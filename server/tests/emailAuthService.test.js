@@ -344,3 +344,38 @@ test('registerUser still succeeds when invite auto-provisioning fails', async ()
     assert.equal(result.user.enabled, true);
     assert.equal(result.user.subscriptionEmail, 'invite2@example.com');
 });
+
+test('registerUser rejects invite registration when the code is bound to another email', async () => {
+    await assert.rejects(
+        () => registerUser(
+            {
+                username: 'invite-user-3',
+                password: 'InvitePass123!',
+                email: 'other@example.com',
+                inviteCode: 'EMAIL-BOUND-CODE',
+            },
+            {
+                inviteCodeStore: {
+                    assertUsable() {
+                        return {
+                            id: 'invite-3',
+                            preview: 'EMAI-****-CODE',
+                            usageLimit: 1,
+                            subscriptionDays: 30,
+                            targetEmail: 'bound@example.com',
+                        };
+                    },
+                },
+                inviteOnlyEnabled: true,
+                registrationConfig: { defaultRole: 'user', verifyCodeTtlMinutes: 10 },
+            }
+        ),
+        (error) => {
+            assert.equal(error.status, 400);
+            assert.equal(error.code, 'INVITE_CODE_EMAIL_MISMATCH');
+            assert.equal(error.message, '邀请码仅限指定邮箱使用');
+            assert.equal(error.details.inviteTargetEmail, 'bound@example.com');
+            return true;
+        }
+    );
+});
