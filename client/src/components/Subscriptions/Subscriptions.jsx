@@ -805,9 +805,9 @@ export default function Subscriptions() {
                                                                     >
                                                                         <QRCodeSVG
                                                                             value={activeProfile.url}
-                                                                            size={128}
+                                                                            size={136}
                                                                             level="M"
-                                                                            includeMargin={false}
+                                                                            includeMargin
                                                                         />
                                                                     </div>
                                                                     <div className="subscription-inline-qr-text">{ui.qrHint}</div>

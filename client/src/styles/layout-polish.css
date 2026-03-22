@@ -3086,6 +3086,15 @@
   flex-wrap: wrap;
 }
 
+.settings-page .settings-access-panel .settings-panel-actions--entry {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.settings-page .settings-access-panel .settings-panel-actions--entry .btn {
+  flex: 0 0 auto;
+}
+
 .settings-panel .section-header-actions .btn,
 .settings-panel-actions .btn,
 .settings-nav-actions .btn {
@@ -10146,7 +10155,7 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 128px minmax(0, 1fr);
   grid-template-areas:
     "surface title"
     "surface text";
@@ -10171,15 +10180,16 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface {
   grid-area: surface;
-  width: 104px;
-  min-width: 104px;
-  padding: 0;
+  width: 128px;
+  min-width: 128px;
+  padding: 6px;
   margin-inline: 0;
+  overflow: visible;
 }
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface svg {
-  width: 104px;
-  height: 104px;
+  width: 128px;
+  height: 128px;
 }
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-text {
@@ -10531,8 +10541,8 @@ p, .empty-state-body, td {
   }
 
   .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface svg {
-    width: 108px;
-    height: 108px;
+    width: 116px;
+    height: 116px;
   }
 
   .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-text {
@@ -10643,6 +10653,10 @@ p, .empty-state-body, td {
 
   .settings-page .settings-panel > .section-header .section-header-copy {
     display: flex;
+  }
+
+  .settings-page .settings-access-panel .settings-panel-actions--entry {
+    flex-wrap: wrap;
   }
 
   .settings-page .settings-panel > .section-header .section-header-side,

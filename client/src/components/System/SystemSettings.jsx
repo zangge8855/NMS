@@ -1507,7 +1507,7 @@ export default function SystemSettings() {
                         compact
                         title="入口与订阅"
                         actions={(
-                            <div className="settings-panel-actions">
+                            <div className="settings-panel-actions settings-panel-actions--entry">
                                 <CopyFeedbackButton
                                     type="button"
                                     className="btn btn-secondary btn-sm"
