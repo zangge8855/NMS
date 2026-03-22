@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Badge } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineArrowRightOnRectangle } from 'react-icons/hi2';
+import useFloatingPanel from '../../hooks/useFloatingPanel.js';
+import {
+    HiOutlineArrowRightOnRectangle,
+    HiOutlineChevronLeft,
+    HiOutlineChevronRight,
+} from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
-import { getVisibleNavSections, navItems } from './navConfig.js';
+import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
-import useMediaQuery from '../../hooks/useMediaQuery.js';
-
-const { Sider } = Layout;
 
 function isUnsupportedPathInGlobal(pathname) {
     if (!pathname) return false;
@@ -20,18 +22,39 @@ function isUnsupportedPathInGlobal(pathname) {
     });
 }
 
+function clamp(value, min, max) {
+    if (max <= min) return min;
+    return Math.min(Math.max(value, min), max);
+}
+
 export default function Sidebar({ collapsed, open = false, isMobile = false, onClose, onToggle }) {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
     const { activeServerId } = useServer();
     const { logout, user } = useAuth();
     const { locale, t } = useI18n();
     const { unreadCount } = useNotifications();
+    const [navFlyout, setNavFlyout] = useState(null);
     const location = useLocation();
     const navigate = useNavigate();
-    
+    const navFlyoutRef = useRef(null);
+    const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
+    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
+
+    navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
+
+    useEffect(() => {
+        setNavFlyout(null);
+        onClose?.();
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!collapsed || isMobile) {
+            setNavFlyout(null);
+        }
+    }, [collapsed, isMobile]);
 
     useEffect(() => {
         if (!isGlobalView) return;
@@ -40,114 +63,168 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         }
     }, [isGlobalView, location.pathname, navigate]);
 
-    // Construct Menu Items
-    const menuItems = visibleSections.flatMap((section) => [
-        {
-            type: 'group',
-            label: section.title,
-            children: section.items.map((item) => ({
-                key: item.path,
-                icon: React.createElement(item.icon, { style: { fontSize: 18 } }),
-                label: (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span>{item.label}</span>
-                        {item.path === '/audit' && unreadCount > 0 && (
-                            <Badge count={unreadCount} overflowCount={99} size="small" />
-                        )}
-                    </div>
-                ),
-            })),
-        },
-    ]);
+    const showNavFlyout = collapsed && !isMobile && !!navFlyout;
 
-    menuItems.push({ type: 'divider' });
-    menuItems.push({
-        key: 'logout',
-        icon: <HiOutlineArrowRightOnRectangle style={{ fontSize: 18, color: 'var(--text-muted)' }} />,
-        label: t('shell.logout'),
+    const computeNavFlyoutPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
+        const viewportPadding = 12;
+        const gap = 12;
+        const panelWidth = Math.max(144, Math.min(220, panelRect.width || 160));
+        const panelHeight = panelRect.height || 44;
+        const left = clamp(anchorRect.right + gap, viewportPadding, viewport.width - panelWidth - viewportPadding);
+        const top = clamp(
+            anchorRect.top + (anchorRect.height / 2) - (panelHeight / 2),
+            viewportPadding,
+            viewport.height - panelHeight - viewportPadding
+        );
+
+        return {
+            top: `${top}px`,
+            left: `${left}px`,
+            minWidth: `${panelWidth}px`,
+        };
+    }, []);
+
+    const { panelStyle: navFlyoutStyle, isReady: isNavFlyoutReady } = useFloatingPanel({
+        open: showNavFlyout,
+        anchorRef: navFlyoutAnchorRef,
+        panelRef: navFlyoutRef,
+        computePosition: computeNavFlyoutPosition,
+        deps: [navFlyout?.id],
     });
 
-    const handleMenuClick = ({ key }) => {
-        if (key === 'logout') {
-            logout();
-        } else {
-            navigate(key);
-        }
-        if (isMobile) {
-            onClose?.();
-        }
+    const openNavFlyout = (id, label, target) => {
+        if (!collapsed || isMobile || !target) return;
+        setNavFlyout({ id, label, anchorEl: target });
     };
 
-    // Find the currently selected key (handle exact match or sub-paths)
-    let selectedKey = location.pathname;
-    const match = navItems.find(item => item.path !== '/' && location.pathname.startsWith(`${item.path}/`));
-    if (match) {
-        selectedKey = match.path;
-    }
-
-    const siderStyle = isMobile ? {
-        position: 'fixed',
-        height: '100vh',
-        zIndex: 999,
-        left: open ? 0 : '-100%',
-        transition: 'all 0.3s',
-        boxShadow: open ? '2px 0 8px rgba(0,0,0,0.5)' : 'none'
-    } : {
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        left: 0,
-        zIndex: 100,
-        borderRight: '1px solid var(--border-color)',
-        boxShadow: '1px 0 0 rgba(255, 255, 255, 0.02)'
+    const closeNavFlyout = (id) => {
+        setNavFlyout((current) => (current?.id === id ? null : current));
     };
+
+    const getNavFlyoutProps = (id, label) => (
+        collapsed && !isMobile
+            ? {
+                onMouseEnter: (event) => openNavFlyout(id, label, event.currentTarget),
+                onMouseLeave: () => closeNavFlyout(id),
+                onFocus: (event) => openNavFlyout(id, label, event.currentTarget),
+                onBlur: () => closeNavFlyout(id),
+                title: label,
+            }
+            : {}
+    );
+
+    const navFlyoutMenu = showNavFlyout && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                ref={navFlyoutRef}
+                className={`sidebar-nav-flyout${isNavFlyoutReady ? ' is-ready' : ''}`}
+                style={navFlyoutStyle}
+                role="tooltip"
+            >
+                {navFlyout.label}
+            </div>,
+            document.body
+        )
+        : null;
 
     return (
-        <Sider
-            trigger={null}
-            collapsible
-            collapsed={isMobile ? false : collapsed}
-            width={240}
-            collapsedWidth={80}
-            style={siderStyle}
-            theme="dark"
-        >
-            <div 
-                style={{ 
-                    height: 70, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
-                    padding: collapsed && !isMobile ? '0' : '0 20px',
-                    borderBottom: '1px solid var(--border-color)',
-                    background: 'rgba(255, 255, 255, 0.01)',
-                    overflow: 'hidden'
-                }}
-            >
-                <div style={{ width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={logoSrc} alt="NMS" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <>
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
+            <div className="sidebar-logo">
+                <div className="sidebar-logo-icon sidebar-logo-icon-custom">
+                    <img src={logoSrc} alt="NMS" className="sidebar-logo-image" />
                 </div>
-                {(!collapsed || isMobile) && (
-                    <div style={{ marginLeft: 12, display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', color: '#fff' }}>NMS</span>
-                        {t('shell.brandSubtitle') && (
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: -2 }}>{t('shell.brandSubtitle')}</span>
-                        )}
-                    </div>
-                )}
+                <div className="sidebar-logo-copy">
+                    <span className="sidebar-logo-text sidebar-logo-text-gradient">NMS</span>
+                    {t('shell.brandSubtitle') ? (
+                        <span className="sidebar-logo-subtitle">{t('shell.brandSubtitle')}</span>
+                    ) : null}
+                </div>
             </div>
-            <Menu
-                theme="dark"
-                mode="inline"
-                selectedKeys={[selectedKey]}
-                onClick={handleMenuClick}
-                items={menuItems}
-                style={{
-                    borderRight: 0,
-                    background: 'transparent',
-                    padding: '12px 8px'
-                }}
-            />
-        </Sider>
+
+            <button
+                type="button"
+                className="sidebar-toggle"
+                onClick={onToggle}
+                aria-label={isMobile ? t('shell.collapseSidebar') : (collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar'))}
+                aria-expanded={isMobile ? open : !collapsed}
+            >
+                {isMobile ? <HiOutlineChevronLeft /> : (collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />)}
+            </button>
+
+            <nav className="sidebar-nav">
+                {visibleSections.map((section) => {
+                    return (
+                        <div className="nav-section" key={section.title}>
+                            <div className="nav-section-title">{section.title}</div>
+                            {section.items.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    end={item.path === '/'}
+                                    onClick={() => {
+                                        closeNavFlyout(item.path);
+                                        onClose?.();
+                                    }}
+                                    data-tooltip={item.label}
+                                    {...getNavFlyoutProps(item.path, item.label)}
+                                    className={({ isActive }) =>
+                                        `nav-item ${isActive ? 'active' : ''}`
+                                    }
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {isActive && <div className="active-glow" />}
+                                            <span className="nav-item-icon"><item.icon /></span>
+                                            <span className="nav-label">{item.label}</span>
+                                            {item.path === '/audit' && unreadCount > 0 && !collapsed && (
+                                                <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                            )}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    );
+                })}
+                <div className="nav-section nav-section-utility">
+                    {visibleFooterItems.map((item) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => {
+                                closeNavFlyout(item.path);
+                                onClose?.();
+                            }}
+                            {...getNavFlyoutProps(item.path, item.label)}
+                            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    {isActive && <div className="active-glow" />}
+                                    <span className="nav-item-icon"><item.icon /></span>
+                                    <span className="nav-label">{item.label}</span>
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
+                    <button
+                        type="button"
+                        className="nav-item nav-item-button sidebar-logout"
+                        onClick={() => {
+                            closeNavFlyout('logout');
+                            logout();
+                            onClose?.();
+                        }}
+                        {...getNavFlyoutProps('logout', t('shell.logout'))}
+                    >
+                        <span className="nav-item-icon text-muted"><HiOutlineArrowRightOnRectangle /></span>
+                        <span className="nav-label">{t('shell.logout')}</span>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+        {navFlyoutMenu}
+        </>
     );
 }

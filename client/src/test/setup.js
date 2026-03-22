@@ -1,16 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 
-afterEach(() => {
-    cleanup();
-    sessionStorage.clear();
-    localStorage.clear();
-});
-
-beforeAll(() => {
+function installMatchMediaMock() {
     Object.defineProperty(window, 'matchMedia', {
         writable: true,
+        configurable: true,
         value: vi.fn().mockImplementation((query) => ({
             matches: false,
             media: query,
@@ -22,6 +17,20 @@ beforeAll(() => {
             dispatchEvent: vi.fn(),
         })),
     });
+}
+
+afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+    localStorage.clear();
+});
+
+beforeEach(() => {
+    installMatchMediaMock();
+});
+
+beforeAll(() => {
+    installMatchMediaMock();
 
     Object.defineProperty(window, 'ResizeObserver', {
         writable: true,

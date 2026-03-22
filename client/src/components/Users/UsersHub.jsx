@@ -16,6 +16,7 @@ import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clie
 import { fetchManagedUsers, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 import {
     HiOutlinePlusCircle,
@@ -35,13 +36,9 @@ import {
     HiOutlinePlayCircle,
     HiOutlineArrowDownTray,
 } from 'react-icons/hi2';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-
-import {
-  ConfigProvider, theme, Card, Button, Table, Modal, Form, Input, Select, Switch, Space, Tag, Typography, Row, Col, Alert, Tooltip, Checkbox, Badge, Spin
-} from 'antd';
-const { Title, Text } = Typography;
-const { Option } = Select;
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -67,7 +64,6 @@ function buildProvisionSuccessMessage(deployment, locale = 'zh-CN') {
 }
 
 function toLocalDateTimeString(timestamp) {
-    if (!timestamp) return '';
     const d = new Date(timestamp);
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -75,11 +71,11 @@ function toLocalDateTimeString(timestamp) {
 
 function getUserStatus(user, clientCount) {
     if (!user.enabled && user.emailVerified !== true && clientCount === 0) {
-        return { key: 'pending', label: '待审核', badge: 'warning' };
+        return { key: 'pending', label: '待审核', badge: 'badge-warning' };
     }
-    if (!user.enabled) return { key: 'disabled', label: '已停用', badge: 'error' };
-    if (clientCount > 0) return { key: 'active', label: '已开通', badge: 'success' };
-    return { key: 'enabled', label: '已启用', badge: 'processing' };
+    if (!user.enabled) return { key: 'disabled', label: '已停用', badge: 'badge-danger' };
+    if (clientCount > 0) return { key: 'active', label: '已开通', badge: 'badge-success' };
+    return { key: 'enabled', label: '已启用', badge: 'badge-info' };
 }
 
 function formatExpiryLabel(expiryValues, locale = 'zh-CN') {
@@ -93,7 +89,7 @@ function getOnlineStatus(clientCount, sessions) {
         return {
             key: 'online',
             label: '在线',
-            badge: 'success',
+            badge: 'badge-success',
             detail: `${sessions} 会话`,
         };
     }
@@ -101,36 +97,56 @@ function getOnlineStatus(clientCount, sessions) {
         return {
             key: 'offline',
             label: '离线',
-            badge: 'default',
+            badge: 'badge-neutral',
             detail: '',
         };
     }
     return {
         key: 'unassigned',
         label: '未接入',
-        badge: 'default',
+        badge: 'badge-neutral',
         detail: '',
     };
 }
 
 function getSyncingBadgeCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
-        return { status: 'Syncing', detail: 'Refreshing node stats', summary: 'Refreshing node stats...' };
+        return {
+            status: 'Syncing',
+            detail: 'Refreshing node stats',
+            summary: 'Refreshing node stats...',
+        };
     }
-    return { status: '同步中', detail: '正在刷新节点统计', summary: '节点统计同步中...' };
+    return {
+        status: '同步中',
+        detail: '正在刷新节点统计',
+        summary: '节点统计同步中...',
+    };
 }
 
 function createEmptyUserClientData() {
-    return { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 };
+    return {
+        count: 0,
+        totalUsed: 0,
+        totalUp: 0,
+        totalDown: 0,
+        expiryValues: [],
+        onlineSessions: 0,
+    };
 }
 
 function resolveTrackedUserEmails(user) {
-    return Array.from(new Set([user?.subscriptionEmail, user?.email].map((value) => normalizeEmail(value)).filter(Boolean)));
+    return Array.from(new Set(
+        [user?.subscriptionEmail, user?.email]
+            .map((value) => normalizeEmail(value))
+            .filter(Boolean)
+    ));
 }
 
 function mergeUserClientDataRecords(records = []) {
     const merged = createEmptyUserClientData();
     const expiryValues = [];
+
     records.forEach((record) => {
         if (!record || typeof record !== 'object') return;
         merged.count += Number(record.count || 0);
@@ -142,16 +158,22 @@ function mergeUserClientDataRecords(records = []) {
             expiryValues.push(...record.expiryValues.map((value) => Number(value || 0)).filter((value) => value > 0));
         }
     });
+
     merged.expiryValues = Array.from(new Set(expiryValues)).sort((left, right) => left - right);
     return merged;
 }
 
 function resolveUserClientData(user, clientsMap, onlineMap) {
     const emails = resolveTrackedUserEmails(user);
-    const matchedClientData = emails.map((email) => clientsMap.get(email)).filter(Boolean);
+    const matchedClientData = emails
+        .map((email) => clientsMap.get(email))
+        .filter(Boolean);
     const mergedClientData = mergeUserClientDataRecords(matchedClientData);
     if (mergedClientData.onlineSessions === 0) {
-        mergedClientData.onlineSessions = emails.reduce((total, email) => total + Number(onlineMap.get(email) || 0), 0);
+        mergedClientData.onlineSessions = emails.reduce(
+            (total, email) => total + Number(onlineMap.get(email) || 0),
+            0
+        );
     }
     return mergedClientData;
 }
@@ -170,6 +192,30 @@ function getUsersHubCopy(locale = 'zh-CN') {
             provisionAction: 'Enable Subscription',
             viewSubscription: 'View Subscription',
             unsetEmail: 'No email set',
+            searchPlaceholder: 'Search username / email...',
+            statusAll: 'All statuses',
+            statusActive: 'Provisioned',
+            statusEnabled: 'Enabled',
+            statusDisabled: 'Disabled',
+            statusPending: 'Pending Review',
+            exportAction: 'Export',
+            refreshAction: 'Refresh',
+            addAccountAction: 'Add Account',
+            selectedUsers: '{count} users selected',
+            clearSelection: 'Clear Selection',
+            selectCurrentList: 'Select current list',
+            sequenceLabel: 'Order',
+            sequenceDescAria: 'Show in descending order',
+            sequenceAscAria: 'Show in ascending order',
+            accountColumn: 'Account',
+            statusColumn: 'Status',
+            onlineColumn: 'Online',
+            nodesColumn: 'Nodes',
+            trafficColumn: 'Traffic Used',
+            expiryColumn: 'Expiry',
+            actionsColumn: 'Actions',
+            notProvisioned: 'Not provisioned',
+            noTrafficUsed: 'No traffic used',
             postCreateNoEmail: 'User created, but no email is set so provisioning cannot start yet',
             provisionLoadFailed: 'Subscription enabled, but subscription details failed to load. Refresh and check later.',
             createProvisionToggle: 'Open provisioning right after create',
@@ -188,6 +234,30 @@ function getUsersHubCopy(locale = 'zh-CN') {
         provisionAction: '开通订阅',
         viewSubscription: '查看订阅',
         unsetEmail: '未设置邮箱',
+        searchPlaceholder: '搜索用户名 / 邮箱...',
+        statusAll: '全部状态',
+        statusActive: '已开通',
+        statusEnabled: '已启用',
+        statusDisabled: '已停用',
+        statusPending: '待审核',
+        exportAction: '导出',
+        refreshAction: '刷新',
+        addAccountAction: '添加账号',
+        selectedUsers: '已选 {count} 个用户',
+        clearSelection: '取消选择',
+        selectCurrentList: '全选当前列表',
+        sequenceLabel: '序号',
+        sequenceDescAria: '按序号降序显示',
+        sequenceAscAria: '按序号升序显示',
+        accountColumn: '账号',
+        statusColumn: '状态',
+        onlineColumn: '在线状态',
+        nodesColumn: '节点数',
+        trafficColumn: '已用流量',
+        expiryColumn: '到期时间',
+        actionsColumn: '操作',
+        notProvisioned: '未开通',
+        noTrafficUsed: '未使用流量',
         postCreateNoEmail: '用户已创建，但未设置邮箱，无法立即分配节点',
         provisionLoadFailed: '订阅已开通，但订阅详情加载失败，可稍后刷新查看',
         createProvisionToggle: '创建后立即进入"开通订阅/分配节点"',
@@ -205,17 +275,32 @@ function getUsersHubCopy(locale = 'zh-CN') {
 
 function summarizePartialErrors(partialErrors, locale = 'zh-CN') {
     if (!Array.isArray(partialErrors) || partialErrors.length === 0) return '';
-    const inboundsServers = partialErrors.filter((item) => item.kind === 'inbounds').map((item) => item.serverName);
-    const presenceServers = partialErrors.filter((item) => item.kind === 'presence').map((item) => item.serverName);
+
+    const inboundsServers = partialErrors
+        .filter((item) => item.kind === 'inbounds')
+        .map((item) => item.serverName);
+    const presenceServers = partialErrors
+        .filter((item) => item.kind === 'presence')
+        .map((item) => item.serverName);
+
     if (locale === 'en-US') {
         const parts = [];
-        if (inboundsServers.length > 0) parts.push(`inbounds unavailable on ${inboundsServers.join(', ')}`);
-        if (presenceServers.length > 0) parts.push(`online presence unavailable on ${presenceServers.join(', ')}`);
+        if (inboundsServers.length > 0) {
+            parts.push(`inbounds unavailable on ${inboundsServers.join(', ')}`);
+        }
+        if (presenceServers.length > 0) {
+            parts.push(`online presence unavailable on ${presenceServers.join(', ')}`);
+        }
         return parts.join('; ');
     }
+
     const parts = [];
-    if (inboundsServers.length > 0) parts.push(`入站配置失败: ${inboundsServers.join('、')}`);
-    if (presenceServers.length > 0) parts.push(`在线状态失败: ${presenceServers.join('、')}`);
+    if (inboundsServers.length > 0) {
+        parts.push(`入站配置失败: ${inboundsServers.join('、')}`);
+    }
+    if (presenceServers.length > 0) {
+        parts.push(`在线状态失败: ${presenceServers.join('、')}`);
+    }
     return parts.join('；');
 }
 
@@ -227,7 +312,10 @@ export default function UsersHub() {
     const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
     const syncingCopy = useMemo(() => getSyncingBadgeCopy(locale), [locale]);
     const requestIdRef = useRef(0);
-    const serverInventoryKey = useMemo(() => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'), [servers]);
+    const serverInventoryKey = useMemo(
+        () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
+        [servers]
+    );
 
     const [users, setUsers] = useState([]);
     const [clientsMap, setClientsMap] = useState(new Map());
@@ -242,19 +330,19 @@ export default function UsersHub() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('all');
+    const [sequenceDirection, setSequenceDirection] = useState('asc');
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
-
-    // Form instances
-    const [provisionForm] = Form.useForm();
-    const [editForm] = Form.useForm();
-    const [createForm] = Form.useForm();
 
     // Provision modal
     const [provisionOpen, setProvisionOpen] = useState(false);
     const [provisionTargetUser, setProvisionTargetUser] = useState(null);
     const [provisionInitLoading, setProvisionInitLoading] = useState(false);
     const [provisionSaving, setProvisionSaving] = useState(false);
+    const [provisionEmail, setProvisionEmail] = useState('');
+    const [provisionExpiryDate, setProvisionExpiryDate] = useState('');
+    const [provisionLimitIp, setProvisionLimitIp] = useState('0');
+    const [provisionTrafficLimitGb, setProvisionTrafficLimitGb] = useState('0');
     const [provisionResult, setProvisionResult] = useState(null);
     const [provisionSelectedInboundKeys, setProvisionSelectedInboundKeys] = useState(new Set());
     const [inboundExpiries, setInboundExpiries] = useState([]);
@@ -263,14 +351,39 @@ export default function UsersHub() {
     // Edit user modal
     const [editOpen, setEditOpen] = useState(false);
     const [editUser, setEditUser] = useState(null);
+    const [editUsername, setEditUsername] = useState('');
+    const [editEmail, setEditEmail] = useState('');
+    const [editSubscriptionEmail, setEditSubscriptionEmail] = useState('');
+    const [editSubscriptionFollowLogin, setEditSubscriptionFollowLogin] = useState(false);
+    const [editEnabled, setEditEnabled] = useState(true);
+    const [editPassword, setEditPassword] = useState('');
+    const [showEditPassword, setShowEditPassword] = useState(false);
+    const [editExpiryDate, setEditExpiryDate] = useState('');
     const [editHasClients, setEditHasClients] = useState(false);
     const [editSaving, setEditSaving] = useState(false);
+    // Policy fields in edit modal
     const [editPolicyLoading, setEditPolicyLoading] = useState(false);
-    const [editSubscriptionFollowLogin, setEditSubscriptionFollowLogin] = useState(false);
+    const [editNoServerLimit, setEditNoServerLimit] = useState(true);
+    const [editNoProtocolLimit, setEditNoProtocolLimit] = useState(true);
+    const [editServerIds, setEditServerIds] = useState([]);
+    const [editProtocols, setEditProtocols] = useState([]);
+    const [editLimitIp, setEditLimitIp] = useState('0');
+    const [editTrafficLimitGb, setEditTrafficLimitGb] = useState('0');
 
     // Create user modal
     const [createOpen, setCreateOpen] = useState(false);
     const [createSaving, setCreateSaving] = useState(false);
+    const [createUsername, setCreateUsername] = useState('');
+    const [createEmail, setCreateEmail] = useState('');
+    const [createPassword, setCreatePassword] = useState('');
+    const [showCreatePassword, setShowCreatePassword] = useState(true);
+    const [createProvisionAfterCreate, setCreateProvisionAfterCreate] = useState(true);
+
+    useEffect(() => {
+        const queryValue = String(searchParams.get('q') || '').trim();
+        if (!queryValue) return;
+        setSearchTerm(queryValue);
+    }, [searchParams]);
 
     const hydrateNodeStats = async (requestId, options = {}) => {
         const forceStats = options.forceStats === true;
@@ -290,7 +403,10 @@ export default function UsersHub() {
         }
 
         try {
-            const serverResults = await fetchServerPanelData(api, servers, { force: forceStats, includeOnlines: true });
+            const serverResults = await fetchServerPanelData(api, servers, {
+                force: forceStats,
+                includeOnlines: true,
+            });
             if (requestId !== requestIdRef.current) return;
 
             const nextPartialErrors = [];
@@ -305,12 +421,28 @@ export default function UsersHub() {
                 const onlines = Array.isArray(result?.onlines) ? result.onlines : [];
                 const onlineMatchMap = buildOnlineMatchMap(onlines);
 
-                if (result?.inboundsError) nextPartialErrors.push({ kind: 'inbounds', serverId: server.id, serverName: server.name, message: result.inboundsError?.response?.data?.msg || result.inboundsError?.message || 'inbounds unavailable' });
-                if (result?.onlinesError) nextPartialErrors.push({ kind: 'presence', serverId: server.id, serverName: server.name, message: result.onlinesError?.response?.data?.msg || result.onlinesError?.message || 'presence unavailable' });
+                if (result?.inboundsError) {
+                    nextPartialErrors.push({
+                        kind: 'inbounds',
+                        serverId: server.id,
+                        serverName: server.name,
+                        message: result.inboundsError?.response?.data?.msg || result.inboundsError?.message || 'inbounds unavailable',
+                    });
+                }
+                if (result?.onlinesError) {
+                    nextPartialErrors.push({
+                        kind: 'presence',
+                        serverId: server.id,
+                        serverName: server.name,
+                        message: result.onlinesError?.response?.data?.msg || result.onlinesError?.message || 'presence unavailable',
+                    });
+                }
 
                 onlines.forEach((entry) => {
                     const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
-                    if (email) onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
+                    if (email) {
+                        onlineEmailMap.set(email, (onlineEmailMap.get(email) || 0) + 1);
+                    }
                 });
 
                 inbounds.forEach((ib) => {
@@ -320,20 +452,39 @@ export default function UsersHub() {
 
                     const ibClients = mergeInboundClientStats(ib);
                     const ibKey = `${server.id}:${ib.id}`;
-                    const ibExpiries = ibClients.map((cl) => Number(cl.expiryTime || 0)).filter((value) => value > 0);
+                    const ibExpiries = ibClients
+                        .map((cl) => Number(cl.expiryTime || 0))
+                        .filter((value) => value > 0);
                     let representativeExpiry = 0;
                     if (ibExpiries.length > 0) {
                         ibExpiries.sort((a, b) => a - b);
                         representativeExpiry = ibExpiries[Math.floor(ibExpiries.length / 2)];
-                        expiryRef.push({ serverName: server.name, inboundRemark: ib.remark || protocol, expiryTime: representativeExpiry, clientCount: ibClients.length });
+                        expiryRef.push({
+                            serverName: server.name,
+                            inboundRemark: ib.remark || protocol,
+                            expiryTime: representativeExpiry,
+                            clientCount: ibClients.length,
+                        });
                     }
 
-                    inboundList.push({ key: ibKey, serverId: server.id, serverName: server.name, inboundId: ib.id, remark: ib.remark || '', protocol, port: ib.port, clientCount: ibClients.length, expiryTime: representativeExpiry });
+                    inboundList.push({
+                        key: ibKey,
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: ib.id,
+                        remark: ib.remark || '',
+                        protocol,
+                        port: ib.port,
+                        clientCount: ibClients.length,
+                        expiryTime: representativeExpiry,
+                    });
 
                     ibClients.forEach((cl) => {
                         const email = normalizeEmail(cl.email);
                         if (!email) return;
-                        if (!emailMap.has(email)) emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 });
+                        if (!emailMap.has(email)) {
+                            emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 });
+                        }
                         const entry = emailMap.get(email);
                         const onlineSessions = countClientOnlineSessions(cl, protocol, onlineMatchMap);
                         entry.count += 1;
@@ -341,7 +492,9 @@ export default function UsersHub() {
                         entry.totalUp += safeNumber(cl?.up);
                         entry.totalDown += safeNumber(cl?.down);
                         entry.onlineSessions += onlineSessions;
-                        if (Number(cl.expiryTime || 0) > 0) entry.expiryValues.push(Number(cl.expiryTime));
+                        if (Number(cl.expiryTime || 0) > 0) {
+                            entry.expiryValues.push(Number(cl.expiryTime));
+                        }
                     });
                 });
             });
@@ -381,7 +534,9 @@ export default function UsersHub() {
             const userList = await fetchManagedUsers(api, { force: forceUsers });
             if (requestId !== requestIdRef.current) return;
             setUsers(userList);
-            setSelectedIds((previous) => new Set(Array.from(previous).filter((id) => userList.some((user) => user.id === id))));
+            setSelectedIds((previous) => new Set(
+                Array.from(previous).filter((id) => userList.some((user) => user.id === id))
+            ));
             setLoading(false);
             hydrateNodeStats(requestId, { forceStats });
         } catch (err) {
@@ -402,27 +557,51 @@ export default function UsersHub() {
         }
     };
 
-    useEffect(() => { fetchData(); }, [serverInventoryKey]);
+    useEffect(() => {
+        fetchData();
+    }, [serverInventoryKey]);
 
     const allOrderedUsers = useMemo(() => {
-        return users.map((user) => {
-            const clientData = resolveUserClientData(user, clientsMap, onlineMap);
-            const onlineSessions = statsReady ? Number(clientData.onlineSessions || 0) : 0;
-            const status = statsReady ? getUserStatus(user, clientData.count) : { key: 'syncing', label: syncingCopy.status, badge: 'default' };
-            const onlineStatus = statsReady ? getOnlineStatus(clientData.count, onlineSessions) : { key: 'syncing', label: syncingCopy.status, badge: 'default', detail: syncingCopy.detail };
-            return { ...user, clientData, status, onlineSessions, onlineStatus, statsPending: !statsReady };
-        }).sort(compareUsersFallback);
+        return users
+            .map((user) => {
+                const clientData = resolveUserClientData(user, clientsMap, onlineMap);
+                const onlineSessions = statsReady ? Number(clientData.onlineSessions || 0) : 0;
+                const status = statsReady
+                    ? getUserStatus(user, clientData.count)
+                    : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral' };
+                const onlineStatus = statsReady
+                    ? getOnlineStatus(clientData.count, onlineSessions)
+                    : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral', detail: syncingCopy.detail };
+                return { ...user, clientData, status, onlineSessions, onlineStatus, statsPending: !statsReady };
+            })
+            .sort(compareUsersFallback);
     }, [users, clientsMap, onlineMap, statsReady, syncingCopy.detail, syncingCopy.status]);
 
     const filteredUsers = useMemo(() => {
         const search = String(deferredSearchTerm || '').trim().toLowerCase();
-        return allOrderedUsers.filter((user) => {
-            if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
-            if (!search) return true;
-            return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label].some((v) => String(v || '').toLowerCase().includes(search));
-        });
+        return allOrderedUsers
+            .filter((user) => {
+                if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
+                if (!search) return true;
+                return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label]
+                    .some((v) => String(v || '').toLowerCase().includes(search));
+            });
     }, [allOrderedUsers, deferredSearchTerm, statusFilter]);
+    const enrichedUsers = useMemo(() => (
+        sequenceDirection === 'desc' ? [...filteredUsers].reverse() : filteredUsers
+    ), [filteredUsers, sequenceDirection]);
+    const selectedUsers = useMemo(
+        () => enrichedUsers.filter((user) => selectedIds.has(user.id)),
+        [enrichedUsers, selectedIds]
+    );
+    const bulkToggleEnable = selectedUsers.length > 0
+        ? !selectedUsers.every((user) => user.enabled !== false)
+        : true;
+    const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
+    const bulkToggleIcon = bulkToggleEnable ? <HiOutlinePlayCircle /> : <HiOutlineNoSymbol />;
+    const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
 
+    // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
         const action = enabled ? t('comp.common.enable') : t('comp.common.disable');
         const ok = await confirmAction({
@@ -438,15 +617,23 @@ export default function UsersHub() {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled });
             if (res.data?.success) {
                 const message = res.data?.msg || `用户 ${user.username} 已${action}`;
-                if (res.data?.obj?.partialFailure) toast.error(message);
-                else toast.success(message);
+                if (res.data?.obj?.partialFailure) {
+                    toast.error(message);
+                } else {
+                    toast.success(message);
+                }
                 invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
-            } else toast.error(res.data?.msg || t('comp.common.operationFailed'));
-        } catch (err) { toast.error(err.response?.data?.msg || err.message || t('comp.common.operationFailed')); }
+            } else {
+                toast.error(res.data?.msg || t('comp.common.operationFailed'));
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || t('comp.common.operationFailed'));
+        }
     };
 
+    // --- Delete user ---
     const handleDelete = async (user) => {
         const ok = await confirmAction({
             title: t('comp.users.deleteUser'),
@@ -464,36 +651,43 @@ export default function UsersHub() {
                 invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
-            } else toast.error(res.data?.msg || t('comp.common.deleteFailed'));
-        } catch (err) { toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed')); }
+            } else {
+                toast.error(res.data?.msg || t('comp.common.deleteFailed'));
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed'));
+        }
     };
 
-    const [bulkToggleEnable, setBulkToggleEnable] = useState(true);
-
-    useEffect(() => {
-        if (selectedIds.size > 0) {
-            const firstId = Array.from(selectedIds)[0];
-            const firstUser = users.find(u => u.id === firstId);
-            setBulkToggleEnable(!(firstUser?.status?.key === 'enabled' || firstUser?.status?.key === 'active'));
-        }
-    }, [selectedIds, users]);
-
+    // --- Bulk operations ---
     const handleBulkSetEnabled = async (enabled) => {
         if (selectedIds.size === 0) return;
         setBulkLoading(true);
         try {
-            const res = await api.post('/auth/users/bulk-set-enabled', { userIds: Array.from(selectedIds), enabled });
+            const res = await api.post('/auth/users/bulk-set-enabled', {
+                userIds: Array.from(selectedIds),
+                enabled,
+            });
             if (res.data?.success) {
-                const resultItems = Array.isArray(res.data?.obj) ? res.data.obj : (Array.isArray(res.data?.obj?.items) ? res.data.obj.items : []);
+                const resultItems = Array.isArray(res.data?.obj)
+                    ? res.data.obj
+                    : (Array.isArray(res.data?.obj?.items) ? res.data.obj.items : []);
                 const hasPartialFailure = resultItems.some((item) => item?.partialFailure === true);
-                if (hasPartialFailure) toast.error(res.data.msg);
-                else toast.success(res.data.msg);
+                if (hasPartialFailure) {
+                    toast.error(res.data.msg);
+                } else {
+                    toast.success(res.data.msg);
+                }
                 setSelectedIds(new Set());
                 invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true });
-            } else toast.error(res.data?.msg || t('comp.common.operationFailed'));
-        } catch (err) { toast.error(err.response?.data?.msg || t('comp.users.batchFailed')); }
+            } else {
+                toast.error(res.data?.msg || t('comp.common.operationFailed'));
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || t('comp.users.batchFailed'));
+        }
         setBulkLoading(false);
     };
 
@@ -507,105 +701,226 @@ export default function UsersHub() {
             a.click();
             URL.revokeObjectURL(url);
             toast.success(t('comp.users.csvExported'));
-        } catch { toast.error(t('comp.users.exportFailed')); }
-    };
-
-    const rowSelection = {
-        selectedRowKeys: Array.from(selectedIds),
-        onChange: (newSelectedRowKeys) => setSelectedIds(new Set(newSelectedRowKeys)),
-    };
-
-    const columns = [
-        {
-            title: '账号',
-            dataIndex: 'username',
-            render: (text, record) => {
-                const displayEmail = record.email || record.subscriptionEmail || '';
-                return (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/clients/${record.id}`)}>
-                        <div style={{ fontWeight: 500, color: '#177ddc' }}>{text}</div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{displayEmail || copy.unsetEmail}</Text>
-                    </div>
-                );
-            }
-        },
-        {
-            title: '状态',
-            dataIndex: 'status',
-            align: 'center',
-            render: (status) => <Badge status={status.badge} text={status.label} />
-        },
-        {
-            title: '在线状态',
-            dataIndex: 'onlineStatus',
-            align: 'center',
-            render: (onlineStatus) => (
-                <Space direction="vertical" size={0} align="center">
-                    <Badge status={onlineStatus.badge} text={onlineStatus.label} />
-                    {onlineStatus.detail && <Text type="secondary" style={{ fontSize: 12 }}>{onlineStatus.detail}</Text>}
-                </Space>
-            )
-        },
-        {
-            title: '节点数',
-            align: 'center',
-            render: (_, record) => record.statsPending ? <Text type="secondary" style={{ fontSize: 12 }}>{syncingCopy.status}</Text> : (record.clientData.count || '-')
-        },
-        {
-            title: '已用流量',
-            align: 'right',
-            render: (_, record) => {
-                if (record.statsPending) return <Text type="secondary" style={{ fontSize: 12 }}>{syncingCopy.detail}</Text>;
-                if (record.clientData.totalUsed) {
-                    return (
-                        <div style={{ fontSize: 12 }}>
-                            <div style={{ color: '#52c41a' }}>↑{formatBytes(record.clientData.totalUp)}</div>
-                            <div style={{ color: '#1677ff' }}>↓{formatBytes(record.clientData.totalDown)}</div>
-                        </div>
-                    );
-                }
-                return '-';
-            }
-        },
-        {
-            title: '到期时间',
-            align: 'center',
-            render: (_, record) => {
-                if (record.statsPending) return <Text type="secondary" style={{ fontSize: 12 }}>{syncingCopy.detail}</Text>;
-                return <Text code>{record.clientData.count > 0 ? formatExpiryLabel(record.clientData.expiryValues, locale) : '未开通'}</Text>;
-            }
-        },
-        {
-            title: '操作',
-            align: 'center',
-            render: (_, record) => (
-                <Space wrap>
-                    <Button size="small" icon={<HiOutlineEye />} onClick={() => navigate(`/clients/${record.id}`)} title="详情" />
-                    {record.status.key === 'pending' && (
-                        <>
-                            <Button size="small" type="primary" style={{ backgroundColor: '#52c41a' }} icon={<HiOutlineCheck />} onClick={() => handleSetEnabled(record, true)} />
-                            <Button size="small" danger icon={<HiOutlineTrash />} onClick={() => handleDelete(record)} />
-                        </>
-                    )}
-                    {record.status.key === 'enabled' && (
-                        <>
-                            <Button size="small" type="primary" icon={<HiOutlinePlusCircle />} onClick={() => openProvisionModal(record)} />
-                            <Button size="small" icon={<HiOutlinePencilSquare />} onClick={() => openEditModal(record)} />
-                            <Button size="small" danger icon={<HiOutlineTrash />} onClick={() => handleDelete(record)} />
-                        </>
-                    )}
-                    {(record.status.key === 'active' || record.status.key === 'disabled') && (
-                        <>
-                            <Button size="small" icon={<HiOutlinePencilSquare />} onClick={() => openEditModal(record)} />
-                            <Button size="small" danger icon={<HiOutlineTrash />} onClick={() => handleDelete(record)} />
-                        </>
-                    )}
-                </Space>
-            )
+        } catch {
+            toast.error(t('comp.users.exportFailed'));
         }
-    ];
+    };
 
-    // --- Provision Modal Logic ---
+    const toggleSelect = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === enrichedUsers.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(enrichedUsers.map((u) => u.id)));
+        }
+    };
+
+    const renderUserActionButtons = (user) => (
+        <>
+            <button className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
+                <HiOutlineEye />
+                <span className="users-action-mobile-label">详情</span>
+            </button>
+            {user.status.key === 'pending' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-success"
+                        title="通过审核"
+                        aria-label="通过审核"
+                        onClick={() => handleSetEnabled(user, true)}
+                    >
+                        <HiOutlineCheck />
+                        <span className="users-action-mobile-label">通过</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'enabled' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-primary"
+                        title={copy.provisionAction}
+                        aria-label={copy.provisionAction}
+                        onClick={() => openProvisionModal(user)}
+                    >
+                        <HiOutlinePlusCircle />
+                        <span className="users-action-mobile-label">开通</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
+                        onClick={() => openEditModal(user)}
+                    >
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'active' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
+                        onClick={() => openEditModal(user)}
+                    >
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+            {user.status.key === 'disabled' && (
+                <>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title="编辑 / 状态"
+                        aria-label="编辑 / 状态"
+                        onClick={() => openEditModal(user)}
+                    >
+                        <HiOutlinePencilSquare />
+                        <span className="users-action-mobile-label">编辑</span>
+                    </button>
+                    <button
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
+                        title="删除"
+                        aria-label="删除"
+                        onClick={() => handleDelete(user)}
+                    >
+                        <HiOutlineTrash />
+                        <span className="users-action-mobile-label">删除</span>
+                    </button>
+                </>
+            )}
+        </>
+    );
+
+    const renderMobileUserCard = (user, index) => {
+        const sequenceNumber = sequenceDirection === 'asc'
+            ? index + 1
+            : enrichedUsers.length - index;
+        const displayEmail = user.email || user.subscriptionEmail || '';
+        const userExpiryLabel = user.statsPending
+            ? syncingCopy.detail
+            : user.clientData.count > 0
+            ? formatExpiryLabel(user.clientData.expiryValues, locale)
+            : copy.notProvisioned;
+        const userTrafficSummary = user.statsPending
+            ? syncingCopy.detail
+            : user.clientData.totalUsed
+            ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
+            : copy.noTrafficUsed;
+
+        return (
+            <div
+                key={user.id}
+                className={`users-mobile-card ${selectedIds.has(user.id) ? 'users-mobile-card--selected' : ''}`}
+            >
+                <div className="users-mobile-card-head">
+                    <label className="users-mobile-check">
+                        <input
+                            type="checkbox"
+                            checked={selectedIds.has(user.id)}
+                            onChange={() => toggleSelect(user.id)}
+                        />
+                        <span className="users-mobile-sequence">#{sequenceNumber}</span>
+                    </label>
+                    <div className="users-mobile-card-badges">
+                        <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                        <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    className="users-mobile-identity"
+                    onClick={() => navigate(`/clients/${user.id}`)}
+                    title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                >
+                    <span className="users-mobile-name">{user.username}</span>
+                    <span className={`users-mobile-email${displayEmail ? '' : ' is-empty'}`}>
+                        {displayEmail || copy.unsetEmail}
+                    </span>
+                </button>
+
+                <div className="users-mobile-metrics">
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">{copy.onlineColumn}</span>
+                        <span className="users-mobile-metric-value">
+                            {user.onlineStatus.detail || user.onlineStatus.label}
+                        </span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">{copy.nodesColumn}</span>
+                        <span className="users-mobile-metric-value">
+                            {user.statsPending ? syncingCopy.status : (user.clientData.count || 0)}
+                        </span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">{copy.trafficColumn}</span>
+                        <span className="users-mobile-metric-value">{userTrafficSummary}</span>
+                    </div>
+                    <div className="users-mobile-metric">
+                        <span className="users-mobile-metric-label">{copy.expiryColumn}</span>
+                        <span className="users-mobile-metric-value">{userExpiryLabel}</span>
+                    </div>
+                </div>
+
+                <div className="users-row-actions users-row-actions--mobile-card">
+                    {renderUserActionButtons(user)}
+                </div>
+            </div>
+        );
+    };
+
+    // --- Provision modal ---
+    const closeProvisionModal = () => {
+        setProvisionOpen(false);
+        setProvisionTargetUser(null);
+        setProvisionInitLoading(false);
+        setProvisionSaving(false);
+        setProvisionEmail('');
+        setProvisionExpiryDate('');
+        setProvisionLimitIp('0');
+        setProvisionTrafficLimitGb('0');
+        setProvisionResult(null);
+        setProvisionSelectedInboundKeys(new Set());
+    };
+
     const openProvisionModal = async (user) => {
         const suggestedEmail = normalizeEmail(user?.subscriptionEmail || user?.email);
         if (!suggestedEmail) {
@@ -613,42 +928,55 @@ export default function UsersHub() {
             return;
         }
         setProvisionTargetUser(user);
+        setProvisionEmail(suggestedEmail);
         setProvisionResult(null);
         setProvisionInitLoading(true);
+        setProvisionLimitIp('0');
+        setProvisionTrafficLimitGb('0');
+
+        // Default: select all inbounds
         setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)));
 
-        let representativeExpiry = '';
+        // Default expiry: use the most common expiry from inbound reference
         if (inboundExpiries.length > 0) {
-            const futureExpiries = inboundExpiries.map((e) => e.expiryTime).filter((t) => t > Date.now());
+            const futureExpiries = inboundExpiries
+                .map((e) => e.expiryTime)
+                .filter((t) => t > Date.now());
             if (futureExpiries.length > 0) {
                 futureExpiries.sort((a, b) => a - b);
-                representativeExpiry = toLocalDateTimeString(futureExpiries[Math.floor(futureExpiries.length / 2)]);
+                const representative = futureExpiries[Math.floor(futureExpiries.length / 2)];
+                setProvisionExpiryDate(toLocalDateTimeString(representative));
+            } else {
+                setProvisionExpiryDate('');
             }
+        } else {
+            setProvisionExpiryDate('');
         }
-
-        provisionForm.setFieldsValue({
-            email: suggestedEmail,
-            expiryDate: representativeExpiry,
-            limitIp: '0',
-            trafficLimitGb: '0'
-        });
 
         setProvisionOpen(true);
         try {
             const policyRes = await api.get(`/user-policy/${encodeURIComponent(suggestedEmail)}`);
             const policy = policyRes.data?.obj || {};
-            provisionForm.setFieldsValue({
-                limitIp: String(normalizeLimitIp(policy.limitIp)),
-                trafficLimitGb: bytesToGigabytesInput(policy.trafficLimitBytes)
-            });
-        } catch {}
+            setProvisionLimitIp(String(normalizeLimitIp(policy.limitIp)));
+            setProvisionTrafficLimitGb(bytesToGigabytesInput(policy.trafficLimitBytes));
+        } catch {
+            setProvisionLimitIp('0');
+            setProvisionTrafficLimitGb('0');
+        }
+
         setProvisionInitLoading(false);
     };
 
-    const submitProvision = async (values) => {
+    const submitProvision = async (event) => {
+        event.preventDefault();
         if (!provisionTargetUser?.id) return;
-        const provisionNormalizedEmail = normalizeEmail(values.email);
-        if (!provisionNormalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(provisionNormalizedEmail)) {
+
+        const provisionNormalizedEmail = normalizeEmail(provisionEmail);
+        if (!provisionNormalizedEmail) {
+            toast.error(t('comp.users.subEmailEmpty'));
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(provisionNormalizedEmail)) {
             toast.error(t('comp.users.subEmailInvalid'));
             return;
         }
@@ -656,9 +984,13 @@ export default function UsersHub() {
             toast.error(t('comp.users.selectAtLeastOneInbound'));
             return;
         }
+
         setProvisionSaving(true);
         try {
-            const expiryTime = values.expiryDate ? new Date(values.expiryDate).getTime() : 0;
+            const expiryTime = provisionExpiryDate
+                ? new Date(provisionExpiryDate).getTime()
+                : 0;
+
             const res = await api.post(`/auth/users/${encodeURIComponent(provisionTargetUser.id)}/provision-subscription`, {
                 subscriptionEmail: provisionNormalizedEmail,
                 serverScopeMode: 'all',
@@ -667,8 +999,8 @@ export default function UsersHub() {
                 allowedProtocols: [],
                 allowedInboundKeys: Array.from(provisionSelectedInboundKeys),
                 expiryTime,
-                limitIp: normalizeLimitIp(values.limitIp),
-                trafficLimitBytes: gigabytesInputToBytes(values.trafficLimitGb),
+                limitIp: normalizeLimitIp(provisionLimitIp),
+                trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
             });
             if (!res.data?.success) {
                 toast.error(res.data?.msg || t('comp.users.provisionFailed'));
@@ -678,12 +1010,15 @@ export default function UsersHub() {
             const dep = res.data?.obj?.deployment || null;
             const successMessage = buildProvisionSuccessMessage(dep, locale);
             toast.success(successMessage);
+
             const boundEmail = normalizeEmail(res.data?.obj?.subscription?.email || provisionNormalizedEmail);
             let subscriptionPayload = null;
             try {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
-            } catch { toast(copy.provisionLoadFailed, { icon: '⚠️' }); }
+            } catch {
+                toast(copy.provisionLoadFailed, { icon: '⚠️' });
+            }
 
             setProvisionResult({
                 email: boundEmail,
@@ -691,157 +1026,316 @@ export default function UsersHub() {
                 successMessage,
                 bundle: buildSubscriptionProfileBundle(subscriptionPayload || {}, locale),
             });
-            invalidateServerPanelDataCache();
-            invalidateManagedUsersCache();
-            await fetchData({ forceUsers: true });
-        } catch (err) { toast.error(err.response?.data?.msg || err.message || t('comp.users.provisionFailed')); }
+
+            try {
+                invalidateServerPanelDataCache();
+                invalidateManagedUsersCache();
+                await fetchData({ forceUsers: true });
+            } catch (refreshErr) {
+                console.error('Failed to refresh users hub after provisioning:', refreshErr);
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.provisionFailed'));
+        }
         setProvisionSaving(false);
     };
 
-    // --- Edit Modal Logic ---
+    const provisionLinks = useMemo(() => {
+        if (!provisionResult) return [];
+        const available = Array.isArray(provisionResult.bundle?.availableProfiles)
+            ? provisionResult.bundle.availableProfiles
+            : [];
+        const preferredKeys = new Set(['v2rayn', 'clash', 'singbox', 'raw']);
+        return available.filter((item) => preferredKeys.has(item.key));
+    }, [provisionResult]);
+
+    // --- Edit user modal ---
+    const handleEditEmailChange = (value) => {
+        setEditEmail(value);
+        if (editSubscriptionFollowLogin) {
+            setEditSubscriptionEmail(value);
+        }
+    };
+
+    const handleEditSubscriptionEmailChange = (value) => {
+        setEditSubscriptionEmail(value);
+        setEditSubscriptionFollowLogin(normalizeEmail(value) === normalizeEmail(editEmail));
+    };
+
     const openEditModal = (user) => {
         setEditUser(user);
+        setEditUsername(user.username || '');
+        setEditEmail(user.email || '');
+        const initialSubscriptionEmail = user.subscriptionEmail || user.email || '';
+        setEditSubscriptionEmail(initialSubscriptionEmail);
+        setEditSubscriptionFollowLogin(
+            normalizeEmail(initialSubscriptionEmail) === normalizeEmail(user.email || '')
+        );
+        setEditEnabled(user.enabled !== false);
+        setEditPassword('');
+        setShowEditPassword(false);
+        setEditSaving(false);
+
+        // Pre-fill expiry from client data
         const cd = resolveUserClientData(user, clientsMap, onlineMap);
-        let expiryDate = '';
         if (cd && cd.expiryValues && cd.expiryValues.length > 0) {
-            expiryDate = toLocalDateTimeString(Math.min(...cd.expiryValues));
+            const earliest = Math.min(...cd.expiryValues);
+            setEditExpiryDate(toLocalDateTimeString(earliest));
             setEditHasClients(true);
         } else if (cd && cd.count > 0) {
+            setEditExpiryDate('');
             setEditHasClients(true);
         } else {
+            setEditExpiryDate('');
             setEditHasClients(false);
         }
 
-        const initialSubEmail = user.subscriptionEmail || user.email || '';
-        setEditSubscriptionFollowLogin(normalizeEmail(initialSubEmail) === normalizeEmail(user.email || ''));
-
-        editForm.setFieldsValue({
-            username: user.username || '',
-            email: user.email || '',
-            subscriptionEmail: initialSubEmail,
-            enabled: user.enabled !== false,
-            password: '',
-            expiryDate,
-            noServerLimit: true,
-            noProtocolLimit: true,
-            serverIds: [],
-            protocols: [],
-            limitIp: '0',
-            trafficLimitGb: '0'
-        });
-
+        // Load policy
         const policyEmail = normalizeEmail(user.subscriptionEmail || user.email);
+        setEditNoServerLimit(true);
+        setEditNoProtocolLimit(true);
+        setEditServerIds([]);
+        setEditProtocols([]);
+        setEditLimitIp('0');
+        setEditTrafficLimitGb('0');
         if (policyEmail) {
             setEditPolicyLoading(true);
-            api.get(`/user-policy/${encodeURIComponent(policyEmail)}`).then((res) => {
-                const p = res.data?.obj || {};
-                const sMode = String(p.serverScopeMode || '').toLowerCase();
-                const pMode = String(p.protocolScopeMode || '').toLowerCase();
-                const validIds = new Set(servers.map((s) => s.id));
-                
-                editForm.setFieldsValue({
-                    serverIds: (Array.isArray(p.allowedServerIds) ? p.allowedServerIds : []).filter(id => validIds.has(id)),
-                    protocols: (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : []).map(v => String(v).trim().toLowerCase()).filter(v => ['vless', 'vmess', 'trojan', 'shadowsocks'].includes(v)),
-                    noServerLimit: sMode !== 'selected' && sMode !== 'none',
-                    noProtocolLimit: pMode !== 'selected' && pMode !== 'none',
-                    limitIp: String(normalizeLimitIp(p.limitIp)),
-                    trafficLimitGb: bytesToGigabytesInput(p.trafficLimitBytes)
-                });
-            }).catch(() => {}).finally(() => setEditPolicyLoading(false));
+            api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
+                .then((res) => {
+                    const p = res.data?.obj || {};
+                    const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
+                    const validIds = new Set(servers.map((s) => s.id));
+                    setEditServerIds(rawIds.filter((id) => validIds.has(id)));
+                    const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
+                        .map((v) => String(v || '').trim().toLowerCase())
+                        .filter((v) => ['vless', 'vmess', 'trojan', 'shadowsocks'].includes(v));
+                    setEditProtocols(protos);
+                    const sMode = String(p.serverScopeMode || '').toLowerCase();
+                    const pMode = String(p.protocolScopeMode || '').toLowerCase();
+                    setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
+                    setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
+                    setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
+                    setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
+                })
+                .catch(() => {})
+                .finally(() => setEditPolicyLoading(false));
         }
+
         setEditOpen(true);
     };
 
-    const submitEdit = async (values) => {
+    const closeEditModal = () => {
+        setEditOpen(false);
+        setEditUser(null);
+        setEditSubscriptionEmail('');
+        setEditSubscriptionFollowLogin(false);
+        setEditSaving(false);
+    };
+
+    const submitEdit = async (event) => {
+        event.preventDefault();
         if (!editUser?.id) return;
-        const email = normalizeEmail(values.email);
-        const subscriptionEmail = normalizeEmail(values.subscriptionEmail);
 
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error(t('comp.users.emailInvalid')); return; }
-        if (subscriptionEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subscriptionEmail)) { toast.error('订阅绑定邮箱格式不正确'); return; }
+        const username = String(editUsername || '').trim();
+        if (!username) {
+            toast.error(t('comp.users.usernameEmpty'));
+            return;
+        }
 
-        const payload = { username: values.username.trim(), email, subscriptionEmail };
-        if (values.password) {
-            const passwordError = getPasswordPolicyError(values.password, locale);
-            if (passwordError) { toast.error(passwordError); return; }
-            payload.password = values.password;
+        const email = normalizeEmail(editEmail);
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error(t('comp.users.emailInvalid'));
+            return;
+        }
+
+        const subscriptionEmail = normalizeEmail(editSubscriptionEmail);
+        if (subscriptionEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subscriptionEmail)) {
+            toast.error('订阅绑定邮箱格式不正确');
+            return;
+        }
+
+        const payload = { username, email, subscriptionEmail };
+        const enabledChanged = editEnabled !== (editUser.enabled !== false);
+        if (editPassword) {
+            const passwordError = getPasswordPolicyError(editPassword, locale);
+            if (passwordError) {
+                toast.error(passwordError);
+                return;
+            }
+            payload.password = editPassword;
         }
 
         setEditSaving(true);
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}`, payload);
-            if (!res.data?.success) { toast.error(res.data?.msg || t('comp.users.updateFailed')); setEditSaving(false); return; }
+            if (!res.data?.success) {
+                toast.error(res.data?.msg || t('comp.users.updateFailed'));
+                setEditSaving(false);
+                return;
+            }
 
+            // Update policy
             const updatedUser = res.data?.obj || {};
-            const policyEmail = normalizeEmail(updatedUser.subscriptionEmail || updatedUser.email || editUser.subscriptionEmail || editUser.email);
+            const policyEmail = normalizeEmail(
+                updatedUser.subscriptionEmail
+                || updatedUser.email
+                || editUser.subscriptionEmail
+                || editUser.email
+            );
+            let policySyncFailedMessage = '';
+            let policySyncPartialFailure = false;
             if (policyEmail) {
-                const serverScopeMode = values.noServerLimit ? 'all' : (values.serverIds.length > 0 ? 'selected' : 'none');
-                const protocolScopeMode = values.noProtocolLimit ? 'all' : (values.protocols.length > 0 ? 'selected' : 'none');
-                await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, {
-                    allowedServerIds: serverScopeMode === 'selected' ? values.serverIds : [],
-                    allowedProtocols: protocolScopeMode === 'selected' ? values.protocols : [],
-                    serverScopeMode, protocolScopeMode,
-                    limitIp: normalizeLimitIp(values.limitIp),
-                    trafficLimitBytes: gigabytesInputToBytes(values.trafficLimitGb)
-                });
+                const serverScopeMode = editNoServerLimit ? 'all' : (editServerIds.length > 0 ? 'selected' : 'none');
+                const protocolScopeMode = editNoProtocolLimit ? 'all' : (editProtocols.length > 0 ? 'selected' : 'none');
+                try {
+                    const policyRes = await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, {
+                        allowedServerIds: serverScopeMode === 'selected' ? editServerIds : [],
+                        allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
+                        serverScopeMode,
+                        protocolScopeMode,
+                        limitIp: normalizeLimitIp(editLimitIp),
+                        trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
+                    });
+                    policySyncPartialFailure = policyRes.data?.obj?.partialFailure === true;
+                } catch (policyErr) {
+                    policySyncFailedMessage = policyErr.response?.data?.msg || policyErr.message || '订阅策略同步失败';
+                }
             }
 
-            if (values.enabled !== (editUser.enabled !== false)) {
-                await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/set-enabled`, { enabled: values.enabled });
+            let statusSyncFailedMessage = '';
+            let statusSyncPartialFailure = false;
+            if (enabledChanged) {
+                try {
+                    const enabledRes = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/set-enabled`, {
+                        enabled: editEnabled,
+                    });
+                    if (!enabledRes.data?.success) {
+                        toast.error(enabledRes.data?.msg || '更新用户状态失败');
+                        setEditSaving(false);
+                        return;
+                    }
+                    statusSyncPartialFailure = enabledRes.data?.obj?.partialFailure === true;
+                } catch (enabledErr) {
+                    statusSyncFailedMessage = enabledErr.response?.data?.msg || enabledErr.message || '更新用户状态失败';
+                }
             }
 
+            // Update expiry if user has clients
             if (editHasClients) {
-                await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/update-expiry`, { expiryTime: values.expiryDate ? new Date(values.expiryDate).getTime() : 0 });
+                const newExpiryTime = editExpiryDate
+                    ? new Date(editExpiryDate).getTime()
+                    : 0;
+                try {
+                    const expiryRes = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/update-expiry`, {
+                        expiryTime: newExpiryTime,
+                    });
+                    if (expiryRes.data?.success) {
+                        const r = expiryRes.data.obj;
+                        if (policySyncFailedMessage || statusSyncFailedMessage) {
+                            toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
+                        } else if (r.failed > 0 || policySyncPartialFailure || statusSyncPartialFailure) {
+                            toast.success(`用户信息已更新，但节点同步有部分失败（到期时间成功 ${r.updated}/${r.total}）`);
+                        } else if (r.updated > 0) {
+                            toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}、订阅策略和到期时间已更新（${r.updated} 个节点）`);
+                        } else {
+                            toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
+                        }
+                    }
+                } catch (expiryErr) {
+                    const expiryFailedMessage = expiryErr.response?.data?.msg || expiryErr.message;
+                    if (policySyncFailedMessage || statusSyncFailedMessage) {
+                        toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}；到期时间更新也失败: ${expiryFailedMessage}`);
+                    } else {
+                        toast.error(`用户信息${enabledChanged ? '、账号状态' : ''}和订阅策略已更新，但到期时间更新失败: ${expiryFailedMessage}`);
+                    }
+                }
+            } else {
+                if (policySyncFailedMessage || statusSyncFailedMessage) {
+                    toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
+                } else if (policySyncPartialFailure || statusSyncPartialFailure) {
+                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新，但部分节点同步失败`);
+                } else {
+                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
+                }
             }
 
-            toast.success('用户信息已更新');
-            setEditOpen(false);
+            closeEditModal();
             invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true });
-        } catch (err) { toast.error(err.response?.data?.msg || t('comp.users.updateFailed')); }
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.updateFailed'));
+        }
         setEditSaving(false);
     };
 
-    // --- Create Modal Logic ---
+    // --- Create user modal ---
     const openCreateModal = () => {
-        createForm.resetFields();
-        createForm.setFieldsValue({
-            password: generateSecurePassword(),
-            provisionAfterCreate: true
-        });
+        setCreateUsername('');
+        setCreateEmail('');
+        setCreatePassword(generateSecurePassword());
+        setCreateProvisionAfterCreate(true);
+        setCreateSaving(false);
         setCreateOpen(true);
     };
 
-    const submitCreate = async (values) => {
-        const username = String(values.username || '').trim();
-        const email = normalizeEmail(values.email);
-        const password = String(values.password || '');
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error(t('comp.users.emailInvalid')); return; }
+    const closeCreateModal = () => {
+        setCreateOpen(false);
+        setCreateSaving(false);
+    };
+
+    const submitCreate = async (event) => {
+        event.preventDefault();
+        const username = String(createUsername || '').trim();
+        const email = normalizeEmail(createEmail);
+        const password = String(createPassword || '');
+
+        if (!username) { toast.error(t('comp.users.usernameEmpty')); return; }
+        if (!password) { toast.error(t('comp.users.passwordEmpty')); return; }
         const passwordError = getPasswordPolicyError(password, locale);
         if (passwordError) { toast.error(passwordError); return; }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error(t('comp.users.emailInvalid'));
+            return;
+        }
 
         setCreateSaving(true);
         try {
-            const res = await api.post('/auth/users', { username, password, role: 'user', email, subscriptionEmail: email });
-            if (!res.data?.success || !res.data?.obj) { toast.error(res.data?.msg || t('comp.users.createFailed')); setCreateSaving(false); return; }
-            
+            const res = await api.post('/auth/users', {
+                username,
+                password,
+                role: 'user',
+                email,
+                subscriptionEmail: email,
+            });
+            if (!res.data?.success || !res.data?.obj) {
+                toast.error(res.data?.msg || t('comp.users.createFailed'));
+                setCreateSaving(false);
+                return;
+            }
+
             const createdUser = res.data.obj;
-            toast.success(`用户 ${createdUser.username} 已创建`);
-            setCreateOpen(false);
+            toast.success(`用户 ${createdUser.username || username} 已创建`);
+            closeCreateModal();
             invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true });
 
-            if (values.provisionAfterCreate) {
+            if (createProvisionAfterCreate) {
                 const targetEmail = normalizeEmail(createdUser.subscriptionEmail || createdUser.email);
-                if (!targetEmail) toast(copy.postCreateNoEmail);
-                else openProvisionModal(createdUser);
+                if (!targetEmail) {
+                    toast(copy.postCreateNoEmail);
+                } else {
+                    openProvisionModal(createdUser);
+                }
             }
-        } catch (err) { toast.error(err.response?.data?.msg || t('comp.users.createFailed')); }
-        setCreateSaving(false);
+        } catch (err) {
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.createFailed'));
+            setCreateSaving(false);
+        }
     };
 
+    // Auto-open edit modal from URL query param
     useEffect(() => {
         const editId = searchParams.get('edit');
         if (editId && users.length > 0 && !loading) {
@@ -854,246 +1348,756 @@ export default function UsersHub() {
     }, [users, loading, searchParams]);
 
     return (
-        <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
-            <Header title={t('pages.usersHub.title')} eyebrow={t('pages.usersHub.eyebrow')} />
-            <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-                <Card style={{ marginBottom: 24 }}>
-                    <Row justify="space-between" align="middle">
-                        <Col>
-                            <Space>
-                                <Input 
-                                    placeholder="搜索用户名 / 邮箱..." 
-                                    prefix={<HiOutlineMagnifyingGlass />} 
-                                    value={searchTerm} 
-                                    onChange={(e) => setSearchTerm(e.target.value)} 
-                                />
-                                <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 120 }}>
-                                    <Option value="all">全部状态</Option>
-                                    <Option value="active">已开通</Option>
-                                    <Option value="enabled">已启用</Option>
-                                    <Option value="disabled">已停用</Option>
-                                    <Option value="pending">待审核</Option>
-                                </Select>
-                            </Space>
-                        </Col>
-                        <Col>
-                            <Space>
-                                <Text type="secondary">{statsLoading ? `${syncingCopy.summary} · ` : ''}显示 {filteredUsers.length} / {users.length}</Text>
-                                <Button icon={<HiOutlineArrowDownTray />} onClick={handleExportCSV}>导出</Button>
-                                <Button icon={<HiOutlineArrowPath />} onClick={() => fetchData({ forceUsers: true })}>刷新</Button>
-                                <Button type="primary" icon={<HiOutlineUserPlus />} onClick={openCreateModal}>添加账号</Button>
-                            </Space>
-                        </Col>
-                    </Row>
-                </Card>
+        <>
+            <Header
+                title={t('pages.usersHub.title')}
+                eyebrow={t('pages.usersHub.eyebrow')}
+            />
+            <div className="page-content page-enter page-content--wide users-page">
+                <div className="users-toolbar glass-panel mb-6">
+                    <div className="users-toolbar-main">
+                        <div className="account-search-shell flex-1 max-w-sm">
+                            <HiOutlineMagnifyingGlass className="account-search-icon" />
+                            <input
+                                className="form-input account-search-input"
+                                placeholder={copy.searchPlaceholder}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <select className="form-select users-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                            <option value="all">{copy.statusAll}</option>
+                            <option value="active">{copy.statusActive}</option>
+                            <option value="enabled">{copy.statusEnabled}</option>
+                            <option value="disabled">{copy.statusDisabled}</option>
+                            <option value="pending">{copy.statusPending}</option>
+                        </select>
+                    </div>
+                    <div className="users-toolbar-actions">
+                        <div className="text-sm text-muted users-toolbar-summary">
+                            {statsLoading
+                                ? `${syncingCopy.summary} · ${locale === 'en-US' ? `Showing ${enrichedUsers.length} / ${users.length} accounts` : `显示 ${enrichedUsers.length} / ${users.length} 位账号`}`
+                                : (locale === 'en-US' ? `Showing ${enrichedUsers.length} / ${users.length} accounts` : `显示 ${enrichedUsers.length} / ${users.length} 位账号`)}
+                        </div>
+                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title={copy.exportAction}>
+                            <HiOutlineArrowDownTray /> {copy.exportAction}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={copy.refreshAction}>
+                            <HiOutlineArrowPath /> {copy.refreshAction}
+                        </button>
+                        <button className="btn btn-primary btn-sm" onClick={openCreateModal} title={copy.addAccountAction}>
+                            <HiOutlineUserPlus /> {copy.addAccountAction}
+                        </button>
+                    </div>
+                </div>
 
                 {partialErrors.length > 0 && !primaryError && !loading && (
-                    <Alert 
-                        message={copy.degradedDataTitle} 
-                        description={<>{copy.degradedDataIntro}<br/><Text type="secondary">{summarizePartialErrors(partialErrors, locale)}</Text></>} 
-                        type="warning" 
-                        showIcon 
-                        style={{ marginBottom: 24 }} 
-                    />
+                    <div className="glass-panel mb-4" role="status">
+                        <div className="text-sm font-semibold">{copy.degradedDataTitle}</div>
+                        <div className="text-sm text-muted mt-1">{copy.degradedDataIntro}</div>
+                        <div className="text-xs text-muted mt-2">{summarizePartialErrors(partialErrors, locale)}</div>
+                    </div>
                 )}
 
                 {selectedIds.size > 0 && (
-                    <Card style={{ marginBottom: 24, backgroundColor: '#1f1f1f' }} bodyStyle={{ padding: '12px 24px' }}>
-                        <Space>
-                            <Text strong>已选 {selectedIds.size} 个用户</Text>
-                            <Button 
-                                type="primary" 
-                                danger={!bulkToggleEnable} 
-                                style={bulkToggleEnable ? { backgroundColor: '#52c41a' } : {}}
-                                icon={bulkToggleEnable ? <HiOutlinePlayCircle /> : <HiOutlineNoSymbol />}
-                                onClick={() => handleBulkSetEnabled(bulkToggleEnable)} 
-                                loading={bulkLoading}
-                            >
-                                {bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected')}
-                            </Button>
-                            <Button onClick={() => setSelectedIds(new Set())}>取消选择</Button>
-                        </Space>
-                    </Card>
+                    <div className="bulk-toolbar mb-4 users-bulk-toolbar">
+                        <span className="bulk-toolbar-count">{copy.selectedUsers.replace('{count}', String(selectedIds.size))}</span>
+                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
+                            {bulkToggleIcon} {bulkToggleLabel}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
+                            {copy.clearSelection}
+                        </button>
+                    </div>
                 )}
 
-                <Card bodyStyle={{ padding: 0 }}>
-                    <Table 
-                        dataSource={filteredUsers} 
-                        columns={columns} 
-                        rowKey="id" 
-                        rowSelection={rowSelection} 
-                        loading={loading}
-                        pagination={{ pageSize: 20 }}
-                        scroll={{ x: 1000 }}
-                    />
-                </Card>
+                {isCompactLayout ? (
+                    <div className="users-mobile-list">
+                        <div className="users-mobile-list-head glass-panel">
+                            <label className="users-mobile-list-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
+                                    onChange={toggleSelectAll}
+                                />
+                                <span>{copy.selectCurrentList}</span>
+                            </label>
+                            <button
+                                type="button"
+                                className="table-sort-button users-sequence-sort-button"
+                                onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                aria-label={sequenceDirection === 'asc' ? copy.sequenceDescAria : copy.sequenceAscAria}
+                            >
+                                <span>{copy.sequenceLabel}</span>
+                                <span className="table-sort-button-icon" aria-hidden="true">
+                                    {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                </span>
+                            </button>
+                        </div>
+                        {loading ? (
+                            <div className="glass-panel p-4"><SkeletonTable rows={5} cols={1} /></div>
+                        ) : primaryError ? (
+                            <div className="glass-panel p-4">
+                                <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                            </div>
+                        ) : enrichedUsers.length === 0 ? (
+                            <div className="glass-panel p-4">
+                                <EmptyState
+                                    title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
+                                    subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                                />
+                            </div>
+                        ) : (
+                            enrichedUsers.map((user, index) => renderMobileUserCard(user, index))
+                        )}
+                    </div>
+                ) : loading ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" />
+                    </div>
+                ) : primaryError ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                    </div>
+                ) : enrichedUsers.length === 0 ? (
+                    <div className="glass-panel p-4 users-table-shell">
+                        <EmptyState
+                            title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
+                            subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                        />
+                    </div>
+                ) : (
+                    <div className="table-container glass-panel users-table-shell">
+                        <table className="table users-table">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: 40 }}>
+                                        <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
+                                    </th>
+                                    <th>
+                                        <button
+                                            type="button"
+                                            className="table-sort-button users-sequence-sort-button"
+                                            onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                            aria-label={sequenceDirection === 'asc' ? copy.sequenceDescAria : copy.sequenceAscAria}
+                                        >
+                                            <span>{copy.sequenceLabel}</span>
+                                            <span className="table-sort-button-icon" aria-hidden="true">
+                                                {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                            </span>
+                                        </button>
+                                    </th>
+                                    <th className="users-identity-column">{copy.accountColumn}</th>
+                                    <th className="table-cell-center users-status-column">{copy.statusColumn}</th>
+                                    <th className="table-cell-center users-online-column">{copy.onlineColumn}</th>
+                                    <th className="table-cell-center users-node-count-column">{copy.nodesColumn}</th>
+                                    <th className="table-cell-right users-traffic-column">{copy.trafficColumn}</th>
+                                    <th className="table-cell-center users-expiry-column">{copy.expiryColumn}</th>
+                                    <th className="table-cell-actions users-actions-column">{copy.actionsColumn}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {enrichedUsers.map((user, index) => {
+                                    const sequenceNumber = sequenceDirection === 'asc'
+                                        ? index + 1
+                                        : enrichedUsers.length - index;
+                                    const displayEmail = user.email || user.subscriptionEmail || '';
+                                    const userExpiryLabel = user.statsPending
+                                        ? syncingCopy.detail
+                                        : user.clientData.count > 0
+                                        ? formatExpiryLabel(user.clientData.expiryValues, locale)
+                                        : copy.notProvisioned;
+                                    return (
+                                        <tr
+                                            key={user.id}
+                                            className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
+                                            onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
+                                        >
+                                                <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                                <td data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                                    <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
+                                                </td>
+                                                <td
+                                                    data-label="账号"
+                                                    className="users-identity-cell"
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className="table-cell-link table-cell-link-button users-identity-link"
+                                                        title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                                                    >
+                                                        <span className="users-identity-primary">{user.username}</span>
+                                                        <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
+                                                            {displayEmail || copy.unsetEmail}
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                                <td data-label="状态" className="table-cell-center users-status-cell">
+                                                    <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
+                                                </td>
+                                                <td data-label="在线状态" className="table-cell-center users-online-cell">
+                                                    <div className="flex items-center gap-2 flex-wrap users-online-stack">
+                                                        <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
+                                                        {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
+                                                    </div>
+                                                </td>
+                                                <td data-label="节点数" className="table-cell-center users-node-count-cell">
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.status}</span>
+                                                    ) : (user.clientData.count || '-')}
+                                                </td>
+                                                <td
+                                                    data-label="已用流量"
+                                                    className="users-traffic-cell"
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-')}
+                                                >
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.detail}</span>
+                                                    ) : user.clientData.totalUsed ? (
+                                                        <div className="users-traffic-stack">
+                                                            <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
+                                                            <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
+                                                        </div>
+                                                    ) : '-'}
+                                                </td>
+                                                <td
+                                                    data-label="到期时间"
+                                                    className="cell-mono table-cell-center users-expiry-cell"
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.count > 0 ? userExpiryLabel : '-')}
+                                                >
+                                                    {user.statsPending ? (
+                                                        <span className="text-xs text-muted">{syncingCopy.detail}</span>
+                                                    ) : (user.clientData.count > 0 ? userExpiryLabel : '-')}
+                                                </td>
+                                                <td data-label="" className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex gap-2 flex-wrap users-row-actions">
+                                                        {renderUserActionButtons(user)}
+                                                    </div>
+                                                </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Create User Modal */}
-            <Modal title="添加用户账号" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => createForm.submit()} confirmLoading={createSaving}>
-                <Form form={createForm} layout="vertical" onFinish={submitCreate}>
-                    <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-                        <Input placeholder="例如: user001" autoComplete="off" />
-                    </Form.Item>
-                    <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
-                        <Input placeholder="同时作为登录邮箱和订阅绑定邮箱" />
-                    </Form.Item>
-                    <Form.Item name="password" label="初始密码" rules={[{ required: true, message: '请输入密码' }]}>
-                        <Space.Compact style={{ width: '100%' }}>
-                            <Input.Password placeholder="至少8位，含3类字符" style={{ fontFamily: 'monospace' }} />
-                            <Button onClick={() => {
-                                const p = generateSecurePassword();
-                                createForm.setFieldsValue({ password: p });
-                            }}><HiOutlineArrowPath /> 生成</Button>
-                        </Space.Compact>
-                    </Form.Item>
-                    <Form.Item name="provisionAfterCreate" valuePropName="checked">
-                        <Checkbox>{copy.createProvisionToggle}</Checkbox>
-                    </Form.Item>
-                </Form>
-            </Modal>
+            {createOpen && (
+                <ModalShell isOpen={createOpen} onClose={closeCreateModal}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">添加用户账号</h3>
+                            <button type="button" className="modal-close" onClick={closeCreateModal}><HiOutlineXMark /></button>
+                        </div>
+                        <form onSubmit={submitCreate}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">用户名</label>
+                                    <input
+                                        className="form-input"
+                                        value={createUsername}
+                                        onChange={(e) => setCreateUsername(e.target.value)}
+                                        placeholder="例如: user001"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">邮箱</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        value={createEmail}
+                                        onChange={(e) => setCreateEmail(e.target.value)}
+                                        placeholder="同时作为登录邮箱和订阅绑定邮箱"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">初始密码</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type={showCreatePassword ? 'text' : 'password'}
+                                            className="form-input font-mono"
+                                            value={createPassword}
+                                            onChange={(e) => setCreatePassword(e.target.value)}
+                                            placeholder="至少8位，含3类字符"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setShowCreatePassword((v) => !v)}
+                                            title={showCreatePassword ? '隐藏密码' : '显示密码'}
+                                        >
+                                            {showCreatePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => { copyToClipboard(createPassword); toast.success(copy.passwordCopied); }}
+                                            title="复制密码"
+                                        >
+                                            <HiOutlineClipboard />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setCreatePassword(generateSecurePassword())}
+                                        >
+                                            <HiOutlineArrowPath /> 生成
+                                        </button>
+                                    </div>
+                                    <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
+                                </div>
+                                <div className="form-group">
+                                    <label className="badge badge-info flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={createProvisionAfterCreate}
+                                            onChange={(e) => setCreateProvisionAfterCreate(e.target.checked)}
+                                        />
+                                        {copy.createProvisionToggle}
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeCreateModal}>取消</button>
+                                <button type="submit" className="btn btn-primary" disabled={createSaving}>
+                                    {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 创建账号</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </ModalShell>
+            )}
 
             {/* Edit User Modal */}
-            <Modal title={`编辑用户 - ${editUser?.username}`} open={editOpen} onCancel={() => setEditOpen(false)} onOk={() => editForm.submit()} confirmLoading={editSaving} width={700}>
-                <Form form={editForm} layout="vertical" onFinish={submitEdit} initialValues={{ enabled: true, noServerLimit: true, noProtocolLimit: true }}>
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-                                <Input />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
-                                <Input onChange={e => {
-                                    if(editSubscriptionFollowLogin) editForm.setFieldsValue({ subscriptionEmail: e.target.value });
-                                }} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Form.Item name="subscriptionEmail" label="订阅绑定邮箱" rules={[{ type: 'email', message: '邮箱格式不正确' }]} extra={editSubscriptionFollowLogin ? '当前跟随登录邮箱变更' : '可单独指定订阅客户端绑定邮箱'}>
-                        <Input onChange={e => setEditSubscriptionFollowLogin(normalizeEmail(e.target.value) === normalizeEmail(editForm.getFieldValue('email')))} placeholder="留空表示暂不单独绑定" />
-                    </Form.Item>
-                    <Form.Item name="enabled" label="账号状态" valuePropName="checked">
-                        <Switch checkedChildren="启用" unCheckedChildren="停用" />
-                    </Form.Item>
-                    <Form.Item name="password" label="重置密码（留空则不修改）">
-                        <Space.Compact style={{ width: '100%' }}>
-                            <Input.Password placeholder="留空不修改" style={{ fontFamily: 'monospace' }} />
-                            <Button onClick={() => editForm.setFieldsValue({ password: generateSecurePassword() })}><HiOutlineArrowPath /> 生成</Button>
-                        </Space.Compact>
-                    </Form.Item>
-                    {editHasClients && (
-                        <Form.Item name="expiryDate" label="到期时间" extra="留空 = 永不过期，修改后将同步更新所有节点客户端">
-                            <Input type="datetime-local" />
-                        </Form.Item>
-                    )}
-                    <Card title="订阅策略" size="small" style={{ marginBottom: 16 }}>
-                        <Form.Item name="noServerLimit" valuePropName="checked">
-                            <Checkbox>不限制服务器</Checkbox>
-                        </Form.Item>
-                        <Form.Item shouldUpdate={(prev, curr) => prev.noServerLimit !== curr.noServerLimit}>
-                            {() => (
-                                <Form.Item name="serverIds" label="可访问服务器">
-                                    <Select mode="multiple" disabled={editForm.getFieldValue('noServerLimit')} options={servers.map(s => ({ value: s.id, label: s.name }))} />
-                                </Form.Item>
-                            )}
-                        </Form.Item>
-                        <Form.Item name="noProtocolLimit" valuePropName="checked">
-                            <Checkbox>不限制协议</Checkbox>
-                        </Form.Item>
-                        <Form.Item shouldUpdate={(prev, curr) => prev.noProtocolLimit !== curr.noProtocolLimit}>
-                            {() => (
-                                <Form.Item name="protocols" label="可用协议">
-                                    <Select mode="multiple" disabled={editForm.getFieldValue('noProtocolLimit')} options={PROTOCOL_OPTIONS.map(p => ({ value: p.key, label: p.label }))} />
-                                </Form.Item>
-                            )}
-                        </Form.Item>
-                    </Card>
-                    <Card title="统一限额" size="small" extra={<Text type="secondary" style={{fontSize: 12}}>单个入站用户如有手工覆盖，优先使用覆盖值</Text>}>
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Form.Item name="limitIp" label="IP 限制" extra="0 = 不限制连接 IP 数量">
-                                    <Input type="number" min={0} />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item name="trafficLimitGb" label="总流量上限 (GB)" extra="0 = 不限制总流量">
-                                    <Input type="number" min={0} step="0.5" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </Card>
-                </Form>
-            </Modal>
+            {editOpen && editUser && (
+                <ModalShell isOpen={editOpen} onClose={closeEditModal}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">编辑用户 - {editUser.username}</h3>
+                            <button type="button" className="modal-close" onClick={closeEditModal}><HiOutlineXMark /></button>
+                        </div>
+                        <form onSubmit={submitEdit}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">用户名</label>
+                                    <input
+                                        className="form-input"
+                                        value={editUsername}
+                                        onChange={(e) => setEditUsername(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">邮箱</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        value={editEmail}
+                                        onChange={(e) => handleEditEmailChange(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">订阅绑定邮箱</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        value={editSubscriptionEmail}
+                                        onChange={(e) => handleEditSubscriptionEmailChange(e.target.value)}
+                                        placeholder="留空表示暂不单独绑定"
+                                    />
+                                    <p className="text-muted text-sm mt-1">
+                                        {editSubscriptionFollowLogin
+                                            ? '当前跟随登录邮箱变更，现有节点凭据和订阅令牌会原地迁移。'
+                                            : '可单独指定订阅客户端绑定邮箱；修改时会保留现有节点凭据和订阅链接。'}
+                                    </p>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">账号状态</label>
+                                    <div className="users-edit-status-toggle" role="group" aria-label="账号状态">
+                                        <button
+                                            type="button"
+                                            className={`users-edit-status-option${editEnabled ? ' is-active is-success' : ''}`}
+                                            onClick={() => setEditEnabled(true)}
+                                            aria-pressed={editEnabled}
+                                        >
+                                            <HiOutlinePlayCircle />
+                                            <span>启用</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`users-edit-status-option${!editEnabled ? ' is-active is-danger' : ''}`}
+                                            onClick={() => setEditEnabled(false)}
+                                            aria-pressed={!editEnabled}
+                                        >
+                                            <HiOutlineNoSymbol />
+                                            <span>停用</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-muted text-sm mt-1">
+                                        {editEnabled ? '允许该账号正常登录和使用订阅。' : '停用后账号将无法登录，已开通客户端会同步停用。'}
+                                    </p>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">重置密码（留空则不修改）</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type={showEditPassword ? 'text' : 'password'}
+                                            className="form-input font-mono"
+                                            value={editPassword}
+                                            onChange={(e) => setEditPassword(e.target.value)}
+                                            placeholder="留空不修改"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setShowEditPassword((v) => !v)}
+                                        >
+                                            {showEditPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => { const p = generateSecurePassword(); setEditPassword(p); setShowEditPassword(true); }}
+                                        >
+                                            <HiOutlineArrowPath /> 生成
+                                        </button>
+                                    </div>
+                                    <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
+                                </div>
+                                {editHasClients && (
+                                    <div className="form-group">
+                                        <label className="form-label">到期时间</label>
+                                        <input
+                                            type="datetime-local"
+                                            className="form-input"
+                                            value={editExpiryDate}
+                                            onChange={(e) => setEditExpiryDate(e.target.value)}
+                                        />
+                                        <p className="text-muted text-sm mt-1">留空 = 永不过期，修改后将同步更新所有节点客户端</p>
+                                    </div>
+                                )}
+                                <div className="form-group">
+                                    <label className="form-label">订阅策略</label>
+                                    {editPolicyLoading ? (
+                                        <div className="text-center p-4"><span className="spinner" /></div>
+                                    ) : (
+                                        <>
+                                            <div className="card mb-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-medium">可访问服务器</span>
+                                                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editNoServerLimit}
+                                                            onChange={(e) => setEditNoServerLimit(e.target.checked)}
+                                                        />
+                                                        不限制
+                                                    </label>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {servers.map((s) => (
+                                                        <label key={s.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
+                                                            <input
+                                                                type="checkbox"
+                                                                disabled={editNoServerLimit}
+                                                                checked={editServerIds.includes(s.id)}
+                                                                onChange={(e) => {
+                                                                    setEditServerIds((prev) =>
+                                                                        e.target.checked
+                                                                            ? Array.from(new Set([...prev, s.id]))
+                                                                            : prev.filter((x) => x !== s.id)
+                                                                    );
+                                                                }}
+                                                            />
+                                                            {s.name}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="card">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-medium">可用协议</span>
+                                                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editNoProtocolLimit}
+                                                            onChange={(e) => setEditNoProtocolLimit(e.target.checked)}
+                                                        />
+                                                        不限制
+                                                    </label>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {PROTOCOL_OPTIONS.map((p) => (
+                                                        <label key={p.key} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
+                                                            <input
+                                                                type="checkbox"
+                                                                disabled={editNoProtocolLimit}
+                                                                checked={editProtocols.includes(p.key)}
+                                                                onChange={(e) => {
+                                                                    setEditProtocols((prev) =>
+                                                                        e.target.checked
+                                                                            ? Array.from(new Set([...prev, p.key]))
+                                                                            : prev.filter((x) => x !== p.key)
+                                                                    );
+                                                                }}
+                                                            />
+                                                            {p.label}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="card mt-3">
+                                                <div className="text-sm font-medium mb-2">统一限额</div>
+                                                <div className="text-xs text-muted mb-3">这里保存的是该用户的默认限额；单个入站用户如有手工覆盖，会优先使用覆盖值。</div>
+                                                <div className="grid-auto-280-tight">
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">IP 限制</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editLimitIp}
+                                                            onChange={(e) => setEditLimitIp(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">0 = 不限制连接 IP 数量</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">总流量上限</label>
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="number"
+                                                                className="form-input"
+                                                                min={0}
+                                                                step="0.5"
+                                                                value={editTrafficLimitGb}
+                                                                onChange={(e) => setEditTrafficLimitGb(e.target.value)}
+                                                            />
+                                                            <span className="text-sm text-muted">GB</span>
+                                                        </div>
+                                                        <p className="text-muted text-sm mt-1">0 = 不限制总流量</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>取消</button>
+                                <button type="submit" className="btn btn-primary" disabled={editSaving}>
+                                    {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </ModalShell>
+            )}
 
             {/* Provision Modal */}
-            <Modal title={`${copy.provisionModalTitle} - ${provisionTargetUser?.username}`} open={provisionOpen} onCancel={() => setProvisionOpen(false)} footer={null} width={800}>
-                {provisionInitLoading ? (
-                    <div style={{ textAlign: 'center', padding: '40px' }}><Spin /></div>
-                ) : provisionResult ? (
-                    <div style={{ padding: '20px 0' }}>
-                        <Alert message="开通成功" description={provisionResult.successMessage} type="success" showIcon style={{ marginBottom: 24 }} />
-                        <Title level={5}>客户端订阅链接</Title>
-                        <SubscriptionClientLinks bundle={provisionResult.bundle} compact showHeading={false} />
-                        <Button type="primary" onClick={() => setProvisionOpen(false)} style={{ marginTop: 24 }}>完成</Button>
-                    </div>
-                ) : (
-                    <Form form={provisionForm} layout="vertical" onFinish={submitProvision}>
-                        <Form.Item name="email" label="订阅绑定邮箱" rules={[{ required: true, type: 'email', message: '请输入有效的邮箱' }]}>
-                            <Input placeholder="与节点客户端配置一致的邮箱" />
-                        </Form.Item>
-                        <Card title="统一限额" size="small" style={{ marginBottom: 16 }} extra={<Text type="secondary" style={{fontSize: 12}}>同步到该用户的默认策略与选中入站客户端</Text>}>
-                            <Row gutter={16}>
-                                <Col span={8}>
-                                    <Form.Item name="expiryDate" label="到期时间" extra="留空 = 永不过期">
-                                        <Input type="datetime-local" />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={8}>
-                                    <Form.Item name="limitIp" label="IP 限制" extra="0 = 不限制">
-                                        <Input type="number" min={0} />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={8}>
-                                    <Form.Item name="trafficLimitGb" label="总流量上限 (GB)" extra="0 = 不限制">
-                                        <Input type="number" min={0} step="0.5" />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
-                        </Card>
-                        <Form.Item label={`选择入站 (已选 ${provisionSelectedInboundKeys.size} / ${allInbounds.length})`}>
-                            <Space style={{ marginBottom: 8 }}>
-                                <Button size="small" onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map(ib => ib.key)))}>全选</Button>
-                                <Button size="small" onClick={() => setProvisionSelectedInboundKeys(new Set())}>全不选</Button>
-                            </Space>
-                            <div style={{ maxHeight: 240, overflowY: 'auto', border: '1px solid #303030', borderRadius: 4, padding: 8 }}>
-                                {allInbounds.length === 0 ? <Text type="secondary">暂无可用入站</Text> : allInbounds.map(ib => (
-                                    <div key={ib.key} style={{ marginBottom: 8 }}>
-                                        <Checkbox checked={provisionSelectedInboundKeys.has(ib.key)} onChange={e => {
-                                            const next = new Set(provisionSelectedInboundKeys);
-                                            if (e.target.checked) next.add(ib.key); else next.delete(ib.key);
-                                            setProvisionSelectedInboundKeys(next);
-                                        }}>
-                                            <Space>
-                                                <Text strong>{ib.serverName}</Text>
-                                                <Text type="secondary">{ib.remark || ib.protocol}</Text>
-                                                <Tag>{ib.protocol}:{ib.port}</Tag>
-                                                <Text type="secondary" style={{ fontSize: 12 }}>到期: {ib.expiryTime > 0 ? formatDateOnly(ib.expiryTime, locale) : '永久'}</Text>
-                                            </Space>
-                                        </Checkbox>
-                                    </div>
-                                ))}
-                            </div>
-                        </Form.Item>
-                        <div style={{ textAlign: 'right' }}>
-                            <Space>
-                                <Button onClick={() => setProvisionOpen(false)}>取消</Button>
-                                <Button type="primary" htmlType="submit" loading={provisionSaving}>确认开通</Button>
-                            </Space>
+            {provisionOpen && provisionTargetUser && (
+                <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">{copy.provisionModalTitle} - {provisionTargetUser.username}</h3>
+                            <button type="button" className="modal-close" onClick={closeProvisionModal}><HiOutlineXMark /></button>
                         </div>
-                    </Form>
-                )}
-            </Modal>
-        </ConfigProvider>
+                        <form onSubmit={submitProvision}>
+                            <div className="modal-body">
+                                {provisionInitLoading ? (
+                                    <div className="text-center p-6"><span className="spinner" /></div>
+                                ) : (
+                                    <>
+                                        <div className="form-group">
+                                            <label className="form-label">订阅绑定邮箱</label>
+                                            <input
+                                                type="email"
+                                                className="form-input"
+                                                value={provisionEmail}
+                                                onChange={(e) => setProvisionEmail(e.target.value)}
+                                                placeholder="与节点客户端配置一致的邮箱"
+                                            />
+                                        </div>
+
+                                        <div className="card mb-4">
+                                            <div className="text-sm font-medium mb-2">统一限额</div>
+                                            <div className="text-xs text-muted mb-3">开通后会把到期时间、IP 限制和总流量上限同步到该用户的默认策略与选中入站客户端。</div>
+                                            <div className="grid-auto-280-tight">
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">到期时间</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        className="form-input"
+                                                        value={provisionExpiryDate}
+                                                        onChange={(e) => setProvisionExpiryDate(e.target.value)}
+                                                    />
+                                                    <p className="text-muted text-sm mt-1">留空 = 永不过期</p>
+                                                    {inboundExpiries.length > 0 && (
+                                                        <div className="mt-2">
+                                                            <div className="text-xs text-muted mb-1">参考：当前入站到期时间</div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {inboundExpiries
+                                                                    .filter((e) => e.expiryTime > Date.now())
+                                                                    .slice(0, 6)
+                                                                    .map((e, i) => {
+                                                                        const dateStr = formatDateOnly(e.expiryTime, locale);
+                                                                        return (
+                                                                            <button
+                                                                                key={i}
+                                                                                type="button"
+                                                                                className="badge badge-neutral cursor-pointer"
+                                                                                title={`${e.serverName} / ${e.inboundRemark}（${e.clientCount} 客户端）`}
+                                                                                onClick={() => setProvisionExpiryDate(toLocalDateTimeString(e.expiryTime))}
+                                                                            >
+                                                                                {e.serverName}/{e.inboundRemark}: {dateStr}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">IP 限制</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionLimitIp}
+                                                        onChange={(e) => setProvisionLimitIp(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">总流量上限</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            step="0.5"
+                                                            value={provisionTrafficLimitGb}
+                                                            onChange={(e) => setProvisionTrafficLimitGb(e.target.value)}
+                                                        />
+                                                        <span className="text-sm text-muted">GB</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                选择入站
+                                                <span className="text-muted text-xs ml-2">
+                                                    已选 {provisionSelectedInboundKeys.size} / {allInbounds.length}
+                                                </span>
+                                            </label>
+                                            <div className="flex gap-2 mb-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)))}
+                                                >
+                                                    全选
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={() => setProvisionSelectedInboundKeys(new Set())}
+                                                >
+                                                    全不选
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-col gap-1" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                                {allInbounds.length === 0 ? (
+                                                    <span className="text-sm text-muted">暂无可用入站</span>
+                                                ) : allInbounds.map((ib) => {
+                                                    const checked = provisionSelectedInboundKeys.has(ib.key);
+                                                    const expiryLabel = ib.expiryTime > 0
+                                                        ? formatDateOnly(ib.expiryTime, locale)
+                                                        : '永久';
+                                                    return (
+                                                        <label
+                                                            key={ib.key}
+                                                            className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-surface-soft border-stroke-soft' : ''}`}
+                                                            style={{ border: '1px solid var(--border-color)' }}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={(e) => {
+                                                                    setProvisionSelectedInboundKeys((prev) => {
+                                                                        const next = new Set(prev);
+                                                                        if (e.target.checked) next.add(ib.key);
+                                                                        else next.delete(ib.key);
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                            />
+                                                            <span className="font-medium">{ib.serverName}</span>
+                                                            <span className="text-muted">{ib.remark || ib.protocol}</span>
+                                                            <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
+                                                            <span className="text-muted text-xs ml-auto">到期: {expiryLabel}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {provisionResult && (
+                                    <div className="card">
+                                        <div className="card-header">
+                                            <span className="card-title">开通结果</span>
+                                        </div>
+                                        <div className="text-sm text-success mb-3">
+                                            {provisionResult.successMessage || '订阅已成功开通'}
+                                        </div>
+                                        {provisionResult.deployment && provisionResult.deployment.total > 0 && (
+                                            <div className="mb-3">
+                                                <div className="text-sm mb-2">
+                                                    <span className="font-medium">节点下发：</span>
+                                                    <span className="badge badge-success mr-1">创建 {provisionResult.deployment.created}</span>
+                                                    <span className="badge badge-info mr-1">更新 {provisionResult.deployment.updated || 0}</span>
+                                                    <span className="badge badge-neutral mr-1">跳过 {provisionResult.deployment.skipped}（已存在）</span>
+                                                    {provisionResult.deployment.failed > 0 && (
+                                                        <span className="badge badge-danger">失败 {provisionResult.deployment.failed}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col gap-2">
+                                            {provisionLinks.map((item) => (
+                                                <div key={item.key} className="flex gap-2">
+                                                    <input className="form-input font-mono text-xs" value={item.url} readOnly />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
+                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(`${item.label} 链接已复制`); }}
+                                                    >
+                                                        <HiOutlineClipboard /> 复制{item.label}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <SubscriptionClientLinks bundle={provisionResult.bundle} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>关闭</button>
+                                <button type="submit" className="btn btn-primary" disabled={provisionSaving || provisionInitLoading}>
+                                    {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 确认开通</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </ModalShell>
+            )}
+        </>
     );
 }

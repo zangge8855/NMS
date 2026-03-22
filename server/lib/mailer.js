@@ -426,6 +426,77 @@ export async function sendPasswordResetEmail(toEmail, code, username = '') {
     });
 }
 
+export function buildInviteRegistrationEmail(payload = {}) {
+    const subject = String(payload.subject || '').trim() || '[NMS] 注册邀请';
+    const inviteCode = String(payload.inviteCode || '').trim().toUpperCase();
+    const usageLimit = Math.max(1, Number.parseInt(String(payload.usageLimit || ''), 10) || 1);
+    const subscriptionDays = Math.max(0, Number.parseInt(String(payload.subscriptionDays || ''), 10) || 0);
+    const registrationUrl = String(payload.registrationUrl || '').trim();
+    const inviterName = String(payload.inviterName || '').trim();
+    const message = String(payload.message || '').trim();
+    const durationLabel = subscriptionDays > 0 ? `${subscriptionDays} 天` : '不限时';
+    const intro = inviterName
+        ? `管理员 ${escapeHtml(inviterName)} 邀请你注册 NMS。`
+        : '你收到了一封新的 NMS 注册邀请。';
+    const actionHtml = registrationUrl
+        ? `
+        <div style="margin-top:24px;">
+          <a href="${escapeHtml(registrationUrl)}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#0f766e);color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;">
+            打开注册页面
+          </a>
+          <div style="margin-top:12px;font-size:12px;line-height:1.6;color:#64748b;word-break:break-all;">
+            如果按钮无法打开，请复制以下地址：<br />${escapeHtml(registrationUrl)}
+          </div>
+        </div>`
+        : '';
+    const messageHtml = message ? renderParagraphs(message) : '';
+    const html = `
+    <div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:18px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0f766e,#2563eb);padding:32px 24px;text-align:center;">
+        <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.84);font-size:14px;">注册邀请</p>
+      </div>
+      <div style="padding:32px 24px;">
+        <p style="margin:0 0 18px;font-size:14px;line-height:1.75;color:#94a3b8;">${intro}</p>
+        <p style="margin:0 0 20px;font-size:14px;line-height:1.75;color:#cbd5e1;">请使用以下邀请码完成注册。每个邀请链接会绑定当前邮箱并自动打开注册表单。</p>
+        <div style="background:rgba(37,99,235,0.14);border:1px solid rgba(59,130,246,0.3);border-radius:14px;padding:20px;margin-bottom:20px;text-align:center;">
+          <div style="margin:0 0 10px;font-size:12px;color:#94a3b8;">邀请码</div>
+          <div style="font-size:28px;font-weight:700;letter-spacing:4px;color:#bfdbfe;word-break:break-all;">${escapeHtml(inviteCode || '-')}</div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+          <div style="flex:1 1 180px;min-width:180px;background:rgba(15,23,42,0.42);border:1px solid rgba(148,163,184,0.16);border-radius:12px;padding:14px 16px;">
+            <div style="font-size:12px;color:#94a3b8;">可用次数</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#f8fafc;">${usageLimit} 次</div>
+          </div>
+          <div style="flex:1 1 180px;min-width:180px;background:rgba(15,23,42,0.42);border:1px solid rgba(148,163,184,0.16);border-radius:12px;padding:14px 16px;">
+            <div style="font-size:12px;color:#94a3b8;">开通时长</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#f8fafc;">${escapeHtml(durationLabel)}</div>
+          </div>
+        </div>
+        ${messageHtml}
+        ${actionHtml}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+        <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
+      </div>
+    </div>`;
+
+    return {
+        subject,
+        html,
+    };
+}
+
+export async function sendInviteRegistrationEmail(toEmail, payload = {}) {
+    const { subject, html } = buildInviteRegistrationEmail(payload);
+    await sendTrackedEmail({
+        type: 'invite_registration',
+        toEmail,
+        subject,
+        html,
+    });
+}
+
 export function buildOperationalNoticeEmail(payload = {}) {
     const subject = String(payload.subject || '').trim() || '[NMS] 服务通知';
     const message = String(payload.message || '').trim();

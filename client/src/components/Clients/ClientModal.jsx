@@ -635,7 +635,7 @@ export default function ClientModal({
                             {visibleTargets.length === 0 ? (
                                 <Text type="secondary">请先选择节点</Text>
                             ) : (
-                                <Space direction="vertical" style={{ width: '100%' }}>
+                                <Space orientation="vertical" style={{ width: '100%' }}>
                                     {visibleTargets.map((t) => {
                                         const key = getTargetKey(t);
                                         const checked = selectedInboundKeys.includes(key);
@@ -762,7 +762,7 @@ export default function ClientModal({
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item label="到期策略">
-                            <Space direction="vertical" style={{ width: '100%' }}>
+                            <Space orientation="vertical" style={{ width: '100%' }}>
                                 <Select value={expiryMode} onChange={setExpiryMode} style={{ width: '100%' }}>
                                     <Select.Option value="never">永不过期</Select.Option>
                                     <Select.Option value="datetime">指定日期时间</Select.Option>

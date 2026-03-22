@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Tag, Typography, Space, Row, Col, Badge } from 'antd';
+import { Typography, Space, Row, Col, Badge } from 'antd';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import { formatTimeOnly } from '../../utils/format.js';
 
@@ -48,7 +48,7 @@ export default function ServerTelemetryCell({
         <div style={{ padding: '8px 0' }}>
             <Row gutter={[8, 8]} align="middle">
                 <Col span={12}>
-                    <Space direction="vertical" size={0}>
+                    <Space orientation="vertical" size={0}>
                         <Text type="secondary" style={{ fontSize: '11px' }}>{copy.rtt}</Text>
                         <Text strong style={{ fontSize: '13px' }}>
                             {loading ? copy.pending : (hasCurrentLatency ? `${currentLatency} ms` : '--')}
@@ -56,7 +56,7 @@ export default function ServerTelemetryCell({
                     </Space>
                 </Col>
                 <Col span={12}>
-                    <Space direction="vertical" size={0}>
+                    <Space orientation="vertical" size={0}>
                         <Text type="secondary" style={{ fontSize: '11px' }}>{copy.uptime}</Text>
                         <Text strong style={{ fontSize: '13px' }}>
                             {Number.isFinite(uptimePercent) ? `${uptimePercent}%` : '--'}

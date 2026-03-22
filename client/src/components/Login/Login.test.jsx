@@ -79,6 +79,26 @@ describe('Login', () => {
         expect(screen.getByRole('button', { name: '发送验证码' })).toBeInTheDocument();
     });
 
+    it('opens the register form from invite links and pre-fills email and invite code', async () => {
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    enabled: true,
+                    inviteOnlyEnabled: true,
+                    passwordResetEnabled: true,
+                },
+            },
+        });
+
+        renderWithRouter(<Login />, {
+            route: '/login?mode=register&invite=ABCD-EFGH-IJKL&email=alice@example.com',
+        });
+
+        expect(await screen.findByDisplayValue('alice@example.com')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('ABCD-EFGH-IJKL')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '注册' })).toBeInTheDocument();
+    });
+
     it('submits the login form with an email identifier', async () => {
         const user = userEvent.setup();
         const loginMock = vi.fn().mockResolvedValue({ success: false, msg: '用户名、邮箱或密码错误' });

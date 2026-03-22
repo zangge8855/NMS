@@ -5,13 +5,32 @@ export default function useAnimatedCounter(target, duration = 600) {
     const rafRef = useRef(null);
     const startRef = useRef(null);
     const fromRef = useRef(0);
+    const initializedRef = useRef(false);
 
     useEffect(() => {
         const targetNum = Number(target) || 0;
+        if (!initializedRef.current) {
+            initializedRef.current = true;
+            fromRef.current = targetNum;
+            setValue(targetNum);
+            return undefined;
+        }
         if (targetNum === fromRef.current) return;
+
+        const reduceMotion = typeof window !== 'undefined'
+            && typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion || duration <= 0) {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            startRef.current = null;
+            fromRef.current = targetNum;
+            setValue(targetNum);
+            return undefined;
+        }
 
         const from = fromRef.current;
         startRef.current = null;
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
         const animate = (timestamp) => {
             if (!startRef.current) startRef.current = timestamp;

@@ -28,13 +28,13 @@ import ResourceTopologyCard from './ResourceTopologyCard.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { Card, Row, Col, Badge, Empty, Typography, Button, Space, Table, Statistic, List } from 'antd';
-const { Title, Text } = Typography;
+import EmptyState from '../UI/EmptyState.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { fetchManagedUsers } from '../../utils/managedUsersCache.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
-const GLOBAL_WS_GRACE_MS = 500;
+const GLOBAL_WS_GRACE_MS = 150;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const MAX_NODE_TREND_POINTS = 12;
@@ -98,9 +98,15 @@ function StatCard({ card, loading }) {
     const renderedValue = loading
         ? null
         : card.animateValue !== undefined
-            ? (card.renderAnimatedValue ? card.renderAnimatedValue(animatedValue) : `${animatedValue}${card.animateSuffix || ''}`)
+            ? (
+                card.renderAnimatedValue
+                    ? card.renderAnimatedValue(animatedValue)
+                    : `${animatedValue}${card.animateSuffix || ''}`
+            )
             : card.value;
-
+    const renderedValueTitle = typeof renderedValue === 'string' || typeof renderedValue === 'number'
+        ? String(renderedValue)
+        : undefined;
     const handleKeyDown = (event) => {
         if (!clickable) return;
         if (event.key === 'Enter' || event.key === ' ') {
@@ -110,118 +116,165 @@ function StatCard({ card, loading }) {
     };
 
     return (
-        <Card
-            hoverable={clickable}
+        <div
+            className={`card dashboard-stat-card${clickable ? ' clickable' : ''}`}
+            data-tone={card.tone || 'neutral'}
             onClick={clickable ? card.onClick : undefined}
             onKeyDown={handleKeyDown}
+            role={clickable ? 'button' : undefined}
             tabIndex={clickable ? 0 : undefined}
-            style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}
-            bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}
         >
             {hasHead && (
-                <div style={{ marginBottom: 12 }}>
-                    {card.label && <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>{card.label}</Text>}
-                    {card.kicker && <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{card.kicker}</Text>}
+                <div className="dashboard-stat-card-head">
+                    <div className="dashboard-stat-card-copy">
+                        {card.label && <span className="dashboard-stat-card-label">{card.label}</span>}
+                        {card.kicker && <span className="dashboard-stat-card-kicker">{card.kicker}</span>}
+                    </div>
                 </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1 }}>
-                <div>
-                    {loading ? (
-                        <div className="skeleton" style={{ width: card.skeletonWidth || 80, height: 28 }} />
-                    ) : (
-                        <Title level={3} style={{ margin: 0, color: 'var(--text-primary)' }}>{renderedValue}</Title>
-                    )}
-                    {card.sub && <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>{card.sub}</Text>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                    <card.icon style={{ fontSize: 24, color: 'var(--text-muted)' }} />
+            <div className="dashboard-stat-card-body">
+                <div className="dashboard-stat-card-primary">
+                    <div className="card-value dashboard-stat-card-value" title={renderedValueTitle}>
+                        {loading ? (
+                            <div
+                                className="skeleton dashboard-stat-card-skeleton mt-1"
+                                style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
+                            />
+                        ) : (
+                            <span className="dashboard-stat-card-value-text">{renderedValue}</span>
+                        )}
+                    </div>
                     {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
-                        <div style={{ width: 80, height: 24, marginTop: 8 }}>
-                            <StatSparkline points={card.sparkline} domain={card.sparklineDomain} />
-                        </div>
+                        <StatSparkline points={card.sparkline} domain={card.sparklineDomain} />
                     )}
                 </div>
+                {card.sub && (
+                    <div className="dashboard-stat-card-subtitle">
+                        {card.sub}
+                    </div>
+                )}
+                {clickable && (
+                    <span className="dashboard-stat-card-hint" aria-hidden="true">
+                        <HiOutlineArrowRight />
+                    </span>
+                )}
             </div>
-        </Card>
+            <div className="card-icon dashboard-stat-card-icon" aria-hidden="true">
+                <card.icon />
+            </div>
+        </div>
     );
 }
 
 function QuickActionGrid({ actions = [] }) {
     return (
-        <Row gutter={[16, 16]}>
+        <div className="dashboard-quick-grid">
             {actions.map((action) => (
-                <Col xs={24} sm={12} md={12} lg={6} key={action.title}>
-                    <Card
-                        hoverable
-                        onClick={action.onClick}
-                        style={{ height: '100%', background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}
-                        bodyStyle={{ padding: '16px', display: 'flex', alignItems: 'center', gap: 12 }}
-                    >
-                        <div style={{ padding: 12, borderRadius: 8, background: `var(--accent-${action.tone || 'primary'}-muted, rgba(255,255,255,0.05))` }}>
-                            <action.icon style={{ fontSize: 24, color: `var(--accent-${action.tone || 'primary'})` }} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <Text strong style={{ display: 'block', fontSize: 15 }}>{action.title}</Text>
-                            <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{action.detail}</Text>
-                        </div>
-                        <HiOutlineArrowRight style={{ color: 'var(--text-muted)' }} />
-                    </Card>
-                </Col>
+                <button
+                    key={action.title}
+                    type="button"
+                    className="dashboard-quick-card"
+                    data-tone={action.tone || 'primary'}
+                    onClick={action.onClick}
+                >
+                    <span className="dashboard-quick-card-icon" aria-hidden="true">
+                        <action.icon />
+                    </span>
+                    <span className="dashboard-quick-card-copy">
+                        <span className="dashboard-quick-card-title">{action.title}</span>
+                        <span className="dashboard-quick-card-detail">{action.detail}</span>
+                        {action.meta && <span className="dashboard-quick-card-meta">{action.meta}</span>}
+                    </span>
+                    <span className="dashboard-quick-card-arrow" aria-hidden="true">
+                        <HiOutlineArrowRight />
+                    </span>
+                </button>
             ))}
-        </Row>
+        </div>
     );
 }
 
 function OnlineUsersMobileList({ rows = [], showNodes = false, limit, t, keyPrefix = 'online' }) {
     return (
-        <List
-            itemLayout="horizontal"
-            dataSource={rows.slice(0, limit)}
-            renderItem={(row, index) => (
-                <List.Item>
-                    <List.Item.Meta
-                        title={<><Text strong>{row.displayName}</Text>{row.email && row.email !== row.displayName && <Text type="secondary" style={{marginLeft:8}}>{row.email}</Text>}</>}
-                        description={
-                            showNodes && (
-                                <Space wrap size={[0, 8]} style={{marginTop:4}}>
-                                    {row.nodeLabels.length === 0 ? <Badge count={t('pages.dashboardCommon.unknownNode')} color="default" /> : row.nodeLabels.slice(0, 4).map(lbl => <Badge key={lbl} count={lbl} color="blue" />)}
-                                    {row.nodeLabels.length > 4 && <Badge count={`+${row.nodeLabels.length - 4}`} color="default" />}
-                                </Space>
-                            )
-                        }
-                    />
-                    <div style={{ textAlign: 'right' }}>
-                        <Text type="secondary" style={{fontSize:12, display:'block'}}>{t('pages.dashboardCommon.sessions')}</Text>
-                        <Badge count={row.sessions} style={{ backgroundColor: '#52c41a' }} />
+        <div className="dashboard-online-mobile-list">
+            {rows.slice(0, limit).map((row, index) => (
+                <div key={`${keyPrefix}-${row.userId || row.label || index}`} className="dashboard-online-mobile-card">
+                    <div className="dashboard-online-mobile-head">
+                        <div className="dashboard-online-mobile-copy">
+                            <div className="dashboard-online-mobile-name">{row.displayName}</div>
+                            {row.email && row.email !== row.displayName && (
+                                <div className="dashboard-online-mobile-email">{row.email}</div>
+                            )}
+                        </div>
+                        <div className="dashboard-online-mobile-meta">
+                            <span className="dashboard-online-mobile-meta-label">{t('pages.dashboardCommon.sessions')}</span>
+                            <span className="badge badge-success">{row.sessions}</span>
+                        </div>
                     </div>
-                </List.Item>
-            )}
-            footer={rows.length > limit ? <div style={{textAlign:'center'}}><Text type="secondary">{t('pages.dashboardCommon.limitNote', { count: limit })}</Text></div> : null}
-        />
+
+                    {showNodes ? (
+                        <div className="dashboard-online-mobile-nodes">
+                            {row.nodeLabels.length === 0 ? (
+                                <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                            ) : (
+                                row.nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                    <span key={`${row.userId || row.label || index}-${nodeLabel}`} className="badge badge-info">
+                                        {nodeLabel}
+                                    </span>
+                                ))
+                            )}
+                            {row.nodeLabels.length > 4 ? (
+                                <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+            ))}
+            {rows.length > limit ? (
+                <div className="dashboard-online-mobile-note">{t('pages.dashboardCommon.limitNote', { count: limit })}</div>
+            ) : null}
+        </div>
     );
 }
 
 function InboundSummaryMobileList({ inbounds = [], loading, t }) {
     return (
-        <List
-            itemLayout="horizontal"
-            dataSource={inbounds.slice(0, 10)}
-            renderItem={ib => (
-                <List.Item>
-                    <List.Item.Meta
-                        title={ib.remark || '-'}
-                        description={<Space><Badge count={ib.protocol} color="blue" /> <Text code>:{ib.port}</Text></Space>}
-                    />
-                    <div style={{ textAlign: 'right' }}>
-                        <Badge color={ib.enable ? 'green' : 'red'} text={ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')} style={{display:'block', marginBottom:4}} />
-                        <Space>
-                            <Text type="secondary" style={{fontSize:12}}>Up: {loading ? '-' : formatBytes(ib.up)}</Text>
-                            <Text type="secondary" style={{fontSize:12}}>Dn: {loading ? '-' : formatBytes(ib.down)}</Text>
-                        </Space>
+        <div className="dashboard-inbound-mobile-list">
+            {inbounds.slice(0, 10).map((ib) => (
+                <div key={ib.id} className="dashboard-inbound-mobile-card">
+                    <div className="dashboard-inbound-mobile-head">
+                        <div className="dashboard-inbound-mobile-copy">
+                            <div className="dashboard-inbound-mobile-title">{ib.remark || '-'}</div>
+                            <div className="dashboard-inbound-mobile-kicker">
+                                <span className="badge badge-info">{ib.protocol}</span>
+                                <span className="dashboard-inbound-mobile-port">:{ib.port}</span>
+                            </div>
+                        </div>
+                        <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
+                            {ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}
+                        </span>
                     </div>
-                </List.Item>
-            )}
-        />
+                    <div className="dashboard-inbound-mobile-stats">
+                        <div className="dashboard-inbound-mobile-stat">
+                            <span className="dashboard-inbound-mobile-label">{t('pages.dashboardNode.tableUp')}</span>
+                            <span className="dashboard-inbound-mobile-value">
+                                {loading
+                                    ? <span className="skeleton dashboard-inline-skeleton" />
+                                    : formatBytes(ib.up)}
+                            </span>
+                        </div>
+                        <div className="dashboard-inbound-mobile-stat">
+                            <span className="dashboard-inbound-mobile-label">{t('pages.dashboardNode.tableDown')}</span>
+                            <span className="dashboard-inbound-mobile-value">
+                                {loading
+                                    ? <span className="skeleton dashboard-inline-skeleton" />
+                                    : formatBytes(ib.down)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -1157,21 +1210,16 @@ export default function Dashboard() {
                 />
                 
                 <div className="page-content page-enter dashboard-page">
-                    <Card style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface-overlay)', borderColor: 'var(--border-color)', margin: '24px' }}>
-                        <Empty
-                            image={<HiOutlineServerStack style={{ fontSize: '64px', color: 'var(--text-muted)' }} />}
-                            description={
-                                <div>
-                                    <Title level={4} style={{ color: 'var(--text-primary)', marginBottom: 8 }}>{t('pages.dashboardEmpty.bodyTitle')}</Title>
-                                    <Text type="secondary">{t('pages.dashboardEmpty.bodySubtitle')}</Text>
-                                </div>
-                            }
-                        >
-                            <Button type="primary" size="large" style={{ marginTop: 16 }} onClick={() => navigate('/servers')}>
+                    <EmptyState
+                        title={t('pages.dashboardEmpty.bodyTitle')}
+                        subtitle={t('pages.dashboardEmpty.bodySubtitle')}
+                        icon={<HiOutlineServerStack style={{ fontSize: '48px' }} />}
+                        action={(
+                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
                                 {t('pages.dashboardEmpty.action')}
-                            </Button>
-                        </Empty>
-                    </Card>
+                            </button>
+                        )}
+                    />
                 </div>
             </>
         );
@@ -1325,18 +1373,16 @@ export default function Dashboard() {
                     eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
                 >
-                    <Button
-                        type={autoRefresh ? 'primary' : 'default'}
+                    <button
+                        className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={toggleAutoRefresh}
                         title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                        icon={<HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} />}
-                        size="small"
-                        style={{ display: 'flex', alignItems: 'center' }}
                     >
+                        <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
                         <span className="hidden sm:inline-block ml-1">
                             {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         </span>
-                    </Button>
+                    </button>
                 </Header>
                 <div className="page-content page-enter dashboard-page">
                     <ResourceTopologyCard
@@ -1346,35 +1392,42 @@ export default function Dashboard() {
                         onOpenServers={() => navigate('/servers')}
                     />
 
-                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                    <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, index) => (
-                            <Col xs={24} sm={12} md={12} lg={8} xl={4} key={`global-card-${index}`} style={{ display: 'flex' }}>
-                                <div style={{ flex: 1 }}>
-                                    <StatCard card={card} loading={loading} />
-                                </div>
-                            </Col>
+                            <StatCard
+                                key={`${card.label || card.kicker || 'global-card'}-${index}`}
+                                card={card}
+                                loading={loading}
+                            />
                         ))}
-                    </Row>
+                    </div>
 
                     {showOnlineDetail && (
-                        <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                            <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                                <Col>
-                                    <Title level={5} style={{ margin: 0, color: 'var(--text-primary)' }}>{t('pages.dashboardGlobal.onlineDetailTitle')}</Title>
-                                </Col>
-                                <Col>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        <div className="card mb-6">
+                            <SectionHeader
+                                className="dashboard-section-head"
+                                title={t('pages.dashboardGlobal.onlineDetailTitle')}
+                                meta={(
+                                    <span className="text-sm text-muted">
                                         {t('pages.dashboardCommon.userSessionSummary', {
                                             users: globalOnlineUsers.length,
                                             sessions: globalOnlineSessionCount,
                                         })}
-                                    </Text>
-                                </Col>
-                            </Row>
+                                    </span>
+                                )}
+                            />
                             {globalPresenceLoading && !globalPresenceReady ? (
-                                <Empty description={t('pages.dashboardCommon.onlineUsersPending')} />
+                                <EmptyState
+                                    title={t('pages.dashboardCommon.onlineUsersPending')}
+                                    size="compact"
+                                    hideIcon
+                                />
                             ) : globalOnlineUsers.length === 0 ? (
-                                <Empty description={t('pages.dashboardCommon.onlineEmpty')} />
+                                <EmptyState
+                                    title={t('pages.dashboardCommon.onlineEmpty')}
+                                    size="compact"
+                                    hideIcon
+                                />
                             ) : (
                                 isCompactLayout ? (
                                     <OnlineUsersMobileList
@@ -1385,69 +1438,67 @@ export default function Dashboard() {
                                         keyPrefix="global-online"
                                     />
                                 ) : (
-                                    <Table 
-                                        dataSource={globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS)}
-                                        rowKey={row => `global-online-${row.userId || row.label}`}
-                                        pagination={false}
-                                        size="small"
-                                        footer={() => globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS ? <div style={{textAlign: 'center'}}><Text type="secondary">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</Text></div> : null}
-                                        columns={[
-                                            {
-                                                title: t('pages.dashboardCommon.userIdentifier'),
-                                                key: 'user',
-                                                render: (_, row) => (
-                                                    <div title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                        <Text strong style={{ color: 'var(--text-primary)' }}>{row.displayName}</Text>
-                                                        {row.email && row.email !== row.displayName && (
-                                                            <div style={{color: 'var(--text-muted)', fontSize: 12}}>{row.email}</div>
-                                                        )}
-                                                    </div>
-                                                )
-                                            },
-                                            {
-                                                title: t('pages.dashboardGlobal.onlineNodes'),
-                                                key: 'nodes',
-                                                render: (_, row) => (
-                                                    <Space wrap size={[0, 8]}>
-                                                        {row.nodeLabels.length === 0 ? (
-                                                            <Badge count={t('pages.dashboardCommon.unknownNode')} color="default" />
-                                                        ) : (
-                                                            row.nodeLabels.slice(0, 4).map((nodeLabel) => (
-                                                                <Badge key={`${row.userId || row.label}-${nodeLabel}`} count={nodeLabel} color="blue" />
-                                                            ))
-                                                        )}
-                                                        {row.nodeLabels.length > 4 && <Badge count={`+${row.nodeLabels.length - 4}`} color="default" />}
-                                                    </Space>
-                                                )
-                                            },
-                                            {
-                                                title: t('pages.dashboardCommon.sessions'),
-                                                key: 'sessions',
-                                                align: 'right',
-                                                render: (_, row) => <Badge count={row.sessions} style={{ backgroundColor: '#52c41a' }} />
-                                            }
-                                        ]}
-                                    />
+                                    <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
+                                        <table className="table dashboard-online-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>{t('pages.dashboardCommon.userIdentifier')}</th>
+                                                    <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
+                                                    <th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {globalOnlineUsers.slice(0, MAX_GLOBAL_ONLINE_ROWS).map((row) => (
+                                                    <tr key={`global-online-${row.userId || row.label}`}>
+                                                        <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                            <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                                <div className="dashboard-online-name font-medium">{row.displayName}</div>
+                                                                {row.email && row.email !== row.displayName && (
+                                                                    <div className="dashboard-online-email">{row.email}</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {row.nodeLabels.length === 0 ? (
+                                                                    <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                                                                ) : (
+                                                                    row.nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                                                        <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
+                                                                    ))
+                                                                )}
+                                                                {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td data-label={t('pages.dashboardCommon.sessions')} className="table-cell-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                    </tr>
+                                                ))}
+                                                {globalOnlineUsers.length > MAX_GLOBAL_ONLINE_ROWS && (
+                                                    <tr><td colSpan={3} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_GLOBAL_ONLINE_ROWS })}</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 )
                             )}
-                        </Card>
+                        </div>
                     )}
 
-                    <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                        <Title level={5} style={{ margin: 0, marginBottom: 16, color: 'var(--text-primary)' }}>{t('pages.dashboardCommon.quickActionsTitle')}</Title>
+                    <div className="card mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardCommon.quickActionsTitle')}
+                        />
                         <QuickActionGrid actions={globalQuickActions} />
-                    </Card>
+                    </div>
 
                     {/* 节点健康网格 */}
-                    <div style={{ marginBottom: 24 }}>
-                        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                            <Col>
-                                <Title level={5} style={{ margin: 0, color: 'var(--text-primary)' }}>{t('pages.dashboardGlobal.nodeHealthTitle')}</Title>
-                            </Col>
-                            <Col>
-                                <Text type="secondary" style={{ fontSize: 12 }}>{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</Text>
-                            </Col>
-                        </Row>
+                    <div className="mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardGlobal.nodeHealthTitle')}
+                            meta={<span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
+                        />
                         <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
                     </div>
                 </div>
@@ -1540,44 +1591,41 @@ export default function Dashboard() {
                 title={activeServer?.name || t('pages.dashboardNode.title')}
                 eyebrow={t('pages.dashboardNode.eyebrow')}
             >
-                <Button
-                    type={autoRefresh ? 'primary' : 'default'}
+                <button
+                    className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={toggleAutoRefresh}
                     title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                    icon={<HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} />}
-                    size="small"
-                    style={{ display: 'flex', alignItems: 'center' }}
                 >
+                    <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
                     <span className="hidden sm:inline-block ml-1">
                         {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                     </span>
-                </Button>
+                </button>
             </Header>
             <div className="page-content page-enter dashboard-page">
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (
-                        <Col xs={24} sm={12} md={12} lg={8} xl={4} key={`node-card-${index}`} style={{ display: 'flex' }}>
-                            <div style={{ flex: 1 }}>
-                                <StatCard card={card} loading={loading} />
-                            </div>
-                        </Col>
+                        <StatCard
+                            key={`${card.label || card.kicker || 'node-card'}-${index}`}
+                            card={card}
+                            loading={loading}
+                        />
                     ))}
-                </Row>
+                </div>
 
                 {showOnlineDetail && (
-                    <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                            <Col>
-                                <Title level={5} style={{ margin: 0, color: 'var(--text-primary)' }}>{t('pages.dashboardNode.onlineDetailTitle')}</Title>
-                            </Col>
-                            <Col>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                    {t('pages.dashboardCommon.userSessionSummary', { users: onlineUsers.length, sessions: onlineSessionCount })}
-                                </Text>
-                            </Col>
-                        </Row>
+                    <div className="card mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardNode.onlineDetailTitle')}
+                            meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUsers.length, sessions: onlineSessionCount })}</span>}
+                        />
                         {onlineUsers.length === 0 ? (
-                            <Empty description={t('pages.dashboardCommon.onlineEmpty')} />
+                            <EmptyState
+                                title={t('pages.dashboardCommon.onlineEmpty')}
+                                size="compact"
+                                hideIcon
+                            />
                         ) : (
                             isCompactLayout ? (
                                 <OnlineUsersMobileList
@@ -1587,110 +1635,106 @@ export default function Dashboard() {
                                     keyPrefix="single-online"
                                 />
                             ) : (
-                                <Table 
-                                    dataSource={onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS)}
-                                    rowKey={row => `single-online-${row.userId || row.label}`}
-                                    pagination={false}
-                                    size="small"
-                                    footer={() => onlineUsers.length > MAX_SINGLE_ONLINE_ROWS ? <div style={{textAlign: 'center'}}><Text type="secondary">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</Text></div> : null}
-                                    columns={[
-                                        {
-                                            title: t('pages.dashboardCommon.userIdentifier'),
-                                            key: 'user',
-                                            render: (_, row) => (
-                                                <div title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
-                                                    <Text strong style={{ color: 'var(--text-primary)' }}>{row.displayName}</Text>
-                                                    {row.email && row.email !== row.displayName && (
-                                                        <div style={{color: 'var(--text-muted)', fontSize: 12}}>{row.email}</div>
-                                                    )}
-                                                </div>
-                                            )
-                                        },
-                                        {
-                                            title: t('pages.dashboardCommon.sessions'),
-                                            key: 'sessions',
-                                            align: 'right',
-                                            render: (_, row) => <Badge count={row.sessions} style={{ backgroundColor: '#52c41a' }} />
-                                        }
-                                    ]}
-                                />
+                                <div className="table-container table-scroll table-scroll-md overflow-x-auto">
+                                    <table className="table dashboard-online-table">
+                                        <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
+                                        <tbody>
+                                                {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
+                                                    <tr key={`single-online-${row.userId || row.label}`}>
+                                                        <td data-label={t('pages.dashboardCommon.userIdentifier')} className="dashboard-online-label-cell">
+                                                            <div className="dashboard-online-label" title={row.email ? `${row.displayName} · ${row.email}` : row.displayName}>
+                                                                <div className="dashboard-online-name font-medium">{row.displayName}</div>
+                                                                {row.email && row.email !== row.displayName && (
+                                                                    <div className="dashboard-online-email">{row.email}</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    <td data-label={t('pages.dashboardCommon.sessions')} className="table-cell-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
+                                                </tr>
+                                            ))}
+                                            {onlineUsers.length > MAX_SINGLE_ONLINE_ROWS && (
+                                                <tr><td colSpan={2} className="table-note">{t('pages.dashboardCommon.limitNote', { count: MAX_SINGLE_ONLINE_ROWS })}</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )
                         )}
-                    </Card>
+                    </div>
                 )}
 
-                <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                    <Title level={5} style={{ margin: 0, marginBottom: 16, color: 'var(--text-primary)' }}>{t('pages.dashboardCommon.quickActionsTitle')}</Title>
+                <div className="card mb-6">
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title={t('pages.dashboardCommon.quickActionsTitle')}
+                    />
                     <QuickActionGrid actions={singleQuickActions} />
-                </Card>
+                </div>
 
                 {/* Inbound Summary */}
-                <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                    <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                        <Col>
-                            <Title level={5} style={{ margin: 0, color: 'var(--text-primary)' }}>{t('pages.dashboardNode.inboundsTitle')}</Title>
-                        </Col>
-                        <Col>
-                            <Text type="secondary" style={{ fontSize: 12 }}>{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</Text>
-                        </Col>
-                    </Row>
+                <div className="card mb-6">
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title={t('pages.dashboardNode.inboundsTitle')}
+                        meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
+                    />
                     {inbounds.length === 0 ? (
-                        <Empty description={t('pages.dashboardNode.inboundsEmptySubtitle')} />
+                        <div className="table-container border-none overflow-x-auto p-4">
+                            <EmptyState
+                                title={t('pages.dashboardNode.inboundsEmpty')}
+                                subtitle={t('pages.dashboardNode.inboundsEmptySubtitle')}
+                                size="compact"
+                            />
+                        </div>
                     ) : isCompactLayout ? (
                         <InboundSummaryMobileList inbounds={inbounds} loading={loading} t={t} />
                     ) : (
-                        <Table 
-                            dataSource={inbounds.slice(0, 10)}
-                            rowKey="id"
-                            pagination={false}
-                            size="small"
-                            columns={[
-                                {
-                                    title: t('pages.dashboardNode.tableRemark'),
-                                    dataIndex: 'remark',
-                                    render: (text) => <Text strong style={{ color: 'var(--text-primary)' }}>{text || '-'}</Text>
-                                },
-                                {
-                                    title: t('pages.dashboardNode.tableProtocol'),
-                                    dataIndex: 'protocol',
-                                    align: 'center',
-                                    render: (text) => <Badge count={text} color="blue" />
-                                },
-                                {
-                                    title: t('pages.dashboardNode.tablePort'),
-                                    dataIndex: 'port',
-                                    align: 'right',
-                                    render: (text) => <Text code>{text}</Text>
-                                },
-                                {
-                                    title: t('pages.dashboardNode.tableStatus'),
-                                    key: 'status',
-                                    align: 'center',
-                                    render: (_, row) => <Badge color={row.enable ? 'green' : 'red'} text={row.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')} />
-                                },
-                                {
-                                    title: t('pages.dashboardNode.tableUp'),
-                                    key: 'up',
-                                    align: 'right',
-                                    render: (_, row) => loading ? <div className="skeleton" style={{ width: 60, height: 16, marginLeft: 'auto' }} /> : <Text code>{formatBytes(row.up)}</Text>
-                                },
-                                {
-                                    title: t('pages.dashboardNode.tableDown'),
-                                    key: 'down',
-                                    align: 'right',
-                                    render: (_, row) => loading ? <div className="skeleton" style={{ width: 60, height: 16, marginLeft: 'auto' }} /> : <Text code>{formatBytes(row.down)}</Text>
-                                }
-                            ]}
-                        />
+                        <div className="table-container border-none overflow-x-auto">
+                            <table className="table dashboard-inbound-summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>{t('pages.dashboardNode.tableRemark')}</th>
+                                        <th className="table-cell-center dashboard-inbound-protocol-column">{t('pages.dashboardNode.tableProtocol')}</th>
+                                        <th className="table-cell-right dashboard-inbound-port-column">{t('pages.dashboardNode.tablePort')}</th>
+                                        <th className="table-cell-center dashboard-inbound-status-column">{t('pages.dashboardNode.tableStatus')}</th>
+                                        <th className="table-cell-right dashboard-inbound-up-column">{t('pages.dashboardNode.tableUp')}</th>
+                                        <th className="table-cell-right dashboard-inbound-down-column">{t('pages.dashboardNode.tableDown')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inbounds.slice(0, 10).map((ib) => (
+                                        <tr key={ib.id}>
+                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-white truncate max-w-[200px]">{ib.remark || '-'}</td>
+                                            <td data-label={t('pages.dashboardNode.tableProtocol')} className="table-cell-center dashboard-inbound-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
+                                            <td data-label={t('pages.dashboardNode.tablePort')} className="table-cell-right font-mono dashboard-inbound-port-cell">{ib.port}</td>
+                                            <td data-label={t('pages.dashboardNode.tableStatus')} className="table-cell-center dashboard-inbound-status-cell">
+                                                <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>{ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}</span>
+                                            </td>
+                                            <td data-label={t('pages.dashboardNode.tableUp')} className="table-cell-right font-mono dashboard-inbound-up-cell">
+                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.up)}
+                                            </td>
+                                            <td data-label={t('pages.dashboardNode.tableDown')} className="table-cell-right font-mono dashboard-inbound-down-cell">
+                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.down)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
-                </Card>
+                </div>
 
                 {/* CPU History Chart */}
-                <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
-                    <Title level={5} style={{ margin: 0, marginBottom: 16, color: 'var(--text-primary)' }}>{t('pages.dashboardNode.cpuChartTitle')}</Title>
-                    <div style={{ width: '100%', height: 300 }}>
+                <div className="card mb-6">
+                    <SectionHeader
+                        className="dashboard-section-head"
+                        title={t('pages.dashboardNode.cpuChartTitle')}
+                    />
+                    <div className="w-full dashboard-chart py-5">
                         {loading && cpuHistory.length === 0 ? (
-                            <div className="skeleton" style={{ width: '100%', height: '100%', opacity: 0.1 }} />
+                            <div className="w-full h-full flex flex-col gap-4 px-6">
+                                <div className="skeleton w-full h-full opacity-10" />
+                            </div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={cpuHistory}>
@@ -1744,7 +1788,7 @@ export default function Dashboard() {
                             </ResponsiveContainer>
                         )}
                     </div>
-                </Card>
+                </div>
             </div>
         </>
     );

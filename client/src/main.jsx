@@ -6,11 +6,6 @@ import { AuthProvider } from './contexts/AuthContext.jsx';
 import { ConfirmProvider } from './contexts/ConfirmContext.jsx';
 import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import './index.css';
-import './styles/ui-tokens.css';
-import './styles/layout-polish.css';
-import './styles/interaction-polish.css';
-import './styles/module-density.css';
-import './styles/experience-upgrade.css';
 import { resolveSiteBasePath } from './utils/sitePath.js';
 
 const siteBasePath = resolveSiteBasePath();

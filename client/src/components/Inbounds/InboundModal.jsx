@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Form, Input, Select, Checkbox, Switch, InputNumber, Button, Row, Col, Space, Typography, Tooltip, Divider } from 'antd';
 import { HiOutlineXMark, HiOutlineCheck } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
+import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
-
-const { Text, Title } = Typography;
-const { Option } = Select;
 
 const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'vless', label: 'VLESS', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
@@ -1460,376 +1457,388 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     if (!isOpen) return null;
 
     return (
-        <Modal
-            open={isOpen}
-            onCancel={onClose}
-            footer={null}
-            width={900}
-            className="inbound-modal-antd"
-            title={
-                <div className="flex items-center justify-between pr-8">
-                    <span>{editingInbound ? '编辑入站' : '批量添加入站'}</span>
-                    <Checkbox
-                        checked={isAdvanced}
-                        onChange={e => setIsAdvanced(e.target.checked)}
-                        className="text-sm font-normal"
-                    >
-                        专家模式 (JSON)
-                    </Checkbox>
+        <ModalShell isOpen={isOpen} onClose={onClose}>
+            <div className="modal modal-lg inbound-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3 className="modal-title">{editingInbound ? '编辑入站' : '批量添加入站'}</h3>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-secondary">
+                            <input
+                                type="checkbox"
+                                checked={isAdvanced}
+                                onChange={e => setIsAdvanced(e.target.checked)}
+                            />
+                            专家模式 (JSON)
+                        </label>
+                        <button type="button" className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                    </div>
                 </div>
-            }
-        >
-            <Form layout="vertical" onFinish={handleSubmit}>
-                <div className="modal-body-antd">
+
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
                         {/* Target Servers */}
                         {!editingInbound && servers.length > 0 && (
-                            <div className="mb-6 p-4 rounded-xl bg-surface-soft border border-stroke-soft">
-                                <Text strong className="mb-2 block">部署目标 ({selectedServerIds.length}/{servers.length})</Text>
-                                <Space wrap gap={12}>
-                                    <Checkbox
-                                        checked={selectedServerIds.length === servers.length}
-                                        onChange={(e) => {
-                                            if (e.target.checked) setSelectedServerIds(servers.map(s => s.id));
-                                            else setSelectedServerIds([]);
-                                        }}
-                                    >
-                                        全选
-                                    </Checkbox>
-                                    {servers.map(s => (
-                                        <Checkbox
-                                            key={s.id}
-                                            checked={selectedServerIds.includes(s.id)}
+                            <div className="form-group mb-6 p-4 rounded-xl bg-surface-soft border border-stroke-soft">
+                                <label className="form-label mb-2 block">部署目标 ({selectedServerIds.length}/{servers.length})</label>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedServerIds.length === servers.length}
                                             onChange={(e) => {
-                                                if (e.target.checked) setSelectedServerIds(prev => Array.from(new Set([...prev, s.id])));
-                                                else setSelectedServerIds(prev => prev.filter(id => id !== s.id));
+                                                if (e.target.checked) setSelectedServerIds(servers.map(s => s.id));
+                                                else setSelectedServerIds([]);
                                             }}
-                                        >
-                                            {s.name}
-                                        </Checkbox>
+                                        />
+                                        <span>全选</span>
+                                    </label>
+                                    {servers.map(s => (
+                                        <label key={s.id} className="flex items-center gap-2 cursor-pointer badge badge-neutral">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedServerIds.includes(s.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedServerIds(prev => Array.from(new Set([...prev, s.id])));
+                                                    else setSelectedServerIds(prev => prev.filter(id => id !== s.id));
+                                                }}
+                                            />
+                                            <span>{s.name}</span>
+                                        </label>
                                     ))}
-                                </Space>
-                                <div className="mt-3">
-                                    <Checkbox
+                                </div>
+                                <label className="mt-3 flex items-start gap-2 cursor-pointer text-sm text-secondary">
+                                    <input
+                                        type="checkbox"
                                         checked={syncExistingSubscriptions}
                                         onChange={(e) => setSyncExistingSubscriptions(e.target.checked)}
-                                        className="text-sm"
-                                    >
-                                        新增后补齐到已有用户订阅，仅同步策略允许的用户
-                                    </Checkbox>
-                                </div>
+                                    />
+                                    <span>新增后补齐到已有用户订阅，仅同步策略允许的用户</span>
+                                </label>
                             </div>
                         )}
 
                         {/* Basic Info */}
-                        <Row gutter={16} className="mb-4">
-                            <Col span={12}>
-                                <Form.Item label="备注">
-                                    <Input value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="协议">
-                                    <Select value={protocol} onChange={val => setProtocol(val)} disabled={!!editingInbound} options={protocolOptions.map(o => ({ label: o.label, value: o.key }))} />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="端口" required>
-                                    <InputNumber style={{ width: '100%' }} value={port} onChange={val => setPort(val)} min={1} max={65535} />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="监听地址 (Listen)">
-                                    <Input
-                                        value={listen}
-                                        onChange={e => setListen(e.target.value)}
-                                        placeholder="留空为默认监听"
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="form-group">
+                                <label className="form-label">备注</label>
+                                <input className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">协议</label>
+                                <select className="form-select" value={protocol} onChange={e => setProtocol(e.target.value)} disabled={!!editingInbound}>
+                                    {protocolOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">端口</label>
+                                <input className="form-input" type="number" value={port} onChange={e => setPort(e.target.value)} required />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">监听地址 (Listen)</label>
+                                <input
+                                    className="form-input"
+                                    value={listen}
+                                    onChange={e => setListen(e.target.value)}
+                                    placeholder="留空为默认监听"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">流量限制 (GB)</label>
+                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder="0 = 无限制" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">周期流量重置</label>
+                                <select className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
+                                    {TRAFFIC_RESET_OPTIONS.map((item) => (
+                                        <option key={item} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">到期策略</label>
+                                <select className="form-select" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
+                                    <option value="never">永不过期</option>
+                                    <option value="datetime">指定日期时间</option>
+                                    <option value="days">N 天后过期</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">到期参数</label>
+                                {expiryMode === 'datetime' && (
+                                    <input
+                                        className="form-input"
+                                        type="datetime-local"
+                                        value={expiryDateTime}
+                                        onChange={(e) => setExpiryDateTime(e.target.value)}
                                     />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="流量限制 (GB)">
-                                    <InputNumber style={{ width: '100%' }} value={totalGB} onChange={val => setTotalGB(val)} placeholder="0 = 无限制" min={0} />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="周期流量重置">
-                                    <Select value={trafficReset} onChange={val => setTrafficReset(val)} options={TRAFFIC_RESET_OPTIONS.map(o => ({ label: o, value: o }))} />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="到期策略">
-                                    <Select value={expiryMode} onChange={val => setExpiryMode(val)}>
-                                        <Option value="never">永不过期</Option>
-                                        <Option value="datetime">指定日期时间</Option>
-                                        <Option value="days">N 天后过期</Option>
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="到期参数">
-                                    {expiryMode === 'datetime' && (
-                                        <Input
-                                            type="datetime-local"
-                                            value={expiryDateTime}
-                                            onChange={(e) => setExpiryDateTime(e.target.value)}
-                                        />
-                                    )}
-                                    {expiryMode === 'days' && (
-                                        <InputNumber
-                                            style={{ width: '100%' }}
-                                            min={1}
-                                            value={expiryAfterDays}
-                                            onChange={val => setExpiryAfterDays(val)}
-                                            placeholder="例如: 30"
-                                        />
-                                    )}
-                                    {expiryMode === 'never' && (
-                                        <Input value="永不过期" readOnly />
-                                    )}
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label=" " colon={false}>
-                                    <Space>
-                                        <Switch checked={inboundEnabled} onChange={val => setInboundEnabled(val)} />
-                                        <Text>启用入站</Text>
-                                    </Space>
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                                )}
+                                {expiryMode === 'days' && (
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={1}
+                                        value={expiryAfterDays}
+                                        onChange={(e) => setExpiryAfterDays(e.target.value)}
+                                        placeholder="例如: 30"
+                                    />
+                                )}
+                                {expiryMode === 'never' && (
+                                    <input className="form-input" value="永不过期" readOnly />
+                                )}
+                            </div>
+                            <div className="form-group" style={{ display: 'flex', alignItems: 'center', paddingTop: '24px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
+                                    启用入站
+                                </label>
+                            </div>
+                        </div>
 
                         {/* Simple vs Advanced Toggle */}
                         {isAdvanced ? (
                             <>
-                                <Form.Item label="协议设置 (Settings)">
-                                    <Input.TextArea className="font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
-                                </Form.Item>
-                                <Form.Item label="传输设置 (Stream Settings)">
-                                    <Input.TextArea className="font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
-                                </Form.Item>
-                                <Form.Item label="Sniffing">
-                                    <Input.TextArea className="font-mono text-sm" rows={4} value={sniffing} onChange={e => setSniffing(e.target.value)} />
-                                </Form.Item>
+                                <div className="form-group">
+                                    <label className="form-label">协议设置 (Settings)</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">传输设置 (Stream Settings)</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Sniffing</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={4} value={sniffing} onChange={e => setSniffing(e.target.value)} />
+                                </div>
                             </>
                         ) : (
                             <div className="bg-surface-soft p-4 rounded-xl border border-stroke-soft">
                                 {normalizedProtocol === 'vless' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <Title level={5} className="text-secondary uppercase tracking-wider mb-4">VLESS 协议参数</Title>
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="Authentication">
-                                                    <Select
-                                                        value={String(settingsObj?.selectedAuth || '')}
-                                                        onChange={(val) => updateSettingsJson((draft) => {
-                                                            draft.selectedAuth = val || undefined;
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">VLESS 协议参数</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">Authentication</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.selectedAuth || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.selectedAuth = e.target.value || undefined;
+                                                    })}
+                                                >
+                                                    <option value="">默认(X25519)</option>
+                                                    <option value="X25519, not Post-Quantum">X25519, not Post-Quantum</option>
+                                                    <option value="ML-KEM-768, Post-Quantum">ML-KEM-768, Post-Quantum</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Flow</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(primaryClient?.flow || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.flow = e.target.value || '';
+                                                    })}
+                                                >
+                                                    {VLESS_FLOW_OPTIONS.map((item) => (
+                                                        <option key={item || '__empty'} value={item}>
+                                                            {item || '不设置'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">UUID</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        className="form-input font-mono"
+                                                        value={String(primaryClient?.id || '')}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            const client = ensurePrimaryClient(draft);
+                                                            client.id = e.target.value;
+                                                        })}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
+                                                        onClick={() => updateSettingsJson((draft) => {
+                                                            const client = ensurePrimaryClient(draft);
+                                                            client.id = randomUuid();
                                                         })}
                                                     >
-                                                        <Option value="">默认(X25519)</Option>
-                                                        <Option value="X25519, not Post-Quantum">X25519, not Post-Quantum</Option>
-                                                        <Option value="ML-KEM-768, Post-Quantum">ML-KEM-768, Post-Quantum</Option>
-                                                    </Select>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Flow">
-                                                    <Select
-                                                        value={String(primaryClient?.flow || '')}
-                                                        onChange={(val) => updateSettingsJson((draft) => {
-                                                            const client = ensurePrimaryClient(draft);
-                                                            client.flow = val || '';
-                                                        })}
-                                                        options={[
-                                                            { label: '不设置', value: '' },
-                                                            ...VLESS_FLOW_OPTIONS.filter(Boolean).map(o => ({ label: o, value: o }))
-                                                        ]}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                        生成
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Email</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(primaryClient?.email || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.email = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
 
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="UUID">
-                                                    <Space.Compact style={{ width: '100%' }}>
-                                                        <Input
-                                                            className="font-mono"
-                                                            value={String(primaryClient?.id || '')}
-                                                            onChange={(e) => updateSettingsJson((draft) => {
-                                                                const client = ensurePrimaryClient(draft);
-                                                                client.id = e.target.value;
-                                                            })}
-                                                        />
-                                                        <Button
-                                                            onClick={() => updateSettingsJson((draft) => {
-                                                                const client = ensurePrimaryClient(draft);
-                                                                client.id = randomUuid();
-                                                            })}
-                                                        >
-                                                            生成
-                                                        </Button>
-                                                    </Space.Compact>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Email">
-                                                    <Input
-                                                        value={String(primaryClient?.email || '')}
-                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                            const client = ensurePrimaryClient(draft);
-                                                            client.email = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="Decryption">
-                                                    <Input
-                                                        value={String(settingsObj?.decryption || '')}
-                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                            draft.decryption = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Encryption">
-                                                    <Input
-                                                        value={String(settingsObj?.encryption || '')}
-                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                            draft.encryption = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-                                        <Form.Item label="Authentication 密钥">
-                                            <Space>
-                                                <Button
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">Decryption</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.decryption || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.decryption = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Encryption</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.encryption || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.encryption = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">Authentication 密钥</label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
                                                     onClick={generateVlessEncKeys}
                                                 >
                                                     生成
-                                                </Button>
-                                                <Button
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
                                                     onClick={clearVlessEncKeys}
                                                 >
                                                     清空
-                                                </Button>
-                                            </Space>
-                                        </Form.Item>
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         {simpleStream.network === 'tcp' && !String(settingsObj?.selectedAuth || '').trim() && (
-                                            <div className="mb-4">
+                                            <div className="mb-3">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <Text strong>Fallbacks</Text>
-                                                    <Button
-                                                        size="small"
+                                                    <label className="form-label">Fallbacks</label>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
                                                         onClick={() => updateSettingsJson((draft) => {
                                                             if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
                                                             draft.fallbacks.push({ name: '', alpn: '', path: '', dest: '', xver: 0 });
                                                         })}
                                                     >
                                                         新增
-                                                    </Button>
+                                                    </button>
                                                 </div>
                                                 {vlessFallbacks.length === 0 && (
-                                                    <Text type="secondary" style={{ fontSize: '12px' }}>未配置 fallback</Text>
+                                                    <div className="text-xs text-muted">未配置 fallback</div>
                                                 )}
                                                 {vlessFallbacks.map((fallback, index) => (
                                                     <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-md p-3 mb-2">
                                                         <div className="flex justify-between items-center mb-2">
-                                                            <Text type="secondary" style={{ fontSize: '12px' }}>Fallback #{index + 1}</Text>
-                                                            <Button
-                                                                danger
-                                                                size="small"
+                                                            <span className="text-xs text-secondary">Fallback #{index + 1}</span>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-xs"
                                                                 onClick={() => updateSettingsJson((draft) => {
                                                                     if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
                                                                     draft.fallbacks.splice(index, 1);
                                                                 })}
                                                             >
                                                                 删除
-                                                            </Button>
+                                                            </button>
                                                         </div>
-                                                        <Row gutter={12}>
-                                                            <Col span={12}>
-                                                                <Form.Item label="SNI" className="mb-2">
-                                                                    <Input
-                                                                        value={String(fallback?.name || '')}
-                                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
-                                                                            draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                            draft.fallbacks[index].name = e.target.value;
-                                                                        })}
-                                                                    />
-                                                                </Form.Item>
-                                                            </Col>
-                                                            <Col span={12}>
-                                                                <Form.Item label="ALPN" className="mb-2">
-                                                                    <Input
-                                                                        value={String(fallback?.alpn || '')}
-                                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
-                                                                            draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                            draft.fallbacks[index].alpn = e.target.value;
-                                                                        })}
-                                                                    />
-                                                                </Form.Item>
-                                                            </Col>
-                                                            <Col span={12}>
-                                                                <Form.Item label="Path" className="mb-2">
-                                                                    <Input
-                                                                        value={String(fallback?.path || '')}
-                                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
-                                                                            draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                            draft.fallbacks[index].path = e.target.value;
-                                                                        })}
-                                                                    />
-                                                                </Form.Item>
-                                                            </Col>
-                                                            <Col span={12}>
-                                                                <Form.Item label="Dest" className="mb-2">
-                                                                    <Input
-                                                                        value={String(fallback?.dest || '')}
-                                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
-                                                                            draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                            draft.fallbacks[index].dest = e.target.value;
-                                                                        })}
-                                                                    />
-                                                                </Form.Item>
-                                                            </Col>
-                                                            <Col span={12}>
-                                                                <Form.Item label="xVer" className="mb-2">
-                                                                    <InputNumber
-                                                                        style={{ width: '100%' }}
-                                                                        min={0}
-                                                                        max={2}
-                                                                        value={Number(fallback?.xver || 0)}
-                                                                        onChange={(val) => updateSettingsJson((draft) => {
-                                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
-                                                                            draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                            draft.fallbacks[index].xver = Number(val || 0);
-                                                                        })}
-                                                                    />
-                                                                </Form.Item>
-                                                            </Col>
-                                                        </Row>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="form-group">
+                                                                <label className="form-label">SNI</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.name || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].name = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">ALPN</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.alpn || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].alpn = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">Path</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.path || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].path = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">Dest</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.dest || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].dest = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">xVer</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={2}
+                                                                    value={Number(fallback?.xver || 0)}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].xver = Number(e.target.value || 0);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
 
                                         {(primaryClient?.flow === 'xtls-rprx-vision' || primaryClient?.flow === 'xtls-rprx-vision-udp443') && (
-                                            <div className="mt-4">
+                                            <div>
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <Text strong>Vision Seed</Text>
-                                                    <Space>
-                                                        <Button
-                                                            size="small"
+                                                    <label className="form-label">Vision Seed</label>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary btn-xs"
                                                             onClick={() => updateSettingsJson((draft) => {
                                                                 draft.testseed = [
                                                                     Math.floor(Math.random() * 1000),
@@ -1840,91 +1849,91 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             })}
                                                         >
                                                             Rand
-                                                        </Button>
-                                                        <Button
-                                                            size="small"
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary btn-xs"
                                                             onClick={() => updateSettingsJson((draft) => {
                                                                 draft.testseed = [900, 500, 900, 256];
                                                             })}
                                                         >
                                                             Reset
-                                                        </Button>
-                                                    </Space>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <Row gutter={8}>
+                                                <div className="grid grid-cols-4 gap-2">
                                                     {vlessTestseed.map((seed, idx) => (
-                                                        <Col span={6} key={`vless-seed-${idx}`}>
-                                                            <InputNumber
-                                                                style={{ width: '100%' }}
-                                                                min={0}
-                                                                max={9999}
-                                                                value={seed}
-                                                                onChange={(val) => updateSettingsJson((draft) => {
-                                                                    const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [900, 500, 900, 256];
-                                                                    while (current.length < 4) current.push(0);
-                                                                    current[idx] = Number(val || 0);
-                                                                    draft.testseed = current;
-                                                                })}
-                                                            />
-                                                        </Col>
+                                                        <input
+                                                            key={`vless-seed-${idx}`}
+                                                            className="form-input"
+                                                            type="number"
+                                                            min={0}
+                                                            max={9999}
+                                                            value={seed}
+                                                            onChange={(e) => updateSettingsJson((draft) => {
+                                                                const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [900, 500, 900, 256];
+                                                                while (current.length < 4) current.push(0);
+                                                                current[idx] = Number(e.target.value || 0);
+                                                                draft.testseed = current;
+                                                            })}
+                                                        />
                                                     ))}
-                                                </Row>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
-                                <Title level={5} className="text-secondary uppercase tracking-wider mb-4">传输配置</Title>
-                                <Row gutter={16}>
-                                    <Col span={12}>
-                                        <Form.Item label="传输协议 (Network)">
-                                            <Select
-                                                value={simpleStream.network}
-                                                onChange={val => setSimpleStream({ ...simpleStream, network: val })}
-                                                options={networkOptions.map((item) => ({
-                                                    label: NETWORK_LABELS[item] || item.toUpperCase(),
-                                                    value: item
-                                                }))}
-                                            />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col span={12}>
-                                        <Form.Item label="安全 (Security)">
-                                            <Select
-                                                value={simpleStream.security}
-                                                onChange={val => setSimpleStream({ ...simpleStream, security: val })}
-                                                options={securityOptions.map((item) => ({
-                                                    label: SECURITY_LABELS[item] || item.toUpperCase(),
-                                                    value: item
-                                                }))}
-                                            />
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
+                                <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">传输配置</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="form-group">
+                                        <label className="form-label">传输协议 (Network)</label>
+                                        <select className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
+                                            {networkOptions.map((item) => (
+                                                <option key={item} value={item}>
+                                                    {NETWORK_LABELS[item] || item.toUpperCase()}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">安全 (Security)</label>
+                                        <select className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
+                                            {securityOptions.map((item) => (
+                                                <option key={item} value={item}>
+                                                    {SECURITY_LABELS[item] || item.toUpperCase()}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
 
                                 <div className="border-t border-stroke-soft pt-4 mt-4">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <Title level={5} className="text-secondary uppercase tracking-wider m-0">流量嗅探 (Sniffing)</Title>
-                                        <Checkbox
-                                            checked={(() => { try { return JSON.parse(sniffing).enabled; } catch { return true; } })()}
-                                            onChange={(e) => {
-                                                try {
-                                                    const s = JSON.parse(sniffing);
-                                                    s.enabled = e.target.checked;
-                                                    setSniffing(JSON.stringify(s, null, 2));
-                                                } catch { }
-                                            }}
-                                        >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">流量嗅探 (Sniffing)</h4>
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={(() => { try { return JSON.parse(sniffing).enabled; } catch { return true; } })()}
+                                                onChange={(e) => {
+                                                    try {
+                                                        const s = JSON.parse(sniffing);
+                                                        s.enabled = e.target.checked;
+                                                        setSniffing(JSON.stringify(s, null, 2));
+                                                    } catch { }
+                                                }}
+                                            />
                                             启用
-                                        </Checkbox>
+                                        </label>
                                     </div>
-                                    <Row gutter={[16, 16]}>
-                                        <Col span={12}>
-                                            <Form.Item label="目标覆盖 (Dest Override)">
-                                                <Space wrap>
-                                                    {['http', 'tls', 'quic', 'fakedns'].map(p => (
-                                                        <Checkbox
-                                                            key={p}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">目标覆盖 (Dest Override)</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['http', 'tls', 'quic', 'fakedns'].map(p => (
+                                                    <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
                                                             checked={(() => {
                                                                 try {
                                                                     const s = JSON.parse(sniffing);
@@ -1943,1154 +1952,1189 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                     setSniffing(JSON.stringify(s, null, 2));
                                                                 } catch { }
                                                             }}
-                                                        >
-                                                            {p}
-                                                        </Checkbox>
-                                                    ))}
-                                                </Space>
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item label="高级选项">
-                                                <Space direction="vertical">
-                                                    <Checkbox
-                                                        checked={(() => { try { return !!JSON.parse(sniffing).routeOnly; } catch { return false; } })()}
-                                                        onChange={(e) => {
-                                                            try {
-                                                                const s = JSON.parse(sniffing);
-                                                                s.routeOnly = e.target.checked;
-                                                                setSniffing(JSON.stringify(s, null, 2));
-                                                            } catch { }
-                                                        }}
-                                                    >
-                                                        仅路由 (Route Only)
-                                                    </Checkbox>
-                                                    <Checkbox
-                                                        checked={(() => { try { return !!JSON.parse(sniffing).metadataOnly; } catch { return false; } })()}
-                                                        onChange={(e) => {
-                                                            try {
-                                                                const s = JSON.parse(sniffing);
-                                                                s.metadataOnly = e.target.checked;
-                                                                setSniffing(JSON.stringify(s, null, 2));
-                                                            } catch { }
-                                                        }}
-                                                    >
-                                                        仅元数据 (Metadata Only)
-                                                    </Checkbox>
-                                                </Space>
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
+                                                        />
+                                                        {p}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm mt-6">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(() => { try { return !!JSON.parse(sniffing).routeOnly; } catch { return false; } })()}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const s = JSON.parse(sniffing);
+                                                            s.routeOnly = e.target.checked;
+                                                            setSniffing(JSON.stringify(s, null, 2));
+                                                        } catch { }
+                                                    }}
+                                                />
+                                                仅路由 (Route Only)
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(() => { try { return !!JSON.parse(sniffing).metadataOnly; } catch { return false; } })()}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const s = JSON.parse(sniffing);
+                                                            s.metadataOnly = e.target.checked;
+                                                            setSniffing(JSON.stringify(s, null, 2));
+                                                        } catch { }
+                                                    }}
+                                                />
+                                                仅元数据 (Metadata Only)
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Dynamic Fields based on selection */}
                                 {simpleStream.network === 'tcp' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="TCP Header Type">
-                                                    <Select
-                                                        value={simpleStream.tcpHeaderType}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, tcpHeaderType: val })}
-                                                        options={['none', 'http', 'srtp', 'utp', 'wechat-video', 'dtls', 'wireguard'].map((item) => ({ label: item, value: item }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="TCP 高级开关">
-                                                    <Checkbox
+                                    <div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">TCP Header Type</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={simpleStream.tcpHeaderType}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tcpHeaderType: e.target.value })}
+                                                >
+                                                    {['none', 'http', 'srtp', 'utp', 'wechat-video', 'dtls', 'wireguard'].map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">TCP 高级开关</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!simpleStream.tcpAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, tcpAcceptProxyProtocol: e.target.checked })}
-                                                    >
-                                                        Accept Proxy Protocol
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                    />
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
 
                                         {simpleStream.tcpHeaderType === 'http' && (
-                                            <div className="mt-3 border border-stroke-soft rounded-lg p-4 bg-surface-soft">
-                                                <Row gutter={[16, 0]}>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Request Version">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.request?.version || '1.1')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
-                                                                    draft.tcpSettings.header.request.version = e.target.value;
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Request Method">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.request?.method || 'GET')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
-                                                                    draft.tcpSettings.header.request.method = e.target.value;
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Request Path (逗号分隔)">
-                                                            <Input
-                                                                value={Array.isArray(streamObj?.tcpSettings?.header?.request?.path)
-                                                                    ? streamObj.tcpSettings.header.request.path.join(',')
-                                                                    : '/'}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
-                                                                    draft.tcpSettings.header.request.path = String(e.target.value || '/')
-                                                                        .split(',')
-                                                                        .map((item) => item.trim())
-                                                                        .filter(Boolean);
-                                                                    if (draft.tcpSettings.header.request.path.length === 0) {
-                                                                        draft.tcpSettings.header.request.path = ['/'];
-                                                                    }
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Request Host">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.request?.headers?.Host?.[0] || '')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
-                                                                    draft.tcpSettings.header.request.headers = normalizeHeadersObject(draft.tcpSettings.header.request.headers);
-                                                                    draft.tcpSettings.header.request.headers.Host = [e.target.value];
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Response Version">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.response?.version || '1.1')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
-                                                                    draft.tcpSettings.header.response.version = e.target.value;
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <Form.Item label="Response Status">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.response?.status || '200')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
-                                                                    draft.tcpSettings.header.response.status = e.target.value;
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                    <Col span={24}>
-                                                        <Form.Item label="Response Reason">
-                                                            <Input
-                                                                value={String(streamObj?.tcpSettings?.header?.response?.reason || 'OK')}
-                                                                onChange={(e) => updateStreamJson((draft) => {
-                                                                    draft.tcpSettings = draft.tcpSettings || {};
-                                                                    draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
-                                                                    draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
-                                                                    draft.tcpSettings.header.response.reason = e.target.value;
-                                                                })}
-                                                            />
-                                                        </Form.Item>
-                                                    </Col>
-                                                </Row>
+                                            <div className="mt-3 border border-stroke-soft rounded-lg p-3">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Version</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.version || '1.1')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.version = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Method</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.method || 'GET')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.method = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Path (逗号分隔)</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={Array.isArray(streamObj?.tcpSettings?.header?.request?.path)
+                                                                ? streamObj.tcpSettings.header.request.path.join(',')
+                                                                : '/'}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.path = String(e.target.value || '/')
+                                                                    .split(',')
+                                                                    .map((item) => item.trim())
+                                                                    .filter(Boolean);
+                                                                if (draft.tcpSettings.header.request.path.length === 0) {
+                                                                    draft.tcpSettings.header.request.path = ['/'];
+                                                                }
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Host</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.headers?.Host?.[0] || '')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.headers = normalizeHeadersObject(draft.tcpSettings.header.request.headers);
+                                                                draft.tcpSettings.header.request.headers.Host = [e.target.value];
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Version</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.version || '1.1')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.version = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Status</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.status || '200')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.status = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Reason</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.reason || 'OK')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.reason = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
                                 {simpleStream.network === 'kcp' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={[16, 0]}>
-                                            <Col span={8}>
-                                                <Form.Item label="MTU">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={576}
-                                                        max={1460}
-                                                        value={simpleStream.kcpMtu}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpMtu: Number(val || 1350) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="TTI (ms)">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={10}
-                                                        max={100}
-                                                        value={simpleStream.kcpTti}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpTti: Number(val || 20) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Uplink (MB/s)">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={simpleStream.kcpUplinkCapacity}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpUplinkCapacity: Number(val || 0) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Downlink (MB/s)">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={simpleStream.kcpDownlinkCapacity}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: Number(val || 0) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Read Buffer (MB)">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={simpleStream.kcpReadBufferSize}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpReadBufferSize: Number(val || 0) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Write Buffer (MB)">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={simpleStream.kcpWriteBufferSize}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, kcpWriteBufferSize: Number(val || 0) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="Congestion">
-                                                    <Checkbox
-                                                        checked={!!simpleStream.kcpCongestion}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, kcpCongestion: e.target.checked })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">MTU</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={576}
+                                                max={1460}
+                                                value={simpleStream.kcpMtu}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpMtu: Number(e.target.value || 1350) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">TTI (ms)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={10}
+                                                max={100}
+                                                value={simpleStream.kcpTti}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpTti: Number(e.target.value || 20) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Uplink (MB/s)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpUplinkCapacity}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpUplinkCapacity: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Downlink (MB/s)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpDownlinkCapacity}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Read Buffer (MB)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpReadBufferSize}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpReadBufferSize: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Write Buffer (MB)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpWriteBufferSize}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpWriteBufferSize: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Congestion</label>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!simpleStream.kcpCongestion}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, kcpCongestion: e.target.checked })}
+                                                />
+                                                开启
+                                            </label>
+                                        </div>
                                     </div>
                                 )}
 
                                 {simpleStream.network === 'ws' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item label="WS Path">
-                                                    <Input value={simpleStream.wsPath} onChange={e => setSimpleStream({ ...simpleStream, wsPath: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="WS Host">
-                                                    <Input value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="WS 高级开关">
-                                                    <Checkbox
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">WS Path</label>
+                                                <input className="form-input" value={simpleStream.wsPath} onChange={e => setSimpleStream({ ...simpleStream, wsPath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">WS Host</label>
+                                                <input className="form-input" value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">WS 高级开关</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!simpleStream.wsAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, wsAcceptProxyProtocol: e.target.checked })}
-                                                    >
-                                                        Accept Proxy Protocol
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Heartbeat Period">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={Number(streamObj?.wsSettings?.heartbeatPeriod || 0)}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.wsSettings = draft.wsSettings || {};
-                                                            draft.wsSettings.heartbeatPeriod = Number(val || 0);
-                                                        })}
                                                     />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="WS Headers (JSON)">
-                                                    <Input
-                                                        className="font-mono text-xs"
-                                                        value={JSON.stringify(streamObj?.wsSettings?.headers || {})}
-                                                        onChange={(e) => {
-                                                            try {
-                                                                const parsed = parseJsonObject(e.target.value, {});
-                                                                updateStreamJson((draft) => {
-                                                                    draft.wsSettings = draft.wsSettings || {};
-                                                                    draft.wsSettings.headers = parsed;
-                                                                });
-                                                            } catch { }
-                                                        }}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Heartbeat Period</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.wsSettings?.heartbeatPeriod || 0)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.wsSettings = draft.wsSettings || {};
+                                                        draft.wsSettings.heartbeatPeriod = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">WS Headers (JSON)</label>
+                                                <input
+                                                    className="form-input font-mono text-xs"
+                                                    value={JSON.stringify(streamObj?.wsSettings?.headers || {})}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const parsed = parseJsonObject(e.target.value, {});
+                                                            updateStreamJson((draft) => {
+                                                                draft.wsSettings = draft.wsSettings || {};
+                                                                draft.wsSettings.headers = parsed;
+                                                            });
+                                                        } catch { }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
                                 {simpleStream.network === 'grpc' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item label="gRPC Service Name">
-                                                    <Input
-                                                        value={simpleStream.grpcServiceName}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, grpcServiceName: e.target.value })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="gRPC Authority">
-                                                    <Input
-                                                        value={simpleStream.grpcAuthority}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, grpcAuthority: e.target.value })}
-                                                        placeholder="Optional"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Multi Mode">
-                                                    <Checkbox
-                                                        checked={!!streamObj?.grpcSettings?.multiMode}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.grpcSettings = draft.grpcSettings || {};
-                                                            draft.grpcSettings.multiMode = e.target.checked;
-                                                        })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">gRPC Service Name</label>
+                                            <input
+                                                className="form-input"
+                                                value={simpleStream.grpcServiceName}
+                                                onChange={e => setSimpleStream({ ...simpleStream, grpcServiceName: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">gRPC Authority</label>
+                                            <input
+                                                className="form-input"
+                                                value={simpleStream.grpcAuthority}
+                                                onChange={e => setSimpleStream({ ...simpleStream, grpcAuthority: e.target.value })}
+                                                placeholder="Optional"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Multi Mode</label>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!streamObj?.grpcSettings?.multiMode}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.grpcSettings = draft.grpcSettings || {};
+                                                        draft.grpcSettings.multiMode = e.target.checked;
+                                                    })}
+                                                />
+                                                开启
+                                            </label>
+                                        </div>
                                     </div>
                                 )}
 
                                 {simpleStream.network === 'httpupgrade' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item label="HTTPUpgrade Path">
-                                                    <Input value={simpleStream.httpupgradePath} onChange={e => setSimpleStream({ ...simpleStream, httpupgradePath: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="HTTPUpgrade Host">
-                                                    <Input value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="HTTPUpgrade 高级开关">
-                                                    <Checkbox
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">HTTPUpgrade Path</label>
+                                                <input className="form-input" value={simpleStream.httpupgradePath} onChange={e => setSimpleStream({ ...simpleStream, httpupgradePath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">HTTPUpgrade Host</label>
+                                                <input className="form-input" value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">HTTPUpgrade 高级开关</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!simpleStream.httpupgradeAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, httpupgradeAcceptProxyProtocol: e.target.checked })}
-                                                    >
-                                                        Accept Proxy Protocol
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="HTTPUpgrade Headers (JSON)">
-                                                    <Input
-                                                        className="font-mono text-xs"
-                                                        value={JSON.stringify(streamObj?.httpupgradeSettings?.headers || {})}
-                                                        onChange={(e) => {
-                                                            const parsed = parseJsonObject(e.target.value, {});
-                                                            updateStreamJson((draft) => {
-                                                                draft.httpupgradeSettings = draft.httpupgradeSettings || {};
-                                                                draft.httpupgradeSettings.headers = parsed;
-                                                            });
-                                                        }}
                                                     />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">HTTPUpgrade Headers (JSON)</label>
+                                            <input
+                                                className="form-input font-mono text-xs"
+                                                value={JSON.stringify(streamObj?.httpupgradeSettings?.headers || {})}
+                                                onChange={(e) => {
+                                                    const parsed = parseJsonObject(e.target.value, {});
+                                                    updateStreamJson((draft) => {
+                                                        draft.httpupgradeSettings = draft.httpupgradeSettings || {};
+                                                        draft.httpupgradeSettings.headers = parsed;
+                                                    });
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
                                 {simpleStream.network === 'xhttp' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item label="XHTTP Path">
-                                                    <Input value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="XHTTP Host">
-                                                    <Input value={simpleStream.xhttpHost} onChange={e => setSimpleStream({ ...simpleStream, xhttpHost: e.target.value })} placeholder="Optional" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="XHTTP Mode">
-                                                    <Select
-                                                        value={simpleStream.xhttpMode}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, xhttpMode: val })}
-                                                        options={['auto', 'packet-up', 'stream-up', 'stream-one'].map(o => ({ label: o, value: o }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Max Buffered Upload">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={Number(streamObj?.xhttpSettings?.scMaxBufferedPosts || 30)}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.scMaxBufferedPosts = Number(val || 0);
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Max Upload Size(Byte)">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.scMaxEachPostBytes || '1000000')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.scMaxEachPostBytes = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Stream-Up Server">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.scStreamUpServerSecs || '20-80')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.scStreamUpServerSecs = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Bytes">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.xPaddingBytes || '100-1000')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.xPaddingBytes = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="No SSE Header">
-                                                    <Checkbox
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Path</label>
+                                                <input className="form-input" value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Host</label>
+                                                <input className="form-input" value={simpleStream.xhttpHost} onChange={e => setSimpleStream({ ...simpleStream, xhttpHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Mode</label>
+                                                <select className="form-select" value={simpleStream.xhttpMode} onChange={e => setSimpleStream({ ...simpleStream, xhttpMode: e.target.value })}>
+                                                    <option value="auto">auto</option>
+                                                    <option value="packet-up">packet-up</option>
+                                                    <option value="stream-up">stream-up</option>
+                                                    <option value="stream-one">stream-one</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Max Buffered Upload</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.xhttpSettings?.scMaxBufferedPosts || 30)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scMaxBufferedPosts = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Upload Size(Byte)</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.scMaxEachPostBytes || '1000000')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scMaxEachPostBytes = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Stream-Up Server</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.scStreamUpServerSecs || '20-80')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scStreamUpServerSecs = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Bytes</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingBytes || '100-1000')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingBytes = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">No SSE Header</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.noSSEHeader}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.xhttpSettings = draft.xhttpSettings || {};
                                                             draft.xhttpSettings.noSSEHeader = e.target.checked;
                                                         })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Obfs Mode">
-                                                    <Checkbox
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Obfs Mode</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.xPaddingObfsMode}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.xhttpSettings = draft.xhttpSettings || {};
                                                             draft.xhttpSettings.xPaddingObfsMode = e.target.checked;
                                                         })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Key">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.xPaddingKey || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.xPaddingKey = e.target.value;
-                                                        })}
                                                     />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Header">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.xPaddingHeader || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.xPaddingHeader = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Placement">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.xPaddingPlacement || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.xPaddingPlacement = val;
-                                                        })}
-                                                        options={XHTTP_PADDING_PLACEMENT_OPTIONS.map(item => ({
-                                                            label: item || 'Default (queryInHeader)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Padding Method">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.xPaddingMethod || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.xPaddingMethod = val;
-                                                        })}
-                                                        options={XHTTP_PADDING_METHOD_OPTIONS.map(item => ({
-                                                            label: item || 'Default (repeat-x)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Uplink HTTP Method">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.uplinkHTTPMethod || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.uplinkHTTPMethod = val;
-                                                        })}
-                                                        options={XHTTP_HTTP_METHOD_OPTIONS.map(item => ({
-                                                            label: item || 'Default (POST)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Session Placement">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.sessionPlacement || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.sessionPlacement = val;
-                                                        })}
-                                                        options={XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map(item => ({
-                                                            label: item || 'Default (path)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Session Key">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.sessionKey || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.sessionKey = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Sequence Placement">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.seqPlacement || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.seqPlacement = val;
-                                                        })}
-                                                        options={XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map(item => ({
-                                                            label: item || 'Default (path)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Sequence Key">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.seqKey || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.seqKey = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Uplink Data Placement">
-                                                    <Select
-                                                        value={String(streamObj?.xhttpSettings?.uplinkDataPlacement || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.uplinkDataPlacement = val;
-                                                        })}
-                                                        options={XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS.map(item => ({
-                                                            label: item || 'Default (body)',
-                                                            value: item
-                                                        }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Uplink Data Key">
-                                                    <Input
-                                                        value={String(streamObj?.xhttpSettings?.uplinkDataKey || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.uplinkDataKey = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Uplink Chunk Size">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={Number(streamObj?.xhttpSettings?.uplinkChunkSize || 0)}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.xhttpSettings = draft.xhttpSettings || {};
-                                                            draft.xhttpSettings.uplinkChunkSize = Number(val || 0);
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="XHTTP Headers (JSON)">
-                                                    <Input
-                                                        className="font-mono text-xs"
-                                                        value={JSON.stringify(streamObj?.xhttpSettings?.headers || {})}
-                                                        onChange={(e) => {
-                                                            const parsed = parseJsonObject(e.target.value, {});
-                                                            updateStreamJson((draft) => {
-                                                                draft.xhttpSettings = draft.xhttpSettings || {};
-                                                                draft.xhttpSettings.headers = parsed;
-                                                            });
-                                                        }}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                    开启
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Header</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingHeader || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingHeader = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_PADDING_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (queryInHeader)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Method</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingMethod || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingMethod = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_PADDING_METHOD_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (repeat-x)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink HTTP Method</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkHTTPMethod || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkHTTPMethod = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_HTTP_METHOD_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (POST)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.sessionPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.sessionPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (path)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.sessionKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.sessionKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Sequence Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.seqPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.seqPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (path)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Sequence Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.seqKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.seqKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Data Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkDataPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkDataPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (body)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Data Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkDataKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkDataKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Chunk Size</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.xhttpSettings?.uplinkChunkSize || 0)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkChunkSize = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">XHTTP Headers (JSON)</label>
+                                            <input
+                                                className="form-input font-mono text-xs"
+                                                value={JSON.stringify(streamObj?.xhttpSettings?.headers || {})}
+                                                onChange={(e) => {
+                                                    const parsed = parseJsonObject(e.target.value, {});
+                                                    updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.headers = parsed;
+                                                    });
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
                                 {simpleStream.security === 'tls' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item label="TLS SNI (serverName)">
-                                                    <Input
-                                                        value={simpleStream.tlsSni}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, tlsSni: e.target.value })}
-                                                        placeholder="例如: apple.com"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Fingerprint">
-                                                    <Select
-                                                        value={simpleStream.tlsFingerprint}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, tlsFingerprint: val })}
-                                                        options={[
-                                                            ...(!FINGERPRINT_OPTIONS.includes(simpleStream.tlsFingerprint) && simpleStream.tlsFingerprint ? [{ label: simpleStream.tlsFingerprint, value: simpleStream.tlsFingerprint }] : []),
-                                                            ...FINGERPRINT_OPTIONS.map(fp => ({ label: fp, value: fp }))
-                                                        ]}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="ALPN">
-                                                    <Input
-                                                        value={simpleStream.tlsAlpn}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, tlsAlpn: e.target.value })}
-                                                        placeholder="h2,http/1.1"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Min Version">
-                                                    <Select
-                                                        value={String(streamObj?.tlsSettings?.minVersion || '1.2')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.minVersion = val;
-                                                        })}
-                                                        options={TLS_VERSION_OPTIONS.map(v => ({ label: v, value: v }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Max Version">
-                                                    <Select
-                                                        value={String(streamObj?.tlsSettings?.maxVersion || '1.3')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.maxVersion = val;
-                                                        })}
-                                                        options={TLS_VERSION_OPTIONS.map(v => ({ label: v, value: v }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Cipher Suites">
-                                                    <Select
-                                                        value={String(streamObj?.tlsSettings?.cipherSuites || '')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.cipherSuites = val;
-                                                        })}
-                                                        options={TLS_CIPHER_OPTIONS.map(c => ({ label: c || 'Auto', value: c }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Reject Unknown SNI">
-                                                    <Checkbox
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">TLS SNI (serverName)</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.tlsSni}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tlsSni: e.target.value })}
+                                                    placeholder="例如: apple.com"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Fingerprint</label>
+                                                <select className="form-select" value={simpleStream.tlsFingerprint} onChange={e => setSimpleStream({ ...simpleStream, tlsFingerprint: e.target.value })}>
+                                                    {!FINGERPRINT_OPTIONS.includes(simpleStream.tlsFingerprint) && simpleStream.tlsFingerprint && (
+                                                        <option value={simpleStream.tlsFingerprint}>{simpleStream.tlsFingerprint}</option>
+                                                    )}
+                                                    {FINGERPRINT_OPTIONS.map(fp => (
+                                                        <option key={fp} value={fp}>{fp}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ALPN</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.tlsAlpn}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tlsAlpn: e.target.value })}
+                                                    placeholder="h2,http/1.1"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Min Version</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.minVersion || '1.2')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.minVersion = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_VERSION_OPTIONS.map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Version</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.maxVersion || '1.3')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.maxVersion = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_VERSION_OPTIONS.map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Cipher Suites</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.cipherSuites || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.cipherSuites = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_CIPHER_OPTIONS.map((item) => (
+                                                        <option key={item || '__auto'} value={item}>
+                                                            {item || 'Auto'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Reject Unknown SNI</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.rejectUnknownSni}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
                                                             draft.tlsSettings.rejectUnknownSni = e.target.checked;
                                                         })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Disable System Root">
-                                                    <Checkbox
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Disable System Root</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.disableSystemRoot}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
                                                             draft.tlsSettings.disableSystemRoot = e.target.checked;
                                                         })}
-                                                    >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Session Resumption">
-                                                    <Checkbox
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Resumption</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.enableSessionResumption}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
                                                             draft.tlsSettings.enableSessionResumption = e.target.checked;
                                                         })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Server Keys</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.tlsSettings?.echServerKeys || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.echServerKeys = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Config List</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.tlsSettings?.settings?.echConfigList || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.settings = draft.tlsSettings.settings || {};
+                                                        draft.tlsSettings.settings.echConfigList = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Force Query</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.echForceQuery || 'none')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.echForceQuery = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="none">none</option>
+                                                    <option value="half">half</option>
+                                                    <option value="full">full</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">ECH 证书操作</label>
+                                            <div className="flex gap-2">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateEchCert}>生成</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>清空</button>
+                                            </div>
+                                        </div>
+                                        <div className="border border-stroke-soft rounded-lg p-3 mt-2">
+                                            <label className="form-label mb-2 block">证书 (第1条)</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="form-group">
+                                                    <label className="form-label">证书文件路径</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].certificateFile = e.target.value;
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">私钥文件路径</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].keyFile = e.target.value;
+                                                        })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 mt-2">
+                                                <div className="form-group" style={{ flex: 1 }}>
+                                                    <label className="form-label">证书用途</label>
+                                                    <select className="form-select"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].usage = e.target.value;
+                                                        })}
                                                     >
-                                                        开启
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="ECH Server Keys">
-                                                    <Input
-                                                        value={String(streamObj?.tlsSettings?.echServerKeys || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.echServerKeys = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="ECH Config List">
-                                                    <Input
-                                                        value={String(streamObj?.tlsSettings?.settings?.echConfigList || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.settings = draft.tlsSettings.settings || {};
-                                                            draft.tlsSettings.settings.echConfigList = e.target.value;
-                                                        })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="ECH Force Query">
-                                                    <Select
-                                                        value={String(streamObj?.tlsSettings?.echForceQuery || 'none')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.tlsSettings = draft.tlsSettings || {};
-                                                            draft.tlsSettings.echForceQuery = val;
-                                                        })}
-                                                        options={['none', 'half', 'full'].map(o => ({ label: o, value: o }))}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="ECH 证书操作">
-                                                    <Space>
-                                                        <Button size="small" onClick={generateEchCert}>生成</Button>
-                                                        <Button size="small" onClick={clearEchCert}>清空</Button>
-                                                    </Space>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-
-                                        <div className="border border-stroke-soft rounded-lg p-4 mt-2 bg-surface-soft">
-                                            <Title level={5} className="mb-4">证书 (第1条)</Title>
-                                            <Row gutter={16}>
-                                                <Col span={12}>
-                                                    <Form.Item label="证书文件路径">
-                                                        <Input
-                                                            value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
+                                                        <option value="encipherment">encipherment (加密)</option>
+                                                        <option value="verify">verify (验证客户端)</option>
+                                                        <option value="issue">issue (签发子证书)</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!streamObj?.tlsSettings?.certificates?.[0]?.oneTimeLoading}
                                                             onChange={(e) => updateStreamJson((draft) => {
                                                                 draft.tlsSettings = draft.tlsSettings || {};
                                                                 if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
                                                                     draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
                                                                 }
-                                                                draft.tlsSettings.certificates[0].certificateFile = e.target.value;
+                                                                draft.tlsSettings.certificates[0].oneTimeLoading = e.target.checked;
                                                             })}
                                                         />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={12}>
-                                                    <Form.Item label="私钥文件路径">
-                                                        <Input
-                                                            value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
-                                                            onChange={(e) => updateStreamJson((draft) => {
-                                                                draft.tlsSettings = draft.tlsSettings || {};
-                                                                if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
-                                                                    draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
-                                                                }
-                                                                draft.tlsSettings.certificates[0].keyFile = e.target.value;
-                                                            })}
-                                                        />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={12}>
-                                                    <Form.Item label="证书用途">
-                                                        <Select
-                                                            value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
-                                                            onChange={(val) => updateStreamJson((draft) => {
-                                                                draft.tlsSettings = draft.tlsSettings || {};
-                                                                if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
-                                                                    draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
-                                                                }
-                                                                draft.tlsSettings.certificates[0].usage = val;
-                                                            })}
-                                                            options={[
-                                                                { label: 'encipherment (加密)', value: 'encipherment' },
-                                                                { label: 'verify (验证客户端)', value: 'verify' },
-                                                                { label: 'issue (签发子证书)', value: 'issue' },
-                                                            ]}
-                                                        />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={12}>
-                                                    <Form.Item label="高级选项" colon={false}>
-                                                        <Space>
-                                                            <Checkbox
-                                                                checked={!!streamObj?.tlsSettings?.certificates?.[0]?.oneTimeLoading}
+                                                        一次性加载
+                                                    </label>
+                                                    {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
+                                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={!!streamObj?.tlsSettings?.certificates?.[0]?.buildChain}
                                                                 onChange={(e) => updateStreamJson((draft) => {
                                                                     draft.tlsSettings = draft.tlsSettings || {};
                                                                     if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
                                                                         draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
                                                                     }
-                                                                    draft.tlsSettings.certificates[0].oneTimeLoading = e.target.checked;
+                                                                    draft.tlsSettings.certificates[0].buildChain = e.target.checked;
                                                                 })}
-                                                            >
-                                                                一次性加载
-                                                            </Checkbox>
-                                                            {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
-                                                                <Checkbox
-                                                                    checked={!!streamObj?.tlsSettings?.certificates?.[0]?.buildChain}
-                                                                    onChange={(e) => updateStreamJson((draft) => {
-                                                                        draft.tlsSettings = draft.tlsSettings || {};
-                                                                        if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
-                                                                            draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
-                                                                        }
-                                                                        draft.tlsSettings.certificates[0].buildChain = e.target.checked;
-                                                                    })}
-                                                                >
-                                                                    构建证书链
-                                                                </Checkbox>
-                                                            )}
-                                                        </Space>
-                                                    </Form.Item>
-                                                </Col>
-                                            </Row>
+                                                            />
+                                                            构建证书链
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
 
                                 {simpleStream.security === 'reality' && (
-                                    <div className="mt-4 border-t border-stroke-soft pt-4">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <Title level={5} className="m-0 uppercase tracking-wider">Reality Settings</Title>
-                                            <Button type="primary" size="small" onClick={generateRealityKeys}>生成密钥</Button>
+                                    <div className="border-t border-stroke-soft pt-4 mt-2">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="form-label">Reality Settings</label>
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>生成密钥</button>
                                         </div>
 
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="Show">
-                                                    <Checkbox
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Show</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <input
+                                                        type="checkbox"
                                                         checked={!!simpleStream.realityShow}
                                                         onChange={e => setSimpleStream({ ...simpleStream, realityShow: e.target.checked })}
-                                                    >
-                                                        启用
-                                                    </Checkbox>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Xver">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        max={2}
-                                                        value={simpleStream.realityXver}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, realityXver: Number(val || 0) })}
                                                     />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="目标网站 (Target)">
-                                                    <Input value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="SNI (ServerName)">
-                                                    <Input value={simpleStream.realitySNI} onChange={e => setSimpleStream({ ...simpleStream, realitySNI: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="Reality Settings ServerName">
-                                                    <Input
-                                                        value={String(streamObj?.realitySettings?.settings?.serverName || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.realitySettings = draft.realitySettings || {};
-                                                            draft.realitySettings.settings = draft.realitySettings.settings || {};
-                                                            draft.realitySettings.settings.serverName = e.target.value;
-                                                        })}
-                                                        placeholder="可选，通常留空"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="ShortId">
-                                                    <Space.Compact style={{ width: '100%' }}>
-                                                        <Input value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
-                                                        <Button onClick={generateShortId}>生成</Button>
-                                                    </Space.Compact>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="PrivateKey" extra="REALITY 服务端私钥；留空时保存会自动为每个目标节点生成密钥对">
-                                                    <Input className="font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="PublicKey" extra="订阅链接所需 pbk 参数（可手动填入，或点击“生成密钥”自动填充）">
-                                                    <Input className="font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Min Client Ver">
-                                                    <Input
-                                                        value={simpleStream.realityMinClientVer}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, realityMinClientVer: e.target.value })}
-                                                        placeholder="Optional"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Max Client Ver">
-                                                    <Input
-                                                        value={simpleStream.realityMaxClientVer}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, realityMaxClientVer: e.target.value })}
-                                                        placeholder="Optional"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item label="Max TimeDiff">
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        value={simpleStream.realityMaxTimediff}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, realityMaxTimediff: Number(val || 0) })}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Fingerprint (fp)">
-                                                    <Select
-                                                        value={simpleStream.realityFingerprint}
-                                                        onChange={val => setSimpleStream({ ...simpleStream, realityFingerprint: val })}
-                                                        options={[
-                                                            ...(!FINGERPRINT_OPTIONS.includes(simpleStream.realityFingerprint) && simpleStream.realityFingerprint ? [{ label: simpleStream.realityFingerprint, value: simpleStream.realityFingerprint }] : []),
-                                                            ...FINGERPRINT_OPTIONS.map(fp => ({ label: fp, value: fp }))
-                                                        ]}
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="SpiderX (spx)">
-                                                    <Input value={simpleStream.realitySpiderX} onChange={e => setSimpleStream({ ...simpleStream, realitySpiderX: e.target.value })} />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="mldsa65 Seed">
-                                                    <Input
-                                                        value={simpleStream.realityMldsa65Seed}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Seed: e.target.value })}
-                                                        placeholder="Optional"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="mldsa65 Verify">
-                                                    <Input
-                                                        value={simpleStream.realityMldsa65Verify}
-                                                        onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Verify: e.target.value })}
-                                                        placeholder="Optional"
-                                                    />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={24}>
-                                                <Form.Item label="mldsa65 操作">
-                                                    <Space>
-                                                        <Button size="small" onClick={generateMldsa65Seed}>生成</Button>
-                                                        <Button size="small" onClick={clearMldsa65Seed}>清空</Button>
-                                                    </Space>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                    启用
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Xver</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    max={2}
+                                                    value={simpleStream.realityXver}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityXver: Number(e.target.value || 0) })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">目标网站 (Target)</label>
+                                            <input className="form-input" value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">SNI (ServerName)</label>
+                                            <input className="form-input" value={simpleStream.realitySNI} onChange={e => setSimpleStream({ ...simpleStream, realitySNI: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Reality Settings ServerName</label>
+                                            <input
+                                                className="form-input"
+                                                value={String(streamObj?.realitySettings?.settings?.serverName || '')}
+                                                onChange={(e) => updateStreamJson((draft) => {
+                                                    draft.realitySettings = draft.realitySettings || {};
+                                                    draft.realitySettings.settings = draft.realitySettings.settings || {};
+                                                    draft.realitySettings.settings.serverName = e.target.value;
+                                                })}
+                                                placeholder="可选，通常留空"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">ShortId</label>
+                                            <div className="flex gap-2">
+                                                <input className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>生成</button>
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">PrivateKey</label>
+                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
+                                            <div className="text-xs text-muted mt-1">
+                                                REALITY 服务端私钥；留空时保存会自动为每个目标节点生成密钥对
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">PublicKey</label>
+                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
+                                            <div className="text-xs text-muted mt-1">
+                                                订阅链接所需 pbk 参数（可手动填入，或点击“生成密钥”自动填充）
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Min Client Ver</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMinClientVer}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMinClientVer: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Client Ver</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMaxClientVer}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxClientVer: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max TimeDiff</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={simpleStream.realityMaxTimediff}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxTimediff: Number(e.target.value || 0) })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Fingerprint (fp)</label>
+                                                <select className="form-select" value={simpleStream.realityFingerprint} onChange={e => setSimpleStream({ ...simpleStream, realityFingerprint: e.target.value })}>
+                                                    {!FINGERPRINT_OPTIONS.includes(simpleStream.realityFingerprint) && simpleStream.realityFingerprint && (
+                                                        <option value={simpleStream.realityFingerprint}>{simpleStream.realityFingerprint}</option>
+                                                    )}
+                                                    {FINGERPRINT_OPTIONS.map(fp => (
+                                                        <option key={fp} value={fp}>{fp}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">SpiderX (spx)</label>
+                                                <input className="form-input" value={simpleStream.realitySpiderX} onChange={e => setSimpleStream({ ...simpleStream, realitySpiderX: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">mldsa65 Seed</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMldsa65Seed}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Seed: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">mldsa65 Verify</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMldsa65Verify}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Verify: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">mldsa65 操作</label>
+                                            <div className="flex gap-2">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateMldsa65Seed}>生成</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearMldsa65Seed}>清空</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <Title level={5} className="m-0 uppercase tracking-wider">External Proxy</Title>
-                                            <Space>
-                                                <Button
-                                                    size="small"
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">External Proxy</h4>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
                                                     onClick={() => updateStreamJson((draft) => {
                                                         draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
                                                         draft.externalProxy.push({ forceTls: 'same', dest: '', port: 443, remark: '' });
                                                     })}
                                                 >
                                                     新增
-                                                </Button>
-                                                <Button
-                                                    size="small"
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
                                                     onClick={() => updateStreamJson((draft) => {
                                                         draft.externalProxy = [];
                                                     })}
                                                 >
                                                     清空
-                                                </Button>
-                                            </Space>
+                                                </button>
+                                            </div>
                                         </div>
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).length === 0 && (
-                                            <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '12px' }}>未配置 external proxy</Text>
+                                            <div className="text-xs text-muted mb-3">未配置 external proxy</div>
                                         )}
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).map((row, index) => (
-                                            <Row key={`external-proxy-${index}`} gutter={8} align="middle" style={{ marginBottom: '8px' }}>
-                                                <Col span={4}>
-                                                    <Select
-                                                        style={{ width: '100%' }}
-                                                        value={String(row?.forceTls || 'same')}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
-                                                            draft.externalProxy[index] = draft.externalProxy[index] || {};
-                                                            draft.externalProxy[index].forceTls = val;
-                                                        })}
-                                                        options={[
-                                                            { label: 'same', value: 'same' },
-                                                            { label: 'none', value: 'none' },
-                                                            { label: 'tls', value: 'tls' },
-                                                        ]}
-                                                    />
-                                                </Col>
-                                                <Col span={7}>
-                                                    <Input
-                                                        value={String(row?.dest || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
-                                                            draft.externalProxy[index] = draft.externalProxy[index] || {};
-                                                            draft.externalProxy[index].dest = e.target.value;
-                                                        })}
-                                                        placeholder="dest"
-                                                    />
-                                                </Col>
-                                                <Col span={4}>
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={1}
-                                                        max={65535}
-                                                        value={Number(row?.port || 443)}
-                                                        onChange={(val) => updateStreamJson((draft) => {
-                                                            draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
-                                                            draft.externalProxy[index] = draft.externalProxy[index] || {};
-                                                            draft.externalProxy[index].port = Number(val || 443);
-                                                        })}
-                                                        placeholder="port"
-                                                    />
-                                                </Col>
-                                                <Col span={7}>
-                                                    <Input
-                                                        value={String(row?.remark || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
-                                                            draft.externalProxy[index] = draft.externalProxy[index] || {};
-                                                            draft.externalProxy[index].remark = e.target.value;
-                                                        })}
-                                                        placeholder="remark"
-                                                    />
-                                                </Col>
-                                                <Col span={2}>
-                                                    <Button
-                                                        danger
-                                                        size="small"
-                                                        onClick={() => updateStreamJson((draft) => {
-                                                            draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
-                                                            draft.externalProxy.splice(index, 1);
-                                                        })}
-                                                    >
-                                                        删除
-                                                    </Button>
-                                                </Col>
-                                            </Row>
+                                            <div key={`external-proxy-${index}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-2">
+                                                <select
+                                                    className="form-select"
+                                                    value={String(row?.forceTls || 'same')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].forceTls = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="same">same</option>
+                                                    <option value="none">none</option>
+                                                    <option value="tls">tls</option>
+                                                </select>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(row?.dest || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].dest = e.target.value;
+                                                    })}
+                                                    placeholder="dest"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={65535}
+                                                    value={Number(row?.port || 443)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].port = Number(e.target.value || 443);
+                                                    })}
+                                                    placeholder="port"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(row?.remark || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].remark = e.target.value;
+                                                    })}
+                                                    placeholder="remark"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy.splice(index, 1);
+                                                    })}
+                                                >
+                                                    删除
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
-                                        <Title level={5} className="uppercase tracking-wider mb-2">Sockopt</Title>
-                                        <Form.Item label="启用状态">
-                                            <Checkbox
+                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider mb-2">Sockopt</h4>
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3" style={{ width: 'fit-content' }}>
+                                            <input
+                                                type="checkbox"
                                                 checked={!!streamObj?.sockopt}
                                                 onChange={(e) => updateStreamJson((draft) => {
                                                     if (e.target.checked) {
@@ -3101,7 +3145,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             tproxy: 'off',
                                                             tcpMptcp: false,
                                                             penetrate: false,
-                                                            domainStrategy: 'AsIs',
+                                                            domainStrategy: 'UseIP',
                                                             tcpMaxSeg: 1440,
                                                             dialerProxy: '',
                                                             tcpKeepAliveInterval: 0,
@@ -3117,116 +3161,117 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         delete draft.sockopt;
                                                     }
                                                 })}
-                                            >
-                                                启用 Sockopt
-                                            </Checkbox>
-                                        </Form.Item>
+                                            />
+                                            启用 Sockopt
+                                        </label>
                                         {!!streamObj?.sockopt && (
-                                            <Row gutter={[16, 0]}>
-                                                <Col span={8}>
-                                                    <Form.Item label="Route Mark">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.mark || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP KeepAlive Interval">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveInterval || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP KeepAlive Idle">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveIdle || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP Max Seg">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.tcpMaxSeg || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP User Timeout">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.tcpUserTimeout || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP Window Clamp">
-                                                        <InputNumber style={{ width: '100%' }} min={0} value={Number(streamObj?.sockopt?.tcpWindowClamp || 0)} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = Number(val || 0); })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="Domain Strategy">
-                                                        <Select style={{ width: '100%' }} value={String(streamObj?.sockopt?.domainStrategy || 'AsIs')} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.domainStrategy = val; })} options={SOCKOPT_DOMAIN_STRATEGY_OPTIONS.map(o => ({ label: o, value: o }))} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TCP Congestion">
-                                                        <Select style={{ width: '100%' }} value={String(streamObj?.sockopt?.tcpcongestion || 'bbr')} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpcongestion = val; })} options={SOCKOPT_TCP_CONGESTION_OPTIONS.map(o => ({ label: o, value: o }))} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Form.Item label="TProxy">
-                                                        <Select style={{ width: '100%' }} value={String(streamObj?.sockopt?.tproxy || 'off')} onChange={(val) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tproxy = val; })} options={SOCKOPT_TPROXY_OPTIONS.map(o => ({ label: o, value: o }))} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={12}>
-                                                    <Form.Item label="Dialer Proxy">
-                                                        <Input value={String(streamObj?.sockopt?.dialerProxy || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.dialerProxy = e.target.value; })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={12}>
-                                                    <Form.Item label="Interface Name">
-                                                        <Input value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={24}>
-                                                    <Form.Item label="Trusted XFF (逗号分隔)">
-                                                        <Input
-                                                            value={Array.isArray(streamObj?.sockopt?.trustedXForwardedFor) ? streamObj.sockopt.trustedXForwardedFor.join(',') : ''}
-                                                            onChange={(e) => updateStreamJson((draft) => {
-                                                                draft.sockopt = draft.sockopt || {};
-                                                                draft.sockopt.trustedXForwardedFor = String(e.target.value || '')
-                                                                    .split(',')
-                                                                    .map((item) => item.trim())
-                                                                    .filter(Boolean);
-                                                            })}
-                                                        />
-                                                    </Form.Item>
-                                                </Col>
-                                                <Col span={24}>
-                                                    <Form.Item label="Sockopt Flags">
-                                                        <Space wrap>
-                                                            {[
-                                                                ['acceptProxyProtocol', 'Accept Proxy'],
-                                                                ['tcpFastOpen', 'TFO'],
-                                                                ['tcpMptcp', 'MPTCP'],
-                                                                ['penetrate', 'Penetrate'],
-                                                                ['V6Only', 'V6Only'],
-                                                            ].map(([key, label]) => (
-                                                                <Checkbox
-                                                                    key={key}
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div className="form-group">
+                                                    <label className="form-label">Route Mark</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.mark || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP KeepAlive Interval</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveInterval || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP KeepAlive Idle</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveIdle || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Max Seg</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpMaxSeg || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP User Timeout</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpUserTimeout || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Window Clamp</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpWindowClamp || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Domain Strategy</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.domainStrategy || 'UseIP')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.domainStrategy = e.target.value; })}>
+                                                        {SOCKOPT_DOMAIN_STRATEGY_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Congestion</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.tcpcongestion || 'bbr')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpcongestion = e.target.value; })}>
+                                                        {SOCKOPT_TCP_CONGESTION_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TProxy</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.tproxy || 'off')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tproxy = e.target.value; })}>
+                                                        {SOCKOPT_TPROXY_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Dialer Proxy</label>
+                                                    <input className="form-input" value={String(streamObj?.sockopt?.dialerProxy || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.dialerProxy = e.target.value; })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Interface Name</label>
+                                                    <input className="form-input" value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Trusted XFF (逗号分隔)</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={Array.isArray(streamObj?.sockopt?.trustedXForwardedFor) ? streamObj.sockopt.trustedXForwardedFor.join(',') : ''}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.sockopt = draft.sockopt || {};
+                                                            draft.sockopt.trustedXForwardedFor = String(e.target.value || '')
+                                                                .split(',')
+                                                                .map((item) => item.trim())
+                                                                .filter(Boolean);
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Sockopt Flags</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[
+                                                            ['acceptProxyProtocol', 'Accept Proxy'],
+                                                            ['tcpFastOpen', 'TFO'],
+                                                            ['tcpMptcp', 'MPTCP'],
+                                                            ['penetrate', 'Penetrate'],
+                                                            ['V6Only', 'V6Only'],
+                                                        ].map(([key, label]) => (
+                                                            <label key={key} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
                                                                     checked={!!streamObj?.sockopt?.[key]}
                                                                     onChange={(e) => updateStreamJson((draft) => {
                                                                         draft.sockopt = draft.sockopt || {};
                                                                         draft.sockopt[key] = e.target.checked;
                                                                     })}
-                                                                >
-                                                                    {label}
-                                                                </Checkbox>
-                                                            ))}
-                                                        </Space>
-                                                    </Form.Item>
-                                                </Col>
-                                            </Row>
+                                                                />
+                                                                {label}
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 )}
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && ['tcp', 'ws', 'httpupgrade', 'xhttp', 'kcp'].includes(simpleStream.network) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <Title level={5} className="m-0 uppercase tracking-wider">UDP Masks (FinalMask)</Title>
-                                            <Button
-                                                size="small"
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">UDP Masks (FinalMask)</h4>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-xs"
                                                 onClick={() => updateStreamJson((draft) => {
                                                     draft.finalmask = draft.finalmask || {};
                                                     draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
@@ -3237,69 +3282,64 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 })}
                                             >
                                                 新增 Mask
-                                            </Button>
+                                            </button>
                                         </div>
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).length === 0 && (
-                                            <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '12px' }}>未配置 UDP mask</Text>
+                                            <div className="text-xs text-muted mb-2">未配置 UDP mask</div>
                                         )}
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).map((mask, index) => (
-                                            <Row key={`udp-mask-${index}`} gutter={8} align="middle" style={{ marginBottom: '8px' }}>
-                                                <Col span={7}>
-                                                    <Input
-                                                        value={String(mask?.type || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.finalmask = draft.finalmask || {};
-                                                            draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
-                                                            draft.finalmask.udp[index] = draft.finalmask.udp[index] || {};
-                                                            draft.finalmask.udp[index].type = e.target.value;
-                                                        })}
-                                                        placeholder="type"
-                                                    />
-                                                </Col>
-                                                <Col span={8}>
-                                                    <Input
-                                                        value={String(mask?.settings?.password || mask?.settings?.domain || mask?.settings?.ip || '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.finalmask = draft.finalmask || {};
-                                                            draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
-                                                            const current = draft.finalmask.udp[index] || { type: 'xdns', settings: {} };
-                                                            current.settings = current.settings || {};
-                                                            if (current.type === 'mkcp-aes128gcm' || current.type === 'salamander') current.settings.password = e.target.value;
-                                                            else if (current.type === 'xicmp') current.settings.ip = e.target.value;
-                                                            else current.settings.domain = e.target.value;
-                                                            draft.finalmask.udp[index] = current;
-                                                        })}
-                                                        placeholder="settings"
-                                                    />
-                                                </Col>
-                                                <Col span={7}>
-                                                    <Input
-                                                        value={String(mask?.settings?.id ?? '')}
-                                                        onChange={(e) => updateStreamJson((draft) => {
-                                                            draft.finalmask = draft.finalmask || {};
-                                                            draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
-                                                            const current = draft.finalmask.udp[index] || { type: 'xicmp', settings: {} };
-                                                            current.settings = current.settings || {};
-                                                            current.settings.id = Number(e.target.value || 0);
-                                                            draft.finalmask.udp[index] = current;
-                                                        })}
-                                                        placeholder="id(仅xicmp)"
-                                                    />
-                                                </Col>
-                                                <Col span={2}>
-                                                    <Button
-                                                        danger
-                                                        size="small"
-                                                        onClick={() => updateStreamJson((draft) => {
-                                                            draft.finalmask = draft.finalmask || {};
-                                                            draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
-                                                            draft.finalmask.udp.splice(index, 1);
-                                                        })}
-                                                    >
-                                                        删除
-                                                    </Button>
-                                                </Col>
-                                            </Row>
+                                            <div key={`udp-mask-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 mb-2">
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.type || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        draft.finalmask.udp[index] = draft.finalmask.udp[index] || {};
+                                                        draft.finalmask.udp[index].type = e.target.value;
+                                                    })}
+                                                    placeholder="type"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.settings?.password || mask?.settings?.domain || mask?.settings?.ip || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        const current = draft.finalmask.udp[index] || { type: 'xdns', settings: {} };
+                                                        current.settings = current.settings || {};
+                                                        if (current.type === 'mkcp-aes128gcm' || current.type === 'salamander') current.settings.password = e.target.value;
+                                                        else if (current.type === 'xicmp') current.settings.ip = e.target.value;
+                                                        else current.settings.domain = e.target.value;
+                                                        draft.finalmask.udp[index] = current;
+                                                    })}
+                                                    placeholder="settings"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.settings?.id ?? '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        const current = draft.finalmask.udp[index] || { type: 'xicmp', settings: {} };
+                                                        current.settings = current.settings || {};
+                                                        current.settings.id = Number(e.target.value || 0);
+                                                        draft.finalmask.udp[index] = current;
+                                                    })}
+                                                    placeholder="id(仅xicmp)"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        draft.finalmask.udp.splice(index, 1);
+                                                    })}
+                                                >
+                                                    删除
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -3307,15 +3347,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         )}
                     </div>
 
-                    <div className="mt-8 flex justify-end">
-                        <Space>
-                            <Button onClick={onClose}>取消</Button>
-                            <Button type="primary" htmlType="submit" loading={loading} icon={<HiOutlineCheck />}>
-                                保存配置
-                            </Button>
-                        </Space>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> 保存配置</>}
+                        </button>
                     </div>
-                </Form>
-            </Modal>
-        );
+                </form>
+            </div>
+        </ModalShell>
+    );
 }

@@ -6,7 +6,6 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
-import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, formatDateOnly, formatDateTime } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
@@ -42,21 +41,17 @@ import {
   Card, 
   Button, 
   Table, 
-  Tabs, 
   Row, 
   Col, 
   Tag, 
   Statistic, 
-  Modal, 
   Descriptions, 
   Space, 
   Typography, 
-  Tooltip, 
   Input, 
-  Badge,
-  Spin
+  Badge
 } from 'antd';
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 function clampProgress(value) {
     const numeric = Number(value);
@@ -456,14 +451,13 @@ function UserAvatar({ username }) {
 }
 
 function StatCard({ label, value }) {
-    const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
-    const displayValue = typeof value === 'number' ? String(animated) : '...';
+    const displayValue = typeof value === 'number' ? String(value) : '...';
     return (
-        <Card bordered={false} style={{ background: '#1f1f1f', textAlign: 'center' }}>
+        <Card variant="borderless" style={{ background: '#1f1f1f', textAlign: 'center' }}>
             <Statistic 
                 title={<span style={{ color: '#a6a6a6' }}>{label}</span>} 
                 value={displayValue} 
-                valueStyle={{ color: '#fff', fontSize: '24px', fontWeight: 600 }} 
+                styles={{ content: { color: '#fff', fontSize: '24px', fontWeight: 600 } }}
             />
         </Card>
     );
@@ -599,9 +593,9 @@ function normalizeUserDetailPayload(payload) {
     };
 }
 
-function TimelineEntry({ item, index, copy, locale }) {
+function TimelineEntry({ item, copy, locale }) {
     return (
-        <Card bordered={true} style={{ marginBottom: 16, borderColor: '#303030', backgroundColor: '#141414' }}>
+        <Card style={{ marginBottom: 16, borderColor: '#303030', backgroundColor: '#141414' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <Text strong style={{ color: '#fff' }}>{formatTimelineTitle(item, copy)}</Text>
                 <Text type="secondary">{formatTime(item.ts, locale)}</Text>
@@ -937,12 +931,11 @@ export default function UserDetail() {
 
     const subscriptionFilterSummary = useMemo(() => {
         if (!hasSubscriptionFilters) return '';
-        const parts = [];
-        if (subscriptionResult?.filteredExpired > 0) parts.push(`过滤了 ${subscriptionResult.filteredExpired} 个过期节点`);
-        if (subscriptionResult?.filteredDisabled > 0) parts.push(`过滤了 ${subscriptionResult.filteredDisabled} 个停用节点`);
-        if (subscriptionResult?.filteredByPolicy > 0) parts.push(`根据策略过滤了 ${subscriptionResult.filteredByPolicy} 个节点`);
-        return parts.join('，');
-    }, [hasSubscriptionFilters, subscriptionResult]);
+        return copy.labels.filteredSummary
+            .replace('{expired}', String(subscriptionResult?.filteredExpired || 0))
+            .replace('{disabled}', String(subscriptionResult?.filteredDisabled || 0))
+            .replace('{policy}', String(subscriptionResult?.filteredByPolicy || 0));
+    }, [copy.labels.filteredSummary, hasSubscriptionFilters, subscriptionResult]);
     const usedTrafficBytes = Number(subscriptionResult?.usedTrafficBytes || 0);
     const trafficLimitBytes = Number(subscriptionResult?.trafficLimitBytes || 0);
     const remainingTrafficBytes = Number(subscriptionResult?.remainingTrafficBytes || 0);
@@ -953,6 +946,31 @@ export default function UserDetail() {
         ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
         : 100;
     const expiryProgressState = buildExpiryProgress(subscriptionResult?.expiryTime, locale);
+    const subscriptionStatusCards = [
+        {
+            key: 'used',
+            label: copy.labels.usedTraffic,
+            value: formatBytes(usedTrafficBytes),
+            meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
+            tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
+        },
+        {
+            key: 'available',
+            label: copy.labels.availableTraffic,
+            value: trafficLimitBytes > 0 ? formatBytes(remainingTrafficBytes) : copy.labels.unlimited,
+            meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
+            tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
+        },
+        {
+            key: 'expiry',
+            label: copy.labels.expiryTime,
+            value: Number(subscriptionResult?.expiryTime || 0) > 0
+                ? formatDateOnly(Number(subscriptionResult.expiryTime), locale)
+                : copy.labels.permanent,
+            meta: expiryProgressState.meta,
+            tone: expiryProgressState.tone,
+        },
+    ];
 
     const handleResetSubscription = async () => {
         const targetEmail = String(subscriptionResult?.email || user?.subscriptionEmail || user?.email || '').trim().toLowerCase();
@@ -1070,12 +1088,32 @@ export default function UserDetail() {
         setClientIpModal((prev) => ({ ...prev, clearing: false }));
     };
 
+    const renderClientActionButton = (client, supportState) => {
+        const clientIpUnsupported = supportState?.supported === false;
+        const clientIpDisabled = !client.email || clientIpUnsupported;
+        const clientIpTitle = !client.email
+            ? copy.labels.missingEmailForClient
+            : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
+
+        return (
+            <Button
+                size="small"
+                onClick={() => loadClientIps(client)}
+                disabled={clientIpDisabled}
+                icon={<HiOutlineGlobeAlt />}
+                title={clientIpTitle}
+            >
+                {copy.labels.nodeIp}
+            </Button>
+        );
+    };
+
     if (loading) {
         return (
             <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
                 <Header title={t('pages.userDetail.title')} eyebrow={t('pages.userDetail.eyebrow')} />
                 <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-                    <Card><Spin tip="Loading..." /></Card>
+                    <Card><SkeletonTable rows={3} cols={4} /></Card>
                 </div>
             </ConfigProvider>
         );
@@ -1086,15 +1124,15 @@ export default function UserDetail() {
             <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
                 <Header title={t('pages.userDetail.title')} eyebrow={t('pages.userDetail.eyebrow')} />
                 <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-                    <Card style={{ textAlign: 'center' }}>
-                        <Title level={4}>{copy.userMissingTitle}</Title>
-                        <Text type="secondary">{copy.userMissingSubtitle}</Text>
-                        <div style={{ marginTop: 16 }}>
+                    <EmptyState
+                        title={copy.userMissingTitle}
+                        subtitle={copy.userMissingSubtitle}
+                        action={(
                             <Button icon={<HiOutlineArrowLeft />} onClick={() => navigate('/clients')}>
                                 {copy.backToUsers}
                             </Button>
-                        </div>
-                    </Card>
+                        )}
+                    />
                 </div>
             </ConfigProvider>
         );
@@ -1147,32 +1185,27 @@ export default function UserDetail() {
             label: copy.tabs.subscription,
             children: (
                 <div>
-                    <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                        <Col>
-                            <Space align="center">
-                                <Title level={5} style={{ margin: 0 }}>{copy.labels.subscriptionInfo}</Title>
-                                {subscriptionResult && (
-                                    <>
-                                        <Badge status={subscriptionResult.subscriptionActive ? 'success' : 'warning'} text={subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable} />
-                                        {subscriptionResult.inactiveReason && <Text type="secondary" style={{ fontSize: 12 }}>{subscriptionResult.inactiveReason}</Text>}
-                                    </>
-                                )}
+                    <SectionHeader
+                        className="mb-4"
+                        compact
+                        title={copy.labels.subscriptionInfo}
+                        meta={subscriptionResult && (
+                            <Space align="center" wrap>
+                                <Badge status={subscriptionResult.subscriptionActive ? 'success' : 'warning'} text={subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable} />
+                                {subscriptionResult.inactiveReason && <Text type="secondary" style={{ fontSize: 12 }}>{subscriptionResult.inactiveReason}</Text>}
                             </Space>
-                        </Col>
-                        <Col>
+                        )}
+                        actions={(
                             <Button icon={<HiOutlineArrowPath />} onClick={() => loadSubscription()} disabled={subscriptionLoading}>
                                 {copy.labels.refresh}
                             </Button>
-                        </Col>
-                    </Row>
-                    
+                        )}
+                    />
+
                     {subscriptionLoading && !subscriptionResult ? (
-                        <Card><Spin /></Card>
+                        <Card><SkeletonTable rows={3} cols={3} /></Card>
                     ) : !subscriptionResult ? (
-                        <Card style={{ textAlign: 'center' }}>
-                            <Title level={5}>{copy.labels.noSubscriptionTitle}</Title>
-                            <Text type="secondary">{copy.labels.noSubscriptionSubtitle}</Text>
-                        </Card>
+                        <EmptyState title={copy.labels.noSubscriptionTitle} subtitle={copy.labels.noSubscriptionSubtitle} />
                     ) : (
                         <Row gutter={[24, 24]}>
                             <Col xs={24} md={16}>
@@ -1188,7 +1221,7 @@ export default function UserDetail() {
                                             </Button>
                                         ))}
                                     </Space>
-                                    <div style={{ marginBottom: 16 }}>
+                                    <div className="subscription-profile-notes" style={{ marginBottom: 16 }}>
                                         <Text type="secondary" style={{ fontSize: 12 }}>
                                             {copy.labels.availableProfiles.replace('{count}', String(availableSubscriptionProfiles.length || 0))} · {copy.labels.selectedProfileHint}
                                         </Text>
@@ -1216,21 +1249,17 @@ export default function UserDetail() {
                                         </Button>
                                     </Space.Compact>
                                     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                                        <Col span={8}>
-                                            <Card size="small" style={{ background: '#1f1f1f' }}>
-                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.usedTraffic}</span>} value={formatBytes(usedTrafficBytes)} />
-                                            </Card>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Card size="small" style={{ background: '#1f1f1f' }}>
-                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.availableTraffic}</span>} value={trafficLimitBytes > 0 ? formatBytes(remainingTrafficBytes) : copy.labels.unlimited} />
-                                            </Card>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Card size="small" style={{ background: '#1f1f1f' }}>
-                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.expiryTime}</span>} value={Number(subscriptionResult?.expiryTime || 0) > 0 ? formatDateOnly(Number(subscriptionResult.expiryTime), locale) : copy.labels.permanent} />
-                                            </Card>
-                                        </Col>
+                                        {subscriptionStatusCards.map((item) => (
+                                            <Col span={8} key={item.key}>
+                                                <Card size="small" style={{ background: '#1f1f1f' }}>
+                                                    <Statistic
+                                                        title={<span style={{ color: '#a6a6a6' }}>{item.label}</span>}
+                                                        value={item.value}
+                                                        suffix={<span style={{ color: '#8c8c8c', fontSize: 12 }}>{item.meta}</span>}
+                                                    />
+                                                </Card>
+                                            </Col>
+                                        ))}
                                     </Row>
                                     <div style={{ marginBottom: 24 }}>
                                         <Text type="secondary">{copy.labels.subscriptionEmail}: {subscriptionResult.email}</Text>
@@ -1239,6 +1268,13 @@ export default function UserDetail() {
                                     <Button onClick={handleResetSubscription} disabled={subscriptionResetLoading || !subscriptionResult.email} icon={<HiOutlineArrowPath />}>
                                         {copy.labels.resetLink}
                                     </Button>
+                                    <div style={{ marginTop: 24 }}>
+                                        <SubscriptionClientLinks
+                                            bundle={subscriptionResult.bundle}
+                                            compact
+                                            showHeading={false}
+                                        />
+                                    </div>
                                 </Card>
                             </Col>
                             <Col xs={24} md={8}>
@@ -1270,60 +1306,96 @@ export default function UserDetail() {
                         <div style={{ marginBottom: 16 }}><Text type="secondary" style={{ fontSize: 12 }}>{copy.labels.clientIpNotice}</Text></div>
                     )}
                     {clientsPanelLoading ? (
-                        <Card><Spin /></Card>
+                        <SkeletonTable rows={4} cols={6} />
                     ) : clientData.length === 0 ? (
-                        <Card style={{ textAlign: 'center' }}>
-                            <Title level={5}>{copy.labels.noClientsTitle}</Title>
-                            <Text type="secondary">{copy.labels.noClientsSubtitle}</Text>
-                        </Card>
-                    ) : (
-                        <Table 
-                            dataSource={clientData} 
-                            rowKey={(record, i) => `${record.serverId}-${record.inboundId || i}`}
-                            pagination={false}
-                            scroll={{ x: 800 }}
-                            columns={[
-                                {
-                                    title: copy.labels.server,
-                                    dataIndex: 'serverName',
-                                    render: (text, record) => {
-                                        const presence = resolveClientPresence(record, copy);
-                                        return (
+                        <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />
+                    ) : isCompactLayout ? (
+                        <div className="user-detail-client-list">
+                            {clientData.map((client) => {
+                                const supportState = clientIpSupportByServer[client.serverId];
+                                const presence = resolveClientPresence(client, copy);
+                                return (
+                                    <Card key={`${client.serverId}-${client.inboundId || client.email}`} className="user-detail-client-card" size="small" style={{ marginBottom: 16 }}>
+                                        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+                                            <Row justify="space-between" align="top" gutter={12}>
+                                                <Col flex="auto">
+                                                    <div className="user-detail-client-title">{client.serverName}</div>
+                                                    <span
+                                                        className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
+                                                        title={presence.detail || presence.label}
+                                                    >
+                                                        <span className="user-detail-presence-dot" aria-hidden="true" />
+                                                        <span className="user-detail-presence-label">{presence.label}</span>
+                                                        {presence.detail ? <span className="user-detail-presence-detail"> {presence.detail}</span> : null}
+                                                    </span>
+                                                    <div className="user-detail-client-subtitle">{client.inboundRemark || client.inboundId}</div>
+                                                </Col>
+                                                <Col flex="none">
+                                                    <Tag color={client.enable ? 'success' : 'error'}>{client.enable ? copy.labels.enabled : copy.labels.disabled}</Tag>
+                                                </Col>
+                                            </Row>
+                                            <Space wrap>
+                                                <Tag>{client.protocol}</Tag>
+                                                <Text type="secondary">:{client.port}</Text>
+                                            </Space>
+                                            <Row gutter={[12, 12]}>
+                                                <Col span={12}>
+                                                    <Text type="secondary">{copy.labels.traffic}</Text>
+                                                    <div>{formatBytes((client.up || 0) + (client.down || 0))}</div>
+                                                </Col>
+                                                <Col span={12}>
+                                                    <Text type="secondary">{copy.labels.expiryTime}</Text>
+                                                    <div>{client.expiryTime > 0 ? formatDateOnly(client.expiryTime, locale) : copy.labels.permanent}</div>
+                                                </Col>
+                                            </Row>
                                             <div>
-                                                <div style={{ fontWeight: 500 }}>{text}</div>
-                                                <Space size="small">
-                                                    <Badge status={presence.online ? 'success' : 'default'} />
-                                                    <Text type="secondary" style={{ fontSize: 12 }}>{presence.label}</Text>
-                                                </Space>
+                                                {renderClientActionButton(client, supportState)}
                                             </div>
-                                        );
+                                        </Space>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="table-container">
+                            <Table 
+                                dataSource={clientData} 
+                                rowKey={(record) => `${record.serverId}-${record.inboundId || record.email || 'client'}`}
+                                pagination={false}
+                                scroll={{ x: 800 }}
+                                columns={[
+                                    {
+                                        title: copy.labels.server,
+                                        dataIndex: 'serverName',
+                                        render: (text, record) => {
+                                            const presence = resolveClientPresence(record, copy);
+                                            return (
+                                                <div className="user-detail-server-stack">
+                                                    <div style={{ fontWeight: 500 }}>{text}</div>
+                                                    <span
+                                                        className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
+                                                        title={presence.detail || presence.label}
+                                                    >
+                                                        <span className="user-detail-presence-dot" aria-hidden="true" />
+                                                        <span className="user-detail-presence-label">{presence.label}</span>
+                                                        {presence.detail ? <span className="user-detail-presence-detail"> {presence.detail}</span> : null}
+                                                    </span>
+                                                </div>
+                                            );
+                                        }
+                                    },
+                                    { title: copy.labels.inbound, render: (_, r) => r.inboundRemark || r.inboundId },
+                                    { title: copy.labels.protocol, dataIndex: 'protocol', render: (text) => <Tag>{text}</Tag> },
+                                    { title: copy.labels.traffic, render: (_, r) => formatBytes((r.up || 0) + (r.down || 0)) },
+                                    { title: copy.labels.expiryTime, render: (_, r) => r.expiryTime > 0 ? formatDateOnly(r.expiryTime, locale) : copy.labels.permanent },
+                                    { title: copy.labels.status, render: (_, r) => <Tag color={r.enable ? 'success' : 'error'}>{r.enable ? copy.labels.enabled : copy.labels.disabled}</Tag> },
+                                    {
+                                        title: copy.labels.actions,
+                                        render: (_, record) => renderClientActionButton(record, clientIpSupportByServer[record.serverId]),
                                     }
-                                },
-                                { title: copy.labels.inbound, render: (_, r) => r.inboundRemark || r.inboundId },
-                                { title: copy.labels.protocol, dataIndex: 'protocol', render: text => <Tag>{text}</Tag> },
-                                { title: copy.labels.traffic, render: (_, r) => formatBytes((r.up || 0) + (r.down || 0)) },
-                                { title: copy.labels.expiryTime, render: (_, r) => r.expiryTime > 0 ? formatDateOnly(r.expiryTime, locale) : copy.labels.permanent },
-                                { title: copy.labels.status, render: (_, r) => <Tag color={r.enable ? 'success' : 'error'}>{r.enable ? copy.labels.enabled : copy.labels.disabled}</Tag> },
-                                {
-                                    title: copy.labels.actions,
-                                    render: (_, record) => {
-                                        const supportState = clientIpSupportByServer[record.serverId];
-                                        const clientIpUnsupported = supportState?.supported === false;
-                                        const clientIpDisabled = !record.email || clientIpUnsupported;
-                                        return (
-                                            <Button 
-                                                size="small" 
-                                                onClick={() => loadClientIps(record)} 
-                                                disabled={clientIpDisabled}
-                                                icon={<HiOutlineGlobeAlt />}
-                                            >
-                                                {copy.labels.nodeIp}
-                                            </Button>
-                                        );
-                                    }
-                                }
-                            ]}
-                        />
+                                ]}
+                            />
+                        </div>
                     )}
                 </div>
             )
@@ -1334,19 +1406,32 @@ export default function UserDetail() {
             children: (
                 <div>
                     {timeline.length === 0 ? (
-                        <Card style={{ textAlign: 'center' }}>
-                            <Title level={5}>{copy.labels.noActivityTitle}</Title>
-                            <Text type="secondary">{copy.labels.noActivitySubtitle}</Text>
-                        </Card>
+                        <EmptyState title={copy.labels.noActivityTitle} subtitle={copy.labels.noActivitySubtitle} />
                     ) : (
                         <div>
-                            {timeline.map((item, i) => <TimelineEntry key={item.id || i} item={item} index={i} copy={copy} locale={locale} />)}
+                            {shouldVirtualizeTimeline ? (
+                                <VirtualList
+                                    className="timeline-virtual-list"
+                                    innerClassName="timeline-virtual-list-inner"
+                                    items={timeline}
+                                    itemSize={220}
+                                    overscan={4}
+                                    ariaLabel={locale === 'en-US' ? 'User activity timeline' : '用户活动时间线'}
+                                    renderItem={(item, index) => (
+                                        <TimelineEntry item={item} index={index} copy={copy} locale={locale} />
+                                    )}
+                                    getKey={(item, index) => item.id || `${item.ts}-${index}`}
+                                />
+                            ) : (
+                                timeline.map((item, i) => <TimelineEntry key={item.id || i} item={item} index={i} copy={copy} locale={locale} />)
+                            )}
                         </div>
                     )}
                 </div>
             )
         }
     ];
+    const activeTabItem = tabItems.find((item) => item.key === activeTab) || tabItems[0];
 
     return (
         <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
@@ -1362,7 +1447,7 @@ export default function UserDetail() {
                         <Col flex="auto">
                             <Title level={4} style={{ margin: 0 }}>{user.username}</Title>
                             <Text type="secondary">{user.email || user.subscriptionEmail || copy.unsetEmail}</Text>
-                            <div style={{ marginTop: 8, marginBottom: 8 }}>
+                            <div className="user-profile-badges" style={{ marginTop: 8, marginBottom: 8 }}>
                                 <Tag color={user.role === 'admin' ? 'blue' : 'default'}>{user.role === 'admin' ? copy.labels.roleAdmin : copy.labels.roleUser}</Tag>
                                 <Tag color={user.enabled ? 'success' : 'error'}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</Tag>
                                 {user.emailVerified && <Tag color="success">{copy.labels.emailVerified}</Tag>}
@@ -1371,10 +1456,14 @@ export default function UserDetail() {
                                 <span><HiOutlineKey /> {copy.labels.userId}: {user.id}</span>
                                 <span><HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}</span>
                                 <span><HiOutlineClock /> {copy.labels.lastLoginAt}: {formatTime(user.lastLoginAt, locale)}</span>
+                                {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
+                                    <span><HiOutlineEnvelope /> {copy.labels.subscriptionEmail}: {user.subscriptionEmail}</span>
+                                )}
                             </Space>
                         </Col>
                         <Col flex="none">
-                            <Space direction="vertical" align="end">
+                            <div className="user-profile-actions">
+                                <Space orientation="vertical" align="end">
                                 <Button 
                                     danger={user.enabled} 
                                     type={user.enabled ? 'default' : 'primary'} 
@@ -1391,17 +1480,39 @@ export default function UserDetail() {
                                         {copy.labels.refresh}
                                     </Button>
                                 </Space>
-                            </Space>
+                                </Space>
+                            </div>
                         </Col>
                     </Row>
                 </Card>
 
-                <Tabs 
-                    activeKey={activeTab} 
-                    onChange={applyTab} 
-                    items={tabItems}
-                    style={{ backgroundColor: '#141414', padding: '16px 24px', borderRadius: 8, border: '1px solid #303030' }}
-                />
+                <div style={{ backgroundColor: '#141414', padding: '16px 24px', borderRadius: 8, border: '1px solid #303030' }}>
+                    <div role="tablist" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                        {tabItems.map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeTab === item.key}
+                                onClick={() => applyTab(item.key)}
+                                style={{
+                                    border: '1px solid',
+                                    borderColor: activeTab === item.key ? '#177ddc' : '#303030',
+                                    background: activeTab === item.key ? '#0f2740' : '#141414',
+                                    color: '#fff',
+                                    borderRadius: 8,
+                                    padding: '8px 14px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div key={activeTab}>
+                        {activeTabItem.children}
+                    </div>
+                </div>
             </div>
 
             {/* TODO: Ant Design Modal for ClientIpModal if needed, assuming ClientIpModal itself might be separate or we just pass Antd styling. */}

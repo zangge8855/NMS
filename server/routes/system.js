@@ -44,6 +44,11 @@ import {
     sendRegisteredUserNoticeCampaign,
 } from '../services/registeredUserNoticeService.js';
 import {
+    normalizeInviteRegistrationEntryUrl,
+    normalizeInviteRegistrationRecipients,
+    sendInviteRegistrationCampaign,
+} from '../services/inviteRegistrationEmailService.js';
+import {
     applySecurityBootstrap,
     getSecurityBootstrapStatus,
 } from '../lib/securityBootstrap.js';
@@ -71,6 +76,43 @@ function normalizeStoreKeys(input) {
     }
     if (!Array.isArray(input)) return [];
     return Array.from(new Set(input.map((item) => String(item || '').trim()).filter(Boolean)));
+}
+
+function resolveInviteRegistrationEntryUrl(req) {
+    const explicitEntryUrl = String(req.body?.entryUrl || '').trim();
+    if (explicitEntryUrl) {
+        const normalizedExplicit = normalizeInviteRegistrationEntryUrl(explicitEntryUrl);
+        if (!normalizedExplicit) {
+            throw new Error('注册入口链接无效');
+        }
+        return normalizedExplicit;
+    }
+
+    const siteAccessPath = String(systemSettingsStore.getSite()?.accessPath || '/').trim() || '/';
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+        .split(',')[0]
+        .trim()
+        .replace(/:$/, '');
+    const forwardedHost = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+        .split(',')[0]
+        .trim();
+
+    if (forwardedHost) {
+        return normalizeInviteRegistrationEntryUrl(`${forwardedProto || 'http'}://${forwardedHost}${siteAccessPath}`);
+    }
+
+    const publicBaseUrl = normalizeInviteRegistrationEntryUrl(systemSettingsStore.getSubscription()?.publicBaseUrl);
+    if (!publicBaseUrl) return '';
+
+    try {
+        const url = new URL(publicBaseUrl);
+        url.pathname = siteAccessPath === '/' ? '/' : siteAccessPath;
+        url.search = '';
+        url.hash = '';
+        return normalizeInviteRegistrationEntryUrl(url.toString());
+    } catch {
+        return '';
+    }
 }
 
 router.use(authMiddleware);
@@ -154,6 +196,142 @@ router.post('/invite-codes', adminOnly, (req, res) => {
             msg: error.message || '创建邀请码失败',
         });
     }
+});
+
+router.post('/invite-codes/send-email', adminOnly, async (req, res) => {
+    if (!getEmailStatus().configured) {
+        return res.status(400).json({
+            success: false,
+            msg: 'SMTP 未配置，无法发送注册邀请邮件',
+        });
+    }
+
+    const usageLimit = req.body?.usageLimit;
+    const subscriptionDays = req.body?.subscriptionDays;
+    const message = String(req.body?.message || '').trim();
+    const actor = req.user?.username || req.user?.userId || req.user?.role || 'admin';
+    const resolvedRecipients = normalizeInviteRegistrationRecipients(req.body?.emails);
+
+    if (resolvedRecipients.recipients.length === 0) {
+        return res.status(400).json({
+            success: false,
+            msg: resolvedRecipients.skipped.length > 0 ? '没有可用的邀请邮箱，请检查输入格式' : '至少填写一个邀请邮箱',
+            obj: {
+                recipientCount: 0,
+                skippedCount: resolvedRecipients.skipped.length,
+                skippedDetails: resolvedRecipients.skipped.slice(0, 20),
+            },
+        });
+    }
+
+    let entryUrl = '';
+    try {
+        entryUrl = resolveInviteRegistrationEntryUrl(req);
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '注册入口链接无效',
+        });
+    }
+
+    const { taskId, signal } = taskQueue.create({
+        type: 'invite_registration_email',
+        actor,
+        meta: {
+            recipientCount: resolvedRecipients.recipients.length,
+            skippedCount: resolvedRecipients.skipped.length,
+            usageLimit,
+            subscriptionDays,
+        },
+    });
+    taskQueue.start(taskId);
+
+    void (async () => {
+        try {
+            const result = await sendInviteRegistrationCampaign({
+                emails: req.body?.emails,
+                usageLimit,
+                subscriptionDays,
+                entryUrl,
+                message,
+                createdBy: actor,
+                inviterName: actor,
+            }, {
+                signal,
+                onProgress: ({ step, total, label }) => {
+                    taskQueue.updateProgress(taskId, { step, total, label });
+                },
+            });
+
+            taskQueue.complete(taskId, result);
+            notificationService.notify({
+                type: 'invite_registration_email',
+                severity: result.failed > 0 ? 'warning' : 'info',
+                title: result.failed > 0 ? '注册邀请邮件部分发送失败' : '注册邀请邮件已发送',
+                body: `成功 ${result.success}，失败 ${result.failed}，跳过 ${result.skipped}。`,
+                meta: {
+                    taskId,
+                    ...result,
+                },
+            });
+            appendSecurityAudit('invite_registration_email_sent', { user: { username: actor } }, {
+                recipientCount: result.total,
+                success: result.success,
+                failed: result.failed,
+                skipped: result.skipped,
+                usageLimit: result.usageLimit,
+                subscriptionDays: result.subscriptionDays,
+            }, {
+                outcome: result.failed > 0 ? 'failed' : 'success',
+            });
+        } catch (error) {
+            if (signal?.aborted || taskQueue.isCancelled(taskId)) {
+                notificationService.notify({
+                    type: 'invite_registration_email',
+                    severity: 'warning',
+                    title: '注册邀请邮件任务已取消',
+                    body: `任务 ${taskId.slice(0, 8)} 已取消。`,
+                    meta: { taskId },
+                });
+                appendSecurityAudit('invite_registration_email_sent', { user: { username: actor } }, {
+                    recipientCount: resolvedRecipients.recipients.length,
+                    skipped: resolvedRecipients.skipped.length,
+                    cancelled: true,
+                }, {
+                    outcome: 'failed',
+                });
+                return;
+            }
+
+            taskQueue.fail(taskId, error);
+            notificationService.notify({
+                type: 'invite_registration_email',
+                severity: 'critical',
+                title: '注册邀请邮件发送失败',
+                body: error.message || '邀请邮件发送任务失败',
+                meta: { taskId },
+            });
+            appendSecurityAudit('invite_registration_email_sent', { user: { username: actor } }, {
+                recipientCount: resolvedRecipients.recipients.length,
+                skipped: resolvedRecipients.skipped.length,
+                error: error.message || '邀请邮件发送任务失败',
+            }, {
+                outcome: 'failed',
+            });
+        }
+    })();
+
+    return res.json({
+        success: true,
+        msg: '邀请邮件发送任务已创建',
+        obj: {
+            taskId,
+            async: true,
+            status: TASK_STATUS.PENDING,
+            recipientCount: resolvedRecipients.recipients.length,
+            skippedCount: resolvedRecipients.skipped.length,
+        },
+    });
 });
 
 router.delete('/invite-codes/:id', adminOnly, (req, res) => {

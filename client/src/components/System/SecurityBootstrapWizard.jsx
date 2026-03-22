@@ -203,7 +203,7 @@ export default function SecurityBootstrapWizard() {
         >
             <Row gutter={0}>
                 <Col xs={24} md={10} style={{ padding: '32px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0' }}>
-                    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                         <div>
                             <Text strong type="secondary" style={{ textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>
                                 NMS Security
@@ -238,7 +238,7 @@ export default function SecurityBootstrapWizard() {
                             </Col>
                             <Col span={24}>
                                 <Card size="small" title={copy.statsTitle} bordered={false} styles={{ header: { padding: '8px 12px', borderBottom: 0 }, body: { padding: '0 12px 8px' } }}>
-                                    <Space direction="vertical" size={0}>
+                                    <Space orientation="vertical" size={0}>
                                         <Text size="small">{copy.serverCount}: {status.stats?.serverCount || 0}</Text>
                                         <Text size="small" type="secondary">
                                             {copy.telegramConfigured}: {status.stats?.telegramConfigured ? copy.telegramReady : copy.telegramEmpty}

@@ -1,26 +1,8 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray, HiOutlineQrCode } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
-import { 
-    Card, 
-    Typography, 
-    Button, 
-    Input, 
-    Select, 
-    Space, 
-    Row, 
-    Col, 
-    Tag, 
-    Modal, 
-    Empty, 
-    Divider, 
-    Badge, 
-    Tooltip,
-    Progress,
-    Descriptions
-} from 'antd';
 import api from '../../api/client.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { formatBytes, formatDateOnly } from '../../utils/format.js';
@@ -30,10 +12,12 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
-
-const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
+import CircularMeter from '../UI/CircularMeter.jsx';
 
 function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
@@ -59,14 +43,14 @@ function clampProgress(value) {
     return Math.max(0, Math.min(100, numeric));
 }
 
-function pickProgressStatus(progress, { inverse = false } = {}) {
+function pickProgressTone(progress, { inverse = false } = {}) {
     if (!inverse) {
-        if (progress >= 95) return 'exception';
-        if (progress >= 80) return 'normal'; // Ant Design doesn't have a 'warning' status for Progress that changes color easily without custom strokeColor
-        return 'active';
+        if (progress >= 95) return 'danger';
+        if (progress >= 80) return 'warning';
+        return 'info';
     }
-    if (progress <= 5) return 'exception';
-    if (progress <= 20) return 'normal';
+    if (progress <= 5) return 'danger';
+    if (progress <= 20) return 'warning';
     return 'success';
 }
 
@@ -75,7 +59,7 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     if (!(timestamp > 0)) {
         return {
             progress: 100,
-            status: 'success',
+            tone: 'success',
             meta: '∞',
         };
     }
@@ -84,7 +68,7 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     if (remainingMs <= 0) {
         return {
             progress: 0,
-            status: 'exception',
+            tone: 'danger',
             meta: locale === 'en-US' ? 'Expired' : '已到期',
         };
     }
@@ -92,7 +76,7 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     const remainingDays = Math.max(1, Math.ceil(remainingMs / 86400000));
     return {
         progress: clampProgress((remainingDays / 30) * 100),
-        status: remainingDays <= 3 ? 'exception' : 'normal',
+        tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
         meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays}天`,
     };
 }
@@ -115,7 +99,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             userTitle: 'Your Subscription',
             adminTitle: 'Subscription Address & Import',
             userSubtitle: 'Choose a config, then copy or scan it.',
-            adminSubtitle: 'For end users, these two steps are enough.',
+                adminSubtitle: 'For end users, these two steps are enough.',
             available: 'Subscription Ready',
             unavailable: 'Subscription Unavailable',
             nodeCount: `${nodeCount} nodes`,
@@ -132,32 +116,32 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
             userStepKicker: 'Flow',
-            userStepTitle: 'Choose a config, then import it',
-            userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
-            copyOrScanTitle: 'Address and import',
-            copyOrScanText: 'Copy, scan and quick import stay together here.',
-            deviceOpenTitle: 'Downloads',
-            deviceOpenText: '',
-            resetRiskTitle: 'Reset only if leaked',
-            resetRiskText: 'The old link stops working immediately.',
-            heroTitle: 'Choose a config -> Copy or import it',
-            heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
-            manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
-            adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
-            goSettings: 'Change it in Settings',
-            qrAriaLabel: 'Subscription QR code · {label}',
-            quickImportHint: 'You can also use the quick import buttons below.',
-            adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
-            moreImports: 'More imports',
-            simpleReminder: 'Choose a config -> Copy or import',
-            qrHint: 'You can also scan the QR code.',
-            guideTitle: 'How to share it',
-            guideSubtitle: 'Just explain these two steps.',
-            guideStep1Title: 'Choose a config',
-            guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
-            guideStep2Title: 'Copy or import it',
-            guideStep2Text: 'Use one-tap import when available. Otherwise, copy the address above and paste it into the client.',
-            summaryTitle: 'Current Subscription Summary',
+                userStepTitle: 'Choose a config, then import it',
+                userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
+                copyOrScanTitle: 'Address and import',
+                copyOrScanText: 'Copy, scan and quick import stay together here.',
+                deviceOpenTitle: 'Downloads',
+                deviceOpenText: '',
+                resetRiskTitle: 'Reset only if leaked',
+                resetRiskText: 'The old link stops working immediately.',
+                heroTitle: 'Choose a config -> Copy or import it',
+                heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
+                manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
+                adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
+                goSettings: 'Change it in Settings',
+                qrAriaLabel: 'Subscription QR code · {label}',
+                quickImportHint: 'You can also use the quick import buttons below.',
+                adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
+                moreImports: 'More imports',
+                simpleReminder: 'Choose a config -> Copy or import',
+                qrHint: 'You can also scan the QR code.',
+                guideTitle: 'How to share it',
+                guideSubtitle: 'Just explain these two steps.',
+                guideStep1Title: 'Choose a config',
+                guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
+                guideStep2Title: 'Copy or import it',
+                guideStep2Text: 'Use one-tap import when available. Otherwise, copy the address above and paste it into the client.',
+                summaryTitle: 'Current Subscription Summary',
             summarySubtitle: 'Key details stay in one place for quick checks.',
             summaryUser: 'Current User',
             summaryStatus: 'Subscription Status',
@@ -371,7 +355,13 @@ export default function Subscriptions() {
     const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
         ? ui.selectedNode.replace('{id}', selectedServerId)
         : ui.allNodes;
-    
+    const toolbarSelectionLabel = normalizedEmail
+        ? `${locale === 'en-US' ? 'User' : '当前用户'} · ${normalizedEmail}`
+        : (locale === 'en-US' ? 'Enter email manually' : '手动输入邮箱');
+    const toolbarUsersLabel = usersAccessDenied
+        ? (locale === 'en-US' ? 'Manual input only' : '仅支持手动输入')
+        : `${locale === 'en-US' ? 'User list' : '用户列表'} ${users.length}`;
+    const toolbarScopeLabel = `${locale === 'en-US' ? 'Scope' : '范围'} · ${summaryScopeLabel}`;
     const usedTrafficBytes = Number(result?.usedTrafficBytes || 0);
     const trafficLimitBytes = Number(result?.trafficLimitBytes || 0);
     const remainingTrafficBytes = Number(result?.remainingTrafficBytes || 0);
@@ -389,6 +379,38 @@ export default function Subscriptions() {
         ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
         : 100;
     const expiryProgressState = buildExpiryProgress(result?.expiryTime, locale);
+    const statusCards = [
+        {
+            key: 'used',
+            label: ui.usedTraffic,
+            value: usedTrafficLabel,
+            meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
+            progress: usedTrafficProgress,
+            tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
+            pulse: usedTrafficProgress >= 95,
+        },
+        {
+            key: 'available',
+            label: ui.availableTraffic,
+            value: availableTrafficLabel,
+            meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
+            progress: availableTrafficProgress,
+            tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
+            pulse: trafficLimitBytes > 0 && availableTrafficProgress <= 5,
+        },
+        {
+            key: 'expiry',
+            label: ui.expiryTime,
+            value: expiryTimeLabel,
+            meta: expiryProgressState.meta,
+            progress: expiryProgressState.progress,
+            tone: expiryProgressState.tone,
+            pulse: expiryProgressState.tone === 'danger',
+        },
+    ];
+    const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
+    const shouldShowInlineQr = !isCompactViewport;
+    const shouldShowSideColumn = !isUserOnly;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -538,157 +560,368 @@ export default function Subscriptions() {
         setResetLoading(false);
     };
 
-    const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
-
     return (
         <>
             <Header title={t('pages.subscriptions.title')} />
-            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+            <div className="page-content page-content--wide page-enter subscriptions-page">
                 {isAdmin && (
-                    <Card style={{ marginBottom: 24 }}>
-                        <Row gutter={[16, 16]} align="bottom">
-                            <Col xs={24} md={12}>
-                                <Text strong block style={{ marginBottom: 8 }}>{ui.userEmail}</Text>
-                                <Select
-                                    showSearch
-                                    style={{ width: '100%' }}
-                                    placeholder="user@example.com"
-                                    value={selectedEmail}
-                                    onChange={setSelectedEmail}
-                                    onSearch={(val) => setSelectedEmail(val)}
-                                    disabled={isUserOnly}
-                                >
-                                    {users.map((email) => (
-                                        <Option key={email} value={email}>{email}</Option>
-                                    ))}
-                                </Select>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Text strong block style={{ marginBottom: 8 }}>{ui.scope}</Text>
-                                <Select
-                                    style={{ width: '100%' }}
-                                    value={selectedServerId}
-                                    onChange={setSelectedServerId}
-                                >
-                                    <Option value="all">{ui.allNodes}</Option>
-                                    {servers.map((server) => (
-                                        <Option key={server.id} value={server.id}>{server.name}</Option>
-                                    ))}
-                                </Select>
-                            </Col>
-                            <Col xs={24}>
-                                <Space wrap>
+                    <PageToolbar
+                        className="card mb-8 subscriptions-toolbar"
+                        main={(
+                            <>
+                                <div className="form-group subscriptions-toolbar-field">
+                                    <label className="form-label">{ui.userEmail}</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        placeholder="user@example.com"
+                                        list="subscription-user-list"
+                                        value={selectedEmail}
+                                        onChange={(e) => setSelectedEmail(e.target.value)}
+                                        readOnly={isUserOnly}
+                                    />
+                                    <datalist id="subscription-user-list">
+                                        {users.map((email) => (
+                                            <option key={email} value={email} />
+                                        ))}
+                                    </datalist>
+                                </div>
+                                <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
+                                    <label className="form-label">{ui.scope}</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedServerId}
+                                        onChange={(e) => setSelectedServerId(e.target.value)}
+                                    >
+                                        <option value="all">{ui.allNodes}</option>
+                                        {servers.map((server) => (
+                                            <option key={server.id} value={server.id}>{server.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </>
+                        )}
+                        actions={(
+                            <>
+                                <div className="subscriptions-toolbar-secondary">
                                     {normalizedEmail && (
-                                        <Link to={linkedUserHref}>
-                                            <Button>{ui.manageUsers}</Button>
+                                        <Link className="btn btn-secondary" to={linkedUserHref}>
+                                            {ui.manageUsers}
                                         </Link>
                                     )}
-                                    <Button 
-                                        icon={<HiOutlineArrowPath />} 
-                                        onClick={loadUsers} 
-                                        loading={usersLoading}
-                                    >
-                                        {ui.refreshUsers}
-                                    </Button>
-                                    <Button 
-                                        type="primary" 
-                                        icon={<HiOutlineArrowPath />} 
-                                        onClick={() => loadSubscription()} 
-                                        loading={loading}
-                                        disabled={!normalizedEmail}
-                                    >
-                                        {ui.reload}
-                                    </Button>
-                                </Space>
-                            </Col>
-                        </Row>
-                    </Card>
+                                    <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                        {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
+                                    </button>
+                                </div>
+                                <div className="subscriptions-toolbar-primary">
+                                    <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={loading || !normalizedEmail}>
+                                        {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                        meta={(
+                            <div className="subscriptions-toolbar-meta">
+                                <span className={`subscriptions-toolbar-chip${normalizedEmail ? ' is-active' : ''}`}>
+                                    {toolbarSelectionLabel}
+                                </span>
+                                <span className="subscriptions-toolbar-chip">{toolbarScopeLabel}</span>
+                                <span className={`subscriptions-toolbar-chip${usersAccessDenied ? ' is-warning' : ''}`}>
+                                    {toolbarUsersLabel}
+                                </span>
+                            </div>
+                        )}
+                    />
                 )}
 
-                <Row gutter={[24, 24]}>
-                    <Col xs={24} lg={isAdmin ? 16 : 24}>
+                <div className={`subscriptions-workbench${shouldShowSideColumn ? '' : ' subscriptions-workbench--simple'}`}>
+                    <div className="subscriptions-main-column">
                         {!result ? (
-                            <Card>
-                                <Empty
-                                    image={<HiOutlineLink style={{ fontSize: '48px', color: '#ccc' }} />}
-                                    description={
-                                        <Title level={5}>
-                                            {isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
-                                        </Title>
-                                    }
-                                >
-                                    {isUserOnly && !defaultIdentity && (
-                                        <Link to="/downloads">
-                                            <Button icon={<HiOutlineArrowDownTray />}>{t('comp.common.goDownloads')}</Button>
+                            <div className="card subscription-empty-card">
+                                <EmptyState
+                                    title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
+                                    icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
+                                    surface
+                                    action={isUserOnly && !defaultIdentity ? (
+                                        <Link className="btn btn-secondary" to="/downloads">
+                                            <HiOutlineArrowDownTray /> {t('comp.common.goDownloads')}
                                         </Link>
-                                    )}
-                                </Empty>
-                            </Card>
+                                    ) : undefined}
+                                />
+                            </div>
                         ) : (
-                            <Card 
-                                title={<Title level={4} style={{ margin: 0 }}>{isUserOnly ? ui.userTitle : ui.adminTitle}</Title>}
-                                extra={
-                                    <Button 
-                                        danger 
-                                        onClick={handleResetLink} 
-                                        loading={resetLoading}
-                                        disabled={!normalizedEmail}
-                                    >
-                                        {ui.resetLink}
-                                    </Button>
-                                }
-                            >
-                                <Paragraph type="secondary">{isUserOnly ? ui.userSubtitle : ui.adminSubtitle}</Paragraph>
-                                
-                                <Divider />
-
-                                <Space direction="vertical" style={{ width: '100%' }} size="large">
-                                    <div>
-                                        <Text strong block style={{ marginBottom: 12 }}>{ui.simpleReminder}</Text>
-                                        <Space wrap>
-                                            {displayedProfiles.map((item) => (
-                                                <Button
-                                                    key={item.key}
-                                                    type={profileKey === item.key ? 'primary' : 'default'}
-                                                    onClick={() => setProfileKey(item.key)}
+                            <>
+                                <div className="card subscription-primary-card">
+                                    {!isUserOnly && (
+                                        <SectionHeader
+                                            className="card-header section-header section-header--compact"
+                                            title={ui.adminTitle}
+                                            actions={(
+                                                <button
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={handleResetLink}
+                                                    disabled={resetLoading || !normalizedEmail}
                                                 >
-                                                    {item.label}
-                                                </Button>
-                                            ))}
-                                        </Space>
-                                    </div>
-
-                                    <Card size="small" style={{ backgroundColor: '#fafafa' }}>
-                                        <Row gutter={[16, 16]}>
-                                            <Col xs={24} md={canShowQr && !isCompactViewport ? 16 : 24}>
-                                                <Space direction="vertical" style={{ width: '100%' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <Text strong>{ui.copyOrScanTitle}</Text>
-                                                        <Tag color={result.subscriptionActive ? 'success' : 'error'}>
-                                                            {result.subscriptionActive ? ui.available : ui.unavailable}
-                                                        </Tag>
+                                                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
+                                                </button>
+                                            )}
+                                        />
+                                    )}
+                                    {isUserOnly ? (
+                                        <div className="subscription-user-flow">
+                                            <div className="subscription-user-panel subscription-user-panel--import">
+                                                <div className="subscription-user-panel-title subscription-user-panel-title--flow">{ui.simpleReminder}</div>
+                                                <div className="subscription-profile-switches subscription-profile-switches--compact">
+                                                    {displayedProfiles.map((item) => (
+                                                        <button
+                                                            key={item.key}
+                                                            type="button"
+                                                            className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                            onClick={() => setProfileKey(item.key)}
+                                                        >
+                                                            {item.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr">
+                                                    <div className="subscription-user-address-shell">
+                                                        <div className="subscription-user-address-head">
+                                                            <div className="subscription-user-address-copy">
+                                                                <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+                                                            </div>
+                                                            <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                                {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                            </span>
+                                                        </div>
+                                                        {shouldShowProfileContext && (
+                                                            <div className="subscription-link-card-meta">
+                                                                {activeProfileSupportedClients.length > 0 && (
+                                                                    <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                                                        <span className="subscription-current-profile-tools-label">
+                                                                            {activeProfileSupportedClientsLabel}
+                                                                        </span>
+                                                                        <div className="subscription-current-profile-tools-list">
+                                                                            {activeProfileSupportedClients.map((client) => (
+                                                                                <span key={client} className="badge badge-neutral">{client}</span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        <div className="subscription-user-address-grid">
+                                                            <div className="subscription-user-address-main">
+                                                                <input
+                                                                    className="form-input font-mono text-xs subscription-url-input"
+                                                                    value={activeProfile?.url || ''}
+                                                                    readOnly
+                                                                    title={activeProfile?.url || ''}
+                                                                    dir="ltr"
+                                                                    spellCheck={false}
+                                                                />
+                                                                <div className="subscription-user-address-actions">
+                                                                    <CopyFeedbackButton
+                                                                        className="btn btn-primary btn-sm subscription-user-copy-btn"
+                                                                        text={activeProfile?.url || ''}
+                                                                        successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
+                                                                        errorText={t('comp.common.noCopyableUrl')}
+                                                                        disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                                    >
+                                                                        {ui.copyAddress}
+                                                                    </CopyFeedbackButton>
+                                                                    {isCompactViewport && canShowQr ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-secondary btn-sm subscription-user-import-btn"
+                                                                            onClick={() => setQrModalOpen(true)}
+                                                                        >
+                                                                            <HiOutlineQrCode /> {ui.scanImport}
+                                                                        </button>
+                                                                    ) : null}
+                                                                    {primaryImportActions.map((item) => (
+                                                                        <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
+                                                                            {item.label}
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                                {secondaryImportActions.length > 0 && (
+                                                                    <details className="subscription-import-disclosure">
+                                                                        <summary className="subscription-import-disclosure-toggle">{ui.moreImports}</summary>
+                                                                        <div className="subscription-import-disclosure-actions">
+                                                                            {secondaryImportActions.map((item) => (
+                                                                                <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
+                                                                                    {item.label}
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
+                                                                    </details>
+                                                                )}
+                                                                <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                                    {statusCards.map((item) => (
+                                                                        <CircularMeter
+                                                                            key={item.key}
+                                                                            label={item.label}
+                                                                            value={item.value}
+                                                                            meta={item.meta}
+                                                                            progress={item.progress}
+                                                                            tone={item.tone}
+                                                                            pulse={item.pulse}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                                <div className="subscription-user-address-note">
+                                                                    {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
+                                                                </div>
+                                                            </div>
+                                                            {shouldShowInlineQr ? (
+                                                            <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
+                                                                {activeProfile?.url && result.subscriptionActive ? (
+                                                                    <>
+                                                                        <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                        <div
+                                                                            className="qr-surface subscription-inline-qr-surface"
+                                                                            role="img"
+                                                                            aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
+                                                                        >
+                                                                            <QRCodeSVG
+                                                                                value={activeProfile.url}
+                                                                                size={128}
+                                                                                level="M"
+                                                                                includeMargin={false}
+                                                                            />
+                                                                        </div>
+                                                                        <div className="subscription-inline-qr-text">{ui.qrHint}</div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="text-sm text-muted">{ui.noQr}</div>
+                                                                )}
+                                                            </div>
+                                                            ) : null}
+                                                        </div>
                                                     </div>
-
+                                                    <div className="subscription-user-address-foot">
+                                                        <button
+                                                            className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
+                                                            onClick={handleResetLink}
+                                                            disabled={resetLoading || !normalizedEmail}
+                                                        >
+                                                            {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
+                                                        </button>
+                                                        <div className="subscription-user-reset-inline-copy">
+                                                            <HiOutlineExclamationTriangle className="subscription-user-reset-inline-icon" />
+                                                            <span className="subscription-user-reset-inline-note">
+                                                                <span className="subscription-user-reset-inline-title">{ui.resetRiskTitle}</span>
+                                                                <span className="subscription-user-reset-inline-divider" aria-hidden="true"> · </span>
+                                                                <span className="subscription-user-reset-inline-text">{ui.resetRiskText}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="subscription-admin-focus subscription-admin-focus--overview">
+                                                <div className="subscription-admin-focus-main">
+                                                    <div className="subscription-hero-copy">
+                                                        <div className="subscription-hero-title">{ui.heroTitle}</div>
+                                                        <div className="subscription-hero-text">
+                                                            {ui.heroText}
+                                                        </div>
+                                                    </div>
+                                                    <div className="subscription-admin-focus-copy">
+                                                    <div className="subscription-admin-focus-label">{ui.summaryUser}</div>
+                                                    <div className="subscription-admin-focus-value">
+                                                        {isAdmin ? (
+                                                            <Link className="subscription-email-link" to={linkedUserHref}>
+                                                                {result.email}
+                                                            </Link>
+                                                        ) : result.email}
+                                                    </div>
+                                                    <div className="subscription-admin-focus-meta">
+                                                        {ui.summaryScope}: {summaryScopeLabel}
+                                                        {' · '}
+                                                        {ui.summaryMatched.replace('{active}', String(result.matchedClientsActive)).replace('{raw}', String(result.matchedClientsRaw))}
+                                                    </div>
+                                                </div>
+                                                </div>
+                                                <div className="subscription-admin-focus-badges">
+                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                    </span>
+                                                    <span className="badge badge-neutral">{activeProfile?.label || ui.currentProfileFallback}</span>
+                                                    <span className="badge badge-neutral">{ui.nodeCount}</span>
+                                                </div>
+                                            </div>
+                                            <div className="subscription-profile-switches">
+                                                {availableProfiles.map((item) => (
+                                                    <button
+                                                        key={item.key}
+                                                        type="button"
+                                                        className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                        onClick={() => setProfileKey(item.key)}
+                                                    >
+                                                        {item.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className="subscription-profile-notes">
+                                                <div className="text-xs text-muted">{ui.manualImportHint}</div>
+                                                {isAdmin && result.bundle?.externalConverterConfigured && (
+                                                    <div className="text-xs text-muted">
+                                                        {ui.adminConverterHint}
+                                                        {' '}
+                                                        <a
+                                                            href={result.bundle.externalConverterBaseUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            {result.bundle.externalConverterHost || result.bundle.externalConverterBaseUrl}
+                                                        </a>
+                                                        {' '}
+                                                        ·
+                                                        {' '}
+                                                        <Link to="/settings">{ui.goSettings}</Link>
+                                                    </div>
+                                                )}
+                                            </div>
+                                                <div className="subscription-link-with-qr">
+                                                    <div className="subscription-link-card subscription-link-card--import-focus">
+                                                        <div className="subscription-user-address-head">
+                                                            <div className="subscription-user-address-copy">
+                                                                <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+                                                            </div>
+                                                            <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                                {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                            </span>
+                                                        </div>
                                                     {shouldShowProfileContext && (
-                                                        <div>
-                                                            <Text type="secondary" size="small" style={{ marginRight: 8 }}>{activeProfileSupportedClientsLabel}:</Text>
-                                                            <Space wrap>
-                                                                {activeProfileSupportedClients.map((client) => (
-                                                                    <Tag key={client}>{client}</Tag>
-                                                                ))}
-                                                            </Space>
+                                                        <div className="subscription-link-card-meta">
+                                                            {activeProfileSupportedClients.length > 0 && (
+                                                                <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                                                    <span className="subscription-current-profile-tools-label">
+                                                                        {activeProfileSupportedClientsLabel}
+                                                                    </span>
+                                                                    <div className="subscription-current-profile-tools-list">
+                                                                        {activeProfileSupportedClients.map((client) => (
+                                                                            <span key={client} className="badge badge-neutral">{client}</span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
-
-                                                    <Input.Group compact style={{ marginTop: 8 }}>
-                                                        <Input 
-                                                            style={{ width: 'calc(100% - 100px)' }} 
-                                                            value={activeProfile?.url || ''} 
-                                                            readOnly 
+                                                    <div className="subscription-link-grid">
+                                                        <input
+                                                            className="form-input font-mono text-xs subscription-url-input"
+                                                            value={activeProfile?.url || ''}
+                                                            readOnly
+                                                            title={activeProfile?.url || ''}
+                                                            dir="ltr"
+                                                            spellCheck={false}
                                                         />
                                                         <CopyFeedbackButton
-                                                            style={{ width: '100px' }}
-                                                            type="primary"
+                                                            className="btn btn-primary"
                                                             text={activeProfile?.url || ''}
                                                             successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
                                                             errorText={t('comp.common.noCopyableUrl')}
@@ -696,177 +929,192 @@ export default function Subscriptions() {
                                                         >
                                                             {ui.copyAddress}
                                                         </CopyFeedbackButton>
-                                                    </Input.Group>
-
-                                                    <Space wrap style={{ marginTop: 8 }}>
-                                                        {isCompactViewport && canShowQr && (
-                                                            <Button icon={<HiOutlineQrCode />} onClick={() => setQrModalOpen(true)}>
-                                                                {ui.scanImport}
-                                                            </Button>
-                                                        )}
-                                                        {primaryImportActions.map((item) => (
-                                                            <Button key={item.label} href={item.href}>
-                                                                {item.label}
-                                                            </Button>
-                                                        ))}
-                                                        {secondaryImportActions.length > 0 && (
-                                                            <Select placeholder={ui.moreImports} style={{ width: 120 }} onChange={(val) => window.location.href = val}>
-                                                                {secondaryImportActions.map(item => (
-                                                                    <Option key={item.label} value={item.href}>{item.label}</Option>
-                                                                ))}
-                                                            </Select>
-                                                        )}
-                                                    </Space>
-
-                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                        {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
-                                                    </Text>
-                                                </Space>
-                                            </Col>
-
-                                            {canShowQr && !isCompactViewport && (
-                                                <Col xs={24} md={8} style={{ textAlign: 'center' }}>
-                                                    <div style={{ padding: '8px', background: '#fff', borderRadius: '8px', display: 'inline-block' }}>
-                                                        <QRCodeSVG
-                                                            value={activeProfile?.url || ''}
-                                                            size={128}
-                                                            level="M"
-                                                            includeMargin={false}
-                                                        />
                                                     </div>
-                                                    <Paragraph type="secondary" style={{ marginTop: 8, fontSize: '12px' }}>{ui.qrHint}</Paragraph>
-                                                </Col>
-                                            )}
-                                        </Row>
-                                    </Card>
-
-                                    <Row gutter={[16, 16]}>
-                                        <Col xs={24} sm={8}>
-                                            <Card size="small" title={<Text style={{ fontSize: '12px' }}>{ui.usedTraffic}</Text>}>
-                                                <Title level={4} style={{ margin: 0 }}>{usedTrafficLabel}</Title>
-                                                <Progress 
-                                                    percent={usedTrafficProgress} 
-                                                    status={pickProgressStatus(usedTrafficProgress)} 
-                                                    showInfo={false} 
-                                                    size="small" 
-                                                />
-                                            </Card>
-                                        </Col>
-                                        <Col xs={24} sm={8}>
-                                            <Card size="small" title={<Text style={{ fontSize: '12px' }}>{ui.availableTraffic}</Text>}>
-                                                <Title level={4} style={{ margin: 0 }}>{availableTrafficLabel}</Title>
-                                                <Progress 
-                                                    percent={availableTrafficProgress} 
-                                                    status={pickProgressStatus(availableTrafficProgress, { inverse: true })} 
-                                                    showInfo={false} 
-                                                    size="small" 
-                                                />
-                                            </Card>
-                                        </Col>
-                                        <Col xs={24} sm={8}>
-                                            <Card size="small" title={<Text style={{ fontSize: '12px' }}>{ui.expiryTime}</Text>}>
-                                                <Title level={4} style={{ margin: 0 }}>{expiryTimeLabel}</Title>
-                                                <Progress 
-                                                    percent={expiryProgressState.progress} 
-                                                    status={expiryProgressState.status} 
-                                                    showInfo={false} 
-                                                    size="small" 
-                                                />
-                                            </Card>
-                                        </Col>
-                                    </Row>
-
-                                    <Card size="small" style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}>
-                                        <Space align="start">
-                                            <HiOutlineExclamationTriangle style={{ color: '#faad14', fontSize: '16px', marginTop: '4px' }} />
-                                            <div>
-                                                <Text strong>{ui.resetRiskTitle}</Text>
-                                                <br />
-                                                <Text type="secondary" style={{ fontSize: '12px' }}>{ui.resetRiskText}</Text>
+                                                    <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                        {statusCards.map((item) => (
+                                                            <CircularMeter
+                                                                key={item.key}
+                                                                label={item.label}
+                                                                value={item.value}
+                                                                meta={item.meta}
+                                                                progress={item.progress}
+                                                                tone={item.tone}
+                                                                pulse={item.pulse}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <div className="subscription-user-address-note">
+                                                        {selectedImportActions.length > 0 ? ui.adminQuickImportHint : ui.noQuickImport}
+                                                    </div>
+                                                </div>
+                                                    <div className="subscription-inline-qr">
+                                                        {activeProfile?.url && result.subscriptionActive ? (
+                                                            <>
+                                                                <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                <div
+                                                                    className="qr-surface subscription-inline-qr-surface"
+                                                                    role="img"
+                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
+                                                            >
+                                                                <QRCodeSVG
+                                                                    value={activeProfile.url}
+                                                                    size={124}
+                                                                    level="M"
+                                                                        includeMargin={false}
+                                                                    />
+                                                                </div>
+                                                                <div className="subscription-inline-qr-text">{ui.adminQuickImportHint}</div>
+                                                                {primaryImportActions.length > 0 ? (
+                                                                    <div className="subscription-inline-quick-actions">
+                                                                        <div className="subscription-inline-quick-list">
+                                                                            {primaryImportActions.map((item) => (
+                                                                                <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-inline-quick-btn">
+                                                                                    {item.label}
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
+                                                                        {secondaryImportActions.length > 0 && (
+                                                                            <details className="subscription-import-disclosure subscription-import-disclosure--inline">
+                                                                                <summary className="subscription-import-disclosure-toggle">{ui.moreImports}</summary>
+                                                                                <div className="subscription-import-disclosure-actions">
+                                                                                    {secondaryImportActions.map((item) => (
+                                                                                        <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-inline-quick-btn">
+                                                                                            {item.label}
+                                                                                        </a>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </details>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="subscription-inline-quick-hint">{ui.noQuickImport}</div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-muted">{ui.noQr}</div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </Space>
-                                    </Card>
-                                </Space>
-                            </Card>
+                                        </>
+                                    )}
+                                </div>
+                            </>
                         )}
-                    </Col>
-
-                    {isAdmin && result && (
-                        <Col xs={24} lg={8}>
-                            <Space direction="vertical" style={{ width: '100%' }} size="large">
-                                <Card title={<Title level={5} style={{ margin: 0 }}>{ui.summaryTitle}</Title>}>
-                                    <Descriptions column={1} size="small" bordered>
-                                        <Descriptions.Item label={ui.summaryUser}>
-                                            <Link to={linkedUserHref}>{result.email}</Link>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label={ui.summaryStatus}>
-                                            <Badge 
-                                                status={result.subscriptionActive ? 'success' : 'error'} 
-                                                text={result.subscriptionActive ? ui.summaryStatusReady : ui.summaryStatusBlocked} 
-                                            />
-                                            <div style={{ fontSize: '12px', color: '#999' }}>{result.inactiveReason || '-'}</div>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label={ui.summaryNodes}>
-                                            <Text>{result.total}</Text>
-                                            <div style={{ fontSize: '12px', color: '#999' }}>
-                                                {ui.summaryMatched.replace('{active}', String(result.matchedClientsActive)).replace('{raw}', String(result.matchedClientsRaw))}
-                                            </div>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label={ui.summaryScope}>
-                                            <Text>{summaryScopeLabel}</Text>
-                                            <div style={{ fontSize: '12px', color: '#999' }}>
-                                                {ui.summaryFilters
-                                                    .replace('{expired}', String(result.filteredExpired))
-                                                    .replace('{disabled}', String(result.filteredDisabled))
-                                                    .replace('{policy}', String(result.filteredByPolicy))}
-                                            </div>
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Card>
-
-                                <Card title={<Title level={5} style={{ margin: 0 }}>{ui.guideTitle}</Title>}>
-                                    <Space direction="vertical">
-                                        <div>
-                                            <Badge count={1} style={{ backgroundColor: '#1890ff', marginRight: 8 }} />
-                                            <Text strong>{ui.guideStep1Title}</Text>
-                                            <Paragraph type="secondary" style={{ fontSize: '12px', marginTop: 4 }}>{ui.guideStep1Text}</Paragraph>
-                                        </div>
-                                        <div>
-                                            <Badge count={2} style={{ backgroundColor: '#1890ff', marginRight: 8 }} />
-                                            <Text strong>{ui.guideStep2Title}</Text>
-                                            <Paragraph type="secondary" style={{ fontSize: '12px', marginTop: 4 }}>{ui.guideStep2Text}</Paragraph>
-                                        </div>
-                                    </Space>
-                                </Card>
-                            </Space>
-                        </Col>
-                    )}
-                </Row>
-            </div>
-
-            <Modal
-                title={ui.scanImport}
-                open={qrModalOpen}
-                onCancel={() => setQrModalOpen(false)}
-                footer={null}
-                centered
-            >
-                {canShowQr ? (
-                    <div style={{ textAlign: 'center', padding: '24px' }}>
-                        <div style={{ padding: '16px', background: '#fff', borderRadius: '8px', display: 'inline-block', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                            <QRCodeSVG
-                                value={activeProfile?.url || ''}
-                                size={220}
-                                level="M"
-                                includeMargin={false}
-                            />
-                        </div>
-                        <Paragraph style={{ marginTop: 24 }}>{ui.qrHint}</Paragraph>
                     </div>
-                ) : (
-                    <Empty description={ui.noQr} />
-                )}
-            </Modal>
+
+                    {shouldShowSideColumn && (
+                        <div className="subscriptions-side-column">
+                        {!isUserOnly && (
+                            <div className="card subscription-guide-card">
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title={ui.guideTitle}
+                                />
+                                <div className="subscription-guide-grid">
+                                    <div className="subscription-guide-step">
+                                        <span className="subscription-guide-index">1</span>
+                                        <div className="subscription-guide-copy">
+                                            <div className="subscription-guide-line">
+                                                <span className="subscription-guide-title">{ui.guideStep1Title}</span>
+                                                <span className="subscription-guide-separator" aria-hidden="true">·</span>
+                                                <span className="subscription-guide-text">{ui.guideStep1Text}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="subscription-guide-step">
+                                        <span className="subscription-guide-index">2</span>
+                                        <div className="subscription-guide-copy">
+                                            <div className="subscription-guide-line">
+                                                <span className="subscription-guide-title">{ui.guideStep2Title}</span>
+                                                <span className="subscription-guide-separator" aria-hidden="true">·</span>
+                                                <span className="subscription-guide-text">{ui.guideStep2Text}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {!isUserOnly && result && (
+                            <>
+                                <div className="card subscription-summary-card">
+                                    <SectionHeader
+                                        className="card-header section-header section-header--compact"
+                                        title={ui.summaryTitle}
+                                    />
+                                        <div className="subscription-summary-grid">
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.summaryUser}</div>
+                                            {isAdmin ? (
+                                                <Link className="subscription-email-link" to={linkedUserHref}>
+                                                    {result.email}
+                                                </Link>
+                                            ) : (
+                                                <div className="subscription-summary-value subscription-summary-value--email">{result.email}</div>
+                                            )}
+                                        </div>
+                                        <div className="subscription-summary-item">
+                                            <div className="subscription-summary-label">{ui.summaryStatus}</div>
+                                            <div className="subscription-summary-value">{result.subscriptionActive ? ui.summaryStatusReady : ui.summaryStatusBlocked}</div>
+                                            <div className="subscription-summary-meta">{result.inactiveReason || '-'}</div>
+                                        </div>
+                                        <div className="subscription-summary-item">
+                                            <div className="subscription-summary-label">{ui.summaryNodes}</div>
+                                            <div className="subscription-summary-value">{result.total}</div>
+                                            <div className="subscription-summary-meta">{ui.summaryMatched.replace('{active}', String(result.matchedClientsActive)).replace('{raw}', String(result.matchedClientsRaw))}</div>
+                                        </div>
+                                            <div className="subscription-summary-item">
+                                                <div className="subscription-summary-label">{ui.summaryScope}</div>
+                                                <div className="subscription-summary-value">{summaryScopeLabel}</div>
+                                                <div className="subscription-summary-meta">
+                                                    {ui.summaryFilters
+                                                        .replace('{expired}', String(result.filteredExpired))
+                                                        .replace('{disabled}', String(result.filteredDisabled))
+                                                        .replace('{policy}', String(result.filteredByPolicy))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                </div>
+
+                            </>
+                        )}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <ModalShell isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)}>
+                {qrModalOpen ? (
+                    <div className="modal subscription-qr-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">{ui.scanImport}</h3>
+                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)}>
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            {canShowQr ? (
+                                <div className="subscription-qr-modal-body">
+                                    <div
+                                        className="qr-surface subscription-qr-modal-surface"
+                                        role="img"
+                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile?.label || ui.scanImport)}
+                                    >
+                                        <QRCodeSVG
+                                            value={activeProfile?.url || ''}
+                                            size={220}
+                                            level="M"
+                                            includeMargin={false}
+                                        />
+                                    </div>
+                                    <div className="subscription-qr-modal-copy">{ui.qrHint}</div>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted">{ui.noQr}</div>
+                            )}
+                        </div>
+                    </div>
+                ) : null}
+            </ModalShell>
         </>
     );
 }

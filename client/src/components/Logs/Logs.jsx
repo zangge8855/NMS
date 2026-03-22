@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Select, Input, Checkbox, Space, Typography, Badge, Tag, Row, Col, Empty, Tooltip, Switch } from 'antd';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
@@ -15,34 +14,45 @@ import {
     HiOutlineExclamationTriangle,
     HiOutlineArrowsPointingOut,
     HiOutlineArrowsPointingIn,
-    HiOutlineClipboard,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
+import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
+import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
-import { copyToClipboard } from '../../utils/format.js';
-
-const { Text, Title } = Typography;
-const { Option } = Select;
 
 function getSummaryToneMeta(tone) {
     if (tone === 'danger') {
         return {
-            color: 'var(--accent-danger)',
-            bg: 'var(--accent-danger-bg)',
-            badge: 'error',
+            badge: 'badge-danger',
+            iconColor: 'var(--accent-danger)',
+            style: {
+                borderColor: 'var(--accent-danger)',
+                background: 'var(--accent-danger-bg)',
+                color: 'var(--accent-danger)',
+            },
         };
     }
     if (tone === 'warning') {
         return {
-            color: 'var(--accent-warning)',
-            bg: 'var(--accent-warning-bg)',
-            badge: 'warning',
+            badge: 'badge-warning',
+            iconColor: 'var(--accent-warning)',
+            style: {
+                borderColor: 'var(--accent-warning)',
+                background: 'var(--accent-warning-bg)',
+                color: 'var(--accent-warning)',
+            },
         };
     }
     return {
-        color: 'var(--accent-info)',
-        bg: 'var(--accent-info-bg)',
-        badge: 'info',
+        badge: 'badge-info',
+        iconColor: 'var(--accent-info)',
+        style: {
+            borderColor: 'var(--accent-info)',
+            background: 'var(--accent-info-bg)',
+            color: 'var(--accent-info)',
+        },
     };
 }
 
@@ -97,9 +107,9 @@ function LogLine({ line, showServer, serverName, highlight, index }) {
         >
             <span className="log-line-index">{String(index + 1).padStart(3, '0')}</span>
             {showServer && serverName && (
-                <Tag color="processing" className="badge-tiny" style={{ margin: 0, fontSize: '10px' }}>
+                <span className="badge badge-info badge-tiny">
                     {serverName}
-                </Tag>
+                </span>
             )}
             <span className="log-line-content">{renderHighlightedLine(line, highlight)}</span>
         </div>
@@ -159,6 +169,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const [selectedServerIds, setSelectedServerIds] = useState([]);
     const hasInitializedGlobalSelectionRef = useRef(false);
 
+    // Only auto-select all servers the first time we enter global mode.
+    // After that, an empty selection is treated as an intentional filter state.
     useEffect(() => {
         if (!isGlobal) {
             hasInitializedGlobalSelectionRef.current = false;
@@ -193,13 +205,15 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         activeSourceMeta.label || t('pages.logs.sourcePanel')
     );
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
-
+    // Reuse the shared form surface and rounded tokens so controls stay visually consistent.
+    const filterSelectClassName = 'form-select rounded-lg';
+    const keywordInputClassName = 'form-input w-200 rounded-lg';
+    const serverCheckboxClassName = 'checkbox-14 rounded';
     const activeLogFilterCount = [
         String(keywords || '').trim(),
         levelFilter,
         lockedSourceMode === 'auto' && selectedSource !== 'panel' ? selectedSource : '',
     ].filter(Boolean).length;
-
     const logToolbarMeta = [
         locale === 'en-US' ? `${count} lines` : `${count} 行`,
         activeLogFilterCount > 0
@@ -348,15 +362,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         )).join('\n');
     }, [filteredLogs, isGlobal]);
 
-    const handleCopyLogs = async () => {
-        try {
-            await copyToClipboard(copiedLogText);
-            toast.success(t('pages.logs.copySuccess'));
-        } catch {
-            toast.error(t('pages.logs.copyError'));
-        }
-    };
-
     const logLevelSummary = useMemo(() => {
         const counts = {
             error: 0,
@@ -405,214 +410,226 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         <>
             {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}` : sourceLabel} />}
             <div className={`${embedded ? '' : 'page-content page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
-                <Card bordered={false} className="mb-4 glass-panel">
-                    <Row gutter={[16, 16]} align="middle">
-                        <Col xs={24} lg={14}>
-                            <Space wrap>
-                                <HiOutlineFunnel className="text-muted" />
-                                <Select
-                                    style={{ width: 120 }}
-                                    value={levelFilter}
-                                    onChange={val => setLevelFilter(val)}
-                                    options={logLevels.map(l => ({ label: l.label, value: l.value }))}
-                                />
-                                <Select
-                                    style={{ width: 100 }}
-                                    value={count}
-                                    onChange={val => setCount(val)}
-                                >
-                                    <Option value={50}>{t('pages.logs.lineOption', { count: 50 })}</Option>
-                                    <Option value={100}>{t('pages.logs.lineOption', { count: 100 })}</Option>
-                                    <Option value={200}>{t('pages.logs.lineOption', { count: 200 })}</Option>
-                                    <Option value={500}>{t('pages.logs.lineOption', { count: 500 })}</Option>
-                                </Select>
-                                {lockedSourceMode === 'auto' && (
-                                    <Select
-                                        style={{ width: 140 }}
-                                        value={selectedSource}
-                                        onChange={val => setSelectedSource(val)}
-                                        options={logSources.map(item => ({ label: item.label, value: item.value }))}
-                                    />
-                                )}
-                                <Input
-                                    style={{ width: 200 }}
-                                    placeholder={t('pages.logs.keywordPlaceholder')}
-                                    value={keywords}
-                                    onChange={e => setKeywords(e.target.value)}
-                                />
-                            </Space>
-                        </Col>
-                        <Col xs={24} lg={10} style={{ textAlign: 'right' }}>
-                            <Space wrap className="justify-end">
-                                <Space.Compact>
-                                    <Tooltip title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}>
-                                        <Button
-                                            onClick={() => setAutoScrollEnabled(v => !v)}
-                                            icon={autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
-                                        >
-                                            {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
-                                        </Button>
-                                    </Tooltip>
-                                    <Button
-                                        type={wrapLines ? 'primary' : 'default'}
-                                        onClick={() => setWrapLines(v => !v)}
-                                    >
-                                        {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
-                                    </Button>
-                                    <Button
-                                        type={immersiveMode ? 'primary' : 'default'}
-                                        onClick={() => setImmersiveMode(v => !v)}
-                                        icon={immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
-                                    >
-                                        {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
-                                    </Button>
-                                </Space.Compact>
-                                <Space.Compact>
-                                    <Button icon={<HiOutlineTrash />} onClick={clearViewer} />
-                                    <Button icon={<HiOutlineClipboard />} onClick={handleCopyLogs} />
-                                    <Button
-                                        type="primary"
-                                        icon={<HiOutlineArrowPath />}
-                                        onClick={fetchLogs}
-                                        loading={loading}
-                                    >
-                                        {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
-                                    </Button>
-                                </Space.Compact>
-                            </Space>
-                        </Col>
-                        <Col span={24}>
-                            <Space size={[8, 8]} wrap>
-                                {logToolbarMeta.map((item) => (
-                                    <Tag key={item} color="blue" bordered={false} style={{ borderRadius: '12px' }}>{item}</Tag>
-                                ))}
-                            </Space>
-                        </Col>
-                    </Row>
-                </Card>
+                {/* Toolbar */}
+                <PageToolbar
+                    className="card rounded-xl mb-4 logs-toolbar"
+                    main={(
+                        <>
+                            <HiOutlineFunnel className="text-muted" />
+                            <select
+                                className={`${filterSelectClassName} w-120`}
+                                value={levelFilter}
+                                onChange={e => setLevelFilter(e.target.value)}
+                            >
+                                {logLevels.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                            </select>
 
-                {isGlobal && (
-                    <Card bordered={false} className="mb-4 glass-panel"
-                        title={
-                            <Space>
-                                <HiOutlineServerStack className="text-muted" />
-                                <Text strong style={{ fontSize: '13px' }}>{t('pages.logs.serverSelection')}</Text>
-                            </Space>
-                        }
-                        extra={
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                                {t('pages.logs.selectedServers', { selected: selectedServerIds.length, total: servers.length })}
-                            </Text>
-                        }
-                    >
-                        <Row gutter={[12, 12]} align="middle">
-                            <Col span={24}>
-                                <Space>
-                                    <Button size="small" onClick={selectAllServers}>{t('pages.logs.selectAll')}</Button>
-                                    <Button size="small" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</Button>
-                                </Space>
-                            </Col>
-                            <Col span={24}>
-                                <div className="log-server-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {servers.map(server => (
-                                        <Checkbox
-                                            key={server.id}
-                                            checked={selectedServerIds.includes(server.id)}
-                                            onChange={() => toggleServer(server.id)}
-                                            style={{ margin: 0 }}
-                                        >
-                                            <span className="text-sm">{server.name}</span>
-                                        </Checkbox>
+                            <select
+                                className={`${filterSelectClassName} w-100`}
+                                value={count}
+                                onChange={e => setCount(Number(e.target.value))}
+                            >
+                                <option value={50}>{t('pages.logs.lineOption', { count: 50 })}</option>
+                                <option value={100}>{t('pages.logs.lineOption', { count: 100 })}</option>
+                                <option value={200}>{t('pages.logs.lineOption', { count: 200 })}</option>
+                                <option value={500}>{t('pages.logs.lineOption', { count: 500 })}</option>
+                            </select>
+
+                            {lockedSourceMode === 'auto' && (
+                                <select
+                                    className={`${filterSelectClassName} w-140`}
+                                    value={selectedSource}
+                                    onChange={(e) => setSelectedSource(e.target.value)}
+                                >
+                                    {logSources.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
                                     ))}
-                                </div>
-                            </Col>
-                        </Row>
-                    </Card>
-                )}
+                                </select>
+                            )}
 
-                {fetchSummary?.message && (
-                    <Card bordered={false} className="mb-4" style={{ background: fetchSummaryMeta.bg, border: `1px solid ${fetchSummaryMeta.color}` }}>
-                        <Row justify="space-between" align="middle">
-                            <Col>
-                                <Space>
-                                    <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.color }} />
-                                    <Text style={{ color: fetchSummaryMeta.color }}>{fetchSummary.message}</Text>
-                                </Space>
-                            </Col>
-                            <Col>
-                                <Badge status={fetchSummaryMeta.badge} text={activeSourceMeta.label} />
-                            </Col>
-                        </Row>
-                    </Card>
-                )}
-
-                <Card bordered={false} className="logs-viewer-card glass-panel" style={{ display: 'flex', flexDirection: 'column' }}
-                    title={
-                        <Space wrap>
-                            <HiOutlineDocumentText className="text-muted" />
-                            <Title level={5} style={{ margin: 0 }}>{sourceLabel}</Title>
-                            <Tag>{activeSourceMeta.label}</Tag>
-                            {levelFilter && activeLevelMeta && <Tag color="blue">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</Tag>}
-                        </Space>
-                    }
-                    extra={
-                        <Space>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>{t('pages.logs.lineCount', { count: filteredLogs.length })}</Text>
-                            <Tag color={autoScrollEnabled ? 'success' : 'default'}>
-                                {autoScrollEnabled ? t('pages.logs.autoScroll') : t('pages.logs.paused')}
-                            </Tag>
-                        </Space>
-                    }
-                >
-                    {logLevelSummary.length > 0 && (
-                        <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {logLevelSummary.map((item) => (
-                                <Tag.CheckableTag
-                                    key={item.value}
-                                    checked={levelFilter === item.value}
-                                    onChange={() => setLevelFilter(current => (current === item.value ? '' : item.value))}
-                                    className={`logs-level-chip--${item.value}`}
-                                    style={{
-                                        border: '1px solid var(--border-color)',
-                                        padding: '4px 12px',
-                                        borderRadius: '16px'
-                                    }}
+                            <input
+                                className={keywordInputClassName}
+                                placeholder={t('pages.logs.keywordPlaceholder')}
+                                value={keywords}
+                                onChange={e => setKeywords(e.target.value)}
+                            />
+                        </>
+                    )}
+                    actions={(
+                        <>
+                            <div className="logs-toolbar-toggle-group" role="group" aria-label={locale === 'en-US' ? 'Viewer controls' : '查看控制'}>
+                                <button
+                                    className="btn btn-ghost btn-sm rounded-lg"
+                                    onClick={() => setAutoScrollEnabled((value) => !value)}
+                                    title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
                                 >
-                                    <Space>
-                                        <span>{item.label}</span>
-                                        <Badge count={item.count} size="small" overflowCount={999} style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-                                    </Space>
-                                </Tag.CheckableTag>
+                                    {autoScrollEnabled ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+                                    {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
+                                </button>
+                                <button
+                                    className={`btn btn-sm rounded-lg ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                    onClick={() => setWrapLines((value) => !value)}
+                                    title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
+                                >
+                                    {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
+                                </button>
+                                <button
+                                    className={`btn btn-sm rounded-lg ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                    onClick={() => setImmersiveMode((value) => !value)}
+                                    title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
+                                >
+                                    {immersiveMode ? <HiOutlineArrowsPointingIn /> : <HiOutlineArrowsPointingOut />}
+                                    {immersiveMode ? t('pages.logs.immersiveExit') : t('pages.logs.immersiveEnter')}
+                                </button>
+                            </div>
+                            <div className="logs-toolbar-primary-group">
+                                <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                    <HiOutlineTrash /> {t('pages.logs.clearView')}
+                                </button>
+                                <CopyFeedbackButton
+                                    className="btn btn-secondary btn-sm rounded-lg"
+                                    text={copiedLogText}
+                                    successText={t('pages.logs.copySuccess')}
+                                    errorText={t('pages.logs.copyError')}
+                                    title={t('pages.logs.copyTitle')}
+                                >
+                                    {t('pages.logs.copy')}
+                                </CopyFeedbackButton>
+                                <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
+                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
+                                    {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                    meta={(
+                        <div className="logs-toolbar-meta">
+                            {logToolbarMeta.map((item) => (
+                                <span key={item} className="logs-toolbar-chip">{item}</span>
                             ))}
                         </div>
                     )}
+                />
+
+                {/* Global Mode: Server Selector */}
+                {isGlobal && (
+                    <div className="card rounded-xl mb-4 logs-server-card">
+                        <SectionHeader
+                            className="card-header card-header-flat-tight section-header section-header--compact"
+                            title={(
+                                <div className="flex items-center gap-8">
+                                    <HiOutlineServerStack className="text-muted" />
+                                    <span className="card-title text-sm">{t('pages.logs.serverSelection')}</span>
+                                </div>
+                            )}
+                            meta={(
+                                <span className="text-sm text-muted">
+                                    {t('pages.logs.selectedServers', { selected: selectedServerIds.length, total: servers.length })}
+                                </span>
+                            )}
+                            actions={(
+                                <>
+                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
+                                </>
+                            )}
+                        />
+                        <div className="log-server-chips">
+                            {servers.map(server => (
+                                <label
+                                    key={server.id}
+                                    className={`flex items-center gap-4 server-chip ${selectedServerIds.includes(server.id) ? 'active' : ''}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedServerIds.includes(server.id)}
+                                        onChange={() => toggleServer(server.id)}
+                                        className={serverCheckboxClassName}
+                                    />
+                                    <span className="text-sm">{server.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {fetchSummary?.message && (
+                    <div className="card rounded-xl mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
+                        <SectionHeader
+                            className="card-header card-header-flat-tight section-header section-header--compact"
+                            title={(
+                                <div className="flex items-center gap-8">
+                                    <HiOutlineExclamationTriangle style={{ color: fetchSummaryMeta.iconColor }} />
+                                    <span className="text-sm">{fetchSummary.message}</span>
+                                </div>
+                            )}
+                            meta={<span className={`badge ${fetchSummaryMeta.badge}`}>{activeSourceMeta.label}</span>}
+                        />
+                    </div>
+                )}
+
+                {/* Log Viewer */}
+                <div className="card rounded-xl flex-1 logs-viewer-card">
+                    <SectionHeader
+                        className="card-header section-header section-header--compact"
+                        title={(
+                            <div className="flex items-center gap-8 flex-wrap">
+                                <HiOutlineDocumentText className="text-muted" />
+                                <span className="card-title">{sourceLabel}</span>
+                                <span className="badge badge-neutral">{activeSourceMeta.label}</span>
+                                {levelFilter && activeLevelMeta && <span className="badge badge-info">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</span>}
+                            </div>
+                        )}
+                        meta={(
+                            <div className="logs-viewer-meta">
+                                <span className="text-sm text-muted">{t('pages.logs.lineCount', { count: filteredLogs.length })}</span>
+                                <span className={`logs-scroll-chip ${autoScrollEnabled ? 'is-live' : 'is-paused'}`}>
+                                    {autoScrollEnabled ? t('pages.logs.autoScroll') : t('pages.logs.paused')}
+                                </span>
+                            </div>
+                        )}
+                    />
+                    {logLevelSummary.length > 0 ? (
+                        <div className="logs-level-summary" role="toolbar" aria-label={locale === 'en-US' ? 'Log level quick filters' : '日志级别快捷筛选'}>
+                            {logLevelSummary.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    className={`logs-level-chip logs-level-chip--${item.value}${levelFilter === item.value ? ' is-active' : ''}`}
+                                    onClick={() => setLevelFilter((current) => (current === item.value ? '' : item.value))}
+                                >
+                                    <span className="logs-level-chip-label">{item.label}</span>
+                                    <span className="logs-level-chip-count">{item.count}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : null}
                     <div
                         ref={shouldVirtualizeLogs ? undefined : logContainerRef}
                         className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
-                        style={{ flex: 1, minHeight: 0 }}
                     >
                         {loading && filteredLogs.length === 0 ? (
-                            <div style={{ padding: '40px', textAlign: 'center' }}>
-                                <HiOutlineArrowPath className="spinning" style={{ fontSize: '32px', color: 'var(--accent-primary)', marginBottom: '12px' }} />
-                                <Text type="secondary" block>{t('pages.logs.loadingLogs')}</Text>
-                            </div>
+                            <EmptyState
+                                title={t('pages.logs.loadingLogs')}
+                                size="compact"
+                                icon={<span className="spinner spinner-20" aria-hidden="true" />}
+                            />
                         ) : filteredLogs.length === 0 ? (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description={
-                                    <Space direction="vertical">
-                                        <Text strong>{t('pages.logs.empty')}</Text>
-                                        <Text type="secondary">{t('pages.logs.emptySubtitle')}</Text>
-                                    </Space>
-                                }
-                                style={{ padding: '40px' }}
+                            <EmptyState
+                                title={t('pages.logs.empty')}
+                                subtitle={t('pages.logs.emptySubtitle')}
+                                size="compact"
+                                icon={<HiOutlineDocumentText />}
                             />
                         ) : shouldVirtualizeLogs ? (
                             <VirtualList
                                 ref={logContainerRef}
+                                className="logs-virtual-list"
+                                innerClassName="logs-virtual-list-inner"
                                 items={filteredLogs}
                                 itemSize={wrapLines ? 56 : 38}
                                 overscan={10}
+                                ariaLabel={locale === 'en-US' ? 'Virtualized log list' : '虚拟日志列表'}
                                 renderItem={(entry, index) => (
                                     <LogLine
                                         line={entry.line}
@@ -637,7 +654,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             ))
                         )}
                     </div>
-                </Card>
+                </div>
             </div>
         </>
     );

@@ -620,4 +620,38 @@ describe('SystemSettings', () => {
             expect(api.delete).toHaveBeenCalledWith('/system/invite-codes/invite-1');
         });
     });
+
+    it('submits invite registration emails with the saved site entry url', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.post.mockResolvedValue({
+            data: {
+                msg: '邀请邮件发送任务已创建',
+                obj: {
+                    taskId: 'task-invite-1',
+                },
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
+
+        await screen.findByText('邮件邀请注册');
+        await user.type(screen.getByLabelText('邀请邮箱'), 'alice@example.com\nbob@example.com');
+        await user.type(screen.getByLabelText('附加说明（可选）'), '请在本周内完成注册。');
+        await user.click(screen.getByRole('button', { name: '发送邀请邮件' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/system/invite-codes/send-email', {
+                emails: 'alice@example.com\nbob@example.com',
+                usageLimit: 1,
+                subscriptionDays: 30,
+                message: '请在本周内完成注册。',
+                entryUrl: `${window.location.origin}/portal`,
+            });
+        });
+    });
 });

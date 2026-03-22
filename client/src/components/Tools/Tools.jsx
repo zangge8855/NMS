@@ -1,15 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Row, Col, Space, Tag, Empty, Tooltip } from 'antd';
-import { HiOutlineClipboard, HiOutlineArrowPath, HiOutlineWrench } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
-
-const { Text, Title } = Typography;
+import {
+    HiOutlineClipboard,
+    HiOutlineArrowPath,
+    HiOutlineWrench,
+} from 'react-icons/hi2';
+import EmptyState from '../UI/EmptyState.jsx';
+import PageToolbar from '../UI/PageToolbar.jsx';
+import SectionHeader from '../UI/SectionHeader.jsx';
 
 function formatToolValue(value) {
     if (value === undefined || value === null) return '';
@@ -26,7 +30,6 @@ export default function Tools() {
     const [catalogLoading, setCatalogLoading] = useState(false);
     const [tools, setTools] = useState([]);
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
-
     const copy = useMemo(() => (
         locale === 'en-US'
             ? {
@@ -135,22 +138,18 @@ export default function Tools() {
         return (
             <>
                 <Header title={t('pages.tools.title')} />
-                <div className="page-content page-enter">
-                    <Card bordered={false} className="glass-panel">
-                        <Empty
-                            image={<HiOutlineWrench style={{ fontSize: '48px', color: 'var(--text-muted)' }} />}
-                            description={
-                                <Space direction="vertical" align="center">
-                                    <Text strong style={{ fontSize: '16px' }}>{copy.selectServerFirst}</Text>
-                                    <Text type="secondary">{copy.selectServerHint}</Text>
-                                </Space>
-                            }
-                        >
-                            <Button type="primary" size="large" onClick={() => navigate('/servers')}>
+                <div className="page-content page-enter tools-page">
+                    <EmptyState
+                        title={copy.selectServerFirst}
+                        subtitle={copy.selectServerHint}
+                        icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
+                        surface
+                        action={(
+                            <button type="button" className="btn btn-primary rounded-lg" onClick={() => navigate('/servers')}>
                                 {copy.goToServers}
-                            </Button>
-                        </Empty>
-                    </Card>
+                            </button>
+                        )}
+                    />
                 </div>
             </>
         );
@@ -159,108 +158,73 @@ export default function Tools() {
     return (
         <>
             <Header title={t('pages.tools.title')} />
-            <div className="page-content page-enter">
-                <Card bordered={false} className="mb-6 glass-panel">
-                    <Row justify="space-between" align="middle" gutter={[16, 16]}>
-                        <Col xs={24} sm={16}>
-                            <Title level={4} style={{ margin: 0 }}>{copy.toolbarTitle}</Title>
-                            <Text type="secondary">{copy.toolbarSubtitle}</Text>
-                        </Col>
-                        <Col xs={24} sm={8} style={{ textAlign: 'right' }}>
-                            <Space align="center" className="flex-wrap justify-end">
-                                <Text type="secondary" style={{ fontSize: '12px' }}>{toolbarMeta}</Text>
-                                <Button
-                                    icon={<HiOutlineArrowPath />}
-                                    onClick={fetchCatalog}
-                                    loading={catalogLoading}
-                                >
-                                    {copy.refresh}
-                                </Button>
-                            </Space>
-                        </Col>
-                    </Row>
-                </Card>
-
+            <div className="page-content page-enter tools-page">
+                <PageToolbar
+                    className="card rounded-xl mb-6 tools-toolbar"
+                    compact
+                    main={(
+                        <div className="tools-toolbar-copy">
+                            <div className="tools-toolbar-title">{copy.toolbarTitle}</div>
+                            <div className="tools-toolbar-note">{copy.toolbarSubtitle}</div>
+                        </div>
+                    )}
+                    actions={(
+                        <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchCatalog} disabled={catalogLoading}>
+                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
+                        </button>
+                    )}
+                    meta={<span>{toolbarMeta}</span>}
+                />
                 {tools.length === 0 && !catalogLoading ? (
-                    <Card bordered={false} className="glass-panel">
-                        <Empty
-                            description={
-                                <Space direction="vertical" align="center">
-                                    <Text strong style={{ fontSize: '16px' }}>{copy.emptyTitle}</Text>
-                                    <Text type="secondary">{copy.emptySubtitle}</Text>
-                                </Space>
-                            }
-                        >
-                            <Button
-                                icon={<HiOutlineArrowPath />}
-                                onClick={fetchCatalog}
-                            >
-                                {copy.refreshCatalog}
-                            </Button>
-                        </Empty>
-                    </Card>
+                    <EmptyState
+                        title={copy.emptyTitle}
+                        subtitle={copy.emptySubtitle}
+                        surface
+                        action={(
+                            <button type="button" className="btn btn-secondary rounded-lg" onClick={fetchCatalog}>
+                                <HiOutlineArrowPath /> {copy.refreshCatalog}
+                            </button>
+                        )}
+                    />
                 ) : (
-                    <Row gutter={[16, 16]}>
+                    <div className="tools-grid">
                         {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
-                            <Col xs={24} md={12} lg={8} key={tool.key}>
-                                <Card
-                                    title={
-                                        <Space direction="vertical" size={0}>
-                                            <Text strong>{tool.label || tool.key}</Text>
-                                            <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>
-                                                {tool.description || copy.currentTool}
-                                            </Text>
-                                        </Space>
-                                    }
-                                    extra={
-                                        <Tag color={tool.available === false ? 'error' : 'success'}>
+                            <div className="card rounded-xl tool-card" key={tool.key}>
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title={tool.label || tool.key}
+                                    subtitle={tool.description || copy.currentTool}
+                                    meta={(
+                                        <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
                                             {tool.available === false ? copy.unavailable : copy.executable}
-                                        </Tag>
-                                    }
-                                    actions={[
-                                        <Button
-                                            type="link"
-                                            key="run"
-                                            icon={<HiOutlineArrowPath />}
-                                            onClick={() => handleGenerate(tool)}
-                                            disabled={loading[tool.key] || tool.available === false}
-                                            loading={loading[tool.key]}
-                                        >
-                                            {copy.generate}
-                                        </Button>,
-                                        results[tool.key] && (
-                                            <Button
-                                                type="link"
-                                                key="copy"
-                                                icon={<HiOutlineClipboard />}
-                                                onClick={() => handleCopy(results[tool.key])}
-                                            >
-                                                {copy.copy}
-                                            </Button>
-                                        )
-                                    ].filter(Boolean)}
-                                    className="hover-lift glass-panel"
-                                    styles={{ body: { padding: results[tool.key] ? '16px' : 0 } }}
-                                >
-                                    {results[tool.key] && (
-                                        <div style={{
-                                            background: 'var(--bg-input)',
-                                            padding: '12px',
-                                            borderRadius: '8px',
-                                            maxHeight: '200px',
-                                            overflowY: 'auto',
-                                            fontFamily: 'var(--font-mono)',
-                                            fontSize: '12px',
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-all'
-                                        }}>
-                                            {results[tool.key]}
-                                        </div>
+                                        </span>
                                     )}
-                                </Card>
-                            </Col>
+                                />
+
+                                {results[tool.key] && (
+                                    <div className="tool-card-result">
+                                        {results[tool.key]}
+                                    </div>
+                                )}
+
+                                <div className="tool-card-actions">
+                                    <button
+                                        className="btn btn-primary btn-sm rounded-lg"
+                                        onClick={() => handleGenerate(tool)}
+                                        disabled={loading[tool.key] || tool.available === false}
+                                    >
+                                        {loading[tool.key] ? <span className="spinner" /> : <HiOutlineArrowPath />}
+                                        {copy.generate}
+                                    </button>
+                                    {results[tool.key] && (
+                                        <button className="btn btn-secondary btn-sm rounded-lg" onClick={() => handleCopy(results[tool.key])}>
+                                            <HiOutlineClipboard /> {copy.copy}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         ))}
-                    </Row>
+                    </div>
                 )}
             </div>
         </>

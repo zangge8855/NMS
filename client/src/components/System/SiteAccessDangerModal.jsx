@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Checkbox, Input, Button, Row, Col, Card, Typography, Space } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 function statusLabel(enabled) {
     return enabled ? '开启' : '关闭';

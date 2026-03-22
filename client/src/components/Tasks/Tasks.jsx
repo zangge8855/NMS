@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Table, Select, Checkbox, Button, Card, Typography, Skeleton, Empty, Space, Row, Col, Tooltip } from 'antd';
+import { Table, Select, Checkbox, Button, Card, Typography, Space, Row, Col, Tooltip } from 'antd';
 import { ReloadOutlined, DeleteOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons';
 import Header from '../Layout/Header.jsx';
+import SkeletonTable from '../UI/SkeletonTable.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import {
@@ -15,6 +17,7 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatDateTime } from '../../utils/format.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const { Text } = Typography;
 
@@ -108,12 +111,94 @@ function formatTaskServerSummary(task) {
     return `${head} +${servers.length - 2}`;
 }
 
+function getTaskResultBadge(task, copy) {
+    const failed = Number(task?.summary?.failed || 0);
+    if (failed > 0) {
+        return {
+            tone: 'error',
+            label: `${copy.failedCol} ${failed}`,
+        };
+    }
+    return {
+        tone: 'success',
+        label: `${copy.successCol} ${Number(task?.summary?.success || 0)}`,
+    };
+}
+
+function TaskMobileList({
+    tasks = [],
+    copy,
+    locale,
+    retryingId,
+    onView,
+    onRetryFailed,
+}) {
+    return (
+        <div>
+            {tasks.map((task) => {
+                const badge = getTaskResultBadge(task, copy);
+                const failedCount = Number(task?.summary?.failed || 0);
+                return (
+                    <Card key={task.id} className="tasks-mobile-card" size="small" style={{ marginBottom: 16 }}>
+                        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+                            <Row justify="space-between" align="top" gutter={12}>
+                                <Col flex="auto">
+                                    <div style={{ fontWeight: 600 }}>{formatTaskActionPair(task.type, task.action, locale)}</div>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        {formatDateTime(task.createdAt, locale)}
+                                    </Text>
+                                </Col>
+                                <Col flex="none">
+                                    <Text type={badge.tone}>{badge.label}</Text>
+                                </Col>
+                            </Row>
+                            <Row gutter={[12, 12]}>
+                                <Col span={24}>
+                                    <Text type="secondary">{copy.server}</Text>
+                                    <div>{formatTaskServerSummary(task)}</div>
+                                </Col>
+                                <Col span={8}>
+                                    <Text type="secondary">{copy.totalCol}</Text>
+                                    <div>{task.summary?.total ?? '-'}</div>
+                                </Col>
+                                <Col span={8}>
+                                    <Text type="secondary">{copy.successCol}</Text>
+                                    <div>{task.summary?.success ?? '-'}</div>
+                                </Col>
+                                <Col span={8}>
+                                    <Text type="secondary">{copy.failedCol}</Text>
+                                    <div>{task.summary?.failed ?? '-'}</div>
+                                </Col>
+                            </Row>
+                            <Space wrap>
+                                <Button size="small" onClick={() => onView(task.id)}>
+                                    {copy.viewDetail}
+                                </Button>
+                                {failedCount > 0 && (
+                                    <Button
+                                        size="small"
+                                        type="primary"
+                                        onClick={() => onRetryFailed(task)}
+                                        loading={retryingId === task.id}
+                                    >
+                                        {copy.retryFailedItems}
+                                    </Button>
+                                )}
+                            </Space>
+                        </Space>
+                    </Card>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getTasksCopy(locale);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [tasks, setTasks] = useState([]);
     const [selectedTask, setSelectedTask] = useState(null);
     const [retryingId, setRetryingId] = useState('');
@@ -387,17 +472,17 @@ export default function Tasks({ embedded = false }) {
                 </Card>
 
                 {loading ? (
-                    <Skeleton active paragraph={{ rows: 10 }} />
+                    <SkeletonTable rows={5} cols={7} />
                 ) : filteredTasks.length === 0 ? (
-                    <Empty
-                        style={{ marginTop: '64px' }}
-                        description={
-                            <span>
-                                <Text strong>{copy.emptyTitle}</Text>
-                                <br />
-                                <Text type="secondary">{copy.emptySubtitle}</Text>
-                            </span>
-                        }
+                    <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
+                ) : isCompactLayout ? (
+                    <TaskMobileList
+                        tasks={filteredTasks}
+                        copy={copy}
+                        locale={locale}
+                        retryingId={retryingId}
+                        onView={handleView}
+                        onRetryFailed={handleRetryFailed}
                     />
                 ) : (
                     <Table
