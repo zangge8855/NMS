@@ -4306,6 +4306,13 @@
   }
 }
 
+@media (min-width: 1280px) {
+  [data-workspace="status"] .settings-workspace-highlight-grid,
+  [data-workspace="policy"] .settings-workspace-highlight-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1120px) {
   .audit-filter-grid--events {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -9091,6 +9098,47 @@ p, .empty-state-body, td {
   min-height: 0;
 }
 
+.settings-page .settings-ops-card-main {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: start;
+}
+
+.settings-page .settings-ops-card-head {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-content: start;
+}
+
+.settings-page .settings-ops-card .settings-form-cluster-title {
+  min-height: calc(1.35em * 2);
+}
+
+.settings-page .settings-ops-card .settings-form-cluster-note {
+  min-height: calc(1.6em * 2);
+}
+
+.settings-page .settings-db-panel--compact .settings-db-inline-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-page .settings-db-panel--compact .settings-db-inline-options .badge {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+}
+
+.settings-page .settings-db-panel--compact .settings-db-card-foot {
+  align-items: stretch;
+}
+
+.settings-page .settings-db-panel--compact .settings-db-card-foot .btn,
+.settings-page .settings-db-panel--compact .settings-db-card-result {
+  width: 100%;
+}
+
 .settings-page .settings-summary-value,
 .settings-page .settings-tab-highlight-value,
 .settings-page .settings-summary-detail,
@@ -9157,7 +9205,7 @@ p, .empty-state-body, td {
 }
 
 .settings-field-grid--invite-email {
-  grid-template-columns: minmax(0, 1.45fr) minmax(140px, 0.8fr) minmax(156px, 0.88fr);
+  grid-template-columns: minmax(0, 2.4fr) minmax(132px, 0.72fr) minmax(168px, 0.9fr);
   align-items: end;
 }
 
@@ -9184,6 +9232,11 @@ p, .empty-state-body, td {
   .settings-page .settings-invite-workbench-section,
   .settings-page .settings-invite-workbench-latest {
     padding: 10px;
+  }
+
+  .settings-page .settings-ops-card .settings-form-cluster-title,
+  .settings-page .settings-ops-card .settings-form-cluster-note {
+    min-height: 0;
   }
 }
 
@@ -9238,11 +9291,18 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-address-status-card,
 .subscriptions-page .subscription-device-card,
 .subscriptions-page .subscription-quick-card,
+.subscriptions-page .subscription-primary-card,
+.subscriptions-page .subscription-guide-card,
+.subscriptions-page .subscription-downloads-page-card,
+.subscriptions-page .subscription-summary-card,
+.subscriptions-page .subscription-qr-card,
 .subscriptions-page .subscription-link-card,
 .subscriptions-page .subscription-link-card--user-focus,
 .subscriptions-page .subscription-link-card--user-with-qr,
 .subscriptions-page .subscription-link-card--import-focus,
 .subscriptions-page .subscription-inline-qr--featured,
+.account-page .account-profile-card,
+.account-page .account-password-card,
 .user-detail-page .subscription-link-card,
 .user-detail-page .subscription-link-card--user-focus,
 .user-detail-page .subscription-link-card--user-with-qr,
@@ -9329,4 +9389,203 @@ p, .empty-state-body, td {
 .user-detail-page .subscription-inline-qr--featured,
 .user-detail-page .user-detail-subscription-qr {
   justify-content: flex-start;
+}
+
+@media (max-width: 768px) {
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card,
+  .settings-page .settings-form-cluster,
+  .settings-page .settings-mini-card,
+  .settings-page .settings-detail-card,
+  .settings-page .settings-backup-action-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-ops-card,
+  .settings-page .settings-monitor-log-item,
+  .settings-page .settings-backup-local-item,
+  .dashboard-page .dashboard-stat-card,
+  .dashboard-page .dashboard-quick-card,
+  .dashboard-page .node-health-tile,
+  .audit-page .audit-stat-card,
+  .audit-page .audit-traffic-mini-card,
+  .users-page .users-mobile-card,
+  .servers-page .servers-mobile-card,
+  .audit-page .audit-mobile-card,
+  .tasks-page .tasks-mobile-card,
+  .dashboard-page .dashboard-online-mobile-card,
+  .dashboard-page .dashboard-inbound-mobile-card,
+  .user-detail-page .stat-mini-card,
+  .user-detail-page .user-detail-client-card,
+  .server-detail-page .stat-mini-card,
+  .server-detail-page .server-detail-mobile-card,
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-user-panel,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card,
+  .subscriptions-page .subscription-summary-item,
+  .subscriptions-page .subscription-address-status-card,
+  .subscriptions-page .subscription-device-card,
+  .subscriptions-page .subscription-quick-card,
+  .subscriptions-page .subscription-link-card,
+  .subscriptions-page .subscription-link-card--user-focus,
+  .subscriptions-page .subscription-link-card--user-with-qr,
+  .subscriptions-page .subscription-link-card--import-focus,
+  .subscriptions-page .subscription-inline-qr,
+  .subscriptions-page .subscription-inline-qr--featured,
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-link-card--user-focus,
+  .user-detail-page .subscription-link-card--user-with-qr,
+  .user-detail-page .subscription-inline-qr,
+  .user-detail-page .subscription-inline-qr--featured,
+  .user-detail-page .user-detail-subscription-qr,
+  .inbounds-page .inbounds-client-mobile-card,
+  .tools-page .tool-card,
+  .capabilities-page .capability-protocol-card,
+  .server-console-page .server-console-tool-card,
+  .server-console-page .server-console-result-card,
+  .logs-page .logs-summary-card,
+  .logs-page .logs-server-card {
+    min-height: 0;
+    height: auto;
+    align-self: start;
+  }
+
+  .settings-page .settings-shell,
+  .settings-page .settings-grid,
+  .settings-page .settings-tab-shell,
+  .settings-page .settings-summary-grid,
+  .settings-page .settings-workspace-highlight-grid,
+  .settings-page .settings-access-grid,
+  .settings-page .settings-access-stack,
+  .settings-page .settings-ops-grid,
+  .settings-page .settings-db-grid,
+  .settings-page .settings-backup-actions,
+  .settings-page .settings-monitor-log-meta,
+  .dashboard-page .dashboard-stats-grid,
+  .dashboard-page .dashboard-quick-grid,
+  .dashboard-page .node-health-grid,
+  .audit-page .audit-stats-grid,
+  .audit-page .audit-traffic-mini-grid,
+  .users-page .users-mobile-list,
+  .servers-page .servers-mobile-list,
+  .audit-page .audit-mobile-list,
+  .tasks-page .tasks-mobile-list,
+  .dashboard-page .dashboard-online-mobile-list,
+  .dashboard-page .dashboard-inbound-mobile-list,
+  .user-detail-page .stat-mini-grid,
+  .user-detail-page .user-detail-client-list,
+  .server-detail-page .stat-mini-grid,
+  .server-detail-page .server-detail-mobile-list,
+  .account-page .account-shell,
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .subscriptions-page .subscription-summary-grid,
+  .subscriptions-page .subscription-address-status-grid,
+  .subscriptions-page .subscription-device-grid,
+  .subscriptions-page .subscription-quick-actions,
+  .subscriptions-page .subscription-link-with-qr,
+  .user-detail-page .subscription-link-with-qr,
+  .user-detail-page .user-detail-subscription-main,
+  .inbounds-page .inbounds-client-mobile-list,
+  .tools-page .tools-grid,
+  .capabilities-page .capability-protocol-grid,
+  .server-console-page .server-console-grid,
+  .server-console-page .server-console-tool-grid,
+  .server-console-page .server-console-guide-grid {
+    align-items: start;
+  }
+
+  .settings-page .settings-summary-head,
+  .settings-page .settings-tab-highlight-value,
+  .settings-page .settings-tab-highlight-detail,
+  .settings-page .settings-summary-value,
+  .settings-page .settings-summary-detail,
+  .settings-page .settings-db-card-head,
+  .settings-page .settings-db-card-body,
+  .settings-page .settings-db-card-foot,
+  .settings-page .settings-ops-card-head,
+  .settings-page .settings-ops-card .settings-form-cluster-title,
+  .settings-page .settings-ops-card .settings-form-cluster-note,
+  .settings-page .settings-backup-local-head,
+  .dashboard-page .dashboard-stat-card-head,
+  .dashboard-page .dashboard-stat-card-subtitle,
+  .audit-page .audit-stat-card .card-header,
+  .audit-page .audit-stat-card .card-value,
+  .audit-page .audit-traffic-mini-value,
+  .user-detail-page .stat-mini-label,
+  .server-detail-page .stat-mini-label,
+  .subscriptions-page .subscription-summary-label,
+  .subscriptions-page .subscription-summary-value,
+  .subscriptions-page .subscription-summary-item > .subscription-email-link,
+  .subscriptions-page .subscription-address-status-head,
+  .subscriptions-page .subscription-address-status-value {
+    min-height: 0;
+  }
+
+  .dashboard-page .dashboard-stat-card-subtitle,
+  .settings-page .settings-summary-detail,
+  .settings-page .settings-tab-highlight-detail,
+  .subscriptions-page .subscription-summary-meta,
+  .servers-page .servers-mobile-actions,
+  .audit-page .audit-mobile-card-actions,
+  .tasks-page .tasks-mobile-actions,
+  .user-detail-page .user-detail-client-actions,
+  .server-detail-page .server-detail-mobile-card-actions,
+  .inbounds-page .inbounds-client-mobile-actions,
+  .subscriptions-page .subscription-quick-card-actions,
+  .subscriptions-page .subscription-device-block--push,
+  .tools-page .tool-card-actions,
+  .server-console-page .server-console-action-row,
+  .settings-page .settings-ops-actions,
+  .settings-page .settings-db-card-foot {
+    margin-top: 0;
+  }
+
+  .settings-page .settings-monitor-log-item,
+  .settings-page .settings-backup-action-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-backup-local-item {
+    padding-block: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .settings-page .settings-panel,
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card,
+  .settings-page .settings-form-cluster,
+  .settings-page .settings-mini-card,
+  .settings-page .settings-detail-card,
+  .settings-page .settings-backup-action-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-ops-card,
+  .settings-page .settings-monitor-log-item,
+  .settings-page .settings-backup-local-item,
+  .account-page .account-profile-card,
+  .account-page .account-password-card,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-qr-card,
+  .subscriptions-page .subscription-user-panel,
+  .subscriptions-page .subscription-summary-item,
+  .subscriptions-page .subscription-address-status-card,
+  .subscriptions-page .subscription-device-card,
+  .subscriptions-page .subscription-quick-card,
+  .subscriptions-page .subscription-link-card,
+  .subscriptions-page .subscription-inline-qr,
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-inline-qr,
+  .tools-page .tool-card,
+  .capabilities-page .capability-protocol-card,
+  .server-console-page .server-console-tool-card,
+  .server-console-page .server-console-result-card {
+    padding: 8px 9px;
+  }
 }

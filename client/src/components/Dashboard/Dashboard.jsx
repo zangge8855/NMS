@@ -24,7 +24,6 @@ import {
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
-import ResourceTopologyCard from './ResourceTopologyCard.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -1385,13 +1384,6 @@ export default function Dashboard() {
                     </button>
                 </Header>
                 <div className="page-content page-enter dashboard-page">
-                    <ResourceTopologyCard
-                        dbStatus={dbStatus}
-                        servers={servers}
-                        serverStatuses={serverStatuses}
-                        onOpenServers={() => navigate('/servers')}
-                    />
-
                     <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, index) => (
                             <StatCard
