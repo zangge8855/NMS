@@ -10010,7 +10010,7 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-flow--balanced {
   display: grid;
-  grid-template-columns: minmax(0, 1.58fr) minmax(284px, 0.86fr);
+  grid-template-columns: minmax(0, 1.96fr) minmax(232px, 0.68fr);
   align-items: start;
 }
 
@@ -10031,6 +10031,8 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-panel--summary {
   align-self: start;
+  max-width: 280px;
+  justify-self: end;
 }
 
 .subscriptions-page .subscription-link-card--user-focus,
@@ -10091,9 +10093,9 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
   width: 100%;
-  max-width: none;
+  max-width: 248px;
   padding: 12px;
-  justify-self: stretch;
+  justify-self: center;
 }
 
 .subscriptions-page .subscription-user-status-block {
@@ -10389,6 +10391,11 @@ p, .empty-state-body, td {
 
   .subscriptions-page .subscription-user-flow--balanced {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-panel--summary {
+    max-width: none;
+    justify-self: stretch;
   }
 
   .subscriptions-page .subscription-inline-qr,
