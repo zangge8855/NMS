@@ -4299,17 +4299,41 @@
   }
 }
 
-@media (min-width: 1680px) {
-  [data-workspace="status"] .settings-workspace-highlight-grid,
-  [data-workspace="policy"] .settings-workspace-highlight-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
 @media (min-width: 1280px) {
   [data-workspace="status"] .settings-workspace-highlight-grid,
   [data-workspace="policy"] .settings-workspace-highlight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  [data-workspace="status"] .settings-workspace-highlight-card,
+  [data-workspace="policy"] .settings-workspace-highlight-card {
+    gap: 10px;
+    padding: 16px 18px;
+  }
+
+  [data-workspace="status"] .settings-tab-highlight-value,
+  [data-workspace="policy"] .settings-tab-highlight-value {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 1720px) {
+  [data-workspace="status"] .settings-workspace-highlight-grid,
+  [data-workspace="policy"] .settings-workspace-highlight-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  [data-workspace="status"] .settings-workspace-highlight-card,
+  [data-workspace="policy"] .settings-workspace-highlight-card {
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  [data-workspace="status"] .settings-tab-highlight-value,
+  [data-workspace="policy"] .settings-tab-highlight-value {
+    font-size: 17px;
   }
 }
 
@@ -9389,6 +9413,41 @@ p, .empty-state-body, td {
 .user-detail-page .subscription-inline-qr--featured,
 .user-detail-page .user-detail-subscription-qr {
   justify-content: flex-start;
+}
+
+@media (min-width: 1280px) {
+  .user-detail-page .user-detail-subscription-layout {
+    width: min(100%, 1180px);
+    margin-inline: auto;
+  }
+
+  .user-detail-page .user-detail-subscription-main {
+    grid-template-columns: minmax(0, 1.22fr) minmax(236px, 0.78fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .user-detail-page .user-detail-subscription-card {
+    gap: 16px;
+    padding: 14px 16px;
+  }
+
+  .user-detail-page .user-detail-subscription-qr {
+    min-width: 236px;
+    gap: 10px;
+    padding: 16px 14px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .user-detail-page .user-detail-subscription-qr .subscription-inline-qr-surface svg {
+    width: clamp(156px, 12vw, 188px);
+    height: clamp(156px, 12vw, 188px);
+  }
+
+  .user-detail-page .user-detail-subscription-qr .subscription-inline-qr-text {
+    max-width: 24ch;
+  }
 }
 
 @media (max-width: 768px) {
