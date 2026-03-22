@@ -44,6 +44,11 @@ export const navSections = [
 
 export const footerNavItems = [];
 
+const mobileNavPresets = {
+    admin: ['/', '/audit', '/servers', '/settings'],
+    user: ['/subscriptions', '/downloads', '/account'],
+};
+
 export const navItems = [...navSections.flatMap((section) => section.items), ...footerNavItems];
 
 export function getNavItemForPath(pathname) {
@@ -89,6 +94,19 @@ export function getVisibleFooterNavItems({ isAdmin, isGlobalView, locale = 'zh-C
             ...item,
             label: localize(item.label, locale),
             section: localize(item.section, locale),
+        }));
+}
+
+export function getVisibleMobileNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }) {
+    const preset = isAdmin ? mobileNavPresets.admin : mobileNavPresets.user;
+
+    return preset
+        .map((path) => navItems.find((item) => item.path === path))
+        .filter(Boolean)
+        .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+        .map((item) => ({
+            ...item,
+            label: localize(item.label, locale),
         }));
 }
 

@@ -43,6 +43,10 @@ import {
     resolveRegisteredUserNoticeRecipients,
     sendRegisteredUserNoticeCampaign,
 } from '../services/registeredUserNoticeService.js';
+import {
+    applySecurityBootstrap,
+    getSecurityBootstrapStatus,
+} from '../lib/securityBootstrap.js';
 
 const router = Router();
 const backupUpload = multer({
@@ -76,6 +80,44 @@ router.get('/settings', adminOnly, (req, res) => {
         success: true,
         obj: systemSettingsStore.getAll(),
     });
+});
+
+router.get('/security/bootstrap-status', adminOnly, (req, res) => {
+    try {
+        return res.json({
+            success: true,
+            obj: getSecurityBootstrapStatus(req.user),
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '无法获取安全启动状态',
+        });
+    }
+});
+
+router.post('/security/bootstrap', adminOnly, (req, res) => {
+    try {
+        const result = applySecurityBootstrap(req.body || {}, req.user);
+        appendSecurityAudit('security_bootstrap_completed', req, {
+            envFile: result.envFile,
+            serverCount: result.stats?.serverCount || 0,
+            telegramRotated: result.credentialRotation?.telegramRotated === true,
+            rotatedFields: result.credentialRotation?.serverRotation?.rotatedFields || 0,
+        }, {
+            outcome: 'success',
+        });
+        return res.json({
+            success: true,
+            msg: '安全启动向导已完成',
+            obj: result,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            msg: error.message || '安全启动向导执行失败',
+        });
+    }
 });
 
 router.get('/invite-codes', adminOnly, (req, res) => {

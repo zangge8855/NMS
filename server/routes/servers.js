@@ -3,6 +3,7 @@ import dns from 'dns/promises';
 import net from 'net';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
+import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
@@ -268,6 +269,19 @@ router.get('/governance/summary', (req, res) => {
     return res.json({
         success: true,
         obj: buildGovernanceSummary(filtered),
+    });
+});
+
+router.get('/telemetry/overview', (req, res) => {
+    const all = serverStore.getAll();
+    const filtered = applyServerFilters(all, req.query || {});
+    return res.json({
+        success: true,
+        obj: serverTelemetryStore.getOverview({
+            servers: filtered,
+            hours: req.query.hours,
+            points: req.query.points,
+        }),
     });
 });
 

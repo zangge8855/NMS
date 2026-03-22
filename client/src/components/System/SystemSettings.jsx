@@ -22,6 +22,8 @@ import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
+import SiteAccessDangerModal from './SiteAccessDangerModal.jsx';
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -413,6 +415,7 @@ export default function SystemSettings() {
     const [emailStatusLoading, setEmailStatusLoading] = useState(false);
     const [emailTestLoading, setEmailTestLoading] = useState(false);
     const [emailStatus, setEmailStatus] = useState(null);
+    const [dangerConfirmOpen, setDangerConfirmOpen] = useState(false);
     const [noticeModalOpen, setNoticeModalOpen] = useState(false);
     const [noticeSending, setNoticeSending] = useState(false);
     const [noticeTaskId, setNoticeTaskId] = useState(null);
@@ -483,6 +486,8 @@ export default function SystemSettings() {
         return `${window.location.origin}${buildAppEntryPath(siteAccessPath, '/')}`;
     }, [siteAccessPath]);
     const baselineDraft = useMemo(() => buildDraft(settings), [settings]);
+    const savedSiteAccessPath = normalizeSiteAccessPathInput(settings?.site?.accessPath, '/');
+    const savedCamouflageEnabled = settings?.site?.camouflageEnabled === true;
     const hasPendingChanges = useMemo(() => {
         if (!settings) return false;
         return !areComparableSettingsEqual(draft, baselineDraft);
@@ -509,6 +514,12 @@ export default function SystemSettings() {
             telegram: !areComparableSettingsEqual(draft.telegram, baselineDraft.telegram),
         };
     }, [baselineDraft, draft, settings]);
+    const accessDangerState = useMemo(() => ({
+        pathChanged: savedSiteAccessPath !== siteAccessPath,
+        camouflageChanged: savedCamouflageEnabled !== (draft.site.camouflageEnabled === true),
+        requiresConfirmation: savedSiteAccessPath !== siteAccessPath
+            || savedCamouflageEnabled !== (draft.site.camouflageEnabled === true),
+    }), [draft.site.camouflageEnabled, savedCamouflageEnabled, savedSiteAccessPath, siteAccessPath]);
     const workspaceDirtyMap = useMemo(() => ({
         status: false,
         access: dirtySectionMap.site || dirtySectionMap.registration || dirtySectionMap.subscription,
@@ -902,11 +913,6 @@ export default function SystemSettings() {
         toast.success('已恢复到已保存配置');
     };
 
-    const copySiteEntry = async () => {
-        await copyToClipboard(siteEntryPreview);
-        toast.success('入口地址已复制到剪贴板');
-    };
-
     const refreshStatusWorkspace = async () => {
         await Promise.all([
             fetchRegistrationRuntime(),
@@ -938,17 +944,7 @@ export default function SystemSettings() {
         patchField('site', 'camouflageEnabled', true);
     };
 
-    const saveSettings = async () => {
-        if (!isAdmin) return;
-        const ok = await confirmAction({
-            title: '保存系统设置',
-            message: '确定应用当前系统参数吗？',
-            details: '该操作会立即影响批量风控、任务分页和日志保留策略。',
-            confirmText: '确认保存',
-            tone: 'primary',
-        });
-        if (!ok) return;
-
+    const performSettingsSave = async () => {
         setSaving(true);
         try {
             const payload = buildDraft(draft);
@@ -957,6 +953,7 @@ export default function SystemSettings() {
             setSettings(next);
             setDraft(buildDraft(next));
             setEditingTelegramChatId(false);
+            setDangerConfirmOpen(false);
             await fetchMonitorStatus({ quiet: true });
             await fetchRegistrationRuntime();
             toast.success('系统设置已更新');
@@ -975,6 +972,25 @@ export default function SystemSettings() {
             toast.error(error.response?.data?.msg || error.message || '保存失败');
         }
         setSaving(false);
+    };
+
+    const saveSettings = async () => {
+        if (!isAdmin) return;
+        if (accessDangerState.requiresConfirmation) {
+            setDangerConfirmOpen(true);
+            return;
+        }
+
+        const ok = await confirmAction({
+            title: '保存系统设置',
+            message: '确定应用当前系统参数吗？',
+            details: '该操作会立即影响批量风控、任务分页和日志保留策略。',
+            confirmText: '确认保存',
+            tone: 'primary',
+        });
+        if (!ok) return;
+
+        await performSettingsSave();
     };
 
     const createInviteCode = async () => {
@@ -1551,9 +1567,14 @@ export default function SystemSettings() {
                         title="入口与订阅"
                         actions={(
                             <div className="settings-panel-actions">
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={copySiteEntry}>
+                                <CopyFeedbackButton
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    text={siteEntryPreview}
+                                    successText="入口地址已复制到剪贴板"
+                                >
                                     复制入口
-                                </button>
+                                </CopyFeedbackButton>
                                 <a href={siteEntryPreview} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
                                     打开预览
                                 </a>
@@ -2897,6 +2918,16 @@ export default function SystemSettings() {
                     </div>
                 </div>
             </div>
+            <SiteAccessDangerModal
+                open={dangerConfirmOpen}
+                previousPath={savedSiteAccessPath}
+                nextPath={siteAccessPath}
+                previousCamouflageEnabled={savedCamouflageEnabled}
+                nextCamouflageEnabled={draft.site.camouflageEnabled === true}
+                onClose={() => setDangerConfirmOpen(false)}
+                onConfirm={performSettingsSave}
+                saving={saving}
+            />
             <ModalShell isOpen={noticeModalOpen} onClose={() => setNoticeModalOpen(false)}>
                 <div className="modal modal-wide settings-notice-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">

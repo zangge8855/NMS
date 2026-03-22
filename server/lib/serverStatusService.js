@@ -1,4 +1,5 @@
 import serverStore from '../store/serverStore.js';
+import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import {
     classifyPanelError as classifyPanelFailure,
     derivePanelHealthFromStatus,
@@ -125,6 +126,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
 
     const auth = options.ensureAuthenticated || ensureAuthenticated;
     const includeDetails = options.includeDetails !== false;
+    const startedAt = Date.now();
 
     try {
         const client = await auth(server.id);
@@ -168,6 +170,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             serverId: server.id,
             name: server.name,
             online: true,
+            latencyMs: Math.max(0, Date.now() - startedAt),
             health: healthState.health,
             reasonCode: healthState.reasonCode,
             reasonMessage: healthState.reasonMessage,
@@ -195,6 +198,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             serverId: server.id,
             name: server.name,
             online: false,
+            latencyMs: Math.max(0, Date.now() - startedAt),
             health: failure.health,
             reasonCode: failure.reasonCode,
             reasonMessage: failure.reasonMessage,
@@ -286,6 +290,7 @@ export async function collectClusterStatusSnapshot(options = {}) {
             byServerId,
             includeDetails,
         };
+        serverTelemetryStore.recordSnapshot(snapshot);
         snapshotCache.value = snapshot;
         snapshotCache.valueIncludeDetails = includeDetails;
         snapshotCache.checkedAtMs = Date.now();

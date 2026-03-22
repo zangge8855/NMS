@@ -27,6 +27,7 @@ test('collectServerStatusSnapshot classifies DNS failures with a dedicated reaso
     assert.equal(result.health, 'unreachable');
     assert.equal(result.reasonCode, 'dns_error');
     assert.equal(result.retryable, true);
+    assert.equal(typeof result.latencyMs, 'number');
 });
 
 test('collectClusterStatusSnapshot keeps healthy nodes online when detail endpoints fail', async () => {
@@ -76,6 +77,7 @@ test('collectClusterStatusSnapshot keeps healthy nodes online when detail endpoi
     assert.equal(snapshot.items[0].collectionIssues.length, 2);
     assert.equal(snapshot.items[0].collectionIssues[0].source, 'inbounds');
     assert.equal(snapshot.items[0].collectionIssues[1].source, 'online_users');
+    assert.equal(typeof snapshot.items[0].latencyMs, 'number');
 });
 
 test('collectServerStatusSnapshot keeps inbound traffic totals at zero when counters are present', async () => {
@@ -123,4 +125,5 @@ test('collectServerStatusSnapshot keeps inbound traffic totals at zero when coun
     assert.equal(result.online, true);
     assert.equal(result.up, 0);
     assert.equal(result.down, 0);
+    assert.equal(typeof result.latencyMs, 'number');
 });

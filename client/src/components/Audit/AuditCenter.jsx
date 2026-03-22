@@ -35,6 +35,8 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import MiniSparkline from '../UI/MiniSparkline.jsx';
+import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
 
 const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
 
@@ -532,6 +534,7 @@ const AUDIT_EVENT_LABELS = {
         system_backup_deleted_local: '删除本机备份',
         system_backup_restored: '恢复系统备份',
         system_settings_updated: '更新系统设置',
+        security_bootstrap_completed: '完成安全启动向导',
         server_health_monitor_run: '执行节点健康检查',
         server_order_updated: '更新节点顺序',
         inbound_order_updated: '更新入站顺序',
@@ -605,6 +608,7 @@ const AUDIT_EVENT_LABELS = {
         system_backup_deleted_local: 'Local Backup Deleted',
         system_backup_restored: 'System Backup Restored',
         system_settings_updated: 'System Settings Updated',
+        security_bootstrap_completed: 'Security Bootstrap Completed',
         server_health_monitor_run: 'Server Health Check Ran',
         server_order_updated: 'Server Order Updated',
         inbound_order_updated: 'Inbound Order Updated',
@@ -1102,6 +1106,15 @@ export default function AuditCenter() {
         () => topServers.find((item) => item.serverId === selectedServerId) || null,
         [selectedServerId, topServers]
     );
+    const leaderboardTrendLabel = locale === 'en-US' ? '24h Trend' : '24h 趋势';
+    const {
+        userTrends: trafficUserRowTrends,
+        serverTrends: trafficServerRowTrends,
+    } = useTrafficLeaderboardTrends({
+        enabled: tab === 'traffic',
+        topUsers,
+        topServers,
+    });
     const auditTabs = useMemo(() => ([
         {
             id: 'events',
@@ -1542,11 +1555,25 @@ export default function AuditCenter() {
                                 ) : (
                                     <div className="table-container audit-nested-table-shell">
                                         <table className="table audit-leaderboard-table audit-top-users-table">
-                                            <thead><tr><th>{copy.tables.user}</th><th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th></tr></thead>
+                                            <thead>
+                                                <tr>
+                                                    <th>{copy.tables.user}</th>
+                                                    <th>{leaderboardTrendLabel}</th>
+                                                    <th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th>
+                                                </tr>
+                                            </thead>
                                             <tbody>
                                                 {topUsers.map((item) => (
                                                     <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
                                                         <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">{formatTrafficUserLabel(item)}</td>
+                                                        <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
+                                                            <MiniSparkline
+                                                                points={trafficUserRowTrends[item.email] || []}
+                                                                tone="primary"
+                                                                width={132}
+                                                                height={32}
+                                                            />
+                                                        </td>
                                                         <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
                                                     </tr>
                                                 ))}
@@ -1568,11 +1595,25 @@ export default function AuditCenter() {
                                 ) : (
                                     <div className="table-container audit-nested-table-shell">
                                         <table className="table audit-leaderboard-table audit-top-servers-table">
-                                            <thead><tr><th>{copy.tables.node}</th><th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th></tr></thead>
+                                            <thead>
+                                                <tr>
+                                                    <th>{copy.tables.node}</th>
+                                                    <th>{leaderboardTrendLabel}</th>
+                                                    <th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th>
+                                                </tr>
+                                            </thead>
                                             <tbody>
                                                 {topServers.map((item) => (
                                                     <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
                                                         <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">{item.serverName}</td>
+                                                        <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
+                                                            <MiniSparkline
+                                                                points={trafficServerRowTrends[item.serverId] || []}
+                                                                tone="success"
+                                                                width={132}
+                                                                height={32}
+                                                            />
+                                                        </td>
                                                         <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
                                                     </tr>
                                                 ))}

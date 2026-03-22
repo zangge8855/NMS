@@ -24,6 +24,7 @@ import {
 } from 'react-icons/hi2';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
+import ResourceTopologyCard from './ResourceTopologyCard.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -696,6 +697,7 @@ export default function Dashboard() {
     const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
     const [globalTrafficTotals, setGlobalTrafficTotals] = useState(INITIAL_GLOBAL_TRAFFIC_TOTALS);
     const [dailyTrafficTotals, setDailyTrafficTotals] = useState(INITIAL_DAILY_TRAFFIC_TOTALS);
+    const [dbStatus, setDbStatus] = useState(null);
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -760,6 +762,30 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
         }
     }, []);
+
+    useEffect(() => {
+        if (activeServerId !== 'global') {
+            setDbStatus(null);
+            return undefined;
+        }
+        let disposed = false;
+        const loadDbStatus = async () => {
+            try {
+                const res = await api.get('/system/db/status');
+                if (!disposed) {
+                    setDbStatus(res.data?.obj || null);
+                }
+            } catch {
+                if (!disposed) {
+                    setDbStatus(null);
+                }
+            }
+        };
+        loadDbStatus();
+        return () => {
+            disposed = true;
+        };
+    }, [activeServerId]);
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!token) {
@@ -1359,6 +1385,13 @@ export default function Dashboard() {
                     </button>
                 </Header>
                 <div className="page-content page-enter">
+                    <ResourceTopologyCard
+                        dbStatus={dbStatus}
+                        servers={servers}
+                        serverStatuses={serverStatuses}
+                        onOpenServers={() => navigate('/servers')}
+                    />
+
                     <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, index) => (
                             <StatCard

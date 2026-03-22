@@ -5,6 +5,8 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ServerTelemetryCell from './ServerTelemetryCell.jsx';
+import { showAggregateToast } from '../UI/AggregateToast.jsx';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -21,6 +23,8 @@ import {
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import useServerTelemetry from '../../hooks/useServerTelemetry.js';
+import useBulkAction from '../../hooks/useBulkAction.js';
 
 const PANEL_AUTH_REPAIR_CODES = new Set([
     'PANEL_CREDENTIAL_UNREADABLE',
@@ -60,6 +64,16 @@ function formatServerEnvironment(value, locale = 'zh-CN') {
     const labels = locale === 'zh-CN' ? SERVER_ENV_LABELS_ZH : SERVER_ENV_LABELS_EN;
     if (!normalized || normalized === 'unknown') return '';
     return labels[normalized] || raw;
+}
+
+function resolveServerLiveStatus(server, telemetry) {
+    if (String(server?.health || '').trim().toLowerCase() === 'maintenance') {
+        return 'maintenance';
+    }
+    if (!telemetry?.checkedAt) {
+        return 'unknown';
+    }
+    return telemetry?.current?.online === true ? 'online' : 'offline';
 }
 
 export default function Servers() {
@@ -111,7 +125,31 @@ export default function Servers() {
     const [searchKeyword, setSearchKeyword] = useState('');
     const deferredSearchKeyword = useDeferredValue(searchKeyword);
     const [filterGroup, setFilterGroup] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [credentialFilter, setCredentialFilter] = useState('all');
+    const [latencyFilter, setLatencyFilter] = useState('all');
     const confirmAction = useConfirm();
+    const {
+        telemetryByServerId,
+        telemetryLoading,
+        refreshTelemetry,
+    } = useServerTelemetry({
+        enabled: servers.length > 0,
+        hours: 24,
+        points: 24,
+    });
+    const serverNameById = useMemo(
+        () => Object.fromEntries(servers.map((item) => [String(item?.id || '').trim(), String(item?.name || '').trim()])),
+        [servers]
+    );
+    const bulkTestAction = useBulkAction({
+        getId: (id) => String(id || ''),
+        getLabel: (id) => serverNameById[String(id || '').trim()] || String(id || ''),
+    });
+    const bulkDeleteAction = useBulkAction({
+        getId: (id) => String(id || ''),
+        getLabel: (id) => serverNameById[String(id || '').trim()] || String(id || ''),
+    });
 
     const resetForm = () => {
         setForm({
@@ -330,6 +368,25 @@ export default function Servers() {
         setShowForm(true);
     };
 
+    function getAuthRepairCode(errorLike) {
+        const code = String(errorLike?.code || errorLike?.response?.data?.code || '').trim();
+        if (!code) return '';
+        return PANEL_AUTH_REPAIR_CODES.has(code) ? code : '';
+    }
+
+    const showBatchToast = (title, report, onRetry = null) => {
+        showAggregateToast({
+            title,
+            report,
+            successLabel: uiText.toastSuccess,
+            failureLabel: uiText.toastFailed,
+            detailsLabel: uiText.toastDetails,
+            retryLabel: uiText.toastRetry,
+            closeLabel: uiText.toastClose,
+            onRetry,
+        });
+    };
+
     const handleDelete = async (id) => {
         const ok = await confirmAction({
             title: t('comp.servers.deleteTitle'),
@@ -339,10 +396,15 @@ export default function Servers() {
             tone: 'danger',
         });
         if (!ok) return;
+        setLoading((prev) => ({ ...prev, [`delete-${id}`]: true }));
         try {
             await removeServer(id);
             toast.success(t('comp.servers.serverDeleted'));
-        } catch (err) { toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale)); }
+            refreshTelemetry({ quiet: true });
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale));
+        }
+        setLoading((prev) => ({ ...prev, [`delete-${id}`]: false }));
     };
 
     // Batch Actions
@@ -376,68 +438,78 @@ export default function Servers() {
             tone: 'danger',
         });
         if (!ok) return;
-
-        let successCount = 0;
-        for (const id of selectedIds) {
-            try {
-                await removeServer(id);
-                successCount++;
-            } catch (err) {
-                console.error(err);
+        const executeDelete = async (id) => {
+            const res = await api.delete(`/servers/${encodeURIComponent(id)}`);
+            return {
+                message: res.data?.msg || t('comp.servers.serverDeleted'),
+            };
+        };
+        const runDelete = async (ids) => {
+            const report = await bulkDeleteAction.run(ids, executeDelete, {
+                mapError: (error) => ({
+                    message: getErrorMessage(error, t('comp.common.deleteFailed'), locale),
+                }),
+            });
+            if (report.successCount > 0) {
+                await fetchServers();
+                refreshTelemetry({ quiet: true });
             }
-        }
-        setSelectedIds(new Set());
-        toast.success(`批量删除完成: ${successCount} 成功`);
+            setSelectedIds((previous) => {
+                const next = new Set(previous);
+                report.successItems.forEach((item) => next.delete(item.id));
+                return next;
+            });
+            showBatchToast(
+                uiText.bulkDeleteTitle,
+                report,
+                report.failureCount > 0 ? () => runDelete(report.failureItems.map((item) => item.item)) : null
+            );
+            return report;
+        };
+        await runDelete(Array.from(selectedIds));
     };
 
     const handleBulkTest = async () => {
-        const ids = Array.from(selectedIds);
-        setLoading(prev => ({ ...prev, bulkTest: true }));
-        const failures = [];
-        let repairTargetId = '';
-        let repairReason = '';
-
-        // Parallel testing
-        await Promise.all(ids.map(async (id) => {
-            setLoading(prev => ({ ...prev, [`test-${id}`]: true }));
-            try {
-                const res = await testConnection(id);
-                setTestResults(prev => ({ ...prev, [id]: res.success ? 'success' : 'error' }));
-                if (!res.success) {
-                    failures.push({ id, msg: res.msg || t('comp.common.connectFailed') });
-                    const authCode = getAuthRepairCode(res);
-                    if (!repairTargetId && authCode) {
-                        repairTargetId = id;
-                        repairReason = res.msg || t('comp.common.authFailed');
-                    }
-                }
-            } catch (err) {
-                setTestResults(prev => ({ ...prev, [id]: 'error' }));
-                failures.push({ id, msg: getErrorMessage(err, t('comp.common.connectFailed'), locale) });
-                const authCode = getAuthRepairCode(err);
-                if (!repairTargetId && authCode) {
-                    repairTargetId = id;
-                    repairReason = err?.response?.data?.msg || t('comp.common.authFailed');
-                }
+        const executeTest = async (id) => {
+            const res = await testConnection(id);
+            const authCode = getAuthRepairCode(res);
+            if (!res?.success) {
+                const error = new Error(res?.msg || t('comp.common.connectFailed'));
+                error.code = authCode || res?.code || '';
+                error.meta = { authCode };
+                throw error;
             }
-            setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
-        }));
-
-        setLoading(prev => ({ ...prev, bulkTest: false }));
-        if (failures.length === 0) {
-            toast.success(t('comp.servers.batchTestDone'));
-        } else {
-            toast.error(`批量测试完成：${ids.length - failures.length}/${ids.length} 成功`);
-        }
-        if (repairTargetId) {
-            openCredentialRepair(repairTargetId, repairReason);
-        }
-    };
-
-    const getAuthRepairCode = (errorLike) => {
-        const code = String(errorLike?.code || errorLike?.response?.data?.code || '').trim();
-        if (!code) return '';
-        return PANEL_AUTH_REPAIR_CODES.has(code) ? code : '';
+            return {
+                message: res.msg || t('comp.servers.connectSuccess'),
+                meta: { authCode },
+            };
+        };
+        const runTest = async (ids) => {
+            const report = await bulkTestAction.run(ids, executeTest, {
+                mapError: (error) => ({
+                    message: getErrorMessage(error, t('comp.common.connectFailed'), locale),
+                    meta: error?.meta || { authCode: getAuthRepairCode(error) },
+                }),
+                onItemSettled: (result) => {
+                    setTestResults((previous) => ({
+                        ...previous,
+                        [result.id]: result.success ? 'success' : 'error',
+                    }));
+                },
+            });
+            refreshTelemetry({ quiet: true });
+            const repairTarget = report.failureItems.find((item) => item?.meta?.authCode || getAuthRepairCode(item?.error));
+            if (repairTarget) {
+                openCredentialRepair(repairTarget.id, repairTarget.message || t('comp.common.authFailed'));
+            }
+            showBatchToast(
+                uiText.bulkTestTitle,
+                report,
+                report.failureCount > 0 ? () => runTest(report.failureItems.map((item) => item.item)) : null
+            );
+            return report;
+        };
+        await runTest(Array.from(selectedIds));
     };
 
     const handleCredentialRepairSubmit = async (e) => {
@@ -522,6 +594,7 @@ export default function Servers() {
                 toast.error(getErrorMessage(err, t('comp.common.connectFailed'), locale));
             }
         }
+        refreshTelemetry({ quiet: true });
         setLoading(prev => ({ ...prev, [`test-${id}`]: false }));
     };
 
@@ -551,6 +624,14 @@ export default function Servers() {
         const keyword = String(deferredSearchKeyword || '').trim().toLowerCase();
         return orderedServers.filter((server) => {
             if (filterGroup !== 'all' && String(server.group || '') !== filterGroup) return false;
+            const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
+            const liveStatus = resolveServerLiveStatus(server, telemetry);
+            const credentialStatus = String(server.credentialStatus || 'configured');
+            const currentLatency = Number(telemetry?.current?.latencyMs);
+            if (statusFilter !== 'all' && liveStatus !== statusFilter) return false;
+            if (credentialFilter !== 'all' && credentialStatus !== credentialFilter) return false;
+            if (latencyFilter === 'slow' && !(Number.isFinite(currentLatency) && currentLatency >= 150)) return false;
+            if (latencyFilter === 'critical' && !(Number.isFinite(currentLatency) && currentLatency >= 300)) return false;
             if (!keyword) return true;
             const tagsText = Array.isArray(server.tags) ? server.tags.join(' ') : '';
             const text = [
@@ -560,13 +641,15 @@ export default function Servers() {
                 server.group,
                 server.environment,
                 server.health,
+                liveStatus,
+                credentialStatus,
                 tagsText,
             ]
                 .map((item) => String(item || '').toLowerCase())
                 .join(' ');
             return text.includes(keyword);
         });
-    }, [orderedServers, deferredSearchKeyword, filterGroup]);
+    }, [orderedServers, deferredSearchKeyword, filterGroup, telemetryByServerId, statusFilter, credentialFilter, latencyFilter]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
     const activeServer = useMemo(
@@ -583,8 +666,27 @@ export default function Servers() {
                 filterSummary: `显示 ${filteredServers.length} / ${servers.length}`,
                 searchPlaceholder: '搜索名称 / URL / 标签',
                 allGroups: '全部分组',
+                allStatus: '全部状态',
+                statusOnline: '在线',
+                statusOffline: '离线',
+                statusMaintenance: '维护',
+                statusUnknown: '未采样',
+                allCredentials: '全部凭据',
+                credentialReady: '凭据正常',
+                credentialMissing: '缺失',
+                credentialBroken: '损坏',
+                allLatency: '全部延迟',
+                latencySlow: 'RTT ≥ 150ms',
+                latencyCritical: 'RTT ≥ 300ms',
                 noMatchTitle: '没有匹配的服务器',
                 noMatchSubtitle: '请调整搜索关键词或分组筛选条件',
+                bulkTestTitle: '批量连通性检测',
+                bulkDeleteTitle: '批量删除服务器',
+                toastSuccess: '成功',
+                toastFailed: '失败',
+                toastDetails: '展开失败详情',
+                toastRetry: '重试失败项',
+                toastClose: '关闭',
             }
             : {
                 total: 'Servers',
@@ -594,14 +696,40 @@ export default function Servers() {
                 filterSummary: `Showing ${filteredServers.length} / ${servers.length}`,
                 searchPlaceholder: 'Search by name / URL / tag',
                 allGroups: 'All groups',
+                allStatus: 'All status',
+                statusOnline: 'Online',
+                statusOffline: 'Offline',
+                statusMaintenance: 'Maintenance',
+                statusUnknown: 'Unsampled',
+                allCredentials: 'All credentials',
+                credentialReady: 'Configured',
+                credentialMissing: 'Missing',
+                credentialBroken: 'Broken',
+                allLatency: 'All latency',
+                latencySlow: 'RTT ≥ 150ms',
+                latencyCritical: 'RTT ≥ 300ms',
                 noMatchTitle: 'No matching servers',
                 noMatchSubtitle: 'Adjust the search keyword or group filter.',
+                bulkTestTitle: 'Batch connectivity check',
+                bulkDeleteTitle: 'Batch node delete',
+                toastSuccess: 'Succeeded',
+                toastFailed: 'Failed',
+                toastDetails: 'Show failed details',
+                toastRetry: 'Retry failed items',
+                toastClose: 'Close',
             }
     ), [filteredServers.length, locale, servers.length]);
     const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
     const orderedServerIds = useMemo(
         () => orderedServers.map((item) => String(item?.id || '').trim()).filter(Boolean),
         [orderedServers]
+    );
+    const bulkActionBusy = bulkTestAction.pendingIds.length > 0 || bulkDeleteAction.pendingIds.length > 0;
+    const isServerBusy = (serverId) => (
+        Boolean(loading[`test-${serverId}`])
+        || Boolean(loading[`delete-${serverId}`])
+        || bulkTestAction.isPending(serverId)
+        || bulkDeleteAction.isPending(serverId)
     );
 
     const moveServer = async (serverId, direction) => {
@@ -633,6 +761,8 @@ export default function Servers() {
     const renderMobileServerCard = (server, index) => {
         const isSelected = selectedIds.has(server.id);
         const isActive = server.id === activeServerId;
+        const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
+        const rowBusy = isServerBusy(server.id);
         const credentialStatus = String(server.credentialStatus || 'configured');
         const serverGroup = server.group || t('comp.servers.ungrouped');
         const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
@@ -658,8 +788,13 @@ export default function Servers() {
         return (
             <article
                 key={server.id}
-                className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
-                onClick={() => selectServer(server.id)}
+                className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}${rowBusy ? ' is-pending' : ''}`}
+                onClick={() => {
+                    if (!rowBusy) {
+                        selectServer(server.id);
+                    }
+                }}
+                aria-busy={rowBusy}
             >
                 <div className="servers-mobile-card-top">
                     <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
@@ -667,6 +802,7 @@ export default function Servers() {
                             type="checkbox"
                             className="checkbox"
                             checked={isSelected}
+                            disabled={rowBusy}
                             onChange={() => toggleSelect(server.id)}
                         />
                     </label>
@@ -678,7 +814,7 @@ export default function Servers() {
                                 className="btn btn-ghost btn-xs btn-icon"
                                 aria-label={`上移服务器 ${server.name}`}
                                 title="上移"
-                                disabled={index === 0 || loading.serverOrder}
+                                disabled={index === 0 || loading.serverOrder || rowBusy}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     moveServer(server.id, -1);
@@ -691,7 +827,7 @@ export default function Servers() {
                                 className="btn btn-ghost btn-xs btn-icon"
                                 aria-label={`下移服务器 ${server.name}`}
                                 title="下移"
-                                disabled={index === filteredServers.length - 1 || loading.serverOrder}
+                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     moveServer(server.id, 1);
@@ -729,6 +865,12 @@ export default function Servers() {
                     </div>
                 </div>
 
+                <ServerTelemetryCell
+                    telemetry={telemetry}
+                    loading={telemetryLoading}
+                    locale={locale}
+                />
+
                 {serverTags.length > 0 ? (
                     <div className="servers-mobile-tags">
                         {serverTags.map((tag) => (
@@ -744,15 +886,15 @@ export default function Servers() {
                     <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleTest(server.id)}
-                        disabled={loading[`test-${server.id}`]}
+                        disabled={rowBusy}
                     >
-                        {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
+                        {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
                         {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                     </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
                         <HiOutlinePencilSquare /> {t('comp.common.edit')}
                     </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')}>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
                         <HiOutlineTrash /> {t('comp.common.delete')}
                     </button>
                 </div>
@@ -771,13 +913,13 @@ export default function Servers() {
                     {selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
                             <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
-                            <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={loading.bulkTest}>
-                                {loading.bulkTest ? <span className="spinner" /> : <HiOutlineSignal />} 批量测试
+                            <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
+                                {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} 批量测试
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkActionBusy}>
                                 <HiOutlineTrash /> 批量删除
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkActionBusy}>
                                 取消全选
                             </button>
                         </div>
@@ -827,6 +969,24 @@ export default function Servers() {
                             <option value="all">{uiText.allGroups}</option>
                             {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                         </select>
+                        <select className="form-select servers-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                            <option value="all">{uiText.allStatus}</option>
+                            <option value="online">{uiText.statusOnline}</option>
+                            <option value="offline">{uiText.statusOffline}</option>
+                            <option value="maintenance">{uiText.statusMaintenance}</option>
+                            <option value="unknown">{uiText.statusUnknown}</option>
+                        </select>
+                        <select className="form-select servers-filter-select" value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
+                            <option value="all">{uiText.allCredentials}</option>
+                            <option value="configured">{uiText.credentialReady}</option>
+                            <option value="missing">{uiText.credentialMissing}</option>
+                            <option value="unreadable">{uiText.credentialBroken}</option>
+                        </select>
+                        <select className="form-select servers-filter-select" value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
+                            <option value="all">{uiText.allLatency}</option>
+                            <option value="slow">{uiText.latencySlow}</option>
+                            <option value="critical">{uiText.latencyCritical}</option>
+                        </select>
                         <div className="text-sm text-muted servers-filter-summary">
                             {uiText.filterSummary}
                         </div>
@@ -861,6 +1021,7 @@ export default function Servers() {
                                     <th className="table-cell-center servers-move-column">移动</th>
                                     <th className="table-cell-center servers-order-column">序号</th>
                                     <th className="servers-name-column">服务器</th>
+                                    <th className="servers-telemetry-column">24h RTT</th>
                                     <th className="servers-group-column">分组 / 标签</th>
                                     <th className="servers-account-column">账号</th>
                                     <th className="servers-credential-column">凭据</th>
@@ -872,6 +1033,8 @@ export default function Servers() {
                                 {filteredServers.map((server, index) => {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = server.id === activeServerId;
+                            const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
+                            const rowBusy = isServerBusy(server.id);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const serverGroup = server.group || t('comp.servers.ungrouped');
                             const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
@@ -896,14 +1059,20 @@ export default function Servers() {
                             return (
                                 <tr
                                     key={server.id}
-                                    className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}`}
-                                    onClick={() => selectServer(server.id)}
+                                    className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}${rowBusy ? ' is-pending' : ''}`}
+                                    onClick={() => {
+                                        if (!rowBusy) {
+                                            selectServer(server.id);
+                                        }
+                                    }}
+                                    aria-busy={rowBusy}
                                 >
                                     <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
                                             className="checkbox"
                                             checked={isSelected}
+                                            disabled={rowBusy}
                                             onChange={() => toggleSelect(server.id)}
                                         />
                                     </td>
@@ -914,7 +1083,7 @@ export default function Servers() {
                                                 className="btn btn-ghost btn-xs btn-icon"
                                                 aria-label={`上移服务器 ${server.name}`}
                                                 title="上移"
-                                                disabled={index === 0 || loading.serverOrder}
+                                                disabled={index === 0 || loading.serverOrder || rowBusy}
                                                 onClick={() => moveServer(server.id, -1)}
                                             >
                                                 <HiOutlineArrowUp />
@@ -924,7 +1093,7 @@ export default function Servers() {
                                                 className="btn btn-ghost btn-xs btn-icon"
                                                 aria-label={`下移服务器 ${server.name}`}
                                                 title="下移"
-                                                disabled={index === filteredServers.length - 1 || loading.serverOrder}
+                                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
                                                 onClick={() => moveServer(server.id, 1)}
                                             >
                                                 <HiOutlineArrowDown />
@@ -969,6 +1138,13 @@ export default function Servers() {
                                             ) : null}
                                         </div>
                                     </td>
+                                    <td className="servers-telemetry-column" data-label="24h RTT">
+                                        <ServerTelemetryCell
+                                            telemetry={telemetry}
+                                            loading={telemetryLoading}
+                                            locale={locale}
+                                        />
+                                    </td>
                                     <td className="servers-tags-cell" data-label="分组 / 标签">
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
@@ -996,22 +1172,22 @@ export default function Servers() {
                                     </td>
                                     <td className="table-cell-actions servers-actions-cell" data-label="操作" onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
-                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
+                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情" disabled={rowBusy}>
                                             <HiOutlineEye /> 详情
                                         </button>
                                         <button
                                             className="btn btn-secondary btn-sm servers-row-action-main"
                                             onClick={() => handleTest(server.id)}
-                                            disabled={loading[`test-${server.id}`]}
+                                            disabled={rowBusy}
                                         >
-                                            {loading[`test-${server.id}`] ? <span className="spinner" /> : <HiOutlineSignal />}
+                                            {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
-                                            <button className="btn btn-ghost btn-sm btn-icon table-action-btn servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')}>
+                                            <button className="btn btn-ghost btn-sm btn-icon table-action-btn servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')} disabled={rowBusy}>
                                                 <HiOutlinePencilSquare />
                                                 <span className="servers-row-action-mobile-label">{t('comp.common.edit')}</span>
                                             </button>
-                                            <button className="btn btn-danger btn-sm btn-icon table-action-btn servers-row-action-icon is-danger" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')}>
+                                            <button className="btn btn-danger btn-sm btn-icon table-action-btn servers-row-action-icon is-danger" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')} disabled={rowBusy}>
                                                 <HiOutlineTrash />
                                                 <span className="servers-row-action-mobile-label">{t('comp.common.delete')}</span>
                                             </button>

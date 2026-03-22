@@ -5,8 +5,10 @@ import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
+import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
+import VirtualList from '../UI/VirtualList.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
-import { formatBytes, copyToClipboard, formatDateOnly, formatDateTime } from '../../utils/format.js';
+import { formatBytes, formatDateOnly, formatDateTime } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
@@ -23,7 +25,6 @@ import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
 import {
     HiOutlineArrowLeft,
-    HiOutlineClipboard,
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
     HiOutlineCalendarDays,
@@ -561,6 +562,40 @@ function normalizeUserDetailPayload(payload) {
     };
 }
 
+function TimelineEntry({ item, index, copy, locale }) {
+    return (
+        <div key={item.id || index} className="timeline-item">
+            <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
+            <div className="timeline-content">
+                <div className="timeline-head">
+                    <span className="font-medium">{formatTimelineTitle(item, copy)}</span>
+                    <span className="timeline-time">{formatTime(item.ts, locale)}</span>
+                </div>
+                <div className="flex gap-2 flex-wrap mt-2">
+                    <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
+                        {item.type === 'access' ? copy.labels.subscriptionAccess : copy.labels.auditEvent}
+                    </span>
+                    <span className={`badge ${item.outcome === 'success' || item.outcome === 'ok' ? 'badge-success' : item.outcome === 'failed' || item.outcome === 'denied' ? 'badge-danger' : 'badge-neutral'}`}>
+                        {formatOutcomeLabel(item, copy)}
+                    </span>
+                    {item.actor && <span className="badge badge-neutral">{copy.labels.actor} {item.actor}</span>}
+                    {item.serverId && <span className="badge badge-info">{copy.labels.node} {item.serverId}</span>}
+                    {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
+                </div>
+                {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
+                <div className="timeline-fact-grid mt-3">
+                    {buildTimelineFacts(item, copy).map((fact) => (
+                        <div key={`${item.id}-${fact.label}`} className="timeline-fact-card">
+                            <div className="timeline-fact-label">{fact.label}</div>
+                            <div className="timeline-fact-value">{fact.value}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function UserDetail() {
     const { locale, t } = useI18n();
     const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
@@ -869,6 +904,7 @@ export default function UserDetail() {
         });
         return items.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 50);
     }, [detail, copy, locale, recentAudit, subscriptionAccess]);
+    const shouldVirtualizeTimeline = timeline.length > 80;
 
     // Stats
     const totalTraffic = useMemo(() => {
@@ -927,15 +963,6 @@ export default function UserDetail() {
             .replace('{disabled}', String(subscriptionResult?.filteredDisabled || 0))
             .replace('{policy}', String(subscriptionResult?.filteredByPolicy || 0))
         : '';
-
-    const handleCopySubscription = async () => {
-        if (!activeSubscriptionProfile?.url) {
-            toast.error(copy.labels.noCopyableSubscription);
-            return;
-        }
-        await copyToClipboard(activeSubscriptionProfile.url);
-        toast.success(copy.labels.copiedSubscription.replace('{label}', activeSubscriptionProfile.label));
-    };
 
     const handleResetSubscription = async () => {
         const targetEmail = String(subscriptionResult?.email || user?.subscriptionEmail || user?.email || '').trim().toLowerCase();
@@ -1214,17 +1241,12 @@ export default function UserDetail() {
                             <div className="user-profile-meta">
                                 <div className="user-profile-meta-item">
                                     <HiOutlineKey /> {copy.labels.userId}: {user.id}
-                                    <button
-                                        type="button"
+                                    <CopyFeedbackButton
+                                        text={user.id}
+                                        successText={copy.labels.copiedUserId}
                                         className="btn btn-ghost btn-xs btn-icon"
                                         title={copy.labels.userId}
-                                        onClick={async () => {
-                                            await copyToClipboard(user.id);
-                                            toast.success(copy.labels.copiedUserId);
-                                        }}
-                                    >
-                                        <HiOutlineClipboard />
-                                    </button>
+                                    />
                                 </div>
                                 <div className="user-profile-meta-item">
                                     <HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}
@@ -1374,13 +1396,18 @@ export default function UserDetail() {
                                                         readOnly
                                                         placeholder={copy.labels.noSubscriptionAddress}
                                                     />
-                                                    <button
+                                                    <CopyFeedbackButton
                                                         className="btn btn-primary subscription-copy-btn"
-                                                        onClick={handleCopySubscription}
+                                                        text={activeSubscriptionProfile?.url || ''}
+                                                        successText={copy.labels.copiedSubscription.replace(
+                                                            '{label}',
+                                                            activeSubscriptionProfile?.label || copy.labels.copyAddress
+                                                        )}
+                                                        errorText={copy.labels.noCopyableSubscription}
                                                         disabled={!activeSubscriptionProfile?.url || subscriptionResult.subscriptionActive === false}
                                                     >
-                                                        <HiOutlineClipboard /> {copy.labels.copyAddress}
-                                                    </button>
+                                                        {copy.labels.copyAddress}
+                                                    </CopyFeedbackButton>
                                                 </div>
 
                                                 <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
@@ -1571,38 +1598,25 @@ export default function UserDetail() {
                                 {timeline.length === 0 ? (
                                     <EmptyState title={copy.labels.noActivityTitle} subtitle={copy.labels.noActivitySubtitle} />
                                 ) : (
-                                    <div className="timeline-list">
-                                        {timeline.map((item, i) => (
-                                                <div key={item.id || i} className="timeline-item">
-                                                    <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
-                                                    <div className="timeline-content">
-                                                    <div className="timeline-head">
-                                                        <span className="font-medium">{formatTimelineTitle(item, copy)}</span>
-                                                        <span className="timeline-time">{formatTime(item.ts, locale)}</span>
-                                                    </div>
-                                                    <div className="flex gap-2 flex-wrap mt-2">
-                                                        <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
-                                                            {item.type === 'access' ? copy.labels.subscriptionAccess : copy.labels.auditEvent}
-                                                        </span>
-                                                        <span className={`badge ${item.outcome === 'success' || item.outcome === 'ok' ? 'badge-success' : item.outcome === 'failed' || item.outcome === 'denied' ? 'badge-danger' : 'badge-neutral'}`}>
-                                                            {formatOutcomeLabel(item, copy)}
-                                                        </span>
-                                                        {item.actor && <span className="badge badge-neutral">{copy.labels.actor} {item.actor}</span>}
-                                                        {item.serverId && <span className="badge badge-info">{copy.labels.node} {item.serverId}</span>}
-                                                        {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
-                                                    </div>
-                                                    {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
-                                                    <div className="timeline-fact-grid mt-3">
-                                                        {buildTimelineFacts(item, copy).map((fact) => (
-                                                            <div key={`${item.id}-${fact.label}`} className="timeline-fact-card">
-                                                                <div className="timeline-fact-label">{fact.label}</div>
-                                                                <div className="timeline-fact-value">{fact.value}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className={`timeline-list${shouldVirtualizeTimeline ? ' timeline-list--virtualized' : ''}`}>
+                                        {shouldVirtualizeTimeline ? (
+                                            <VirtualList
+                                                className="timeline-virtual-list"
+                                                innerClassName="timeline-virtual-list-inner"
+                                                items={timeline}
+                                                itemSize={220}
+                                                overscan={4}
+                                                ariaLabel={locale === 'en-US' ? 'User activity timeline' : '用户活动时间线'}
+                                                renderItem={(item, index) => (
+                                                    <TimelineEntry item={item} index={index} copy={copy} locale={locale} />
+                                                )}
+                                                getKey={(item, index) => item.id || `${item.ts}-${index}`}
+                                            />
+                                        ) : (
+                                            timeline.map((item, i) => (
+                                                <TimelineEntry key={item.id || i} item={item} index={i} copy={copy} locale={locale} />
+                                            ))
+                                        )}
                                     </div>
                                 )}
                             </div>

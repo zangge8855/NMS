@@ -1,11 +1,11 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineClipboard, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
+import { formatBytes, formatDateOnly } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -15,6 +15,9 @@ import useMediaQuery from '../../hooks/useMediaQuery.js';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
+import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
+import CircularMeter from '../UI/CircularMeter.jsx';
 
 function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
@@ -42,12 +45,12 @@ function clampProgress(value) {
 
 function pickProgressTone(progress, { inverse = false } = {}) {
     if (!inverse) {
-        if (progress >= 85) return 'danger';
-        if (progress >= 60) return 'warning';
+        if (progress >= 95) return 'danger';
+        if (progress >= 80) return 'warning';
         return 'info';
     }
-    if (progress <= 15) return 'danger';
-    if (progress <= 40) return 'warning';
+    if (progress <= 5) return 'danger';
+    if (progress <= 20) return 'warning';
     return 'success';
 }
 
@@ -300,6 +303,7 @@ export default function Subscriptions() {
     const [result, setResult] = useState(null);
     const [profileKey, setProfileKey] = useState('v2rayn');
     const [resetLoading, setResetLoading] = useState(false);
+    const [qrModalOpen, setQrModalOpen] = useState(false);
     const ui = useMemo(
         () => getSubscriptionCopy(locale, { userCount: users.length, nodeCount: Number(result?.total || 0) }),
         [locale, users.length, result?.total]
@@ -383,6 +387,7 @@ export default function Subscriptions() {
             meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
             progress: usedTrafficProgress,
             tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
+            pulse: usedTrafficProgress >= 95,
         },
         {
             key: 'available',
@@ -391,6 +396,7 @@ export default function Subscriptions() {
             meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
             progress: availableTrafficProgress,
             tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
+            pulse: trafficLimitBytes > 0 && availableTrafficProgress <= 5,
         },
         {
             key: 'expiry',
@@ -399,8 +405,11 @@ export default function Subscriptions() {
             meta: expiryProgressState.meta,
             progress: expiryProgressState.progress,
             tone: expiryProgressState.tone,
+            pulse: expiryProgressState.tone === 'danger',
         },
     ];
+    const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
+    const shouldShowInlineQr = !isCompactViewport;
     const shouldShowSideColumn = !isUserOnly;
 
     const syncFromQuery = () => {
@@ -514,14 +523,11 @@ export default function Subscriptions() {
         loadSubscription(deferredEmail);
     }, [deferredEmail, selectedServerId, locale]);
 
-    const handleCopy = async () => {
-        if (!activeProfile?.url) {
-            toast.error(t('comp.common.noCopyableUrl'));
-            return;
+    useEffect(() => {
+        if (!canShowQr) {
+            setQrModalOpen(false);
         }
-        await copyToClipboard(activeProfile.url);
-        toast.success(ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile.label));
-    };
+    }, [canShowQr]);
 
     const handleResetLink = async () => {
         if (!normalizedEmail) return;
@@ -714,13 +720,24 @@ export default function Subscriptions() {
                                                                     spellCheck={false}
                                                                 />
                                                                 <div className="subscription-user-address-actions">
-                                                                    <button
+                                                                    <CopyFeedbackButton
                                                                         className="btn btn-primary btn-sm subscription-user-copy-btn"
-                                                                        onClick={handleCopy}
+                                                                        text={activeProfile?.url || ''}
+                                                                        successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
+                                                                        errorText={t('comp.common.noCopyableUrl')}
                                                                         disabled={!activeProfile?.url || !result.subscriptionActive}
                                                                     >
-                                                                        <HiOutlineClipboard /> {ui.copyAddress}
-                                                                    </button>
+                                                                        {ui.copyAddress}
+                                                                    </CopyFeedbackButton>
+                                                                    {isCompactViewport && canShowQr ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-secondary btn-sm subscription-user-import-btn"
+                                                                            onClick={() => setQrModalOpen(true)}
+                                                                        >
+                                                                            <HiOutlineQrCode /> {ui.scanImport}
+                                                                        </button>
+                                                                    ) : null}
                                                                     {primaryImportActions.map((item) => (
                                                                         <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
                                                                             {item.label}
@@ -739,21 +756,24 @@ export default function Subscriptions() {
                                                                         </div>
                                                                     </details>
                                                                 )}
-                                                                <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                                <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
                                                                     {statusCards.map((item) => (
-                                                                        <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
-                                                                            <div className="subscription-address-status-head">
-                                                                                <div className="subscription-address-status-label">{item.label}</div>
-                                                                                <div className="subscription-address-status-meta">{item.meta}</div>
-                                                                            </div>
-                                                                            <div className="subscription-address-status-value">{item.value}</div>
-                                                                        </div>
+                                                                        <CircularMeter
+                                                                            key={item.key}
+                                                                            label={item.label}
+                                                                            value={item.value}
+                                                                            meta={item.meta}
+                                                                            progress={item.progress}
+                                                                            tone={item.tone}
+                                                                            pulse={item.pulse}
+                                                                        />
                                                                     ))}
                                                                 </div>
                                                                 <div className="subscription-user-address-note">
                                                                     {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
                                                                 </div>
                                                             </div>
+                                                            {shouldShowInlineQr ? (
                                                             <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
                                                                 {activeProfile?.url && result.subscriptionActive ? (
                                                                     <>
@@ -776,6 +796,7 @@ export default function Subscriptions() {
                                                                     <div className="text-sm text-muted">{ui.noQr}</div>
                                                                 )}
                                                             </div>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                     <div className="subscription-user-address-foot">
@@ -899,19 +920,27 @@ export default function Subscriptions() {
                                                             dir="ltr"
                                                             spellCheck={false}
                                                         />
-                                                        <button className="btn btn-primary" onClick={handleCopy} disabled={!activeProfile?.url || !result.subscriptionActive}>
-                                                            <HiOutlineClipboard /> {ui.copyAddress}
-                                                        </button>
+                                                        <CopyFeedbackButton
+                                                            className="btn btn-primary"
+                                                            text={activeProfile?.url || ''}
+                                                            successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
+                                                            errorText={t('comp.common.noCopyableUrl')}
+                                                            disabled={!activeProfile?.url || !result.subscriptionActive}
+                                                        >
+                                                            {ui.copyAddress}
+                                                        </CopyFeedbackButton>
                                                     </div>
-                                                    <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                    <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
                                                         {statusCards.map((item) => (
-                                                            <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
-                                                                <div className="subscription-address-status-head">
-                                                                    <div className="subscription-address-status-label">{item.label}</div>
-                                                                    <div className="subscription-address-status-meta">{item.meta}</div>
-                                                                </div>
-                                                                <div className="subscription-address-status-value">{item.value}</div>
-                                                            </div>
+                                                            <CircularMeter
+                                                                key={item.key}
+                                                                label={item.label}
+                                                                value={item.value}
+                                                                meta={item.meta}
+                                                                progress={item.progress}
+                                                                tone={item.tone}
+                                                                pulse={item.pulse}
+                                                            />
                                                         ))}
                                                     </div>
                                                     <div className="subscription-user-address-note">
@@ -1053,6 +1082,39 @@ export default function Subscriptions() {
                     )}
                 </div>
             </div>
+            <ModalShell isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)}>
+                {qrModalOpen ? (
+                    <div className="modal subscription-qr-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">{ui.scanImport}</h3>
+                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)}>
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            {canShowQr ? (
+                                <div className="subscription-qr-modal-body">
+                                    <div
+                                        className="qr-surface subscription-qr-modal-surface"
+                                        role="img"
+                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile?.label || ui.scanImport)}
+                                    >
+                                        <QRCodeSVG
+                                            value={activeProfile?.url || ''}
+                                            size={220}
+                                            level="M"
+                                            includeMargin={false}
+                                        />
+                                    </div>
+                                    <div className="subscription-qr-modal-copy">{ui.qrHint}</div>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted">{ui.noQr}</div>
+                            )}
+                        </div>
+                    </div>
+                ) : null}
+            </ModalShell>
         </>
     );
 }

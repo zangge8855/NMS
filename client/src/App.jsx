@@ -9,6 +9,8 @@ import { Toaster } from 'react-hot-toast';
 import { HiOutlineBars3 } from 'react-icons/hi2';
 import useMediaQuery from './hooks/useMediaQuery.js';
 import { getLocaleMessage } from './i18n/messages.js';
+import MobileBottomNav from './components/Layout/MobileBottomNav.jsx';
+import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard.jsx';
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
@@ -161,7 +163,9 @@ function ProtectedLayout() {
                         <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
                     </Routes>
+                    {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}
                 </main>
+                {isAdmin ? <SecurityBootstrapWizard /> : null}
             </div>
         </NotificationProvider>
         </ServerProvider>

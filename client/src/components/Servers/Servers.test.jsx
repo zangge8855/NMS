@@ -42,6 +42,8 @@ vi.mock('react-hot-toast', () => ({
     default: {
         error: vi.fn(),
         success: vi.fn(),
+        custom: vi.fn(),
+        dismiss: vi.fn(),
     },
 }));
 
@@ -222,5 +224,109 @@ describe('Servers', () => {
 
         expect(await screen.findByText('没有匹配的服务器')).toBeInTheDocument();
         expect(screen.getByText('请调整搜索关键词或分组筛选条件')).toBeInTheDocument();
+    });
+
+    it('supports live status filters backed by telemetry summaries', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [
+                {
+                    id: 'server-1',
+                    name: '新加坡边缘节点',
+                    url: 'https://sg.example.com',
+                    basePath: '/xui',
+                    username: 'nmsadmin',
+                    group: 'production',
+                    environment: 'prod',
+                    health: 'healthy',
+                    tags: ['edge'],
+                    credentialStatus: 'configured',
+                },
+                {
+                    id: 'server-2',
+                    name: '东京边缘节点',
+                    url: 'https://jp.example.com',
+                    basePath: '/xui',
+                    username: 'ops',
+                    group: 'production',
+                    environment: 'prod',
+                    health: 'healthy',
+                    tags: ['backup'],
+                    credentialStatus: 'configured',
+                },
+            ],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/servers/telemetry/overview') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    serverId: 'server-1',
+                                    serverName: '新加坡边缘节点',
+                                    checkedAt: '2026-03-22T00:00:00.000Z',
+                                    uptimePercent: 100,
+                                    current: { online: true, latencyMs: 98, health: 'healthy' },
+                                    latencyTrend: [84, 96, 98],
+                                    availabilityTrend: [1, 1, 1],
+                                },
+                                {
+                                    serverId: 'server-2',
+                                    serverName: '东京边缘节点',
+                                    checkedAt: '2026-03-22T00:00:00.000Z',
+                                    uptimePercent: 75,
+                                    current: { online: false, latencyMs: null, health: 'unreachable' },
+                                    latencyTrend: [220, null, 260],
+                                    availabilityTrend: [1, 0, 0],
+                                },
+                            ],
+                            byServerId: {
+                                'server-1': {
+                                    serverId: 'server-1',
+                                    serverName: '新加坡边缘节点',
+                                    checkedAt: '2026-03-22T00:00:00.000Z',
+                                    uptimePercent: 100,
+                                    current: { online: true, latencyMs: 98, health: 'healthy' },
+                                    latencyTrend: [84, 96, 98],
+                                    availabilityTrend: [1, 1, 1],
+                                },
+                                'server-2': {
+                                    serverId: 'server-2',
+                                    serverName: '东京边缘节点',
+                                    checkedAt: '2026-03-22T00:00:00.000Z',
+                                    uptimePercent: 75,
+                                    current: { online: false, latencyMs: null, health: 'unreachable' },
+                                    latencyTrend: [220, null, 260],
+                                    availabilityTrend: [1, 0, 0],
+                                },
+                            },
+                        },
+                    },
+                });
+            }
+            return Promise.resolve({ data: { obj: [] } });
+        });
+
+        renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
+
+        const selects = screen.getAllByRole('combobox');
+        await user.selectOptions(selects[1], 'offline');
+
+        expect(await screen.findByText('东京边缘节点')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '新加坡边缘节点' })).not.toBeInTheDocument();
     });
 });

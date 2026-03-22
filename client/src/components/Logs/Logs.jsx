@@ -7,7 +7,6 @@ import {
     HiOutlineArrowPath,
     HiOutlineDocumentText,
     HiOutlineFunnel,
-    HiOutlineClipboardDocument,
     HiOutlinePauseCircle,
     HiOutlinePlayCircle,
     HiOutlineServerStack,
@@ -20,6 +19,8 @@ import toast from 'react-hot-toast';
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
+import VirtualList from '../UI/VirtualList.jsx';
 
 function getSummaryToneMeta(tone) {
     if (tone === 'danger') {
@@ -355,15 +356,36 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         return result;
     }, [keywords, levelFilter, logs]);
 
-    const copyLogs = () => {
-        const text = filteredLogs.map(e =>
-            isGlobal ? `[${e.serverName}] ${e.line}` : e.line
-        ).join('\n');
-        navigator.clipboard.writeText(text).then(
-            () => toast.success(t('pages.logs.copySuccess')),
-            () => toast.error(t('pages.logs.copyError'))
-        );
-    };
+    const copiedLogText = useMemo(() => {
+        return filteredLogs.map((entry) => (
+            isGlobal ? `[${entry.serverName}] ${entry.line}` : entry.line
+        )).join('\n');
+    }, [filteredLogs, isGlobal]);
+
+    const logLevelSummary = useMemo(() => {
+        const counts = {
+            error: 0,
+            warning: 0,
+            info: 0,
+            debug: 0,
+            none: 0,
+        };
+
+        filteredLogs.forEach((entry) => {
+            const level = detectLogLevel(entry.line);
+            counts[level] = (counts[level] || 0) + 1;
+        });
+
+        return [
+            { value: 'error', label: 'Error', count: counts.error },
+            { value: 'warning', label: 'Warning', count: counts.warning },
+            { value: 'info', label: 'Info', count: counts.info },
+            { value: 'debug', label: 'Debug', count: counts.debug },
+            { value: 'none', label: locale === 'en-US' ? 'Other' : '其他', count: counts.none },
+        ].filter((item) => item.count > 0);
+    }, [filteredLogs, locale]);
+
+    const shouldVirtualizeLogs = filteredLogs.length > 180;
 
     const clearViewer = () => {
         setLogs([]);
@@ -464,9 +486,15 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                     <HiOutlineTrash /> {t('pages.logs.clearView')}
                                 </button>
-                                <button className="btn btn-secondary btn-sm rounded-lg" onClick={copyLogs} title={t('pages.logs.copyTitle')}>
-                                    <HiOutlineClipboardDocument /> {t('pages.logs.copy')}
-                                </button>
+                                <CopyFeedbackButton
+                                    className="btn btn-secondary btn-sm rounded-lg"
+                                    text={copiedLogText}
+                                    successText={t('pages.logs.copySuccess')}
+                                    errorText={t('pages.logs.copyError')}
+                                    title={t('pages.logs.copyTitle')}
+                                >
+                                    {t('pages.logs.copy')}
+                                </CopyFeedbackButton>
                                 <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
                                     <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
                                     {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
@@ -561,8 +589,23 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             </div>
                         )}
                     />
+                    {logLevelSummary.length > 0 ? (
+                        <div className="logs-level-summary" role="toolbar" aria-label={locale === 'en-US' ? 'Log level quick filters' : '日志级别快捷筛选'}>
+                            {logLevelSummary.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    className={`logs-level-chip logs-level-chip--${item.value}${levelFilter === item.value ? ' is-active' : ''}`}
+                                    onClick={() => setLevelFilter((current) => (current === item.value ? '' : item.value))}
+                                >
+                                    <span className="logs-level-chip-label">{item.label}</span>
+                                    <span className="logs-level-chip-count">{item.count}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : null}
                     <div
-                        ref={logContainerRef}
+                        ref={shouldVirtualizeLogs ? undefined : logContainerRef}
                         className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
                     >
                         {loading && filteredLogs.length === 0 ? (
@@ -577,6 +620,26 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 subtitle={t('pages.logs.emptySubtitle')}
                                 size="compact"
                                 icon={<HiOutlineDocumentText />}
+                            />
+                        ) : shouldVirtualizeLogs ? (
+                            <VirtualList
+                                ref={logContainerRef}
+                                className="logs-virtual-list"
+                                innerClassName="logs-virtual-list-inner"
+                                items={filteredLogs}
+                                itemSize={wrapLines ? 56 : 38}
+                                overscan={10}
+                                ariaLabel={locale === 'en-US' ? 'Virtualized log list' : '虚拟日志列表'}
+                                renderItem={(entry, index) => (
+                                    <LogLine
+                                        line={entry.line}
+                                        showServer={isGlobal}
+                                        serverName={entry.serverName}
+                                        highlight={keywords}
+                                        index={index}
+                                    />
+                                )}
+                                getKey={(entry, index) => `${entry.serverName || 'single'}-${index}-${entry.line}`}
                             />
                         ) : (
                             filteredLogs.map((entry, index) => (
