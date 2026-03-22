@@ -8789,3 +8789,268 @@ p, .empty-state-body, td {
     border-radius: 12px;
   }
 }
+
+/* Final mobile density pass for account and user subscription surfaces. */
+@media (max-width: 768px) {
+  .account-page .account-shell {
+    gap: 8px;
+  }
+
+  .account-page .account-profile-card,
+  .account-page .account-password-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .account-page .card-header.section-header {
+    gap: 4px;
+    padding-bottom: 6px;
+    margin-bottom: 6px !important;
+  }
+
+  .account-page .section-header-copy {
+    gap: 3px;
+  }
+
+  .account-page .section-header-title {
+    font-size: 14px;
+    line-height: 1.28;
+  }
+
+  .account-page .section-header-subtitle,
+  .account-page .account-profile-verify-note,
+  .account-page .account-card-note {
+    font-size: 11px;
+    line-height: 1.42;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .account-page .account-profile-verify-row {
+    gap: 7px;
+  }
+
+  .account-page .account-role-row,
+  .account-page .account-actions,
+  .account-page .account-password-submit {
+    gap: 5px;
+  }
+
+  .account-page .account-profile-verify-note {
+    margin-top: 2px;
+  }
+
+  .user-detail-page .user-detail-tab-content > .section-header.mb-4 {
+    margin-bottom: 8px !important;
+  }
+
+  .user-detail-page .user-detail-subscription-layout,
+  .user-detail-page .subscription-link-with-qr,
+  .user-detail-page .user-detail-subscription-main,
+  .user-detail-page .subscription-client-links,
+  .user-detail-page .subscription-client-links-section {
+    gap: 8px;
+  }
+
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-inline-qr--featured {
+    gap: 7px;
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .user-detail-page .subscription-profile-switches,
+  .user-detail-page .subscription-profile-notes,
+  .user-detail-page .subscription-user-address-head,
+  .user-detail-page .subscription-user-address-copy,
+  .user-detail-page .subscription-link-grid--compact,
+  .user-detail-page .subscription-user-address-foot,
+  .user-detail-page .subscription-user-reset-inline-copy,
+  .user-detail-page .user-detail-subscription-guides {
+    gap: 5px;
+  }
+
+  .user-detail-page .subscription-address-status-grid {
+    gap: 7px;
+  }
+
+  .user-detail-page .subscription-user-address-note,
+  .user-detail-page .subscription-inline-qr-text,
+  .user-detail-page .subscription-profile-notes .text-xs.text-muted {
+    line-height: 1.42;
+  }
+
+  .user-detail-page .subscription-client-links {
+    padding: 0;
+  }
+
+  .user-detail-page .subscription-device-grid,
+  .user-detail-page .subscription-client-links--compact .subscription-device-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .user-detail-page .subscription-device-card {
+    gap: 5px;
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .user-detail-page .subscription-device-card-head,
+  .user-detail-page .subscription-device-compact-layout,
+  .user-detail-page .subscription-device-block,
+  .user-detail-page .subscription-device-rules,
+  .user-detail-page .subscription-device-actions {
+    gap: 5px;
+  }
+
+  .user-detail-page .subscription-device-compact-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .user-detail-page .subscription-device-compact-label {
+    padding-top: 5px;
+    font-size: 9px;
+  }
+
+  .user-detail-page .subscription-device-title {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .user-detail-page .subscription-device-text,
+  .user-detail-page .subscription-inline-qr-text {
+    font-size: 11px;
+  }
+
+  .user-detail-page .subscription-inline-qr-title,
+  .user-detail-page .subscription-user-address-kicker {
+    line-height: 1.3;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-page .account-shell {
+    gap: 7px;
+  }
+
+  .account-page .account-profile-card,
+  .account-page .account-password-card {
+    gap: 6px;
+    padding: 9px;
+  }
+
+  .account-page .card-header.section-header {
+    padding-bottom: 5px;
+    margin-bottom: 5px !important;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .account-page .account-profile-verify-row {
+    gap: 6px;
+  }
+
+  .account-page .account-profile-verify-note {
+    margin-top: 1px;
+  }
+
+  .user-detail-page .user-detail-tab-content > .section-header.mb-4 {
+    margin-bottom: 6px !important;
+  }
+
+  .user-detail-page .user-detail-subscription-layout,
+  .user-detail-page .subscription-link-with-qr,
+  .user-detail-page .user-detail-subscription-main,
+  .user-detail-page .subscription-client-links,
+  .user-detail-page .subscription-client-links-section {
+    gap: 6px;
+  }
+
+  .user-detail-page .subscription-link-card,
+  .user-detail-page .subscription-inline-qr--featured {
+    gap: 6px;
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .user-detail-page .subscription-profile-switches,
+  .user-detail-page .subscription-profile-notes,
+  .user-detail-page .subscription-user-address-head,
+  .user-detail-page .subscription-user-address-copy,
+  .user-detail-page .subscription-link-grid--compact,
+  .user-detail-page .subscription-user-address-foot,
+  .user-detail-page .subscription-user-reset-inline-copy,
+  .user-detail-page .user-detail-subscription-guides,
+  .user-detail-page .subscription-device-card-head,
+  .user-detail-page .subscription-device-compact-layout,
+  .user-detail-page .subscription-device-block,
+  .user-detail-page .subscription-device-rules,
+  .user-detail-page .subscription-device-actions {
+    gap: 4px;
+  }
+
+  .user-detail-page .subscription-address-status-grid,
+  .user-detail-page .subscription-device-grid,
+  .user-detail-page .subscription-client-links--compact .subscription-device-grid {
+    gap: 6px;
+  }
+
+  .user-detail-page .subscription-device-card {
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .user-detail-page .subscription-device-compact-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+
+/* QR modal should stay compact instead of stretching into a wide bottom sheet. */
+@media (max-width: 768px) {
+  .modal.subscription-qr-modal {
+    width: min(92vw, 360px);
+    max-width: min(92vw, 360px);
+    max-height: min(82dvh, calc(100vh - 24px));
+    margin: 0 auto;
+    border-radius: 20px;
+  }
+
+  .modal.subscription-qr-modal .modal-body {
+    display: flex;
+    justify-content: center;
+  }
+
+  .subscription-qr-modal-body {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .subscription-qr-modal-surface {
+    align-self: center;
+    padding: 16px;
+  }
+
+  .subscription-qr-modal-copy {
+    max-width: 22ch;
+    line-height: 1.42;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal.subscription-qr-modal {
+    width: min(94vw, 332px);
+    max-width: min(94vw, 332px);
+    border-radius: 18px;
+  }
+
+  .subscription-qr-modal-body {
+    gap: 8px;
+  }
+
+  .subscription-qr-modal-surface {
+    padding: 14px;
+  }
+}

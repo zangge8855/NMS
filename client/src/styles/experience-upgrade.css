@@ -712,3 +712,189 @@
     display: none;
   }
 }
+
+/* Final visual hierarchy pass. */
+.section-header-title,
+.card-title,
+.settings-form-cluster-title,
+.settings-panel-title,
+.settings-status-toolbar-title,
+.subscription-client-links-title,
+.subscription-device-title,
+.subscription-guide-title,
+.subscription-user-step-title,
+.subscription-focus-step-title,
+.subscription-hero-title,
+.user-detail-client-title,
+.server-detail-mobile-card-title,
+.users-mobile-name,
+.servers-mobile-name,
+.audit-mobile-card-title,
+.dashboard-online-mobile-name,
+.dashboard-inbound-mobile-title {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.section-header-subtitle,
+.card-subtitle,
+.settings-panel-subtitle,
+.settings-summary-detail,
+.settings-tab-highlight-detail,
+.dashboard-stat-card-subtitle,
+.audit-traffic-mini-note,
+.subscription-summary-meta,
+.subscription-device-text,
+.subscription-client-links-caption,
+.subscription-inline-qr-text,
+.subscription-user-address-note,
+.subscription-user-reset-inline-text,
+.account-profile-verify-note,
+.account-card-note,
+.user-detail-client-subtitle,
+.server-detail-mobile-card-subtitle,
+.users-mobile-email,
+.servers-mobile-url,
+.audit-mobile-card-subtitle,
+.dashboard-online-mobile-email,
+.dashboard-inbound-mobile-kicker {
+  color: color-mix(in srgb, var(--text-secondary) 88%, var(--text-muted) 12%);
+  line-height: 1.55;
+}
+
+.dashboard-stat-card-label,
+.stat-mini-label,
+.settings-summary-label,
+.settings-tab-highlight-label,
+.subscription-summary-label,
+.subscription-address-status-label,
+.subscription-device-block-label,
+.subscription-device-compact-label,
+.settings-form-cluster-eyebrow,
+.user-detail-client-metric-label,
+.server-detail-mobile-card-label,
+.table th,
+.page-content .table td::before {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.table th,
+.page-content .table td::before {
+  color: color-mix(in srgb, var(--text-muted) 82%, var(--text-secondary) 18%);
+}
+
+.page-content .table td::before {
+  text-transform: uppercase;
+}
+
+.dashboard-stat-card-value,
+.settings-summary-value,
+.settings-tab-highlight-value,
+.audit-traffic-mini-value,
+.audit-stat-card .card-value,
+.subscription-summary-value,
+.subscription-address-status-value,
+.stat-mini-value,
+.card-value,
+.user-detail-client-metric-value,
+.server-detail-mobile-card-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.dashboard-stat-card,
+.stat-mini-card,
+.audit-stat-card,
+.settings-summary-card,
+.settings-tab-highlight-card,
+.settings-workspace-highlight-card,
+.subscription-summary-item,
+.subscription-address-status-card,
+.logs-summary-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-stat-card::after,
+.stat-mini-card::after,
+.audit-stat-card::after,
+.settings-summary-card::after,
+.settings-tab-highlight-card::after,
+.settings-workspace-highlight-card::after,
+.subscription-summary-item::after,
+.subscription-address-status-card::after,
+.logs-summary-card::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 46%, transparent 54%), transparent);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.badge {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.badge-neutral {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-soft) 76%, rgba(148, 163, 184, 0.22) 24%);
+  border-color: color-mix(in srgb, var(--stroke-medium) 74%, rgba(148, 163, 184, 0.34) 26%);
+}
+
+.btn-primary,
+.subscription-copy-btn,
+.subscription-device-download-btn {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.btn-secondary,
+.btn-danger,
+.btn-success,
+.btn-ghost {
+  font-weight: 600;
+}
+
+[data-theme="light"] .badge {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+@media (max-width: 768px) {
+  .section-header-title,
+  .card-title,
+  .settings-form-cluster-title,
+  .subscription-device-title,
+  .subscription-guide-title,
+  .user-detail-client-title,
+  .server-detail-mobile-card-title,
+  .users-mobile-name,
+  .servers-mobile-name,
+  .audit-mobile-card-title,
+  .dashboard-online-mobile-name,
+  .dashboard-inbound-mobile-title {
+    letter-spacing: -0.014em;
+  }
+
+  .dashboard-stat-card-value,
+  .settings-summary-value,
+  .settings-tab-highlight-value,
+  .audit-traffic-mini-value,
+  .audit-stat-card .card-value,
+  .subscription-summary-value,
+  .subscription-address-status-value,
+  .stat-mini-value,
+  .card-value {
+    line-height: 1.04;
+  }
+}
