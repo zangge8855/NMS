@@ -9890,10 +9890,6 @@ p, .empty-state-body, td {
   align-items: start;
 }
 
-.subscriptions-page .subscriptions-workbench--user-balanced {
-  grid-template-columns: minmax(0, 1.24fr) minmax(340px, 0.96fr);
-}
-
 .subscriptions-page .subscriptions-main-column,
 .subscriptions-page .subscriptions-side-column {
   gap: clamp(12px, 1.5vw, 18px);
@@ -9938,18 +9934,84 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-address-grid {
   width: 100%;
-  grid-template-columns: minmax(0, 1fr) minmax(188px, 228px);
-  gap: 14px;
-}
-
-.subscriptions-page .subscriptions-workbench--user-balanced .subscription-user-address-grid {
-  grid-template-columns: minmax(0, 1.08fr) minmax(240px, 280px);
+  grid-template-columns: minmax(0, 1.26fr) minmax(228px, 272px);
+  gap: 16px;
+  align-items: start;
 }
 
 .subscriptions-page .subscription-user-address-actions {
   flex-wrap: wrap;
   overflow: visible;
   gap: 8px;
+}
+
+.subscriptions-page .subscription-user-aside {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
+  width: 100%;
+  max-width: none;
+  padding: 12px;
+  justify-self: stretch;
+}
+
+.subscriptions-page .subscription-user-status-block {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.28));
+}
+
+.subscriptions-page .subscription-user-status-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.subscriptions-page .subscription-user-status-block .subscription-meter-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter {
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 82px;
+  padding: 10px 12px;
+  border-radius: 18px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-svg,
+.subscriptions-page .subscription-user-status-block .circular-meter-visual {
+  width: 64px;
+  height: 64px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-percent {
+  font-size: 12px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-label {
+  font-size: 11px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-value {
+  margin-top: 2px;
+  font-size: 15px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .subscriptions-page .subscription-user-address-actions .btn {
@@ -10021,15 +10083,6 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-summary-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-
-.subscriptions-page .subscription-downloads-page-card--side {
-  gap: 12px;
-}
-
-.subscriptions-page .subscription-downloads-page-card--side .subscription-client-links {
-  margin-top: 0;
-  padding: 0;
 }
 
 .subscriptions-page .subscription-summary-item {
@@ -10189,6 +10242,11 @@ p, .empty-state-body, td {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .subscriptions-page .subscription-user-aside {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    align-items: start;
+  }
+
   .subscriptions-page .subscription-inline-qr,
   .subscriptions-page .subscription-inline-qr--featured,
   .user-detail-page .subscription-inline-qr,
@@ -10205,13 +10263,6 @@ p, .empty-state-body, td {
 
   .user-detail-page .subscription-address-status-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-}
-
-@media (min-width: 1101px) {
-  .subscriptions-page .subscription-downloads-page-card--side {
-    position: sticky;
-    top: calc(88px + env(safe-area-inset-top, 0px));
   }
 }
 
@@ -10263,6 +10314,10 @@ p, .empty-state-body, td {
   .settings-page .settings-nav-item-summary,
   .settings-page .settings-nav-item-flags {
     display: none;
+  }
+
+  .subscriptions-page .subscription-user-aside {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-page .settings-workspace-hero,
