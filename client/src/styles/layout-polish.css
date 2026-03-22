@@ -10008,9 +10008,22 @@ p, .empty-state-body, td {
   max-width: none;
 }
 
+.subscriptions-page .subscriptions-main-column > *,
+.subscriptions-page .subscriptions-side-column > * {
+  width: 100%;
+  align-self: stretch;
+}
+
+.subscriptions-page .subscription-primary-card {
+  width: 100%;
+  align-self: stretch;
+}
+
 .subscriptions-page .subscription-user-flow--balanced {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 248px;
+  width: min(100%, 1160px);
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
   gap: 16px;
   align-items: stretch;
 }
@@ -10232,7 +10245,7 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-address-foot {
   margin-top: auto;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 
@@ -10245,7 +10258,7 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-user-reset-inline-note {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   white-space: normal;
   overflow: visible;
