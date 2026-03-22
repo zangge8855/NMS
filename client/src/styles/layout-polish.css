@@ -9186,15 +9186,69 @@ p, .empty-state-body, td {
   padding-block: 12px;
 }
 
+.settings-page .settings-grid--access-workspace,
+.settings-page .settings-grid--operations-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.settings-page .settings-access-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.settings-page .settings-inline-grid--policy {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.settings-page .settings-invite-layout {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
 .settings-invite-workbench {
   gap: 12px;
 }
 
 .settings-invite-workbench-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
   align-items: start;
+}
+
+.settings-page .settings-field-grid--invite-generate {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.settings-page .settings-field-grid--invite-email {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-page .settings-ops-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.settings-page .settings-telegram-panel .grid-auto-220 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.settings-page .settings-monitor-log-meta {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-page .settings-backup-inspection-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.settings-page .settings-access-panel,
+.settings-page .settings-registration-panel,
+.settings-page .settings-ops-panel,
+.settings-page .settings-telegram-panel {
+  height: 100%;
 }
 
 .settings-invite-workbench-section,
@@ -9245,6 +9299,26 @@ p, .empty-state-body, td {
 @media (max-width: 1100px) {
   .settings-invite-workbench-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .settings-page .settings-grid--access-workspace {
+    grid-template-columns: minmax(0, 1.16fr) minmax(340px, 0.92fr) !important;
+  }
+
+  .settings-page .settings-grid--operations-workspace {
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+    align-items: start;
+  }
+
+  .settings-page .settings-grid--backup-workspace {
+    grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr) !important;
+  }
+
+  .settings-page .settings-grid--backup-workspace > .settings-panel--span-4,
+  .settings-page .settings-grid--backup-workspace > .settings-panel--span-8 {
+    grid-column: auto;
   }
 }
 
@@ -9811,12 +9885,22 @@ p, .empty-state-body, td {
   color: var(--text-secondary);
 }
 
+.settings-page .settings-grid--access-workspace,
+.settings-page .settings-grid--operations-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--workspace-gap);
+}
+
 .settings-page .settings-access-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.settings-page .settings-inline-grid--policy {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .settings-page .settings-ops-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .settings-page .settings-ops-grid > .settings-ops-card {
@@ -9825,11 +9909,36 @@ p, .empty-state-body, td {
 
 .settings-page .settings-db-grid,
 .settings-page .settings-backup-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .settings-page .settings-invite-layout {
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.settings-page .settings-invite-workbench-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.settings-page .settings-field-grid--invite-generate {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.settings-page .settings-field-grid--invite-email {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-page .settings-telegram-panel .grid-auto-220 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--surface-gap);
+}
+
+.settings-page .settings-monitor-log-meta {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-page .settings-backup-inspection-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .settings-page .settings-save-dock {
@@ -9890,9 +9999,38 @@ p, .empty-state-body, td {
   align-items: start;
 }
 
+.subscriptions-page .subscriptions-workbench--simple {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.subscriptions-page .subscriptions-workbench--simple .subscriptions-main-column {
+  width: 100%;
+  max-width: none;
+}
+
+.subscriptions-page .subscription-user-flow--balanced {
+  display: grid;
+  grid-template-columns: minmax(0, 1.58fr) minmax(284px, 0.86fr);
+  align-items: start;
+}
+
 .subscriptions-page .subscriptions-main-column,
 .subscriptions-page .subscriptions-side-column {
   gap: clamp(12px, 1.5vw, 18px);
+}
+
+.subscriptions-page .subscription-user-panel--import,
+.subscriptions-page .subscription-user-panel--summary {
+  display: grid;
+  gap: 12px;
+  padding: clamp(14px, 1.35vw, 18px);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.56), rgba(30, 41, 59, 0.34));
+}
+
+.subscriptions-page .subscription-user-panel--summary {
+  align-self: start;
 }
 
 .subscriptions-page .subscription-link-card--user-focus,
@@ -9934,8 +10072,8 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-address-grid {
   width: 100%;
-  grid-template-columns: minmax(0, 1.26fr) minmax(228px, 272px);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
@@ -9965,15 +10103,6 @@ p, .empty-state-body, td {
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 18px;
   background: linear-gradient(160deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.28));
-}
-
-.subscriptions-page .subscription-user-status-block-title {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
@@ -10148,6 +10277,30 @@ p, .empty-state-body, td {
   padding: 0;
 }
 
+@media (min-width: 1280px) {
+  .settings-page .settings-grid--access-workspace {
+    grid-template-columns: minmax(0, 1.16fr) minmax(340px, 0.92fr) !important;
+  }
+
+  .settings-page .settings-grid--operations-workspace {
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+  }
+
+  .settings-page .settings-grid--access-workspace > .settings-panel--wide,
+  .settings-page .settings-grid--operations-workspace > .settings-panel--wide {
+    grid-column: auto;
+  }
+
+  .settings-page .settings-grid--backup-workspace {
+    grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr) !important;
+  }
+
+  .settings-page .settings-grid--backup-workspace > .settings-panel--span-4,
+  .settings-page .settings-grid--backup-workspace > .settings-panel--span-8 {
+    grid-column: auto;
+  }
+}
+
 @media (min-width: 1400px) {
   .settings-page .settings-shell {
     grid-template-columns: minmax(260px, 296px) minmax(0, 1fr);
@@ -10182,14 +10335,6 @@ p, .empty-state-body, td {
 
   .settings-page .settings-nav-list--workspace {
     grid-template-columns: repeat(auto-fit, minmax(164px, 1fr));
-  }
-
-  .settings-page .settings-ops-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .settings-page .settings-invite-layout {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -10242,9 +10387,8 @@ p, .empty-state-body, td {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .subscriptions-page .subscription-user-aside {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-    align-items: start;
+  .subscriptions-page .subscription-user-flow--balanced {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .subscriptions-page .subscription-inline-qr,

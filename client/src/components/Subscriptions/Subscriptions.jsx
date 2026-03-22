@@ -669,7 +669,7 @@ export default function Subscriptions() {
                                         />
                                     )}
                                     {isUserOnly ? (
-                                        <div className="subscription-user-flow">
+                                        <div className="subscription-user-flow subscription-user-flow--balanced">
                                             <div className="subscription-user-panel subscription-user-panel--import">
                                                 <div className="subscription-user-panel-title subscription-user-panel-title--flow">{ui.simpleReminder}</div>
                                                 <div className="subscription-profile-switches subscription-profile-switches--compact">
@@ -757,50 +757,8 @@ export default function Subscriptions() {
                                                                         </div>
                                                                     </details>
                                                                 )}
-                                                            </div>
-                                                            <div className="subscription-user-aside">
-                                                                {shouldShowInlineQr ? (
-                                                                    <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
-                                                                        {activeProfile?.url && result.subscriptionActive ? (
-                                                                            <>
-                                                                                <div className="subscription-inline-qr-title">{ui.scanImport}</div>
-                                                                                <div
-                                                                                    className="qr-surface subscription-inline-qr-surface"
-                                                                                    role="img"
-                                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
-                                                                                >
-                                                                                    <QRCodeSVG
-                                                                                        value={activeProfile.url}
-                                                                                        size={128}
-                                                                                        level="M"
-                                                                                        includeMargin={false}
-                                                                                    />
-                                                                                </div>
-                                                                                <div className="subscription-inline-qr-text">{ui.qrHint}</div>
-                                                                            </>
-                                                                        ) : (
-                                                                            <div className="text-sm text-muted">{ui.noQr}</div>
-                                                                        )}
-                                                                    </div>
-                                                                ) : null}
-                                                                <div className="subscription-user-status-block">
-                                                                    <div className="subscription-user-status-block-title">{ui.summaryTitle}</div>
-                                                                    <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                                                                        {statusCards.map((item) => (
-                                                                            <CircularMeter
-                                                                                key={item.key}
-                                                                                label={item.label}
-                                                                                value={item.value}
-                                                                                meta={item.meta}
-                                                                                progress={item.progress}
-                                                                                tone={item.tone}
-                                                                                pulse={item.pulse}
-                                                                            />
-                                                                        ))}
-                                                                    </div>
-                                                                    <div className="subscription-user-address-note">
-                                                                        {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
-                                                                    </div>
+                                                                <div className="subscription-user-address-note">
+                                                                    {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -820,6 +778,50 @@ export default function Subscriptions() {
                                                                 <span className="subscription-user-reset-inline-divider" aria-hidden="true"> · </span>
                                                                 <span className="subscription-user-reset-inline-text">{ui.resetRiskText}</span>
                                                             </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="subscription-user-panel subscription-user-panel--summary">
+                                                <div className="subscription-user-panel-title">{ui.summaryTitle}</div>
+                                                <div className="subscription-user-aside">
+                                                    {shouldShowInlineQr ? (
+                                                        <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
+                                                            {activeProfile?.url && result.subscriptionActive ? (
+                                                                <>
+                                                                    <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                                                                    <div
+                                                                        className="qr-surface subscription-inline-qr-surface"
+                                                                        role="img"
+                                                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
+                                                                    >
+                                                                        <QRCodeSVG
+                                                                            value={activeProfile.url}
+                                                                            size={128}
+                                                                            level="M"
+                                                                            includeMargin={false}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="subscription-inline-qr-text">{ui.qrHint}</div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="text-sm text-muted">{ui.noQr}</div>
+                                                            )}
+                                                        </div>
+                                                    ) : null}
+                                                    <div className="subscription-user-status-block">
+                                                        <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                                                            {statusCards.map((item) => (
+                                                                <CircularMeter
+                                                                    key={item.key}
+                                                                    label={item.label}
+                                                                    value={item.value}
+                                                                    meta={item.meta}
+                                                                    progress={item.progress}
+                                                                    tone={item.tone}
+                                                                    pulse={item.pulse}
+                                                                />
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 </div>
