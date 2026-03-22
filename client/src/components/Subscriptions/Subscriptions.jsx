@@ -18,6 +18,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import CircularMeter from '../UI/CircularMeter.jsx';
+import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 
 function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
@@ -410,7 +411,8 @@ export default function Subscriptions() {
     ];
     const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
     const shouldShowInlineQr = !isCompactViewport;
-    const shouldShowSideColumn = !isUserOnly;
+    const shouldShowUserDownloadsColumn = isUserOnly && !isCompactViewport && Boolean(result?.bundle);
+    const shouldShowSideColumn = !isUserOnly || shouldShowUserDownloadsColumn;
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -635,7 +637,7 @@ export default function Subscriptions() {
                     />
                 )}
 
-                <div className={`subscriptions-workbench${shouldShowSideColumn ? '' : ' subscriptions-workbench--simple'}`}>
+                <div className={`subscriptions-workbench${shouldShowSideColumn ? '' : ' subscriptions-workbench--simple'}${shouldShowUserDownloadsColumn ? ' subscriptions-workbench--user-balanced' : ''}`}>
                     <div className="subscriptions-main-column">
                         {!result ? (
                             <div className="card subscription-empty-card">
@@ -1005,6 +1007,25 @@ export default function Subscriptions() {
 
                     {shouldShowSideColumn && (
                         <div className="subscriptions-side-column">
+                        {isUserOnly && result?.bundle && (
+                            <div className="card subscription-downloads-page-card subscription-downloads-page-card--side">
+                                <SectionHeader
+                                    className="card-header section-header section-header--compact"
+                                    title={ui.deviceOpenTitle}
+                                    subtitle={ui.guideStep1Text}
+                                    actions={(
+                                        <Link className="btn btn-secondary btn-sm" to="/downloads">
+                                            <HiOutlineArrowDownTray /> {t('comp.common.goDownloads')}
+                                        </Link>
+                                    )}
+                                />
+                                <SubscriptionClientLinks
+                                    bundle={result.bundle}
+                                    compact
+                                    showHeading={false}
+                                />
+                            </div>
+                        )}
                         {!isUserOnly && (
                             <div className="card subscription-guide-card">
                                 <SectionHeader

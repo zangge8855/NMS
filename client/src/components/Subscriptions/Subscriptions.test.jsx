@@ -98,13 +98,15 @@ describe('Subscriptions', () => {
         const mainColumn = container.querySelector('.subscriptions-main-column');
         const sideColumn = container.querySelector('.subscriptions-side-column');
         expect(mainColumn).not.toBeNull();
-        expect(sideColumn).toBeNull();
+        expect(sideColumn).not.toBeNull();
         if (!mainColumn) throw new Error('Subscription main column not rendered');
+        if (!sideColumn) throw new Error('Subscription side column not rendered');
         expect(container.querySelector('.subscription-user-address-kicker')).toBeNull();
         expect(container.querySelector('.subscription-current-profile-card')).toBeNull();
         expect(container.querySelector('.subscription-link-card-meta')).not.toBeNull();
         expect(within(mainColumn).queryByText('软件下载')).not.toBeInTheDocument();
-        expect(screen.queryByText('软件下载')).not.toBeInTheDocument();
+        expect(within(sideColumn).getByText('软件下载')).toBeInTheDocument();
+        expect(within(sideColumn).queryByText('怎么使用订阅')).not.toBeInTheDocument();
         expect(screen.getByText('选配置文件 -> 复制或导入')).toBeInTheDocument();
         expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'v2rayN / Shadowrocket' })).toBeInTheDocument();

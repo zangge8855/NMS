@@ -9890,6 +9890,10 @@ p, .empty-state-body, td {
   align-items: start;
 }
 
+.subscriptions-page .subscriptions-workbench--user-balanced {
+  grid-template-columns: minmax(0, 1.24fr) minmax(340px, 0.96fr);
+}
+
 .subscriptions-page .subscriptions-main-column,
 .subscriptions-page .subscriptions-side-column {
   gap: clamp(12px, 1.5vw, 18px);
@@ -9936,6 +9940,10 @@ p, .empty-state-body, td {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) minmax(188px, 228px);
   gap: 14px;
+}
+
+.subscriptions-page .subscriptions-workbench--user-balanced .subscription-user-address-grid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(240px, 280px);
 }
 
 .subscriptions-page .subscription-user-address-actions {
@@ -10013,6 +10021,15 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-summary-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.subscriptions-page .subscription-downloads-page-card--side {
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-downloads-page-card--side .subscription-client-links {
+  margin-top: 0;
+  padding: 0;
 }
 
 .subscriptions-page .subscription-summary-item {
@@ -10188,6 +10205,13 @@ p, .empty-state-body, td {
 
   .user-detail-page .subscription-address-status-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (min-width: 1101px) {
+  .subscriptions-page .subscription-downloads-page-card--side {
+    position: sticky;
+    top: calc(88px + env(safe-area-inset-top, 0px));
   }
 }
 
