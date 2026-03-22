@@ -9648,3 +9648,785 @@ p, .empty-state-body, td {
     padding: 8px 9px;
   }
 }
+
+/* Authoritative layout convergence for shared shells, settings, and subscription surfaces. */
+.page-content.settings-page,
+.page-content.subscriptions-page,
+.page-content.user-detail-page {
+  width: min(100%, var(--page-shell-wide-max));
+  max-width: var(--page-shell-wide-max);
+}
+
+.settings-page,
+.subscriptions-page,
+.user-detail-page {
+  --workspace-gap: clamp(12px, 1.6vw, 20px);
+  --surface-gap: clamp(10px, 1.3vw, 16px);
+  --panel-pad: clamp(12px, 1.25vw, 18px);
+}
+
+.settings-page .settings-shell,
+.settings-page .settings-main,
+.settings-page .settings-workspace-section,
+.subscriptions-page .subscriptions-workbench,
+.subscriptions-page .subscriptions-main-column,
+.subscriptions-page .subscriptions-side-column,
+.subscriptions-page .subscription-user-flow,
+.user-detail-page .user-detail-subscription-layout {
+  gap: var(--workspace-gap);
+}
+
+.settings-page .settings-nav,
+.settings-page .settings-workspace-hero,
+.settings-page .settings-save-dock,
+.subscriptions-page .subscriptions-toolbar,
+.subscriptions-page .subscription-primary-card,
+.subscriptions-page .subscription-guide-card,
+.subscriptions-page .subscription-summary-card,
+.subscriptions-page .subscription-downloads-page-card,
+.subscriptions-page .subscription-qr-card,
+.user-detail-page .glass-panel,
+.user-detail-page .user-detail-client-card {
+  border-radius: 20px;
+}
+
+.settings-page .settings-nav {
+  padding: clamp(10px, 1vw, 14px);
+  gap: 10px;
+}
+
+.settings-page .settings-nav-list--workspace {
+  gap: 10px;
+}
+
+.settings-page .settings-nav-item {
+  min-height: 58px;
+  padding: 12px 13px;
+  align-items: flex-start;
+}
+
+.settings-page .settings-nav-item-copy {
+  gap: 6px;
+}
+
+.settings-page .settings-nav-item-label {
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.settings-page .settings-nav-item-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.settings-page .settings-nav-item-flags {
+  display: flex;
+}
+
+.settings-page .settings-workspace-section {
+  gap: 14px;
+}
+
+.settings-page .settings-workspace-hero {
+  gap: 14px;
+  padding: clamp(16px, 1.7vw, 22px);
+  border-radius: 22px;
+}
+
+.settings-page .settings-workspace-highlight-grid,
+.settings-page .settings-tab-hero-grid,
+.settings-page .settings-summary-grid,
+.settings-page .settings-access-grid,
+.settings-page .settings-access-stack,
+.settings-page .settings-ops-grid,
+.settings-page .settings-backup-actions,
+.settings-page .settings-db-grid,
+.settings-page .settings-invite-layout {
+  gap: var(--surface-gap);
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-summary-card,
+.settings-page .settings-tab-highlight-card,
+.settings-page .settings-workspace-highlight-card,
+.settings-page .settings-form-cluster,
+.settings-page .settings-mini-card,
+.settings-page .settings-detail-card,
+.settings-page .settings-backup-action-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-ops-card,
+.settings-page .settings-monitor-log-item,
+.settings-page .settings-backup-local-item {
+  padding: var(--panel-pad);
+  gap: var(--surface-gap);
+  border-radius: 20px;
+}
+
+.settings-page .settings-form-cluster,
+.settings-page .settings-mini-card,
+.settings-page .settings-detail-card,
+.settings-page .settings-backup-action-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-ops-card,
+.settings-page .settings-monitor-log-item,
+.settings-page .settings-backup-local-item {
+  border-radius: 18px;
+}
+
+.settings-page .settings-panel > .section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.settings-page .settings-panel > .section-header .section-header-copy {
+  display: flex;
+  gap: 4px;
+}
+
+.settings-page .settings-panel > .section-header .section-header-side {
+  display: flex;
+  width: auto;
+  margin-left: auto;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-page .settings-panel > .section-header .section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-page .settings-workspace-hero-subtitle,
+.settings-page .settings-panel-subtitle,
+.settings-page .settings-form-cluster-note,
+.settings-page .settings-panel .section-header-subtitle {
+  display: block;
+  max-width: 68ch;
+  color: var(--text-secondary);
+}
+
+.settings-page .settings-access-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-page .settings-ops-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-page .settings-ops-grid > .settings-ops-card {
+  height: 100%;
+}
+
+.settings-page .settings-db-grid,
+.settings-page .settings-backup-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-page .settings-invite-layout {
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+}
+
+.settings-page .settings-save-dock {
+  padding: 14px 16px;
+  border-radius: 20px;
+}
+
+.settings-page .settings-save-dock-inner {
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+
+.settings-page .settings-save-dock-main {
+  flex: 1 1 360px;
+}
+
+.settings-page .settings-save-dock-actions {
+  flex: 0 0 auto;
+}
+
+.subscriptions-page .subscriptions-toolbar {
+  gap: 14px;
+  padding: clamp(12px, 1.15vw, 16px);
+}
+
+.subscriptions-page .subscriptions-toolbar .page-toolbar-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.9fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.subscriptions-page .subscriptions-toolbar .page-toolbar-actions {
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.subscriptions-page .subscriptions-toolbar :is(.form-group, .form-input, .form-select) {
+  min-width: 0;
+}
+
+.subscriptions-page .subscriptions-toolbar-field,
+.subscriptions-page .subscriptions-toolbar-field-sm {
+  width: 100%;
+}
+
+.subscriptions-page .subscriptions-toolbar-field-sm {
+  max-width: 240px;
+}
+
+.subscriptions-page .subscriptions-toolbar :is(.form-input, .form-select) {
+  width: 100%;
+}
+
+.subscriptions-page .subscriptions-workbench {
+  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.9fr);
+  gap: clamp(14px, 1.8vw, 22px);
+  align-items: start;
+}
+
+.subscriptions-page .subscriptions-main-column,
+.subscriptions-page .subscriptions-side-column {
+  gap: clamp(12px, 1.5vw, 18px);
+}
+
+.subscriptions-page .subscription-link-card--user-focus,
+.subscriptions-page .subscription-link-card--import-focus,
+.user-detail-page .subscription-link-card--import-focus,
+.user-detail-page .user-detail-subscription-card {
+  width: 100%;
+  max-width: none;
+  gap: 12px;
+  padding: clamp(14px, 1.35vw, 18px);
+  border-radius: 20px;
+}
+
+.subscriptions-page .subscription-admin-focus {
+  gap: 16px;
+  padding: clamp(14px, 1.3vw, 18px);
+  border-radius: 20px;
+}
+
+.subscriptions-page .subscription-profile-switches,
+.subscriptions-page .subscription-profile-switches--compact,
+.user-detail-page .subscription-profile-switches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.subscriptions-page .subscription-profile-switches--compact .btn,
+.subscriptions-page .subscription-profile-switches .btn,
+.user-detail-page .subscription-profile-switches .btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-address-shell,
+.subscriptions-page .subscription-user-address-main {
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-user-address-grid {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(188px, 228px);
+  gap: 14px;
+}
+
+.subscriptions-page .subscription-user-address-actions {
+  flex-wrap: wrap;
+  overflow: visible;
+  gap: 8px;
+}
+
+.subscriptions-page .subscription-user-address-actions .btn {
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-copy-btn {
+  min-width: 140px;
+}
+
+.subscriptions-page .subscription-user-address-foot {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-user-reset-inline-copy {
+  align-items: flex-start;
+}
+
+.subscriptions-page .subscription-user-reset-inline-note {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.subscriptions-page .subscription-link-with-qr,
+.user-detail-page .subscription-link-with-qr,
+.user-detail-page .user-detail-subscription-main {
+  grid-template-columns: minmax(0, 1fr) minmax(208px, 248px);
+  gap: 14px;
+  align-items: start;
+}
+
+.subscriptions-page .subscription-link-grid,
+.user-detail-page .subscription-link-grid--compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-url-input,
+.user-detail-page .subscription-url-input {
+  width: 100%;
+  max-width: none;
+  min-height: 42px;
+}
+
+.subscriptions-page .subscription-meter-grid {
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-inline-qr,
+.subscriptions-page .subscription-inline-qr--featured,
+.user-detail-page .subscription-inline-qr,
+.user-detail-page .subscription-inline-qr--featured,
+.user-detail-page .user-detail-subscription-qr {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: 18px;
+}
+
+.subscriptions-page .subscription-inline-qr-text,
+.subscriptions-page .subscription-inline-quick-hint,
+.user-detail-page .subscription-inline-qr-text {
+  max-width: 22ch;
+}
+
+.subscriptions-page .subscription-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-summary-item {
+  padding: 14px 15px;
+  gap: 8px;
+}
+
+.subscriptions-page .subscription-summary-value--email,
+.subscriptions-page .subscription-summary-item > .subscription-email-link,
+.user-detail-page .subscription-user-address-note {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.subscriptions-page .subscription-guide-grid {
+  gap: 10px;
+}
+
+.subscriptions-page .subscription-guide-step {
+  align-items: flex-start;
+  padding: 12px 14px;
+}
+
+.subscriptions-page .subscription-device-grid,
+.user-detail-page .subscription-client-links--compact .subscription-device-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-device-card,
+.user-detail-page .subscription-device-card {
+  padding: 13px 14px;
+  gap: 10px;
+  border-radius: 18px;
+}
+
+.subscriptions-page .subscription-device-actions--downloads,
+.user-detail-page .subscription-device-actions--downloads {
+  grid-template-columns: repeat(auto-fit, minmax(144px, 1fr));
+}
+
+.user-detail-page .user-detail-subscription-layout {
+  gap: 16px;
+}
+
+.user-detail-page .user-detail-subscription-card {
+  gap: 14px;
+}
+
+.user-detail-page .subscription-address-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.user-detail-page .user-detail-subscription-guides {
+  gap: 12px;
+  margin-top: 0;
+  padding-top: 12px;
+}
+
+.user-detail-page .subscription-client-links {
+  margin-top: 0;
+  padding: 0;
+}
+
+@media (min-width: 1400px) {
+  .settings-page .settings-shell {
+    grid-template-columns: minmax(260px, 296px) minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .settings-page .settings-nav {
+    position: sticky;
+    top: calc(80px + env(safe-area-inset-top, 0px));
+    align-self: start;
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .settings-save-dock {
+    position: sticky;
+    bottom: 14px;
+  }
+}
+
+@media (max-width: 1399px) {
+  .settings-page .settings-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .settings-nav {
+    position: sticky;
+    top: calc(78px + env(safe-area-inset-top, 0px));
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    grid-template-columns: repeat(auto-fit, minmax(164px, 1fr));
+  }
+
+  .settings-page .settings-ops-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-page .settings-invite-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  .settings-page .settings-access-grid,
+  .settings-page .settings-ops-grid,
+  .settings-page .settings-db-grid,
+  .settings-page .settings-backup-actions,
+  .settings-page .settings-summary-grid,
+  .settings-page .settings-workspace-highlight-grid,
+  .settings-page .settings-tab-hero-grid,
+  .settings-page .settings-invite-layout,
+  .subscriptions-page .subscriptions-workbench,
+  .subscriptions-page .subscriptions-toolbar .page-toolbar-main,
+  .subscriptions-page .subscription-link-with-qr,
+  .user-detail-page .subscription-link-with-qr,
+  .user-detail-page .user-detail-subscription-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .settings-save-dock {
+    position: relative;
+    bottom: auto;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions {
+    width: 100%;
+  }
+
+  .subscriptions-page .subscriptions-toolbar-field-sm {
+    max-width: none;
+  }
+
+  .subscriptions-page .subscriptions-toolbar .page-toolbar-actions,
+  .subscriptions-page .subscriptions-toolbar-secondary,
+  .subscriptions-page .subscriptions-toolbar-primary {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .subscriptions-page .subscription-user-address-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-inline-qr,
+  .subscriptions-page .subscription-inline-qr--featured,
+  .user-detail-page .subscription-inline-qr,
+  .user-detail-page .subscription-inline-qr--featured,
+  .user-detail-page .user-detail-subscription-qr {
+    width: 100%;
+    max-width: 280px;
+    justify-self: start;
+  }
+
+  .subscriptions-page .subscription-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .user-detail-page .subscription-address-status-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-page .settings-shell,
+  .settings-page .settings-main,
+  .settings-page .settings-workspace-section,
+  .subscriptions-page .subscriptions-workbench,
+  .subscriptions-page .subscriptions-main-column,
+  .subscriptions-page .subscriptions-side-column,
+  .user-detail-page .user-detail-subscription-layout {
+    gap: 12px;
+  }
+
+  .settings-page .settings-nav {
+    position: relative;
+    top: auto;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .settings-page .settings-nav-item {
+    min-height: 42px;
+    padding: 9px 12px;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .settings-page .settings-nav-item-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+  }
+
+  .settings-page .settings-nav-item-label {
+    white-space: nowrap;
+  }
+
+  .settings-page .settings-nav-item-summary,
+  .settings-page .settings-nav-item-flags {
+    display: none;
+  }
+
+  .settings-page .settings-workspace-hero,
+  .settings-page .settings-panel,
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card,
+  .settings-page .settings-form-cluster,
+  .settings-page .settings-mini-card,
+  .settings-page .settings-detail-card,
+  .settings-page .settings-backup-action-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-ops-card,
+  .settings-page .settings-monitor-log-item,
+  .settings-page .settings-backup-local-item,
+  .settings-page .settings-save-dock,
+  .subscriptions-page .subscriptions-toolbar,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-qr-card,
+  .subscriptions-page .subscription-link-card--user-focus,
+  .subscriptions-page .subscription-link-card--import-focus,
+  .subscriptions-page .subscription-admin-focus,
+  .subscriptions-page .subscription-inline-qr,
+  .subscriptions-page .subscription-inline-qr--featured,
+  .user-detail-page .glass-panel,
+  .user-detail-page .subscription-link-card--import-focus,
+  .user-detail-page .subscription-inline-qr,
+  .user-detail-page .subscription-inline-qr--featured,
+  .user-detail-page .user-detail-subscription-qr {
+    padding: 12px;
+    border-radius: 16px;
+    gap: 10px;
+  }
+
+  .settings-page .settings-panel > .section-header {
+    gap: 8px;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-copy {
+    display: flex;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side,
+  .settings-page .settings-panel > .section-header .section-header-actions,
+  .settings-page .settings-save-dock-actions,
+  .settings-page .settings-save-dock-actions .btn,
+  .settings-page .settings-panel-actions,
+  .settings-page .settings-panel-actions .btn,
+  .settings-page .settings-access-action-row,
+  .settings-page .settings-access-action-row .btn,
+  .settings-page .settings-backup-local-actions,
+  .settings-page .settings-backup-local-actions .btn,
+  .settings-page .settings-backup-inspection-actions,
+  .settings-page .settings-backup-inspection-actions .btn,
+  .settings-page .settings-invite-ledger-actions,
+  .settings-page .settings-invite-ledger-actions .btn {
+    width: 100%;
+  }
+
+  .settings-page .settings-save-dock-inner,
+  .settings-page .settings-save-dock-main,
+  .settings-page .settings-save-dock-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-page .settings-workspace-hero-subtitle,
+  .settings-page .settings-panel-subtitle,
+  .settings-page .settings-form-cluster-note,
+  .settings-page .settings-panel .section-header-subtitle {
+    max-width: none;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .settings-page .settings-tab-hero-title {
+    font-size: clamp(1.25rem, 5vw, 1.65rem);
+  }
+
+  .subscriptions-page .subscriptions-toolbar .page-toolbar-main,
+  .subscriptions-page .subscriptions-toolbar .page-toolbar-actions,
+  .subscriptions-page .subscriptions-toolbar-secondary,
+  .subscriptions-page .subscriptions-toolbar-primary,
+  .subscriptions-page .subscriptions-toolbar-meta,
+  .subscriptions-page .subscriptions-toolbar-secondary > *,
+  .subscriptions-page .subscriptions-toolbar-primary .btn {
+    width: 100%;
+  }
+
+  .subscriptions-page .subscriptions-toolbar-secondary > *,
+  .subscriptions-page .subscriptions-toolbar-primary .btn {
+    justify-content: center;
+  }
+
+  .subscriptions-page .subscription-profile-switches,
+  .subscriptions-page .subscription-profile-switches--compact,
+  .user-detail-page .subscription-profile-switches {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subscriptions-page .subscription-link-grid,
+  .user-detail-page .subscription-link-grid--compact,
+  .subscriptions-page .subscription-user-address-actions,
+  .subscriptions-page .subscription-inline-quick-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-address-actions {
+    display: grid;
+  }
+
+  .subscriptions-page .subscription-user-address-actions .btn,
+  .subscriptions-page .subscription-user-reset-inline-btn,
+  .subscriptions-page .subscription-inline-quick-btn,
+  .user-detail-page .subscription-link-grid--compact .btn {
+    width: 100%;
+  }
+
+  .subscriptions-page .subscription-inline-qr,
+  .subscriptions-page .subscription-inline-qr--featured,
+  .user-detail-page .subscription-inline-qr,
+  .user-detail-page .subscription-inline-qr--featured,
+  .user-detail-page .user-detail-subscription-qr {
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .subscriptions-page .subscription-summary-grid,
+  .subscriptions-page .subscription-device-grid,
+  .user-detail-page .subscription-address-status-grid,
+  .user-detail-page .subscription-client-links--compact .subscription-device-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-device-compact-row,
+  .user-detail-page .subscription-device-compact-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-page .settings-workspace-hero,
+  .settings-page .settings-panel,
+  .settings-page .settings-summary-card,
+  .settings-page .settings-tab-highlight-card,
+  .settings-page .settings-workspace-highlight-card,
+  .settings-page .settings-form-cluster,
+  .settings-page .settings-mini-card,
+  .settings-page .settings-detail-card,
+  .settings-page .settings-backup-action-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-ops-card,
+  .settings-page .settings-monitor-log-item,
+  .settings-page .settings-backup-local-item,
+  .settings-page .settings-save-dock,
+  .subscriptions-page .subscriptions-toolbar,
+  .subscriptions-page .subscription-primary-card,
+  .subscriptions-page .subscription-guide-card,
+  .subscriptions-page .subscription-summary-card,
+  .subscriptions-page .subscription-downloads-page-card,
+  .subscriptions-page .subscription-qr-card,
+  .subscriptions-page .subscription-link-card--user-focus,
+  .subscriptions-page .subscription-link-card--import-focus,
+  .subscriptions-page .subscription-admin-focus,
+  .subscriptions-page .subscription-inline-qr,
+  .subscriptions-page .subscription-inline-qr--featured,
+  .user-detail-page .glass-panel,
+  .user-detail-page .subscription-link-card--import-focus,
+  .user-detail-page .subscription-inline-qr,
+  .user-detail-page .subscription-inline-qr--featured,
+  .user-detail-page .user-detail-subscription-qr {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .subscriptions-page .subscription-profile-switches,
+  .subscriptions-page .subscription-profile-switches--compact,
+  .user-detail-page .subscription-profile-switches,
+  .subscriptions-page .subscription-device-compact-row,
+  .user-detail-page .subscription-device-compact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-device-compact-label,
+  .user-detail-page .subscription-device-compact-label {
+    padding-top: 0;
+  }
+}

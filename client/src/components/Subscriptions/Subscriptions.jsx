@@ -567,6 +567,7 @@ export default function Subscriptions() {
                 {isAdmin && (
                     <PageToolbar
                         className="card mb-8 subscriptions-toolbar"
+                        stackOnTablet
                         main={(
                             <>
                                 <div className="form-group subscriptions-toolbar-field">

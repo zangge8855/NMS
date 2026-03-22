@@ -1162,7 +1162,7 @@ export default function UserDetail() {
                     title={t('pages.userDetail.title')}
                     eyebrow={t('pages.userDetail.eyebrow')}
                 />
-                <div className="page-content page-enter user-detail-page">
+                <div className="page-content page-content--wide page-enter user-detail-page">
                     <div className="glass-panel p-6">
                         <SkeletonTable rows={3} cols={4} />
                     </div>
@@ -1178,7 +1178,7 @@ export default function UserDetail() {
                     title={t('pages.userDetail.title')}
                     eyebrow={t('pages.userDetail.eyebrow')}
                 />
-                <div className="page-content page-enter user-detail-page">
+                <div className="page-content page-content--wide page-enter user-detail-page">
                     <EmptyState title={copy.userMissingTitle} subtitle={copy.userMissingSubtitle} action={
                         <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
                             <HiOutlineArrowLeft /> {copy.backToUsers}
@@ -1222,7 +1222,7 @@ export default function UserDetail() {
                 title={t('pages.userDetail.titleWithName', { name: user.username })}
                 eyebrow={t('pages.userDetail.eyebrow')}
             />
-            <div className="page-content page-enter user-detail-page">
+            <div className="page-content page-content--wide page-enter user-detail-page">
                 <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
                     <HiOutlineArrowLeft /> {copy.backToUsers}
                 </button>
