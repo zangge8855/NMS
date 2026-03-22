@@ -83,7 +83,7 @@
 .mobile-bottom-nav-item.active,
 .mobile-bottom-nav-item:hover {
   background: rgba(59, 130, 246, 0.16);
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .mobile-bottom-nav-icon {
@@ -149,7 +149,7 @@
 .logs-level-chip--none.is-active {
   border-color: rgba(148, 163, 184, 0.4);
   background: rgba(51, 65, 85, 0.32);
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .logs-level-chip-count {
@@ -521,6 +521,132 @@
   50% {
     box-shadow: 0 0 0 8px rgba(248, 113, 113, 0);
   }
+}
+
+[data-theme="light"] .mobile-bottom-nav-track {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .mobile-bottom-nav-item {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .mobile-bottom-nav-item.active,
+[data-theme="light"] .mobile-bottom-nav-item:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .logs-level-chip {
+  background: rgba(248, 250, 252, 0.96);
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .logs-level-chip-count {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .logs-level-chip--error:hover,
+[data-theme="light"] .logs-level-chip--error.is-active {
+  background: rgba(254, 226, 226, 0.92);
+  color: #991b1b;
+}
+
+[data-theme="light"] .logs-level-chip--warning:hover,
+[data-theme="light"] .logs-level-chip--warning.is-active {
+  background: rgba(254, 243, 199, 0.96);
+  color: #92400e;
+}
+
+[data-theme="light"] .logs-level-chip--info:hover,
+[data-theme="light"] .logs-level-chip--info.is-active {
+  background: rgba(219, 234, 254, 0.96);
+  color: #1d4ed8;
+}
+
+[data-theme="light"] .logs-level-chip--debug:hover,
+[data-theme="light"] .logs-level-chip--debug.is-active,
+[data-theme="light"] .logs-level-chip--none:hover,
+[data-theme="light"] .logs-level-chip--none.is-active {
+  background: rgba(226, 232, 240, 0.96);
+  color: #0f172a;
+}
+
+[data-theme="light"] .log-line[data-level="error"] {
+  background: linear-gradient(90deg, rgba(254, 226, 226, 0.92), rgba(254, 226, 226, 0));
+}
+
+[data-theme="light"] .log-line[data-level="warning"] {
+  background: linear-gradient(90deg, rgba(254, 243, 199, 0.92), rgba(254, 243, 199, 0));
+}
+
+[data-theme="light"] .log-line[data-level="info"] {
+  background: linear-gradient(90deg, rgba(219, 234, 254, 0.92), rgba(219, 234, 254, 0));
+}
+
+[data-theme="light"] .timeline-list--virtualized {
+  background: rgba(241, 245, 249, 0.86);
+}
+
+[data-theme="light"] .circular-meter {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .circular-meter-track {
+  stroke: rgba(148, 163, 184, 0.26);
+}
+
+[data-theme="light"] .subscription-qr-modal-surface {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .security-bootstrap-overlay {
+  background:
+    radial-gradient(circle at top, rgba(239, 68, 68, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.98));
+}
+
+[data-theme="light"] .security-bootstrap-shell {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.97));
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .security-bootstrap-kicker {
+  color: #b91c1c;
+}
+
+[data-theme="light"] .security-bootstrap-callout {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(254, 226, 226, 0.7);
+}
+
+[data-theme="light"] .security-bootstrap-callout-title {
+  color: #991b1b;
+}
+
+[data-theme="light"] .security-bootstrap-issue-code {
+  color: #b91c1c;
+}
+
+[data-theme="light"] .security-bootstrap-meta-card,
+[data-theme="light"] .security-bootstrap-form {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .site-danger-compare-card {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+[data-theme="light"] .site-danger-compare-card--next {
+  background: rgba(254, 226, 226, 0.72);
 }
 
 @media (max-width: 960px) {

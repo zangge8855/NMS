@@ -2744,6 +2744,10 @@
   flex: 0 0 auto;
 }
 
+.settings-ops-panel {
+  gap: 10px;
+}
+
 .settings-form-cluster--address .form-input,
 .settings-monitor-log-meta--address .settings-monitor-log-value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -4687,8 +4691,73 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .settings-workspace-section[data-workspace="access"] .settings-workspace-section-body,
+  .settings-workspace-section[data-workspace="operations"] .settings-workspace-section-body {
+    gap: 8px;
+  }
+
   .settings-ops-grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .settings-ops-grid > .settings-ops-card {
+    height: auto;
+  }
+
+  .settings-access-panel,
+  .settings-ops-panel {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .settings-access-panel .section-header,
+  .settings-ops-panel .section-header {
+    gap: 8px;
+  }
+
+  .settings-access-panel .section-header.mb-3,
+  .settings-ops-panel .section-header.mb-3 {
+    margin-bottom: 8px !important;
+  }
+
+  .settings-access-grid,
+  .settings-access-stack {
+    gap: 8px;
+  }
+
+  .settings-access-panel .settings-form-cluster,
+  .settings-ops-card {
+    gap: 8px;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .settings-access-panel .settings-form-cluster-head,
+  .settings-ops-card-head {
+    gap: 4px;
+  }
+
+  .settings-access-panel .settings-field-grid,
+  .settings-access-panel .settings-toggle-strip,
+  .settings-access-panel .settings-inline-action-row,
+  .settings-access-action-row,
+  .settings-ops-actions {
+    gap: 8px;
+  }
+
+  .settings-access-panel .form-label,
+  .settings-ops-panel .form-label {
+    margin-bottom: 4px;
+  }
+
+  .settings-access-panel .text-xs.text-muted {
+    margin-top: 4px !important;
+    line-height: 1.45;
+  }
+
+  .settings-ops-card-main {
+    gap: 8px;
   }
 
   [data-workspace="status"] .settings-workspace-highlight-grid,
@@ -4963,6 +5032,44 @@
 
   .settings-nav-item-copy {
     gap: 0;
+  }
+
+  .settings-workspace-section[data-workspace="access"],
+  .settings-workspace-section[data-workspace="operations"] {
+    gap: 8px;
+  }
+
+  .settings-access-panel,
+  .settings-ops-panel {
+    padding: 10px;
+  }
+
+  .settings-access-panel .settings-form-cluster,
+  .settings-ops-card {
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .settings-access-panel .settings-form-cluster-eyebrow,
+  .settings-ops-card .settings-form-cluster-eyebrow {
+    font-size: 10px;
+  }
+
+  .settings-access-panel .settings-form-cluster-title,
+  .settings-ops-card .settings-form-cluster-title {
+    font-size: 14px;
+  }
+
+  .settings-access-panel .settings-panel-actions,
+  .settings-ops-panel .settings-panel-actions,
+  .settings-access-panel .settings-inline-action-row,
+  .settings-access-action-row {
+    gap: 6px;
+  }
+
+  .settings-access-panel .settings-panel-actions .btn,
+  .settings-ops-actions .btn {
+    min-height: 36px;
   }
 
   [data-workspace="status"] .settings-workspace-highlight-grid,

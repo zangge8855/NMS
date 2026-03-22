@@ -2053,7 +2053,7 @@ export default function SystemSettings() {
 
     const renderMonitorContent = () => (
         <div className="settings-section-stack">
-            <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
+            <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-ops-panel">
                 <SectionHeader
                     className="mb-3"
                     compact
