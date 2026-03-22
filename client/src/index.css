@@ -105,10 +105,10 @@
   --transition-base: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography — prefer locally available Chinese UI fonts over remote webfonts */
-  --font-family: 'IBM Plex Sans', 'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  /* Typography */
+  --font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  --font-display: 'IBM Plex Sans', 'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -127,6 +127,13 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   text-size-adjust: 100%;
+}
+
+html:lang(zh),
+html:lang(zh-CN),
+html:lang(zh-Hans) {
+  --font-family: 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
 }
 
 body {

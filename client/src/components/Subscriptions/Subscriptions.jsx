@@ -784,6 +784,14 @@ export default function Subscriptions() {
                                             </div>
                                             <div className="subscription-user-panel subscription-user-panel--summary">
                                                 <div className="subscription-user-panel-title">{ui.summaryTitle}</div>
+                                                <div className="subscription-user-panel-meta" aria-label={ui.summaryTitle}>
+                                                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                                        {result.subscriptionActive ? ui.available : ui.unavailable}
+                                                    </span>
+                                                    <span className="badge badge-neutral">
+                                                        {activeProfileLabel || activeProfile?.label || ui.currentProfileFallback}
+                                                    </span>
+                                                </div>
                                                 <div className="subscription-user-aside">
                                                     {shouldShowInlineQr ? (
                                                         <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">

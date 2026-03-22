@@ -10010,8 +10010,13 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-flow--balanced {
   display: grid;
-  grid-template-columns: minmax(0, 1.96fr) minmax(232px, 0.68fr);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.subscriptions-page .subscription-user-flow--balanced > * {
+  min-height: 100%;
 }
 
 .subscriptions-page .subscriptions-main-column,
@@ -10022,6 +10027,7 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-user-panel--import,
 .subscriptions-page .subscription-user-panel--summary {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
   padding: clamp(14px, 1.35vw, 18px);
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -10030,9 +10036,19 @@ p, .empty-state-body, td {
 }
 
 .subscriptions-page .subscription-user-panel--summary {
-  align-self: start;
-  max-width: 280px;
-  justify-self: end;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  justify-self: stretch;
+}
+
+.subscriptions-page .subscription-user-panel-title {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .subscriptions-page .subscription-link-card--user-focus,
@@ -10040,7 +10056,10 @@ p, .empty-state-body, td {
 .user-detail-page .subscription-link-card--import-focus,
 .user-detail-page .user-detail-subscription-card {
   width: 100%;
+  min-height: 100%;
   max-width: none;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: clamp(14px, 1.35vw, 18px);
   border-radius: 20px;
@@ -10060,6 +10079,19 @@ p, .empty-state-body, td {
   gap: 8px;
 }
 
+.subscriptions-page .subscription-profile-switches--compact {
+  align-items: stretch;
+  min-height: 40px;
+}
+
+.subscriptions-page .subscription-user-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
 .subscriptions-page .subscription-profile-switches--compact .btn,
 .subscriptions-page .subscription-profile-switches .btn,
 .user-detail-page .subscription-profile-switches .btn {
@@ -10070,6 +10102,12 @@ p, .empty-state-body, td {
 .subscriptions-page .subscription-user-address-shell,
 .subscriptions-page .subscription-user-address-main {
   gap: 12px;
+}
+
+.subscriptions-page .subscription-user-address-shell {
+  display: grid;
+  align-content: start;
+  flex: 1 1 auto;
 }
 
 .subscriptions-page .subscription-user-address-grid {
@@ -10087,47 +10125,86 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-aside {
   display: grid;
-  gap: 10px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
   align-content: start;
+  height: 100%;
 }
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-areas:
+    "surface title"
+    "surface text";
+  align-items: center;
+  justify-items: start;
+  column-gap: 12px;
+  row-gap: 6px;
   width: 100%;
-  max-width: 248px;
+  max-width: none;
   padding: 12px;
-  justify-self: center;
+  justify-self: stretch;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side > *:only-child {
+  grid-column: 1 / -1;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-title {
+  grid-area: title;
+  align-self: end;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface {
+  grid-area: surface;
+  width: 104px;
+  min-width: 104px;
+  padding: 0;
+  margin-inline: 0;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface svg {
+  width: 104px;
+  height: 104px;
+}
+
+.subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-text {
+  grid-area: text;
+  max-width: none;
+  text-align: left;
 }
 
 .subscriptions-page .subscription-user-status-block {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 18px;
+  border-radius: 16px;
   background: linear-gradient(160deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.28));
 }
 
 .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  gap: 7px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter {
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px;
-  min-height: 82px;
-  padding: 10px 12px;
-  border-radius: 18px;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 9px;
+  min-height: 76px;
+  padding: 9px 10px;
+  border-radius: 16px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-svg,
 .subscriptions-page .subscription-user-status-block .circular-meter-visual {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-percent {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-label {
@@ -10136,12 +10213,12 @@ p, .empty-state-body, td {
 
 .subscriptions-page .subscription-user-status-block .circular-meter-value {
   margin-top: 2px;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-meta {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -10154,18 +10231,31 @@ p, .empty-state-body, td {
 }
 
 .subscriptions-page .subscription-user-address-foot {
+  margin-top: auto;
   align-items: flex-start;
   gap: 12px;
 }
 
 .subscriptions-page .subscription-user-reset-inline-copy {
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .subscriptions-page .subscription-user-reset-inline-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
+}
+
+.subscriptions-page .subscription-user-reset-inline-divider {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .subscriptions-page .subscription-link-with-qr,
@@ -10398,6 +10488,10 @@ p, .empty-state-body, td {
     justify-self: stretch;
   }
 
+  .subscriptions-page .subscription-user-panel-meta {
+    min-height: 0;
+  }
+
   .subscriptions-page .subscription-inline-qr,
   .subscriptions-page .subscription-inline-qr--featured,
   .user-detail-page .subscription-inline-qr,
@@ -10406,6 +10500,30 @@ p, .empty-state-body, td {
     width: 100%;
     max-width: 280px;
     justify-self: start;
+  }
+
+  .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-items: stretch;
+    max-width: 280px;
+  }
+
+  .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface {
+    width: auto;
+    min-width: 0;
+    padding: 6px;
+    margin-inline: auto;
+  }
+
+  .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-surface svg {
+    width: 108px;
+    height: 108px;
+  }
+
+  .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side .subscription-inline-qr-text {
+    text-align: center;
   }
 
   .subscriptions-page .subscription-summary-grid {
