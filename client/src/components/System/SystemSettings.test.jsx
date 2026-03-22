@@ -407,8 +407,8 @@ describe('SystemSettings', () => {
         expect(screen.getByRole('button', { name: '系统状态' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '入口与订阅' })).toBeInTheDocument();
         expect(screen.queryByText('Overview')).not.toBeInTheDocument();
-        expect(document.querySelector('.settings-tab-hero')).not.toBeNull();
-        expect(document.querySelector('[data-workspace="status"] .settings-workspace-highlight-card')).not.toBeNull();
+        expect(document.querySelector('.settings-tab-hero')).toBeNull();
+        expect(document.querySelector('[data-workspace="status"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.queryByText('把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。')).not.toBeInTheDocument();
         expect(screen.queryByText('统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。')).not.toBeInTheDocument();
         expect(screen.queryByDisplayValue('/portal')).not.toBeInTheDocument();
@@ -448,7 +448,7 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
 
         expect(await screen.findByText('通知与巡检状态')).toBeInTheDocument();
-        expect(document.querySelector('[data-workspace="status"] .settings-workspace-highlight-card')).not.toBeNull();
+        expect(document.querySelector('[data-workspace="status"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.queryByText('把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。')).not.toBeInTheDocument();
         expect(await screen.findByText('通知与巡检状态')).toBeInTheDocument();
         expect(screen.getByText('数据库与备份状态')).toBeInTheDocument();

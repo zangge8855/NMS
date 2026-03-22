@@ -1479,106 +1479,11 @@ export default function SystemSettings() {
                 ? '当前 Chat ID 已清空，保存后会移除现有目标。'
                 : `当前仅显示脱敏值：${telegramMaskedDisplayValue}`)
         : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。';
-    const alertChainStates = [
-        emailStatus?.configured ? '邮件已配置' : '邮件未配置',
-        monitorStatus?.healthMonitor?.running ? '巡检运行中' : '巡检未运行',
-        monitorStatus?.telegram?.enabled
-            ? 'Telegram 已启用'
-            : monitorStatus?.telegram?.configured
-                ? 'Telegram 待启用'
-                : 'Telegram 未配置',
-    ];
     const readyAlertChainCount = [
         Boolean(emailStatus?.configured),
         Boolean(monitorStatus?.healthMonitor?.running),
         Boolean(monitorStatus?.telegram?.enabled),
     ].filter(Boolean).length;
-    const registrationModeLabel = registrationEnabled
-        ? (draft.registration.inviteOnlyEnabled ? '邀请注册' : '普通注册')
-        : '已关闭注册';
-    const camouflageStatusLabel = draft.site.camouflageEnabled ? '伪装首页已开启' : '伪装首页已关闭';
-    const dbModeLabel = dbStatus
-        ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}`
-        : '等待探测';
-    const dbConnectionLabel = dbStatus?.connection?.enabled
-        ? (dbStatus?.connection?.ready ? '连接已就绪' : '连接未就绪')
-        : '未启用';
-    const dbQueueLabel = `queued ${dbStatus?.writesQueued || 0} · pending ${dbStatus?.pendingWrites || 0}`;
-    const geoStatusLabel = draft.auditIpGeo.enabled ? '已启用' : '未启用';
-    const overviewCards = useMemo(() => ([
-        {
-            title: '站点入口',
-            value: siteAccessPath,
-            detail: siteEntryPreview,
-            tone: siteAccessPath === '/' ? 'warning' : 'success',
-        },
-        {
-            title: '注册模式',
-            value: registrationModeLabel,
-            detail: camouflageStatusLabel,
-            tone: registrationEnabled ? 'success' : 'neutral',
-        },
-        {
-            title: '数据库模式',
-            value: dbModeLabel,
-            detail: `${dbConnectionLabel} · ${dbQueueLabel}`,
-            tone: dbStatus?.connection?.ready ? 'success' : dbStatus?.connection?.enabled ? 'warning' : 'neutral',
-        },
-        {
-            title: '告警与备份',
-            value: `${readyAlertChainCount}/3 告警链路就绪`,
-            detail: `${alertChainStates.join(' · ')} · ${backupSummaryValue}`,
-            tone: readyAlertChainCount === 3 ? 'success' : readyAlertChainCount > 0 ? 'warning' : 'neutral',
-        },
-    ]), [
-        backupSummaryValue,
-        camouflageStatusLabel,
-        dbConnectionLabel,
-        dbModeLabel,
-        dbQueueLabel,
-        dbStatus,
-        draft.registration.inviteOnlyEnabled,
-        hasExportBackup,
-        hasLocalBackup,
-        registrationModeLabel,
-        registrationEnabled,
-        siteAccessPath,
-        siteEntryPreview,
-        readyAlertChainCount,
-        alertChainStates,
-    ]);
-    const policyHighlights = useMemo(() => ([
-        {
-            label: '高风险确认',
-            value: draft.security.requireHighRiskConfirmation ? '已开启' : '未开启',
-            detail: `令牌有效期 ${draft.security.riskTokenTtlSeconds} 秒`,
-        },
-        {
-            label: '风险阈值',
-            value: `中 ${draft.security.mediumRiskMinTargets} / 高 ${draft.security.highRiskMinTargets}`,
-            detail: '超过阈值时会进入更严格的确认流程。',
-        },
-        {
-            label: '审计留存',
-            value: `${draft.audit.retentionDays} 天`,
-            detail: `单页最多 ${draft.audit.maxPageSize} 条`,
-        },
-        {
-            label: '归属地增强',
-            value: geoStatusLabel,
-            detail: `${draft.auditIpGeo.provider || 'ip_api'} · TTL ${draft.auditIpGeo.cacheTtlSeconds} 秒`,
-        },
-    ]), [
-        draft.audit.maxPageSize,
-        draft.audit.retentionDays,
-        draft.auditIpGeo.cacheTtlSeconds,
-        draft.auditIpGeo.provider,
-        draft.security.highRiskMinTargets,
-        draft.security.mediumRiskMinTargets,
-        draft.security.requireHighRiskConfirmation,
-        draft.security.riskTokenTtlSeconds,
-        geoStatusLabel,
-    ]);
     const monitorReasonSummary = useMemo(() => {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
             .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
@@ -2888,7 +2793,7 @@ export default function SystemSettings() {
             eyebrow: 'Status',
             subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
             summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
-            highlights: overviewCards.map(({ title, value, detail }) => ({ label: title, value, detail })),
+            highlights: [],
             navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },
@@ -2910,7 +2815,7 @@ export default function SystemSettings() {
             eyebrow: 'Security',
             subtitle: '风控阈值、审计保留窗口和 IP 归属地增强统一收口。',
             summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
-            highlights: policyHighlights,
+            highlights: [],
             content: renderPolicyContent(),
             heroMode: 'cards',
         },
