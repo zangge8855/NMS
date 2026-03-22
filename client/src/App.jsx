@@ -1,5 +1,6 @@
 import React, { Component, Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Layout, Spin } from 'antd';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { ServerProvider } from './contexts/ServerContext.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
@@ -9,6 +10,8 @@ import useMediaQuery from './hooks/useMediaQuery.js';
 import { getLocaleMessage } from './i18n/messages.js';
 import MobileBottomNav from './components/Layout/MobileBottomNav.jsx';
 import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard.jsx';
+
+const { Content } = Layout;
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
@@ -85,7 +88,7 @@ function PageFallback() {
             alignItems: 'center',
             justifyContent: 'center',
         }}>
-            <span className="spinner" style={{ width: '24px', height: '24px' }} />
+            <Spin size="large" />
         </div>
     );
 }
@@ -112,11 +115,7 @@ function ProtectedLayout() {
     return (
         <ServerProvider>
         <NotificationProvider>
-            <div className="app-layout">
-                <div
-                    className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
-                    onClick={() => setSidebarOpen(false)}
-                />
+            <Layout style={{ minHeight: '100vh' }}>
                 <Suspense fallback={null}>
                     <Sidebar
                         collapsed={effectiveCollapsed}
@@ -132,31 +131,33 @@ function ProtectedLayout() {
                         }}
                     />
                 </Suspense>
-                <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
-                    <Routes>
-                        <Route path="/" element={isAdmin ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
-                        <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
-                        <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
-                        <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
-                        <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                        <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
-                    </Routes>
-                    {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}
-                </main>
+                <Layout>
+                    <Content style={{ position: 'relative' }}>
+                        <Routes>
+                            <Route path="/" element={isAdmin ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
+                            <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
+                            <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
+                            <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
+                            <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
+                        </Routes>
+                        {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}
+                    </Content>
+                </Layout>
                 {isAdmin ? <SecurityBootstrapWizard /> : null}
-            </div>
+            </Layout>
         </NotificationProvider>
         </ServerProvider>
     );
@@ -174,7 +175,7 @@ export default function App() {
                 justifyContent: 'center',
                 background: 'var(--bg-primary)',
             }}>
-                <span className="spinner" style={{ width: '32px', height: '32px' }} />
+                <Spin size="large" />
             </div>
         );
     }

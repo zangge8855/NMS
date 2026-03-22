@@ -1,20 +1,25 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../api/client.js';
-import Header from '../Layout/Header.jsx';
-import SkeletonTable from '../UI/SkeletonTable.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import ClientIpModal from '../UI/ClientIpModal.jsx';
-import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
-import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
-import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
-import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
-import toast from 'react-hot-toast';
-import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import { useI18n } from '../../contexts/LanguageContext.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
-import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
+import { 
+    Card, 
+    Typography, 
+    Button, 
+    Tabs, 
+    Row, 
+    Col, 
+    Tag, 
+    Table, 
+    Statistic, 
+    Descriptions, 
+    Badge, 
+    Avatar, 
+    Space, 
+    Empty, 
+    Divider, 
+    List,
+    Tooltip,
+    Progress
+} from 'antd';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
@@ -24,95 +29,23 @@ import {
     HiOutlineGlobeAlt,
     HiOutlineServerStack,
 } from 'react-icons/hi2';
+import toast from 'react-hot-toast';
+import api from '../../api/client.js';
+import Header from '../Layout/Header.jsx';
+import ClientIpModal from '../UI/ClientIpModal.jsx';
+import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
+import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
+import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
+import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
+import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 
-function StatMini({ label, value, suffix }) {
-    const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
-    const displayValue = value === null || value === undefined
-        ? '...'
-        : (typeof value === 'number' ? `${animated}${suffix || ''}` : `${value}${suffix || ''}`);
-    return (
-        <div className="stat-mini-card">
-            <div className="stat-mini-value" title={displayValue}>
-                <span className="stat-mini-value-text">{displayValue}</span>
-            </div>
-            <div className="stat-mini-label">{label}</div>
-        </div>
-    );
-}
+const { Title, Text, Paragraph } = Typography;
 
 function formatTime(ts, locale = 'zh-CN') {
     return formatDateTime(ts, locale);
-}
-
-function ServerDetailInboundMobileList({ inbounds = [] }) {
-    return (
-        <div className="server-detail-mobile-list">
-            {inbounds.map((ib) => {
-                let clients = 0;
-                try {
-                    const settings = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
-                    clients = (settings.clients || []).length;
-                } catch {}
-                return (
-                    <div key={ib.id} className="server-detail-mobile-card">
-                        <div className="server-detail-mobile-card-head">
-                            <div className="server-detail-mobile-card-copy">
-                                <div className="server-detail-mobile-card-title">
-                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
-                                </div>
-                                <div className="server-detail-mobile-card-subtitle">
-                                    <span className="badge badge-neutral">{ib.protocol}</span>
-                                    <span className="server-detail-mobile-card-port">:{ib.port}</span>
-                                </div>
-                            </div>
-                            <span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                {ib.enable !== false ? '启用' : '禁用'}
-                            </span>
-                        </div>
-                        <div className="server-detail-mobile-card-grid">
-                            <div className="server-detail-mobile-card-item">
-                                <span className="server-detail-mobile-card-label">客户端数</span>
-                                <span className="server-detail-mobile-card-value">{clients}</span>
-                            </div>
-                            <div className="server-detail-mobile-card-item">
-                                <span className="server-detail-mobile-card-label">流量</span>
-                                <span className="server-detail-mobile-card-value">{formatBytes((ib.up || 0) + (ib.down || 0))}</span>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
-function ServerDetailOnlineMobileList({ onlineUsers = [], onLoadClientIps, clientIpSupport }) {
-    return (
-        <div className="server-detail-mobile-list">
-            {onlineUsers.map((item, index) => (
-                <div key={item.email} className="server-detail-mobile-card">
-                    <div className="server-detail-mobile-card-head">
-                        <div className="server-detail-mobile-card-copy">
-                            <div className="server-detail-mobile-card-title">{item.email}</div>
-                            <div className="server-detail-mobile-card-subtitle">#{index + 1}</div>
-                        </div>
-                        <span className="badge badge-success">{item.sessions} 会话</span>
-                    </div>
-                    <div className="server-detail-mobile-card-actions">
-                        <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => onLoadClientIps(item.email)}
-                            disabled={clientIpSupport.supported === false}
-                            title={clientIpSupport.supported === false ? clientIpSupport.reason : '查看该用户在当前节点上的代理访问 IP'}
-                        >
-                            <HiOutlineGlobeAlt /> 节点 IP
-                        </button>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
 }
 
 export default function ServerDetail() {
@@ -191,7 +124,6 @@ export default function ServerDetail() {
         try {
             const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/onlines`);
             const data = res.data?.obj || [];
-            // Flatten online users from all inbounds
             const users = [];
             if (Array.isArray(data)) {
                 data.forEach(item => {
@@ -377,14 +309,9 @@ export default function ServerDetail() {
     if (loading) {
         return (
             <>
-                <Header
-                    title={t('pages.serverDetail.title')}
-                    eyebrow={t('pages.serverDetail.eyebrow')}
-                />
-                <div className="page-content page-enter server-detail-page">
-                    <div className="glass-panel p-6">
-                        <SkeletonTable rows={3} cols={4} />
-                    </div>
+                <Header title={t('pages.serverDetail.title')} />
+                <div style={{ padding: '24px' }}>
+                    <Card loading />
                 </div>
             </>
         );
@@ -393,16 +320,12 @@ export default function ServerDetail() {
     if (!server) {
         return (
             <>
-                <Header
-                    title={t('pages.serverDetail.title')}
-                    eyebrow={t('pages.serverDetail.eyebrow')}
-                />
-                <div className="page-content page-enter server-detail-page">
-                    <EmptyState title="服务器不存在" subtitle="该服务器可能已被删除" action={
-                        <button className="btn btn-secondary" onClick={() => navigate('/servers')}>
-                            <HiOutlineArrowLeft /> 返回服务器列表
-                        </button>
-                    } />
+                <Header title={t('pages.serverDetail.title')} />
+                <div style={{ padding: '24px' }}>
+                    <Empty 
+                        description="服务器不存在" 
+                        children={<Button icon={<HiOutlineArrowLeft />} onClick={() => navigate('/servers')}>返回服务器列表</Button>} 
+                    />
                 </div>
             </>
         );
@@ -410,17 +333,195 @@ export default function ServerDetail() {
 
     const envLabel = { production: '生产', staging: '预发布', development: '开发', testing: '测试', dr: '灾备', sandbox: '沙盒' };
     const healthLabel = { healthy: '健康', degraded: '降级', unreachable: '不可达', maintenance: '维护中' };
-    const healthBadge = { healthy: 'badge-success', degraded: 'badge-warning', unreachable: 'badge-danger', maintenance: 'badge-info' };
+    const healthColor = { healthy: 'success', degraded: 'warning', unreachable: 'error', maintenance: 'processing' };
 
-    const tabs = [
-        { key: 'overview', label: '概览' },
-        { key: 'inbounds', label: '入站列表' },
-        { key: 'onlines', label: '在线用户' },
-        { key: 'audit', label: '审计日志' },
+    const inboundColumns = [
+        {
+            title: '备注',
+            key: 'remark',
+            render: (_, record) => <InboundRemarkPill remark={record.remark} protocol={record.protocol} />
+        },
+        {
+            title: '协议',
+            dataIndex: 'protocol',
+            align: 'center',
+            render: (text) => <Tag color="blue">{text}</Tag>
+        },
+        {
+            title: '端口',
+            dataIndex: 'port',
+            align: 'right',
+            className: 'font-mono'
+        },
+        {
+            title: '客户端数',
+            key: 'clients',
+            align: 'center',
+            render: (_, record) => {
+                try {
+                    const s = typeof record.settings === 'string' ? JSON.parse(record.settings) : (record.settings || {});
+                    return (s.clients || []).length;
+                } catch { return 0; }
+            }
+        },
+        {
+            title: '流量',
+            key: 'traffic',
+            align: 'right',
+            className: 'font-mono',
+            render: (_, record) => formatBytes((record.up || 0) + (record.down || 0))
+        },
+        {
+            title: '状态',
+            key: 'status',
+            align: 'center',
+            render: (_, record) => <Badge status={record.enable !== false ? 'success' : 'error'} text={record.enable !== false ? '启用' : '禁用'} />
+        }
     ];
-    const showInboundStats = !inboundsLoading || inbounds.length > 0;
-    const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
-    const hasEnvironment = String(server.environment || '').trim() && String(server.environment || '').trim() !== 'unknown';
+
+    const onlineColumns = [
+        { title: '#', key: 'index', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+        { title: '用户标识', dataIndex: 'email', className: 'font-mono' },
+        { title: '会话数', dataIndex: 'sessions', align: 'right', width: 100 },
+        {
+            title: '操作',
+            key: 'actions',
+            align: 'right',
+            render: (_, record) => (
+                <Button 
+                    size="small" 
+                    icon={<HiOutlineGlobeAlt />} 
+                    disabled={clientIpSupport.supported === false}
+                    onClick={() => loadClientIps(record.email)}
+                >
+                    节点 IP
+                </Button>
+            )
+        }
+    ];
+
+    const tabItems = [
+        {
+            key: 'overview',
+            label: '概览',
+            children: (
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <Card title="服务器信息" size="small">
+                        <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                            <Descriptions.Item label="名称">{server.name}</Descriptions.Item>
+                            <Descriptions.Item label="URL"><Text code>{server.url}</Text></Descriptions.Item>
+                            <Descriptions.Item label="用户名">{server.username}</Descriptions.Item>
+                            <Descriptions.Item label="分组">{server.group || '未分组'}</Descriptions.Item>
+                            <Descriptions.Item label="环境">{envLabel[server.environment] || server.environment || '-'}</Descriptions.Item>
+                            <Descriptions.Item label="健康状态">
+                                <Badge status={healthColor[server.health] || 'default'} text={healthLabel[server.health] || '未知'} />
+                            </Descriptions.Item>
+                            {server.basePath && <Descriptions.Item label="基础路径"><Text code>{server.basePath}</Text></Descriptions.Item>}
+                        </Descriptions>
+                        {Array.isArray(server.tags) && server.tags.length > 0 && (
+                            <div style={{ marginTop: 16 }}>
+                                <Space wrap>
+                                    {server.tags.map(tag => <Tag key={tag} color="cyan">{tag}</Tag>)}
+                                </Space>
+                            </div>
+                        )}
+                    </Card>
+                    {status && (
+                        <Card title="Xray 状态" size="small">
+                            <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+                                <Descriptions.Item label="Xray 版本">{status.xray?.version || '-'}</Descriptions.Item>
+                                <Descriptions.Item label="运行时间">{formatUptime(status.uptime, locale)}</Descriptions.Item>
+                                <Descriptions.Item label="CPU">
+                                    <Progress percent={status.cpu?.toFixed(1)} size="small" status="active" />
+                                </Descriptions.Item>
+                                <Descriptions.Item label="内存">
+                                    {status.mem ? (
+                                        <Space direction="vertical" style={{ width: '100%' }} size={0}>
+                                            <Text size="small">{formatBytes(status.mem.current)} / {formatBytes(status.mem.total)}</Text>
+                                            <Progress percent={Number(((status.mem.current / status.mem.total) * 100).toFixed(1))} size="small" />
+                                        </Space>
+                                    ) : '-'}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="磁盘">
+                                    {status.disk ? (
+                                        <Space direction="vertical" style={{ width: '100%' }} size={0}>
+                                            <Text size="small">{formatBytes(status.disk.current)} / {formatBytes(status.disk.total)}</Text>
+                                            <Progress percent={Number(((status.disk.current / status.disk.total) * 100).toFixed(1))} size="small" />
+                                        </Space>
+                                    ) : '-'}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="TCP 连接">{status.tcpCount || '-'}</Descriptions.Item>
+                            </Descriptions>
+                        </Card>
+                    )}
+                </Space>
+            )
+        },
+        {
+            key: 'inbounds',
+            label: '入站列表',
+            children: (
+                <Table 
+                    columns={inboundColumns} 
+                    dataSource={inbounds} 
+                    rowKey="id" 
+                    pagination={false} 
+                    loading={inboundsLoading}
+                    scroll={{ x: 800 }}
+                />
+            )
+        },
+        {
+            key: 'onlines',
+            label: '在线用户',
+            children: (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Space>
+                            <Text strong>在线用户 {onlineUsers.length}</Text>
+                            <Text type="secondary">/ 会话 {onlines.length}</Text>
+                            {clientIpSupport.supported === false && <Tag color="error">节点 IP 不可用: {clientIpSupport.reason}</Tag>}
+                        </Space>
+                        <Button size="small" icon={<HiOutlineArrowPath />} onClick={fetchOnlines}>刷新</Button>
+                    </div>
+                    <Table 
+                        columns={onlineColumns} 
+                        dataSource={onlineUsers} 
+                        rowKey="email" 
+                        pagination={false} 
+                        loading={onlinesLoading}
+                        scroll={{ x: 600 }}
+                    />
+                </Space>
+            )
+        },
+        {
+            key: 'audit',
+            label: '审计日志',
+            children: (
+                <List
+                    itemLayout="horizontal"
+                    dataSource={auditEvents}
+                    renderItem={(item) => (
+                        <List.Item>
+                            <List.Item.Meta
+                                avatar={<Badge status={item.outcome === 'success' ? 'success' : item.outcome === 'failed' ? 'error' : 'default'} />}
+                                title={item.eventType}
+                                description={
+                                    <Space direction="vertical" size={0}>
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>{formatTime(item.ts, locale)}</Text>
+                                        {item.actor && <Text style={{ fontSize: '12px' }}>操作者: {item.actor}</Text>}
+                                        {item.path && <Text type="secondary" style={{ fontSize: '11px' }} ellipsis>{item.path}</Text>}
+                                    </Space>
+                                }
+                            />
+                        </List.Item>
+                    )}
+                    locale={{ emptyText: <Empty description="暂无审计记录" /> }}
+                />
+            )
+        }
+    ];
 
     return (
         <>
@@ -429,236 +530,66 @@ export default function ServerDetail() {
                 eyebrow={t('pages.serverDetail.eyebrow')}
                 allowTitleWrap
             />
-            <div className="page-content page-enter server-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
-                    <HiOutlineArrowLeft /> 返回服务器列表
-                </button>
+            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <Button 
+                    icon={<HiOutlineArrowLeft />} 
+                    onClick={() => navigate('/servers')} 
+                    style={{ marginBottom: 24 }}
+                >
+                    返回服务器列表
+                </Button>
 
-                {/* Server Profile Card */}
-                <div className="glass-panel mb-6">
-                    <div className="user-profile-card">
-                        <div className="user-avatar user-avatar-lg" style={{ background: 'var(--gradient-success)' }}>
-                            <HiOutlineServerStack />
-                        </div>
-                        <div className="user-profile-info">
-                            <div className="user-profile-name">{server.name}</div>
-                            <div className="user-profile-email font-mono">{server.url}</div>
-                            <div className="user-profile-badges">
-                                <span className={`badge ${healthBadge[server.health] || 'badge-neutral'}`}>
-                                    {healthLabel[server.health] || '未知'}
-                                </span>
-                                {hasEnvironment && (
-                                    <span className="badge badge-neutral">{envLabel[server.environment] || server.environment}</span>
-                                )}
-                                {server.group && <span className="badge badge-info">{server.group}</span>}
-                            </div>
-                            <div className="user-profile-meta">
-                                {status && (
-                                    <>
-                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> CPU: {status.cpu?.toFixed(1)}%</div>
-                                        <div className="user-profile-meta-item"><HiOutlineCircleStack /> 内存: {status.mem ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '-'}</div>
-                                        <div className="user-profile-meta-item"><HiOutlineClock /> 运行: {status.uptime ? formatUptime(status.uptime, locale) : '-'}</div>
-                                    </>
-                                )}
-                                {!status && <div className="user-profile-meta-item text-muted">服务器状态获取中...</div>}
-                            </div>
-                        </div>
-                        <div className="user-profile-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={refreshAll}>
-                                <HiOutlineArrowPath /> 刷新
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Stats */}
-                <div className="stat-mini-grid mb-6">
-                    <StatMini label="入站规则" value={showInboundStats ? activeInbounds : null} suffix={showInboundStats ? ` / ${inbounds.length}` : ''} />
-                    <StatMini label="客户端数" value={showInboundStats ? clientCount : null} />
-                    <StatMini label="在线用户" value={showOnlineStats ? onlineUsers.length : null} suffix={showOnlineStats && onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
-                    <StatMini label="总流量" value={showInboundStats ? formatBytes(totalTraffic) : null} />
-                </div>
-                {onlinesLoading && onlineUsers.length === 0 && (
-                    <div className="text-xs text-muted mb-6">在线用户汇总加载中...</div>
-                )}
-
-                {/* Tabs */}
-                <div className="user-detail-tabs">
-                    <div className="tabs">
-                        {tabs.map(t => (
-                            <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
-                        {/* Overview Tab */}
-                        {activeTab === 'overview' && (
-                            <div>
-                                <div className="card mb-4">
-                                    <h4 className="card-title mb-3">服务器信息</h4>
-                                    <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
-                                        <div><span className="text-muted">名称:</span> {server.name}</div>
-                                        <div><span className="text-muted">URL:</span> <span className="font-mono">{server.url}</span></div>
-                                        <div><span className="text-muted">用户名:</span> {server.username}</div>
-                                        {hasEnvironment && <div><span className="text-muted">环境:</span> {envLabel[server.environment] || server.environment}</div>}
-                                        <div><span className="text-muted">分组:</span> {server.group || '未分组'}</div>
-                                        <div><span className="text-muted">健康状态:</span> {healthLabel[server.health] || '未知'}</div>
-                                        {server.basePath && <div><span className="text-muted">基础路径:</span> <span className="font-mono">{server.basePath}</span></div>}
-                                    </div>
-                                    {Array.isArray(server.tags) && server.tags.length > 0 && (
-                                        <div className="flex gap-2 mt-3">
-                                            {server.tags.map(tag => <span key={tag} className="badge badge-info">{tag}</span>)}
-                                        </div>
-                                    )}
-                                </div>
-                                {status && (
-                                    <div className="card">
-                                        <h4 className="card-title mb-3">Xray 状态</h4>
-                                        <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
-                                            <div><span className="text-muted">Xray 版本:</span> {status.xray?.version || '-'}</div>
-                                            <div><span className="text-muted">运行时间:</span> {formatUptime(status.uptime, locale)}</div>
-                                            <div><span className="text-muted">CPU:</span> {status.cpu?.toFixed(1)}%</div>
-                                            <div><span className="text-muted">内存:</span> {status.mem ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>
-                                            <div><span className="text-muted">磁盘:</span> {status.disk ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '-'}</div>
-                                            <div><span className="text-muted">TCP 连接:</span> {status.tcpCount || '-'}</div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Inbounds Tab */}
-                        {activeTab === 'inbounds' && (
-                            <div>
-                                {inbounds.length === 0 ? (
-                                    <EmptyState title="暂无入站规则" subtitle="该服务器未配置入站" />
-                                ) : isCompactLayout ? (
-                                    <ServerDetailInboundMobileList inbounds={inbounds} />
-                                ) : (
-                                    <div className="table-container">
-                                        <table className="table server-detail-inbounds-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>备注</th>
-                                                    <th className="table-cell-center server-detail-protocol-column">协议</th>
-                                                    <th className="table-cell-right server-detail-port-column">端口</th>
-                                                    <th className="table-cell-center server-detail-clients-column">客户端数</th>
-                                                    <th className="table-cell-right server-detail-traffic-column">流量</th>
-                                                    <th className="table-cell-center server-detail-status-column">状态</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {inbounds.map(ib => {
-                                                    let clients = 0;
-                                                    try {
-                                                        const s = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
-                                                        clients = (s.clients || []).length;
-                                                    } catch {}
-                                                    return (
-                                                        <tr key={ib.id}>
-                                                            <td data-label="备注" className="server-detail-remark-cell">
-                                                                <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
-                                                            </td>
-                                                            <td data-label="协议" className="table-cell-center server-detail-protocol-cell"><span className="badge badge-neutral">{ib.protocol}</span></td>
-                                                            <td data-label="端口" className="table-cell-right cell-mono-right server-detail-port-cell">{ib.port}</td>
-                                                            <td data-label="客户端数" className="table-cell-center cell-mono server-detail-clients-cell">{clients}</td>
-                                                            <td data-label="流量" className="table-cell-right cell-mono-right server-detail-traffic-cell">{formatBytes((ib.up || 0) + (ib.down || 0))}</td>
-                                                            <td data-label="状态" className="table-cell-center server-detail-status-cell"><span className={`badge ${ib.enable !== false ? 'badge-success' : 'badge-danger'}`}>{ib.enable !== false ? '启用' : '禁用'}</span></td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Online Users Tab */}
-                        {activeTab === 'onlines' && (
-                            <div>
-                                <SectionHeader
-                                    className="mb-4"
-                                    compact
-                                    title="在线用户"
-                                    meta={(
-                                        <div className="text-sm text-muted">
-                                            在线用户 {onlineUsers.length} / 会话 {onlines.length}
-                                            {clientIpSupport.supported === false ? ` · 节点 IP 不可用: ${clientIpSupport.reason}` : ''}
-                                        </div>
-                                    )}
-                                    actions={(
-                                        <button className="btn btn-secondary btn-sm" onClick={fetchOnlines}><HiOutlineArrowPath /> 刷新</button>
-                                    )}
+                <Card style={{ marginBottom: 24 }}>
+                    <Row gutter={[24, 24]} align="middle">
+                        <Col xs={24} md={16}>
+                            <Space align="start" size="large">
+                                <Avatar 
+                                    size={64} 
+                                    icon={<HiOutlineServerStack />} 
+                                    style={{ backgroundColor: '#52c41a' }} 
                                 />
-                                {onlinesLoading ? (
-                                    <SkeletonTable rows={4} cols={3} />
-                                ) : onlineUsers.length === 0 ? (
-                                    <EmptyState title="当前无在线用户" subtitle="该服务器暂无活跃连接" />
-                                ) : isCompactLayout ? (
-                                    <ServerDetailOnlineMobileList
-                                        onlineUsers={onlineUsers}
-                                        onLoadClientIps={loadClientIps}
-                                        clientIpSupport={clientIpSupport}
-                                    />
-                                ) : (
-                                    <div className="table-container">
-                                        <table className="table server-detail-online-table">
-                                            <thead><tr><th className="table-cell-center server-detail-sequence-column">#</th><th>用户标识</th><th className="table-cell-right server-detail-sessions-column">会话数</th><th className="table-cell-actions server-detail-online-actions-column">操作</th></tr></thead>
-                                            <tbody>
-                                                {onlineUsers.map((item, i) => (
-                                                    <tr key={item.email}>
-                                                        <td data-label="序号" className="table-cell-center cell-mono server-detail-sequence-cell">{i + 1}</td>
-                                                        <td data-label="用户标识" className="font-mono">{item.email}</td>
-                                                        <td data-label="会话数" className="table-cell-right cell-mono-right server-detail-sessions-cell">{item.sessions}</td>
-                                                        <td data-label="操作" className="table-cell-actions">
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-secondary btn-sm"
-                                                                onClick={() => loadClientIps(item.email)}
-                                                                disabled={clientIpSupport.supported === false}
-                                                                title={clientIpSupport.supported === false ? clientIpSupport.reason : '查看该用户在当前节点上的代理访问 IP'}
-                                                            >
-                                                                <HiOutlineGlobeAlt /> 节点 IP
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                <div>
+                                    <Title level={3} style={{ margin: 0 }}>{server.name}</Title>
+                                    <Text type="secondary" className="font-mono">{server.url}</Text>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Space wrap>
+                                            <Tag color={healthColor[server.health] || 'default'}>
+                                                {healthLabel[server.health] || '未知'}
+                                            </Tag>
+                                            {server.environment && server.environment !== 'unknown' && (
+                                                <Tag>{envLabel[server.environment] || server.environment}</Tag>
+                                            )}
+                                            {server.group && <Tag color="blue">{server.group}</Tag>}
+                                        </Space>
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                </div>
+                            </Space>
+                        </Col>
+                        <Col xs={24} md={8} style={{ textAlign: isCompactLayout ? 'left' : 'right' }}>
+                            <Button icon={<HiOutlineArrowPath />} onClick={refreshAll}>刷新</Button>
+                        </Col>
+                        <Col span={24}>
+                            <Row gutter={24}>
+                                <Col xs={12} sm={6}>
+                                    <Statistic title="入站规则" value={activeInbounds} suffix={` / ${inbounds.length}`} />
+                                </Col>
+                                <Col xs={12} sm={6}>
+                                    <Statistic title="客户端数" value={clientCount} />
+                                </Col>
+                                <Col xs={12} sm={6}>
+                                    <Statistic title="在线用户" value={onlineUsers.length} suffix={onlines.length > onlineUsers.length ? ` / ${onlines.length}` : ''} />
+                                </Col>
+                                <Col xs={12} sm={6}>
+                                    <Statistic title="总流量" value={formatBytes(totalTraffic)} />
+                                </Col>
+                            </Row>
+                        </Col>
+                    </Row>
+                </Card>
 
-                        {/* Audit Tab */}
-                        {activeTab === 'audit' && (
-                            <div>
-                                {auditEvents.length === 0 ? (
-                                    <EmptyState title="暂无审计记录" subtitle="该服务器相关的审计事件将在此显示" />
-                                ) : (
-                                    <div className="timeline-list">
-                                        {auditEvents.map((e, i) => (
-                                            <div key={i} className="timeline-item">
-                                                <div className={`timeline-dot ${e.outcome === 'success' ? 'success' : e.outcome === 'failed' ? 'danger' : 'info'}`} />
-                                                <div className="timeline-content">
-                                                    <div className="timeline-head">
-                                                        <span className="font-medium">{e.eventType}</span>
-                                                        <span className="timeline-time">{formatTime(e.ts, locale)}</span>
-                                                    </div>
-                                                    {e.actor && <div className="text-sm text-muted">操作者: {e.actor}</div>}
-                                                    {e.path && <div className="text-xs text-muted truncate">{e.path}</div>}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <Card>
+                    <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+                </Card>
             </div>
 
             <ClientIpModal

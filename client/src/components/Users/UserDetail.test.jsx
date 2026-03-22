@@ -200,11 +200,11 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
-        expect(screen.getByRole('button', { name: '节点' })).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: '活动日志' }));
+        expect(screen.getByRole('tab', { name: '节点' })).toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: '活动日志' }));
 
         const timelineItem = await screen.findByText('Token token-1');
-        const timelineRow = timelineItem.closest('.timeline-item');
+        const timelineRow = timelineItem.closest('.ant-card');
         if (!timelineRow) throw new Error('Missing timeline row');
 
         expect(within(timelineRow).getByText('成功')).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
-        await user.click(screen.getByRole('button', { name: '节点' }));
+        await user.click(screen.getByRole('tab', { name: '节点' }));
 
         expect(await screen.findByText('Node A')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/i })).toBeInTheDocument();
@@ -366,7 +366,7 @@ describe('UserDetail', () => {
         });
 
         await screen.findByText('用户详情 · alice');
-        await user.click(screen.getByRole('button', { name: '节点' }));
+        await user.click(screen.getByRole('tab', { name: '节点' }));
 
         expect(await screen.findByText('Node A')).toBeInTheDocument();
         expect(screen.getByText('在线')).toBeInTheDocument();
@@ -433,10 +433,10 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
-        await user.click(screen.getByRole('button', { name: '活动日志' }));
+        await user.click(screen.getByRole('tab', { name: '活动日志' }));
 
         const timelineItem = await screen.findByText('登录成功');
-        const timelineRow = timelineItem.closest('.timeline-item');
+        const timelineRow = timelineItem.closest('.ant-card');
         if (!timelineRow) throw new Error('Missing audit timeline row');
 
         expect(within(timelineRow).getByText('方法')).toBeInTheDocument();
@@ -509,7 +509,7 @@ describe('UserDetail', () => {
         });
 
         await screen.findByText('用户详情 · alice');
-        await user.click(screen.getByRole('button', { name: '订阅' }));
+        await user.click(screen.getByRole('tab', { name: '订阅' }));
 
         expect((await screen.findAllByText('订阅资料')).length).toBeGreaterThan(0);
         expect(screen.getByText('已用流量')).toBeInTheDocument();
@@ -530,7 +530,7 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
-        await user.click(screen.getByRole('button', { name: '节点' }));
+        await user.click(screen.getByRole('tab', { name: '节点' }));
 
         expect(await screen.findByText('暂无节点记录')).toBeInTheDocument();
         expect(screen.queryByText('暂无客户端')).not.toBeInTheDocument();

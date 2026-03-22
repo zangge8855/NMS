@@ -1,16 +1,26 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useServer } from '../../contexts/ServerContext.jsx';
-import { useI18n } from '../../contexts/LanguageContext.jsx';
-import Header from '../Layout/Header.jsx';
-import ModalShell from '../UI/ModalShell.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import ServerTelemetryCell from './ServerTelemetryCell.jsx';
-import { showAggregateToast } from '../UI/AggregateToast.jsx';
-import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../utils/format.js';
-import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import api from '../../api/client.js';
+import { useNavigate, Link } from 'react-router-dom';
+import { 
+    Card, 
+    Typography, 
+    Button, 
+    Input, 
+    Select, 
+    Space, 
+    Row, 
+    Col, 
+    Tag, 
+    Modal, 
+    Empty, 
+    Badge, 
+    Table, 
+    Tooltip,
+    Form,
+    Checkbox,
+    Divider,
+    Descriptions,
+    Progress
+} from 'antd';
 import {
     HiOutlineArrowDown,
     HiOutlineArrowUp,
@@ -20,11 +30,24 @@ import {
     HiOutlineSignal,
     HiOutlineServerStack,
     HiOutlineEye,
-    HiOutlineXMark,
+    HiOutlineArrowPath
 } from 'react-icons/hi2';
+import toast from 'react-hot-toast';
+import { useServer } from '../../contexts/ServerContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
+import Header from '../Layout/Header.jsx';
+import ServerTelemetryCell from './ServerTelemetryCell.jsx';
+import { showAggregateToast } from '../UI/AggregateToast.jsx';
+import { getErrorMessage } from '../../utils/format.js';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import api from '../../api/client.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import useServerTelemetry from '../../hooks/useServerTelemetry.js';
 import useBulkAction from '../../hooks/useBulkAction.js';
+
+const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
+const { TextArea } = Input;
 
 const PANEL_AUTH_REPAIR_CODES = new Set([
     'PANEL_CREDENTIAL_UNREADABLE',
@@ -88,25 +111,9 @@ export default function Servers() {
     const [showForm, setShowForm] = useState(false);
     const [showBatchForm, setShowBatchForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [form, setForm] = useState({
-        name: '',
-        url: '',
-        username: '',
-        password: '',
-        group: '',
-        tags: '',
-        environment: 'unknown',
-        health: 'unknown',
-    });
-    const [batchForm, setBatchForm] = useState({
-        username: '',
-        password: '',
-        group: '',
-        environment: 'unknown',
-        health: 'unknown',
-        entries: '',
-        testConnection: true,
-    });
+    const [form] = Form.useForm();
+    const [batchForm] = Form.useForm();
+    
     const [batchResult, setBatchResult] = useState(null);
     const [testResults, setTestResults] = useState({});
     const [loading, setLoading] = useState({});
@@ -129,6 +136,7 @@ export default function Servers() {
     const [credentialFilter, setCredentialFilter] = useState('all');
     const [latencyFilter, setLatencyFilter] = useState('all');
     const confirmAction = useConfirm();
+    
     const {
         telemetryByServerId,
         telemetryLoading,
@@ -138,44 +146,30 @@ export default function Servers() {
         hours: 24,
         points: 24,
     });
+
     const serverNameById = useMemo(
         () => Object.fromEntries(servers.map((item) => [String(item?.id || '').trim(), String(item?.name || '').trim()])),
         [servers]
     );
+
     const bulkTestAction = useBulkAction({
         getId: (id) => String(id || ''),
         getLabel: (id) => serverNameById[String(id || '').trim()] || String(id || ''),
     });
+
     const bulkDeleteAction = useBulkAction({
         getId: (id) => String(id || ''),
         getLabel: (id) => serverNameById[String(id || '').trim()] || String(id || ''),
     });
 
     const resetForm = () => {
-        setForm({
-            name: '',
-            url: '',
-            username: '',
-            password: '',
-            group: '',
-            tags: '',
-            environment: 'unknown',
-            health: 'unknown',
-        });
+        form.resetFields();
         setEditingId(null);
         setShowForm(false);
     };
 
     const resetBatchForm = () => {
-        setBatchForm({
-            username: '',
-            password: '',
-            group: '',
-            environment: 'unknown',
-            health: 'unknown',
-            entries: '',
-            testConnection: true,
-        });
+        batchForm.resetFields();
         setBatchResult(null);
         setShowBatchForm(false);
     };
@@ -273,26 +267,18 @@ export default function Servers() {
         return `${baseUrl}${basePath.startsWith('/') ? basePath : `/${basePath}`}`;
     };
 
-
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!form.url || !form.username || (!editingId && !form.password)) {
-            toast.error(t('comp.servers.fillComplete'));
-            return;
-        }
+    const handleSubmit = async (values) => {
         setLoading(prev => ({ ...prev, submit: true }));
         try {
             const payload = {
-                ...form,
-                tags: String(form.tags || '')
+                ...values,
+                tags: String(values.tags || '')
                     .split(',')
                     .map((item) => item.trim())
                     .filter(Boolean),
-                group: String(form.group || '').trim(),
+                group: String(values.group || '').trim(),
             };
             if (editingId) {
-                // Keep existing passwords if edit form leaves them blank.
                 if (!payload.password) {
                     delete payload.password;
                 }
@@ -309,18 +295,10 @@ export default function Servers() {
         setLoading(prev => ({ ...prev, submit: false }));
     };
 
-    const handleBatchSubmit = async (e) => {
-        e.preventDefault();
-        const username = String(batchForm.username || '').trim();
-        const password = String(batchForm.password || '').trim();
-        if (!username || !password) {
-            toast.error(t('comp.servers.fillCredentials'));
-            return;
-        }
-
+    const handleBatchSubmit = async (values) => {
         let items = [];
         try {
-            items = parseBatchEntries(batchForm.entries);
+            items = parseBatchEntries(values.entries);
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.servers.batchFormatError'), locale));
             return;
@@ -336,13 +314,13 @@ export default function Servers() {
         try {
             const payload = {
                 common: {
-                    username,
-                    password,
-                    group: String(batchForm.group || '').trim(),
-                    environment: batchForm.environment,
-                    health: batchForm.health,
+                    username: values.username,
+                    password: values.password,
+                    group: String(values.group || '').trim(),
+                    environment: 'unknown',
+                    health: 'unknown',
                 },
-                testConnection: batchForm.testConnection,
+                testConnection: values.testConnection,
                 items,
             };
             const res = await addServersBatch(payload);
@@ -355,14 +333,13 @@ export default function Servers() {
     };
 
     const handleEdit = (server) => {
-        setForm({
-            name: server.name, url: getPanelUrl(server),
+        form.setFieldsValue({
+            name: server.name,
+            url: getPanelUrl(server),
             username: server.username,
             password: '',
             group: server.group || '',
             tags: Array.isArray(server.tags) ? server.tags.join(', ') : '',
-            environment: server.environment || 'unknown',
-            health: server.health || 'unknown',
         });
         setEditingId(server.id);
         setShowForm(true);
@@ -407,27 +384,6 @@ export default function Servers() {
         setLoading((prev) => ({ ...prev, [`delete-${id}`]: false }));
     };
 
-    // Batch Actions
-    const toggleSelect = (id) => {
-        const newSet = new Set(selectedIds);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setSelectedIds(newSet);
-    };
-
-    const toggleSelectAll = () => {
-        const visibleIds = filteredServers.map((item) => item.id);
-        if (visibleIds.length === 0) return;
-        const everySelected = visibleIds.every((id) => selectedIds.has(id));
-        if (everySelected) {
-            const next = new Set(selectedIds);
-            visibleIds.forEach((id) => next.delete(id));
-            setSelectedIds(next);
-            return;
-        }
-        setSelectedIds((prev) => new Set([...prev, ...visibleIds]));
-    };
-
     const handleBulkDelete = async () => {
         const selectedVisibleCount = filteredServers.filter(item => selectedIds.has(item.id)).length;
         const ok = await confirmAction({
@@ -440,9 +396,7 @@ export default function Servers() {
         if (!ok) return;
         const executeDelete = async (id) => {
             const res = await api.delete(`/servers/${encodeURIComponent(id)}`);
-            return {
-                message: res.data?.msg || t('comp.servers.serverDeleted'),
-            };
+            return { message: res.data?.msg || t('comp.servers.serverDeleted') };
         };
         const runDelete = async (ids) => {
             const report = await bulkDeleteAction.run(ids, executeDelete, {
@@ -512,18 +466,14 @@ export default function Servers() {
         await runTest(Array.from(selectedIds));
     };
 
-    const handleCredentialRepairSubmit = async (e) => {
-        e.preventDefault();
-        const username = String(credentialRepair.username || '').trim();
-        const password = String(credentialRepair.password || '');
+    const handleCredentialRepairSubmit = async () => {
+        const { username, password, applyToSelected } = credentialRepair;
         if (!username || !password) {
             toast.error(t('comp.servers.enterCredentials'));
             return;
         }
 
-        const selectedTargetIds = credentialRepair.applyToSelected
-            ? Array.from(selectedIds)
-            : [];
+        const selectedTargetIds = applyToSelected ? Array.from(selectedIds) : [];
         const baseTarget = credentialRepair.serverId ? [credentialRepair.serverId] : [];
         const targetIds = Array.from(new Set([...(selectedTargetIds.length > 0 ? selectedTargetIds : baseTarget)]));
         if (targetIds.length === 0) {
@@ -650,12 +600,7 @@ export default function Servers() {
             return text.includes(keyword);
         });
     }, [orderedServers, deferredSearchKeyword, filterGroup, telemetryByServerId, statusFilter, credentialFilter, latencyFilter]);
-    const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
-    const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
-    const activeServer = useMemo(
-        () => servers.find((item) => item.id === activeServerId) || null,
-        [servers, activeServerId]
-    );
+
     const uiText = useMemo(() => (
         locale === 'zh-CN'
             ? {
@@ -719,12 +664,18 @@ export default function Servers() {
                 toastClose: 'Close',
             }
     ), [filteredServers.length, locale, servers.length]);
+
+    const activeServer = useMemo(
+        () => servers.find((item) => item.id === activeServerId) || null,
+        [servers, activeServerId]
+    );
     const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
+    
     const orderedServerIds = useMemo(
         () => orderedServers.map((item) => String(item?.id || '').trim()).filter(Boolean),
         [orderedServers]
     );
-    const bulkActionBusy = bulkTestAction.pendingIds.length > 0 || bulkDeleteAction.pendingIds.length > 0;
+
     const isServerBusy = (serverId) => (
         Boolean(loading[`test-${serverId}`])
         || Boolean(loading[`delete-${serverId}`])
@@ -758,149 +709,143 @@ export default function Servers() {
         setLoading((prev) => ({ ...prev, serverOrder: false }));
     };
 
-    const renderMobileServerCard = (server, index) => {
-        const isSelected = selectedIds.has(server.id);
-        const isActive = server.id === activeServerId;
-        const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
-        const rowBusy = isServerBusy(server.id);
-        const credentialStatus = String(server.credentialStatus || 'configured');
-        const serverGroup = server.group || t('comp.servers.ungrouped');
-        const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
-        const serverEnvironment = formatServerEnvironment(server.environment, locale);
-        const testState = testResults[server.id];
-        const testStateText = testState === 'success'
-            ? t('comp.servers.testOk')
-            : testState === 'error'
-                ? t('comp.servers.testFail')
-                : '未测试';
-        const testStateBadge = testState === 'success'
-            ? 'badge-success'
-            : testState === 'error'
-                ? 'badge-danger'
-                : 'badge-neutral';
-        const serverStateText = isActive ? '当前节点' : '已接入';
-        const credentialBadge = credentialStatus === 'unreadable'
-            ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
-            : (credentialStatus === 'missing'
-                ? { cls: 'badge-warning', text: t('comp.servers.credMissing') }
-                : { cls: 'badge-success', text: t('comp.servers.credSaved') });
-
-        return (
-            <article
-                key={server.id}
-                className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}${rowBusy ? ' is-pending' : ''}`}
-                onClick={() => {
-                    if (!rowBusy) {
-                        selectServer(server.id);
-                    }
-                }}
-                aria-busy={rowBusy}
-            >
-                <div className="servers-mobile-card-top">
-                    <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
-                        <input
-                            type="checkbox"
-                            className="checkbox"
-                            checked={isSelected}
-                            disabled={rowBusy}
-                            onChange={() => toggleSelect(server.id)}
-                        />
-                    </label>
-                    <div className="servers-mobile-order">
-                        <span className="servers-mobile-order-number">#{index + 1}</span>
-                        <div className="servers-mobile-order-actions">
-                            <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={`上移服务器 ${server.name}`}
-                                title="上移"
-                                disabled={index === 0 || loading.serverOrder || rowBusy}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveServer(server.id, -1);
-                                }}
-                            >
-                                <HiOutlineArrowUp />
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={`下移服务器 ${server.name}`}
-                                title="下移"
-                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveServer(server.id, 1);
-                                }}
-                            >
-                                <HiOutlineArrowDown />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="servers-mobile-card-main">
-                    <button
-                        type="button"
-                        className={`table-cell-link-button servers-mobile-title ${isActive ? 'text-glow' : ''}`}
-                        title={server.name}
-                        onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
-                    >
-                        {server.name}
-                    </button>
-                </div>
-
-                <div className="servers-mobile-badges">
-                    <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                    {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
-                    <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
-                    <span className={`badge ${testStateBadge}`}>{testStateText}</span>
-                    <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
-                </div>
-
-                <div className="servers-mobile-meta">
-                    <div className="servers-mobile-meta-item">
-                        <span className="servers-mobile-meta-label">账号</span>
-                        <span className="servers-mobile-meta-value">{server.username}</span>
-                    </div>
-                </div>
-
+    const columns = [
+        {
+            title: '#',
+            key: 'index',
+            width: 50,
+            render: (_, __, index) => index + 1,
+        },
+        {
+            title: '移动',
+            key: 'move',
+            width: 80,
+            render: (_, record, index) => (
+                <Space size={0}>
+                    <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<HiOutlineArrowUp />} 
+                        disabled={index === 0 || loading.serverOrder || isServerBusy(record.id)}
+                        onClick={(e) => { e.stopPropagation(); moveServer(record.id, -1); }}
+                    />
+                    <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<HiOutlineArrowDown />} 
+                        disabled={index === filteredServers.length - 1 || loading.serverOrder || isServerBusy(record.id)}
+                        onClick={(e) => { e.stopPropagation(); moveServer(record.id, 1); }}
+                    />
+                </Space>
+            ),
+        },
+        {
+            title: '服务器',
+            key: 'server',
+            render: (_, record) => {
+                const isActive = record.id === activeServerId;
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Button 
+                            type="link" 
+                            style={{ padding: 0, height: 'auto', fontWeight: 600 }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/servers/${record.id}`); }}
+                        >
+                            <span className={isActive ? 'text-glow' : ''}>{record.name}</span>
+                        </Button>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>{record.url}</Text>
+                    </Space>
+                );
+            }
+        },
+        {
+            title: '24h RTT',
+            key: 'telemetry',
+            width: 200,
+            render: (_, record) => (
                 <ServerTelemetryCell
-                    telemetry={telemetry}
+                    telemetry={telemetryByServerId[record.id]}
                     loading={telemetryLoading}
                     locale={locale}
                 />
-
-                {serverTags.length > 0 ? (
-                    <div className="servers-mobile-tags">
-                        {serverTags.map((tag) => (
-                            <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
-                        ))}
-                    </div>
-                ) : null}
-
-                <div className="servers-mobile-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
-                        <HiOutlineEye /> 详情
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleTest(server.id)}
-                        disabled={rowBusy}
-                    >
-                        {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
-                        {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
-                    </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
-                        <HiOutlinePencilSquare /> {t('comp.common.edit')}
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
-                        <HiOutlineTrash /> {t('comp.common.delete')}
-                    </button>
-                </div>
-            </article>
-        );
-    };
+            )
+        },
+        {
+            title: '分组 / 标签',
+            key: 'tags',
+            render: (_, record) => (
+                <Space wrap size={[4, 4]}>
+                    <Tag color="blue">{record.group || t('comp.servers.ungrouped')}</Tag>
+                    {(record.tags || []).map(tag => <Tag key={tag}>{tag}</Tag>)}
+                </Space>
+            )
+        },
+        {
+            title: '凭据',
+            key: 'credentials',
+            render: (_, record) => {
+                const status = record.credentialStatus || 'configured';
+                if (status === 'unreadable') return <Tag color="error">{t('comp.servers.credBroken')}</Tag>;
+                if (status === 'missing') return <Tag color="warning">{t('comp.servers.credMissing')}</Tag>;
+                return <Tag color="success">{t('comp.servers.credSaved')}</Tag>;
+            }
+        },
+        {
+            title: '状态',
+            key: 'status',
+            render: (_, record) => {
+                const isActive = record.id === activeServerId;
+                const testState = testResults[record.id];
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Badge status={isActive ? 'success' : 'default'} text={isActive ? '当前节点' : '已接入'} />
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                            {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : '未测试'}
+                        </Text>
+                    </Space>
+                );
+            }
+        },
+        {
+            title: '操作',
+            key: 'actions',
+            align: 'right',
+            render: (_, record) => {
+                const rowBusy = isServerBusy(record.id);
+                const testState = testResults[record.id];
+                return (
+                    <Space onClick={e => e.stopPropagation()}>
+                        <Tooltip title="测试连接">
+                            <Button 
+                                size="small" 
+                                icon={rowBusy ? null : <HiOutlineSignal />} 
+                                loading={rowBusy && loading[`test-${record.id}`]}
+                                onClick={() => handleTest(record.id)}
+                                disabled={rowBusy}
+                            />
+                        </Tooltip>
+                        <Tooltip title={t('comp.common.edit')}>
+                            <Button 
+                                size="small" 
+                                icon={<HiOutlinePencilSquare />} 
+                                onClick={() => handleEdit(record)}
+                                disabled={rowBusy}
+                            />
+                        </Tooltip>
+                        <Tooltip title={t('comp.common.delete')}>
+                            <Button 
+                                size="small" 
+                                danger 
+                                icon={<HiOutlineTrash />} 
+                                onClick={() => handleDelete(record.id)}
+                                disabled={rowBusy}
+                            />
+                        </Tooltip>
+                    </Space>
+                );
+            }
+        }
+    ];
 
     return (
         <>
@@ -908,552 +853,280 @@ export default function Servers() {
                 title={t('pages.servers.title')}
                 eyebrow={t('pages.servers.eyebrow')}
             />
-            <div className="page-content page-content--wide page-enter servers-page">
-                <div className="servers-toolbar glass-panel mb-6">
-                    {selectedIds.size > 0 ? (
-                        <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
-                            <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
-                            <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
-                                {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} 批量测试
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkActionBusy}>
-                                <HiOutlineTrash /> 批量删除
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkActionBusy}>
-                                取消全选
-                            </button>
+            <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+                <Card style={{ marginBottom: 24 }}>
+                    <Row gutter={[16, 16]} align="middle" justify="space-between">
+                        <Col xs={24} lg={12}>
+                            {selectedIds.size > 0 ? (
+                                <Space>
+                                    <Text strong>已选 {selectedIds.size} 项</Text>
+                                    <Button type="primary" icon={<HiOutlineSignal />} onClick={handleBulkTest} loading={bulkTestAction.pendingIds.length > 0}>批量测试</Button>
+                                    <Button danger icon={<HiOutlineTrash />} onClick={handleBulkDelete} loading={bulkDeleteAction.pendingIds.length > 0}>批量删除</Button>
+                                    <Button onClick={() => setSelectedIds(new Set())}>取消</Button>
+                                </Space>
+                            ) : (
+                                <Row gutter={24}>
+                                    <Col>
+                                        <Statistic title={uiText.total} value={servers.length} />
+                                    </Col>
+                                    <Col>
+                                        <Statistic title={uiText.groups} value={groupOptions.length} />
+                                    </Col>
+                                    <Col>
+                                        <Statistic title={uiText.current} value={activeScopeLabel} />
+                                    </Col>
+                                </Row>
+                            )}
+                        </Col>
+                        <Col xs={24} lg={12} style={{ textAlign: isCompactLayout ? 'left' : 'right' }}>
+                            <Space wrap>
+                                <Button icon={<HiOutlinePlusCircle />} onClick={() => { setBatchResult(null); setShowBatchForm(true); }}>批量添加</Button>
+                                <Button type="primary" icon={<HiOutlinePlusCircle />} onClick={() => { resetForm(); setShowForm(true); }}>添加服务器</Button>
+                                <Button onClick={() => {
+                                    if (selectedIds.size === filteredServers.length) setSelectedIds(new Set());
+                                    else setSelectedIds(new Set(filteredServers.map(s => s.id)));
+                                }}>
+                                    {selectedIds.size === filteredServers.length ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
+                                </Button>
+                            </Space>
+                        </Col>
+                    </Row>
+                </Card>
+
+                <Card size="small" style={{ marginBottom: 24 }}>
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={8} md={6}>
+                            <Input 
+                                placeholder={uiText.searchPlaceholder} 
+                                value={searchKeyword} 
+                                onChange={e => setSearchKeyword(e.target.value)} 
+                                allowClear
+                            />
+                        </Col>
+                        <Col xs={12} sm={4} md={3}>
+                            <Select style={{ width: '100%' }} value={filterGroup} onChange={setFilterGroup}>
+                                <Option value="all">{uiText.allGroups}</Option>
+                                {groupOptions.map(g => <Option key={g} value={g}>{g}</Option>)}
+                            </Select>
+                        </Col>
+                        <Col xs={12} sm={4} md={3}>
+                            <Select style={{ width: '100%' }} value={statusFilter} onChange={setStatusFilter}>
+                                <Option value="all">{uiText.allStatus}</Option>
+                                <Option value="online">{uiText.statusOnline}</Option>
+                                <Option value="offline">{uiText.statusOffline}</Option>
+                                <Option value="maintenance">{uiText.statusMaintenance}</Option>
+                                <Option value="unknown">{uiText.statusUnknown}</Option>
+                            </Select>
+                        </Col>
+                        <Col xs={12} sm={4} md={3}>
+                            <Select style={{ width: '100%' }} value={credentialFilter} onChange={setCredentialFilter}>
+                                <Option value="all">{uiText.allCredentials}</Option>
+                                <Option value="configured">{uiText.credentialReady}</Option>
+                                <Option value="missing">{uiText.credentialMissing}</Option>
+                                <Option value="unreadable">{uiText.credentialBroken}</Option>
+                            </Select>
+                        </Col>
+                        <Col xs={12} sm={4} md={3}>
+                            <Select style={{ width: '100%' }} value={latencyFilter} onChange={setLatencyFilter}>
+                                <Option value="all">{uiText.allLatency}</Option>
+                                <Option value="slow">{uiText.latencySlow}</Option>
+                                <Option value="critical">{uiText.latencyCritical}</Option>
+                            </Select>
+                        </Col>
+                        <Col xs={24} md={6} style={{ display: 'flex', alignItems: 'center', justifyContent: isCompactLayout ? 'flex-start' : 'flex-end' }}>
+                            <Text type="secondary">{uiText.filterSummary}</Text>
+                        </Col>
+                    </Row>
+                </Card>
+
+                <Table 
+                    columns={columns} 
+                    dataSource={filteredServers} 
+                    rowKey="id"
+                    pagination={false}
+                    rowSelection={{
+                        selectedRowKeys: Array.from(selectedIds),
+                        onChange: (keys) => setSelectedIds(new Set(keys)),
+                    }}
+                    onRow={(record) => ({
+                        onClick: () => !isServerBusy(record.id) && selectServer(record.id),
+                        style: { cursor: 'pointer' },
+                        className: record.id === activeServerId ? 'ant-table-row-selected' : ''
+                    })}
+                    scroll={{ x: 1000 }}
+                    locale={{
+                        emptyText: servers.length === 0 ? (
+                            <Empty
+                                description="暂无服务器"
+                                children={<Button type="primary" onClick={() => { resetForm(); setShowForm(true); }}>新增服务器</Button>}
+                            />
+                        ) : (
+                            <Empty description={uiText.noMatchTitle} />
+                        )
+                    }}
+                />
+
+                <Modal
+                    title={editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}
+                    open={showForm}
+                    onCancel={resetForm}
+                    onOk={() => form.submit()}
+                    confirmLoading={loading.submit}
+                    width={600}
+                >
+                    <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                        <Row gutter={16}>
+                            <Col span={24}>
+                                <Form.Item name="name" label="服务器名称">
+                                    <Input placeholder="例如: 香港节点" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                                <Form.Item name="url" label="面板完整地址" rules={[{ required: true }]}>
+                                    <Input placeholder="例如: https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name="group" label="节点分组">
+                                    <Input placeholder="例如: 亚太 / 欧美" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name="tags" label="标签 (逗号分隔)">
+                                    <Input placeholder="hk, core, vip" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name="username" label="用户名" rules={[{ required: true }]}>
+                                    <Input placeholder="admin" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name="password" label="密码" rules={[{ required: !editingId }]}>
+                                    <Input.Password placeholder="密码" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form>
+                </Modal>
+
+                <Modal
+                    title="批量添加服务器"
+                    open={showBatchForm}
+                    onCancel={resetBatchForm}
+                    onOk={() => batchForm.submit()}
+                    confirmLoading={loading.batchSubmit}
+                    width={800}
+                >
+                    <Form form={batchForm} layout="vertical" onFinish={handleBatchSubmit} initialValues={{ testConnection: true }}>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item name="username" label="公共用户名" rules={[{ required: true }]}>
+                                    <Input placeholder="例如: root" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name="password" label="公共密码" rules={[{ required: true }]}>
+                                    <Input.Password placeholder="密码" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                                <Form.Item name="group" label="默认分组">
+                                    <Input placeholder="例如: 亚太" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                                <Form.Item name="testConnection" valuePropName="checked">
+                                    <Checkbox>添加后自动测试连接</Checkbox>
+                                </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                                <Form.Item name="entries" label="服务器清单" rules={[{ required: true }]}>
+                                    <TextArea rows={8} placeholder={[
+                                        '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
+                                        '# 1列: panelUrl',
+                                        '# 2列: name,panelUrl',
+                                        '# 3列(兼容旧格式): name,panelUrl,basePath',
+                                        'https://1.2.3.4:2053/Raw1',
+                                        '新加坡-02,https://sg2.example.com:2053/Raw2',
+                                    ].join('\n')} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form>
+
+                    {batchResult && (
+                        <div style={{ marginTop: 24 }}>
+                            <Divider>添加结果</Divider>
+                            <Row gutter={16} style={{ marginBottom: 16 }}>
+                                <Col><Badge status="default" text={`总计 ${batchResult.summary?.total || 0}`} /></Col>
+                                <Col><Badge status="success" text={`成功 ${batchResult.summary?.success || 0}`} /></Col>
+                                <Col><Badge status="error" text={`失败 ${batchResult.summary?.failed || 0}`} /></Col>
+                            </Row>
+                            <Table 
+                                size="small"
+                                dataSource={batchResult.results || []}
+                                pagination={false}
+                                rowKey={(record, index) => `${record.line}-${index}`}
+                                columns={[
+                                    { title: '行号', dataIndex: 'line', width: 60 },
+                                    { title: '名称', dataIndex: 'name' },
+                                    { title: '地址', dataIndex: 'url', ellipsis: true },
+                                    { title: '状态', key: 'status', render: (_, r) => <Tag color={r.success ? 'success' : 'error'}>{r.success ? '成功' : '失败'}</Tag> },
+                                    { title: '结果', dataIndex: 'msg' }
+                                ]}
+                            />
                         </div>
-                    ) : (
-                        <>
-                            <div className="servers-toolbar-summary" aria-label={uiText.current}>
-                                <div className="servers-summary-pill">
-                                    <span className="servers-summary-label">{uiText.total}</span>
-                                    <span className="servers-summary-value">{servers.length}</span>
-                                </div>
-                                <div className="servers-summary-pill">
-                                    <span className="servers-summary-label">{uiText.groups}</span>
-                                    <span className="servers-summary-value">{groupOptions.length}</span>
-                                </div>
-                                <div className="servers-summary-pill servers-summary-pill--wide">
-                                    <span className="servers-summary-label">{uiText.current}</span>
-                                    <span className="servers-summary-value" title={activeScopeLabel}>{activeScopeLabel}</span>
-                                </div>
-                            </div>
-                            <div className="servers-toolbar-actions">
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
-                                >
-                                    <HiOutlinePlusCircle /> 批量添加
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
-                                    <HiOutlinePlusCircle /> 添加服务器
-                                </button>
-                                <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
-                                    {allVisibleSelected ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
-                                </button>
-                            </div>
-                        </>
                     )}
-                </div>
+                </Modal>
 
-                <div className="card mb-4 p-3 servers-filter-card">
-                    <div className="flex items-center gap-3 servers-filter-bar">
-                        <input
-                            className="form-input servers-filter-search"
-                            placeholder={uiText.searchPlaceholder}
-                            value={searchKeyword}
-                            onChange={(e) => setSearchKeyword(e.target.value)}
-                        />
-                        <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-                            <option value="all">{uiText.allGroups}</option>
-                            {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
-                        </select>
-                        <select className="form-select servers-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                            <option value="all">{uiText.allStatus}</option>
-                            <option value="online">{uiText.statusOnline}</option>
-                            <option value="offline">{uiText.statusOffline}</option>
-                            <option value="maintenance">{uiText.statusMaintenance}</option>
-                            <option value="unknown">{uiText.statusUnknown}</option>
-                        </select>
-                        <select className="form-select servers-filter-select" value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
-                            <option value="all">{uiText.allCredentials}</option>
-                            <option value="configured">{uiText.credentialReady}</option>
-                            <option value="missing">{uiText.credentialMissing}</option>
-                            <option value="unreadable">{uiText.credentialBroken}</option>
-                        </select>
-                        <select className="form-select servers-filter-select" value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
-                            <option value="all">{uiText.allLatency}</option>
-                            <option value="slow">{uiText.latencySlow}</option>
-                            <option value="critical">{uiText.latencyCritical}</option>
-                        </select>
-                        <div className="text-sm text-muted servers-filter-summary">
-                            {uiText.filterSummary}
+                <Modal
+                    title="修复节点登录凭据"
+                    open={credentialRepair.open}
+                    onCancel={closeCredentialRepair}
+                    onOk={handleCredentialRepairSubmit}
+                    confirmLoading={loading.repairCredentials}
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        {credentialRepair.reason && <Badge status="error" text={credentialRepair.reason} />}
+                        <Text type="secondary">节点: {repairTargetServer?.name || credentialRepair.serverId || '-'}</Text>
+                        
+                        <div>
+                            <Text strong block>3x-ui 用户名</Text>
+                            <Input 
+                                value={credentialRepair.username} 
+                                onChange={e => setCredentialRepair(prev => ({ ...prev, username: e.target.value }))}
+                                placeholder="例如: root"
+                            />
                         </div>
-                    </div>
-                </div>
-
-                {/* Server List */}
-                {servers.length === 0 ? (
-                    <EmptyState
-                        title="暂无服务器"
-                        subtitle="点击下方按钮添加您的第一台 3x-ui 面板"
-                        action={<button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><HiOutlinePlusCircle /> 新增服务器</button>}
-                    />
-                ) : filteredServers.length === 0 ? (
-                    <EmptyState
-                        title={uiText.noMatchTitle}
-                        subtitle={uiText.noMatchSubtitle}
-                        icon={<HiOutlineServerStack />}
-                        size="compact"
-                        surface
-                    />
-                ) : isCompactLayout ? (
-                    <div className="servers-mobile-list">
-                        {filteredServers.map((server, index) => renderMobileServerCard(server, index))}
-                    </div>
-                ) : (
-                    <div className="table-container servers-table-shell">
-                        <table className="table servers-table">
-                            <thead>
-                                <tr>
-                                    <th className="table-cell-center servers-select-column">选择</th>
-                                    <th className="table-cell-center servers-move-column">移动</th>
-                                    <th className="table-cell-center servers-order-column">序号</th>
-                                    <th className="servers-name-column">服务器</th>
-                                    <th className="servers-telemetry-column">24h RTT</th>
-                                    <th className="servers-group-column">分组 / 标签</th>
-                                    <th className="servers-account-column">账号</th>
-                                    <th className="servers-credential-column">凭据</th>
-                                    <th className="servers-status-column">状态</th>
-                                    <th className="table-cell-actions servers-actions-column">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredServers.map((server, index) => {
-                            const isSelected = selectedIds.has(server.id);
-                            const isActive = server.id === activeServerId;
-                            const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
-                            const rowBusy = isServerBusy(server.id);
-                            const credentialStatus = String(server.credentialStatus || 'configured');
-                            const serverGroup = server.group || t('comp.servers.ungrouped');
-                            const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
-                            const serverEnvironment = formatServerEnvironment(server.environment, locale);
-                            const testState = testResults[server.id];
-                            const testStateText = testState === 'success'
-                                ? t('comp.servers.testOk')
-                                : testState === 'error'
-                                    ? t('comp.servers.testFail')
-                                    : '未测试';
-                            const testStateBadge = testState === 'success'
-                                ? 'badge-success'
-                                : testState === 'error'
-                                    ? 'badge-danger'
-                                    : 'badge-neutral';
-                            const serverStateText = isActive ? '当前节点' : '已接入';
-                            const credentialBadge = credentialStatus === 'unreadable'
-                                ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
-                                : (credentialStatus === 'missing'
-                                    ? { cls: 'badge-warning', text: t('comp.servers.credMissing') }
-                                    : { cls: 'badge-success', text: t('comp.servers.credSaved') });
-                            return (
-                                <tr
-                                    key={server.id}
-                                    className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}${rowBusy ? ' is-pending' : ''}`}
-                                    onClick={() => {
-                                        if (!rowBusy) {
-                                            selectServer(server.id);
-                                        }
-                                    }}
-                                    aria-busy={rowBusy}
-                                >
-                                    <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            checked={isSelected}
-                                            disabled={rowBusy}
-                                            onChange={() => toggleSelect(server.id)}
-                                        />
-                                    </td>
-                                    <td className="table-cell-center servers-move-cell" data-label="移动" onClick={(e) => e.stopPropagation()}>
-                                        <div className="servers-order-actions">
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={`上移服务器 ${server.name}`}
-                                                title="上移"
-                                                disabled={index === 0 || loading.serverOrder || rowBusy}
-                                                onClick={() => moveServer(server.id, -1)}
-                                            >
-                                                <HiOutlineArrowUp />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={`下移服务器 ${server.name}`}
-                                                title="下移"
-                                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
-                                                onClick={() => moveServer(server.id, 1)}
-                                            >
-                                                <HiOutlineArrowDown />
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td className="table-cell-center servers-order-cell" data-label="序号" onClick={(e) => e.stopPropagation()}>
-                                        <div className="servers-order-stack">
-                                            <span className="servers-order-number">{index + 1}</span>
-                                        </div>
-                                    </td>
-                                    <td className="servers-name-cell" data-label="服务器">
-                                        <div className="servers-name-stack">
-                                            <div className="servers-name-head">
-                                                <button
-                                                    type="button"
-                                                    className={`table-cell-link-button server-card-name-trigger ${isActive ? 'text-glow' : ''}`}
-                                                    title={server.name}
-                                                    onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
-                                                >
-                                                    <span className="server-card-name">{server.name}</span>
-                                                </button>
-                                            </div>
-                                            {isCompactLayout ? (
-                                                <div className="servers-mobile-summary">
-                                                    <div className="servers-mobile-summary-row">
-                                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                                                        {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
-                                                        {serverTags.slice(0, 2).map((tag) => (
-                                                            <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
-                                                        ))}
-                                                    </div>
-                                                    <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
-                                                        <span className="servers-mobile-account-name">{server.username}</span>
-                                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
-                                                    </div>
-                                                    <div className="servers-mobile-summary-row">
-                                                        <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
-                                                        <span className={`badge ${testStateBadge}`}>{testStateText}</span>
-                                                    </div>
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </td>
-                                    <td className="servers-telemetry-column" data-label="24h RTT">
-                                        <ServerTelemetryCell
-                                            telemetry={telemetry}
-                                            loading={telemetryLoading}
-                                            locale={locale}
-                                        />
-                                    </td>
-                                    <td className="servers-tags-cell" data-label="分组 / 标签">
-                                        <div className="flex flex-wrap gap-2 text-xs server-card-tags">
-                                        <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                                        {serverTags.map((tag) => (
-                                            <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
-                                        ))}
-                                        </div>
-                                    </td>
-                                    <td className="servers-account-cell" data-label="账号">
-                                        <div className="servers-account-stack">
-                                            <span className="font-medium text-primary">{server.username}</span>
-                                            {serverEnvironment ? <span className="text-xs text-muted">环境：{serverEnvironment}</span> : null}
-                                        </div>
-                                    </td>
-                                    <td className="servers-credential-cell" data-label="凭据">
-                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
-                                    </td>
-                                    <td className="servers-status-cell" data-label="状态">
-                                        <div className="servers-status-stack">
-                                            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
-                                            <span className="text-xs text-muted servers-status-meta">
-                                                {testStateText}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="table-cell-actions servers-actions-cell" data-label="操作" onClick={(e) => e.stopPropagation()}>
-                                        <div className="table-row-actions servers-row-actions">
-                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情" disabled={rowBusy}>
-                                            <HiOutlineEye /> 详情
-                                        </button>
-                                        <button
-                                            className="btn btn-secondary btn-sm servers-row-action-main"
-                                            onClick={() => handleTest(server.id)}
-                                            disabled={rowBusy}
-                                        >
-                                            {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
-                                            {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
-                                        </button>
-                                            <button className="btn btn-ghost btn-sm btn-icon table-action-btn servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')} disabled={rowBusy}>
-                                                <HiOutlinePencilSquare />
-                                                <span className="servers-row-action-mobile-label">{t('comp.common.edit')}</span>
-                                            </button>
-                                            <button className="btn btn-danger btn-sm btn-icon table-action-btn servers-row-action-icon is-danger" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')} disabled={rowBusy}>
-                                                <HiOutlineTrash />
-                                                <span className="servers-row-action-mobile-label">{t('comp.common.delete')}</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* Add/Edit Modal */}
-                {showForm && (
-                    <ModalShell isOpen={showForm} onClose={resetForm}>
-                        <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3 className="modal-title text-glow">{editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}</h3>
-                                <button type="button" className="modal-close" onClick={resetForm}><HiOutlineXMark /></button>
-                            </div>
-                            <form onSubmit={handleSubmit}>
-                                <div className="modal-body">
-                                    <div className="form-group">
-                                        <label className="form-label">服务器名称</label>
-                                        <input className="form-input" placeholder="例如: 香港节点"
-                                            value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">面板完整地址 *</label>
-                                        <input className="form-input" placeholder="例如: https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI"
-                                            value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
-                                    </div>
-                                    <div className="grid-auto-220">
-                                        <div className="form-group">
-                                            <label className="form-label">节点分组</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="例如: 亚太 / 欧美"
-                                                value={form.group}
-                                                onChange={(e) => setForm({ ...form, group: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">标签 (逗号分隔)</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="hk, core, vip"
-                                                value={form.tags}
-                                                onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid-auto-220">
-                                        <div className="form-group">
-                                            <label className="form-label">用户名 *</label>
-                                            <input className="form-input" placeholder="admin"
-                                                value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">密码 *</label>
-                                            <input className="form-input" type="password" placeholder="密码"
-                                                value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editingId} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={resetForm}>{t('comp.common.cancel')}</button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading.submit}>
-                                        {loading.submit ? <span className="spinner" /> : editingId ? t('comp.servers.saveBtn') : t('comp.servers.addBtn')}
-                                    </button>
-                                </div>
-                            </form>
+                        <div>
+                            <Text strong block>3x-ui 密码</Text>
+                            <Input.Password 
+                                value={credentialRepair.password} 
+                                onChange={e => setCredentialRepair(prev => ({ ...prev, password: e.target.value }))}
+                                placeholder="输入并自动保存到节点"
+                            />
                         </div>
-                    </ModalShell>
-                )}
-
-                {/* Batch Add Modal */}
-                {showBatchForm && (
-                    <ModalShell isOpen={showBatchForm} onClose={resetBatchForm}>
-                        <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3 className="modal-title text-glow">批量添加服务器</h3>
-                                <button type="button" className="modal-close" onClick={resetBatchForm}><HiOutlineXMark /></button>
-                            </div>
-                            <form onSubmit={handleBatchSubmit}>
-                                <div className="modal-body">
-                                    <div className="server-batch-form-shell">
-                                        <div className="grid-auto-220">
-                                            <div className="form-group">
-                                                <label className="form-label">公共用户名 *</label>
-                                                <input
-                                                    className="form-input"
-                                                    placeholder="例如: root"
-                                                    value={batchForm.username}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">公共密码 *</label>
-                                                <input
-                                                    className="form-input"
-                                                    type="password"
-                                                    placeholder="密码"
-                                                    value={batchForm.password}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">默认分组</label>
-                                            <input
-                                                className="form-input"
-                                                placeholder="例如: 亚太"
-                                                value={batchForm.group}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
-                                            />
-                                        </div>
-
-                                        <div className="form-group mt-3 mb-0">
-                                            <label className="form-check-label w-fit">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={batchForm.testConnection}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, testConnection: e.target.checked }))}
-                                                />
-                                                <span>添加后自动测试连接</span>
-                                            </label>
-                                        </div>
-
-                                        <div className="form-group mt-4">
-                                            <label className="form-label">服务器清单 *</label>
-                                            <textarea
-                                                rows={9}
-                                                placeholder={[
-                                                    '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
-                                                    '# 1列: panelUrl',
-                                                    '# 2列: name,panelUrl',
-                                                    '# 3列(兼容旧格式): name,panelUrl,basePath',
-                                                    'https://1.2.3.4:2053/Raw1',
-                                                    '新加坡-02,https://sg2.example.com:2053/Raw2',
-                                                    'https://hk1.example.com:2053',
-                                                ].join('\n')}
-                                                value={batchForm.entries}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, entries: e.target.value }))}
-                                                required
-                                                className="form-textarea textarea-mono-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {batchResult && (
-                                        <div className="card mt-4 p-3">
-                                            <div className="flex gap-8 items-center mb-12 flex-wrap">
-                                                <span className="badge badge-neutral">总计 {batchResult.summary?.total || 0}</span>
-                                                <span className="badge badge-success">成功 {batchResult.summary?.success || 0}</span>
-                                                <span className="badge badge-danger">失败 {batchResult.summary?.failed || 0}</span>
-                                            </div>
-                                            <div className="table-container table-scroll table-scroll-sm">
-                                                <table className="table servers-batch-result-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th className="table-cell-right servers-batch-line-column">行号</th>
-                                                            <th>名称</th>
-                                                            <th>地址</th>
-                                                            <th>Path</th>
-                                                            <th className="table-cell-center servers-batch-status-column">状态</th>
-                                                            <th>结果</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {(batchResult.results || []).map((item) => (
-                                                            <tr key={`batch-add-${item.line}-${item.url || item.name || ''}`}>
-                                                                <td data-label="行号" className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '-'}</td>
-                                                                <td data-label="名称">{item.name || '-'}</td>
-                                                                <td data-label="地址" className="table-word-220 cell-mono">
-                                                                    {item.url || '-'}
-                                                                </td>
-                                                                <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
-                                                                <td data-label="状态" className="table-cell-center servers-batch-status-cell">
-                                                                    <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
-                                                                        {item.success ? t('comp.common.success') : t('comp.common.failed')}
-                                                                    </span>
-                                                                </td>
-                                                                <td data-label="结果" className="table-word-280">
-                                                                    {item.msg || '-'}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={resetBatchForm}>{t('comp.common.cancel')}</button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading.batchSubmit}>
-                                        {loading.batchSubmit ? <span className="spinner" /> : t('comp.servers.startBatchAdd')}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </ModalShell>
-                )}
-
-                {credentialRepair.open && (
-                    <ModalShell isOpen={credentialRepair.open} onClose={closeCredentialRepair}>
-                        <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3 className="modal-title text-glow">修复节点登录凭据</h3>
-                                <button type="button" className="modal-close" onClick={closeCredentialRepair}><HiOutlineXMark /></button>
-                            </div>
-                            <form onSubmit={handleCredentialRepairSubmit}>
-                                <div className="modal-body">
-                                    <div className="text-sm text-muted mb-3">
-                                        节点: {repairTargetServer?.name || credentialRepair.serverId || '-'}
-                                    </div>
-                                    {credentialRepair.reason && (
-                                        <div className="badge badge-danger mb-3 w-fit">{credentialRepair.reason}</div>
-                                    )}
-                                    <div className="form-group">
-                                        <label className="form-label">3x-ui 用户名 *</label>
-                                        <input
-                                            className="form-input"
-                                            value={credentialRepair.username}
-                                            onChange={(e) => setCredentialRepair((prev) => ({ ...prev, username: e.target.value }))}
-                                            placeholder="例如: root"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">3x-ui 密码 *</label>
-                                        <input
-                                            className="form-input"
-                                            type="password"
-                                            value={credentialRepair.password}
-                                            onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}
-                                            placeholder="输入并自动保存到节点"
-                                            required
-                                        />
-                                    </div>
-                                    {selectedIds.size > 1 && (
-                                        <label className="form-check-label w-fit mt-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={credentialRepair.applyToSelected}
-                                                onChange={(e) => setCredentialRepair((prev) => ({ ...prev, applyToSelected: e.target.checked }))}
-                                            />
-                                            <span>同时应用到已选中的 {selectedIds.size} 个节点</span>
-                                        </label>
-                                    )}
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={closeCredentialRepair}>{t('comp.common.cancel')}</button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading.repairCredentials}>
-                                        {loading.repairCredentials ? <span className="spinner" /> : t('comp.servers.saveAndTest')}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </ModalShell>
-                )}
+                        {selectedIds.size > 1 && (
+                            <Checkbox 
+                                checked={credentialRepair.applyToSelected}
+                                onChange={e => setCredentialRepair(prev => ({ ...prev, applyToSelected: e.target.checked }))}
+                            >
+                                同时应用到已选中的 {selectedIds.size} 个节点
+                            </Checkbox>
+                        )}
+                    </Space>
+                </Modal>
             </div>
         </>
+    );
+}
+
+function Statistic({ title, value }) {
+    return (
+        <div>
+            <Text type="secondary" style={{ fontSize: '12px' }}>{title}</Text>
+            <div style={{ fontSize: '18px', fontWeight: 600 }}>{value}</div>
+        </div>
     );
 }

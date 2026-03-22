@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
+import { Modal, Form, Checkbox, InputNumber, Card, Typography, Space, Skeleton, Row, Col, Tag } from 'antd';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
-import ModalShell from '../UI/ModalShell.jsx';
+
+const { Text } = Typography;
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -32,8 +33,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     const [noProtocolLimit, setNoProtocolLimit] = useState(true);
     const [selectedServerIds, setSelectedServerIds] = useState([]);
     const [selectedProtocols, setSelectedProtocols] = useState([]);
-    const [limitIp, setLimitIp] = useState('0');
-    const [trafficLimitGb, setTrafficLimitGb] = useState('0');
+    const [limitIp, setLimitIp] = useState(0);
+    const [trafficLimitGb, setTrafficLimitGb] = useState(0);
 
     useEffect(() => {
         if (!isOpen || !normalizedEmail) return;
@@ -45,8 +46,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             setSelectedProtocols([]);
             setNoServerLimit(true);
             setNoProtocolLimit(true);
-            setLimitIp('0');
-            setTrafficLimitGb('0');
+            setLimitIp(0);
+            setTrafficLimitGb(0);
             try {
                 const res = await api.get(`/user-policy/${encodeURIComponent(normalizedEmail)}`);
                 const payload = res.data?.obj || {};
@@ -61,8 +62,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setSelectedProtocols(protocols);
                 setNoServerLimit(serverScopeMode === 'all');
                 setNoProtocolLimit(protocolScopeMode === 'all');
-                setLimitIp(String(normalizeLimitIp(payload.limitIp)));
-                setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
+                setLimitIp(normalizeLimitIp(payload.limitIp));
+                setTrafficLimitGb(Number(bytesToGigabytesInput(payload.trafficLimitBytes)));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
@@ -90,8 +91,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
         });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async () => {
         if (!normalizedEmail) {
             toast.error('邮箱为空');
             return;
@@ -124,120 +124,125 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
         setSaving(false);
     };
 
-    if (!isOpen) return null;
-
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose}>
-            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3 className="modal-title">订阅权限策略</h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-body">
-                        <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                            用户: <strong>{normalizedEmail || '-'}</strong>
-                        </div>
+        <Modal
+            title="订阅权限策略"
+            open={isOpen}
+            onCancel={onClose}
+            onOk={handleSubmit}
+            confirmLoading={saving}
+            width={720}
+            okText="保存策略"
+            cancelText="取消"
+        >
+            <div style={{ marginTop: '16px' }}>
+                <Card size="small" style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.05)' }}>
+                    <Text type="secondary">用户: </Text>
+                    <Text strong>{normalizedEmail || '-'}</Text>
+                </Card>
 
-                        {loading ? (
-                            <div className="text-center p-6"><span className="spinner" /></div>
-                        ) : (
-                            <>
-                                <div className="card mb-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="card-title">可访问服务器</span>
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={noServerLimit}
-                                                onChange={(e) => setNoServerLimit(e.target.checked)}
-                                            />
-                                            不限制
-                                        </label>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {servers.map((server) => (
-                                            <label key={server.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={noServerLimit}
-                                                    checked={selectedServerIds.includes(server.id)}
-                                                    onChange={(e) => toggleServerId(server.id, e.target.checked)}
-                                                />
-                                                <span>{server.name}</span>
-                                            </label>
-                                        ))}
-                                        {servers.length === 0 && <span className="text-sm text-muted">暂无服务器</span>}
-                                    </div>
+                {loading ? (
+                    <Skeleton active />
+                ) : (
+                    <Form layout="vertical">
+                        <Card
+                            title={
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>可访问服务器</span>
+                                    <Checkbox
+                                        checked={noServerLimit}
+                                        onChange={(e) => setNoServerLimit(e.target.checked)}
+                                    >
+                                        不限制
+                                    </Checkbox>
                                 </div>
+                            }
+                            size="small"
+                            style={{ marginBottom: '16px' }}
+                        >
+                            <Space wrap>
+                                {servers.map((server) => (
+                                    <Tag
+                                        key={server.id}
+                                        color={selectedServerIds.includes(server.id) ? 'blue' : 'default'}
+                                        style={{ cursor: noServerLimit ? 'not-allowed' : 'pointer', padding: '4px 8px' }}
+                                    >
+                                        <Checkbox
+                                            disabled={noServerLimit}
+                                            checked={selectedServerIds.includes(server.id)}
+                                            onChange={(e) => toggleServerId(server.id, e.target.checked)}
+                                        >
+                                            {server.name}
+                                        </Checkbox>
+                                    </Tag>
+                                ))}
+                                {servers.length === 0 && <Text type="secondary">暂无服务器</Text>}
+                            </Space>
+                        </Card>
 
-                                <div className="card">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="card-title">可用协议</span>
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={noProtocolLimit}
-                                                onChange={(e) => setNoProtocolLimit(e.target.checked)}
-                                            />
-                                            不限制
-                                        </label>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {PROTOCOL_OPTIONS.map((item) => (
-                                            <label key={item.key} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={noProtocolLimit}
-                                                    checked={selectedProtocols.includes(item.key)}
-                                                    onChange={(e) => toggleProtocol(item.key, e.target.checked)}
-                                                />
-                                                <span>{item.label}</span>
-                                            </label>
-                                        ))}
-                                    </div>
+                        <Card
+                            title={
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>可用协议</span>
+                                    <Checkbox
+                                        checked={noProtocolLimit}
+                                        onChange={(e) => setNoProtocolLimit(e.target.checked)}
+                                    >
+                                        不限制
+                                    </Checkbox>
                                 </div>
+                            }
+                            size="small"
+                            style={{ marginBottom: '16px' }}
+                        >
+                            <Space wrap>
+                                {PROTOCOL_OPTIONS.map((item) => (
+                                    <Tag
+                                        key={item.key}
+                                        color={selectedProtocols.includes(item.key) ? 'green' : 'default'}
+                                        style={{ cursor: noProtocolLimit ? 'not-allowed' : 'pointer', padding: '4px 8px' }}
+                                    >
+                                        <Checkbox
+                                            disabled={noProtocolLimit}
+                                            checked={selectedProtocols.includes(item.key)}
+                                            onChange={(e) => toggleProtocol(item.key, e.target.checked)}
+                                        >
+                                            {item.label}
+                                        </Checkbox>
+                                    </Tag>
+                                ))}
+                            </Space>
+                        </Card>
 
-                                <div className="card mt-4">
-                                    <div className="card-title mb-3">统一限额</div>
-                                    <div className="form-group">
-                                        <label className="form-label">IP 限制</label>
-                                        <input
-                                            className="form-input"
-                                            type="number"
+                        <Card title="统一限额" size="small">
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item label="IP 限制" help="0 表示不限制并发连接 IP 数量">
+                                        <InputNumber
                                             min={0}
                                             value={limitIp}
-                                            onChange={(e) => setLimitIp(e.target.value)}
+                                            onChange={setLimitIp}
+                                            style={{ width: '100%' }}
                                         />
-                                        <div className="text-xs text-muted mt-1">0 表示不限制并发连接 IP 数量</div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">总流量上限</label>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                className="form-input"
-                                                type="number"
-                                                min={0}
-                                                step="0.5"
-                                                value={trafficLimitGb}
-                                                onChange={(e) => setTrafficLimitGb(e.target.value)}
-                                            />
-                                            <span className="text-sm text-muted">GB</span>
-                                        </div>
-                                        <div className="text-xs text-muted mt-1">0 表示不限制总流量</div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving || loading}>
-                            {saving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存策略</>}
-                        </button>
-                    </div>
-                </form>
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item label="总流量上限" help="0 表示不限制总流量">
+                                        <InputNumber
+                                            min={0}
+                                            step={0.5}
+                                            value={trafficLimitGb}
+                                            onChange={setTrafficLimitGb}
+                                            addonAfter="GB"
+                                            style={{ width: '100%' }}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </Card>
+                    </Form>
+                )}
             </div>
-        </ModalShell>
+        </Modal>
     );
 }

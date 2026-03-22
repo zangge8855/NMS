@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft } from 'react-icons/hi2';
+import { Table, Select, Checkbox, Button, Card, Typography, Skeleton, Empty, Space, Row, Col, Tooltip } from 'antd';
+import { ReloadOutlined, DeleteOutlined, EyeOutlined, RollbackOutlined } from '@ant-design/icons';
 import Header from '../Layout/Header.jsx';
-import SkeletonTable from '../UI/SkeletonTable.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import {
@@ -15,9 +14,9 @@ import toast from 'react-hot-toast';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import PageToolbar from '../UI/PageToolbar.jsx';
 import { formatDateTime } from '../../utils/format.js';
-import useMediaQuery from '../../hooks/useMediaQuery.js';
+
+const { Text } = Typography;
 
 const TASKS_COPY = {
     'zh-CN': {
@@ -109,92 +108,6 @@ function formatTaskServerSummary(task) {
     return `${head} +${servers.length - 2}`;
 }
 
-function getTaskResultBadge(task, copy) {
-    const failed = Number(task?.summary?.failed || 0);
-    if (failed > 0) {
-        return {
-            className: 'badge-danger',
-            label: `${copy.failedCol} ${failed}`,
-        };
-    }
-    return {
-        className: 'badge-success',
-        label: `${copy.successCol} ${Number(task?.summary?.success || 0)}`,
-    };
-}
-
-function TaskMobileList({
-    tasks = [],
-    copy,
-    locale,
-    retryingId,
-    onView,
-    onRetryFailed,
-}) {
-    return (
-        <div className="tasks-mobile-list audit-mobile-list">
-            {tasks.map((task) => {
-                const badge = getTaskResultBadge(task, copy);
-                const failedCount = Number(task?.summary?.failed || 0);
-                return (
-                    <div key={task.id} className="tasks-mobile-card audit-mobile-card">
-                        <div className="audit-mobile-card-head">
-                            <div className="audit-mobile-card-copy">
-                                <div className="audit-mobile-card-title">{formatTaskActionPair(task.type, task.action, locale)}</div>
-                                <div className="audit-mobile-card-subtitle">{formatDateTime(task.createdAt, locale)}</div>
-                            </div>
-                            <span className={`badge ${badge.className}`}>{badge.label}</span>
-                        </div>
-                        <div className="audit-mobile-card-grid tasks-mobile-grid">
-                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
-                                <span className="audit-mobile-card-label">{copy.server}</span>
-                                <span className="audit-mobile-card-value tasks-mobile-server-value">
-                                    {formatTaskServerSummary(task)}
-                                </span>
-                            </div>
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.totalCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.total ?? '-'}</span>
-                            </div>
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.successCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.success ?? '-'}</span>
-                            </div>
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.failedCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.failed ?? '-'}</span>
-                            </div>
-                        </div>
-                        <div className="audit-mobile-card-actions tasks-mobile-actions">
-                            <button
-                                className="btn btn-secondary btn-sm rounded-lg"
-                                onClick={() => onView(task.id)}
-                                title={copy.viewDetail}
-                                aria-label={copy.viewDetail}
-                            >
-                                <HiOutlineEye />
-                                <span>{copy.viewDetail}</span>
-                            </button>
-                            {failedCount > 0 && (
-                                <button
-                                    className="btn btn-primary btn-sm rounded-lg"
-                                    onClick={() => onRetryFailed(task)}
-                                    disabled={retryingId === task.id}
-                                    title={copy.retryFailedItems}
-                                    aria-label={copy.retryFailedItems}
-                                >
-                                    {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
-                                    <span>{copy.retryFailedItems}</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
 export default function Tasks({ embedded = false }) {
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
@@ -254,26 +167,6 @@ export default function Tasks({ embedded = false }) {
             return true;
         })
     ), [tasks, typeFilter, actionFilter, serverFilter, failedOnlyFilter]);
-
-    const activeTaskFilterCount = useMemo(() => {
-        let count = 0;
-        if (typeFilter !== 'all') count += 1;
-        if (actionFilter !== 'all') count += 1;
-        if (serverFilter !== 'all') count += 1;
-        if (failedOnlyFilter) count += 1;
-        if (retryGroupBy !== 'none') count += 1;
-        return count;
-    }, [actionFilter, failedOnlyFilter, retryGroupBy, serverFilter, typeFilter]);
-
-    const shellClassName = embedded ? 'tasks-embedded-shell' : 'page-content page-enter tasks-page';
-    const filterCardClassName = embedded ? 'card p-4 audit-control-card audit-control-card-tasks' : 'card mb-8 p-3 tasks-filter-card';
-    // Converge on the shared table shell instead of page-specific container variants.
-    const tableShellClassName = embedded ? 'table-container' : 'table-container mb-8';
-    const mobileListShellClassName = embedded ? 'tasks-mobile-shell' : 'tasks-mobile-shell mb-8';
-    const headClassName = embedded ? 'audit-traffic-toolbar mb-6' : 'page-section-head tasks-page-head mb-8';
-    const paginationClassName = 'audit-pagination page-pagination';
-    const filterSelectClassName = 'form-select rounded-lg';
-    const failedOnlyCheckboxClassName = 'rounded';
 
     const handleView = async (id) => {
         try {
@@ -340,190 +233,186 @@ export default function Tasks({ embedded = false }) {
         setRetryingId('');
     };
 
+    const columns = [
+        {
+            title: copy.time,
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            className: 'cell-mono',
+            render: (val) => formatDateTime(val, locale),
+        },
+        {
+            title: copy.typeAction,
+            key: 'typeAction',
+            render: (_, record) => formatTaskActionPair(record.type, record.action, locale),
+        },
+        {
+            title: copy.server,
+            key: 'server',
+            render: (_, record) => (
+                <Text type="secondary" size="small">
+                    {formatTaskServerSummary(record)}
+                </Text>
+            ),
+        },
+        {
+            title: copy.totalCol,
+            dataIndex: ['summary', 'total'],
+            key: 'total',
+            align: 'right',
+            className: 'cell-mono-right',
+            render: (val) => val ?? '-',
+        },
+        {
+            title: copy.successCol,
+            dataIndex: ['summary', 'success'],
+            key: 'success',
+            align: 'right',
+            className: 'cell-mono-right',
+            render: (val) => val ?? '-',
+        },
+        {
+            title: copy.failedCol,
+            dataIndex: ['summary', 'failed'],
+            key: 'failed',
+            align: 'right',
+            className: 'cell-mono-right',
+            render: (val) => {
+                if (val > 0) return <Text type="danger">{val}</Text>;
+                return val ?? '-';
+            },
+        },
+        {
+            title: copy.actions,
+            key: 'actions',
+            align: 'right',
+            render: (_, record) => (
+                <Space>
+                    <Tooltip title={copy.viewDetail}>
+                        <Button
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={() => handleView(record.id)}
+                        />
+                    </Tooltip>
+                    {Number(record.summary?.failed || 0) > 0 && (
+                        <Tooltip title={copy.retryFailedItems}>
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<RollbackOutlined />}
+                                onClick={() => handleRetryFailed(record)}
+                                loading={retryingId === record.id}
+                            />
+                        </Tooltip>
+                    )}
+                </Space>
+            ),
+        },
+    ];
+
     return (
         <>
             {!embedded && <Header title={t('pages.tasks.title')} />}
-            <div className={shellClassName}>
-                {!embedded && (
-                    <PageToolbar
-                        className={headClassName}
-                        compact
-                        actions={(
-                            <div className="tasks-page-actions">
-                                <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
-                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
-                                </button>
-                                <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
-                                    <HiOutlineTrash /> {copy.clear}
-                                </button>
-                            </div>
-                        )}
-                        meta={<span>{copy.total.replace('{count}', String(filteredTasks.length))}</span>}
-                    />
-                )}
-
-                <div className={filterCardClassName}>
-                    {embedded ? (
-                        <>
-                            <div className="audit-control-head audit-control-head--compact">
-                                <div className="audit-control-actions">
-                                    <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
-                                        <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
-                                    </button>
-                                    <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
-                                        <HiOutlineTrash /> {copy.clear}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="audit-control-meta audit-control-meta--compact">
-                                <span className="audit-control-pill">
-                                    {copy.total.replace('{count}', String(filteredTasks.length))}
-                                </span>
-                                <span className={`audit-control-pill ${activeTaskFilterCount > 0 ? 'is-active' : ''}`}>
-                                    {activeTaskFilterCount > 0
-                                        ? copy.filtersActive.replace('{count}', String(activeTaskFilterCount))
-                                        : copy.noFilters}
-                                </span>
-                            </div>
-                            <div className="audit-filter-grid audit-filter-grid--tasks">
-                                <select className={filterSelectClassName} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                                    <option value="all">{copy.allTypes}</option>
-                                    {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
-                                </select>
-                                <select className={filterSelectClassName} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-                                    <option value="all">{copy.allActions}</option>
-                                    {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
-                                </select>
-                                <select className={filterSelectClassName} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
-                                    <option value="all">{copy.allServers}</option>
-                                    {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
-                                </select>
-                                <label className="toolbar-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={failedOnlyFilter}
-                                        onChange={(e) => setFailedOnlyFilter(e.target.checked)}
-                                        className={failedOnlyCheckboxClassName}
-                                    />
-                                    {copy.failedOnly}
-                                </label>
-                                <select className={filterSelectClassName} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
-                                    <option value="none">{formatRetryGroupLabel('none', locale)}</option>
-                                    <option value="server">{formatRetryGroupLabel('server', locale)}</option>
-                                    <option value="error">{formatRetryGroupLabel('error', locale)}</option>
-                                    <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
-                                </select>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="tasks-filter-row audit-filter-bar">
-                            {/* Keep native controls on the shared form surface and focus ring rules. */}
-                            <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                                <option value="all">{copy.allTypes}</option>
-                                {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
-                            </select>
-                            <select className={`${filterSelectClassName} w-140`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-                                <option value="all">{copy.allActions}</option>
-                                {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
-                            </select>
-                            <select className={`${filterSelectClassName} w-180`} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
-                                <option value="all">{copy.allServers}</option>
-                                {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
-                            </select>
-                            <label className="toolbar-checkbox">
-                                <input
-                                    type="checkbox"
+            <div className={embedded ? '' : 'page-content page-enter'}>
+                <Card size="small" style={{ marginBottom: '16px' }}>
+                    <Row gutter={[16, 16]} align="middle">
+                        <Col xs={24} md={18}>
+                            <Space wrap>
+                                <Select
+                                    style={{ width: 140 }}
+                                    value={typeFilter}
+                                    onChange={setTypeFilter}
+                                    options={[
+                                        { value: 'all', label: copy.allTypes },
+                                        ...typeOptions.map((x) => ({ value: x, label: formatTaskTypeLabel(x, locale) }))
+                                    ]}
+                                />
+                                <Select
+                                    style={{ width: 140 }}
+                                    value={actionFilter}
+                                    onChange={setActionFilter}
+                                    options={[
+                                        { value: 'all', label: copy.allActions },
+                                        ...actionOptions.map((x) => ({ value: x, label: formatTaskActionLabel(x, locale) }))
+                                    ]}
+                                />
+                                <Select
+                                    style={{ width: 180 }}
+                                    value={serverFilter}
+                                    onChange={setServerFilter}
+                                    options={[
+                                        { value: 'all', label: copy.allServers },
+                                        ...serverOptions.map((x) => ({ value: x, label: x }))
+                                    ]}
+                                />
+                                <Checkbox
                                     checked={failedOnlyFilter}
                                     onChange={(e) => setFailedOnlyFilter(e.target.checked)}
-                                    className={failedOnlyCheckboxClassName}
+                                >
+                                    {copy.failedOnly}
+                                </Checkbox>
+                                <Select
+                                    style={{ width: 180 }}
+                                    value={retryGroupBy}
+                                    onChange={setRetryGroupBy}
+                                    options={[
+                                        { value: 'none', label: formatRetryGroupLabel('none', locale) },
+                                        { value: 'server', label: formatRetryGroupLabel('server', locale) },
+                                        { value: 'error', label: formatRetryGroupLabel('error', locale) },
+                                        { value: 'server_error', label: formatRetryGroupLabel('server_error', locale) }
+                                    ]}
                                 />
-                                {copy.failedOnly}
-                            </label>
-                            <select className={`${filterSelectClassName} w-180`} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
-                                <option value="none">{formatRetryGroupLabel('none', locale)}</option>
-                                <option value="server">{formatRetryGroupLabel('server', locale)}</option>
-                                <option value="error">{formatRetryGroupLabel('error', locale)}</option>
-                                <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
-                            </select>
-                            <div className="text-sm text-muted tasks-filter-meta">
-                                {copy.total.replace('{count}', String(filteredTasks.length))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                            </Space>
+                        </Col>
+                        <Col xs={24} md={6} style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    onClick={fetchTasks}
+                                    loading={loading}
+                                >
+                                    {copy.refresh}
+                                </Button>
+                                <Button
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={handleClear}
+                                >
+                                    {copy.clear}
+                                </Button>
+                            </Space>
+                        </Col>
+                    </Row>
+                </Card>
 
                 {loading ? (
-                    <div className={`${tableShellClassName} p-4`}>
-                        <SkeletonTable rows={5} cols={7} />
-                    </div>
+                    <Skeleton active paragraph={{ rows: 10 }} />
                 ) : filteredTasks.length === 0 ? (
-                    <div className={`${tableShellClassName} p-4`}>
-                        <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
-                    </div>
-                ) : isCompactLayout ? (
-                    <div className={mobileListShellClassName}>
-                        <TaskMobileList
-                            tasks={filteredTasks}
-                            copy={copy}
-                            locale={locale}
-                            retryingId={retryingId}
-                            onView={handleView}
-                            onRetryFailed={handleRetryFailed}
-                        />
-                    </div>
+                    <Empty
+                        style={{ marginTop: '64px' }}
+                        description={
+                            <span>
+                                <Text strong>{copy.emptyTitle}</Text>
+                                <br />
+                                <Text type="secondary">{copy.emptySubtitle}</Text>
+                            </span>
+                        }
+                    />
                 ) : (
-                    <div className={tableShellClassName}>
-                        <table className="table tasks-table">
-                            <thead>
-                                <tr>
-                                    <th className="tasks-time-column">{copy.time}</th>
-                                    <th>{copy.typeAction}</th>
-                                    <th>{copy.server}</th>
-                                    <th className="table-cell-right tasks-total-column">{copy.totalCol}</th>
-                                    <th className="table-cell-right tasks-success-column">{copy.successCol}</th>
-                                    <th className="table-cell-right tasks-failed-column">{copy.failedCol}</th>
-                                    <th className="table-cell-actions tasks-actions-column">{copy.actions}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredTasks.map((task) => (
-                                    <tr key={task.id}>
-                                        <td data-label={copy.time} className="cell-mono tasks-time-cell">{formatDateTime(task.createdAt, locale)}</td>
-                                        <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
-                                        <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
-                                            {formatTaskServerSummary(task)}
-                                        </td>
-                                        <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
-                                        <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>
-                                        <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
-                                        <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
-                                            <div className="table-row-actions tasks-row-actions">
-                                            <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
-                                                <HiOutlineEye />
-                                            </button>
-                                            {Number(task.summary?.failed || 0) > 0 && (
-                                                <button
-                                                    className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
-                                                    onClick={() => handleRetryFailed(task)}
-                                                    disabled={retryingId === task.id}
-                                                    title={copy.retryFailedItems}
-                                                    aria-label={copy.retryFailedItems}
-                                                >
-                                                    {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
-                                                </button>
-                                            )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table
+                        size="small"
+                        dataSource={filteredTasks}
+                        columns={columns}
+                        rowKey="id"
+                        pagination={{
+                            size: 'small',
+                            showSizeChanger: true,
+                            showTotal: (total) => copy.retained.replace('{count}', String(total)),
+                        }}
+                        scroll={{ x: 'max-content' }}
+                    />
                 )}
-
-                <div className={paginationClassName}>
-                    <div className="page-pagination-meta">{copy.retained.replace('{count}', String(filteredTasks.length))}</div>
-                </div>
             </div>
 
             <BatchResultModal

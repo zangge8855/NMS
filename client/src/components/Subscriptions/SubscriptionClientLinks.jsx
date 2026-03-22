@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
+import { Card, Typography, Row, Col, Button, Tag, Space, Divider } from 'antd';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+
+const { Title, Text, Paragraph } = Typography;
 
 function buildToolLookup(items = []) {
     const map = new Map();
@@ -167,16 +170,16 @@ export default function SubscriptionClientLinks({
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
     return (
-        <div className={`subscription-client-links${compact ? ' subscription-client-links--compact' : ''}`}>
+        <div style={{ marginTop: compact ? 0 : 24 }}>
             {hasSection(sections, 'devices') && (
-                <div className="subscription-client-links-section">
+                <div>
                     {showHeading && (
-                            <div className="subscription-client-links-heading">
-                            <div className="subscription-client-links-title">{copy.sectionTitle}</div>
-                            <div className="subscription-client-links-caption">{copy.sectionCaption}</div>
+                        <div style={{ marginBottom: 24 }}>
+                            <Title level={4}>{copy.sectionTitle}</Title>
+                            <Paragraph type="secondary">{copy.sectionCaption}</Paragraph>
                         </div>
                     )}
-                    <div className="subscription-device-grid">
+                    <Row gutter={[16, 16]}>
                         {deviceGuides.map((item) => {
                             const quickItems = item.quickKeys
                                 .map((key) => quickActionLookup.get(key))
@@ -190,114 +193,70 @@ export default function SubscriptionClientLinks({
                                 .filter((action) => String(action?.href || '').trim());
 
                             return (
-                                <div key={item.key} className={`subscription-device-card${compact ? ' subscription-device-card--compact' : ''}`}>
-                                    <div className="subscription-device-card-head">
-                                        <div className="subscription-device-title">{item.title}</div>
-                                        {!compact && <div className="subscription-device-text">{item.summary}</div>}
-                                    </div>
-                                    {compact ? (
-                                        <div className="subscription-device-compact-layout">
-                                            <div className="subscription-device-compact-row">
-                                                <div className="subscription-device-compact-label">{copy.downloads}</div>
-                                                <div className="subscription-device-actions subscription-device-actions--downloads">
+                                <Col xs={24} md={compact ? 24 : 12} key={item.key}>
+                                    <Card 
+                                        size="small"
+                                        title={<Text strong>{item.title}</Text>}
+                                        extra={!compact && <Text type="secondary" style={{ fontSize: '12px' }}>{item.summary}</Text>}
+                                    >
+                                        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                                            <div>
+                                                <Text type="secondary" block style={{ marginBottom: 8 }}>{copy.downloads}</Text>
+                                                <Space wrap>
                                                     {item.appLinks.map((link) => (
-                                                        <a
+                                                        <Button
                                                             key={link.key}
                                                             href={link.url}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="btn btn-secondary btn-sm subscription-device-download-btn"
+                                                            size="small"
                                                         >
                                                             {link.label}
-                                                        </a>
+                                                        </Button>
                                                     ))}
-                                                </div>
+                                                </Space>
                                             </div>
-                                            <div className="subscription-device-compact-row">
-                                                <div className="subscription-device-compact-label">{copy.recommended}</div>
-                                                <div className="subscription-device-rules subscription-device-rules--compact">
-                                                    {item.profileRules.map((rule) => (
-                                                        <div key={rule.key} className="subscription-device-rule">
-                                                            <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                            <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
-                                                            <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+
+                                            <div>
+                                                <Text type="secondary" block style={{ marginBottom: 8 }}>{copy.recommended}</Text>
+                                                {item.profileRules.map((rule) => (
+                                                    <div key={rule.key} style={{ marginBottom: 4 }}>
+                                                        <Text style={{ fontSize: '13px' }}>{rule.tools.join(' / ')}</Text>
+                                                        <Text type="secondary" style={{ margin: '0 8px', fontSize: '12px' }}>{copy.chooseLabel}</Text>
+                                                        <Tag color="blue" style={{ margin: 0 }}>{rule.profileLabel}</Tag>
+                                                    </div>
+                                                ))}
                                             </div>
+
                                             {showImportMethods && (
-                                                <div className="subscription-device-compact-row subscription-device-compact-row--push">
-                                                    <div className="subscription-device-compact-label">{copy.importMethod}</div>
+                                                <div>
+                                                    <Text type="secondary" block style={{ marginBottom: 8 }}>{copy.importMethod}</Text>
                                                     {quickItems.length > 0 ? (
-                                                        <div className="subscription-device-actions">
+                                                        <Space wrap>
                                                             {quickItems.map((action) => (
-                                                                <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
+                                                                <Button 
+                                                                    key={`${item.key}-${action.key}`} 
+                                                                    href={action.href} 
+                                                                    type="primary"
+                                                                    size="small"
+                                                                >
                                                                     {action.label}
-                                                                </a>
+                                                                </Button>
                                                             ))}
-                                                        </div>
+                                                        </Space>
                                                     ) : (
-                                                        <div className="subscription-device-empty">
+                                                        <Text type="secondary" style={{ fontSize: '12px' }}>
                                                             {copy.copyAddress}
-                                                        </div>
+                                                        </Text>
                                                     )}
                                                 </div>
                                             )}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="subscription-device-block">
-                                                <div className="subscription-device-block-label">{copy.downloads}</div>
-                                                <div className="subscription-device-actions subscription-device-actions--downloads">
-                                                    {item.appLinks.map((link) => (
-                                                        <a
-                                                            key={link.key}
-                                                            href={link.url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="btn btn-secondary btn-sm subscription-device-download-btn"
-                                                        >
-                                                            {link.label}
-                                                        </a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="subscription-device-block">
-                                                <div className="subscription-device-block-label">{copy.recommended}</div>
-                                                <div className="subscription-device-rules">
-                                                    {item.profileRules.map((rule) => (
-                                                        <div key={rule.key} className="subscription-device-rule">
-                                                            <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                            <span className="subscription-device-rule-arrow">{copy.chooseLabel}</span>
-                                                            <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            {showImportMethods && (
-                                                <div className="subscription-device-block subscription-device-block--push">
-                                                    <div className="subscription-device-block-label">{copy.importMethod}</div>
-                                                    {quickItems.length > 0 ? (
-                                                        <div className="subscription-device-actions">
-                                                            {quickItems.map((action) => (
-                                                                <a key={`${item.key}-${action.key}`} href={action.href} className="btn btn-primary btn-sm">
-                                                                    {action.label}
-                                                                </a>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="subscription-device-empty">
-                                                            {copy.copyAddress}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
+                                        </Space>
+                                    </Card>
+                                </Col>
                             );
                         })}
-                    </div>
+                    </Row>
                 </div>
             )}
         </div>

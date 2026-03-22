@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-    HiOutlineArrowPath,
-    HiOutlineCommandLine,
-    HiOutlineEye,
-    HiOutlineChartBarSquare,
-    HiOutlineUsers,
-    HiOutlineDocumentText,
-    HiOutlineFunnel,
-    HiOutlineTrash,
-    HiOutlineArrowDownTray,
-    HiOutlineXMark,
-} from 'react-icons/hi2';
+    ReloadOutlined,
+    ConsoleSqlOutlined,
+    EyeOutlined,
+    BarChartOutlined,
+    TeamOutlined,
+    FileTextOutlined,
+    FilterOutlined,
+    DeleteOutlined,
+    DownloadOutlined,
+    CloseOutlined,
+    ArrowLeftOutlined,
+    ArrowRightOutlined,
+} from '@ant-design/icons';
 import {
     LineChart,
     Line,
@@ -21,6 +23,29 @@ import {
     ResponsiveContainer,
     CartesianGrid,
 } from 'recharts';
+import {
+    Card,
+    Button,
+    Table,
+    Tabs,
+    Form,
+    Input,
+    Select,
+    Descriptions,
+    Typography,
+    Row,
+    Col,
+    Empty,
+    Modal,
+    Pagination,
+    Badge,
+    Space,
+    Skeleton,
+    Tag,
+    Statistic,
+    Divider,
+    Layout,
+} from 'antd';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
 import { formatBytes, formatDateOnly, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
@@ -28,15 +53,13 @@ import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import toast from 'react-hot-toast';
 import Tasks from '../Tasks/Tasks.jsx';
 const Logs = lazy(() => import('../Logs/Logs.jsx'));
-import SkeletonTable from '../UI/SkeletonTable.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
-import useMediaQuery from '../../hooks/useMediaQuery.js';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
+
+const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
 
 const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
 
@@ -414,12 +437,12 @@ function formatDateTime(value, locale = 'zh-CN') {
     return formatDateTimeValue(value, locale, { hour12: false });
 }
 
-function statusBadgeClass(status) {
+function getStatusTagColor(status) {
     const normalized = normalizeAuditStatus(status);
-    if (normalized === 'success') return 'badge-success';
-    if (normalized === 'info') return 'badge-info';
-    if (normalized === 'failed' || normalized === 'denied' || normalized === 'revoked' || normalized === 'expired') return 'badge-danger';
-    return 'badge-neutral';
+    if (normalized === 'success') return 'success';
+    if (normalized === 'info') return 'processing';
+    if (normalized === 'failed' || normalized === 'denied' || normalized === 'revoked' || normalized === 'expired') return 'error';
+    return 'default';
 }
 
 function normalizeAuditStatus(value) {
@@ -746,107 +769,8 @@ function countActiveFilters(filters = {}) {
     }, 0);
 }
 
-function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
-    return (
-        <div className="audit-mobile-list">
-            {items.map((item) => (
-                <div key={item.id} className="audit-mobile-card">
-                    <div className="audit-mobile-card-head">
-                        <div className="audit-mobile-card-copy">
-                            <div className="audit-mobile-card-title">{formatAuditEventLabel(item, locale)}</div>
-                            <div className="audit-mobile-card-subtitle">{formatDateTime(item.ts, locale)}</div>
-                        </div>
-                        <span className={`badge ${statusBadgeClass(item.outcome)}`}>
-                            {formatAuditStatusLabel(item.outcome, locale)}
-                        </span>
-                    </div>
-                        <div className="audit-mobile-card-grid">
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.tables.actor}</span>
-                                <span className="audit-mobile-card-value">{formatAuditActorLabel(item, locale)}</span>
-                            </div>
-                        <div className="audit-mobile-card-item">
-                            <span className="audit-mobile-card-label">{copy.tables.node}</span>
-                            <span className="audit-mobile-card-value">{item.serverId || '-'}</span>
-                        </div>
-                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
-                                <span className="audit-mobile-card-label">{copy.tables.user}</span>
-                                <span className="audit-mobile-card-value">{resolveAuditTarget(item)}</span>
-                            </div>
-                            {buildAuditSourceSummary(item) ? (
-                                <div className="audit-mobile-card-item audit-mobile-card-item--full">
-                                    <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
-                                    <span className="audit-mobile-card-value audit-mobile-card-value--mono">
-                                        {buildAuditSourceSummary(item)}
-                                    </span>
-                                </div>
-                            ) : null}
-                        </div>
-                    <div className="audit-mobile-card-actions">
-                        <button
-                            className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
-                            onClick={() => onSelect(item)}
-                            title={copy.actions.viewDetail}
-                            aria-label={copy.actions.viewDetail}
-                        >
-                            <HiOutlineEye className="audit-action-btn-icon" />
-                            <span>{copy.actions.detail}</span>
-                        </button>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function AuditAccessMobileList({ items = [], copy, locale }) {
-    return (
-        <div className="audit-mobile-list">
-            {items.map((item) => {
-                const geoDisplay = resolveAccessGeoDisplay(item);
-                const userLabel = formatAccessUserLabel(item, copy);
-                const userMeta = formatAccessUserMeta(item, copy);
-                return (
-                    <div key={item.id} className="audit-mobile-card">
-                        <div className="audit-mobile-card-head">
-                            <div className="audit-mobile-card-copy">
-                                <div className="audit-mobile-card-title">{userLabel}</div>
-                                <div className="audit-mobile-card-subtitle">{formatDateTime(item.ts, locale)}</div>
-                            </div>
-                            <span className={`badge ${statusBadgeClass(item.status)}`}>
-                                {formatAuditStatusLabel(item.status, locale)}
-                            </span>
-                        </div>
-                        {userMeta ? (
-                            <div className="audit-mobile-inline-note">{userMeta}</div>
-                        ) : null}
-                        <div className="audit-mobile-card-grid">
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.tables.realIp}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{item.clientIp || item.ip || '-'}</span>
-                            </div>
-                            <div className="audit-mobile-card-item">
-                                <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
-                                <span className="audit-mobile-card-value">
-                                    {geoDisplay.location}
-                                    {geoDisplay.carrier ? ` · ${geoDisplay.carrier}` : ''}
-                                </span>
-                            </div>
-                            <div className="audit-mobile-card-item audit-mobile-card-item--full">
-                                <span className="audit-mobile-card-label">{copy.tables.ua}</span>
-                                <span className="audit-mobile-card-value">{formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true)}</span>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
 export default function AuditCenter() {
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getAuditCopy(locale);
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
@@ -1117,45 +1041,72 @@ export default function AuditCenter() {
     });
     const auditTabs = useMemo(() => ([
         {
-            id: 'events',
-            label: copy.tabs.events,
+            key: 'events',
+            label: (
+                <span>
+                    <FileTextOutlined style={{ marginRight: 8 }} />
+                    {copy.tabs.events}
+                </span>
+            ),
+            icon: FileTextOutlined,
             eyebrow: copy.workspace.eventsEyebrow,
             summary: copy.workspace.eventsSummary,
-            icon: HiOutlineDocumentText,
         },
         {
-            id: 'tasks',
-            label: copy.tabs.tasks,
+            key: 'tasks',
+            label: (
+                <span>
+                    <ReloadOutlined style={{ marginRight: 8 }} />
+                    {copy.tabs.tasks}
+                </span>
+            ),
+            icon: ReloadOutlined,
             eyebrow: copy.workspace.tasksEyebrow,
             summary: copy.workspace.tasksSummary,
-            icon: HiOutlineArrowPath,
         },
         {
-            id: 'traffic',
-            label: copy.tabs.traffic,
+            key: 'traffic',
+            label: (
+                <span>
+                    <BarChartOutlined style={{ marginRight: 8 }} />
+                    {copy.tabs.traffic}
+                </span>
+            ),
+            icon: BarChartOutlined,
             eyebrow: copy.workspace.trafficEyebrow,
             summary: copy.workspace.trafficSummary,
-            icon: HiOutlineChartBarSquare,
         },
         {
-            id: 'subscriptions',
-            label: copy.tabs.subscriptions,
+            key: 'subscriptions',
+            label: (
+                <span>
+                    <TeamOutlined style={{ marginRight: 8 }} />
+                    {copy.tabs.subscriptions}
+                </span>
+            ),
+            icon: TeamOutlined,
             eyebrow: copy.workspace.subscriptionsEyebrow,
             summary: copy.workspace.subscriptionsSummary,
-            icon: HiOutlineUsers,
         },
         {
-            id: 'logs',
-            label: copy.tabs.logs,
+            key: 'logs',
+            label: (
+                <span>
+                    <ConsoleSqlOutlined style={{ marginRight: 8 }} />
+                    {copy.tabs.logs}
+                </span>
+            ),
+            icon: ConsoleSqlOutlined,
             eyebrow: copy.workspace.logsEyebrow,
             summary: copy.workspace.logsSummary,
-            icon: HiOutlineCommandLine,
         },
     ]), [copy]);
+
     const activeAuditTab = useMemo(
-        () => auditTabs.find((item) => item.id === tab) || auditTabs[0] || null,
+        () => auditTabs.find((item) => item.key === tab) || auditTabs[0] || null,
         [auditTabs, tab]
     );
+
     const currentTabBusy = (
         (tab === 'events' && eventsLoading)
         || (tab === 'traffic' && trafficLoading)
@@ -1168,732 +1119,855 @@ export default function AuditCenter() {
         fetchAccess(1, nextFilters);
     };
 
+    const eventTableColumns = [
+        {
+            title: copy.tables.time,
+            dataIndex: 'ts',
+            key: 'ts',
+            width: 170,
+            render: (ts) => <Text code>{formatDateTime(ts, locale)}</Text>,
+        },
+        {
+            title: copy.tables.event,
+            key: 'event',
+            render: (_, record) => formatAuditEventLabel(record, locale),
+        },
+        {
+            title: copy.tables.result,
+            dataIndex: 'outcome',
+            key: 'outcome',
+            align: 'center',
+            width: 100,
+            render: (outcome) => (
+                <Tag color={getStatusTagColor(outcome)}>
+                    {formatAuditStatusLabel(outcome, locale)}
+                </Tag>
+            ),
+        },
+        {
+            title: copy.tables.actor,
+            key: 'actor',
+            render: (_, record) => formatAuditActorLabel(record, locale),
+        },
+        {
+            title: copy.tables.node,
+            dataIndex: 'serverId',
+            key: 'serverId',
+            align: 'center',
+            width: 100,
+            render: (val) => val || '-',
+        },
+        {
+            title: copy.tables.user,
+            key: 'user',
+            render: (_, record) => (
+                <Space direction="vertical" size={0}>
+                    <Text strong>{resolveAuditTarget(record)}</Text>
+                    {buildAuditSourceSummary(record) && (
+                        <Text type="secondary" size="small">{buildAuditSourceSummary(record)}</Text>
+                    )}
+                </Space>
+            ),
+        },
+        {
+            title: copy.tables.action,
+            key: 'action',
+            align: 'right',
+            width: 100,
+            render: (_, record) => (
+                <Button
+                    icon={<EyeOutlined />}
+                    onClick={() => setSelectedEvent(record)}
+                >
+                    {copy.actions.detail}
+                </Button>
+            ),
+        },
+    ];
+
+    const accessTableColumns = [
+        {
+            title: copy.tables.time,
+            dataIndex: 'ts',
+            key: 'ts',
+            width: 170,
+            render: (ts) => <Text code>{formatDateTime(ts, locale)}</Text>,
+        },
+        {
+            title: copy.tables.user,
+            key: 'user',
+            render: (_, record) => {
+                const userLabel = formatAccessUserLabel(record, copy);
+                const userMeta = formatAccessUserMeta(record, copy);
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Text strong>{userLabel}</Text>
+                        {userMeta && <Text type="secondary" size="small">{userMeta}</Text>}
+                    </Space>
+                );
+            },
+        },
+        {
+            title: copy.tables.result,
+            dataIndex: 'status',
+            key: 'status',
+            align: 'center',
+            width: 100,
+            render: (status) => (
+                <Tag color={getStatusTagColor(status)}>
+                    {formatAuditStatusLabel(status, locale)}
+                </Tag>
+            ),
+        },
+        {
+            title: copy.tables.realIp,
+            key: 'realIp',
+            render: (_, record) => (
+                <Space direction="vertical" size={0}>
+                    <Text code>{record.clientIp || record.ip || '-'}</Text>
+                    {record.ipSource && <Tag size="small">{record.ipSource}</Tag>}
+                </Space>
+            ),
+        },
+        {
+            title: copy.tables.locationCarrier,
+            key: 'location',
+            render: (_, record) => {
+                const geoDisplay = resolveAccessGeoDisplay(record);
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Text>{geoDisplay.location}</Text>
+                        {geoDisplay.carrier && <Text type="secondary" size="small">{geoDisplay.carrier}</Text>}
+                    </Space>
+                );
+            },
+        },
+        {
+            title: copy.tables.ua,
+            dataIndex: 'userAgent',
+            key: 'ua',
+            ellipsis: true,
+            render: (ua, record) => (
+                <Text type="secondary" title={formatAuditUserAgent(ua, locale, record.userAgentMasked === true)}>
+                    {formatAuditUserAgent(ua, locale, record.userAgentMasked === true)}
+                </Text>
+            ),
+        },
+    ];
+
+    const topUserColumns = [
+        {
+            title: copy.tables.user,
+            key: 'user',
+            render: (_, record) => formatTrafficUserLabel(record),
+        },
+        {
+            title: leaderboardTrendLabel,
+            key: 'trend',
+            render: (_, record) => (
+                <MiniSparkline
+                    points={trafficUserRowTrends[record.email] || []}
+                    tone="primary"
+                    width={120}
+                    height={30}
+                />
+            ),
+        },
+        {
+            title: copy.tables.traffic,
+            dataIndex: 'totalBytes',
+            key: 'traffic',
+            align: 'right',
+            render: (val) => <Text code>{formatBytes(val)}</Text>,
+        },
+    ];
+
+    const topServerColumns = [
+        {
+            title: copy.tables.node,
+            dataIndex: 'serverName',
+            key: 'serverName',
+        },
+        {
+            title: leaderboardTrendLabel,
+            key: 'trend',
+            render: (_, record) => (
+                <MiniSparkline
+                    points={trafficServerRowTrends[record.serverId] || []}
+                    tone="success"
+                    width={120}
+                    height={30}
+                />
+            ),
+        },
+        {
+            title: copy.tables.traffic,
+            dataIndex: 'totalBytes',
+            key: 'traffic',
+            align: 'right',
+            render: (val) => <Text code>{formatBytes(val)}</Text>,
+        },
+    ];
+
     return (
-        <>
+        <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
             <Header
                 title={t('pages.audit.title')}
                 eyebrow={t('pages.audit.eyebrow')}
             />
-            <div className="page-content page-enter page-content--wide audit-page">
-                <div className="audit-shell">
-                    <div className="card audit-nav">
-                        <div className="audit-nav-topbar">
-                            <div className="audit-nav-label">{copy.workspace.navLabel}</div>
-                            <div className={`audit-nav-status-chip${currentTabBusy ? ' is-loading' : ' is-ready'}`}>
-                                {currentTabBusy ? <span className="spinner spinner-16" /> : null}
-                                <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
-                            </div>
-                        </div>
-                        {activeAuditTab?.summary ? (
-                            <div className="audit-nav-summary">{activeAuditTab.summary}</div>
-                        ) : null}
-                        <div className="tabs audit-tabs" role="tablist" aria-label={copy.workspace.navLabel}>
-                            {auditTabs.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = tab === item.id;
-                                return (
-                                    <button
-                                        key={item.id}
-                                        className={`tab ${isActive ? 'active' : ''}`}
-                                        onClick={() => setTab(item.id)}
-                                        role="tab"
-                                        aria-selected={isActive}
-                                    >
-                                        <span className="audit-tab-icon" aria-hidden="true"><Icon /></span>
-                                        <span className="audit-tab-label">{item.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+            <Layout.Content style={{ padding: '24px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+                <Card bordered={false} style={{ marginBottom: 24 }}>
+                    <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                        <Col>
+                            <Space align="center">
+                                <Title level={4} style={{ margin: 0 }}>{copy.workspace.navLabel}</Title>
+                                <Badge
+                                    status={currentTabBusy ? 'processing' : 'success'}
+                                    text={currentTabBusy ? copy.workspace.loading : copy.workspace.ready}
+                                />
+                            </Space>
+                        </Col>
+                    </Row>
+                    {activeAuditTab?.summary && (
+                        <Paragraph type="secondary">{activeAuditTab.summary}</Paragraph>
+                    )}
+                    <Tabs
+                        activeKey={tab}
+                        onChange={setTab}
+                        items={auditTabs}
+                    />
+                </Card>
 
-                    <div className="audit-main">
-                        <div className="audit-tab-panel">
-                {tab === 'events' && (
-                    <div className="audit-events-layout">
-                        <div className="audit-events-main">
-                            <div className="card p-4 audit-control-card audit-control-card-events">
-                                <div className="audit-control-head">
-                                    <div className="audit-control-copy">
-                                        <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
-                                        <div className="audit-control-text">{copy.workspace.eventsFiltersSubtitle}</div>
-                                    </div>
-                                    <div className="audit-control-actions">
-                                        <div className="audit-control-action-group">
-                                            <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
-                                                <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                            </button>
-                                            <button
-                                                className={`btn btn-sm ${showAdvancedEventFilters ? 'btn-secondary' : 'btn-ghost'}`}
-                                                onClick={() => setShowAdvancedEventFilters((value) => !value)}
+                <div className="audit-main">
+                    {tab === 'events' && (
+                        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                            <Card>
+                                <Row justify="space-between" align="top" gutter={[16, 16]}>
+                                    <Col xs={24} md={12}>
+                                        <Title level={5}>{copy.workspace.eventsFiltersTitle}</Title>
+                                        <Text type="secondary">{copy.workspace.eventsFiltersSubtitle}</Text>
+                                    </Col>
+                                    <Col xs={24} md={12} style={{ textAlign: 'right' }}>
+                                        <Space wrap>
+                                            <Button
+                                                type="primary"
+                                                icon={<ReloadOutlined spin={eventsLoading} />}
+                                                onClick={() => fetchEvents(1)}
+                                                loading={eventsLoading}
                                             >
-                                                {showAdvancedEventFilters ? <HiOutlineXMark /> : <HiOutlineFunnel />}
+                                                {copy.actions.query}
+                                            </Button>
+                                            <Button
+                                                icon={showAdvancedEventFilters ? <CloseOutlined /> : <FilterOutlined />}
+                                                onClick={() => setShowAdvancedEventFilters(!showAdvancedEventFilters)}
+                                            >
                                                 {showAdvancedEventFilters ? copy.actions.lessFilters : copy.actions.moreFilters}
-                                            </button>
+                                            </Button>
                                             {activeEventFilterCount > 0 && (
-                                                <button className="btn btn-ghost btn-sm" onClick={handleResetEventFilters}>
+                                                <Button type="link" onClick={handleResetEventFilters}>
                                                     {copy.actions.resetFilters}
-                                                </button>
+                                                </Button>
                                             )}
-                                        </div>
-                                        <div className="audit-control-action-group audit-control-action-group--secondary">
-                                            <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
-                                                <HiOutlineArrowDownTray /> {copy.actions.export}
-                                            </button>
-                                            <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
-                                                <HiOutlineTrash /> {copy.actions.clear}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="audit-control-meta audit-control-meta--compact">
-                                    <span className="audit-control-pill">
-                                        {copy.states.total.replace('{count}', String(eventsData.total || 0))}
-                                    </span>
-                                    <span className={`audit-control-pill ${activeEventFilterCount > 0 ? 'is-active' : ''}`}>
-                                        {activeEventFilterCount > 0
-                                            ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                                            : copy.workspace.noFilters}
-                                    </span>
-                                </div>
-                                <div className="audit-filter-stack">
-                                    <div className="audit-filter-grid audit-filter-grid--events-primary">
-                                        <input
-                                            className="form-input w-180"
+                                            <Button icon={<DownloadOutlined />} onClick={handleExportAuditCSV}>
+                                                {copy.actions.export}
+                                            </Button>
+                                            <Button danger icon={<DeleteOutlined />} onClick={handleClearEvents}>
+                                                {copy.actions.clear}
+                                            </Button>
+                                        </Space>
+                                    </Col>
+                                </Row>
+
+                                <Divider />
+
+                                <Row gutter={[16, 16]} align="middle">
+                                    <Col>
+                                        <Badge count={eventsData.total || 0} overflowCount={999999} color="blue" showZero>
+                                            <Tag color="blue" style={{ margin: 0 }}>{copy.workspace.recordCount}</Tag>
+                                        </Badge>
+                                    </Col>
+                                    {activeEventFilterCount > 0 && (
+                                        <Col>
+                                            <Tag color="orange" closable onClose={handleResetEventFilters}>
+                                                {copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))}
+                                            </Tag>
+                                        </Col>
+                                    )}
+                                </Row>
+
+                                <Form layout="inline" style={{ marginTop: 24, gap: '16px 0' }}>
+                                    <Form.Item style={{ marginBottom: 0 }}>
+                                        <Input
                                             placeholder={copy.filters.keyword}
                                             value={eventFilters.q}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
+                                            onChange={(e) => setEventFilters(prev => ({ ...prev, q: e.target.value }))}
+                                            style={{ width: 200 }}
                                         />
-                                        <select
-                                            className="form-select w-140"
+                                    </Form.Item>
+                                    <Form.Item style={{ marginBottom: 0 }}>
+                                        <Select
                                             value={eventFilters.outcome}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
+                                            onChange={(val) => setEventFilters(prev => ({ ...prev, outcome: val }))}
+                                            style={{ width: 150 }}
                                         >
-                                            <option value="">{copy.filters.allResults}</option>
-                                            <option value="success">{copy.filters.success}</option>
-                                            <option value="failed">{copy.filters.failed}</option>
-                                            <option value="info">{copy.filters.info}</option>
-                                        </select>
-                                        <input
-                                            className="form-input w-180"
+                                            <Option value="">{copy.filters.allResults}</Option>
+                                            <Option value="success">{copy.filters.success}</Option>
+                                            <Option value="failed">{copy.filters.failed}</Option>
+                                            <Option value="info">{copy.filters.info}</Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item style={{ marginBottom: 0 }}>
+                                        <Input
                                             placeholder={copy.filters.userOrEmail}
                                             value={eventFilters.targetEmail}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                                            onChange={(e) => setEventFilters(prev => ({ ...prev, targetEmail: e.target.value }))}
+                                            style={{ width: 200 }}
                                         />
-                                    </div>
+                                    </Form.Item>
+
                                     {showAdvancedEventFilters && (
-                                        <div className="audit-filter-grid audit-filter-grid--events-secondary">
-                                            <input
-                                                className="form-input w-180"
-                                                placeholder={copy.filters.eventType}
-                                                value={eventFilters.eventType}
-                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
+                                        <>
+                                            <Form.Item style={{ marginBottom: 0 }}>
+                                                <Input
+                                                    placeholder={copy.filters.eventType}
+                                                    value={eventFilters.eventType}
+                                                    onChange={(e) => setEventFilters(prev => ({ ...prev, eventType: e.target.value }))}
+                                                    style={{ width: 200 }}
+                                                />
+                                            </Form.Item>
+                                            <Form.Item style={{ marginBottom: 0 }}>
+                                                <Input
+                                                    placeholder={copy.filters.serverId}
+                                                    value={eventFilters.serverId}
+                                                    onChange={(e) => setEventFilters(prev => ({ ...prev, serverId: e.target.value }))}
+                                                    style={{ width: 150 }}
+                                                />
+                                            </Form.Item>
+                                        </>
+                                    )}
+                                </Form>
+                            </Card>
+
+                            <Table
+                                columns={eventTableColumns}
+                                dataSource={eventsData.items}
+                                rowKey="id"
+                                loading={eventsLoading}
+                                pagination={{
+                                    current: eventsPage,
+                                    pageSize: 20,
+                                    total: eventsData.total,
+                                    onChange: (page) => fetchEvents(page),
+                                    showSizeChanger: false,
+                                    showTotal: (total) => copy.states.total.replace('{count}', String(total)),
+                                }}
+                                scroll={{ x: 'max-content' }}
+                                locale={{
+                                    emptyText: <Empty description={copy.states.noAudit} />
+                                }}
+                            />
+                        </Space>
+                    )}
+
+                    {tab === 'tasks' && (
+                        <Card>
+                            <Tasks embedded />
+                        </Card>
+                    )}
+
+                    {tab === 'traffic' && (
+                        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                            <Card>
+                                <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                                    <Col>
+                                        <Text type="secondary">{copy.workspace.trafficEyebrow}</Text>
+                                        <Title level={4} style={{ margin: 0 }}>{copy.tabs.traffic}</Title>
+                                        <Text type="secondary">{copy.workspace.trafficSummary}</Text>
+                                    </Col>
+                                    <Col>
+                                        <Space wrap>
+                                            <Tag icon={<ReloadOutlined />} color="processing">
+                                                {copy.traffic.recentSample}: {formatDateTime(trafficOverview?.lastCollectionAt, locale)}
+                                            </Tag>
+                                            <Select
+                                                value={trafficGranularity}
+                                                onChange={setTrafficGranularity}
+                                                style={{ width: 150 }}
+                                            >
+                                                <Option value="auto">{copy.filters.autoGranularity}</Option>
+                                                <Option value="hour">{copy.filters.byHour}</Option>
+                                                <Option value="day">{copy.filters.byDay}</Option>
+                                            </Select>
+                                            <Button
+                                                type="primary"
+                                                icon={<ReloadOutlined spin={trafficLoading} />}
+                                                onClick={() => fetchTrafficOverview(true)}
+                                                loading={trafficLoading}
+                                            >
+                                                {copy.actions.refreshSample}
+                                            </Button>
+                                        </Space>
+                                    </Col>
+                                </Row>
+
+                                <Divider />
+
+                                <Row gutter={[24, 24]}>
+                                    <Col xs={24} lg={12}>
+                                        <Card type="inner">
+                                            <Statistic
+                                                title={copy.traffic.totalTrafficScope}
+                                                value={formatBytes(trafficTotals.totalBytes || 0)}
+                                                suffix={<Text type="secondary" style={{ fontSize: '14px' }}>{trafficTotalsNote}</Text>}
                                             />
-                                            <input
-                                                className="form-input w-180"
-                                                placeholder={copy.filters.serverId}
-                                                value={eventFilters.serverId}
-                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                            <Row gutter={16} style={{ marginTop: 16 }}>
+                                                <Col span={12}>
+                                                    <Statistic
+                                                        title={copy.traffic.uploadTraffic}
+                                                        value={formatBytes(trafficTotals.upBytes || 0)}
+                                                        valueStyle={{ fontSize: '18px', color: '#3f8600' }}
+                                                    />
+                                                </Col>
+                                                <Col span={12}>
+                                                    <Statistic
+                                                        title={copy.traffic.downloadTraffic}
+                                                        value={formatBytes(trafficTotals.downBytes || 0)}
+                                                        valueStyle={{ fontSize: '18px', color: '#cf1322' }}
+                                                    />
+                                                </Col>
+                                            </Row>
+                                        </Card>
+                                    </Col>
+                                    <Col xs={24} lg={12}>
+                                        <Row gutter={[16, 16]}>
+                                            <Col span={12}>
+                                                <Card type="inner" bodyStyle={{ padding: '16px' }}>
+                                                    <Statistic title={copy.traffic.activeAccounts} value={trafficOverview?.activeUsers || 0} />
+                                                    <Text type="secondary" size="small">{copy.traffic.activeAccountsScope}</Text>
+                                                </Card>
+                                            </Col>
+                                            <Col span={12}>
+                                                <Card type="inner" bodyStyle={{ padding: '16px' }}>
+                                                    <Statistic title={copy.traffic.samplePoints} value={trafficOverview?.sampleCount || 0} />
+                                                    <Text type="secondary" size="small">{copy.traffic.samplePointsScope}</Text>
+                                                </Card>
+                                            </Col>
+                                            <Col span={24}>
+                                                <Card type="inner" bodyStyle={{ padding: '16px' }}>
+                                                    <Statistic
+                                                        title={copy.workspace.userTrafficSupport}
+                                                        value={trafficOverview?.userLevelSupported === false ? copy.workspace.supportLimited : copy.workspace.supportReady}
+                                                        valueStyle={{ fontSize: '16px' }}
+                                                    />
+                                                    <Text type="secondary" size="small">
+                                                        {trafficWarningCount > 0
+                                                            ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
+                                                            : copy.workspace.dataWindowTraffic}
+                                                    </Text>
+                                                </Card>
+                                            </Col>
+                                        </Row>
+                                    </Col>
+                                </Row>
+                            </Card>
 
-                            {eventsLoading ? (
-                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
-                                    <SkeletonTable rows={5} cols={7} />
-                                </div>
-                            ) : eventsData.items.length === 0 ? (
-                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
-                                    <EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} />
-                                </div>
-                            ) : isCompactLayout ? (
-                                <AuditEventsMobileList
-                                    items={eventsData.items}
-                                    copy={copy}
-                                    locale={locale}
-                                    onSelect={setSelectedEvent}
-                                />
-                            ) : (
-                                <div className="table-container glass-panel audit-table-shell audit-events-table-shell">
-                                    <table className="table audit-events-table">
-                                        <thead>
-                                            <tr>
-                                                <th className="audit-event-time-column">{copy.tables.time}</th>
-                                                <th>{copy.tables.event}</th>
-                                                <th className="table-cell-center audit-event-result-column">{copy.tables.result}</th>
-                                                <th>{copy.tables.actor}</th>
-                                                <th className="table-cell-center audit-event-node-column">{copy.tables.node}</th>
-                                                <th>{copy.tables.user}</th>
-                                                <th className="table-cell-actions audit-event-action-column">{copy.tables.action}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {eventsData.items.map((item) => (
-                                                <tr key={item.id}>
-                                                    <td data-label={copy.tables.time} className="cell-mono audit-event-time-cell">{formatDateTime(item.ts, locale)}</td>
-                                                    <td data-label={copy.tables.event}>{formatAuditEventLabel(item, locale)}</td>
-                                                    <td data-label={copy.tables.result} className="table-cell-center audit-event-result-cell"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
-                                                    <td data-label={copy.tables.actor}>{formatAuditActorLabel(item, locale)}</td>
-                                                    <td data-label={copy.tables.node} className="table-cell-center audit-event-node-cell">{item.serverId || '-'}</td>
-                                                    <td data-label={copy.tables.user}>
-                                                        <div className="audit-event-target">
-                                                            <span className="audit-event-target-label">{resolveAuditTarget(item)}</span>
-                                                            {buildAuditSourceSummary(item) ? (
-                                                                <span className="audit-event-target-meta">{buildAuditSourceSummary(item)}</span>
-                                                            ) : null}
-                                                        </div>
-                                                    </td>
-                                                    <td data-label={copy.tables.action} className="table-cell-actions">
-                                                        <div className="table-row-actions audit-table-row-actions">
-                                                            <button
-                                                                className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
-                                                                onClick={() => setSelectedEvent(item)}
-                                                                title={copy.actions.viewDetail}
-                                                                aria-label={copy.actions.viewDetail}
-                                                            >
-                                                                <HiOutlineEye className="audit-action-btn-icon" />
-                                                                <span>{copy.actions.detail}</span>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            <div className="audit-pagination page-pagination">
-                                <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(eventsData.total || 0))}</div>
-                                <div className="audit-pagination-actions page-pagination-actions">
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>{copy.actions.previous}</button>
-                                    <span className="text-sm text-muted self-center">
-                                        {eventsPage} / {eventsData.totalPages || 1}
-                                    </span>
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>{copy.actions.next}</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {tab === 'tasks' && (
-                    <div className="audit-operations-history">
-                        <Tasks embedded />
-                    </div>
-                )}
-
-                {tab === 'traffic' && (
-                    <>
-                        <div className="card audit-traffic-overview">
-                            <div className="audit-traffic-overview-head">
-                                <div className="audit-traffic-overview-copy">
-                                    <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
-                                    <div className="audit-traffic-overview-title">{copy.tabs.traffic}</div>
-                                    <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
-                                </div>
-                                <div className="audit-traffic-overview-actions">
-                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
-                                        <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
-                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
-                                    </div>
-                                    <select
-                                        className="form-select w-130"
-                                        value={trafficGranularity}
-                                        onChange={(e) => setTrafficGranularity(e.target.value)}
-                                    >
-                                        <option value="auto">{copy.filters.autoGranularity}</option>
-                                        <option value="hour">{copy.filters.byHour}</option>
-                                        <option value="day">{copy.filters.byDay}</option>
-                                    </select>
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="audit-traffic-overview-body">
-                                <div className="audit-traffic-total-card">
-                                    <div className="audit-traffic-total-label">{copy.traffic.totalTrafficScope}</div>
-                                    <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
-                                    <div className="audit-traffic-total-note">{trafficTotalsNote}</div>
-                                    <div className="audit-traffic-split-grid">
-                                        <div className="audit-traffic-split-card audit-traffic-split-card--up">
-                                            <div className="audit-traffic-split-label">{copy.traffic.uploadTraffic}</div>
-                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.upBytes || 0)}</div>
-                                        </div>
-                                        <div className="audit-traffic-split-card audit-traffic-split-card--down">
-                                            <div className="audit-traffic-split-label">{copy.traffic.downloadTraffic}</div>
-                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.downBytes || 0)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="audit-traffic-mini-grid">
-                                    <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.activeAccounts}</div>
-                                        <div className="audit-traffic-mini-value">{trafficOverview?.activeUsers || 0}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.activeAccountsScope}</div>
-                                    </div>
-                                    <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.samplePoints}</div>
-                                        <div className="audit-traffic-mini-value">{trafficOverview?.sampleCount || 0}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.samplePointsScope}</div>
-                                    </div>
-                                    <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.workspace.userTrafficSupport}</div>
-                                        <div className="audit-traffic-mini-value">
-                                            {trafficOverview?.userLevelSupported === false ? copy.workspace.supportLimited : copy.workspace.supportReady}
-                                        </div>
-                                        <div className="audit-traffic-mini-note">
-                                            {trafficWarningCount > 0
-                                                ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
-                                                : copy.workspace.dataWindowTraffic}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid-auto-280-tight audit-chart-grid">
-                            <div className="card audit-chart-card">
-                                <SectionHeader
-                                    className="card-header section-header section-header--compact"
-                                    title={copy.traffic.userTrend}
-                                    subtitle={copy.traffic.userTrendScope}
-                                    actions={(
-                                        <select
-                                            className="form-select w-220"
-                                            value={selectedUser}
-                                            onChange={(e) => setSelectedUser(e.target.value)}
-                                        >
-                                            <option value="">{copy.traffic.selectUser}</option>
-                                            {topUsers.map((item) => (
-                                                <option key={item.email} value={item.email}>
-                                                    {formatTrafficUserLabel(item)} ({formatBytes(item.totalBytes)})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                />
-                                {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelUnsupported}</div>
-                                )}
-                                <div className="audit-chart-selection">
-                                    <span className="audit-chart-selection-label">{copy.workspace.currentSelection}</span>
-                                    <span className="audit-chart-selection-value">
-                                        {selectedTrafficUser ? formatTrafficUserLabel(selectedTrafficUser) : copy.workspace.noUserSelected}
-                                    </span>
-                                </div>
-                                <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={userTrend.points || []}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
-                                            <YAxis />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
-                                            <Line type="monotone" dataKey="totalBytes" stroke="#6366f1" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            <div className="card audit-chart-card">
-                                <SectionHeader
-                                    className="card-header section-header section-header--compact"
-                                    title={copy.traffic.serverTrend}
-                                    subtitle={copy.traffic.serverTrendScope}
-                                    actions={(
-                                        <select
-                                            className="form-select w-220"
-                                            value={selectedServerId}
-                                            onChange={(e) => setSelectedServerId(e.target.value)}
-                                        >
-                                            <option value="">{copy.traffic.selectServer}</option>
-                                            {topServers.map((item) => (
-                                                <option key={item.serverId} value={item.serverId}>
-                                                    {item.serverName} ({formatBytes(item.totalBytes)})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                />
-                                <div className="audit-chart-selection">
-                                    <span className="audit-chart-selection-label">{copy.workspace.currentSelection}</span>
-                                    <span className="audit-chart-selection-value">
-                                        {selectedTrafficServer?.serverName || copy.workspace.noServerSelected}
-                                    </span>
-                                </div>
-                                <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={serverTrend.points || []}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
-                                            <YAxis />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
-                                            <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid-auto-280-tight audit-leaderboard-grid">
-                            <div className="card audit-leaderboard-card">
-                                <SectionHeader
-                                    className="card-header section-header section-header--compact"
-                                    title={copy.traffic.topUsers}
-                                    subtitle={copy.traffic.topUsersScope}
-                                />
-                                {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelNoCounts}</div>
-                                )}
-                                {topUsers.length === 0 ? (
-                                    <div className="p-4">
-                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
-                                    </div>
-                                ) : (
-                                    <div className="table-container audit-nested-table-shell">
-                                        <table className="table audit-leaderboard-table audit-top-users-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>{copy.tables.user}</th>
-                                                    <th>{leaderboardTrendLabel}</th>
-                                                    <th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
+                            <Row gutter={[24, 24]}>
+                                <Col xs={24} xl={12}>
+                                    <Card
+                                        title={
+                                            <Space direction="vertical" size={0}>
+                                                <Title level={5} style={{ margin: 0 }}>{copy.traffic.userTrend}</Title>
+                                                <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>{copy.traffic.userTrendScope}</Text>
+                                            </Space>
+                                        }
+                                        extra={
+                                            <Select
+                                                showSearch
+                                                placeholder={copy.traffic.selectUser}
+                                                value={selectedUser}
+                                                onChange={setSelectedUser}
+                                                style={{ width: 250 }}
+                                                optionFilterProp="children"
+                                            >
                                                 {topUsers.map((item) => (
-                                                    <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
-                                                        <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">{formatTrafficUserLabel(item)}</td>
-                                                        <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
-                                                            <MiniSparkline
-                                                                points={trafficUserRowTrends[item.email] || []}
-                                                                tone="primary"
-                                                                width={132}
-                                                                height={32}
-                                                            />
-                                                        </td>
-                                                        <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
-                                                    </tr>
+                                                    <Option key={item.email} value={item.email}>
+                                                        {formatTrafficUserLabel(item)} ({formatBytes(item.totalBytes)})
+                                                    </Option>
                                                 ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="card audit-leaderboard-card">
-                                <SectionHeader
-                                    className="card-header section-header section-header--compact"
-                                    title={copy.traffic.topServers}
-                                    subtitle={copy.traffic.topServersScope}
-                                />
-                                {topServers.length === 0 ? (
-                                    <div className="p-4">
-                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
-                                    </div>
-                                ) : (
-                                    <div className="table-container audit-nested-table-shell">
-                                        <table className="table audit-leaderboard-table audit-top-servers-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>{copy.tables.node}</th>
-                                                    <th>{leaderboardTrendLabel}</th>
-                                                    <th className="table-cell-right audit-leaderboard-traffic-column">{copy.tables.traffic}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {topServers.map((item) => (
-                                                    <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
-                                                        <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">{item.serverName}</td>
-                                                        <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
-                                                            <MiniSparkline
-                                                                points={trafficServerRowTrends[item.serverId] || []}
-                                                                tone="success"
-                                                                width={132}
-                                                                height={32}
-                                                            />
-                                                        </td>
-                                                        <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right audit-leaderboard-traffic-cell">{formatBytes(item.totalBytes)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {tab === 'subscriptions' && (
-                    <>
-                        <div className="card p-4 audit-control-card audit-control-card-subscriptions">
-                            <div className="audit-control-head">
-                                <div className="audit-control-copy">
-                                    <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
-                                    <div className="audit-control-text">{copy.workspace.subscriptionsFiltersSubtitle}</div>
-                                </div>
-                                <div className="audit-control-actions">
-                                    <div className="audit-control-action-group">
-                                        <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
-                                            <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
-                                        </button>
-                                        {activeAccessFilterCount > 0 && (
-                                            <button className="btn btn-ghost btn-sm" onClick={handleResetAccessFilters}>
-                                                {copy.actions.resetFilters}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="audit-control-action-group audit-control-action-group--secondary">
-                                        <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
-                                            <HiOutlineTrash /> {copy.actions.clear}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="audit-control-meta audit-control-meta--compact">
-                                <span className="audit-control-pill">
-                                    {copy.states.total.replace('{count}', String(accessData.total || 0))}
-                                </span>
-                                <span className={`audit-control-pill ${activeAccessFilterCount > 0 ? 'is-active' : ''}`}>
-                                    {activeAccessFilterCount > 0
-                                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                                        : copy.workspace.noFilters}
-                                </span>
-                            </div>
-                            <div className="audit-filter-grid audit-filter-grid--subscriptions">
-                                <input
-                                    className="form-input w-220"
-                                    placeholder={copy.filters.userEmailFilter}
-                                    value={accessFilters.email}
-                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
-                                />
-                                <select
-                                    className="form-select w-160"
-                                        value={accessFilters.status}
-                                        onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
+                                            </Select>
+                                        }
                                     >
-                                        <option value="">{copy.filters.allStatus}</option>
-                                        <option value="success">{copy.filters.success}</option>
-                                        <option value="denied">{copy.filters.denied}</option>
-                                        <option value="expired">{copy.filters.expired}</option>
-                                        <option value="revoked">{copy.filters.revoked}</option>
-                                    </select>
-                            </div>
-                        </div>
+                                        {trafficOverview?.userLevelSupported === false && (
+                                            <Badge status="warning" text={copy.traffic.userLevelUnsupported} style={{ marginBottom: 16 }} />
+                                        )}
+                                        <div style={{ marginBottom: 16 }}>
+                                            <Text type="secondary">{copy.workspace.currentSelection}: </Text>
+                                            <Text strong>{selectedTrafficUser ? formatTrafficUserLabel(selectedTrafficUser) : copy.workspace.noUserSelected}</Text>
+                                        </div>
+                                        <div style={{ height: 300 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={userTrend.points || []}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                    <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
+                                                    <YAxis />
+                                                    <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
+                                                    <Line type="monotone" dataKey="totalBytes" stroke="#1890ff" strokeWidth={2} dot={false} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </Card>
+                                </Col>
+                                <Col xs={24} xl={12}>
+                                    <Card
+                                        title={
+                                            <Space direction="vertical" size={0}>
+                                                <Title level={5} style={{ margin: 0 }}>{copy.traffic.serverTrend}</Title>
+                                                <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>{copy.traffic.serverTrendScope}</Text>
+                                            </Space>
+                                        }
+                                        extra={
+                                            <Select
+                                                showSearch
+                                                placeholder={copy.traffic.selectServer}
+                                                value={selectedServerId}
+                                                onChange={setSelectedServerId}
+                                                style={{ width: 250 }}
+                                                optionFilterProp="children"
+                                            >
+                                                {topServers.map((item) => (
+                                                    <Option key={item.serverId} value={item.serverId}>
+                                                        {item.serverName} ({formatBytes(item.totalBytes)})
+                                                    </Option>
+                                                ))}
+                                            </Select>
+                                        }
+                                    >
+                                        <div style={{ marginBottom: 16 }}>
+                                            <Text type="secondary">{copy.workspace.currentSelection}: </Text>
+                                            <Text strong>{selectedTrafficServer?.serverName || copy.workspace.noServerSelected}</Text>
+                                        </div>
+                                        <div style={{ height: 300 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={serverTrend.points || []}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                    <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
+                                                    <YAxis />
+                                                    <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
+                                                    <Line type="monotone" dataKey="totalBytes" stroke="#52c41a" strokeWidth={2} dot={false} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </Card>
+                                </Col>
+                            </Row>
 
-                        <div className="stats-grid audit-stats-grid">
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.pv}</span><HiOutlineDocumentText /></div>
-                                <div className="card-value">{accessSummary.total || 0}</div>
-                            </div>
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.uv}</span><HiOutlineDocumentText /></div>
-                                <div className="card-value">{accessSummary.uniqueIpCount || 0}</div>
-                            </div>
-                            <div className="card audit-stat-card">
-                                <div className="card-header"><span className="card-title">{copy.traffic.uniqueUsers}</span><HiOutlineDocumentText /></div>
-                                <div className="card-value">{accessSummary.uniqueUsers || 0}</div>
-                            </div>
-                            {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
-                                <div className="card audit-stat-card" key={key}>
-                                    <div className="card-header"><span className="card-title">{formatAuditStatusLabel(key, locale)}</span><HiOutlineDocumentText /></div>
-                                    <div className="card-value">{value}</div>
-                                </div>
-                            ))}
-                        </div>
+                            <Row gutter={[24, 24]}>
+                                <Col xs={24} xl={12}>
+                                    <Card
+                                        title={
+                                            <Space direction="vertical" size={0}>
+                                                <Title level={5} style={{ margin: 0 }}>{copy.traffic.topUsers}</Title>
+                                                <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>{copy.traffic.topUsersScope}</Text>
+                                            </Space>
+                                        }
+                                    >
+                                        {trafficOverview?.userLevelSupported === false && (
+                                            <Badge status="warning" text={copy.traffic.userLevelNoCounts} style={{ marginBottom: 16 }} />
+                                        )}
+                                        <Table
+                                            columns={topUserColumns}
+                                            dataSource={topUsers}
+                                            rowKey="email"
+                                            pagination={{ pageSize: 10, size: 'small' }}
+                                            onRow={(record) => ({
+                                                onClick: () => setSelectedUser(record.email),
+                                                style: { cursor: 'pointer' }
+                                            })}
+                                            size="small"
+                                            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={copy.states.noData} /> }}
+                                        />
+                                    </Card>
+                                </Col>
+                                <Col xs={24} xl={12}>
+                                    <Card
+                                        title={
+                                            <Space direction="vertical" size={0}>
+                                                <Title level={5} style={{ margin: 0 }}>{copy.traffic.topServers}</Title>
+                                                <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>{copy.traffic.topServersScope}</Text>
+                                            </Space>
+                                        }
+                                    >
+                                        <Table
+                                            columns={topServerColumns}
+                                            dataSource={topServers}
+                                            rowKey="serverId"
+                                            pagination={{ pageSize: 10, size: 'small' }}
+                                            onRow={(record) => ({
+                                                onClick: () => setSelectedServerId(record.serverId),
+                                                style: { cursor: 'pointer' }
+                                            })}
+                                            size="small"
+                                            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={copy.states.noData} /> }}
+                                        />
+                                    </Card>
+                                </Col>
+                            </Row>
+                        </Space>
+                    )}
 
-                        {accessLoading ? (
-                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
-                                <SkeletonTable rows={5} cols={6} />
-                            </div>
-                        ) : accessData.items.length === 0 ? (
-                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
-                                <EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} />
-                            </div>
-                        ) : isCompactLayout ? (
-                            <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />
-                        ) : (
-                            <div className="table-container glass-panel audit-table-shell audit-subscriptions-table-shell">
-                                <table className="table audit-subscriptions-table">
-                                    <thead>
-                                        <tr>
-                                            <th className="audit-access-time-column">{copy.tables.time}</th>
-                                            <th>{copy.tables.user}</th>
-                                            <th className="table-cell-center audit-access-result-column">{copy.tables.result}</th>
-                                            <th>{copy.tables.realIp}</th>
-                                            <th className="audit-access-location-column">{copy.tables.locationCarrier}</th>
-                                            <th className="audit-access-ua-column">UA</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {accessData.items.map((item) => {
-                                            const geoDisplay = resolveAccessGeoDisplay(item);
-                                            const userLabel = formatAccessUserLabel(item, copy);
-                                            const userMeta = formatAccessUserMeta(item, copy);
-                                            const userAgentLabel = formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true);
-                                            return (
-                                            <tr key={item.id}>
-                                                <td data-label={copy.tables.time} className="cell-mono audit-access-time-cell" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
-                                                <td data-label={copy.tables.user}>
-                                                    <div className="audit-access-user">
-                                                        <span className="audit-access-user-label">{userLabel}</span>
-                                                        {userMeta && (
-                                                            <span className="audit-access-user-meta">{userMeta}</span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td data-label={copy.tables.result} className="table-cell-center audit-access-result-cell"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
-                                                <td data-label={copy.tables.realIp} className="audit-access-ip-cell" style={{ wordBreak: 'break-all' }}>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
-                                                        {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
-                                                    </div>
-                                                </td>
-                                                <td data-label={copy.tables.locationCarrier} className="text-xs audit-access-location-cell">
-                                                    <div className="audit-access-location">
-                                                        <span>{geoDisplay.location}</span>
-                                                        {geoDisplay.carrier && <span className="audit-access-carrier">{geoDisplay.carrier}</span>}
-                                                    </div>
-                                                </td>
-                                                <td data-label={copy.tables.ua} className="text-xs audit-access-ua-cell">
-                                                    <div className="audit-access-ua-text" title={userAgentLabel}>
-                                                        {userAgentLabel}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                    {tab === 'subscriptions' && (
+                        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                            <Card>
+                                <Row justify="space-between" align="top" gutter={[16, 16]}>
+                                    <Col xs={24} md={12}>
+                                        <Title level={5}>{copy.workspace.subscriptionsFiltersTitle}</Title>
+                                        <Text type="secondary">{copy.workspace.subscriptionsFiltersSubtitle}</Text>
+                                    </Col>
+                                    <Col xs={24} md={12} style={{ textAlign: 'right' }}>
+                                        <Space wrap>
+                                            <Button
+                                                type="primary"
+                                                icon={<ReloadOutlined spin={accessLoading} />}
+                                                onClick={() => fetchAccess(1)}
+                                                loading={accessLoading}
+                                            >
+                                                {copy.actions.query}
+                                            </Button>
+                                            {activeAccessFilterCount > 0 && (
+                                                <Button type="link" onClick={handleResetAccessFilters}>
+                                                    {copy.actions.resetFilters}
+                                                </Button>
+                                            )}
+                                            <Button danger icon={<DeleteOutlined />} onClick={handleClearAccessLogs}>
+                                                {copy.actions.clear}
+                                            </Button>
+                                        </Space>
+                                    </Col>
+                                </Row>
 
-                        <div className="audit-pagination page-pagination">
-                            <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(accessData.total || 0))}</div>
-                            <div className="page-pagination-actions">
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>{copy.actions.previous}</button>
-                                <span className="text-sm text-muted self-center">
-                                    {accessPage} / {accessData.totalPages || 1}
-                                </span>
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage >= (accessData.totalPages || 1) || accessLoading} onClick={() => fetchAccess(accessPage + 1)}>{copy.actions.next}</button>
-                            </div>
-                        </div>
-                    </>
-                )}
+                                <Divider />
 
-                {tab === 'logs' && (
-                    <Suspense fallback={(
-                        <div className="glass-panel audit-table-shell audit-tab-loading-shell">
-                            <span className="spinner spinner-20" />
-                        </div>
-                    )}>
-                        <Logs embedded sourceMode="panel" displayLabel={copy.tabs.logs} />
-                    </Suspense>
-                )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {selectedEvent && (
-                <ModalShell isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)}>
-                    <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">{copy.detail.title}</h3>
-                            <button className="modal-close" onClick={() => setSelectedEvent(null)}><HiOutlineXMark /></button>
-                        </div>
-                        <div className="modal-body">
-                            {/* 事件摘要 */}
-                            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                                <div>
-                                    <span className="text-muted">{copy.detail.eventType}: </span>
-                                    <span className="font-semibold">{formatAuditEventLabel(selectedEvent, locale)}</span>
-                                </div>
-                                <div>
-                                    <span className="text-muted">{copy.detail.time}: </span>
-                                    <span>{formatDateTime(selectedEvent.ts, locale)}</span>
-                                </div>
-                                <div>
-                                    <span className="text-muted">{copy.detail.actor}: </span>
-                                    <span className="font-semibold">{formatAuditActorLabel(selectedEvent, locale)}</span>
-                                    {selectedEvent.actorRole && (
-                                        <span className="badge badge-neutral ml-2 text-xs">{formatAuditActorRole(selectedEvent.actorRole, locale)}</span>
+                                <Row gutter={[16, 16]} align="middle">
+                                    <Col>
+                                        <Badge count={accessData.total || 0} overflowCount={999999} color="blue" showZero>
+                                            <Tag color="blue" style={{ margin: 0 }}>{copy.workspace.recordCount}</Tag>
+                                        </Badge>
+                                    </Col>
+                                    {activeAccessFilterCount > 0 && (
+                                        <Col>
+                                            <Tag color="orange" closable onClose={handleResetAccessFilters}>
+                                                {copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))}
+                                            </Tag>
+                                        </Col>
                                     )}
-                                </div>
-                                <div>
-                                    <span className="text-muted">{copy.detail.result}: </span>
-                                    <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{formatAuditStatusLabel(selectedEvent.outcome, locale)}</span>
-                                </div>
-                                {selectedEvent.ip && (
-                                    <div>
-                                        <span className="text-muted">{copy.detail.ip}: </span>
-                                        <span className="font-mono">{selectedEvent.ip}</span>
-                                    </div>
-                                )}
-                                {formatAuditLocationCarrier(selectedEvent) && (
-                                    <div>
-                                        <span className="text-muted">{copy.detail.locationCarrier}: </span>
-                                        <span>{formatAuditLocationCarrier(selectedEvent)}</span>
-                                    </div>
-                                )}
-                                {selectedEvent.path && (
-                                    <div>
-                                        <span className="text-muted">{copy.detail.path}: </span>
-                                        <span className="font-mono">{selectedEvent.method} {selectedEvent.path}</span>
-                                    </div>
-                                )}
-                                {selectedEvent.serverId && (
-                                    <div>
-                                        <span className="text-muted">{copy.detail.node}: </span>
-                                        <span>{selectedEvent.serverId}</span>
-                                    </div>
-                                )}
-                                {resolveAuditTarget(selectedEvent) !== '-' && (
-                                    <div>
-                                        <span className="text-muted">{copy.detail.targetUser}: </span>
-                                        <span>{resolveAuditTarget(selectedEvent)}</span>
-                                    </div>
-                                )}
-                            </div>
+                                </Row>
 
-                            {/* 变更前后对比（如有） */}
-                            {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
-                                <div className="mb-4">
-                                    <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.diff}</div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {selectedEvent.beforeSnapshot && (
-                                            <div>
-                                                <div className="text-xs text-danger mb-1 font-semibold">{copy.detail.before}</div>
-                                                <pre className="log-viewer log-viewer-compact max-h-[200px] bg-danger/5 border border-danger/15">
+                                <Form layout="inline" style={{ marginTop: 24 }}>
+                                    <Form.Item>
+                                        <Input
+                                            placeholder={copy.filters.userEmailFilter}
+                                            value={accessFilters.email}
+                                            onChange={(e) => setAccessFilters(prev => ({ ...prev, email: e.target.value }))}
+                                            style={{ width: 250 }}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <Select
+                                            value={accessFilters.status}
+                                            onChange={(val) => setAccessFilters(prev => ({ ...prev, status: val }))}
+                                            style={{ width: 180 }}
+                                        >
+                                            <Option value="">{copy.filters.allStatus}</Option>
+                                            <Option value="success">{copy.filters.success}</Option>
+                                            <Option value="denied">{copy.filters.denied}</Option>
+                                            <Option value="expired">{copy.filters.expired}</Option>
+                                            <Option value="revoked">{copy.filters.revoked}</Option>
+                                        </Select>
+                                    </Form.Item>
+                                </Form>
+                            </Card>
+
+                            <Row gutter={[16, 16]}>
+                                <Col xs={12} sm={8} lg={4}>
+                                    <Card size="small">
+                                        <Statistic title={copy.traffic.pv} value={accessSummary.total || 0} valueStyle={{ fontSize: '20px' }} />
+                                    </Card>
+                                </Col>
+                                <Col xs={12} sm={8} lg={4}>
+                                    <Card size="small">
+                                        <Statistic title={copy.traffic.uv} value={accessSummary.uniqueIpCount || 0} valueStyle={{ fontSize: '20px' }} />
+                                    </Card>
+                                </Col>
+                                <Col xs={12} sm={8} lg={4}>
+                                    <Card size="small">
+                                        <Statistic title={copy.traffic.uniqueUsers} value={accessSummary.uniqueUsers || 0} valueStyle={{ fontSize: '20px' }} />
+                                    </Card>
+                                </Col>
+                                {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
+                                    <Col xs={12} sm={8} lg={4} key={key}>
+                                        <Card size="small">
+                                            <Statistic title={formatAuditStatusLabel(key, locale)} value={value} valueStyle={{ fontSize: '20px' }} />
+                                        </Card>
+                                    </Col>
+                                ))}
+                            </Row>
+
+                            <Table
+                                columns={accessTableColumns}
+                                dataSource={accessData.items}
+                                rowKey="id"
+                                loading={accessLoading}
+                                pagination={{
+                                    current: accessPage,
+                                    pageSize: 30,
+                                    total: accessData.total,
+                                    onChange: (page) => fetchAccess(page),
+                                    showSizeChanger: false,
+                                    showTotal: (total) => copy.states.total.replace('{count}', String(total)),
+                                }}
+                                scroll={{ x: 'max-content' }}
+                                locale={{
+                                    emptyText: <Empty description={copy.states.noAccess} />
+                                }}
+                            />
+                        </Space>
+                    )}
+
+                    {tab === 'logs' && (
+                        <Suspense fallback={
+                            <Card style={{ textAlign: 'center', padding: '50px' }}>
+                                <ReloadOutlined spin style={{ fontSize: 24 }} />
+                            </Card>
+                        }>
+                            <Card>
+                                <Logs embedded sourceMode="panel" displayLabel={copy.tabs.logs} />
+                            </Card>
+                        </Suspense>
+                    )}
+                </div>
+            </Layout.Content>
+
+            <Modal
+                title={copy.detail.title}
+                open={!!selectedEvent}
+                onCancel={() => setSelectedEvent(null)}
+                footer={[
+                    <Button key="close" onClick={() => setSelectedEvent(null)}>
+                        {t('common.close') || 'Close'}
+                    </Button>
+                ]}
+                width={800}
+            >
+                {selectedEvent && (
+                    <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                        <Descriptions bordered column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}>
+                            <Descriptions.Item label={copy.detail.eventType}>
+                                <Text strong>{formatAuditEventLabel(selectedEvent, locale)}</Text>
+                            </Descriptions.Item>
+                            <Descriptions.Item label={copy.detail.time}>
+                                {formatDateTime(selectedEvent.ts, locale)}
+                            </Descriptions.Item>
+                            <Descriptions.Item label={copy.detail.actor}>
+                                <Space>
+                                    <Text strong>{formatAuditActorLabel(selectedEvent, locale)}</Text>
+                                    {selectedEvent.actorRole && (
+                                        <Tag>{formatAuditActorRole(selectedEvent.actorRole, locale)}</Tag>
+                                    )}
+                                </Space>
+                            </Descriptions.Item>
+                            <Descriptions.Item label={copy.detail.result}>
+                                <Tag color={getStatusTagColor(selectedEvent.outcome)}>
+                                    {formatAuditStatusLabel(selectedEvent.outcome, locale)}
+                                </Tag>
+                            </Descriptions.Item>
+                            {selectedEvent.ip && (
+                                <Descriptions.Item label={copy.detail.ip}>
+                                    <Text code>{selectedEvent.ip}</Text>
+                                </Descriptions.Item>
+                            )}
+                            {formatAuditLocationCarrier(selectedEvent) && (
+                                <Descriptions.Item label={copy.detail.locationCarrier}>
+                                    {formatAuditLocationCarrier(selectedEvent)}
+                                </Descriptions.Item>
+                            )}
+                            {selectedEvent.path && (
+                                <Descriptions.Item label={copy.detail.path}>
+                                    <Text code>{selectedEvent.method} {selectedEvent.path}</Text>
+                                </Descriptions.Item>
+                            )}
+                            {selectedEvent.serverId && (
+                                <Descriptions.Item label={copy.detail.node}>
+                                    {selectedEvent.serverId}
+                                </Descriptions.Item>
+                            )}
+                            {resolveAuditTarget(selectedEvent) !== '-' && (
+                                <Descriptions.Item label={copy.detail.targetUser}>
+                                    {resolveAuditTarget(selectedEvent)}
+                                </Descriptions.Item>
+                            )}
+                        </Descriptions>
+
+                        {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
+                            <div>
+                                <Title level={5} type="primary">{copy.detail.diff}</Title>
+                                <Row gutter={16}>
+                                    {selectedEvent.beforeSnapshot && (
+                                        <Col span={selectedEvent.afterSnapshot ? 12 : 24}>
+                                            <Text type="danger" strong>{copy.detail.before}</Text>
+                                            <div style={{
+                                                background: '#fff1f0',
+                                                border: '1px solid #ffa39e',
+                                                padding: '12px',
+                                                borderRadius: '4px',
+                                                maxHeight: '300px',
+                                                overflow: 'auto',
+                                                marginTop: '8px'
+                                            }}>
+                                                <pre style={{ margin: 0, fontSize: '12px' }}>
                                                     {JSON.stringify(selectedEvent.beforeSnapshot, null, 2)}
                                                 </pre>
                                             </div>
-                                        )}
-                                        {selectedEvent.afterSnapshot && (
-                                            <div>
-                                                <div className="text-xs text-success mb-1 font-semibold">{copy.detail.after}</div>
-                                                <pre className="log-viewer log-viewer-compact max-h-[200px] bg-success/5 border border-success/15">
+                                        </Col>
+                                    )}
+                                    {selectedEvent.afterSnapshot && (
+                                        <Col span={selectedEvent.beforeSnapshot ? 12 : 24}>
+                                            <Text type="success" strong>{copy.detail.after}</Text>
+                                            <div style={{
+                                                background: '#f6ffed',
+                                                border: '1px solid #b7eb8f',
+                                                padding: '12px',
+                                                borderRadius: '4px',
+                                                maxHeight: '300px',
+                                                overflow: 'auto',
+                                                marginTop: '8px'
+                                            }}>
+                                                <pre style={{ margin: 0, fontSize: '12px' }}>
                                                     {JSON.stringify(selectedEvent.afterSnapshot, null, 2)}
                                                 </pre>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                                        </Col>
+                                    )}
+                                </Row>
+                            </div>
+                        )}
 
-                            {/* 详细数据 */}
-                            <div>
-                                <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.payload}</div>
-                                <pre className="log-viewer log-viewer-compact">
+                        <div>
+                            <Title level={5} type="primary">{copy.detail.payload}</Title>
+                            <div style={{
+                                background: '#f5f5f5',
+                                padding: '12px',
+                                borderRadius: '4px',
+                                maxHeight: '400px',
+                                overflow: 'auto'
+                            }}>
+                                <pre style={{ margin: 0, fontSize: '12px' }}>
                                     {JSON.stringify(sanitizeAuditDetailPayload(selectedEvent.details || {}, locale), null, 2)}
                                 </pre>
                             </div>
                         </div>
-                    </div>
-                </ModalShell>
-            )}
-        </>
+                    </Space>
+                )}
+            </Modal>
+        </Layout>
     );
 }

@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Modal, Table, Select, Button, Card, Badge, Tag, Typography, Skeleton, Empty, Space } from 'antd';
 import {
-    HiOutlineArrowPath,
-    HiOutlineCheckCircle,
-    HiOutlineExclamationTriangle,
-    HiOutlineWrenchScrewdriver,
-    HiOutlineXMark,
-} from 'react-icons/hi2';
+    ReloadOutlined,
+    ExclamationTriangleOutlined,
+    WrenchOutlined,
+} from '@ant-design/icons';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { formatBytes } from '../../utils/format.js';
@@ -17,9 +16,8 @@ import {
     getClientIdentifier,
     getConflictTypeLabels,
 } from '../../utils/clientConflict.js';
-import ModalShell from '../UI/ModalShell.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import SkeletonTable from '../UI/SkeletonTable.jsx';
+
+const { Text } = Typography;
 
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
@@ -210,160 +208,154 @@ export default function ConflictScannerModal({
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose}>
-            <div className="modal modal-wide glass-panel" style={{ maxWidth: '1200px' }} onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3 className="modal-title">冲突扫描与修复</h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+        <Modal
+            title="冲突扫描与修复"
+            open={isOpen}
+            onCancel={onClose}
+            footer={[
+                <Button key="close" onClick={onClose}>
+                    关闭
+                </Button>
+            ]}
+            width={1200}
+            centered
+        >
+            <div style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <Space size="middle">
+                        <Tag color="default">冲突组 {summary.conflictGroups}</Tag>
+                        <Tag color="error">高风险 {summary.high}</Tag>
+                        <Tag color="warning">中风险 {summary.medium}</Tag>
+                    </Space>
+                    <Button
+                        icon={<ReloadOutlined />}
+                        onClick={refreshFromServer}
+                        loading={scanning}
+                    >
+                        重新扫描
+                    </Button>
                 </div>
 
-                <div className="modal-body">
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="badge badge-neutral">冲突组 {summary.conflictGroups}</span>
-                            <span className="badge badge-danger">高风险 {summary.high}</span>
-                            <span className="badge badge-warning">中风险 {summary.medium}</span>
-                        </div>
-                        <button className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
-                            {scanning ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新扫描</>}
-                        </button>
-                    </div>
-
-                    {scanning ? (
-                        <div className="glass-panel p-4">
-                            <SkeletonTable rows={4} cols={4} />
-                        </div>
-                    ) : conflictGroups.length === 0 ? (
-                        <EmptyState
-                            title="未检测到可识别冲突"
-                            subtitle="同一身份在同协议下未发现参数分歧。"
-                            icon={<HiOutlineCheckCircle />}
-                            size="compact"
-                            surface
-                        />
-                    ) : (
-                        <div className="flex flex-col gap-4">
-                            {conflictGroups.map((group) => (
-                                <div key={group.groupKey} className="card p-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                {scanning ? (
+                    <Skeleton active />
+                ) : conflictGroups.length === 0 ? (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={
+                            <span>
+                                <strong>未检测到可识别冲突</strong>
+                                <br />
+                                <Text type="secondary">同一身份在同协议下未发现参数分歧。</Text>
+                            </span>
+                        }
+                    />
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {conflictGroups.map((group) => (
+                            <Card
+                                key={group.groupKey}
+                                size="small"
+                                title={
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '4px 0' }}>
                                         <div>
-                                            <div className="font-semibold text-white">{group.displayIdentity}</div>
-                                            <div className="text-sm text-muted">
+                                            <Text strong style={{ fontSize: '16px' }}>{group.displayIdentity}</Text>
+                                            <div style={{ fontSize: '12px', fontWeight: 'normal', color: 'rgba(255, 255, 255, 0.45)' }}>
                                                 {group.entryCount} 条记录 / {group.serverCount} 节点
                                             </div>
                                         </div>
-                                        <span className={`badge ${group.severity === 'high' ? 'badge-danger' : 'badge-warning'}`}>
-                                            <HiOutlineExclamationTriangle /> {group.severity === 'high' ? '高风险' : '中风险'}
-                                        </span>
+                                        <Tag
+                                            color={group.severity === 'high' ? 'error' : 'warning'}
+                                            icon={<ExclamationTriangleOutlined />}
+                                        >
+                                            {group.severity === 'high' ? '高风险' : '中风险'}
+                                        </Tag>
                                     </div>
+                                }
+                            >
+                                <Space wrap style={{ marginBottom: '16px' }}>
+                                    {getConflictTypeLabels(group.conflictTypes).map((label) => (
+                                        <Tag key={`${group.groupKey}-${label}`}>{label}</Tag>
+                                    ))}
+                                </Space>
 
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        {getConflictTypeLabels(group.conflictTypes).map((label) => (
-                                            <span key={`${group.groupKey}-${label}`} className="badge badge-neutral">
-                                                {label}
-                                            </span>
-                                        ))}
-                                    </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {(group.protocols || []).map((protocolGroup) => {
+                                        const key = selectionKey(group.groupKey, protocolGroup.protocol);
+                                        const selectedSourceKey = selectionMap[key] || protocolGroup.recommendedSourceKey || '';
+                                        const resolving = resolvingKey === key;
 
-                                    <div className="flex flex-col gap-3 mt-4">
-                                        {(group.protocols || []).map((protocolGroup) => {
-                                            const key = selectionKey(group.groupKey, protocolGroup.protocol);
-                                            const selectedSourceKey = selectionMap[key] || protocolGroup.recommendedSourceKey || '';
-                                            const resolving = resolvingKey === key;
-
-                                            return (
-                                                <div key={key} className="glass-panel p-3">
-                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                                        <div className="font-medium">
-                                                            协议 {String(protocolGroup.protocol || '').toUpperCase()} · {protocolGroup.entryCount} 条
-                                                        </div>
-                                                        <div className="text-xs text-muted">
-                                                            差异字段: {protocolGroup.diffFields.join(', ') || '-'}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="grid-auto-220 mb-3" style={{ alignItems: 'center' }}>
-                                                        <select
-                                                            className="form-select"
-                                                            value={selectedSourceKey}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-                                                                setSelectionMap((prev) => ({ ...prev, [key]: value }));
-                                                            }}
-                                                        >
-                                                            {(protocolGroup.sourceCandidates || []).map((candidate) => (
-                                                                <option key={candidate.sourceKey} value={candidate.sourceKey}>
-                                                                    {candidate.serverName} / {candidate.inboundRemark || '-'} / {candidate.identifier || '(空标识)'}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-
-                                                        <button
-                                                            className="btn btn-primary btn-sm"
-                                                            onClick={() => resolveProtocolConflict(group, protocolGroup)}
-                                                            disabled={resolving || scanning}
-                                                        >
-                                                            {resolving ? <span className="spinner" /> : <><HiOutlineWrenchScrewdriver /> 按来源覆盖其他节点</>}
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="table-container">
-                                                        <table className="table conflict-scanner-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>节点</th>
-                                                                    <th>入站</th>
-                                                                    <th>标识</th>
-                                                                    <th className="table-cell-center conflict-scanner-enabled-column">启用</th>
-                                                                    <th className="table-cell-center conflict-scanner-expiry-column">有效期</th>
-                                                                    <th className="table-cell-right conflict-scanner-total-column">总量</th>
-                                                                    <th className="table-cell-center conflict-scanner-source-column">来源</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {(protocolGroup.entries || []).map((entry) => {
-                                                                    const locator = buildClientEntryLocator(entry);
-                                                                    const isSource = locator === selectedSourceKey;
-                                                                    return (
-                                                                        <tr key={`${locator}-${entry.uiKey || ''}`}>
-                                                                            <td data-label="节点">{entry.serverName || entry.serverId}</td>
-                                                                            <td data-label="入站">{entry.inboundRemark || entry.inboundId}</td>
-                                                                            <td data-label="标识" className="font-mono text-xs">
-                                                                                {getClientIdentifier(entry) || '-'}
-                                                                            </td>
-                                                                            <td data-label="启用" className="table-cell-center conflict-scanner-enabled-cell">
-                                                                                <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
-                                                                                    {entry.enable === false ? '停用' : '启用'}
-                                                                                </span>
-                                                                            </td>
-                                                                            <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime)}</td>
-                                                                            <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
-                                                                            <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
-                                                                                {isSource ? <span className="badge badge-info">来源</span> : '-'}
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                        return (
+                                            <Card
+                                                key={key}
+                                                type="inner"
+                                                size="small"
+                                                title={`协议 ${String(protocolGroup.protocol || '').toUpperCase()} · ${protocolGroup.entryCount} 条`}
+                                                extra={<Text type="secondary" size="small">差异字段: {protocolGroup.diffFields.join(', ') || '-'}</Text>}
+                                            >
+                                                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    <Select
+                                                        style={{ flex: 1, minWidth: '300px' }}
+                                                        value={selectedSourceKey}
+                                                        onChange={(value) => setSelectionMap((prev) => ({ ...prev, [key]: value }))}
+                                                        options={(protocolGroup.sourceCandidates || []).map((candidate) => ({
+                                                            value: candidate.sourceKey,
+                                                            label: `${candidate.serverName} / ${candidate.inboundRemark || '-'} / ${candidate.identifier || '(空标识)'}`
+                                                        }))}
+                                                    />
+                                                    <Button
+                                                        type="primary"
+                                                        icon={<WrenchOutlined />}
+                                                        onClick={() => resolveProtocolConflict(group, protocolGroup)}
+                                                        loading={resolving}
+                                                        disabled={scanning}
+                                                    >
+                                                        按来源覆盖其他节点
+                                                    </Button>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
 
-                <div className="modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>关闭</button>
-                </div>
+                                                <Table
+                                                    size="small"
+                                                    dataSource={protocolGroup.entries}
+                                                    pagination={false}
+                                                    rowKey={(record) => `${buildClientEntryLocator(record)}-${record.uiKey || ''}`}
+                                                    columns={[
+                                                        { title: '节点', dataIndex: 'serverName', key: 'serverName', render: (text, record) => text || record.serverId },
+                                                        { title: '入站', dataIndex: 'inboundRemark', key: 'inboundRemark', render: (text, record) => text || record.inboundId },
+                                                        { title: '标识', key: 'identifier', className: 'font-mono text-xs', render: (_, record) => getClientIdentifier(record) || '-' },
+                                                        {
+                                                            title: '启用',
+                                                            dataIndex: 'enable',
+                                                            key: 'enable',
+                                                            align: 'center',
+                                                            render: (enable) => (
+                                                                <Tag color={enable === false ? 'error' : 'success'}>
+                                                                    {enable === false ? '停用' : '启用'}
+                                                                </Tag>
+                                                            ),
+                                                        },
+                                                        { title: '有效期', dataIndex: 'expiryTime', key: 'expiryTime', align: 'center', className: 'cell-mono', render: (time) => formatExpiry(time) },
+                                                        { title: '总量', dataIndex: 'totalGB', key: 'totalGB', align: 'right', className: 'cell-mono-right', render: (val) => formatBytes(toNumber(val, 0)) },
+                                                        {
+                                                            title: '来源',
+                                                            key: 'source',
+                                                            align: 'center',
+                                                            render: (_, record) => {
+                                                                const locator = buildClientEntryLocator(record);
+                                                                return locator === selectedSourceKey ? <Tag color="blue">来源</Tag> : '-';
+                                                            }
+                                                        }
+                                                    ]}
+                                                />
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </div>
-        </ModalShell>
+        </Modal>
     );
 }

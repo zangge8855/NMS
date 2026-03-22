@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
+import { Card, Typography } from 'antd';
 import Header from '../Layout/Header.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
 import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
+
+const { Title, Paragraph } = Typography;
 
 function getDownloadsCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -35,19 +37,17 @@ export default function DownloadsCenter() {
     return (
         <>
             <Header title={copy.title} />
-            <div className="page-content page-content--wide page-enter subscriptions-page">
-                <div className="card subscription-downloads-card subscription-downloads-page-card">
-                    <SectionHeader
-                        className="card-header section-header section-header--compact"
-                        title={copy.panelTitle}
-                        subtitle={copy.panelSubtitle}
-                    />
+            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <Card 
+                    title={<Title level={4} style={{ margin: 0 }}>{copy.panelTitle}</Title>}
+                >
+                    <Paragraph type="secondary">{copy.panelSubtitle}</Paragraph>
                     <SubscriptionClientLinks
                         bundle={bundle}
                         showHeading={false}
                         showImportMethods={false}
                     />
-                </div>
+                </Card>
             </div>
         </>
     );

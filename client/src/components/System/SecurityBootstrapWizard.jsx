@@ -1,8 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+    Alert,
+    Button,
+    Card,
+    Col,
+    Form,
+    Input,
+    Modal,
+    Row,
+    Space,
+    Typography,
+} from 'antd';
+import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import toast from 'react-hot-toast';
 import api, { setStoredToken } from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+
+const { Title, Text, Paragraph } = Typography;
 
 const SECURITY_BOOTSTRAP_COPY = {
     'zh-CN': {
@@ -177,126 +192,151 @@ export default function SecurityBootstrapWizard() {
     };
 
     return (
-        <div className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
-            <div className="security-bootstrap-shell">
-                <div className="security-bootstrap-copy">
-                    <div className="security-bootstrap-kicker">NMS Security</div>
-                    <h2 id="security-bootstrap-title" className="security-bootstrap-title">{copy.title}</h2>
-                    <p className="security-bootstrap-subtitle">{copy.subtitle}</p>
-                    <div className="security-bootstrap-callout">
-                        <div className="security-bootstrap-callout-title">{copy.issueTitle}</div>
-                        <div className="security-bootstrap-issue-list">
-                            {status.issues.map((item) => (
-                                <div key={item.code || item.message} className="security-bootstrap-issue">
-                                    <span className="security-bootstrap-issue-code">{item.code}</span>
-                                    <span className="security-bootstrap-issue-text">{item.message}</span>
-                                </div>
-                            ))}
+        <Modal
+            open={true}
+            footer={null}
+            closable={false}
+            maskClosable={false}
+            centered
+            width={1000}
+            styles={{ body: { padding: 0, overflow: 'hidden' } }}
+        >
+            <Row gutter={0}>
+                <Col xs={24} md={10} style={{ padding: '32px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0' }}>
+                    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                        <div>
+                            <Text strong type="secondary" style={{ textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>
+                                NMS Security
+                            </Text>
+                            <Title level={3} style={{ marginTop: '8px' }}>{copy.title}</Title>
+                            <Paragraph type="secondary">{copy.subtitle}</Paragraph>
                         </div>
-                    </div>
-                    <div className="security-bootstrap-meta-grid">
-                        <div className="security-bootstrap-meta-card">
-                            <div className="security-bootstrap-meta-label">{copy.envFile}</div>
-                            <div className="security-bootstrap-meta-value">{status.envFile || '-'}</div>
-                        </div>
-                        <div className="security-bootstrap-meta-card">
-                            <div className="security-bootstrap-meta-label">{copy.statsTitle}</div>
-                            <div className="security-bootstrap-meta-value">
-                                {copy.serverCount}: {status.stats?.serverCount || 0}
-                            </div>
-                            <div className="security-bootstrap-meta-detail">
-                                {copy.telegramConfigured}: {status.stats?.telegramConfigured ? copy.telegramReady : copy.telegramEmpty}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="security-bootstrap-note">{copy.rotateHint}</div>
-                </div>
-                <div className="security-bootstrap-form">
-                    <label className="security-bootstrap-field">
-                        <span className="security-bootstrap-label">{copy.adminUsername}</span>
-                        <input
-                            className="form-input"
-                            value={draft.adminUsername}
-                            onChange={(event) => setDraft((current) => ({ ...current, adminUsername: event.target.value }))}
-                            autoComplete="username"
-                        />
-                    </label>
-                    <label className="security-bootstrap-field">
-                        <span className="security-bootstrap-label">{copy.adminPassword}</span>
-                        <input
-                            className="form-input"
-                            type="password"
-                            value={draft.adminPassword}
-                            onChange={(event) => setDraft((current) => ({ ...current, adminPassword: event.target.value }))}
-                            autoComplete="new-password"
-                        />
-                    </label>
-                    <label className="security-bootstrap-field">
-                        <span className="security-bootstrap-label">{copy.confirmPassword}</span>
-                        <input
-                            className="form-input"
-                            type="password"
-                            value={draft.confirmPassword}
-                            onChange={(event) => setDraft((current) => ({ ...current, confirmPassword: event.target.value }))}
-                            autoComplete="new-password"
-                        />
-                    </label>
-                    <label className="security-bootstrap-field">
-                        <span className="security-bootstrap-label">{copy.jwtSecret}</span>
-                        <div className="security-bootstrap-inline">
-                            <input
-                                className="form-input font-mono"
+
+                        {status.issues.length > 0 && (
+                            <Alert
+                                message={copy.issueTitle}
+                                description={
+                                    <ul style={{ paddingLeft: '1.25rem', marginBottom: 0, marginTop: '8px' }}>
+                                        {status.issues.map((item, idx) => (
+                                            <li key={idx}>
+                                                <Text type="danger" style={{ fontWeight: 500 }}>{item.code}</Text>
+                                                <Text size="small" style={{ marginLeft: '8px' }}>{item.message}</Text>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                }
+                                type="error"
+                                showIcon
+                            />
+                        )}
+
+                        <Row gutter={[16, 16]}>
+                            <Col span={24}>
+                                <Card size="small" title={copy.envFile} bordered={false} styles={{ header: { padding: '8px 12px', borderBottom: 0 }, body: { padding: '0 12px 8px' } }}>
+                                    <Text code style={{ fontSize: '12px' }}>{status.envFile || '-'}</Text>
+                                </Card>
+                            </Col>
+                            <Col span={24}>
+                                <Card size="small" title={copy.statsTitle} bordered={false} styles={{ header: { padding: '8px 12px', borderBottom: 0 }, body: { padding: '0 12px 8px' } }}>
+                                    <Space direction="vertical" size={0}>
+                                        <Text size="small">{copy.serverCount}: {status.stats?.serverCount || 0}</Text>
+                                        <Text size="small" type="secondary">
+                                            {copy.telegramConfigured}: {status.stats?.telegramConfigured ? copy.telegramReady : copy.telegramEmpty}
+                                        </Text>
+                                    </Space>
+                                </Card>
+                            </Col>
+                        </Row>
+
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 'auto' }}>
+                            {copy.rotateHint}
+                        </Text>
+                    </Space>
+                </Col>
+                <Col xs={24} md={14} style={{ padding: '32px' }}>
+                    <Form layout="vertical" onFinish={handleSubmit}>
+                        <Form.Item label={copy.adminUsername} required>
+                            <Input
+                                size="large"
+                                value={draft.adminUsername}
+                                onChange={(event) => setDraft((current) => ({ ...current, adminUsername: event.target.value }))}
+                                autoComplete="username"
+                            />
+                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item label={copy.adminPassword} required>
+                                    <Input.Password
+                                        size="large"
+                                        value={draft.adminPassword}
+                                        onChange={(event) => setDraft((current) => ({ ...current, adminPassword: event.target.value }))}
+                                        autoComplete="new-password"
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label={copy.confirmPassword} required>
+                                    <Input.Password
+                                        size="large"
+                                        value={draft.confirmPassword}
+                                        onChange={(event) => setDraft((current) => ({ ...current, confirmPassword: event.target.value }))}
+                                        autoComplete="new-password"
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Form.Item label={copy.jwtSecret} required>
+                            <Input
+                                size="large"
+                                className="font-mono"
                                 value={draft.jwtSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, jwtSecret: event.target.value }))}
+                                addonAfter={
+                                    <Button type="link" size="small" onClick={() => setDraft((current) => ({ ...current, jwtSecret: generateSecret(24) }))}>
+                                        {copy.autoGenerate}
+                                    </Button>
+                                }
                                 spellCheck={false}
                             />
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setDraft((current) => ({ ...current, jwtSecret: generateSecret(24) }))}
-                            >
-                                {copy.autoGenerate}
-                            </button>
-                        </div>
-                    </label>
-                    <label className="security-bootstrap-field">
-                        <span className="security-bootstrap-label">{copy.credentialsSecret}</span>
-                        <div className="security-bootstrap-inline">
-                            <input
-                                className="form-input font-mono"
+                        </Form.Item>
+                        <Form.Item label={copy.credentialsSecret} required>
+                            <Input
+                                size="large"
+                                className="font-mono"
                                 value={draft.credentialsSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, credentialsSecret: event.target.value }))}
+                                addonAfter={
+                                    <Button type="link" size="small" onClick={() => setDraft((current) => ({ ...current, credentialsSecret: generateSecret(24) }))}>
+                                        {copy.autoGenerate}
+                                    </Button>
+                                }
                                 spellCheck={false}
                             />
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setDraft((current) => ({ ...current, credentialsSecret: generateSecret(24) }))}
+                        </Form.Item>
+                        <div style={{ marginTop: '32px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <Button
+                                size="large"
+                                icon={<ReloadOutlined />}
+                                onClick={() => loadStatus({ preserveDraft: true })}
+                                disabled={saving}
                             >
-                                {copy.autoGenerate}
-                            </button>
+                                {copy.retry}
+                            </Button>
+                            <Button
+                                size="large"
+                                type="primary"
+                                danger
+                                icon={<SafetyCertificateOutlined />}
+                                onClick={handleSubmit}
+                                loading={saving}
+                                disabled={!canSubmit}
+                            >
+                                {saving ? copy.applying : copy.apply}
+                            </Button>
                         </div>
-                    </label>
-                    <div className="security-bootstrap-actions">
-                        <button
-                            type="button"
-                            className="btn btn-ghost"
-                            onClick={() => loadStatus({ preserveDraft: true })}
-                            disabled={saving}
-                        >
-                            {copy.retry}
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-danger"
-                            onClick={handleSubmit}
-                            disabled={!canSubmit || saving}
-                        >
-                            {saving ? copy.applying : copy.apply}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+                    </Form>
+                </Col>
+            </Row>
+        </Modal>
     );
 }

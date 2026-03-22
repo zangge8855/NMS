@@ -11,7 +11,6 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
-    HiChevronRight,
     HiOutlineChevronDown,
     HiOutlineChevronUp,
     HiOutlinePlusCircle,
@@ -44,11 +43,13 @@ import {
 import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
-import ModalShell from '../UI/ModalShell.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import SkeletonTable from '../UI/SkeletonTable.jsx';
-import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+
+import {
+  ConfigProvider, theme, Card, Button, Table, Modal, Form, Input, Select, Switch, Space, Tag, Typography, Row, Col, Badge, Spin, Popconfirm, Tooltip, Empty
+} from 'antd';
+const { Title, Text } = Typography;
+const { Option } = Select;
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -101,23 +102,11 @@ function maskSensitiveValue(value) {
 }
 
 function normalizeOnlineEntry(entry) {
-    if (typeof entry === 'string') {
-        return [String(entry).trim().toLowerCase()].filter(Boolean);
-    }
+    if (typeof entry === 'string') return [String(entry).trim().toLowerCase()].filter(Boolean);
     if (!entry || typeof entry !== 'object') return [];
-
     return [
-        entry.email,
-        entry.user,
-        entry.username,
-        entry.clientEmail,
-        entry.client,
-        entry.remark,
-        entry.id,
-        entry.password,
-    ]
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean);
+        entry.email, entry.user, entry.username, entry.clientEmail, entry.client, entry.remark, entry.id, entry.password
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean);
 }
 
 function buildClientOnlineKeys(client, protocol) {
@@ -126,12 +115,10 @@ function buildClientOnlineKeys(client, protocol) {
     const identifier = String(getClientIdentifier(client, protocol) || '').trim().toLowerCase();
     const id = String(client?.id || '').trim().toLowerCase();
     const password = String(client?.password || '').trim().toLowerCase();
-
     if (email) keys.add(email);
     if (identifier) keys.add(identifier);
     if (id) keys.add(id);
     if (password) keys.add(password);
-
     return Array.from(keys);
 }
 
@@ -146,7 +133,6 @@ export default function Inbounds() {
 
     const [inbounds, setInbounds] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedId, setExpandedId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInbound, setEditingInbound] = useState(null);
     const [filterServerId, setFilterServerId] = useState(resolvedActiveFilterServerId);
@@ -155,31 +141,25 @@ export default function Inbounds() {
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
     const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
 
-    // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
-
-    // Batch Client Add State
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
     const [clientTargets, _setClientTargets] = useState([]);
     const [batchResultData, setBatchResultData] = useState(null);
     const [batchResultTitle, setBatchResultTitle] = useState(t('comp.common.batchResult'));
+    
+    // Entitlement Modal
     const [entitlementOpen, setEntitlementOpen] = useState(false);
     const [entitlementTarget, setEntitlementTarget] = useState(null);
-    const [entitlementExpiryDate, setEntitlementExpiryDate] = useState('');
-    const [entitlementLimitIp, setEntitlementLimitIp] = useState('0');
-    const [entitlementTrafficLimitGb, setEntitlementTrafficLimitGb] = useState('0');
     const [entitlementSaving, setEntitlementSaving] = useState(false);
+    const [entitlementForm] = Form.useForm();
+    
     const [overrideKeySet, setOverrideKeySet] = useState(new Set());
     const [clientActionKey, setClientActionKey] = useState('');
     const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
-    const orderedServerOptions = useMemo(
-        () => sortServersByOrder(servers, serverOrder),
-        [servers, serverOrder]
-    );
 
-    const sortVisibleInbounds = (items, orderMap, nextServerOrder = serverOrder) => sortInboundsByOrder(items, orderMap, {
-        serverOrder: nextServerOrder,
-    });
+    const orderedServerOptions = useMemo(() => sortServersByOrder(servers, serverOrder), [servers, serverOrder]);
+
+    const sortVisibleInbounds = (items, orderMap, nextServerOrder = serverOrder) => sortInboundsByOrder(items, orderMap, { serverOrder: nextServerOrder });
 
     const fetchAllInbounds = async () => {
         if (servers.length === 0) {
@@ -195,28 +175,18 @@ export default function Inbounds() {
         let nextServerOrder = serverOrder;
 
         try {
-            const [orderRes, serverOrderRes] = await Promise.all([
-                api.get('/system/inbounds/order'),
-                api.get('/system/servers/order'),
-            ]);
+            const [orderRes, serverOrderRes] = await Promise.all([api.get('/system/inbounds/order'), api.get('/system/servers/order')]);
             orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
-            nextServerOrder = Array.isArray(serverOrderRes.data?.obj)
-                ? serverOrderRes.data.obj.map((item) => String(item || '').trim()).filter(Boolean)
-                : [];
+            nextServerOrder = Array.isArray(serverOrderRes.data?.obj) ? serverOrderRes.data.obj.map(i => String(i).trim()).filter(Boolean) : [];
             setInboundOrder(orderMap);
             setServerOrder(nextServerOrder);
-        } catch (err) {
-            console.error('Failed to load inbound or server order:', err);
-        }
+        } catch (err) { console.error('Failed to load order', err); }
 
         try {
             const overrideRes = await api.get('/clients/entitlement-overrides');
             const items = Array.isArray(overrideRes.data?.obj) ? overrideRes.data.obj : [];
-            setOverrideKeySet(new Set(items.map((item) => buildOverrideKey(item.serverId, item.inboundId, item.clientIdentifier))));
-        } catch (err) {
-            console.error('Failed to load entitlement overrides:', err);
-            setOverrideKeySet(new Set());
-        }
+            setOverrideKeySet(new Set(items.map(i => buildOverrideKey(i.serverId, i.inboundId, i.clientIdentifier))));
+        } catch (err) { setOverrideKeySet(new Set()); }
 
         await Promise.all(servers.map(async (server) => {
             try {
@@ -227,32 +197,18 @@ export default function Inbounds() {
 
                 const onlineEntries = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
                 const onlineCounter = new Map();
-                onlineEntries.forEach((entry) => {
-                    normalizeOnlineEntry(entry).forEach((key) => {
-                        onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
-                    });
-                });
+                onlineEntries.forEach(entry => normalizeOnlineEntry(entry).forEach(key => onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1)));
 
                 if (inboundsRes.data?.obj) {
                     const serverInbounds = inboundsRes.data.obj.map((ib) => {
-                        const inboundClients = mergeInboundClientStats(ib).map((client) => {
-                            const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
-                                return total + (onlineCounter.get(key) || 0);
-                            }, 0);
-                            return {
-                                ...client,
-                                onlineSessionCount: matchedSessions,
-                                isOnline: matchedSessions > 0,
-                            };
+                        const inboundClients = mergeInboundClientStats(ib).map(cl => {
+                            const matchedSessions = buildClientOnlineKeys(cl, ib.protocol).reduce((tot, key) => tot + (onlineCounter.get(key) || 0), 0);
+                            return { ...cl, onlineSessionCount: matchedSessions, isOnline: matchedSessions > 0 };
                         });
                         let onlineSessionCount = 0;
                         let onlineUserCount = 0;
-
-                        inboundClients.forEach((client) => {
-                            if (client.onlineSessionCount > 0) {
-                                onlineUserCount += 1;
-                                onlineSessionCount += client.onlineSessionCount;
-                            }
+                        inboundClients.forEach(cl => {
+                            if (cl.onlineSessionCount > 0) { onlineUserCount++; onlineSessionCount += cl.onlineSessionCount; }
                         });
                         const trafficSummary = resolveInboundTrafficSummary(ib, inboundClients);
 
@@ -271,10 +227,7 @@ export default function Inbounds() {
                     });
                     allResults.push(...serverInbounds);
                 }
-            } catch (err) {
-                console.error(`Failed to fetch inbounds from ${server.name}`, err);
-                toast.error(`节点 ${server.name} 连接失败`, { id: `err-${server.id}` });
-            }
+            } catch (err) { toast.error(`节点 ${server.name} 连接失败`); }
         }));
 
         const sortedItems = sortVisibleInbounds(allResults, orderMap, nextServerOrder);
@@ -282,260 +235,98 @@ export default function Inbounds() {
         let seededOrder = false;
 
         sortedItems.forEach((item) => {
-            const serverId = String(item?.serverId || '').trim();
-            const inboundId = String(item?.id || '').trim();
-            if (!serverId || !inboundId) return;
-            if (!Array.isArray(nextOrderMap[serverId])) {
-                nextOrderMap[serverId] = [];
-            }
-            if (!nextOrderMap[serverId].includes(inboundId)) {
-                nextOrderMap[serverId].push(inboundId);
+            if (!item.serverId || !item.id) return;
+            if (!Array.isArray(nextOrderMap[item.serverId])) nextOrderMap[item.serverId] = [];
+            if (!nextOrderMap[item.serverId].includes(String(item.id))) {
+                nextOrderMap[item.serverId].push(String(item.id));
                 seededOrder = true;
             }
         });
 
-        if (seededOrder) {
-            setInboundOrder(nextOrderMap);
-        }
+        if (seededOrder) setInboundOrder(nextOrderMap);
         setInbounds(sortVisibleInbounds(allResults, nextOrderMap, nextServerOrder));
         setLoading(false);
     };
 
+    useEffect(() => { fetchAllInbounds(); }, [servers]);
     useEffect(() => {
-        fetchAllInbounds();
-    }, [servers]);
-
-    useEffect(() => {
-        if (filterServerId !== 'all' && servers.length > 0 && !servers.some(s => s.id === filterServerId)) {
-            setFilterServerId(resolvedActiveFilterServerId);
-        }
+        if (filterServerId !== 'all' && servers.length > 0 && !servers.some(s => s.id === filterServerId)) setFilterServerId(resolvedActiveFilterServerId);
     }, [filterServerId, servers, resolvedActiveFilterServerId]);
-
-    useEffect(() => {
-        setFilterServerId(resolvedActiveFilterServerId);
-    }, [resolvedActiveFilterServerId]);
-
-    useEffect(() => {
-        setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder));
-    }, [inboundOrder, serverOrder]);
-
-    useEffect(() => {
-        // Avoid accidental cross-node batch actions after changing filter tabs.
-        setSelectedKeys(new Set());
-        setInboundOrderDrafts({});
-    }, [filterServerId]);
-
-    // Batch Actions
-    const toggleSelect = (key) => {
-        const newSet = new Set(selectedKeys);
-        if (newSet.has(key)) newSet.delete(key);
-        else newSet.add(key);
-        setSelectedKeys(newSet);
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedVisibleCount === filteredInbounds.length) setSelectedKeys(new Set());
-        else setSelectedKeys(new Set(filteredInbounds.map(i => i.uiKey)));
-    };
+    useEffect(() => { setFilterServerId(resolvedActiveFilterServerId); }, [resolvedActiveFilterServerId]);
+    useEffect(() => { setInbounds(prev => sortVisibleInbounds(prev, inboundOrder)); }, [inboundOrder, serverOrder]);
+    useEffect(() => { setSelectedKeys(new Set()); setInboundOrderDrafts({}); }, [filterServerId]);
 
     const handleBulkDelete = async () => {
-        const ok = await confirmAction({
-            title: t('comp.inbounds.batchDeleteTitle'),
-            message: `确定删除选中的 ${selectedVisibleCount} 个入站吗？`,
-            details: t('comp.inbounds.batchDeleteDetails'),
-            confirmText: t('comp.common.confirmDelete'),
-            tone: 'danger',
-        });
+        if(selectedVisibleInbounds.length === 0) return;
+        const ok = await confirmAction({ title: t('comp.inbounds.batchDeleteTitle'), message: `确定删除选中的 ${selectedVisibleCount} 个入站吗？`, confirmText: t('comp.common.confirmDelete'), tone: 'danger' });
         if (!ok) return;
 
-        const targets = selectedVisibleInbounds.map((target) => ({
-            serverId: target.serverId,
-            serverName: target.serverName,
-            id: target.id,
-            remark: target.remark,
-            protocol: target.protocol,
-            port: target.port,
-        }));
-
+        const targets = selectedVisibleInbounds.map(t => ({ serverId: t.serverId, serverName: t.serverName, id: t.id, remark: t.remark, protocol: t.protocol, port: t.port }));
         try {
-            const payload = await attachBatchRiskToken({
-                action: 'delete',
-                targets,
-            }, {
-                type: 'inbounds',
-                action: 'delete',
-                targetCount: targets.length,
-            });
+            const payload = await attachBatchRiskToken({ action: 'delete', targets }, { type: 'inbounds', action: 'delete', targetCount: targets.length });
             const res = await api.post('/batch/inbounds', payload);
-            const output = res.data?.obj;
-            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchDeleteResult'));
-            setBatchResultData(output || null);
-            toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
+            setBatchResultData(res.data?.obj || null);
+            toast.success('批量删除完成');
             setSelectedKeys(new Set());
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed');
-            toast.error(msg);
-        }
+        } catch (err) { toast.error('批量删除失败'); }
     };
 
     const handleBulkReset = async () => {
-        const ok = await confirmAction({
-            title: t('comp.inbounds.batchResetTitle'),
-            message: `确定重置选中的 ${selectedVisibleCount} 个入站流量吗？`,
-            confirmText: t('comp.common.confirmReset'),
-            tone: 'secondary',
-        });
+        if(selectedVisibleInbounds.length === 0) return;
+        const ok = await confirmAction({ title: t('comp.inbounds.batchResetTitle'), message: `确定重置选中的 ${selectedVisibleCount} 个入站流量吗？`, confirmText: t('comp.common.confirmReset'), tone: 'secondary' });
         if (!ok) return;
 
-        const targets = selectedVisibleInbounds.map((target) => ({
-            serverId: target.serverId,
-            serverName: target.serverName,
-            id: target.id,
-            remark: target.remark,
-            protocol: target.protocol,
-            port: target.port,
-        }));
-
+        const targets = selectedVisibleInbounds.map(t => ({ serverId: t.serverId, serverName: t.serverName, id: t.id, remark: t.remark, protocol: t.protocol, port: t.port }));
         try {
-            const payload = await attachBatchRiskToken({
-                action: 'resetTraffic',
-                targets,
-            }, {
-                type: 'inbounds',
-                action: 'resetTraffic',
-                targetCount: targets.length,
-            });
+            const payload = await attachBatchRiskToken({ action: 'resetTraffic', targets }, { type: 'inbounds', action: 'resetTraffic', targetCount: targets.length });
             const res = await api.post('/batch/inbounds', payload);
-            const output = res.data?.obj;
-            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchResetResult'));
-            setBatchResultData(output || null);
-            toast.success(`流量重置完成: ${summary.success}/${summary.total} 成功`);
+            setBatchResultData(res.data?.obj || null);
+            toast.success('流量重置完成');
             setSelectedKeys(new Set());
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchResetFailed');
-            toast.error(msg);
-        }
+        } catch (err) { toast.error('流量重置失败'); }
     };
 
     const handleBulkSetEnable = async (enable) => {
-        const ok = await confirmAction({
-            title: enable ? t('comp.inbounds.batchEnableTitle') : t('comp.inbounds.batchDisableTitle'),
-            message: `确定${enable ? '启用' : '停用'}选中的 ${selectedVisibleCount} 个入站吗？`,
-            confirmText: enable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'),
-            tone: enable ? 'success' : 'danger',
-        });
+        if(selectedVisibleInbounds.length === 0) return;
+        const ok = await confirmAction({ title: enable ? t('comp.inbounds.batchEnableTitle') : t('comp.inbounds.batchDisableTitle'), message: `确定${enable ? '启用' : '停用'}选中的 ${selectedVisibleCount} 个入站吗？`, confirmText: enable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'), tone: enable ? 'success' : 'danger' });
         if (!ok) return;
 
-        const targets = selectedVisibleInbounds.map((target) => ({
-            serverId: target.serverId,
-            serverName: target.serverName,
-            id: target.id,
-            remark: target.remark,
-            protocol: target.protocol,
-            port: target.port,
-            listen: target.listen,
-            total: target.total,
-            expiryTime: target.expiryTime,
-            settings: target.settings,
-            streamSettings: target.streamSettings,
-            sniffing: target.sniffing,
-            enable: target.enable,
-        }));
-
+        const targets = selectedVisibleInbounds.map(t => ({ serverId: t.serverId, serverName: t.serverName, id: t.id, remark: t.remark, protocol: t.protocol, port: t.port, listen: t.listen, total: t.total, expiryTime: t.expiryTime, settings: t.settings, streamSettings: t.streamSettings, sniffing: t.sniffing, enable: t.enable }));
         try {
             const action = enable ? 'enable' : 'disable';
-            const payload = await attachBatchRiskToken({
-                action,
-                targets,
-            }, {
-                type: 'inbounds',
-                action,
-                targetCount: targets.length,
-            });
+            const payload = await attachBatchRiskToken({ action, targets }, { type: 'inbounds', action, targetCount: targets.length });
             const res = await api.post('/batch/inbounds', payload);
-            const output = res.data?.obj;
-            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(enable ? t('comp.inbounds.batchEnableResult') : t('comp.inbounds.batchDisableResult'));
-            setBatchResultData(output || null);
-            toast.success(`${enable ? t('comp.inbounds.batchEnableDone') : t('comp.inbounds.batchDisableDone')}: ${summary.success}/${summary.total}`);
+            setBatchResultData(res.data?.obj || null);
+            toast.success(enable ? '批量启用完成' : '批量停用完成');
             setSelectedKeys(new Set());
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchToggleFailed');
-            toast.error(msg);
-        }
+        } catch (err) { toast.error('状态修改失败'); }
     };
 
     const handleDelete = async (inbound) => {
-        const ok = await confirmAction({
-            title: t('comp.inbounds.deleteTitle'),
-            message: `确定删除 ${inbound.serverName} 上的该入站吗？`,
-            confirmText: t('comp.common.confirmDelete'),
-            tone: 'danger',
-        });
+        const ok = await confirmAction({ title: t('comp.inbounds.deleteTitle'), message: `确定删除 ${inbound.serverName} 上的该入站吗？`, confirmText: t('comp.common.confirmDelete'), tone: 'danger' });
         if (!ok) return;
         try {
             await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/del/${inbound.id}`);
             toast.success(t('comp.inbounds.inboundDeleted'));
             fetchAllInbounds();
-        } catch {
-            toast.error(t('comp.common.deleteFailed'));
-        }
-    };
-
-    const handleEdit = (inbound) => {
-        setEditingInbound(inbound);
-        setIsModalOpen(true);
-    };
-
-    const handleAdd = () => {
-        setEditingInbound(null);
-        setIsModalOpen(true);
+        } catch { toast.error(t('comp.common.deleteFailed')); }
     };
 
     const persistInboundOrder = async (serverId, inboundIds) => {
         setSavingOrderServerId(serverId);
         try {
-            const res = await api.put('/system/inbounds/order', {
-                serverId,
-                inboundIds,
-            });
+            const res = await api.put('/system/inbounds/order', { serverId, inboundIds });
             const savedIds = Array.isArray(res.data?.obj?.inboundIds) ? res.data.obj.inboundIds : inboundIds;
-            const nextOrder = {
-                ...inboundOrder,
-                [serverId]: savedIds,
-            };
+            const nextOrder = { ...inboundOrder, [serverId]: savedIds };
             setInboundOrder(nextOrder);
-            setInbounds((prev) => sortVisibleInbounds(prev, nextOrder));
-            toast.success(t('comp.inbounds.orderSaved'));
-        } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.orderSaveFailed'));
-            fetchAllInbounds();
-        }
-        setSavingOrderServerId('');
-    };
-
-    const persistServerOrder = async (serverIds) => {
-        setSavingOrderServerId('global');
-        try {
-            const res = await api.put('/system/servers/order', {
-                serverIds,
-            });
-            const savedIds = Array.isArray(res.data?.obj?.serverIds) ? res.data.obj.serverIds : serverIds;
-            setServerOrder(savedIds);
-            setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder, savedIds));
-            toast.success('节点顺序已保存');
-        } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '节点顺序保存失败');
-            fetchAllInbounds();
-        }
+            setInbounds(prev => sortVisibleInbounds(prev, nextOrder));
+        } catch (err) { toast.error('排序保存失败'); fetchAllInbounds(); }
         setSavingOrderServerId('');
     };
 
@@ -552,260 +343,75 @@ export default function Inbounds() {
         const next = moveServerGroupToPosition(inbounds, serverId, position);
         if (!next.changed) return;
         setInbounds(next.items);
-        await persistServerOrder(next.serverIds);
+        setSavingOrderServerId('global');
+        try {
+            const res = await api.put('/system/servers/order', { serverIds: next.serverIds });
+            const savedIds = Array.isArray(res.data?.obj?.serverIds) ? res.data.obj.serverIds : next.serverIds;
+            setServerOrder(savedIds);
+            setInbounds(prev => sortVisibleInbounds(prev, inboundOrder, savedIds));
+        } catch (err) { toast.error('节点顺序保存失败'); fetchAllInbounds(); }
+        setSavingOrderServerId('');
     };
 
-    const handleInboundOrderDraftChange = (inboundKey, value) => {
-        setInboundOrderDrafts((prev) => ({
-            ...prev,
-            [inboundKey]: value,
-        }));
-    };
-
-    const handleInboundOrderCommit = async (inbound) => {
-        if (filterServerId === 'all' || savingOrderServerId === inbound?.serverId) return;
-        const inboundKey = String(inbound?.uiKey || '').trim();
-        if (!inboundKey) return;
-
-        const rawValue = String(inboundOrderDrafts[inboundKey] ?? '').trim();
-        if (!rawValue) {
-            setInboundOrderDrafts((prev) => {
-                const next = { ...prev };
-                delete next[inboundKey];
-                return next;
-            });
-            return;
-        }
-
-        const nextPosition = Number.parseInt(rawValue, 10);
-        if (!Number.isInteger(nextPosition) || nextPosition <= 0) {
-            toast.error(t('comp.inbounds.invalidOrder'));
-            return;
-        }
-
-        setInboundOrderDrafts((prev) => {
-            const next = { ...prev };
-            delete next[inboundKey];
-            return next;
-        });
-
-        await handleMoveInbound(inbound, nextPosition - 1);
-    };
     const parseClients = (ib) => {
-        if (Array.isArray(ib?.clients)) {
-            return ib.clients.map((client) => ({
-                ...client,
-                protocol: ib.protocol,
-                inboundId: ib.id,
-                serverId: ib.serverId,
-                serverName: ib.serverName,
-            }));
-        }
-        return mergeInboundClientStats(ib).map((client) => ({
-            ...client,
-            protocol: ib.protocol,
-            inboundId: ib.id,
-            serverId: ib.serverId,
-            serverName: ib.serverName,
-        }));
+        if (Array.isArray(ib?.clients)) return ib.clients.map(c => ({ ...c, protocol: ib.protocol, inboundId: ib.id, serverId: ib.serverId, serverName: ib.serverName }));
+        return mergeInboundClientStats(ib).map(c => ({ ...c, protocol: ib.protocol, inboundId: ib.id, serverId: ib.serverId, serverName: ib.serverName }));
     };
 
     const handleDeleteClient = async (inbound, client) => {
         const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
-        const displayName = client.email || identifier || t('comp.inbounds.thisUser');
-        const ok = await confirmAction({
-            title: t('comp.inbounds.deleteClientTitle'),
-            message: `确定删除 ${displayName} 吗？`,
-            details: `${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port}`,
-            confirmText: t('comp.common.confirmDelete'),
-            tone: 'danger',
-        });
+        const displayName = client.email || identifier || '此用户';
+        const ok = await confirmAction({ title: t('comp.inbounds.deleteClientTitle'), message: `确定删除 ${displayName} 吗？`, confirmText: t('comp.common.confirmDelete'), tone: 'danger' });
         if (!ok) return;
-
         try {
-            const payload = await attachBatchRiskToken({
-                action: 'delete',
-                targets: [{
-                    serverId: inbound.serverId,
-                    serverName: inbound.serverName,
-                    inboundId: inbound.id,
-                    email: client.email || '',
-                    clientIdentifier: identifier,
-                    id: client.id || '',
-                    password: client.password || '',
-                }],
-            }, {
-                type: 'clients',
-                action: 'delete',
-                targetCount: 1,
-            });
+            const payload = await attachBatchRiskToken({ action: 'delete', targets: [{ serverId: inbound.serverId, serverName: inbound.serverName, inboundId: inbound.id, email: client.email || '', clientIdentifier: identifier, id: client.id || '', password: client.password || '' }] }, { type: 'clients', action: 'delete', targetCount: 1 });
             await api.post('/batch/clients', payload);
             toast.success(t('comp.inbounds.clientDeleted'));
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed'));
-        }
-    };
-
-    const toggleClientSelect = (selectionKey) => {
-        if (!selectionKey) return;
-        setSelectedClientKeys((prev) => {
-            const next = new Set(prev);
-            if (next.has(selectionKey)) next.delete(selectionKey);
-            else next.add(selectionKey);
-            return next;
-        });
-    };
-
-    const clearInboundClientSelection = (inbound, clients = []) => {
-        const keys = new Set(
-            (Array.isArray(clients) ? clients : [])
-                .map((client) => buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol)))
-                .filter(Boolean)
-        );
-        if (keys.size === 0) return;
-        setSelectedClientKeys((prev) => {
-            const next = new Set(prev);
-            keys.forEach((key) => next.delete(key));
-            return next;
-        });
-    };
-
-    const toggleSelectAllInboundClients = (inbound, clients = []) => {
-        const keys = (Array.isArray(clients) ? clients : [])
-            .map((client) => buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol)))
-            .filter(Boolean);
-        if (keys.length === 0) return;
-
-        setSelectedClientKeys((prev) => {
-            const next = new Set(prev);
-            const allSelected = keys.every((key) => next.has(key));
-            if (allSelected) {
-                keys.forEach((key) => next.delete(key));
-            } else {
-                keys.forEach((key) => next.add(key));
-            }
-            return next;
-        });
+        } catch (err) { toast.error('删除失败'); }
     };
 
     const handleBulkDeleteInboundClients = async (inbound, clients = []) => {
-        const selectedClients = (Array.isArray(clients) ? clients : []).filter((client) => {
-            const key = buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol));
-            return key && selectedClientKeys.has(key);
-        });
-
-        if (selectedClients.length === 0) {
-            toast.error(t('comp.inbounds.selectClientsFirst'));
-            return;
-        }
-
-        const ok = await confirmAction({
-            title: t('comp.inbounds.batchDeleteClientTitle'),
-            message: `确定删除选中的 ${selectedClients.length} 位用户吗？`,
-            details: `${inbound?.serverName || '-'} / ${inbound?.remark || inbound?.protocol || '-'}:${inbound?.port || '-'}`,
-            confirmText: t('comp.common.confirmDelete'),
-            tone: 'danger',
-        });
+        const selectedClients = clients.filter(c => selectedClientKeys.has(buildInboundClientSelectionKey(inbound.serverId, inbound.id, getClientIdentifier(c, inbound.protocol))));
+        if (selectedClients.length === 0) return;
+        const ok = await confirmAction({ title: '批量删除用户', message: `确定删除选中的 ${selectedClients.length} 位用户吗？`, confirmText: t('comp.common.confirmDelete'), tone: 'danger' });
         if (!ok) return;
 
-        const targets = selectedClients.map((client) => ({
-            serverId: inbound.serverId,
-            serverName: inbound.serverName,
-            inboundId: inbound.id,
-            email: client.email || '',
-            clientIdentifier: getClientIdentifier(client, inbound.protocol),
-            id: client.id || '',
-            password: client.password || '',
-        }));
-
+        const targets = selectedClients.map(c => ({ serverId: inbound.serverId, serverName: inbound.serverName, inboundId: inbound.id, email: c.email || '', clientIdentifier: getClientIdentifier(c, inbound.protocol), id: c.id || '', password: c.password || '' }));
         try {
-            const payload = await attachBatchRiskToken({
-                action: 'delete',
-                targets,
-            }, {
-                type: 'clients',
-                action: 'delete',
-                targetCount: targets.length,
-            });
-            const res = await api.post('/batch/clients', payload);
-            const output = res.data?.obj;
-            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle(t('comp.inbounds.batchDeleteClientResult'));
-            setBatchResultData(output || null);
-            toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
-            clearInboundClientSelection(inbound, selectedClients);
+            const payload = await attachBatchRiskToken({ action: 'delete', targets }, { type: 'clients', action: 'delete', targetCount: targets.length });
+            await api.post('/batch/clients', payload);
+            toast.success(`批量删除完成`);
+            setSelectedClientKeys(new Set());
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed'));
-        }
+        } catch (err) { toast.error('批量删除失败'); }
     };
 
     const handleToggleClientEnabled = async (inbound, client) => {
         const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
-        if (!identifier) {
-            toast.error(t('comp.inbounds.missingClientId'));
-            return;
-        }
-
         const nextAction = client.enable !== false ? 'disable' : 'enable';
-        const actionKey = buildClientActionKey(inbound.serverId, inbound.id, identifier);
-        setClientActionKey(actionKey);
+        setClientActionKey(buildClientActionKey(inbound.serverId, inbound.id, identifier));
         try {
-            const payload = await attachBatchRiskToken({
-                action: nextAction,
-                targets: [{
-                    serverId: inbound.serverId,
-                    serverName: inbound.serverName,
-                    inboundId: inbound.id,
-                    protocol: inbound.protocol,
-                    email: client.email || '',
-                    clientIdentifier: identifier,
-                    client,
-                }],
-            }, {
-                type: 'clients',
-                action: nextAction,
-                targetCount: 1,
-            });
+            const payload = await attachBatchRiskToken({ action: nextAction, targets: [{ serverId: inbound.serverId, serverName: inbound.serverName, inboundId: inbound.id, protocol: inbound.protocol, email: client.email || '', clientIdentifier: identifier, client }] }, { type: 'clients', action: nextAction, targetCount: 1 });
             await api.post('/batch/clients', payload);
-            toast.success(nextAction === 'enable' ? t('comp.inbounds.clientEnabled') : t('comp.inbounds.clientDisabled'));
+            toast.success('状态已更新');
             fetchAllInbounds();
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.toggleFailed'));
-        } finally {
-            setClientActionKey('');
-        }
+        } catch (err) { toast.error('状态修改失败'); }
+        setClientActionKey('');
     };
 
     const openEntitlementModal = (inbound, client) => {
-        setEntitlementTarget({
-            inbound,
-            client,
-            clientIdentifier: String(getClientIdentifier(client, inbound.protocol) || '').trim(),
+        setEntitlementTarget({ inbound, client, clientIdentifier: String(getClientIdentifier(client, inbound.protocol) || '').trim() });
+        entitlementForm.setFieldsValue({
+            expiryDate: toLocalDateTimeString(client.expiryTime),
+            limitIp: String(normalizeLimitIp(client.limitIp)),
+            trafficLimitGb: bytesToGigabytesInput(resolveClientQuota(client))
         });
-        setEntitlementExpiryDate(toLocalDateTimeString(client.expiryTime));
-        setEntitlementLimitIp(String(normalizeLimitIp(client.limitIp)));
-        setEntitlementTrafficLimitGb(bytesToGigabytesInput(resolveClientQuota(client)));
-        setEntitlementSaving(false);
         setEntitlementOpen(true);
     };
 
-    const closeEntitlementModal = () => {
-        setEntitlementOpen(false);
-        setEntitlementTarget(null);
-        setEntitlementExpiryDate('');
-        setEntitlementLimitIp('0');
-        setEntitlementTrafficLimitGb('0');
-        setEntitlementSaving(false);
-    };
-
-    const submitEntitlementOverride = async (event) => {
-        event.preventDefault();
-        if (!entitlementTarget?.inbound || !entitlementTarget?.clientIdentifier) return;
+    const submitEntitlementOverride = async (values) => {
+        if (!entitlementTarget) return;
         setEntitlementSaving(true);
         try {
             await api.put('/clients/entitlement', {
@@ -815,21 +421,19 @@ export default function Inbounds() {
                 email: entitlementTarget.client?.email || '',
                 clientIdentifier: entitlementTarget.clientIdentifier,
                 mode: 'override',
-                expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
-                limitIp: normalizeLimitIp(entitlementLimitIp),
-                trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
+                expiryTime: values.expiryDate ? new Date(values.expiryDate).getTime() : 0,
+                limitIp: normalizeLimitIp(values.limitIp),
+                trafficLimitBytes: gigabytesInputToBytes(values.trafficLimitGb),
             });
-            toast.success(t('comp.inbounds.entitlementSaved'));
-            closeEntitlementModal();
+            toast.success('单独限制已保存');
+            setEntitlementOpen(false);
             fetchAllInbounds();
-        } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.entitlementSaveFailed'));
-            setEntitlementSaving(false);
-        }
+        } catch (err) { toast.error('保存失败'); }
+        setEntitlementSaving(false);
     };
 
     const restoreEntitlementPolicy = async () => {
-        if (!entitlementTarget?.inbound || !entitlementTarget?.clientIdentifier) return;
+        if (!entitlementTarget) return;
         setEntitlementSaving(true);
         try {
             await api.put('/clients/entitlement', {
@@ -840,736 +444,202 @@ export default function Inbounds() {
                 clientIdentifier: entitlementTarget.clientIdentifier,
                 mode: 'follow_policy',
             });
-            toast.success(t('comp.inbounds.policyRestored'));
-            closeEntitlementModal();
+            toast.success('已恢复统一策略');
+            setEntitlementOpen(false);
             fetchAllInbounds();
-        } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.policyRestoreFailed'));
-            setEntitlementSaving(false);
-        }
+        } catch (err) { toast.error('恢复失败'); }
+        setEntitlementSaving(false);
     };
 
-    const renderMobileClientCards = (ib, clients = []) => (
-        <div className="inbounds-client-mobile-list">
-            {clients.map((cl, idx) => {
-                const usedBytes = resolveClientUsed(cl);
-                const totalBytes = resolveClientQuota(cl);
-                const usagePercent = resolveUsagePercent(usedBytes, totalBytes);
-                const usageTone = resolveUsageTone(usagePercent);
-                const remainingBytes = totalBytes > 0
-                    ? Math.max(0, totalBytes - usedBytes)
-                    : 0;
-                const clientIdentifier = String(getClientIdentifier(cl, ib.protocol) || '').trim();
-                const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
-                const rowActionKey = buildClientActionKey(ib.serverId, ib.id, clientIdentifier);
-                const isActioning = clientActionKey === rowActionKey;
-                const rawCredential = cl.id || cl.password || '';
-                const maskedCredential = maskSensitiveValue(rawCredential);
-                const toggleLabel = cl.enable !== false ? t('comp.common.disable') : t('comp.common.enable');
-                const toggleTitle = cl.enable !== false ? t('comp.inbounds.disableUser') : t('comp.inbounds.enableUser');
-                const selectionKey = buildInboundClientSelectionKey(ib.serverId, ib.id, clientIdentifier);
-                const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
-
-                return (
-                    <article key={`${clientIdentifier || cl.email || 'client'}-${idx}`} className={`inbounds-client-mobile-card${isClientSelected ? ' is-selected' : ''}`}>
-                        <div className="inbounds-client-mobile-head">
-                            <label className="inbounds-client-mobile-check">
-                                <input
-                                    type="checkbox"
-                                    checked={isClientSelected}
-                                    onChange={() => toggleClientSelect(selectionKey)}
-                                    className="cursor-pointer"
-                                />
-                            </label>
-                            <div className="inbounds-client-mobile-copy">
-                                <div className="inbounds-client-mobile-email">
-                                    <span>{cl.email || '-'}</span>
-                                    {hasOverride ? <span className="badge badge-warning">已限制</span> : null}
-                                </div>
-                                <div className="inbounds-client-mobile-credential cell-mono">
-                                    <span>{maskedCredential}</span>
-                                    {rawCredential ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-ghost btn-xs btn-icon"
-                                            title="复制完整 ID / 密码"
-                                            disabled={isActioning}
-                                            onClick={async () => {
-                                                await copyToClipboard(rawCredential);
-                                                toast.success(t('comp.inbounds.idCopied'));
-                                            }}
-                                        >
-                                            <HiOutlineClipboard />
-                                        </button>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="inbound-client-usage inbounds-client-mobile-usage">
-                            <div className="inbound-client-usage-head">
-                                <span className="font-medium">{formatBytes(usedBytes)}</span>
-                                <span className={`inbound-client-usage-badge ${usageTone}`}>
-                                    {usagePercent === null ? t('comp.common.unlimited') : `${usagePercent}%`}
-                                </span>
-                            </div>
-                            <div className="inbound-client-usage-track">
-                                <div
-                                    className={`inbound-client-usage-fill ${usageTone}`}
-                                    style={{ width: `${usagePercent === null ? 18 : usagePercent}%` }}
-                                />
-                            </div>
-                            <div className="inbound-client-usage-meta">
-                                {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
-                            </div>
-                        </div>
-
-                        <div className="inbounds-client-mobile-metrics">
-                            <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">总量</span>
-                                <span>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</span>
-                            </div>
-                            <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">IP 限制</span>
-                                <span>{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</span>
-                            </div>
-                            <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">到期时间</span>
-                                <span>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</span>
-                            </div>
-                            <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">上 / 下行</span>
-                                <span className="inbounds-client-traffic-stack">
-                                    <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
-                                    <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="inbounds-client-mobile-status">
-                            <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                {cl.enable !== false ? '启用' : '禁用'}
-                            </span>
-                            <span
-                                className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
-                                title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
-                            >
-                                <span className="inbounds-client-online-dot-shell" aria-hidden="true">
-                                    <span className="inbounds-client-online-dot-ping" />
-                                    <span className="inbounds-client-online-dot" />
-                                </span>
-                                {cl.isOnline ? '在线' : '离线'}
-                            </span>
-                        </div>
-
-                        <div className="inbounds-client-actions inbounds-client-mobile-actions">
-                            <button
-                                type="button"
-                                className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
-                                title={toggleTitle}
-                                disabled={isActioning}
-                                onClick={() => handleToggleClientEnabled(ib, cl)}
-                            >
-                                {isActioning
-                                    ? <span className="spinner" />
-                                    : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
-                                {toggleLabel}
-                            </button>
-                            <button
-                                type="button"
-                                className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
-                                disabled={isActioning}
-                                onClick={() => openEntitlementModal(ib, cl)}
-                            >
-                                限制
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
-                                title="删除该用户"
-                                disabled={isActioning}
-                                onClick={() => handleDeleteClient(ib, cl)}
-                            >
-                                <HiOutlineTrash /> 删除
-                            </button>
-                        </div>
-                    </article>
-                );
-            })}
-        </div>
-    );
-
-    const filteredInbounds = filterServerId === 'all'
-        ? inbounds
-        : inbounds.filter(i => i.serverId === filterServerId);
+    const filteredInbounds = filterServerId === 'all' ? inbounds : inbounds.filter(i => i.serverId === filterServerId);
     const selectedVisibleInbounds = filteredInbounds.filter(i => selectedKeys.has(i.uiKey));
     const selectedVisibleCount = selectedVisibleInbounds.length;
-    const bulkToggleEnable = selectedVisibleCount > 0
-        ? !selectedVisibleInbounds.every((item) => item.enable !== false)
-        : true;
-    const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
-    const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
-    const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
-    const visibleServerIds = Array.from(new Set(filteredInbounds.map((item) => String(item?.serverId || '').trim()).filter(Boolean)));
+    const bulkToggleEnable = selectedVisibleCount > 0 ? !selectedVisibleInbounds.every(item => item.enable !== false) : true;
+    
+    const visibleServerIds = Array.from(new Set(filteredInbounds.map(i => String(i?.serverId || '').trim()).filter(Boolean)));
     const visibleServerIndexMap = new Map(visibleServerIds.map((id, index) => [id, index]));
-    const tableColSpan = filterServerId === 'all' ? 11 : 10;
+
+    const columns = [
+        {
+            title: '序号', width: 60, align: 'center',
+            render: (_, record, index) => {
+                if (filterServerId === 'all') return index + 1;
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Button size="small" type="text" icon={<HiOutlineChevronUp />} disabled={index === 0} onClick={e => { e.stopPropagation(); handleMoveInbound(record, index - 1); }} />
+                        <span>{index + 1}</span>
+                        <Button size="small" type="text" icon={<HiOutlineChevronDown />} disabled={index === filteredInbounds.length - 1} onClick={e => { e.stopPropagation(); handleMoveInbound(record, index + 1); }} />
+                    </Space>
+                );
+            }
+        },
+        ...(filterServerId === 'all' ? [{
+            title: '节点', dataIndex: 'serverName',
+            render: (text, record, index) => {
+                const isFirstInServerGroup = index === 0 || filteredInbounds[index - 1]?.serverId !== record.serverId;
+                if(!isFirstInServerGroup) return null;
+                const serverGroupIndex = visibleServerIndexMap.get(record.serverId) ?? 0;
+                return (
+                    <Space>
+                        <Tag color="blue">{text}</Tag>
+                        <Space direction="vertical" size={0}>
+                            <Button size="small" type="text" icon={<HiOutlineChevronUp />} disabled={serverGroupIndex === 0} onClick={e => { e.stopPropagation(); handleMoveServerGroup(record.serverId, serverGroupIndex - 1); }} />
+                            <Button size="small" type="text" icon={<HiOutlineChevronDown />} disabled={serverGroupIndex === visibleServerIds.length - 1} onClick={e => { e.stopPropagation(); handleMoveServerGroup(record.serverId, serverGroupIndex + 1); }} />
+                        </Space>
+                    </Space>
+                );
+            }
+        }] : []),
+        { title: '备注', dataIndex: 'remark', render: (text, record) => <Tag>{text || record.protocol}</Tag> },
+        { title: '协议', dataIndex: 'protocol', align: 'center', render: text => <Tag color="geekblue">{text}</Tag> },
+        { title: '端口', align: 'right', render: (_, r) => <Text code>{r.listen || '*'}:{r.port}</Text> },
+        { title: '用户数', align: 'center', render: (_, r) => parseClients(r).length },
+        { title: '流量', align: 'right', render: (_, r) => <div style={{fontSize: 12}}><span style={{color:'#52c41a'}}>↑{formatBytes(r.trafficUp)}</span><br/><span style={{color:'#1677ff'}}>↓{formatBytes(r.trafficDown)}</span></div> },
+        { title: '状态', align: 'center', render: (_, r) => (
+            <Space direction="vertical" size={0} align="center">
+                <Badge status={r.enable ? 'success' : 'error'} text={r.enable ? '已启用' : '已停用'} />
+                {r.hasOnlineUsers && <Text type="secondary" style={{fontSize:12}}>在线</Text>}
+            </Space>
+        ) },
+        { title: '操作', align: 'center', render: (_, r) => (
+            <Space>
+                <Button size="small" icon={<HiOutlinePencilSquare />} onClick={(e) => { e.stopPropagation(); setEditingInbound(r); setIsModalOpen(true); }} />
+                <Button size="small" danger icon={<HiOutlineTrash />} onClick={(e) => { e.stopPropagation(); handleDelete(r); }} />
+            </Space>
+        ) }
+    ];
+
+    const expandedRowRender = (inbound) => {
+        const clients = parseClients(inbound);
+        const selectedClientCount = clients.filter(c => selectedClientKeys.has(buildInboundClientSelectionKey(inbound.serverId, inbound.id, getClientIdentifier(c, inbound.protocol)))).length;
+        return (
+            <div style={{ padding: '16px', background: '#1f1f1f', borderRadius: 4 }}>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                    <Text strong>用户列表 ({clients.length})</Text>
+                    {selectedClientCount > 0 && (
+                        <Space>
+                            <Text type="primary">已选 {selectedClientCount} 位</Text>
+                            <Button size="small" danger icon={<HiOutlineTrash />} onClick={() => handleBulkDeleteInboundClients(inbound, clients)}>批量删除</Button>
+                        </Space>
+                    )}
+                </div>
+                <Table 
+                    dataSource={clients} 
+                    rowKey={c => buildInboundClientSelectionKey(inbound.serverId, inbound.id, getClientIdentifier(c, inbound.protocol))}
+                    pagination={false}
+                    size="small"
+                    rowSelection={{
+                        selectedRowKeys: Array.from(selectedClientKeys),
+                        onChange: (keys) => setSelectedClientKeys(new Set(keys)),
+                        getCheckboxProps: record => ({
+                            name: record.email,
+                        })
+                    }}
+                    columns={[
+                        { title: 'Email', dataIndex: 'email', render: (text, r) => (
+                            <Space>
+                                {text || '-'}
+                                {overrideKeySet.has(buildOverrideKey(inbound.serverId, inbound.id, getClientIdentifier(r, inbound.protocol))) && <Tag color="warning">已限制</Tag>}
+                            </Space>
+                        )},
+                        { title: 'ID/密码', render: (_, r) => <Text code>{maskSensitiveValue(r.id || r.password)}</Text> },
+                        { title: '已用流量', render: (_, r) => formatBytes(resolveClientUsed(r)) },
+                        { title: '总量', align: 'right', render: (_, r) => { const q = resolveClientQuota(r); return q > 0 ? formatBytes(q) : '∞'; } },
+                        { title: 'IP 限制', align: 'right', render: (_, r) => Number(r.limitIp || 0) > 0 ? r.limitIp : '∞' },
+                        { title: '到期时间', align: 'center', render: (_, r) => r.expiryTime ? new Date(r.expiryTime).toLocaleDateString() : '永久' },
+                        { title: '状态', align: 'center', render: (_, r) => (
+                            <Space direction="vertical" size={0} align="center">
+                                <Badge status={r.enable !== false ? 'success' : 'error'} text={r.enable !== false ? '启用' : '禁用'} />
+                                {r.isOnline && <Text type="secondary" style={{fontSize:12}}>在线</Text>}
+                            </Space>
+                        )},
+                        { title: '操作', align: 'center', render: (_, r) => {
+                            const isActioning = clientActionKey === buildClientActionKey(inbound.serverId, inbound.id, getClientIdentifier(r, inbound.protocol));
+                            return (
+                                <Space>
+                                    <Button size="small" type={r.enable !== false ? 'default' : 'primary'} danger={r.enable !== false} loading={isActioning} onClick={() => handleToggleClientEnabled(inbound, r)}>{r.enable !== false ? '停用' : '启用'}</Button>
+                                    <Button size="small" onClick={() => openEntitlementModal(inbound, r)}>限制</Button>
+                                    <Button size="small" danger icon={<HiOutlineTrash />} onClick={() => handleDeleteClient(inbound, r)} />
+                                </Space>
+                            );
+                        }}
+                    ]}
+                />
+            </div>
+        );
+    };
 
     if (servers.length === 0) {
         return (
-            <>
-                <Header
-                    title={t('pages.inbounds.title')}
-                    eyebrow={t('pages.inbounds.eyebrow')}
-                />
-                <div className="page-content page-content--wide page-enter inbounds-page">
-                    <EmptyState
-                        title="请先在「服务器管理」添加节点"
-                        subtitle="接入至少一台 3x-ui 节点后，再统一维护入站和客户端。"
-                        icon={<HiOutlineSignal style={{ fontSize: '48px' }} />}
-                        action={<button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}><HiOutlineServer /> 前往服务器管理</button>}
-                    />
+            <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
+                <Header title={t('pages.inbounds.title')} eyebrow={t('pages.inbounds.eyebrow')} />
+                <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+                    <Empty
+                        image={<HiOutlineSignal style={{ fontSize: '48px', color: '#177ddc' }} />}
+                        description={
+                            <div style={{ color: '#rgba(255, 255, 255, 0.65)' }}>
+                                <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 8, color: '#fff' }}>请先在「服务器管理」添加节点</div>
+                                <div>接入至少一台 3x-ui 节点后，再统一维护入站和客户端。</div>
+                            </div>
+                        }
+                    >
+                        <Button type="primary" onClick={() => navigate('/servers')} icon={<HiOutlineServer />}>前往服务器管理</Button>
+                    </Empty>
                 </div>
-            </>
+            </ConfigProvider>
         );
     }
 
     return (
-        <>
-            <Header
-                title={t('pages.inbounds.title')}
-                eyebrow={t('pages.inbounds.eyebrow')}
-            />
-            <div className="page-content page-content--wide page-enter inbounds-page">
-                <div className="inbounds-toolbar glass-panel mb-6">
-                    <div className="inbounds-toolbar-main">
-                        <select
-                            className="form-select inbounds-filter-select"
-                            value={filterServerId}
-                            onChange={(e) => setFilterServerId(e.target.value)}
-                            disabled={isServerFilterLocked}
-                        >
-                            <option value="all">全部节点 ({servers.length})</option>
-                            {orderedServerOptions.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
-                        <span className="text-sm text-muted inbounds-toolbar-summary">共 {filteredInbounds.length} 条规则</span>
-                    </div>
-                    <div className="inbounds-toolbar-actions">
-                        {selectedVisibleCount > 0 ? (
-                            <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
-                                <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
-                                <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
-                                    {bulkToggleIcon}
-                                    {bulkToggleLabel}
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
-                                    <HiOutlineTrash /> 删除
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
-                                    <HiOutlineArrowPath /> 重置
-                                </button>
-                            </div>
-                        ) : (
-                            <button className="btn btn-primary btn-sm" onClick={handleAdd}>
-                                <HiOutlinePlusCircle /> 添加入站
-                            </button>
-                        )}
-                        <button className="btn btn-secondary btn-sm" onClick={fetchAllInbounds} title="刷新">
-                            <HiOutlineArrowPath />
-                        </button>
-                    </div>
-                </div>
-
-                {savingOrderServerId && (
-                    <div className="text-xs text-muted mb-3 inbounds-saving-note">
-                        {savingOrderServerId === 'global'
-                            ? '正在保存节点顺序'
-                            : `正在保存入站顺序: ${servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}`}
-                    </div>
-                )}
-
-                {loading ? (
-                    <div className="table-container glass-panel inbounds-table-shell p-4">
-                        <SkeletonTable rows={5} cols={tableColSpan} />
-                    </div>
-                ) : filteredInbounds.length === 0 ? (
-                    <div className="table-container glass-panel inbounds-table-shell p-6">
-                        <EmptyState
-                            icon={<HiOutlineInbox />}
-                            title={t('pages.inbounds.emptyTitle')}
-                            subtitle={t('pages.inbounds.emptySubtitle')}
-                            action={(
-                                <button type="button" className="btn btn-primary" onClick={handleAdd}>
-                                    <HiOutlinePlusCircle /> {t('pages.inbounds.addAction')}
-                                </button>
+        <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
+            <Header title={t('pages.inbounds.title')} eyebrow={t('pages.inbounds.eyebrow')} />
+            <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
+                <Card style={{ marginBottom: 24 }}>
+                    <Row justify="space-between" align="middle">
+                        <Col>
+                            <Space>
+                                <Select value={filterServerId} onChange={setFilterServerId} disabled={isServerFilterLocked} style={{ width: 200 }}>
+                                    <Option value="all">全部节点 ({servers.length})</Option>
+                                    {orderedServerOptions.map(s => <Option key={s.id} value={s.id}>{s.name}</Option>)}
+                                </Select>
+                                <Text type="secondary">共 {filteredInbounds.length} 条规则</Text>
+                            </Space>
+                        </Col>
+                        <Col>
+                            {selectedVisibleCount > 0 ? (
+                                <Space>
+                                    <Text strong style={{ color: '#177ddc' }}>已选 {selectedVisibleCount} 项</Text>
+                                    <Button type="primary" danger={!bulkToggleEnable} style={bulkToggleEnable ? {backgroundColor: '#52c41a'} : {}} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>{bulkToggleEnable ? '启用' : '停用'}</Button>
+                                    <Button danger onClick={handleBulkDelete}>删除</Button>
+                                    <Button onClick={handleBulkReset}>重置流量</Button>
+                                </Space>
+                            ) : (
+                                <Space>
+                                    <Button type="primary" icon={<HiOutlinePlusCircle />} onClick={() => { setEditingInbound(null); setIsModalOpen(true); }}>添加入站</Button>
+                                    <Button icon={<HiOutlineArrowPath />} onClick={fetchAllInbounds}>刷新</Button>
+                                </Space>
                             )}
-                        />
-                    </div>
-                ) : (
-                    <div className="table-container glass-panel inbounds-table-shell">
-                        <table className="table inbounds-table">
-                            <thead>
-                                <tr>
-                                    <th className="cell-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
-                                            onChange={toggleSelectAll}
-                                            className="cursor-pointer"
-                                        />
-                                    </th>
-                                    <th className="inbounds-expand-col" aria-hidden="true" />
-                                    <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>序号</th>
-                                    {filterServerId === 'all' && (
-                                        <th className="inbounds-node-col">节点</th>
-                                    )}
-                                    <th className="inbounds-remark-col">备注</th>
-                                    <th className="table-cell-center inbounds-protocol-col">协议</th>
-                                    <th className="table-cell-right inbounds-port-col">监听:端口</th>
-                                    <th className="table-cell-center inbounds-users-col">用户数</th>
-                                    <th className="table-cell-right inbounds-traffic-col">流量 (上/下)</th>
-                                    <th className="table-cell-center inbounds-status-col">状态</th>
-                                    <th className="table-cell-actions inbounds-actions-col">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredInbounds.map((ib, index) => {
-                                    const clients = parseClients(ib);
-                                    const isExpanded = expandedId === ib.uiKey;
-                                    const isSelected = selectedKeys.has(ib.uiKey);
-                                    const canAdjustOrder = filterServerId !== 'all';
-                                    const isFirstInServerGroup = filterServerId !== 'all' || index === 0 || filteredInbounds[index - 1]?.serverId !== ib.serverId;
-                                    const serverGroupIndex = visibleServerIndexMap.get(String(ib.serverId || '').trim()) ?? 0;
-                                    const canMoveServerUp = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex > 0 && !savingOrderServerId;
-                                    const canMoveServerDown = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex < visibleServerIds.length - 1 && !savingOrderServerId;
-                                    const isSavingOrder = savingOrderServerId === ib.serverId;
-                                    const canMoveUp = canAdjustOrder && index > 0 && !isSavingOrder;
-                                    const canMoveDown = canAdjustOrder && index < filteredInbounds.length - 1 && !isSavingOrder;
-                                    const inboundLabel = `${ib.remark || ib.protocol}:${ib.port}`;
-                                    const sequenceValue = inboundOrderDrafts[ib.uiKey] ?? String(index + 1);
-                                    const selectableClientKeys = clients
-                                        .map((client) => buildInboundClientSelectionKey(ib.serverId, ib.id, getClientIdentifier(client, ib.protocol)))
-                                        .filter(Boolean);
-                                    const selectedClientCount = selectableClientKeys.filter((key) => selectedClientKeys.has(key)).length;
-                                    const allInboundClientsSelected = selectableClientKeys.length > 0 && selectedClientCount === selectableClientKeys.length;
-                                    const showNodeMoveControls = filterServerId === 'all' && isFirstInServerGroup;
-                                    const renderNodeMoveControls = (layout = 'row') => (
-                                        <div className={`inbounds-node-order-actions${layout === 'column' ? ' is-inline' : ''}`}>
-                                            <div
-                                                className={`inbounds-sequence-actions${layout === 'column' ? ' is-vertical' : ''}`}
-                                                aria-label={`调整节点 ${ib.serverName} 的序号`}
-                                            >
-                                                <button
-                                                    type="button"
-                                                    className="inbounds-sequence-btn"
-                                                    aria-label={`上移节点 ${ib.serverName}`}
-                                                    disabled={!canMoveServerUp}
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        handleMoveServerGroup(ib.serverId, serverGroupIndex - 1);
-                                                    }}
-                                                >
-                                                    <HiOutlineChevronUp />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="inbounds-sequence-btn"
-                                                    aria-label={`下移节点 ${ib.serverName}`}
-                                                    disabled={!canMoveServerDown}
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        handleMoveServerGroup(ib.serverId, serverGroupIndex + 1);
-                                                    }}
-                                                >
-                                                    <HiOutlineChevronDown />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                    return (
-                                        <React.Fragment key={ib.uiKey}>
-                                            <tr
-                                                className={`cursor-pointer transition-colors inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
-                                                onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
-                                            >
-                                                <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => toggleSelect(ib.uiKey)}
-                                                        className="cursor-pointer"
-                                                    />
-                                                </td>
-                                                <td
-                                                    className="inbounds-expand-cell"
-                                                    data-label=""
-                                                    aria-hidden={showNodeMoveControls && !isCompactLayout ? undefined : 'true'}
-                                                >
-                                                    <div className="inbounds-expand-stack">
-                                                        <span className={`inbounds-expand-indicator transition-transform duration-200${isExpanded ? ' rotate-90' : ''}`}>
-                                                            <HiChevronRight />
-                                                        </span>
-                                                        {showNodeMoveControls && !isCompactLayout && renderNodeMoveControls('column')}
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    data-label="序号"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className={`inbounds-sequence-cell-td${filterServerId === 'all' ? ' is-compact' : ''}`}
-                                                >
-                                                    <div className="inbounds-sequence-cell">
-                                                        {canAdjustOrder ? (
-                                                            <input
-                                                                type="number"
-                                                                min="1"
-                                                                inputMode="numeric"
-                                                                aria-label={`设置 ${inboundLabel} 的排序序号`}
-                                                                className="form-input form-input-sm cell-mono inbound-order-input"
-                                                                value={sequenceValue}
-                                                                disabled={isSavingOrder}
-                                                                onChange={(event) => handleInboundOrderDraftChange(ib.uiKey, event.target.value)}
-                                                                onBlur={() => handleInboundOrderCommit(ib)}
-                                                                onKeyDown={(event) => {
-                                                                    if (event.key === 'Enter') {
-                                                                        event.preventDefault();
-                                                                        handleInboundOrderCommit(ib);
-                                                                    }
-                                                                    if (event.key === 'Escape') {
-                                                                        event.preventDefault();
-                                                                        setInboundOrderDrafts((prev) => {
-                                                                            const next = { ...prev };
-                                                                            delete next[ib.uiKey];
-                                                                            return next;
-                                                                        });
-                                                                    }
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
-                                                        )}
-                                                        {canAdjustOrder && (
-                                                            <div className="inbounds-sequence-actions" aria-label={`调整 ${inboundLabel} 的序号`}>
-                                                                <button
-                                                                    type="button"
-                                                                    className="inbounds-sequence-btn"
-                                                                    aria-label={`上移 ${inboundLabel} 的序号`}
-                                                                    disabled={!canMoveUp}
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        handleMoveInbound(ib, index - 1);
-                                                                    }}
-                                                                >
-                                                                    <HiOutlineChevronUp />
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className="inbounds-sequence-btn"
-                                                                    aria-label={`下移 ${inboundLabel} 的序号`}
-                                                                    disabled={!canMoveDown}
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        handleMoveInbound(ib, index + 1);
-                                                                    }}
-                                                                >
-                                                                    <HiOutlineChevronDown />
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                {filterServerId === 'all' && (
-                                                    <td data-label="节点" onClick={(event) => event.stopPropagation()} className="inbounds-node-cell">
-                                                        <div className="inbounds-node-cell-inner">
-                                                            <span className="badge badge-neutral inbounds-node-badge">
-                                                                <HiOutlineServer size={10} />
-                                                                <span className="inbounds-node-name" title={ib.serverName}>{ib.serverName}</span>
-                                                            </span>
-                                                            {showNodeMoveControls && isCompactLayout && renderNodeMoveControls('row')}
-                                                        </div>
-                                                    </td>
-                                                )}
-                                                <td
-                                                    data-label="备注"
-                                                    className="inbounds-remark-cell"
-                                                >
-                                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
-                                                </td>
-                                                <td data-label="协议" className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
-                                                <td data-label="端口" className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="用户数" className="table-cell-center inbounds-users-cell">
-                                                    <span className="cell-mono inbounds-user-count" title={`共 ${clients.length} 位用户`}>
-                                                        {clients.length}
-                                                    </span>
-                                                </td>
-                                                <td data-label="流量" className="table-cell-right text-sm inbounds-traffic-cell">
-                                                    <div className="inbounds-traffic-stack">
-                                                        <span className="text-success">↑{formatBytes(ib.trafficUp)}</span>
-                                                        <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
-                                                    </div>
-                                                </td>
-                                                <td data-label="状态" className="table-cell-center inbounds-status-cell-wrap">
-                                                    <div className="inbounds-status-cell">
-                                                        <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
-                                                            {ib.enable ? t('comp.common.enabled') : t('comp.common.disabled')}
-                                                        </span>
-                                                        {ib.hasOnlineUsers && (
-                                                            <span
-                                                                className="inbounds-online-indicator"
-                                                                title={`当前 ${ib.onlineUserCount || 0} 位用户 / ${ib.onlineSessionCount || 0} 个会话在线`}
-                                                            >
-                                                                <span className="inbounds-online-dot-shell" aria-hidden="true">
-                                                                    <span className="inbounds-online-dot-ping" />
-                                                                    <span className="inbounds-online-dot" />
-                                                                </span>
-                                                                在线
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td data-label="操作" className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2 inbounds-row-actions">
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
-                                                            title={t('comp.common.edit')}
-                                                            onClick={() => handleEdit(ib)}
-                                                        >
-                                                            <HiOutlinePencilSquare />
-                                                            <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-danger btn-sm btn-icon table-action-btn inbounds-action-btn is-danger"
-                                                            title={t('comp.common.delete')}
-                                                            onClick={() => handleDelete(ib)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="inbounds-action-mobile-label">{t('comp.common.delete')}</span>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {isExpanded && clients.length > 0 && (
-                                                <tr>
-                                                    <td colSpan={tableColSpan} className="p-0 bg-black/20 inbounds-clients-cell">
-                                                        <div className="p-4 inbounds-clients-panel">
-                                                            <div className="inbounds-clients-toolbar">
-                                                                <div className="text-xs font-bold text-muted uppercase tracking-wider inbounds-clients-label">
-                                                                    用户列表 ({clients.length})
-                                                                </div>
-                                                                {selectedClientCount > 0 && (
-                                                                    <div className="inbounds-clients-selection-bar">
-                                                                        <span className="text-xs font-semibold text-primary">已选 {selectedClientCount} 位用户</span>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="btn btn-danger btn-sm"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleBulkDeleteInboundClients(ib, clients);
-                                                                            }}
-                                                                        >
-                                                                            <HiOutlineTrash /> 批量删除
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="btn btn-secondary btn-sm"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                clearInboundClientSelection(ib, clients);
-                                                                            }}
-                                                                        >
-                                                                            取消选择
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {isCompactLayout ? renderMobileClientCards(ib, clients) : (
-                                                            <table className="table w-full text-xs inbounds-clients-table">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th className="cell-checkbox">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={allInboundClientsSelected}
-                                                                                onChange={() => toggleSelectAllInboundClients(ib, clients)}
-                                                                                className="cursor-pointer"
-                                                                            />
-                                                                        </th>
-                                                                        <th className="inbounds-clients-col-email">Email</th>
-                                                                        <th className="inbounds-clients-col-id">ID/密码（脱敏）</th>
-                                                                        <th className="inbounds-clients-col-usage">已用流量</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-total">总量</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-ip">IP 限制</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-traffic">上 / 下行</th>
-                                                                        <th className="table-cell-center inbounds-clients-col-expiry">到期时间</th>
-                                                                        <th className="table-cell-center inbounds-clients-col-status">状态</th>
-                                                                        <th className="table-cell-actions inbounds-clients-col-actions">操作</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {clients.map((cl, idx) => {
-                                                                        const usedBytes = resolveClientUsed(cl);
-                                                                        const totalBytes = resolveClientQuota(cl);
-                                                                        const usagePercent = resolveUsagePercent(usedBytes, totalBytes);
-                                                                        const usageTone = resolveUsageTone(usagePercent);
-                                                                        const remainingBytes = totalBytes > 0
-                                                                            ? Math.max(0, totalBytes - usedBytes)
-                                                                            : 0;
-                                                                        const clientIdentifier = String(getClientIdentifier(cl, ib.protocol) || '').trim();
-                                                                        const hasOverride = overrideKeySet.has(buildOverrideKey(ib.serverId, ib.id, clientIdentifier));
-                                                                        const rowActionKey = buildClientActionKey(ib.serverId, ib.id, clientIdentifier);
-                                                                        const isActioning = clientActionKey === rowActionKey;
-                                                                        const rawCredential = cl.id || cl.password || '';
-                                                                        const maskedCredential = maskSensitiveValue(rawCredential);
-                                                                        const toggleLabel = cl.enable !== false ? t('comp.common.disable') : t('comp.common.enable');
-                                                                        const toggleTitle = cl.enable !== false ? t('comp.inbounds.disableUser') : t('comp.inbounds.enableUser');
-                                                                        const selectionKey = buildInboundClientSelectionKey(ib.serverId, ib.id, clientIdentifier);
-                                                                        const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
-                                                                        return (
-                                                                        <tr key={idx}>
-                                                                            <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={isClientSelected}
-                                                                                    onChange={() => toggleClientSelect(selectionKey)}
-                                                                                    className="cursor-pointer"
-                                                                                />
-                                                                            </td>
-                                                                            <td data-label="用户" className="inbounds-clients-col-email">
-                                                                                <div className="inbounds-client-email-row">
-                                                                                    <span>{cl.email || '-'}</span>
-                                                                                    {hasOverride && (
-                                                                                        <span className="badge badge-warning">已限制</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td data-label="ID / 密码" className="cell-mono inbounds-clients-col-id">
-                                                                                <div className="inbounds-client-id-row">
-                                                                                    <span className="inbounds-client-id-text">
-                                                                                        {maskedCredential}
-                                                                                    </span>
-                                                                                    {rawCredential && (
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            className="btn btn-ghost btn-xs btn-icon"
-                                                                                            title="复制完整 ID / 密码"
-                                                                                            disabled={isActioning}
-                                                                                            onClick={async (e) => {
-                                                                                                e.stopPropagation();
-                                                                                                await copyToClipboard(rawCredential);
-                                                                                                toast.success(t('comp.inbounds.idCopied'));
-                                                                                            }}
-                                                                                        >
-                                                                                            <HiOutlineClipboard />
-                                                                                        </button>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td data-label="已用流量" className="inbounds-clients-col-usage">
-                                                                                <div className="inbound-client-usage">
-                                                                                    <div className="inbound-client-usage-head">
-                                                                                        <span className="font-medium">{formatBytes(usedBytes)}</span>
-                                                                                        <span className={`inbound-client-usage-badge ${usageTone}`}>
-                                                                                            {usagePercent === null ? t('comp.common.unlimited') : `${usagePercent}%`}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    <div className="inbound-client-usage-track">
-                                                                                        <div
-                                                                                            className={`inbound-client-usage-fill ${usageTone}`}
-                                                                                            style={{ width: `${usagePercent === null ? 18 : usagePercent}%` }}
-                                                                                        />
-                                                                                    </div>
-                                                                                    <div className="inbound-client-usage-meta">
-                                                                                        {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td data-label="总量" className="table-cell-right cell-mono-right inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td data-label="IP 限制" className="table-cell-right cell-mono-right inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td data-label="上 / 下行" className="table-cell-right inbounds-clients-col-traffic">
-                                                                                <div className="inbounds-client-traffic-stack">
-                                                                                    <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
-                                                                                    <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td data-label="到期时间" className="table-cell-center cell-mono inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
-                                                                            <td data-label="状态" className="table-cell-center inbounds-clients-col-status">
-                                                                                <div className="inbounds-client-status-stack">
-                                                                                    <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                                                                        {cl.enable !== false ? '启用' : '禁用'}
-                                                                                    </span>
-                                                                                    <span
-                                                                                        className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
-                                                                                        title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
-                                                                                    >
-                                                                                        <span className="inbounds-client-online-dot-shell" aria-hidden="true">
-                                                                                            <span className="inbounds-client-online-dot-ping" />
-                                                                                            <span className="inbounds-client-online-dot" />
-                                                                                        </span>
-                                                                                        {cl.isOnline ? '在线' : '离线'}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td data-label="操作" className="table-cell-actions inbounds-clients-col-actions">
-                                                                                <div className="inbounds-client-actions flex gap-2">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
-                                                                                        title={toggleTitle}
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleToggleClientEnabled(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        {isActioning
-                                                                                            ? <span className="spinner" />
-                                                                                            : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
-                                                                                        {toggleLabel}
-                                                                                    </button>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                                                                        title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            openEntitlementModal(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        限制
-                                                                                    </button>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
-                                                                                        title="删除该用户"
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleDeleteClient(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        <HiOutlineTrash /> 删除
-                                                                                    </button>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                        </Col>
+                    </Row>
+                </Card>
+
+                {savingOrderServerId && <div style={{ marginBottom: 16 }}><Text type="secondary">正在保存排序...</Text></div>}
+
+                <Card bodyStyle={{ padding: 0 }}>
+                    <Table 
+                        dataSource={filteredInbounds} 
+                        columns={columns} 
+                        rowKey="uiKey" 
+                        loading={loading}
+                        pagination={false}
+                        expandable={{ expandedRowRender, expandRowByClick: false }}
+                        rowSelection={{
+                            selectedRowKeys: Array.from(selectedKeys),
+                            onChange: (keys) => setSelectedKeys(new Set(keys))
+                        }}
+                        scroll={{ x: 1000 }}
+                    />
+                </Card>
 
                 <InboundModal
                     isOpen={isModalOpen}
@@ -1577,11 +647,7 @@ export default function Inbounds() {
                     editingInbound={editingInbound}
                     onSuccess={fetchAllInbounds}
                     servers={servers}
-                    onBatchResult={(title, data) => {
-                        if (!data) return;
-                        setBatchResultTitle(title);
-                        setBatchResultData(data);
-                    }}
+                    onBatchResult={(title, data) => { if (data) { setBatchResultTitle(title); setBatchResultData(data); } }}
                 />
 
                 <ClientModal
@@ -1589,24 +655,8 @@ export default function Inbounds() {
                     onClose={() => setIsClientModalOpen(false)}
                     targets={clientTargets}
                     onSuccess={fetchAllInbounds}
-                    onBatchResult={(title, data) => {
-                        if (!data) return;
-                        setBatchResultTitle(title || '批量用户结果');
-                        setBatchResultData(data);
-                    }}
+                    onBatchResult={(title, data) => { if (data) { setBatchResultTitle(title || '批量用户结果'); setBatchResultData(data); } }}
                 />
-
-                {selectedVisibleCount > 0 && (
-                    <div className="mobile-batch-bar">
-                        <div className="batch-count">已选 {selectedVisibleCount} 项</div>
-                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
-                            {bulkToggleIcon}
-                            {bulkToggleLabel}
-                        </button>
-                        <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> 删除</button>
-                        <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> 重置</button>
-                    </div>
-                )}
 
                 <BatchResultModal
                     isOpen={!!batchResultData}
@@ -1615,73 +665,34 @@ export default function Inbounds() {
                     data={batchResultData}
                 />
 
-                {entitlementOpen && entitlementTarget && (
-                    <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
-                        <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3 className="modal-title">单独限制</h3>
-                                <button className="modal-close" onClick={closeEntitlementModal}>
-                                    <HiOutlineXMark />
-                                </button>
-                            </div>
-                            <form onSubmit={submitEntitlementOverride}>
-                                <div className="modal-body">
-                                    <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                                        <div>节点: <strong>{entitlementTarget.inbound.serverName}</strong></div>
-                                        <div>入站: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
-                                        <div>用户: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">到期时间</label>
-                                        <input
-                                            type="datetime-local"
-                                            className="form-input"
-                                            value={entitlementExpiryDate}
-                                            onChange={(e) => setEntitlementExpiryDate(e.target.value)}
-                                        />
-                                        <p className="text-xs text-muted mt-1">留空 = 永不过期</p>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">IP 限制</label>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            min={0}
-                                            value={entitlementLimitIp}
-                                            onChange={(e) => setEntitlementLimitIp(e.target.value)}
-                                        />
-                                        <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">总流量上限</label>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="number"
-                                                className="form-input"
-                                                min={0}
-                                                step="0.5"
-                                                value={entitlementTrafficLimitGb}
-                                                onChange={(e) => setEntitlementTrafficLimitGb(e.target.value)}
-                                            />
-                                            <span className="text-sm text-muted">GB</span>
-                                        </div>
-                                        <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={closeEntitlementModal}>取消</button>
-                                    <button type="button" className="btn btn-secondary" onClick={restoreEntitlementPolicy} disabled={entitlementSaving}>
-                                        {entitlementSaving ? <span className="spinner" /> : '恢复统一策略'}
-                                    </button>
-                                    <button type="submit" className="btn btn-primary" disabled={entitlementSaving}>
-                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存限制</>}
-                                    </button>
-                                </div>
-                            </form>
+                <Modal title="单独限制" open={entitlementOpen} onCancel={() => setEntitlementOpen(false)} onOk={() => entitlementForm.submit()} confirmLoading={entitlementSaving}>
+                    {entitlementTarget && (
+                        <div style={{ marginBottom: 16, padding: 12, background: '#1f1f1f', borderRadius: 4 }}>
+                            <div>节点: <Text strong>{entitlementTarget.inbound.serverName}</Text></div>
+                            <div>入站: <Text strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</Text></div>
+                            <div>用户: <Text strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</Text></div>
                         </div>
-                    </ModalShell>
-                )}
-            </div >
-        </>
+                    )}
+                    <Form form={entitlementForm} layout="vertical" onFinish={submitEntitlementOverride}>
+                        <Form.Item name="expiryDate" label="到期时间" extra="留空 = 永不过期">
+                            <Input type="datetime-local" />
+                        </Form.Item>
+                        <Form.Item name="limitIp" label="IP 限制" extra="0 = 不限制连接 IP 数量">
+                            <Input type="number" min={0} />
+                        </Form.Item>
+                        <Form.Item name="trafficLimitGb" label="总流量上限 (GB)" extra="0 = 不限制总流量">
+                            <Input type="number" min={0} step="0.5" />
+                        </Form.Item>
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setEntitlementOpen(false)}>取消</Button>
+                                <Button onClick={restoreEntitlementPolicy} loading={entitlementSaving}>恢复统一策略</Button>
+                                <Button type="primary" htmlType="submit" loading={entitlementSaving}>保存限制</Button>
+                            </Space>
+                        </div>
+                    </Form>
+                </Modal>
+            </div>
+        </ConfigProvider>
     );
 }

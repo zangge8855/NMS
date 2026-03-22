@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { HiOutlineXMark, HiOutlineCheck, HiOutlineArrowPath } from 'react-icons/hi2';
+import { Modal, Form, Input, Select, InputNumber, Checkbox, Card, Space, Typography, Tag, Row, Col } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import {
@@ -7,8 +8,9 @@ import {
     UUID_PROTOCOLS, PASSWORD_PROTOCOLS,
 } from '../../utils/protocol.js';
 import { generateSecurePassword, generateUuidLocal, generateHexToken } from '../../utils/crypto.js';
-import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
+
+const { Text, Paragraph } = Typography;
 
 const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 
@@ -87,16 +89,14 @@ export default function ClientModal({
     onBatchResult,
 }) {
     const [loading, setLoading] = useState(false);
-
     const [email, setEmail] = useState('');
     const [uuid, setUuid] = useState('');
     const [password, setPassword] = useState('');
     const [subId, setSubId] = useState('');
     const [totalGB, setTotalGB] = useState(0);
-    const [_expiryTime, setExpiryTime] = useState(0);
     const [expiryMode, setExpiryMode] = useState('never');
     const [expiryDateTime, setExpiryDateTime] = useState('');
-    const [expiryAfterDays, setExpiryAfterDays] = useState('');
+    const [expiryAfterDays, setExpiryAfterDays] = useState(0);
     const [enable, setEnable] = useState(true);
     const [limitIp, setLimitIp] = useState(0);
     const [flow, setFlow] = useState('');
@@ -105,6 +105,7 @@ export default function ClientModal({
     const [selectedInboundKeys, setSelectedInboundKeys] = useState([]);
     const [baseFlowOptions, setBaseFlowOptions] = useState(['', 'xtls-rprx-vision']);
     const [flowProtocols, setFlowProtocols] = useState(['vless']);
+
     const flowOptions = useMemo(() => {
         if (flow && !baseFlowOptions.includes(flow)) {
             return [...baseFlowOptions, flow];
@@ -133,7 +134,6 @@ export default function ClientModal({
                 setTotalGB(editingClient.totalGB ? editingClient.totalGB / (1024 * 1024 * 1024) : 0);
                 {
                     const rawExpiry = Number(editingClient.expiryTime || 0);
-                    setExpiryTime(rawExpiry);
                     if (rawExpiry > 0) {
                         setExpiryMode('datetime');
                         setExpiryDateTime(toLocalDateTimeInput(rawExpiry));
@@ -141,7 +141,7 @@ export default function ClientModal({
                         setExpiryMode('never');
                         setExpiryDateTime('');
                     }
-                    setExpiryAfterDays('');
+                    setExpiryAfterDays(0);
                 }
                 setEnable(editingClient.enable !== false);
                 setLimitIp(editingClient.limitIp || 0);
@@ -163,10 +163,9 @@ export default function ClientModal({
                 setPassword(needsPassword ? generateSecurePassword() : '');
                 setSubId('');
                 setTotalGB(0);
-                setExpiryTime(0);
                 setExpiryMode('never');
                 setExpiryDateTime('');
-                setExpiryAfterDays('');
+                setExpiryAfterDays(0);
                 setEnable(true);
                 setLimitIp(0);
                 setFlow('');
@@ -327,9 +326,7 @@ export default function ClientModal({
         }
     }, [editingClient, isOpen, password, requiresPasswordCredential, requiresUuidCredential, uuid]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
+    const handleSubmit = async () => {
         const isBatch = targets.length > 0;
         const isBatchEdit = !!editingClient && editTargets.length > 0;
         if (!isBatch && (!inboundId || !serverId)) {
@@ -472,7 +469,6 @@ export default function ClientModal({
                     assertOperationSucceeded(updateRes, '更新失败');
                     updateMsg = resolveResponseMsg(updateRes.data, updateMsg);
                 } catch {
-                    // Backward compatibility for older/forked 3x-ui update payloads.
                     const fallbackRes = await api.post(
                         `/panel/${serverId}/panel/api/inbounds/updateClient/${encodeURIComponent(clientIdentifier)}`,
                         clientData
@@ -482,7 +478,6 @@ export default function ClientModal({
                 }
                 toast.success(updateMsg);
             } else {
-                // Add mode
                 if (isBatch) {
                     if (filteredTargets.length === 0) {
                         toast.error('请至少选择一个入站');
@@ -529,7 +524,6 @@ export default function ClientModal({
                     }
 
                 } else {
-                    // Single Add
                     const settings = { clients: [clientData] };
                     const params = new URLSearchParams();
                     params.append('id', inboundId);
@@ -552,279 +546,266 @@ export default function ClientModal({
         setLoading(false);
     };
 
-    if (!isOpen) return null;
-
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose}>
-            <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3 className="modal-title">
-                        {editingClient
-                            ? (editTargets.length > 0 ? `批量编辑用户 (${editTargets.length} 个实例)` : '编辑用户')
-                            : (targets.length > 0 ? `批量添加用户 (${filteredTargets.length}/${targets.length} 个目标)` : '添加用户')}
-                    </h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
-                </div>
-
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-body">
-                        {targets.length > 0 && !editingClient && (
-                            <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
-                                <div className="mb-2">
-                                    <strong>目标节点 ({selectedServerIds.length}/{availableServers.length})：</strong>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={availableServers.length > 0 && selectedServerIds.length === availableServers.length}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedServerIds(availableServers.map((item) => item.id));
-                                                    setSelectedInboundKeys((targets || []).map((item) => getTargetKey(item)).filter(Boolean));
-                                                } else {
-                                                    setSelectedServerIds([]);
-                                                    setSelectedInboundKeys([]);
-                                                }
-                                            }}
-                                        />
-                                        <span>全选</span>
-                                    </label>
-                                    {availableServers.map((item) => (
-                                        <label key={item.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                            checked={selectedServerIds.includes(item.id)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedServerIds((prev) => [...new Set([...prev, item.id])]);
-                                                    setSelectedInboundKeys((prev) => {
-                                                        const next = new Set(prev);
-                                                        const serverKeys = targetKeysByServer.get(item.id) || [];
-                                                        serverKeys.forEach((key) => next.add(key));
-                                                        return Array.from(next);
-                                                    });
-                                                } else {
-                                                    setSelectedServerIds((prev) => prev.filter((id) => id !== item.id));
-                                                    setSelectedInboundKeys((prev) => {
-                                                        const removeSet = new Set(targetKeysByServer.get(item.id) || []);
-                                                        return prev.filter((key) => !removeSet.has(key));
-                                                    });
-                                                }
-                                            }}
-                                        />
-                                        <span>{item.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                                <div className="mb-2">
-                                    <strong>目标入站 ({filteredTargets.length}/{visibleTargets.length})：</strong>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={visibleTargets.length > 0 && filteredTargets.length === visibleTargets.length}
-                                            onChange={(e) => {
-                                                const visibleSet = new Set(visibleTargetKeys);
-                                                if (e.target.checked) {
-                                                    setSelectedInboundKeys((prev) => Array.from(new Set([...prev, ...visibleTargetKeys])));
-                                                } else {
-                                                    setSelectedInboundKeys((prev) => prev.filter((key) => !visibleSet.has(key)));
-                                                }
-                                            }}
-                                        />
-                                        <span>全选当前节点入站</span>
-                                    </label>
-                                </div>
-                                <div className="max-h-48 overflow-y-auto border border-white/10 rounded p-2">
-                                    {visibleTargets.length === 0 ? (
-                                        <div className="text-muted">请先选择节点</div>
-                                    ) : (
-                                        <div className="flex flex-col gap-1">
-                                            {visibleTargets.map((t) => {
-                                                const key = getTargetKey(t);
-                                                const checked = selectedInboundKeys.includes(key);
-                                                return (
-                                                    <label
-                                                        key={key}
-                                                        className="flex items-center gap-2 cursor-pointer"
-                                                        title={`[${t.serverName}] ${t.remark} (${t.protocol}:${t.port})`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    setSelectedInboundKeys((prev) => [...new Set([...prev, key])]);
-                                                                } else {
-                                                                    setSelectedInboundKeys((prev) => prev.filter((item) => item !== key));
-                                                                }
-                                                            }}
-                                                        />
-                                                        <span>
-                                                            [{t.serverName}] {t.remark} ({t.protocol}:{t.port})
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {editingClient && editTargets.length > 0 && (
-                            <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
-                                <strong>将同步到以下实例:</strong>
-                                <ul className="mt-1 list-disc list-inside">
-                                    {editTargets.map((t, idx) => (
-                                        <li key={`${t.serverId}-${t.inboundId}-${idx}`}>
-                                            [{t.serverName}] {t.inboundRemark || t.protocol} ({t.inboundPort})
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        <div className="form-group">
-                            <label className="form-label">Email</label>
-                            <input className="form-input" value={email} onChange={e => setEmail(e.target.value)} required />
+        <Modal
+            title={
+                editingClient
+                    ? (editTargets.length > 0 ? `批量编辑用户 (${editTargets.length} 个实例)` : '编辑用户')
+                    : (targets.length > 0 ? `批量添加用户 (${filteredTargets.length}/${targets.length} 个目标)` : '添加用户')
+            }
+            open={isOpen}
+            onCancel={onClose}
+            onOk={handleSubmit}
+            confirmLoading={loading}
+            width={800}
+            okText="保存"
+            cancelText="取消"
+        >
+            <Form layout="vertical" style={{ marginTop: '24px' }}>
+                {targets.length > 0 && !editingClient && (
+                    <Card size="small" style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ marginBottom: '12px' }}>
+                            <Text strong>目标节点 ({selectedServerIds.length}/{availableServers.length})：</Text>
                         </div>
-
-                        {requiresUuidCredential && (
-                            <div className="form-group">
-                                <label className="form-label">UUID</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <input className="form-input font-mono" value={uuid} onChange={e => setUuid(e.target.value)} required={requiresUuidCredential} />
-                                    <button type="button" className="btn btn-secondary btn-icon" onClick={generateUUID} title="生成 UUID">
-                                        <HiOutlineArrowPath />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {requiresPasswordCredential && (
-                            <div className="form-group">
-                                <label className="form-label">密码</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <input className="form-input font-mono" value={password} onChange={e => setPassword(e.target.value)} required={requiresPasswordCredential} />
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-icon"
-                                        onClick={() => setPassword(generateSecurePassword())}
-                                        title="生成随机密码"
-                                    >
-                                        <HiOutlineArrowPath />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {hasMixedCredentialTypes && (
-                            <div className="text-xs text-muted mb-4">
-                                当前选择包含多种协议：VMess/VLESS 使用 UUID，Trojan/Shadowsocks 使用密码。
-                            </div>
-                        )}
-
-                        <div className="form-group">
-                            <label className="form-label">订阅 ID (SubId)</label>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <input
-                                    className="form-input font-mono text-xs text-muted"
-                                    value={subId || '(自动生成)'}
-                                    readOnly
-                                    title="订阅链接的唯一标识"
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary btn-xs whitespace-nowrap"
-                                    onClick={() => {
-                                        setSubId(generateHexToken(8));
-                                        toast.success('已生成新订阅ID');
+                        <Space wrap style={{ marginBottom: '16px' }}>
+                            <Tag color="blue" style={{ cursor: 'pointer' }}>
+                                <Checkbox
+                                    checked={availableServers.length > 0 && selectedServerIds.length === availableServers.length}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setSelectedServerIds(availableServers.map((item) => item.id));
+                                            setSelectedInboundKeys((targets || []).map((item) => getTargetKey(item)).filter(Boolean));
+                                        } else {
+                                            setSelectedServerIds([]);
+                                            setSelectedInboundKeys([]);
+                                        }
                                     }}
                                 >
-                                    <HiOutlineArrowPath /> 重置
-                                </button>
-                            </div>
-                            <div className="text-xs text-muted mt-1">
-                                重置此 ID 会导致旧的订阅链接失效，需重新获取订阅
-                            </div>
+                                    全选
+                                </Checkbox>
+                            </Tag>
+                            {availableServers.map((item) => (
+                                <Tag key={item.id} color={selectedServerIds.includes(item.id) ? 'blue' : 'default'} style={{ cursor: 'pointer' }}>
+                                    <Checkbox
+                                        checked={selectedServerIds.includes(item.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedServerIds((prev) => [...new Set([...prev, item.id])]);
+                                                setSelectedInboundKeys((prev) => {
+                                                    const next = new Set(prev);
+                                                    const serverKeys = targetKeysByServer.get(item.id) || [];
+                                                    serverKeys.forEach((key) => next.add(key));
+                                                    return Array.from(next);
+                                                });
+                                            } else {
+                                                setSelectedServerIds((prev) => prev.filter((id) => id !== item.id));
+                                                setSelectedInboundKeys((prev) => {
+                                                    const removeSet = new Set(targetKeysByServer.get(item.id) || []);
+                                                    return prev.filter((key) => !removeSet.has(key));
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        {item.name}
+                                    </Checkbox>
+                                </Tag>
+                            ))}
+                        </Space>
+                        <div style={{ marginBottom: '12px' }}>
+                            <Text strong>目标入站 ({filteredTargets.length}/{visibleTargets.length})：</Text>
                         </div>
+                        <div style={{ marginBottom: '8px' }}>
+                            <Tag color="cyan" style={{ cursor: 'pointer' }}>
+                                <Checkbox
+                                    checked={visibleTargets.length > 0 && filteredTargets.length === visibleTargets.length}
+                                    onChange={(e) => {
+                                        const visibleSet = new Set(visibleTargetKeys);
+                                        if (e.target.checked) {
+                                            setSelectedInboundKeys((prev) => Array.from(new Set([...prev, ...visibleTargetKeys])));
+                                        } else {
+                                            setSelectedInboundKeys((prev) => prev.filter((key) => !visibleSet.has(key)));
+                                        }
+                                    }}
+                                >
+                                    全选当前节点入站
+                                </Checkbox>
+                            </Tag>
+                        </div>
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '4px', padding: '8px' }}>
+                            {visibleTargets.length === 0 ? (
+                                <Text type="secondary">请先选择节点</Text>
+                            ) : (
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                    {visibleTargets.map((t) => {
+                                        const key = getTargetKey(t);
+                                        const checked = selectedInboundKeys.includes(key);
+                                        return (
+                                            <Checkbox
+                                                key={key}
+                                                checked={checked}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedInboundKeys((prev) => [...new Set([...prev, key])]);
+                                                    } else {
+                                                        setSelectedInboundKeys((prev) => prev.filter((item) => item !== key));
+                                                    }
+                                                }}
+                                            >
+                                                <Text size="small">[{t.serverName}] {t.remark} ({t.protocol}:{t.port})</Text>
+                                            </Checkbox>
+                                        );
+                                    })}
+                                </Space>
+                            )}
+                        </div>
+                    </Card>
+                )}
 
-                        {isFlowSupported ? (
-                            <div className="form-group">
-                                <label className="form-label">流控 (Flow)</label>
-                                <select className="form-select" value={flow} onChange={e => setFlow(e.target.value)}>
-                                    {flowOptions.map((item) => (
-                                        <option key={item || '__empty'} value={item}>
-                                            {item ? item : '不设置'}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        ) : (
-                            <div className="form-group">
-                                <label className="form-label">流控 (Flow)</label>
-                                <input className="form-input" value="当前目标协议不支持 Flow" disabled />
-                            </div>
+                {editingClient && editTargets.length > 0 && (
+                    <Card size="small" style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.05)' }}>
+                        <Text strong>将同步到以下实例:</Text>
+                        <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                            {editTargets.map((t, idx) => (
+                                <li key={`${t.serverId}-${t.inboundId}-${idx}`}>
+                                    [{t.serverName}] {t.inboundRemark || t.protocol} ({t.inboundPort})
+                                </li>
+                            ))}
+                        </ul>
+                    </Card>
+                )}
+
+                <Form.Item label="Email" required>
+                    <Input value={email} onChange={e => setEmail(e.target.value)} />
+                </Form.Item>
+
+                <Row gutter={16}>
+                    <Col span={requiresPasswordCredential ? 12 : 24}>
+                        {requiresUuidCredential && (
+                            <Form.Item label="UUID" required={requiresUuidCredential}>
+                                <Input.Search
+                                    className="font-mono"
+                                    value={uuid}
+                                    onChange={e => setUuid(e.target.value)}
+                                    enterButton={<ReloadOutlined />}
+                                    onSearch={generateUUID}
+                                />
+                            </Form.Item>
                         )}
+                    </Col>
+                    <Col span={12}>
+                        {requiresPasswordCredential && (
+                            <Form.Item label="密码" required={requiresPasswordCredential}>
+                                <Input.Search
+                                    className="font-mono"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    enterButton={<ReloadOutlined />}
+                                    onSearch={() => setPassword(generateSecurePassword())}
+                                />
+                            </Form.Item>
+                        )}
+                    </Col>
+                </Row>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="form-group">
-                                <label className="form-label">流量限制 (GB)</label>
-                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder="0 为不限制" />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">到期策略</label>
-                                <select className="form-select mb-2" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
-                                    <option value="never">永不过期</option>
-                                    <option value="datetime">指定日期时间</option>
-                                    <option value="days">N 天后过期</option>
-                                </select>
+                {hasMixedCredentialTypes && (
+                    <Paragraph type="secondary" style={{ fontSize: '12px', marginTop: '-12px', marginBottom: '16px' }}>
+                        当前选择包含多种协议：VMess/VLESS 使用 UUID，Trojan/Shadowsocks 使用密码。
+                    </Paragraph>
+                )}
+
+                <Form.Item
+                    label="订阅 ID (SubId)"
+                    help="重置此 ID 会导致旧的订阅链接失效，需重新获取订阅"
+                >
+                    <Input.Search
+                        className="font-mono"
+                        value={subId}
+                        placeholder="(自动生成)"
+                        readOnly
+                        enterButton="重置"
+                        onSearch={() => {
+                            setSubId(generateHexToken(8));
+                            toast.success('已生成新订阅ID');
+                        }}
+                    />
+                </Form.Item>
+
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item label="流控 (Flow)">
+                            {isFlowSupported ? (
+                                <Select value={flow} onChange={setFlow}>
+                                    {flowOptions.map((item) => (
+                                        <Select.Option key={item || '__empty'} value={item}>
+                                            {item ? item : '不设置'}
+                                        </Select.Option>
+                                    ))}
+                                </Select>
+                            ) : (
+                                <Input value="当前目标协议不支持 Flow" disabled />
+                            )}
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item label="流量限制 (GB)" tooltip="0 为不限制">
+                            <InputNumber
+                                style={{ width: '100%' }}
+                                min={0}
+                                value={totalGB}
+                                onChange={setTotalGB}
+                                addonAfter="GB"
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item label="到期策略">
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                                <Select value={expiryMode} onChange={setExpiryMode} style={{ width: '100%' }}>
+                                    <Select.Option value="never">永不过期</Select.Option>
+                                    <Select.Option value="datetime">指定日期时间</Select.Option>
+                                    <Select.Option value="days">N 天后过期</Select.Option>
+                                </Select>
                                 {expiryMode === 'datetime' && (
-                                    <input
-                                        className="form-input"
+                                    <Input
                                         type="datetime-local"
                                         value={expiryDateTime}
                                         onChange={(e) => setExpiryDateTime(e.target.value)}
                                     />
                                 )}
                                 {expiryMode === 'days' && (
-                                    <input
-                                        className="form-input"
-                                        type="number"
+                                    <InputNumber
+                                        style={{ width: '100%' }}
                                         min={1}
                                         value={expiryAfterDays}
-                                        onChange={(e) => setExpiryAfterDays(e.target.value)}
+                                        onChange={setExpiryAfterDays}
                                         placeholder="例如: 30"
+                                        addonAfter="天"
                                     />
                                 )}
-                            </div>
-                        </div>
+                            </Space>
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item label="IP 限制" tooltip="0 为不限制">
+                            <InputNumber
+                                style={{ width: '100%' }}
+                                min={0}
+                                value={limitIp}
+                                onChange={setLimitIp}
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
 
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="form-group">
-                                <label className="form-label">IP 限制 (0 为不限制)</label>
-                                <input className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
-                            </div>
-                            <div className="form-group flex items-center pt-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
-                                    启用此用户
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
-                        <button type="submit" className="btn btn-primary" disabled={loading}>
-                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> 保存</>}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </ModalShell>
+                <Form.Item>
+                    <Checkbox checked={enable} onChange={e => setEnable(e.target.checked)}>
+                        启用此用户
+                    </Checkbox>
+                </Form.Item>
+            </Form>
+        </Modal>
     );
 }

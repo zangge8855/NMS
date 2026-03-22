@@ -7,6 +7,9 @@ import {
     HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { Card, Row, Col, Badge, Typography, Button, Space, Divider, Alert } from 'antd';
+
+const { Text, Title } = Typography;
 
 function resolveTopologyCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -65,20 +68,19 @@ function ResourceNode({
     tone = 'primary',
     action = null,
 }) {
+    const toneColor = tone === 'primary' ? '#1677ff' : tone === 'success' ? '#52c41a' : tone === 'warning' ? '#faad14' : '#ff4d4f';
     return (
-        <div className={`resource-topology-node resource-topology-node--${tone}`}>
-            <div className="resource-topology-node-head">
-                <span className="resource-topology-node-icon" aria-hidden="true">
-                    <Icon />
-                </span>
-                <div className="resource-topology-node-copy">
-                    <div className="resource-topology-node-label">{label}</div>
-                    <div className="resource-topology-node-status">{status}</div>
-                </div>
-            </div>
-            <div className="resource-topology-node-detail">{detail}</div>
-            {action}
-        </div>
+        <Card 
+            size="small" 
+            style={{ borderColor: toneColor, borderWidth: 1, minWidth: 200, flex: 1, background: 'var(--surface-overlay)' }}
+            bodyStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}
+        >
+            <Icon style={{ fontSize: 32, color: toneColor, marginBottom: 8 }} />
+            <Text strong style={{ color: 'var(--text-primary)' }}>{label}</Text>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>{status}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{detail}</Text>
+            {action && <div style={{ marginTop: 12 }}>{action}</div>}
+        </Card>
     );
 }
 
@@ -117,26 +119,24 @@ export default function ResourceTopologyCard({
     }, [copy.readWrite, dbStatus?.connection?.enabled, dbStatus?.connection?.ready, dbStatus?.currentModes, serverStatuses, servers]);
 
     return (
-        <div className="card resource-topology-card">
-            <div className="resource-topology-head">
-                <div>
-                    <div className="resource-topology-title">{copy.title}</div>
-                    <div className="resource-topology-subtitle">{copy.subtitle}</div>
-                </div>
-                <div className="resource-topology-stat-strip" aria-label={copy.title}>
-                    <span className="resource-topology-stat-pill">
-                        {copy.totalNodes} {summary.total}
-                    </span>
-                    <span className="resource-topology-stat-pill is-success">
-                        {copy.onlineNodes} {summary.online}
-                    </span>
-                    <span className={`resource-topology-stat-pill${summary.offline > 0 ? ' is-danger' : ''}`}>
-                        {copy.offlineNodes} {summary.offline}
-                    </span>
-                </div>
-            </div>
+        <Card style={{ marginBottom: 24, background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
+            <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+                <Col>
+                    <Title level={4} style={{ margin: 0, color: 'var(--text-primary)' }}>{copy.title}</Title>
+                    <Text type="secondary">{copy.subtitle}</Text>
+                </Col>
+                <Col>
+                    <Space>
+                        <Badge count={`${copy.totalNodes} ${summary.total}`} style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', boxShadow: '0 0 0 1px var(--border-color)' }} />
+                        <Badge count={`${copy.onlineNodes} ${summary.online}`} style={{ backgroundColor: '#52c41a' }} />
+                        {summary.offline > 0 && (
+                            <Badge count={`${copy.offlineNodes} ${summary.offline}`} style={{ backgroundColor: '#ff4d4f' }} />
+                        )}
+                    </Space>
+                </Col>
+            </Row>
 
-            <div className="resource-topology-flow">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                 <ResourceNode
                     icon={HiOutlineCloud}
                     label={copy.control}
@@ -144,10 +144,7 @@ export default function ResourceTopologyCard({
                     detail="API / WS / Task Queue"
                     tone="primary"
                 />
-                <div className={`resource-topology-link${summary.dbReady ? ' is-ok' : ' is-warning'}`} aria-hidden="true">
-                    <span className="resource-topology-link-dot" />
-                    <span className="resource-topology-link-line" />
-                </div>
+                <Divider type="horizontal" dashed style={{ flex: 1, minWidth: 50, borderColor: summary.dbReady ? '#52c41a' : '#faad14' }} />
                 <ResourceNode
                     icon={HiOutlineCircleStack}
                     label={copy.storage}
@@ -155,10 +152,7 @@ export default function ResourceTopologyCard({
                     detail={summary.dbDetail}
                     tone={summary.dbReady ? 'success' : 'warning'}
                 />
-                <div className={`resource-topology-link${summary.offline > 0 ? ' is-danger' : ' is-ok'}`} aria-hidden="true">
-                    <span className={`resource-topology-link-dot${summary.offline > 0 ? ' is-alert' : ''}`} />
-                    <span className="resource-topology-link-line" />
-                </div>
+                <Divider type="horizontal" dashed style={{ flex: 1, minWidth: 50, borderColor: summary.offline > 0 ? '#ff4d4f' : '#52c41a' }} />
                 <ResourceNode
                     icon={HiOutlineServerStack}
                     label={copy.nodes}
@@ -166,32 +160,30 @@ export default function ResourceTopologyCard({
                     detail={`${summary.online} / ${summary.total}`}
                     tone={summary.offline > 0 ? 'danger' : 'success'}
                     action={typeof onOpenServers === 'function' ? (
-                        <button type="button" className="resource-topology-action" onClick={onOpenServers}>
-                            <HiOutlineArrowPath />
+                        <Button type="primary" size="small" icon={<HiOutlineArrowPath />} onClick={onOpenServers}>
                             {copy.openServers}
-                        </button>
+                        </Button>
                     ) : null}
                 />
             </div>
 
-            <div className="resource-topology-alerts">
-                <div className="resource-topology-alerts-title">
-                    <HiOutlineExclamationTriangle />
-                    {copy.offlineTitle}
+            {summary.offlineNodes.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                    <Alert
+                        message={<Space><HiOutlineExclamationTriangle /> {copy.offlineTitle}</Space>}
+                        description={
+                            <Space wrap>
+                                {summary.offlineNodes.map((item) => (
+                                    <Badge key={item.serverId} color="red" text={<Text style={{ color: 'var(--text-primary)' }}>{item.serverName}</Text>} />
+                                ))}
+                            </Space>
+                        }
+                        type="error"
+                        showIcon={false}
+                        style={{ backgroundColor: '#ff4d4f20', borderColor: '#ff4d4f' }}
+                    />
                 </div>
-                {summary.offlineNodes.length === 0 ? (
-                    <div className="resource-topology-empty">{copy.offlineNone}</div>
-                ) : (
-                    <div className="resource-topology-offline-list">
-                        {summary.offlineNodes.map((item) => (
-                            <span key={item.serverId} className="resource-topology-offline-pill">
-                                <span className="resource-topology-offline-dot" />
-                                {item.serverName}
-                            </span>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
+            )}
+        </Card>
     );
 }

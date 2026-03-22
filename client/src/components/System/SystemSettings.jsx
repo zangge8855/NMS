@@ -1,12 +1,50 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import Header from '../Layout/Header.jsx';
-import api from '../../api/client.js';
-import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext.jsx';
-import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { copyToClipboard, formatBytes, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
+import {
+    Layout,
+    Tabs,
+    Card,
+    Button,
+    Input,
+    Select,
+    Switch,
+    Form,
+    Row,
+    Col,
+    Typography,
+    Modal,
+    Empty,
+    Space,
+    Descriptions,
+    Tag,
+    Badge,
+    Alert,
+    Progress,
+    Table,
+    Tooltip,
+    Divider,
+    Checkbox,
+} from 'antd';
+import {
+    CloudOutlined,
+    CloudUploadOutlined,
+    CloudDownloadOutlined,
+    DashboardOutlined,
+    SettingOutlined,
+    SafetyCertificateOutlined,
+    HddOutlined,
+    SyncOutlined,
+    CopyOutlined,
+    ExportOutlined,
+    DeleteOutlined,
+    EyeOutlined,
+    MailOutlined,
+    NotificationOutlined,
+    ExclamationCircleOutlined,
+    CheckCircleOutlined,
+    RollbackOutlined,
+    SaveOutlined,
+} from '@ant-design/icons';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
@@ -18,12 +56,18 @@ import {
     HiOutlineShieldCheck,
     HiOutlineXMark,
 } from 'react-icons/hi2';
+import Header from '../Layout/Header.jsx';
+import api from '../../api/client.js';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useConfirm } from '../../contexts/ConfirmContext.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { copyToClipboard, formatBytes, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
-import ModalShell from '../UI/ModalShell.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
-import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import SiteAccessDangerModal from './SiteAccessDangerModal.jsx';
+
+const { Title, Text, Paragraph } = Typography;
+const { Content, Sider } = Layout;
 
 function toInt(value, fallback) {
     const parsed = Number.parseInt(String(value), 10);
@@ -178,33 +222,33 @@ const DEFAULT_SETTINGS_TAB = 'status';
 function buildSettingsWorkspaceConfig(t) {
     return [
         {
-            id: 'status',
+            key: 'status',
             label: t('pages.settings.tabStatus'),
-            icon: HiOutlineChartBarSquare,
+            icon: <HiOutlineChartBarSquare />,
             routeTab: 'status',
         },
         {
-            id: 'access',
+            key: 'access',
             label: t('pages.settings.tabAccess'),
-            icon: HiOutlineCog6Tooth,
+            icon: <HiOutlineCog6Tooth />,
             routeTab: 'access',
         },
         {
-            id: 'policy',
+            key: 'policy',
             label: t('pages.settings.tabPolicy'),
-            icon: HiOutlineShieldCheck,
+            icon: <HiOutlineShieldCheck />,
             routeTab: 'policy',
         },
         {
-            id: 'operations',
+            key: 'operations',
             label: t('pages.settings.tabNotify'),
-            icon: HiOutlineServerStack,
+            icon: <HiOutlineServerStack />,
             routeTab: 'monitor',
         },
         {
-            id: 'backup',
+            key: 'backup',
             label: t('pages.settings.tabDb'),
-            icon: HiOutlineArrowDownTray,
+            icon: <HiOutlineArrowDownTray />,
             routeTab: 'backup',
         },
     ];
@@ -232,72 +276,64 @@ function formatDateTime(value, locale = 'zh-CN') {
     return formatDateTimeValue(value, locale);
 }
 
-function SettingsPanelHeader({ title, subtitle }) {
+function SettingsToggleCard({
+    checked,
+    onChange,
+    disabled = false,
+    label,
+    description,
+    activeLabel = '已开启',
+    inactiveLabel = '已关闭',
+    compact = false,
+}) {
     return (
-        <div className="settings-panel-head">
-            <div className="settings-panel-title">{title}</div>
-            {subtitle ? <div className="settings-panel-subtitle">{subtitle}</div> : null}
-        </div>
+        <Card size="small" style={{ marginBottom: 12 }}>
+            <Row align="middle" gutter={16}>
+                <Col flex="auto">
+                    <Text strong>{label}</Text>
+                    {description && (
+                        <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: '12px' }}>
+                            {description}
+                        </Paragraph>
+                    )}
+                </Col>
+                <Col>
+                    <Space>
+                        {!compact && <Tag color={checked ? 'success' : 'default'}>{checked ? activeLabel : inactiveLabel}</Tag>}
+                        <Switch checked={checked} onChange={(val) => onChange({ target: { checked: val } })} disabled={disabled} />
+                    </Space>
+                </Col>
+            </Row>
+        </Card>
     );
 }
 
-function SettingsWorkspaceSection({
-    workspaceId = 'default',
-    eyebrow,
-    title,
-    subtitle,
-    summary,
-    badges = null,
-    highlights = [],
-    actions = null,
-    heroMode = 'full',
-    children,
-}) {
-    const showHeroCopy = heroMode === 'full';
-    const showHeroStrip = heroMode === 'cards' && Boolean(badges || actions);
-    const hasHero = heroMode !== 'hidden'
-        && (showHeroCopy
-            ? Boolean(eyebrow || title || subtitle || summary || badges || actions || highlights.length > 0)
-            : Boolean(showHeroStrip || highlights.length > 0));
+function formatInviteDuration(days) {
+    const normalized = Math.max(0, Number(days) || 0);
+    return normalized > 0 ? `${normalized} 天` : '不限时';
+}
 
-    return (
-        <section className="settings-workspace-section" data-workspace={workspaceId}>
-            {hasHero ? (
-                <div className={`settings-tab-hero settings-workspace-hero settings-workspace-hero--${heroMode}`}>
-                    {showHeroCopy ? (
-                        <div className="settings-tab-hero-copy">
-                            {eyebrow ? <div className="settings-tab-hero-eyebrow">{eyebrow}</div> : null}
-                            {title ? <div className="settings-tab-hero-title">{title}</div> : null}
-                            {subtitle ? <div className="settings-workspace-hero-subtitle">{subtitle}</div> : null}
-                            {summary ? <div className="settings-tab-hero-summary">{summary}</div> : null}
-                            {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
-                            {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
-                        </div>
-                    ) : null}
-                    {showHeroStrip ? (
-                        <div className="settings-workspace-hero-strip">
-                            {badges ? <div className="settings-workspace-hero-badges">{badges}</div> : null}
-                            {actions ? <div className="settings-workspace-hero-actions">{actions}</div> : null}
-                        </div>
-                    ) : null}
-                    {highlights.length > 0 ? (
-                        <div className="settings-tab-hero-grid settings-workspace-highlight-grid">
-                            {highlights.map((item) => (
-                                <div key={item.label} className="settings-tab-highlight-card settings-workspace-highlight-card">
-                                    <div className="settings-tab-highlight-label">{item.label}</div>
-                                    <div className="settings-tab-highlight-value" title={String(item.value ?? '')}>{item.value}</div>
-                                    {item.detail ? <div className="settings-tab-highlight-detail">{item.detail}</div> : null}
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
-                </div>
-            ) : null}
-            <div className="settings-workspace-section-body">
-                {children}
-            </div>
-        </section>
-    );
+function getInviteStatusMeta(item = {}) {
+    if (item.status === 'active') {
+        return {
+            color: 'success',
+            label: Number(item.remainingUses || 0) > 0 ? '可使用' : '待检查',
+        };
+    }
+    if (item.status === 'revoked') {
+        return {
+            color: 'error',
+            label: '已撤销',
+        };
+    }
+    return {
+        color: 'default',
+        label: '已用完',
+    };
+}
+
+function areComparableSettingsEqual(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function getMonitorReasonLabel(reasonCode) {
@@ -312,75 +348,6 @@ function getMonitorReasonLabel(reasonCode) {
     if (reasonCode === 'xray_not_running') return 'Xray 未运行';
     if (reasonCode === 'panel_request_failed') return '请求失败';
     return '';
-}
-
-function SettingsToggleCard({
-    checked,
-    onChange,
-    disabled = false,
-    label,
-    description,
-    activeLabel = '已开启',
-    inactiveLabel = '已关闭',
-    compact = false,
-}) {
-    const detailText = compact
-        ? [checked ? activeLabel : inactiveLabel, description].filter(Boolean).join(' · ')
-        : description;
-
-    return (
-        <label className={`settings-toggle-card${compact ? ' settings-toggle-card--compact' : ''}${checked ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}>
-            <div className="settings-toggle-copy">
-                <div className="settings-toggle-label">{label}</div>
-                {detailText ? <div className={`settings-toggle-description${compact ? ' is-visible' : ''}`}>{detailText}</div> : null}
-            </div>
-            <div className="settings-toggle-side">
-                {!compact ? (
-                    <span className={`badge settings-toggle-badge ${checked ? 'badge-success' : 'badge-neutral'}`}>
-                        {checked ? activeLabel : inactiveLabel}
-                    </span>
-                ) : null}
-                <input
-                    type="checkbox"
-                    className="settings-toggle-input"
-                    checked={checked}
-                    onChange={onChange}
-                    disabled={disabled}
-                />
-                <span className="settings-toggle-switch" aria-hidden="true">
-                    <span className="settings-toggle-thumb" />
-                </span>
-            </div>
-        </label>
-    );
-}
-
-function formatInviteDuration(days) {
-    const normalized = Math.max(0, Number(days) || 0);
-    return normalized > 0 ? `${normalized} 天` : '不限时';
-}
-
-function getInviteStatusMeta(item = {}) {
-    if (item.status === 'active') {
-        return {
-            className: 'badge-success',
-            label: Number(item.remainingUses || 0) > 0 ? '可使用' : '待检查',
-        };
-    }
-    if (item.status === 'revoked') {
-        return {
-            className: 'badge-danger',
-            label: '已撤销',
-        };
-    }
-    return {
-        className: 'badge-neutral',
-        label: '已用完',
-    };
-}
-
-function areComparableSettingsEqual(left, right) {
-    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 export default function SystemSettings() {
@@ -467,6 +434,7 @@ export default function SystemSettings() {
         registrationRuntime: false,
         inviteCodes: false,
     });
+
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryLabel = emailStatus?.lastDelivery?.success === true
         ? '最近发送成功'
@@ -1112,11 +1080,9 @@ export default function SystemSettings() {
             });
             const obj = res.data?.obj || null;
             if (obj?.taskId) {
-                // 异步模式：显示进度弹窗
                 setBackfillTaskId(obj.taskId);
                 toast('回填任务已启动，请关注进度弹窗');
             } else {
-                // 同步模式回退
                 const output = obj;
                 setDbBackfillResult(output);
                 const failed = Number(output?.failed || 0);
@@ -1557,1414 +1523,807 @@ export default function SystemSettings() {
     const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
         + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
     const monitorUnreadCount = Number(monitorStatus?.notifications?.unreadCount || 0);
+
     const renderAccessContent = () => (
-        <div className="settings-section-stack">
-            <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-access-panel">
-                    <SectionHeader
-                        className="mb-3"
-                        compact
-                        title="入口与订阅"
-                        actions={(
-                            <div className="settings-panel-actions">
-                                <CopyFeedbackButton
-                                    type="button"
-                                    className="btn btn-secondary btn-sm"
-                                    text={siteEntryPreview}
-                                    successText="入口地址已复制到剪贴板"
-                                >
-                                    复制入口
-                                </CopyFeedbackButton>
-                                <a href={siteEntryPreview} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-                                    打开预览
-                                </a>
-                            </div>
-                        )}
-                    />
-                    <div className="settings-access-grid">
-                        <div className="settings-access-stack">
-                            <div className="settings-form-cluster settings-form-cluster--entry">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">入口路径</div>
-                                    <div className="settings-form-cluster-title">访问路径</div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">首页访问路径</label>
-                                    <div className="settings-inline-action-row">
-                                        <input
-                                            className="form-input font-mono"
-                                            placeholder="/"
-                                            value={draft.site.accessPath}
-                                            onChange={(e) => patchField('site', 'accessPath', e.target.value)}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={applyRandomSiteAccessPath}
-                                        >
-                                            随机路径
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">生成后的访问地址</label>
-                                    <input className="form-input font-mono" value={siteEntryPreview} readOnly />
-                                </div>
-                            </div>
-                            <div className="settings-form-cluster settings-form-cluster--camouflage">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">伪装页面</div>
-                                    <div className="settings-form-cluster-title">伪装模板</div>
-                                </div>
-                                <div className="settings-field-grid settings-field-grid--compact">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">伪装模板</label>
-                                        <select
-                                            className="form-select"
-                                            value={draft.site.camouflageTemplate}
-                                            onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
-                                        >
-                                            {CAMOUFLAGE_TEMPLATE_OPTIONS.map((item) => (
-                                                <option key={item.value} value={item.value}>{item.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">伪装站点标题</label>
-                                        <input
-                                            className="form-input"
-                                            value={draft.site.camouflageTitle}
-                                            onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
-                                            placeholder="Edge Precision Systems"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="settings-toggle-strip">
-                                    <SettingsToggleCard
-                                        compact
-                                        checked={draft.site.camouflageEnabled}
-                                        onChange={(e) => handleCamouflageToggle(e.target.checked)}
-                                        label="站点伪装首页"
-                                        description="开启后首页和错误路径展示公开首页。"
-                                        activeLabel="已开启"
-                                        inactiveLabel="已关闭"
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Card
+                title={<Title level={4} style={{ margin: 0 }}>入口与订阅</Title>}
+                extra={
+                    <Space>
+                        <Button
+                            icon={<CopyOutlined />}
+                            onClick={() => {
+                                copyToClipboard(siteEntryPreview);
+                                toast.success('入口地址已复制到剪贴板');
+                            }}
+                        >
+                            复制入口
+                        </Button>
+                        <Button icon={<EyeOutlined />} href={siteEntryPreview} target="_blank">
+                            打开预览
+                        </Button>
+                    </Space>
+                }
+            >
+                <Row gutter={[32, 32]}>
+                    <Col xs={24} md={12}>
+                        <Title level={5}>访问路径</Title>
+                        <Form layout="vertical">
+                            <Form.Item label="首页访问路径">
+                                <Space.Compact style={{ width: '100%' }}>
+                                    <Input
+                                        className="font-mono"
+                                        placeholder="/"
+                                        value={draft.site.accessPath}
+                                        onChange={(e) => patchField('site', 'accessPath', e.target.value)}
                                     />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="settings-access-stack">
-                            <div className="settings-form-cluster settings-form-cluster--address">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">订阅公网</div>
-                                    <div className="settings-form-cluster-title">订阅公网地址</div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">订阅公网地址</label>
-                                    <input
-                                        className="form-input"
-                                        placeholder="https://nms.example.com"
-                                        value={draft.subscription.publicBaseUrl}
-                                        onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                                    <Button onClick={applyRandomSiteAccessPath}>随机路径</Button>
+                                </Space.Compact>
+                            </Form.Item>
+                            <Form.Item label="生成后的访问地址">
+                                <Input className="font-mono" value={siteEntryPreview} readOnly />
+                            </Form.Item>
+                        </Form>
+                        <Divider style={{ margin: '16px 0' }} />
+                        <Title level={5}>伪装页面</Title>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item label="伪装模板">
+                                    <Select
+                                        value={draft.site.camouflageTemplate}
+                                        onChange={(val) => patchField('site', 'camouflageTemplate', val)}
+                                        options={CAMOUFLAGE_TEMPLATE_OPTIONS}
                                     />
-                                    <div className="text-xs text-muted mt-1">留空时默认按当前站点地址分发订阅。</div>
-                                </div>
-                            </div>
-                            <div className="settings-form-cluster settings-form-cluster--address">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">外部转换</div>
-                                    <div className="settings-form-cluster-title">外部转换器</div>
-                                </div>
-                                <div className="form-group mb-0">
-                                    <label className="form-label">外部订阅转换器地址</label>
-                                    <input
-                                        className="form-input"
-                                        placeholder="https://converter.example.com"
-                                        value={converterBaseUrl}
-                                        onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label="伪装站点标题">
+                                    <Input
+                                        value={draft.site.camouflageTitle}
+                                        onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
+                                        placeholder="Edge Precision Systems"
                                     />
-                                    <div className="text-xs text-muted mt-1">留空则不启用外部转换器。</div>
-                                </div>
-                                <div className="settings-access-action-row">
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => patchField('subscription', 'converterBaseUrl', '')}
-                                        disabled={!converterBaseUrl}
-                                    >
-                                        清空
-                                    </button>
-                                    <a
-                                        href={converterBaseUrl || undefined}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className={`btn btn-ghost btn-sm${converterBaseUrl ? '' : ' disabled'}`}
-                                        aria-disabled={!converterBaseUrl}
-                                        onClick={(event) => {
-                                            if (!converterBaseUrl) event.preventDefault();
-                                        }}
-                                    >
-                                        打开链接
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.site.camouflageEnabled}
+                            onChange={(e) => handleCamouflageToggle(e.target.checked)}
+                            label="站点伪装首页"
+                            description="开启后首页和错误路径展示公开首页。"
+                        />
+                    </Col>
+                    <Col xs={24} md={12}>
+                        <Title level={5}>订阅公网地址</Title>
+                        <Form.Item label="订阅公网地址" extra="留空时默认按当前站点地址分发订阅。">
+                            <Input
+                                placeholder="https://nms.example.com"
+                                value={draft.subscription.publicBaseUrl}
+                                onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
+                            />
+                        </Form.Item>
+                        <Divider style={{ margin: '16px 0' }} />
+                        <Title level={5}>外部转换器</Title>
+                        <Form.Item label="外部订阅转换器地址" extra="留空则不启用外部转换器。">
+                            <Input
+                                placeholder="https://converter.example.com"
+                                value={converterBaseUrl}
+                                onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
+                            />
+                        </Form.Item>
+                        <Space>
+                            <Button
+                                disabled={!converterBaseUrl}
+                                onClick={() => patchField('subscription', 'converterBaseUrl', '')}
+                            >
+                                清空
+                            </Button>
+                            <Button
+                                icon={<ExportOutlined />}
+                                href={converterBaseUrl || undefined}
+                                target="_blank"
+                                disabled={!converterBaseUrl}
+                            >
+                                打开链接
+                            </Button>
+                        </Space>
+                    </Col>
+                </Row>
+            </Card>
 
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-registration-panel">
-                    <SectionHeader
-                        className="mb-3"
-                        compact
-                        title="注册与邀请码"
-                        actions={(
-                            <div className="settings-panel-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
-                                    {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
-                                </button>
-                            </div>
-                        )}
-                    />
-                    <div className="settings-invite-layout">
-                        <div className="settings-access-stack">
-                            <div className="settings-form-cluster">
-                                <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">注册模式</div>
-                                    <div className="settings-form-cluster-title">注册与邀请码</div>
-                                </div>
-                                <div className="settings-toggle-strip">
-                                    <SettingsToggleCard
-                                        compact
-                                        checked={draft.registration.inviteOnlyEnabled}
-                                        onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
-                                        disabled={!registrationEnabled}
-                                        label="开启邀请注册"
-                                        description={registrationEnabled
-                                            ? '开启后注册需填写邀请码。'
-                                            : '当前环境已关闭自助注册。'}
-                                        activeLabel="邀请模式"
-                                        inactiveLabel="普通模式"
-                                    />
-                                </div>
-                            </div>
-                            <div className="card p-3 settings-mini-card settings-detail-card">
-                                <div className="text-sm font-medium">生成邀请码</div>
-                                <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">本次生成数量</label>
-                                        <input
-                                            className="form-input"
+            <Card
+                title={<Title level={4} style={{ margin: 0 }}>注册与邀请码</Title>}
+                extra={
+                    <Button
+                        icon={<SyncOutlined spin={inviteCodesLoading} />}
+                        onClick={() => fetchInviteCodes()}
+                        disabled={inviteCodesLoading || inviteCodeActionLoading}
+                    >
+                        刷新邀请码
+                    </Button>
+                }
+            >
+                <Row gutter={[32, 32]}>
+                    <Col xs={24} md={12}>
+                        <Title level={5}>注册模式</Title>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.registration.inviteOnlyEnabled}
+                            onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
+                            disabled={!registrationEnabled}
+                            label="开启邀请注册"
+                            description={registrationEnabled ? '开启后注册需填写邀请码。' : '当前环境已关闭自助注册。'}
+                            activeLabel="邀请模式"
+                            inactiveLabel="普通模式"
+                        />
+                        <Card size="small" title="生成邀请码" style={{ marginTop: 24 }}>
+                            <Row gutter={16}>
+                                <Col span={8}>
+                                    <Form.Item label="本次数量">
+                                        <Input
                                             type="number"
-                                            min={1}
-                                            max={50}
                                             value={inviteGenerationDraft.count}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                count: e.target.value,
-                                            }))}
+                                            onChange={(e) => setInviteGenerationDraft(p => ({ ...p, count: e.target.value }))}
                                         />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">每个邀请码可用次数</label>
-                                        <input
-                                            className="form-input"
+                                    </Form.Item>
+                                </Col>
+                                <Col span={8}>
+                                    <Form.Item label="可用次数">
+                                        <Input
                                             type="number"
-                                            min={1}
-                                            max={1000}
                                             value={inviteGenerationDraft.usageLimit}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                usageLimit: e.target.value,
-                                            }))}
+                                            onChange={(e) => setInviteGenerationDraft(p => ({ ...p, usageLimit: e.target.value }))}
                                         />
-                                    </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label">开通时长（天）</label>
-                                        <input
-                                            className="form-input"
+                                    </Form.Item>
+                                </Col>
+                                <Col span={8}>
+                                    <Form.Item label="时长 (天)">
+                                        <Input
                                             type="number"
-                                            min={0}
-                                            max={3650}
                                             value={inviteGenerationDraft.subscriptionDays}
-                                            onChange={(e) => setInviteGenerationDraft((prev) => ({
-                                                ...prev,
-                                                subscriptionDays: e.target.value,
-                                            }))}
+                                            onChange={(e) => setInviteGenerationDraft(p => ({ ...p, subscriptionDays: e.target.value }))}
                                         />
-                                    </div>
-                                    <div className="form-group mb-0 settings-form-actions">
-                                        <button
-                                            className="btn btn-primary w-full"
-                                            type="button"
-                                            onClick={createInviteCode}
-                                            disabled={inviteCodeActionLoading}
-                                        >
-                                            {inviteCodeActionKey === 'create' ? <span className="spinner" /> : '生成邀请码'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {latestInviteCodes.length > 0 ? (
-                                <div className="card p-3 settings-mini-card settings-detail-card">
-                                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                        <div className="text-sm font-medium">本次生成的邀请码</div>
-                                        <span className="text-xs text-muted">
-                                            {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
-                                        </span>
-                                    </div>
-                                    <div className="settings-code-list">
-                                        {latestInviteCodes.map((code) => (
-                                            <code key={code} className="font-mono">{code}</code>
-                                        ))}
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-wrap mt-3">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={async () => {
-                                                await copyToClipboard(latestInviteCodes.join('\n'));
-                                                toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
-                                            }}
-                                        >
-                                            {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
-                                        </button>
-                                    </div>
-                                    <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
-                                </div>
-                            ) : null}
-                        </div>
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Button
+                                type="primary"
+                                block
+                                onClick={createInviteCode}
+                                loading={inviteCodeActionKey === 'create'}
+                            >
+                                生成邀请码
+                            </Button>
+                        </Card>
 
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">邀请码台账</div>
-                                <div className="settings-form-cluster-title">台账与使用记录</div>
-                                <div className="settings-form-cluster-note">
-                                    活动 {inviteAvailableRecords.length} 个 · 剩余 {inviteRemainingUses} 次 · 已用尽 {inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。
+                        {latestInviteCodes.length > 0 && (
+                            <Card size="small" title="本次生成的邀请码" style={{ marginTop: 16 }}>
+                                <Paragraph type="secondary" style={{ fontSize: '12px' }}>
+                                    {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
+                                </Paragraph>
+                                <div style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px', marginBottom: '12px' }}>
+                                    {latestInviteCodes.map(code => <Tag key={code} className="font-mono">{code}</Tag>)}
                                 </div>
-                            </div>
-                            {inviteCodesLoading ? (
-                                <div className="text-sm text-muted">正在加载邀请码列表...</div>
-                            ) : inviteRecords.length === 0 ? (
-                                <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
-                            ) : (
-                                <>
-                                    <div className="settings-inline-action-strip">
-                                        <div className="settings-inline-action-copy">
-                                            <div className="settings-inline-action-title">共 {inviteRecords.length} 条邀请码记录</div>
-                                            <div className="settings-inline-action-note">
-                                                {inviteLedgerExpanded
-                                                    ? `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
-                                                    : `需要排查或复核时再展开完整台账。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`}
+                                <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    onClick={() => {
+                                        copyToClipboard(latestInviteCodes.join('\n'));
+                                        toast.success('邀请码已复制');
+                                    }}
+                                >
+                                    复制全部
+                                </Button>
+                            </Card>
+                        )}
+                    </Col>
+                    <Col xs={24} md={12}>
+                        <Title level={5}>台账与使用记录</Title>
+                        <Paragraph type="secondary">
+                            活动 {inviteAvailableRecords.length} 个 · 剩余 {inviteRemainingUses} 次 · 已用尽 {inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。
+                        </Paragraph>
+                        <Button
+                            onClick={() => setInviteLedgerExpanded(!inviteLedgerExpanded)}
+                            style={{ marginBottom: 16 }}
+                        >
+                            {inviteLedgerExpanded ? '收起台账' : '展开台账'}
+                        </Button>
+                        {inviteLedgerExpanded && (
+                            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                                {inviteRecords.map(item => {
+                                    const meta = getInviteStatusMeta(item);
+                                    const usageLimit = Math.max(1, Number(item.usageLimit || 1));
+                                    const usedCount = Math.max(0, Number(item.usedCount || 0));
+                                    const percent = Math.min(100, Math.round((usedCount / usageLimit) * 100));
+                                    return (
+                                        <Card size="small" key={item.id} style={{ marginBottom: 8 }}>
+                                            <Row justify="space-between" align="middle">
+                                                <Col>
+                                                    <Text strong className="font-mono">{item.preview || item.id}</Text>
+                                                    <br />
+                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                        {formatDateTime(item.createdAt, locale)}
+                                                    </Text>
+                                                </Col>
+                                                <Col><Tag color={meta.color}>{meta.label}</Tag></Col>
+                                            </Row>
+                                            <div style={{ marginTop: 8 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                                    <span>已用 {usedCount} / {usageLimit}</span>
+                                                    <span>剩余 {item.remainingUses || 0}</span>
+                                                </div>
+                                                <Progress percent={percent} size="small" showInfo={false} />
                                             </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => setInviteLedgerExpanded((prev) => !prev)}
-                                            aria-expanded={inviteLedgerExpanded}
-                                        >
-                                            {inviteLedgerExpanded ? '收起台账' : '展开台账'}
-                                        </button>
-                                    </div>
-                                    {inviteLedgerExpanded ? (
-                                        <div className="settings-invite-ledger">
-                                            {inviteRecords.map((item) => {
-                                                const statusMeta = getInviteStatusMeta(item);
-                                                const usageLimit = Math.max(1, Number(item.usageLimit || 1));
-                                                const usedCount = Math.max(0, Number(item.usedCount || 0));
-                                                const remainingUses = Math.max(0, Number(item.remainingUses || 0));
-                                                const progressWidth = `${Math.min(100, Math.round((usedCount / usageLimit) * 100))}%`;
-                                                const actionBusy = inviteCodeActionKey === `revoke:${item.id}`;
-
-                                                return (
-                                                    <div key={item.id} className="settings-invite-ledger-item">
-                                                        <div className="settings-invite-ledger-top">
-                                                            <div className="settings-invite-ledger-title-block">
-                                                                <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
-                                                                <div className="settings-invite-ledger-subtitle">
-                                                                    创建于 {formatDateTime(item.createdAt, locale)}
-                                                                    {item.createdBy ? ` · 创建者 ${item.createdBy}` : ''}
-                                                                </div>
-                                                            </div>
-                                                            <span className={`badge ${statusMeta.className}`}>{statusMeta.label}</span>
-                                                        </div>
-                                                        <div className="settings-invite-ledger-usage">
-                                                            <div className="settings-invite-ledger-usage-head">
-                                                                <span>已用 {usedCount} / {usageLimit}</span>
-                                                                <span>剩余 {remainingUses} 次</span>
-                                                            </div>
-                                                            <div className="settings-invite-ledger-progress" aria-hidden="true">
-                                                                <span className="settings-invite-ledger-progress-bar" style={{ width: progressWidth }} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="settings-invite-ledger-meta">
-                                                            <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">开通时长</span>
-                                                                <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
-                                                            </div>
-                                                            <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">最近使用</span>
-                                                                <span className="settings-invite-ledger-meta-value">
-                                                                    {item.usedAt
-                                                                        ? `${formatDateTime(item.usedAt, locale)}${item.usedByUsername ? ` · ${item.usedByUsername}` : ''}`
-                                                                        : '未使用'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">状态说明</span>
-                                                                <span className="settings-invite-ledger-meta-value">
-                                                                    {item.status === 'revoked'
-                                                                        ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
-                                                                        : item.status === 'used'
-                                                                            ? '已达到使用上限'
-                                                                            : '仍可继续发放'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        {item.status === 'active' ? (
-                                                            <div className="settings-invite-ledger-actions">
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-ghost btn-sm"
-                                                                    onClick={() => revokeInviteCode(item)}
-                                                                    disabled={inviteCodeActionLoading}
-                                                                >
-                                                                    {actionBusy ? <span className="spinner" /> : '撤销邀请码'}
-                                                                </button>
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : null}
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                            <Descriptions size="small" column={1} style={{ marginTop: 8 }}>
+                                                <Descriptions.Item label="开通时长">{formatInviteDuration(item.subscriptionDays)}</Descriptions.Item>
+                                                <Descriptions.Item label="最近使用">{item.usedAt ? formatDateTime(item.usedAt, locale) : '未使用'}</Descriptions.Item>
+                                            </Descriptions>
+                                            {item.status === 'active' && (
+                                                <Button
+                                                    size="small"
+                                                    danger
+                                                    icon={<DeleteOutlined />}
+                                                    loading={inviteCodeActionKey === `revoke:${item.id}`}
+                                                    onClick={() => revokeInviteCode(item)}
+                                                    style={{ marginTop: 8 }}
+                                                >
+                                                    撤销
+                                                </Button>
+                                            )}
+                                        </Card>
+                                    );
+                                })}
+                                {inviteRecords.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                            </div>
+                        )}
+                    </Col>
+                </Row>
+            </Card>
+        </Space>
     );
 
     const renderPolicyContent = () => (
-        <div className="settings-section-stack">
-            <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
-                    <SettingsPanelHeader title="风控、审计与归属地" />
-                    <div className="settings-inline-grid settings-inline-grid--policy">
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">风控策略</div>
-                                <div className="settings-form-cluster-title">高风险操作与审计窗口</div>
-                            </div>
-                            <div className="settings-toggle-strip">
-                                <SettingsToggleCard
-                                    compact
-                                    checked={draft.security.requireHighRiskConfirmation}
-                                    onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                                    label="高风险操作二次确认"
-                                    description="达到高风险阈值后执行前必须再次确认。"
-                                />
-                            </div>
-                            <div className="settings-field-grid settings-field-grid--compact">
-                                <div className="form-group">
-                                    <label className="form-label">中风险阈值</label>
-                                    <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">高风险阈值</label>
-                                    <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">确认令牌有效期（秒）</label>
-                                    <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">审计保留天数</label>
-                                    <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">审计分页最大条数</label>
-                                    <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="settings-form-cluster">
-                            <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">归属地增强</div>
-                                <div className="settings-form-cluster-title">访问来源与事件地区补充</div>
-                            </div>
-                            <div className="settings-toggle-strip">
-                                <SettingsToggleCard
-                                    compact
-                                    checked={draft.auditIpGeo.enabled}
-                                    onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                                    label="归属地查询"
-                                    description="为订阅访问和安全事件补充地区与运营商。"
-                                />
-                            </div>
-                            <div className="settings-field-grid settings-field-grid--compact">
-                                <div className="form-group">
-                                    <label className="form-label">Provider</label>
-                                    <input
-                                        className="form-input"
-                                        value={draft.auditIpGeo.provider}
-                                        onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)}
-                                        placeholder="ip_api"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">超时（毫秒）</label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={100}
-                                        value={draft.auditIpGeo.timeoutMs}
-                                        onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">缓存 TTL（秒）</label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={60}
-                                        value={draft.auditIpGeo.cacheTtlSeconds}
-                                        onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">查询端点</label>
-                                    <input
-                                        className="form-input font-mono"
-                                        value={draft.auditIpGeo.endpoint}
-                                        onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)}
-                                        placeholder="http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <Card title={<Title level={4} style={{ margin: 0 }}>风控、审计与归属地</Title>}>
+            <Row gutter={[32, 32]}>
+                <Col xs={24} md={12}>
+                    <Title level={5}>风控策略</Title>
+                    <SettingsToggleCard
+                        compact
+                        checked={draft.security.requireHighRiskConfirmation}
+                        onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
+                        label="高风险操作二次确认"
+                        description="达到高风险阈值后执行前必须再次确认。"
+                    />
+                    <Form layout="vertical">
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item label="中风险阈值">
+                                    <Input type="number" value={draft.security.mediumRiskMinTargets} onChange={e => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label="高风险阈值">
+                                    <Input type="number" value={draft.security.highRiskMinTargets} onChange={e => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Form.Item label="确认令牌有效期 (秒)">
+                            <Input type="number" value={draft.security.riskTokenTtlSeconds} onChange={e => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item label="审计保留天数">
+                                    <Input type="number" value={draft.audit.retentionDays} onChange={e => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label="审计分页最大条数">
+                                    <Input type="number" value={draft.audit.maxPageSize} onChange={e => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form>
+                </Col>
+                <Col xs={24} md={12}>
+                    <Title level={5}>归属地增强</Title>
+                    <SettingsToggleCard
+                        compact
+                        checked={draft.auditIpGeo.enabled}
+                        onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
+                        label="归属地查询"
+                        description="为订阅访问和安全事件补充地区与运营商。"
+                    />
+                    <Form layout="vertical">
+                        <Form.Item label="Provider">
+                            <Input value={draft.auditIpGeo.provider} onChange={e => patchField('auditIpGeo', 'provider', e.target.value)} placeholder="ip_api" />
+                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item label="超时 (毫秒)">
+                                    <Input type="number" value={draft.auditIpGeo.timeoutMs} onChange={e => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))} />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label="缓存 TTL (秒)">
+                                    <Input type="number" value={draft.auditIpGeo.cacheTtlSeconds} onChange={e => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Form.Item label="查询端点">
+                            <Input className="font-mono" value={draft.auditIpGeo.endpoint} onChange={e => patchField('auditIpGeo', 'endpoint', e.target.value)} />
+                        </Form.Item>
+                    </Form>
+                </Col>
+            </Row>
+        </Card>
     );
 
     const renderMonitorContent = () => (
-        <div className="settings-section-stack">
-            <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench settings-ops-panel">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="运维动作"
-                />
-                <div className="settings-ops-grid">
-                    <div className="settings-form-cluster settings-ops-card settings-ops-card--smtp">
-                        <div className="settings-ops-card-main">
-                            <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-ops-card-kicker">
-                                    <div className="settings-form-cluster-eyebrow">邮件链路</div>
-                                    <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>{emailConfiguredLabel}</span>
-                                </div>
-                                <div className="settings-form-cluster-title">测试 SMTP</div>
-                                <div className="settings-form-cluster-note">先验证 SMTP 配置和邮件链路，再执行通知发送。</div>
-                            </div>
-                            <div className="settings-ops-meta-grid">
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">连接验证</div>
-                                    <div className="settings-ops-meta-value">{emailVerificationLabel}</div>
-                                </div>
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">最近发送</div>
-                                    <div className="settings-ops-meta-value">{emailDeliveryLabel}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
-                            <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="settings-form-cluster settings-ops-card settings-ops-card--notice">
-                        <div className="settings-ops-card-main">
-                            <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-ops-card-kicker">
-                                    <div className="settings-form-cluster-eyebrow">变更通知</div>
-                                    <span className={`badge ${emailStatus?.configured ? 'badge-info' : 'badge-warning'}`}>
-                                        {emailStatus?.configured ? '可发送' : '待配置 SMTP'}
-                                    </span>
-                                </div>
-                                <div className="settings-form-cluster-title">发送最新地址通知</div>
-                                <div className="settings-form-cluster-note">向用户发送最新地址或订阅变更提醒，发送前会校验当前邮件配置。</div>
-                            </div>
-                            <div className="settings-ops-meta-grid">
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">发送范围</div>
-                                    <div className="settings-ops-meta-value">注册用户</div>
-                                </div>
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">当前入口</div>
-                                    <div className="settings-ops-meta-value">{siteAccessPath}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
-                            <button
-                                className="btn btn-secondary btn-sm"
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Card title={<Title level={4} style={{ margin: 0 }}>运维动作</Title>}>
+                <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={8}>
+                        <Card size="small" title="邮件链路" extra={<Tag color={emailStatus?.configured ? 'success' : 'warning'}>{emailConfiguredLabel}</Tag>}>
+                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>先验证 SMTP 配置和邮件链路，再执行通知发送。</Paragraph>
+                            <Descriptions size="small" column={1}>
+                                <Descriptions.Item label="连接验证">{emailVerificationLabel}</Descriptions.Item>
+                                <Descriptions.Item label="最近发送">{emailDeliveryLabel}</Descriptions.Item>
+                            </Descriptions>
+                            <Button
+                                block
+                                icon={<NotificationOutlined />}
+                                onClick={testEmailConnection}
+                                loading={emailTestLoading}
+                                disabled={emailStatusLoading}
+                                style={{ marginTop: 16 }}
+                            >
+                                测试 SMTP
+                            </Button>
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={8}>
+                        <Card size="small" title="变更通知" extra={<Tag color={emailStatus?.configured ? 'processing' : 'warning'}>{emailStatus?.configured ? '可发送' : '待配置 SMTP'}</Tag>}>
+                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>向用户发送最新地址或订阅变更提醒。</Paragraph>
+                            <Descriptions size="small" column={1}>
+                                <Descriptions.Item label="发送范围">注册用户</Descriptions.Item>
+                                <Descriptions.Item label="当前入口">{siteAccessPath}</Descriptions.Item>
+                            </Descriptions>
+                            <Button
+                                block
+                                icon={<MailOutlined />}
                                 onClick={openNoticeModal}
                                 disabled={!emailStatus?.configured || noticeSending}
+                                style={{ marginTop: 16 }}
                             >
-                                {noticeSending ? <span className="spinner" /> : '发变更通知'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="settings-form-cluster settings-ops-card settings-ops-card--health">
-                        <div className="settings-ops-card-main">
-                            <div className="settings-form-cluster-head settings-ops-card-head">
-                                <div className="settings-ops-card-kicker">
-                                    <div className="settings-form-cluster-eyebrow">节点巡检</div>
-                                    <span className={`badge ${monitorIncidentCount > 0 ? 'badge-warning' : 'badge-success'}`}>
-                                        {monitorIncidentCount > 0 ? '有异常' : '状态平稳'}
-                                    </span>
-                                </div>
-                                <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
-                                <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
-                            </div>
-                            <div className="settings-ops-meta-grid settings-ops-meta-grid--triple">
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">健康</div>
-                                    <div className="settings-ops-meta-value">{monitorHealthyCount}</div>
-                                </div>
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">异常</div>
-                                    <div className="settings-ops-meta-value">{monitorIncidentCount}</div>
-                                </div>
-                                <div className="settings-ops-meta-item">
-                                    <div className="settings-ops-meta-label">未读</div>
-                                    <div className="settings-ops-meta-value">{monitorUnreadCount}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
-                            <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                                {monitorLoading ? <span className="spinner" /> : '立即巡检'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="card p-4 settings-panel settings-panel--wide settings-telegram-panel">
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="Telegram 机器人"
-                    actions={(
-                        <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={testTelegramAlert}
-                            disabled={telegramTestLoading || !draft.telegram.enabled}
-                        >
-                            {telegramTestLoading ? <span className="spinner" /> : '发送测试通知'}
-                        </button>
-                    )}
-                />
-                <div className="grid-auto-220 items-start">
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="telegram-chat-id">Chat ID / 群组 ID</label>
-                        <div className="settings-sensitive-field">
-                            <input
-                                id="telegram-chat-id"
-                                className={`form-input${shouldMaskTelegramChatId ? ' settings-sensitive-display' : ''}`}
-                                type="text"
-                                inputMode={shouldMaskTelegramChatId ? undefined : 'numeric'}
-                                value={shouldMaskTelegramChatId ? telegramMaskedDisplayValue : draft.telegram.chatId}
-                                onChange={shouldMaskTelegramChatId ? undefined : (event) => patchField('telegram', 'chatId', event.target.value)}
-                                placeholder={shouldMaskTelegramChatId ? '' : '-1001234567890'}
-                                readOnly={shouldMaskTelegramChatId}
-                                autoComplete="new-password"
-                            />
-                            {hasSavedTelegramChatId ? (
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => setEditingTelegramChatId((prev) => !prev)}
-                                >
-                                    {editingTelegramChatId ? '完成' : '修改'}
-                                </button>
-                            ) : null}
-                        </div>
-                        <div className="text-xs text-muted mt-1">{telegramChatIdHint}</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="telegram-bot-token">Bot Token</label>
-                        <input
-                            id="telegram-bot-token"
-                            className="form-input"
-                            type="password"
-                            value={draft.telegram.botToken}
-                            onChange={(event) => patchTelegramToken(event.target.value)}
-                            placeholder={settings?.telegram?.botTokenConfigured ? `当前已保存 ${settings.telegram.botTokenPreview}` : '123456:ABCDEF...'}
-                            autoComplete="new-password"
-                        />
-                        <div className="flex items-center gap-2 flex-wrap mt-1">
-                            <div className="text-xs text-muted">
-                                {draft.telegram.clearBotToken
-                                    ? '本次保存会清空服务器端已保存 Token。'
-                                    : settings?.telegram?.botTokenConfigured
-                                    ? `当前已保存 Token：${settings.telegram.botTokenPreview || '已配置'}。留空保存会继续使用当前 Token。`
-                                    : '首次启用时请输入 Telegram Bot Token。'}
-                            </div>
-                            {settings?.telegram?.botTokenConfigured ? (
-                                <button
-                                    type="button"
-                                    className="btn btn-ghost btn-xs"
-                                    onClick={clearSavedTelegramToken}
-                                >
-                                    清空已保存 Token
-                                </button>
-                            ) : null}
-                        </div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="telegram-ops-digest-interval">运维汇总间隔</label>
-                        <input
-                            id="telegram-ops-digest-interval"
-                            className="form-input"
-                            type="number"
-                            min="0"
-                            max="1440"
-                            inputMode="numeric"
-                            value={draft.telegram.opsDigestIntervalMinutes}
-                            onChange={(event) => patchField('telegram', 'opsDigestIntervalMinutes', toBoundedInt(event.target.value, 30, 0, 1440))}
-                        />
-                        <div className="text-xs text-muted mt-1">单位：分钟，填 0 关闭定时运维汇总。</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="telegram-daily-digest-interval">日报间隔</label>
-                        <input
-                            id="telegram-daily-digest-interval"
-                            className="form-input"
-                            type="number"
-                            min="0"
-                            max="168"
-                            inputMode="numeric"
-                            value={draft.telegram.dailyDigestIntervalHours}
-                            onChange={(event) => patchField('telegram', 'dailyDigestIntervalHours', toBoundedInt(event.target.value, 24, 0, 168))}
-                        />
-                        <div className="text-xs text-muted mt-1">单位：小时，填 0 关闭定时报。</div>
-                    </div>
-                </div>
-                <div className="settings-toggle-collection settings-toggle-collection--telegram mt-3">
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.enabled}
-                        onChange={(event) => patchField('telegram', 'enabled', event.target.checked)}
-                        label="启用 Telegram 告警"
-                        description="启用后将推送系统状态和安全告警。"
-                        activeLabel="已启用"
-                        inactiveLabel="未启用"
-                    />
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.commandMenuEnabled}
-                        onChange={(event) => patchField('telegram', 'commandMenuEnabled', event.target.checked)}
-                        label="Telegram 命令菜单"
-                        description="开启后会显示 Telegram 官方命令菜单；关闭后只保留手动输入命令。"
-                        activeLabel="显示"
-                        inactiveLabel="隐藏"
-                    />
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.sendDailyBackup}
-                        onChange={(event) => patchField('telegram', 'sendDailyBackup', event.target.checked)}
-                        label="每日备份到 Telegram"
-                        description="启用后会把当天的 NMS 加密备份包自动发到当前 Chat。"
-                        activeLabel="已启用"
-                        inactiveLabel="未启用"
-                    />
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.sendSystemStatus}
-                        onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
-                        label="系统状态"
-                        description="节点、数据库、到期提醒等状态消息。"
-                        activeLabel="推送"
-                        inactiveLabel="不推送"
-                    />
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.sendSecurityAudit}
-                        onChange={(event) => patchField('telegram', 'sendSecurityAudit', event.target.checked)}
-                        label="审计告警"
-                        description="登录失败、限流、订阅异常访问等。"
-                        activeLabel="推送"
-                        inactiveLabel="不推送"
-                    />
-                    <SettingsToggleCard
-                        compact
-                        checked={draft.telegram.sendEmergencyAlerts}
-                        onChange={(event) => patchField('telegram', 'sendEmergencyAlerts', event.target.checked)}
-                        label="紧急告警"
-                        description="critical 级别事件直接升级。"
-                        activeLabel="推送"
-                        inactiveLabel="不推送"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderBackupContent = ({ className = '', wrap = true } = {}) => {
-        const panel = (
-            <div className={['card', 'p-4', 'settings-panel', 'settings-backup-panel', className].filter(Boolean).join(' ')}>
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="备份与恢复"
-                    actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
-                            {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
-                        </button>
-                    )}
-                />
-                <div className="settings-backup-actions settings-backup-actions--triple">
-                    <div className="card p-3 settings-mini-card settings-backup-action-card settings-backup-action-card--danger">
-                        <div className="text-sm font-medium">导出到浏览器</div>
-                        <div className="text-xs text-muted mt-1">下载一份加密备份包。</div>
-                        <div className="settings-backup-action-footer">
-                            <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
-                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出加密备份</>}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">保存到服务器本机</div>
-                        <div className="text-xs text-muted mt-1">在服务器本机留存一份加密备份。</div>
-                        <div className="settings-backup-action-footer">
-                            <button className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
-                                {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck /> 保存本机备份</>}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">发送到 Telegram</div>
-                        <div className="text-xs text-muted mt-1">把当前 NMS 加密备份包直接发送到已配置的 Telegram Chat。</div>
-                        <div className="settings-backup-action-footer">
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={sendBackupToTelegram}
-                                disabled={backupTelegramSending || backupLoading || backupRestoreLoading || backupLocalSaving || !draft.telegram.enabled}
+                                发变更通知
+                            </Button>
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={8}>
+                        <Card size="small" title="节点巡检" extra={<Tag color={monitorIncidentCount > 0 ? 'warning' : 'success'}>{monitorIncidentCount > 0 ? '有异常' : '状态平稳'}</Tag>}>
+                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>手动执行节点健康巡检。</Paragraph>
+                            <Row gutter={8} style={{ textAlign: 'center', marginBottom: 16 }}>
+                                <Col span={8}><Text type="secondary" style={{ fontSize: '10px' }}>健康</Text><br /><Text strong>{monitorHealthyCount}</Text></Col>
+                                <Col span={8}><Text type="secondary" style={{ fontSize: '10px' }}>异常</Text><br /><Text strong>{monitorIncidentCount}</Text></Col>
+                                <Col span={8}><Text type="secondary" style={{ fontSize: '10px' }}>未读</Text><br /><Text strong>{monitorUnreadCount}</Text></Col>
+                            </Row>
+                            <Button
+                                type="primary"
+                                block
+                                icon={<DashboardOutlined />}
+                                onClick={runMonitorCheck}
+                                loading={monitorLoading}
                             >
-                                {backupTelegramSending ? <span className="spinner" /> : <><HiOutlineCloud /> 发送 Telegram 备份</>}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">从文件恢复</div>
-                        <div className="text-xs text-muted mt-1">上传备份包后恢复。</div>
-                        <div className="settings-backup-action-footer">
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => {
-                                    setBackupRestoreModalOpen(true);
-                                    setBackupRestoreConfirmed(false);
-                                    setBackupUploadProgress(0);
-                                }}
-                                disabled={backupLoading || backupRestoreLoading || backupLocalSaving}
-                            >
-                                <HiOutlineArrowUpTray /> 导入 / 恢复备份
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                                立即巡检
+                            </Button>
+                        </Card>
+                    </Col>
+                </Row>
+            </Card>
 
-                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
-                    <div className="settings-backup-local-head">
-                        <div>
-                            <div className="text-sm font-medium">Telegram 备份状态</div>
-                            <div className="text-xs text-muted mt-1">
-                                {draft.telegram.sendDailyBackup
-                                    ? '已启用每日自动发送；手动发送会复用同一目标 Chat。'
-                                    : '当前仅支持手动发送，启用上方开关后会按日自动发送。'}
-                            </div>
-                        </div>
-                        <span className={`badge ${lastTelegramBackup?.status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
-                            {lastTelegramBackup?.status === 'failed' ? '最近发送失败' : lastTelegramBackup?.ts ? '最近已发送' : '暂无记录'}
-                        </span>
-                    </div>
-                    <div className="text-sm text-muted">
-                        {lastTelegramBackup?.ts
-                            ? `${formatDateTime(lastTelegramBackup.ts, locale)} · ${lastTelegramBackup.filename || '未记录文件名'}`
-                            : '还没有 Telegram 备份记录。'}
-                    </div>
-                    {lastTelegramBackup?.error ? (
-                        <div className="text-xs text-danger">{lastTelegramBackup.error}</div>
-                    ) : null}
-                </div>
-
-                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
-                    <div className="settings-backup-local-head">
-                        <div>
-                            <div className="text-sm font-medium">服务器本机加密备份</div>
-                            <div className="text-xs text-muted mt-1">保存目录: {backupStatus?.localBackupDir || '-'}</div>
-                        </div>
-                        <span className="badge badge-neutral">{localBackups.length} 份备份</span>
-                    </div>
-                    {localBackups.length === 0 ? (
-                        <div className="text-sm text-muted">还没有保存到服务器本机的备份。需要时可以先点上方“保存本机备份”。</div>
-                    ) : (
-                        <div className="settings-backup-local-grid">
-                            {localBackups.map((item) => (
-                                <div key={item.filename} className="settings-backup-local-item">
-                                    <div className="settings-backup-local-item-head">
-                                        <div className="settings-backup-local-name">{item.filename}</div>
-                                        <span className="badge badge-success">已加密</span>
-                                    </div>
-                                    <div className="settings-backup-local-meta">
-                                        <span>{formatDateTime(item.createdAt, locale)}</span>
-                                        <span>{formatBytes(item.bytes || 0)}</span>
-                                        <span>{(item.storeKeys || []).length} 个 Store</span>
-                                    </div>
-                                    <div className="text-xs text-muted">
-                                        解密密钥: {item.keyHint || 'CREDENTIALS_SECRET'} · 算法: {item.cipher || 'AES-256-GCM'}
-                                    </div>
-                                    <div className="settings-backup-local-actions">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => downloadLocalBackup(item.filename)}
-                                            disabled={backupLocalActionKey === `download:${item.filename}`}
-                                        >
-                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : '下载'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => restoreLocalBackup(item.filename)}
-                                            disabled={backupLocalActionKey === `restore:${item.filename}`}
-                                        >
-                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : '恢复'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-danger btn-sm"
-                                            onClick={() => deleteLocalBackup(item.filename)}
-                                            disabled={backupLocalActionKey === `delete:${item.filename}`}
-                                        >
-                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : '删除'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {backupInspection && (
-                    <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
-                        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                            <div className="text-sm font-medium">备份预览</div>
-                            <span className={`badge ${backupInspection.encrypted === false ? 'badge-warning' : 'badge-success'}`}>
-                                {backupInspection.encrypted === false ? '旧版明文兼容' : '已通过解密校验'}
-                            </span>
-                        </div>
-                        <div className="settings-backup-inspection-grid">
-                            <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">备份时间</div>
-                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : '未知'}</div>
-                            </div>
-                            <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">格式版本</div>
-                                <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
-                            </div>
-                            <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">加密状态</div>
-                                <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
-                            </div>
-                            <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">可恢复 Store</div>
-                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
-                            </div>
-                        </div>
-                        {(backupInspection.unsupportedKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
-                        )}
-                        {(backupInspection.missingKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
-                        )}
-                        <div className="text-sm text-muted mt-1">
-                            {backupInspection.encrypted === false
-                                ? '这是旧版未加密备份，仅保留恢复兼容。后续请重新导出新的加密备份。'
-                                : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
-                        </div>
-                        <div className="settings-backup-inspection-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
-                                {backupRestoreLoading ? <span className="spinner" /> : '确认恢复备份'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-        return wrap ? <div className="settings-section-stack">{panel}</div> : panel;
-    };
-
-    const renderDatabaseContent = ({ className = '', compactLayout = false, wrap = true } = {}) => {
-        const panel = (
-            <div className={['card', 'p-4', 'settings-panel', 'settings-db-panel', compactLayout ? 'settings-db-panel--compact' : '', className].filter(Boolean).join(' ')}>
-                <SectionHeader
-                    className="mb-3"
-                    compact
-                    title="数据库读写模式"
-                    subtitle="切换数据库读写策略，或把现有 Store 数据回填到数据库。"
-                    actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
-                            {dbLoading ? <span className="spinner" /> : '刷新状态'}
-                        </button>
-                    )}
-                />
-
-                {!dbStatus ? (
-                    <div className="text-sm text-muted">尚未加载数据库状态。</div>
-                ) : (
-                    <>
-                        <div className={compactLayout ? 'settings-section-stack' : 'settings-grid settings-db-grid'}>
-                            <div className="card p-3 settings-mini-card settings-db-control-card">
-                                <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">切换读写模式</h4>
-                                    <div className="settings-panel-subtitle">先确认当前连接状态，再决定读取模式、写入模式和是否同步加载内存缓存。</div>
-                                </div>
-                                <div className="settings-db-card-body">
-                                    <div className="form-group">
-                                        <label className="form-label">读取模式</label>
-                                        <select
-                                            className="form-select"
-                                            value={dbModeDraft.readMode}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
-                                            disabled={!isAdmin}
-                                        >
-                                            {(dbStatus.supportedModes?.readModes || ['file', 'db']).map((mode) => (
-                                                <option key={mode} value={mode}>{mode}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">写入模式</label>
-                                        <select
-                                            className="form-select"
-                                            value={dbModeDraft.writeMode}
-                                            onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
-                                            disabled={!isAdmin}
-                                        >
-                                            {(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map((mode) => (
-                                                <option key={mode} value={mode}>{mode}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="settings-db-inline-options">
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={dbModeDraft.hydrateOnReadDb}
-                                                onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
-                                                disabled={!isAdmin}
-                                            />
-                                            read=db 时同步加载到内存缓存
-                                        </label>
-                                    </div>
-                                </div>
-                                <div className="settings-db-card-foot">
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={switchDbMode}
-                                        disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                    >
-                                        {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="card p-3 settings-mini-card settings-db-control-card">
-                                <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">Store 回填到数据库</h4>
-                                    <div className="settings-panel-subtitle">按数据键选择回填范围，可先预演，再执行正式写入。</div>
-                                </div>
-                                <div className="settings-db-card-body">
-                                    <div className="form-group">
-                                        <label className="form-label">数据键（逗号分隔，留空表示全部）</label>
-                                        <input
-                                            className="form-input"
-                                            value={dbBackfillDraft.keysText}
-                                            onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
-                                            placeholder={(dbStatus.storeKeys || []).join(', ')}
-                                            disabled={!isAdmin}
-                                        />
-                                        <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
-                                    </div>
-                                    <div className="settings-db-inline-options">
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={dbBackfillDraft.dryRun}
-                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
-                                                disabled={!isAdmin}
-                                            />
-                                            仅预演
-                                        </label>
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
-                                                type="checkbox"
-                                                checked={dbBackfillDraft.redact}
-                                                onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
-                                                disabled={!isAdmin}
-                                            />
-                                            脱敏写入
-                                        </label>
-                                    </div>
-                                </div>
-                                <div className="settings-db-card-foot">
-                                    <button
-                                        className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
-                                        onClick={runDbBackfill}
-                                        disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
-                                    >
-                                        {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
-                                    </button>
-                                    {dbBackfillResult && (
-                                        <div className="text-sm text-muted settings-db-card-result">
-                                            总计 {dbBackfillResult.total || 0} · 成功 {dbBackfillResult.success || 0} · 失败 {dbBackfillResult.failed || 0}
-                                        </div>
+            <Card
+                title={<Title level={4} style={{ margin: 0 }}>Telegram 机器人</Title>}
+                extra={
+                    <Button
+                        icon={<NotificationOutlined />}
+                        onClick={testTelegramAlert}
+                        loading={telegramTestLoading}
+                        disabled={!draft.telegram.enabled}
+                    >
+                        发送测试通知
+                    </Button>
+                }
+            >
+                <Form layout="vertical">
+                    <Row gutter={24}>
+                        <Col xs={24} md={12} lg={6}>
+                            <Form.Item label="Chat ID / 群组 ID">
+                                <Space.Compact style={{ width: '100%' }}>
+                                    <Input
+                                        className={shouldMaskTelegramChatId ? 'font-mono' : 'font-mono'}
+                                        value={shouldMaskTelegramChatId ? telegramMaskedDisplayValue : draft.telegram.chatId}
+                                        onChange={shouldMaskTelegramChatId ? undefined : e => patchField('telegram', 'chatId', e.target.value)}
+                                        readOnly={shouldMaskTelegramChatId}
+                                    />
+                                    {hasSavedTelegramChatId && (
+                                        <Button onClick={() => setEditingTelegramChatId(!editingTelegramChatId)}>
+                                            {editingTelegramChatId ? '完成' : '修改'}
+                                        </Button>
+                                    )}
+                                </Space.Compact>
+                                <Text type="secondary" style={{ fontSize: '11px' }}>{telegramChatIdHint}</Text>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12} lg={6}>
+                            <Form.Item label="Bot Token">
+                                <Input.Password
+                                    value={draft.telegram.botToken}
+                                    onChange={e => patchTelegramToken(e.target.value)}
+                                    placeholder={settings?.telegram?.botTokenConfigured ? `已保存 ${settings.telegram.botTokenPreview}` : '123456:ABC...'}
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                                        {draft.telegram.clearBotToken ? '保存会清空 Token' : '留空继续使用当前 Token'}
+                                    </Text>
+                                    {settings?.telegram?.botTokenConfigured && (
+                                        <Button type="link" size="small" onClick={clearSavedTelegramToken} style={{ padding: 0 }}>清空已保存</Button>
                                     )}
                                 </div>
-                            </div>
-                        </div>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={12} lg={6}>
+                            <Form.Item label="运维汇总间隔 (分)">
+                                <Input type="number" value={draft.telegram.opsDigestIntervalMinutes} onChange={e => patchField('telegram', 'opsDigestIntervalMinutes', toBoundedInt(e.target.value, 30, 0, 1440))} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={12} lg={6}>
+                            <Form.Item label="日报间隔 (时)">
+                                <Input type="number" value={draft.telegram.dailyDigestIntervalHours} onChange={e => patchField('telegram', 'dailyDigestIntervalHours', toBoundedInt(e.target.value, 24, 0, 168))} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Form>
+                <Divider />
+                <Row gutter={16}>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.enabled}
+                            onChange={e => patchField('telegram', 'enabled', e.target.checked)}
+                            label="启用 Telegram 告警"
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.commandMenuEnabled}
+                            onChange={e => patchField('telegram', 'commandMenuEnabled', e.target.checked)}
+                            label="Telegram 命令菜单"
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.sendDailyBackup}
+                            onChange={e => patchField('telegram', 'sendDailyBackup', e.target.checked)}
+                            label="每日备份到 Telegram"
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.sendSystemStatus}
+                            onChange={e => patchField('telegram', 'sendSystemStatus', e.target.checked)}
+                            label="系统状态推送"
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.sendSecurityAudit}
+                            onChange={e => patchField('telegram', 'sendSecurityAudit', e.target.checked)}
+                            label="审计告警推送"
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={8}>
+                        <SettingsToggleCard
+                            compact
+                            checked={draft.telegram.sendEmergencyAlerts}
+                            onChange={e => patchField('telegram', 'sendEmergencyAlerts', e.target.checked)}
+                            label="紧急告警推送"
+                        />
+                    </Col>
+                </Row>
+            </Card>
+        </Space>
+    );
 
-                    </>
-                )}
-            </div>
-        );
-        return wrap ? <div className="settings-section-stack">{panel}</div> : panel;
-    };
+    const renderBackupContent = ({ compact = false } = {}) => (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Card
+                title={<Title level={4} style={{ margin: 0 }}>备份与恢复</Title>}
+                extra={<Button icon={<SyncOutlined spin={backupStatusLoading} />} onClick={() => fetchBackupStatus()}>刷新状态</Button>}
+            >
+                <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card size="small" hoverable onClick={exportBackup} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                            <CloudDownloadOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+                            <Title level={5} style={{ marginTop: 8 }}>导出到浏览器</Title>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>下载加密备份包</Text>
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card size="small" hoverable onClick={saveBackupLocally} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                            <SafetyCertificateOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                            <Title level={5} style={{ marginTop: 8 }}>保存到服务器</Title>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>本机留存加密备份</Text>
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card size="small" hoverable onClick={sendBackupToTelegram} style={{ textAlign: 'center', cursor: 'pointer', opacity: draft.telegram.enabled ? 1 : 0.5 }}>
+                            <CloudOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                            <Title level={5} style={{ marginTop: 8 }}>发送到 Telegram</Title>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>发送到已配机器人</Text>
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <Card size="small" hoverable onClick={() => { setBackupRestoreModalOpen(true); setBackupRestoreConfirmed(false); }} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                            <CloudUploadOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />
+                            <Title level={5} style={{ marginTop: 8 }}>从文件恢复</Title>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>上传备份包恢复</Text>
+                        </Card>
+                    </Col>
+                </Row>
+
+                <Row gutter={16} style={{ marginTop: 24 }}>
+                    <Col xs={24} lg={12}>
+                        <Card size="small" title="Telegram 备份状态" extra={<Tag color={lastTelegramBackup?.status === 'failed' ? 'error' : 'processing'}>{lastTelegramBackup?.status === 'failed' ? '最近发送失败' : lastTelegramBackup?.ts ? '最近已发送' : '暂无记录'}</Tag>}>
+                            <Paragraph style={{ marginBottom: 0 }}>
+                                {lastTelegramBackup?.ts ? `${formatDateTime(lastTelegramBackup.ts, locale)} · ${lastTelegramBackup.filename || '未记录文件名'}` : '还没有 Telegram 备份记录。'}
+                            </Paragraph>
+                            {lastTelegramBackup?.error && <Text type="danger" style={{ fontSize: '12px' }}>{lastTelegramBackup.error}</Text>}
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                        <Card size="small" title="服务器本机加密备份" extra={<Badge count={localBackups.length} showZero color="#999" />}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>保存目录: {backupStatus?.localBackupDir || '-'}</Text>
+                        </Card>
+                    </Col>
+                </Row>
+
+                <div style={{ marginTop: 16 }}>
+                    {localBackups.length === 0 ? (
+                        <Empty description="暂无本机备份记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    ) : (
+                        <Table
+                            size="small"
+                            dataSource={localBackups}
+                            pagination={false}
+                            rowKey="filename"
+                            columns={[
+                                { title: '文件名', dataIndex: 'filename', className: 'font-mono' },
+                                { title: '备份时间', dataIndex: 'createdAt', render: v => formatDateTime(v, locale) },
+                                { title: '大小', dataIndex: 'bytes', render: v => formatBytes(v) },
+                                {
+                                    title: '操作',
+                                    key: 'actions',
+                                    render: (_, item) => (
+                                        <Space>
+                                            <Tooltip title="下载"><Button size="small" icon={<CloudDownloadOutlined />} onClick={() => downloadLocalBackup(item.filename)} loading={backupLocalActionKey === `download:${item.filename}`} /></Tooltip>
+                                            <Tooltip title="恢复"><Button size="small" icon={<SyncOutlined />} onClick={() => restoreLocalBackup(item.filename)} loading={backupLocalActionKey === `restore:${item.filename}`} /></Tooltip>
+                                            <Tooltip title="删除"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => deleteLocalBackup(item.filename)} loading={backupLocalActionKey === `delete:${item.filename}`} /></Tooltip>
+                                        </Space>
+                                    )
+                                }
+                            ]}
+                        />
+                    )}
+                </div>
+            </Card>
+        </Space>
+    );
+
+    const renderDatabaseContent = ({ compact = false } = {}) => (
+        <Card
+            title={<Title level={4} style={{ margin: 0 }}>数据库读写模式</Title>}
+            extra={<Button icon={<SyncOutlined spin={dbLoading} />} onClick={() => fetchDbStatus()}>刷新状态</Button>}
+        >
+            <Paragraph type="secondary">切换数据库读写策略，或把现有 Store 数据回填到数据库。</Paragraph>
+            {!dbStatus ? <Empty description="未加载数据库状态" /> : (
+                <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={12}>
+                        <Card size="small" title="切换读写模式" style={{ height: '100%' }}>
+                            <Form layout="vertical">
+                                <Form.Item label="读取模式">
+                                    <Select
+                                        value={dbModeDraft.readMode}
+                                        onChange={v => setDbModeDraft(p => ({ ...p, readMode: v }))}
+                                        options={(dbStatus.supportedModes?.readModes || ['file', 'db']).map(m => ({ label: m, value: m }))}
+                                    />
+                                </Form.Item>
+                                <Form.Item label="写入模式">
+                                    <Select
+                                        value={dbModeDraft.writeMode}
+                                        onChange={v => setDbModeDraft(p => ({ ...p, writeMode: v }))}
+                                        options={(dbStatus.supportedModes?.writeModes || ['file', 'dual', 'db']).map(m => ({ label: m, value: m }))}
+                                    />
+                                </Form.Item>
+                                <Form.Item>
+                                    <Checkbox checked={dbModeDraft.hydrateOnReadDb} onChange={e => setDbModeDraft(p => ({ ...p, hydrateOnReadDb: e.target.checked }))}>
+                                        read=db 时同步加载到内存缓存
+                                    </Checkbox>
+                                </Form.Item>
+                                <Button type="primary" onClick={switchDbMode} loading={dbSwitchLoading} disabled={!dbStatus.connection?.enabled}>
+                                    应用模式
+                                </Button>
+                            </Form>
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                        <Card size="small" title="Store 回填到数据库" style={{ height: '100%' }}>
+                            <Form layout="vertical">
+                                <Form.Item label="数据键 (逗号分隔，留空为全部)">
+                                    <Input value={dbBackfillDraft.keysText} onChange={e => setDbBackfillDraft(p => ({ ...p, keysText: e.target.value }))} placeholder={(dbStatus.storeKeys || []).join(', ')} />
+                                </Form.Item>
+                                <Form.Item>
+                                    <Space>
+                                        <Checkbox checked={dbBackfillDraft.dryRun} onChange={e => setDbBackfillDraft(p => ({ ...p, dryRun: e.target.checked }))}>仅预演</Checkbox>
+                                        <Checkbox checked={dbBackfillDraft.redact} onChange={e => setDbBackfillDraft(p => ({ ...p, redact: e.target.checked }))}>脱敏写入</Checkbox>
+                                    </Space>
+                                </Form.Item>
+                                <Button danger={!dbBackfillDraft.dryRun} onClick={runDbBackfill} loading={dbBackfillLoading} disabled={!dbStatus.connection?.enabled}>
+                                    {dbBackfillDraft.dryRun ? '执行预演' : '执行回填'}
+                                </Button>
+                                {dbBackfillResult && (
+                                    <div style={{ marginTop: 12 }}>
+                                        <Text type="secondary">总计 {dbBackfillResult.total || 0} · 成功 {dbBackfillResult.success || 0} · 失败 {dbBackfillResult.failed || 0}</Text>
+                                    </div>
+                                )}
+                            </Form>
+                        </Card>
+                    </Col>
+                </Row>
+            )}
+        </Card>
+    );
 
     const renderStatusContent = () => (
-            <div className="settings-section-stack">
-            <div className="settings-grid settings-grid--basic">
-                <div className="card p-4 settings-panel settings-panel--span-6 settings-status-panel">
-                    <SectionHeader
-                        className="mb-3"
-                        compact
-                        title="通知与巡检状态"
-                        subtitle="集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。"
-                        actions={(
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={refreshStatusWorkspace}
-                                disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
-                            >
-                                {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
-                            </button>
-                        )}
-                    />
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">SMTP</span>
-                            <span className="settings-monitor-log-value">{emailConfiguredLabel} · {emailDeliveryLabel}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近测试</span>
-                            <span className="settings-monitor-log-value">{emailVerificationLabel} · {formatDateTime(emailStatus?.lastVerification?.ts, locale)}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">节点巡检</span>
-                            <span className="settings-monitor-log-value">
-                                {monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}
-                                {` · 正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">异常分布</span>
-                            <span className="settings-monitor-log-value">{monitorReasonSummary}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">通知中心</span>
-                            <span className="settings-monitor-log-value">
-                                未读 {monitorUnreadCount} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">Telegram</span>
-                            <span className="settings-monitor-log-value">
-                                {monitorStatus?.telegram?.enabled
-                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}`
-                                    : monitorStatus?.telegram?.configured
-                                        ? '已配置未启用'
-                                        : '未配置'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="card p-4 settings-panel settings-panel--span-6 settings-status-db-panel">
-                    <SectionHeader
-                        className="mb-3"
-                        compact
-                        title="数据库与备份状态"
-                        subtitle="把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。"
-                    />
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">DB 连接</span>
-                            <span className="settings-monitor-log-value">
-                                {dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">当前模式</span>
-                            <span className="settings-monitor-log-value">
-                                {dbStatus ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测'}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">写入排队</span>
-                            <span className="settings-monitor-log-value">
-                                queued {dbStatus?.writesQueued || 0} · pending {dbStatus?.pendingWrites || 0}
-                            </span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">备份状态</span>
-                            <span className="settings-monitor-log-value">{backupSummaryValue}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">本机备份</span>
-                            <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</span>
-                        </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近恢复</span>
-                            <span className="settings-monitor-log-value">
-                                {backupStatus?.lastImport?.sourceFilename || '暂无'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <Row gutter={[24, 24]}>
+            <Col xs={24} lg={12}>
+                <Card
+                    title="通知与巡检状态"
+                    extra={<Button size="small" onClick={refreshStatusWorkspace} loading={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}>刷新概览</Button>}
+                >
+                    <Descriptions column={1} bordered size="small">
+                        <Descriptions.Item label="SMTP">{emailConfiguredLabel} · {emailDeliveryLabel}</Descriptions.Item>
+                        <Descriptions.Item label="最近测试">{emailVerificationLabel} · {formatDateTime(emailStatus?.lastVerification?.ts, locale)}</Descriptions.Item>
+                        <Descriptions.Item label="节点巡检">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'} (正常 {monitorHealthyCount} / 异常 {monitorIncidentCount})</Descriptions.Item>
+                        <Descriptions.Item label="异常分布">{monitorReasonSummary}</Descriptions.Item>
+                        <Descriptions.Item label="通知中心">未读 {monitorUnreadCount} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}</Descriptions.Item>
+                        <Descriptions.Item label="Telegram">{monitorStatus?.telegram?.enabled ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}` : '未启用'}</Descriptions.Item>
+                    </Descriptions>
+                </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+                <Card title="数据库与备份状态">
+                    <Descriptions column={1} bordered size="small">
+                        <Descriptions.Item label="DB 连接">{dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}</Descriptions.Item>
+                        <Descriptions.Item label="当前模式">{dbStatus ? `read=${dbStatus.currentModes?.readMode} / write=${dbStatus.currentModes?.writeMode}` : '等待探测'}</Descriptions.Item>
+                        <Descriptions.Item label="写入排队">queued {dbStatus?.writesQueued || 0} · pending {dbStatus?.pendingWrites || 0}</Descriptions.Item>
+                        <Descriptions.Item label="备份状态">{backupSummaryValue}</Descriptions.Item>
+                        <Descriptions.Item label="本机备份">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</Descriptions.Item>
+                        <Descriptions.Item label="最近恢复">{backupStatus?.lastImport?.sourceFilename || '暂无'} ({formatDateTime(backupStatus?.lastImport?.restoredAt, locale)})</Descriptions.Item>
+                    </Descriptions>
+                </Card>
+            </Col>
+        </Row>
     );
 
-    const renderBackupWorkspace = () => (
-        <div className="settings-section-stack">
-            <div className="settings-grid settings-grid--basic settings-grid--backup-workspace">
-                {renderDatabaseContent({
-                    className: 'settings-panel--span-4',
-                    compactLayout: true,
-                    wrap: false,
-                })}
-                {renderBackupContent({
-                    className: 'settings-panel--span-8',
-                    wrap: false,
-                })}
-            </div>
-        </div>
-    );
-
-    const renderOperationsWorkspace = () => (
-        <div className="settings-section-stack">
-            {renderMonitorContent()}
-        </div>
-    );
-
-    const workspaceSections = [
+    const tabItems = [
         {
-            id: 'status',
-            title: '系统状态',
-            eyebrow: 'Status',
-            subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
-            summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
-            highlights: overviewCards.map(({ title, value, detail }) => ({ label: title, value, detail })),
-            navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
-                ? { label: '运行稳定', tone: 'success' }
-                : { label: '需关注', tone: 'warning' },
-            content: renderStatusContent(),
-            heroMode: 'cards',
+            key: 'status',
+            label: <span><DashboardOutlined /> {t('pages.settings.tabStatus')}</span>,
+            children: (
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <Row gutter={16}>
+                        {overviewCards.map(c => (
+                            <Col xs={24} sm={12} lg={6} key={c.title}>
+                                <Card size="small">
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>{c.title}</Text>
+                                    <Title level={4} style={{ margin: '4px 0' }} type={c.tone === 'success' ? 'success' : c.tone === 'warning' ? 'warning' : undefined}>{c.value}</Title>
+                                    <Text type="secondary" style={{ fontSize: '11px' }} ellipsis title={c.detail}>{c.detail}</Text>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                    {renderStatusContent()}
+                </Space>
+            ),
         },
         {
-            id: 'access',
-            title: '对外访问',
-            eyebrow: 'Access',
-            subtitle: '统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。',
-            summary: '保持外部访问路径清晰，再处理订阅外链与注册发放策略，和其他工作区的节奏一致。',
-            content: renderAccessContent(),
-            heroMode: 'hidden',
+            key: 'access',
+            label: <span><SettingOutlined /> {t('pages.settings.tabAccess')}</span>,
+            children: renderAccessContent(),
         },
         {
-            id: 'policy',
-            title: '安全审计',
-            eyebrow: 'Security',
-            subtitle: '风控阈值、审计保留窗口和 IP 归属地增强统一收口。',
-            summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
-            highlights: policyHighlights,
-            content: renderPolicyContent(),
-            heroMode: 'cards',
+            key: 'policy',
+            label: <span><SafetyCertificateOutlined /> {t('pages.settings.tabPolicy')}</span>,
+            children: renderPolicyContent(),
         },
         {
-            id: 'operations',
-            title: '运维通知',
-            eyebrow: 'Operations',
-            subtitle: '把邮件、Telegram 和节点巡检动作放在同一页执行与复核。',
-            summary: '链路状态和巡检概览集中在系统状态页查看，这里只保留测试、通知和 Telegram 配置动作。',
-            content: renderOperationsWorkspace(),
-            heroMode: 'hidden',
+            key: 'monitor',
+            label: <span><NotificationOutlined /> {t('pages.settings.tabNotify')}</span>,
+            children: renderMonitorContent(),
         },
         {
-            id: 'backup',
-            title: '数据备份',
-            eyebrow: 'Backup',
-            subtitle: '数据库模式、备份导出和恢复校验放在一个工作区统一处理。',
-            summary: '数据库模式和备份基线集中在系统状态页查看，这里只保留切换、导出和恢复操作。',
-            content: renderBackupWorkspace(),
-            heroMode: 'hidden',
+            key: 'backup',
+            label: <span><HddOutlined /> {t('pages.settings.tabDb')}</span>,
+            children: (
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    {renderDatabaseContent()}
+                    {renderBackupContent()}
+                </Space>
+            ),
         },
     ];
-    const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
-    const workspaceNavItems = buildSettingsWorkspaceConfig(t).map((item) => ({
-        ...item,
-        ...(workspaceSections.find((section) => section.id === item.id) || {}),
-    }));
-    const dirtyWorkspaceLabels = workspaceNavItems
-        .filter((item) => dirtyWorkspaceIds.includes(item.id))
-        .map((item) => item.label);
-    const saveDockSummary = hasPendingChanges
-        ? `${dirtyWorkspaceCount} 个工作区待保存`
-        : activeWorkspaceSectionId === 'backup'
-            ? '数据库切换和备份操作即时生效'
-            : '当前工作区没有未保存更改';
 
     if (!isAdmin) {
         return (
             <>
-                <Header
-                    title={t('pages.settings.title')}
-                    subtitle={t('pages.settings.limitedSubtitle')}
-                    eyebrow={t('pages.settings.eyebrow')}
-                />
-                <div className="page-content page-enter settings-page">
-                    <EmptyState
-                        title="仅管理员可访问系统设置"
-                        subtitle="请使用管理员账号登录后再修改系统参数、备份或监控配置。"
-                        icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
-                        surface
-                    />
-                </div>
+                <Header title={t('pages.settings.title')} eyebrow={t('pages.settings.eyebrow')} />
+                <Content style={{ padding: '24px' }}>
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={<Title level={4}>仅管理员可访问系统设置</Title>}
+                    >
+                        <Paragraph type="secondary">请使用管理员账号登录后再修改系统参数、备份或监控配置。</Paragraph>
+                    </Empty>
+                </Content>
             </>
         );
     }
 
     return (
-        <>
-            <Header
-                title={t('pages.settings.title')}
-                eyebrow={t('pages.settings.eyebrow')}
-            />
-            <div className="page-content page-content--wide page-enter settings-page">
-                <div className="settings-shell">
-                    <div className="card settings-nav">
-                        <div className="settings-nav-list settings-nav-list--workspace">
-                            {workspaceNavItems.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = item.id === activeWorkspaceSectionId;
-                                const isDirty = Boolean(workspaceDirtyMap[item.id]);
-                                const navFlagToneClass = item.navFlag?.tone === 'success'
-                                    ? 'badge-success'
-                                    : item.navFlag?.tone === 'warning'
-                                        ? 'badge-warning'
-                                        : item.navFlag?.tone === 'danger'
-                                            ? 'badge-danger'
-                                            : 'badge-neutral';
-                                return (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        className={`settings-nav-item${isActive ? ' is-active' : ''}${isDirty ? ' is-dirty' : ''}`}
-                                        aria-pressed={isActive}
-                                        aria-label={item.label}
-                                        onClick={() => setRequestedView(item.routeTab)}
-                                    >
-                                        <span className="settings-nav-item-icon">
-                                            <Icon />
-                                        </span>
-                                        <span className="settings-nav-item-copy">
-                                            <span className="settings-nav-item-top">
-                                                <span className="settings-nav-item-label">{item.label}</span>
-                                                {isDirty ? <span className="settings-nav-item-dirty-dot" aria-hidden="true" /> : null}
-                                            </span>
-                                            {item.navSummary ? <span className="settings-nav-item-summary">{item.navSummary}</span> : null}
-                                            {(isDirty || item.navFlag) ? (
-                                                <span className="settings-nav-item-flags">
-                                                    {isDirty ? <span className="badge badge-warning">未保存</span> : null}
-                                                    {item.navFlag ? <span className={`badge ${navFlagToneClass}`}>{item.navFlag.label}</span> : null}
-                                                </span>
-                                            ) : null}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="settings-main">
-                        <SettingsWorkspaceSection
-                            workspaceId={activeWorkspaceSection.id}
-                            eyebrow={activeWorkspaceSection.eyebrow}
-                            title={activeWorkspaceSection.title}
-                            subtitle={activeWorkspaceSection.subtitle}
-                            summary={activeWorkspaceSection.summary}
-                            badges={activeWorkspaceSection.badges}
-                            highlights={activeWorkspaceSection.highlights}
-                            actions={activeWorkspaceSection.actions}
-                            heroMode={activeWorkspaceSection.heroMode}
-                        >
-                            {activeWorkspaceSection.content}
-                        </SettingsWorkspaceSection>
-                        <div className="card settings-save-dock">
-                            <div className="settings-save-dock-inner" aria-live="polite">
-                                <div className="settings-save-dock-main">
-                                    <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
-                                        {saving ? <span className="spinner spinner-16" /> : null}
-                                        <span>
-                                            {saving
-                                                ? '正在保存设置'
-                                                : loading
-                                                    ? '正在加载配置'
-                                                    : hasPendingChanges
-                                                        ? '有未保存更改'
-                                                        : '配置已加载'}
-                                        </span>
-                                    </div>
-                                    <span className="settings-save-dock-summary">{saveDockSummary}</span>
-                                    {hasPendingChanges ? <span className="badge badge-warning">{dirtyWorkspaceLabels.join(' / ')}</span> : null}
-                                </div>
-                                <div className="settings-save-dock-actions">
-                                    {hasPendingChanges ? (
-                                        <button className="btn btn-ghost btn-sm" onClick={resetPendingChanges} disabled={loading || saving}>
-                                            恢复更改
-                                        </button>
-                                    ) : null}
-                                    <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
-                                        {saving ? <span className="spinner" /> : '保存设置'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
+            <Header title={t('pages.settings.title')} eyebrow={t('pages.settings.eyebrow')} />
+            <Content style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+                <div style={{ background: '#fff', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                    <Tabs
+                        activeKey={activeWorkspaceSectionId === 'operations' ? 'monitor' : activeWorkspaceSectionId}
+                        onChange={setRequestedView}
+                        items={tabItems}
+                        size="large"
+                    />
                 </div>
-            </div>
+
+                <div style={{ position: 'sticky', bottom: 24, marginTop: 32, zIndex: 100 }}>
+                    <Card size="small" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+                        <Row align="middle" justify="space-between">
+                            <Col>
+                                <Space>
+                                    <Badge status={saving ? 'processing' : loading ? 'default' : hasPendingChanges ? 'warning' : 'success'} />
+                                    <Text strong>
+                                        {saving ? '正在保存设置...' : loading ? '正在加载配置...' : hasPendingChanges ? '有未保存更改' : '配置已同步'}
+                                    </Text>
+                                    {hasPendingChanges && <Tag color="warning">{dirtyWorkspaceCount} 个工作区待保存</Tag>}
+                                </Space>
+                            </Col>
+                            <Col>
+                                <Space>
+                                    {hasPendingChanges && (
+                                        <Button icon={<RollbackOutlined />} onClick={resetPendingChanges} disabled={saving}>恢复更改</Button>
+                                    )}
+                                    <Button type="primary" icon={<SaveOutlined />} onClick={saveSettings} loading={saving} disabled={!hasPendingChanges}>
+                                        保存设置
+                                    </Button>
+                                </Space>
+                            </Col>
+                        </Row>
+                    </Card>
+                </div>
+            </Content>
+
             <SiteAccessDangerModal
                 open={dangerConfirmOpen}
                 previousPath={savedSiteAccessPath}
@@ -2975,287 +2334,134 @@ export default function SystemSettings() {
                 onConfirm={performSettingsSave}
                 saving={saving}
             />
-            <ModalShell isOpen={noticeModalOpen} onClose={() => setNoticeModalOpen(false)}>
-                <div className="modal modal-wide settings-notice-modal" onClick={(event) => event.stopPropagation()}>
-                    <div className="modal-header">
-                        <h3 className="modal-title">发送注册用户变更通知</h3>
-                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)}>
-                            <HiOutlineXMark />
-                        </button>
-                    </div>
-                    <div className="modal-body">
-                        <div className="settings-notice-shell">
-                            <div className="settings-notice-editor">
-                                <div className="text-sm text-muted mb-4">
-                                    该功能会按单个收件人逐封发送邮件，不会把其他用户邮箱放在同一封邮件里。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。
-                                </div>
-                                <div className="grid-auto-220">
-                                    <div className="form-group">
-                                        <label className="form-label">通知主题</label>
-                                        <input
-                                            className="form-input"
-                                            value={noticeDraft.subject}
-                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
-                                            placeholder="例如：服务入口地址变更通知"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">发送范围</label>
-                                        <select
-                                            className="form-select"
-                                            value={noticeDraft.scope}
-                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
-                                        >
-                                            <option value="all">全部有邮箱的注册用户</option>
-                                            <option value="verified">仅已验证邮箱用户</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">通知内容</label>
-                                    <textarea
-                                        rows={8}
-                                        className="form-textarea"
-                                        value={noticeDraft.message}
-                                        onChange={(event) => setNoticeDraft((prev) => ({ ...prev, message: event.target.value }))}
-                                        placeholder="说明新网址、新域名、生效时间，以及用户需要执行的替换动作。"
-                                    />
-                                </div>
-                                <div className="grid-auto-220">
-                                    <div className="form-group">
-                                        <label className="form-label">按钮地址</label>
-                                        <input
-                                            className="form-input"
-                                            value={noticeDraft.actionUrl}
-                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionUrl: event.target.value }))}
-                                            placeholder="https://example.com/subscription"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">按钮文案</label>
-                                        <input
-                                            className="form-input"
-                                            value={noticeDraft.actionLabel}
-                                            onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
-                                            placeholder="查看最新地址"
-                                        />
-                                    </div>
-                                </div>
-                                <label className="form-check-label w-fit mt-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={noticeDraft.includeDisabled}
-                                        onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
-                                    />
-                                    <span>包含已停用账号</span>
-                                </label>
-                            </div>
-                            <div className="settings-notice-preview-panel">
-                                <div className="settings-notice-preview-head">
-                                    <div>
-                                        <div className="text-sm font-medium">邮件正文预览</div>
-                                        <div className="text-xs text-muted mt-1">按示例用户渲染，实际发送时仍会逐个单发，不会泄露其他用户邮箱地址。</div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => fetchNoticePreview(noticeDraft)}
-                                        disabled={noticePreviewLoading}
-                                    >
-                                        {noticePreviewLoading ? <span className="spinner" /> : '刷新预览'}
-                                    </button>
-                                </div>
-                                <div className="settings-notice-preview-meta">
-                                    <span className="badge badge-neutral">预计发送 {noticePreview?.recipientCount ?? 0} 人</span>
-                                    <span className="badge badge-neutral">跳过 {noticePreview?.skippedCount ?? 0} 人</span>
-                                    <span className="badge badge-success">逐个单发</span>
-                                </div>
-                                {noticePreview?.sampleRecipient?.username || noticePreview?.sampleRecipient?.email ? (
-                                    <div className="text-xs text-muted">
-                                        示例收件人: {noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
-                                    </div>
-                                ) : null}
-                                {noticePreviewError ? (
-                                    <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">预览加载失败</div>
-                                        <div className="text-sm text-muted">{noticePreviewError}</div>
-                                    </div>
-                                ) : null}
-                                {!noticePreviewError && noticePreviewLoading && !noticePreview ? (
-                                    <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">正在生成邮件预览</div>
-                                        <div className="text-sm text-muted">正在按实际邮件模板渲染正文。</div>
-                                    </div>
-                                ) : null}
-                                {!noticePreviewError && noticePreview?.html ? (
-                                    <div className="settings-notice-preview-frame-shell">
-                                        <iframe
-                                            title="注册用户通知邮件预览"
-                                            className="settings-notice-preview-frame"
-                                            sandbox=""
-                                            srcDoc={noticePreview.html}
-                                        />
-                                    </div>
-                                ) : null}
-                                {!noticePreviewError && !noticePreviewLoading && !noticePreview?.html ? (
-                                    <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">还没有可用预览</div>
-                                        <div className="text-sm text-muted">填写主题、正文或按钮地址后，这里会显示最终邮件样式。</div>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={() => setNoticeModalOpen(false)} disabled={noticeSending}>
-                            取消
-                        </button>
-                        <button type="button" className="btn btn-primary" onClick={sendRegisteredUserNotice} disabled={noticeSending || !emailStatus?.configured}>
-                            {noticeSending ? <span className="spinner" /> : '开始发送'}
-                        </button>
-                    </div>
-                </div>
-            </ModalShell>
-            <TaskProgressModal
-                taskId={noticeTaskId}
+
+            <Modal
                 title="发送注册用户变更通知"
-                onClose={() => setNoticeTaskId(null)}
-            />
-            <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>
-                <div className="modal modal-wide settings-restore-modal" onClick={(event) => event.stopPropagation()}>
-                    <div className="modal-header">
-                        <h3 className="modal-title">恢复系统备份</h3>
-                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)}>
-                            <HiOutlineXMark />
-                        </button>
-                    </div>
-                    <div className="modal-body">
-                        <div className="settings-restore-warning">
-                            <HiOutlineExclamationTriangle className="settings-restore-warning-icon" />
-                            <div className="settings-restore-warning-copy">
-                                <div className="settings-restore-warning-title">恢复会覆盖当前同名 Store</div>
-                                <div className="text-sm text-muted">建议先导出一份当前系统快照，再选择备份文件进行预览校验。新备份会先按当前 `CREDENTIALS_SECRET` 解密，再执行恢复覆盖。</div>
-                            </div>
+                open={noticeModalOpen}
+                onCancel={() => setNoticeModalOpen(false)}
+                width={1000}
+                footer={[
+                    <Button key="cancel" onClick={() => setNoticeModalOpen(false)}>取消</Button>,
+                    <Button key="send" type="primary" onClick={sendRegisteredUserNotice} loading={noticeSending} disabled={!emailStatus?.configured}>开始发送</Button>
+                ]}
+            >
+                <Paragraph type="secondary" style={{ fontSize: '12px' }}>
+                    该功能会按单个收件人逐封发送邮件。默认覆盖所有有邮箱地址的用户。
+                </Paragraph>
+                <Row gutter={24}>
+                    <Col span={12}>
+                        <Form layout="vertical">
+                            <Form.Item label="通知主题">
+                                <Input value={noticeDraft.subject} onChange={e => setNoticeDraft(p => ({ ...p, subject: e.target.value }))} />
+                            </Form.Item>
+                            <Form.Item label="发送范围">
+                                <Select value={noticeDraft.scope} onChange={v => setNoticeDraft(p => ({ ...p, scope: v }))}>
+                                    <Select.Option value="all">全部有邮箱的注册用户</Select.Option>
+                                    <Select.Option value="verified">仅已验证邮箱用户</Select.Option>
+                                </Select>
+                            </Form.Item>
+                            <Form.Item label="通知内容">
+                                <Input.TextArea rows={6} value={noticeDraft.message} onChange={e => setNoticeDraft(p => ({ ...p, message: e.target.value }))} />
+                            </Form.Item>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item label="按钮地址">
+                                        <Input value={noticeDraft.actionUrl} onChange={e => setNoticeDraft(p => ({ ...p, actionUrl: e.target.value }))} />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item label="按钮文案">
+                                        <Input value={noticeDraft.actionLabel} onChange={e => setNoticeDraft(p => ({ ...p, actionLabel: e.target.value }))} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Checkbox checked={noticeDraft.includeDisabled} onChange={e => setNoticeDraft(p => ({ ...p, includeDisabled: e.target.checked }))}>包含已停用账号</Checkbox>
+                        </Form>
+                    </Col>
+                    <Col span={12} style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <Text strong>邮件正文预览</Text>
+                            <Button size="small" onClick={() => fetchNoticePreview(noticeDraft)} loading={noticePreviewLoading}>刷新预览</Button>
                         </div>
+                        <Space style={{ marginBottom: 12 }}>
+                            <Tag>预计发送 {noticePreview?.recipientCount || 0} 人</Tag>
+                            <Tag>跳过 {noticePreview?.skippedCount || 0} 人</Tag>
+                        </Space>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '4px', height: '400px', overflow: 'hidden' }}>
+                            {noticePreview?.html ? (
+                                <iframe title="preview" srcDoc={noticePreview.html} style={{ width: '100%', height: '100%', border: 'none' }} />
+                            ) : (
+                                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text type="secondary">{noticePreviewError || '暂无预览'}</Text>
+                                </div>
+                            )}
+                        </div>
+                    </Col>
+                </Row>
+            </Modal>
 
-                        <label
-                            className={`settings-restore-dropzone${backupDragActive ? ' is-dragover' : ''}`}
-                            onDragOver={(event) => {
-                                event.preventDefault();
-                                setBackupDragActive(true);
-                            }}
-                            onDragLeave={(event) => {
-                                event.preventDefault();
-                                setBackupDragActive(false);
-                            }}
-                            onDrop={(event) => {
-                                event.preventDefault();
-                                setBackupDragActive(false);
-                                setSelectedBackupFile(event.dataTransfer?.files?.[0] || null);
-                            }}
-                        >
-                            <input
-                                type="file"
-                                accept=".nmsbak,.gz,.json.gz,application/octet-stream,application/gzip"
-                                onChange={(event) => setSelectedBackupFile(event.target.files?.[0] || null)}
-                            />
-                            <div className="settings-restore-dropzone-title">拖拽备份文件到这里，或点击选择文件</div>
-                            <div className="settings-restore-dropzone-sub">支持 `NMS` 导出的加密 `.nmsbak`，也兼容旧版 `.gz / .json.gz` 备份包</div>
-                            <div className="settings-restore-file">{backupFile?.name || '尚未选择文件'}</div>
-                        </label>
-
-                        {(backupInspectLoading || backupRestoreLoading || backupUploadProgress > 0) && (
-                            <div className="settings-restore-progress">
-                                <div className="settings-restore-progress-head">
-                                    <span>{backupRestoreLoading ? '恢复上传中' : '文件校验上传中'}</span>
-                                    <span>{backupUploadProgress}%</span>
-                                </div>
-                                <div className="settings-restore-progress-bar">
-                                    <span style={{ width: `${backupUploadProgress}%` }} />
-                                </div>
-                            </div>
-                        )}
-
-                        {backupInspection && (
-                            <div className="card mini-card settings-backup-inspection">
-                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                    <div className="text-sm font-medium">备份预览</div>
-                                    <span className="badge badge-success">已校验</span>
-                                </div>
-                                <div className="settings-backup-inspection-grid">
-                                    <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">备份时间</div>
-                                        <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
-                                    </div>
-                                    <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">格式版本</div>
-                                        <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
-                                    </div>
-                                    <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">加密状态</div>
-                                        <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
-                                    </div>
-                                    <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">可恢复 Store</div>
-                                        <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
-                                    </div>
-                                </div>
-                                {(backupInspection.unsupportedKeys || []).length > 0 && (
-                                    <div className="text-sm text-muted">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
-                                )}
-                                {(backupInspection.missingKeys || []).length > 0 && (
-                                    <div className="text-sm text-muted">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
-                                )}
-                                <div className="text-sm text-muted">
-                                    {backupInspection.encrypted === false
-                                        ? '这是旧版未加密备份，仅用于兼容恢复。建议恢复完成后立即重新导出新的加密备份。'
-                                        : `恢复时会使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
-                                </div>
-                            </div>
-                        )}
-
-                        <label className="settings-restore-checkbox">
-                            <input
-                                type="checkbox"
-                                checked={backupRestoreConfirmed}
-                                onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
-                            />
-                            我已确认本次恢复会覆盖当前同名数据，且备份文件来源可信。
-                        </label>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={() => setBackupRestoreModalOpen(false)}>
-                            取消
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={inspectBackup}
-                            disabled={!backupFile || backupInspectLoading || backupRestoreLoading}
-                        >
-                            {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-danger"
-                            onClick={restoreBackup}
-                            disabled={!backupFile || !backupRestoreConfirmed || backupInspectLoading || backupRestoreLoading}
-                        >
-                            {backupRestoreLoading ? <span className="spinner" /> : '执行恢复'}
-                        </button>
-                    </div>
-                </div>
-            </ModalShell>
-            {backfillTaskId && (
-                <TaskProgressModal
-                    taskId={backfillTaskId}
-                    title="数据库回填进度"
-                    onClose={() => {
-                        setBackfillTaskId(null);
-                        fetchDbStatus({ quiet: true });
-                    }}
+            <Modal
+                title={<Space><HiOutlineExclamationTriangle style={{ color: '#faad14' }} /> 恢复系统备份</Space>}
+                open={backupRestoreModalOpen}
+                onCancel={() => setBackupRestoreModalOpen(false)}
+                footer={[
+                    <Button key="cancel" onClick={() => setBackupRestoreModalOpen(false)}>取消</Button>,
+                    <Button key="inspect" onClick={inspectBackup} loading={backupInspectLoading}>预览备份</Button>,
+                    <Button key="restore" danger type="primary" onClick={restoreBackup} loading={backupRestoreLoading} disabled={!backupRestoreConfirmed}>执行恢复</Button>
+                ]}
+            >
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="恢复会覆盖当前同名 Store"
+                    description="建议先导出一份当前快照。备份会先按当前 CREDENTIALS_SECRET 解密再恢复。"
+                    style={{ marginBottom: 16 }}
                 />
-            )}
-        </>
+                <div
+                    style={{
+                        border: '2px dashed #d9d9d9',
+                        borderRadius: '8px',
+                        padding: '32px',
+                        textAlign: 'center',
+                        background: backupDragActive ? '#f0f7ff' : '#fafafa',
+                        marginBottom: 16,
+                    }}
+                    onDragOver={e => { e.preventDefault(); setBackupDragActive(true); }}
+                    onDragLeave={() => setBackupDragActive(false)}
+                    onDrop={e => { e.preventDefault(); setBackupDragActive(false); setSelectedBackupFile(e.dataTransfer.files[0]); }}
+                >
+                    <Input type="file" style={{ display: 'none' }} id="backup-upload" onChange={e => setSelectedBackupFile(e.target.files[0])} />
+                    <label htmlFor="backup-upload" style={{ cursor: 'pointer' }}>
+                        <CloudUploadOutlined style={{ fontSize: '32px', color: '#8c8c8c' }} />
+                        <div style={{ marginTop: 8 }}>点击或拖拽文件到此处</div>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>支持 .nmsbak, .gz, .json.gz</Text>
+                    </label>
+                    {backupFile && <div style={{ marginTop: 12 }}><Tag closable onClose={() => setSelectedBackupFile(null)}>{backupFile.name}</Tag></div>}
+                </div>
+
+                {backupUploadProgress > 0 && <Progress percent={backupUploadProgress} size="small" status="active" style={{ marginBottom: 16 }} />}
+
+                {backupInspection && (
+                    <Card size="small" title="备份预览" style={{ marginBottom: 16 }}>
+                        <Descriptions size="small" column={1}>
+                            <Descriptions.Item label="备份时间">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : '未知'}</Descriptions.Item>
+                            <Descriptions.Item label="格式版本">{backupInspection.format} v{backupInspection.version}</Descriptions.Item>
+                            <Descriptions.Item label="加密状态">{backupInspection.encrypted === false ? '未加密' : (backupInspection.cipher || 'AES-256-GCM')}</Descriptions.Item>
+                            <Descriptions.Item label="可恢复 Store">{backupInspection.restorableKeys?.join(', ') || '无'}</Descriptions.Item>
+                        </Descriptions>
+                    </Card>
+                )}
+
+                <Checkbox checked={backupRestoreConfirmed} onChange={e => setBackupRestoreConfirmed(e.target.checked)}>
+                    我已确认本次恢复会覆盖数据，且文件来源可信。
+                </Checkbox>
+            </Modal>
+
+            <TaskProgressModal
+                taskId={noticeTaskId || backfillTaskId}
+                title={noticeTaskId ? "发送变更通知" : "数据库回填进度"}
+                onClose={() => { setNoticeTaskId(null); setBackfillTaskId(null); fetchDbStatus({ quiet: true }); }}
+            />
+        </Layout>
     );
 }

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { ConfigProvider, theme } from 'antd';
 
 const ThemeContext = createContext(null);
 
@@ -97,7 +98,41 @@ export function ThemeProvider({ children }) {
 
     return (
         <ThemeContext.Provider value={{ mode, resolvedTheme, setMode, cycleTheme }}>
-            {children}
+            <ConfigProvider
+                theme={{
+                    algorithm: resolvedTheme === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
+                    token: {
+                        colorPrimary: '#6366f1',
+                        colorInfo: '#3b82f6',
+                        colorSuccess: '#10b981',
+                        colorWarning: '#f59e0b',
+                        colorError: '#ef4444',
+                        colorBgBase: resolvedTheme === 'dark' ? '#000000' : '#ffffff',
+                        colorBgContainer: resolvedTheme === 'dark' ? '#121214' : '#ffffff',
+                        colorBgElevated: resolvedTheme === 'dark' ? '#18181b' : '#ffffff',
+                        borderRadius: 6,
+                        wireframe: true,
+                        fontFamily: "'IBM Plex Sans', 'Source Han Sans SC', 'Noto Sans SC', sans-serif"
+                    },
+                    components: {
+                        Layout: {
+                            siderBg: resolvedTheme === 'dark' ? '#0e0e10' : '#ffffff',
+                            headerBg: resolvedTheme === 'dark' ? 'rgba(14, 14, 16, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+                        },
+                        Card: {
+                            colorBgContainer: resolvedTheme === 'dark' ? '#121214' : '#ffffff',
+                            colorBorderSecondary: resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : '#f0f0f0',
+                        },
+                        Table: {
+                            colorBgContainer: resolvedTheme === 'dark' ? '#050c14' : '#ffffff',
+                            headerBg: resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.015)' : '#fafafa',
+                            headerColor: resolvedTheme === 'dark' ? '#a4b1c3' : '#000000',
+                        }
+                    }
+                }}
+            >
+                {children}
+            </ConfigProvider>
         </ThemeContext.Provider>
     );
 }

@@ -7,20 +7,34 @@ import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
-    HiOutlineStop,
-    HiOutlineArrowPath,
-    HiOutlineArrowDown,
-    HiOutlineGlobeAlt,
-    HiOutlineCloudArrowDown,
-    HiOutlineCloudArrowUp,
-    HiOutlineWrenchScrewdriver,
-    HiOutlineClipboard,
-    HiOutlineXMark,
-} from 'react-icons/hi2';
-import ModalShell from '../UI/ModalShell.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
-import PageToolbar from '../UI/PageToolbar.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
+    Modal,
+    Button,
+    Select,
+    Card,
+    Row,
+    Col,
+    Typography,
+    Space,
+    Empty,
+    Badge,
+    Tag,
+    Tooltip,
+    Alert,
+    Divider,
+} from 'antd';
+import {
+    StopOutlined,
+    ReloadOutlined,
+    DownloadOutlined,
+    GlobalOutlined,
+    CloudDownloadOutlined,
+    CloudUploadOutlined,
+    ToolOutlined,
+    CopyOutlined,
+    InfoCircleOutlined,
+} from '@ant-design/icons';
+
+const { Text, Title, Paragraph } = Typography;
 
 export default function ServerManagement({ embedded = false }) {
     const { activeServerId, panelApi, servers } = useServer();
@@ -338,11 +352,15 @@ export default function ServerManagement({ embedded = false }) {
                     />
                 )}
                 <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter server-console-page'}>
-                    <EmptyState
-                        title="请先选择一台服务器"
-                        subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
-                        icon={<HiOutlineWrenchScrewdriver style={{ fontSize: '48px' }} />}
-                        surface
+                    <Empty
+                        image={<ToolOutlined style={{ fontSize: '48px', color: 'rgba(255, 255, 255, 0.25)' }} />}
+                        description={
+                            <span>
+                                <Text strong>请先选择一台服务器</Text>
+                                <br />
+                                <Text type="secondary">节点控制台支持单节点操作，也支持在全局视图下执行批量控制。</Text>
+                            </span>
+                        }
                     />
                 </div>
             </>
@@ -350,235 +368,323 @@ export default function ServerManagement({ embedded = false }) {
     }
 
     const content = (
-        <>
-            <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter server-console-page'}>
-                <PageToolbar
-                    className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
-                    compact
-                    main={(
-                        <div className="server-console-toolbar-copy">
-                            <div className="server-console-toolbar-title">节点控制工作台</div>
-                            <div className="server-console-toolbar-note">
-                                集中查看当前作用域，并执行 Xray、Geo、备份与节点工具相关操作。
-                            </div>
-                        </div>
-                    )}
-                    actions={(
-                        <>
-                            <div className="server-console-scope-card" aria-live="polite">
-                                <div className="server-console-scope-label">{isGlobalView ? '当前作用域' : '当前节点'}</div>
-                                <div className="server-console-scope-value">
-                                    {scopeSummary}
-                                </div>
-                            </div>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
-                                <HiOutlineArrowPath /> 刷新版本
-                            </button>
-                            {!isGlobalView && (
-                                <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
-                                    <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
-                                </button>
-                            )}
-                        </>
-                    )}
-                    meta={<span>{isGlobalView ? '批量控制模式' : '单节点控制模式'}</span>}
-                />
-                {lastRun && (
-                    <div className="card mb-6 server-console-result-card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title="最近一次执行结果"
-                            subtitle={lastRun.title}
-                            meta={(
-                                <span className={`badge ${lastRun.failed.length === 0 ? 'badge-success' : 'badge-warning'}`}>
-                                    {lastRun.success}/{lastRun.total} 成功
-                                </span>
-                            )}
-                        />
-                        <div className="server-console-result-summary">
-                            本次共处理 {lastRun.total} 个目标，成功 {lastRun.success} 个，失败 {lastRun.failed.length} 个。
-                        </div>
-                        {lastRun.failed.length > 0 && (
-                            <div className="server-console-result-list">
-                                {lastRun.failed.map((item) => (
-                                    <div key={`${item.serverName}-${item.msg}`} className="server-console-result-item">
-                                        {item.serverName}: {item.msg}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="server-console-grid">
-                    <div className="card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title="Xray 控制"
-                            subtitle="停止、重启服务，必要时查看当前节点配置。"
-                        />
-                        <div className="server-console-action-row mb-3">
-                            <button className="btn btn-danger btn-sm" onClick={handleStopXray} disabled={loading.stop}>
-                                <HiOutlineStop /> {isGlobalView ? '全部停止' : '停止'}
-                            </button>
-                            <button className="btn btn-success btn-sm" onClick={handleRestartXray} disabled={loading.restart}>
-                                <HiOutlineArrowPath /> {isGlobalView ? '全部重启' : '重启'}
-                            </button>
-                            {!isGlobalView && (
-                                <button className="btn btn-secondary btn-sm" onClick={handleViewConfig}>
-                                    查看配置
-                                </button>
-                            )}
-                        </div>
-                        <div className="server-console-note">
-                            停止和升级会影响当前节点代理转发，请在低峰期操作。
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title="Xray 版本"
-                            subtitle="从当前节点可用的版本列表中选择目标版本后执行安装。"
-                            actions={(
-                                <button className="btn btn-secondary btn-sm" onClick={fetchVersions} disabled={loading.refreshVersions}>
-                                    <HiOutlineArrowPath /> 刷新
-                                </button>
-                            )}
-                        />
-                        <div className="server-console-select-row">
-                            <select className="form-select" value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)}>
-                                {xrayVersions.length === 0 && <option value="">暂无可用版本</option>}
-                                {xrayVersions.map((v) => <option key={v} value={v}>{v}</option>)}
-                            </select>
-                            <button className="btn btn-primary btn-sm" onClick={handleInstallXray} disabled={loading.install || !selectedVersion}>
-                                <HiOutlineArrowDown /> {isGlobalView ? '全节点安装' : '安装'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title="Geo 文件"
-                            subtitle="更新 GeoIP 与 GeoSite 数据，批量模式会广播到所有节点。"
-                        />
-                        <div className="server-console-action-row">
-                            <button className="btn btn-primary btn-sm" onClick={() => handleUpdateGeo()} disabled={loading['geo-all']}>
-                                <HiOutlineGlobeAlt /> {isGlobalView ? '全节点更新' : '全部更新'}
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateGeo('geoip.dat')} disabled={loading['geo-geoip.dat']}>
-                                GeoIP
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleUpdateGeo('geosite.dat')} disabled={loading['geo-geosite.dat']}>
-                                GeoSite
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title="数据与备份"
-                            subtitle="批量模式只保留 Telegram 备份，数据库导入导出仍限定单节点。"
-                        />
-                        <div className="server-console-action-row">
-                            <button className="btn btn-primary btn-sm" onClick={handleBackupTelegram} disabled={loading.tgBackup}>
-                                {isGlobalView ? '全节点 Telegram 备份' : 'Telegram 备份'}
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={handleExportDb} disabled={loading.exportDb || isGlobalView}>
-                                <HiOutlineCloudArrowDown /> 导出数据库
-                            </button>
-                            <label
-                                className={`btn btn-secondary btn-sm server-console-import-label${isGlobalView ? ' disabled is-disabled' : ''}`}
+        <div className={embedded ? '' : 'page-content page-enter'}>
+            <Card size="small" style={{ marginBottom: '24px' }}>
+                <Row gutter={[16, 16]} align="middle">
+                    <Col xs={24} md={12}>
+                        <Title level={5} style={{ margin: 0 }}>节点控制工作台</Title>
+                        <Text type="secondary" size="small">
+                            集中查看当前作用域，并执行 Xray、Geo、备份与节点工具相关操作。
+                        </Text>
+                    </Col>
+                    <Col xs={24} md={12} style={{ textAlign: 'right' }}>
+                        <Space wrap>
+                            <Card size="small" bodyStyle={{ padding: '4px 12px' }} style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>{isGlobalView ? '作用域' : '节点'}: </Text>
+                                <Text strong>{scopeSummary}</Text>
+                            </Card>
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={fetchVersions}
+                                loading={loading.refreshVersions}
+                                size="small"
                             >
-                                <HiOutlineCloudArrowUp /> 导入数据库
-                                <input type="file" accept=".db" onChange={handleImportDb} hidden disabled={isGlobalView} />
-                            </label>
-                        </div>
-                        <div className="server-console-note mt-3">
-                            数据库导入/导出仅支持单节点，集群态不会执行该类动作。
-                        </div>
-                    </div>
+                                刷新版本
+                            </Button>
+                            {!isGlobalView && (
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    onClick={fetchCapabilities}
+                                    loading={capabilitiesLoading}
+                                    size="small"
+                                >
+                                    刷新能力
+                                </Button>
+                            )}
+                        </Space>
+                    </Col>
+                </Row>
+                <Divider style={{ margin: '12px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Tag color={isGlobalView ? 'purple' : 'blue'}>
+                        {isGlobalView ? '批量控制模式' : '单节点控制模式'}
+                    </Tag>
+                </div>
+            </Card>
 
-                    {!isGlobalView && (
-                        <div className="card server-console-span-full">
-                            <SectionHeader
-                                className="card-header section-header section-header--compact"
-                                title="节点工具"
-                                subtitle="仅展示支持在控制台直接执行的节点工具接口。"
-                                actions={(
-                                    <button className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={capabilitiesLoading}>
-                                        <HiOutlineArrowPath className={capabilitiesLoading ? 'spinning' : ''} /> 刷新能力
-                                    </button>
-                                )}
-                            />
-                            {toolEntries.length === 0 ? (
-                                <div className="server-console-note">当前节点未暴露可执行工具接口。</div>
-                            ) : (
-                                <div className="server-console-tool-grid">
-                                    {toolEntries.map((tool) => (
-                                        <div key={tool.key} className="server-console-tool-card">
-                                            <div className="server-console-tool-head">
-                                                <strong>{tool.label || tool.key}</strong>
-                                                <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
-                                                    {tool.available === false ? '不可用' : '可执行'}
-                                                </span>
-                                            </div>
-                                            <div className="text-sm text-muted mb-3">{tool.description || '-'}</div>
-                                            {toolResults[tool.key] && (
-                                                <pre className="log-viewer server-console-log server-console-log--compact">
-                                                    {toolResults[tool.key]}
-                                                </pre>
-                                            )}
-                                            <div className="server-console-action-row">
-                                                <button
-                                                    className="btn btn-primary btn-sm"
-                                                    onClick={() => handleRunTool(tool)}
-                                                    disabled={loading[`tool-${tool.key}`] || tool.available === false}
-                                                >
-                                                    {loading[`tool-${tool.key}`] ? <span className="spinner" /> : <HiOutlineArrowPath />}
-                                                    生成
-                                                </button>
-                                                {toolResults[tool.key] && (
-                                                    <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(toolResults[tool.key]).then(() => toast.success('已复制'))}>
-                                                        <HiOutlineClipboard /> 复制
-                                                    </button>
-                                                )}
-                                            </div>
+            {lastRun && (
+                <Alert
+                    message="最近一次执行结果"
+                    description={
+                        <div>
+                            <Text strong>{lastRun.title}</Text>
+                            <br />
+                            <Text>本次共处理 {lastRun.total} 个目标，成功 {lastRun.success} 个，失败 {lastRun.failed.length} 个。</Text>
+                            {lastRun.failed.length > 0 && (
+                                <div style={{ marginTop: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                                    {lastRun.failed.map((item) => (
+                                        <div key={`${item.serverName}-${item.msg}`} style={{ fontSize: '12px', color: '#ff4d4f' }}>
+                                            {item.serverName}: {item.msg}
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
-                    )}
+                    }
+                    type={lastRun.failed.length === 0 ? 'success' : 'warning'}
+                    showIcon
+                    closable
+                    onClose={() => setLastRun(null)}
+                    style={{ marginBottom: '24px' }}
+                />
+            )}
 
-                    {!isGlobalView && guidedModules.length > 0 && (
-                        <div className="card server-console-span-full">
-                            <SectionHeader
-                                className="card-header section-header section-header--compact"
-                                title="官方能力引导"
-                                subtitle="对于 NMS 尚未接管的能力，直接跳转到上游文档查看说明。"
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                    <Card title="Xray 控制" size="small" extra={<Tooltip title="停止和升级会影响当前节点代理转发"><InfoCircleOutlined /></Tooltip>}>
+                        <Paragraph type="secondary" style={{ fontSize: '12px' }}>停止、重启服务，必要时查看当前节点配置。</Paragraph>
+                        <Space wrap>
+                            <Button
+                                danger
+                                icon={<StopOutlined />}
+                                onClick={handleStopXray}
+                                loading={loading.stop}
+                            >
+                                {isGlobalView ? '全部停止' : '停止'}
+                            </Button>
+                            <Button
+                                type="primary"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                                icon={<ReloadOutlined />}
+                                onClick={handleRestartXray}
+                                loading={loading.restart}
+                            >
+                                {isGlobalView ? '全部重启' : '重启'}
+                            </Button>
+                            {!isGlobalView && (
+                                <Button onClick={handleViewConfig}>查看配置</Button>
+                            )}
+                        </Space>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={12}>
+                    <Card
+                        title="Xray 版本"
+                        size="small"
+                        extra={
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<ReloadOutlined />}
+                                onClick={fetchVersions}
+                                loading={loading.refreshVersions}
+                            >
+                                刷新
+                            </Button>
+                        }
+                    >
+                        <Paragraph type="secondary" style={{ fontSize: '12px' }}>从当前节点可用列表中选择版本并安装。</Paragraph>
+                        <Space.Compact style={{ width: '100%' }}>
+                            <Select
+                                style={{ flex: 1 }}
+                                value={selectedVersion}
+                                onChange={setSelectedVersion}
+                                placeholder="选择版本"
+                            >
+                                {xrayVersions.map((v) => <Select.Option key={v} value={v}>{v}</Select.Option>)}
+                            </Select>
+                            <Button
+                                type="primary"
+                                icon={<DownloadOutlined />}
+                                onClick={handleInstallXray}
+                                loading={loading.install}
+                                disabled={!selectedVersion}
+                            >
+                                {isGlobalView ? '全节点安装' : '安装'}
+                            </Button>
+                        </Space.Compact>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={12}>
+                    <Card title="Geo 文件" size="small">
+                        <Paragraph type="secondary" style={{ fontSize: '12px' }}>更新 GeoIP 与 GeoSite 数据，批量模式会广播到所有节点。</Paragraph>
+                        <Space wrap>
+                            <Button
+                                type="primary"
+                                icon={<GlobalOutlined />}
+                                onClick={() => handleUpdateGeo()}
+                                loading={loading['geo-all']}
+                            >
+                                {isGlobalView ? '全节点更新' : '全部更新'}
+                            </Button>
+                            <Button
+                                onClick={() => handleUpdateGeo('geoip.dat')}
+                                loading={loading['geo-geoip.dat']}
+                            >
+                                GeoIP
+                            </Button>
+                            <Button
+                                onClick={() => handleUpdateGeo('geosite.dat')}
+                                loading={loading['geo-geosite.dat']}
+                            >
+                                GeoSite
+                            </Button>
+                        </Space>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={12}>
+                    <Card title="数据与备份" size="small">
+                        <Paragraph type="secondary" style={{ fontSize: '12px' }}>批量模式只保留 Telegram 备份，数据库操作限单节点。</Paragraph>
+                        <Space wrap>
+                            <Button
+                                type="primary"
+                                onClick={handleBackupTelegram}
+                                loading={loading.tgBackup}
+                            >
+                                {isGlobalView ? '全节点 Telegram 备份' : 'Telegram 备份'}
+                            </Button>
+                            <Button
+                                icon={<CloudDownloadOutlined />}
+                                onClick={handleExportDb}
+                                loading={loading.exportDb}
+                                disabled={isGlobalView}
+                            >
+                                导出数据库
+                            </Button>
+                            <Tooltip title={isGlobalView ? "集群态不支持导入" : ""}>
+                                <Button
+                                    icon={<CloudUploadOutlined />}
+                                    disabled={isGlobalView}
+                                    onClick={() => document.getElementById('db-import-input').click()}
+                                    loading={loading.importDb}
+                                >
+                                    导入数据库
+                                </Button>
+                            </Tooltip>
+                            <input
+                                id="db-import-input"
+                                type="file"
+                                accept=".db"
+                                onChange={handleImportDb}
+                                hidden
                             />
-                            <div className="server-console-guide-grid">
+                        </Space>
+                    </Card>
+                </Col>
+
+                {!isGlobalView && (
+                    <Col span={24}>
+                        <Card
+                            title="节点工具"
+                            size="small"
+                            extra={
+                                <Button
+                                    type="link"
+                                    size="small"
+                                    icon={<ReloadOutlined />}
+                                    onClick={fetchCapabilities}
+                                    loading={capabilitiesLoading}
+                                >
+                                    刷新能力
+                                </Button>
+                            }
+                        >
+                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>仅展示支持在控制台直接执行的节点工具接口。</Paragraph>
+                            {toolEntries.length === 0 ? (
+                                <Text type="secondary">当前节点未暴露可执行工具接口。</Text>
+                            ) : (
+                                <Row gutter={[16, 16]}>
+                                    {toolEntries.map((tool) => (
+                                        <Col xs={24} sm={12} lg={8} key={tool.key}>
+                                            <Card size="small" type="inner">
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <Text strong>{tool.label || tool.key}</Text>
+                                                    <Badge
+                                                        status={tool.available === false ? 'error' : 'success'}
+                                                        text={tool.available === false ? '不可用' : '可执行'}
+                                                    />
+                                                </div>
+                                                <Paragraph type="secondary" style={{ fontSize: '12px', minHeight: '32px' }}>
+                                                    {tool.description || '-'}
+                                                </Paragraph>
+                                                {toolResults[tool.key] && (
+                                                    <pre style={{
+                                                        background: 'rgba(0,0,0,0.3)',
+                                                        padding: '8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '11px',
+                                                        maxHeight: '150px',
+                                                        overflow: 'auto',
+                                                        marginBottom: '12px'
+                                                    }}>
+                                                        {toolResults[tool.key]}
+                                                    </pre>
+                                                )}
+                                                <Space>
+                                                    <Button
+                                                        size="small"
+                                                        type="primary"
+                                                        icon={<ReloadOutlined />}
+                                                        onClick={() => handleRunTool(tool)}
+                                                        loading={loading[`tool-${tool.key}`]}
+                                                        disabled={tool.available === false}
+                                                    >
+                                                        生成
+                                                    </Button>
+                                                    {toolResults[tool.key] && (
+                                                        <Button
+                                                            size="small"
+                                                            icon={<CopyOutlined />}
+                                                            onClick={() => copyToClipboard(toolResults[tool.key]).then(() => toast.success('已复制'))}
+                                                        >
+                                                            复制
+                                                        </Button>
+                                                    )}
+                                                </Space>
+                                            </Card>
+                                        </Col>
+                                    ))}
+                                </Row>
+                            )}
+                        </Card>
+                    </Col>
+                )}
+
+                {!isGlobalView && guidedModules.length > 0 && (
+                    <Col span={24}>
+                        <Card title="官方能力引导" size="small">
+                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>对于 NMS 尚未接管的能力，直接跳转到上游文档查看说明。</Paragraph>
+                            <Row gutter={[16, 16]}>
                                 {guidedModules.map((module) => (
-                                    <div key={module.key} className="server-console-tool-card">
-                                        <div className="server-console-tool-head">
-                                            <strong>{module.label}</strong>
-                                            <span className="badge badge-neutral">{module.uiActionLabel || '官方文档'}</span>
-                                        </div>
-                                        <div className="text-sm text-muted mb-3">{module.note || '-'}</div>
-                                        <a href={module.docs} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
-                                            官方文档
-                                        </a>
-                                    </div>
+                                    <Col xs={24} sm={12} lg={8} key={module.key}>
+                                        <Card size="small" type="inner">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                <Text strong>{module.label}</Text>
+                                                <Tag color="default">{module.uiActionLabel || '官方文档'}</Tag>
+                                            </div>
+                                            <Paragraph type="secondary" style={{ fontSize: '12px' }}>
+                                                {module.note || '-'}
+                                            </Paragraph>
+                                            <Button
+                                                size="small"
+                                                href={module.docs}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                官方文档
+                                            </Button>
+                                        </Card>
+                                    </Col>
                                 ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </>
+                            </Row>
+                        </Card>
+                    </Col>
+                )}
+            </Row>
+        </div>
     );
 
     return (
@@ -591,21 +697,31 @@ export default function ServerManagement({ embedded = false }) {
             )}
             {content}
 
-            {showConfig && (
-                <ModalShell isOpen={showConfig} onClose={() => setShowConfig(false)}>
-                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">Xray 配置</h3>
-                            <button className="modal-close" onClick={() => setShowConfig(false)}><HiOutlineXMark /></button>
-                        </div>
-                        <div className="modal-body">
-                            <pre className="log-viewer server-console-log server-console-log--modal">
-                                {configJson}
-                            </pre>
-                        </div>
-                    </div>
-                </ModalShell>
-            )}
+            <Modal
+                title="Xray 配置"
+                open={showConfig}
+                onCancel={() => setShowConfig(false)}
+                footer={[
+                    <Button key="copy" icon={<CopyOutlined />} onClick={() => copyToClipboard(configJson).then(() => toast.success('已复制'))}>
+                        复制
+                    </Button>,
+                    <Button key="close" type="primary" onClick={() => setShowConfig(false)}>
+                        关闭
+                    </Button>
+                ]}
+                width={800}
+            >
+                <pre style={{
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    maxHeight: '500px',
+                    overflow: 'auto'
+                }}>
+                    {configJson}
+                </pre>
+            </Modal>
         </>
     );
 }

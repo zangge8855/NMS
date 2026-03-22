@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Tabs, Alert, Space } from 'antd';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
@@ -168,7 +169,7 @@ export default function Login() {
 
     // ── Login ───────────────────────────────────────────────
     const handleLogin = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
         setError('');
         setSuccess('');
         setLoading(true);
@@ -192,7 +193,7 @@ export default function Login() {
 
     // ── Register ────────────────────────────────────────────
     const handleRegister = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
         setError('');
         setSuccess('');
 
@@ -239,7 +240,7 @@ export default function Login() {
 
     // ── Verify Email ────────────────────────────────────────
     const handleVerify = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
         setError('');
         setSuccess('');
         setLoading(true);
@@ -305,7 +306,7 @@ export default function Login() {
     };
 
     const handleResetPassword = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
         if (!passwordResetEnabled) return;
         setError('');
         setSuccess('');
@@ -375,30 +376,30 @@ export default function Login() {
             <div className="login-bg-glow three" />
 
             <div className="login-top-actions">
-                <button
-                    type="button"
+                <Button
+                    type="text"
                     className="login-locale-toggle theme-toggle-btn language-toggle-btn"
                     onClick={toggleLocale}
                     title={t('shell.switchLanguage')}
                     aria-label={t('shell.switchLanguage')}
                 >
                     <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                </button>
-                <button
-                    type="button"
+                </Button>
+                <Button
+                    type="text"
                     className="login-theme-toggle theme-toggle-btn"
                     onClick={cycleTheme}
                     title={themeToggleTitle}
                     aria-label={themeToggleTitle}
                 >
                     <ThemeIcon />
-                </button>
+                </Button>
             </div>
 
             <div className="login-shell">
                 <div className="login-card-column">
-                        <div className="login-card">
-                            <div className="login-card-border" />
+                    <div className="login-card">
+                        <div className="login-card-border" />
                         <div className="login-brand-row">
                             <img src={logoSrc} alt="NMS" className="login-brand-mark" />
                             <div className="login-brand-copy">
@@ -413,202 +414,168 @@ export default function Login() {
                         </div>
 
                         {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
-                            <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
-                                <button
-                                    type="button"
-                                    className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
-                                    role="tab"
-                                    aria-selected={mode === MODE_LOGIN}
-                                    onClick={() => switchMode(MODE_LOGIN)}
-                                >
-                                    {t('pages.login.title')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
-                                    role="tab"
-                                    aria-selected={mode === MODE_REGISTER}
-                                    onClick={() => switchMode(MODE_REGISTER)}
-                                >
-                                    {t('pages.login.registerTitle')}
-                                </button>
-                            </div>
+                            <Tabs
+                                activeKey={mode}
+                                onChange={(key) => switchMode(key)}
+                                centered
+                                items={[
+                                    { key: MODE_LOGIN, label: t('pages.login.title') },
+                                    { key: MODE_REGISTER, label: t('pages.login.registerTitle') }
+                                ]}
+                            />
                         )}
 
-                        {success && <div className="success-alert">{success}</div>}
-                        {error && <div className="error-alert">{error}</div>}
+                        {success && <Alert message={success} type="success" showIcon style={{ marginBottom: 16 }} />}
+                        {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />}
                         {!registrationStatus.loading && !registrationEnabled && mode === MODE_LOGIN && (
                             <div className="text-xs text-muted mb-3">{t('pages.login.registrationClosed')}</div>
                         )}
 
                         {mode === MODE_LOGIN && (
-                            <form onSubmit={handleLogin} className="auth-form">
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.loginIdentifier')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineUser className="input-icon" />
-                                        <input
-                                            type="text"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.loginIdentifierPlaceholder')}
-                                            value={loginIdentifier}
-                                            onChange={(e) => setLoginIdentifier(e.target.value)}
-                                            autoFocus
-                                            autoComplete="username"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.password')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.passwordPlaceholder')}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            autoComplete="current-password"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !loginIdentifier.trim() || !password}
+                            <Form onFinish={handleLogin} layout="vertical" className="auth-form">
+                                <Form.Item label={t('pages.login.loginIdentifier')}>
+                                    <Input
+                                        prefix={<HiOutlineUser />}
+                                        placeholder={t('pages.login.loginIdentifierPlaceholder')}
+                                        value={loginIdentifier}
+                                        onChange={(e) => setLoginIdentifier(e.target.value)}
+                                        autoFocus
+                                        autoComplete="username"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                <Form.Item label={t('pages.login.password')}>
+                                    <Input.Password
+                                        prefix={<HiOutlineLockClosed />}
+                                        placeholder={t('pages.login.passwordPlaceholder')}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        autoComplete="current-password"
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    size="large"
+                                    loading={loading}
+                                    disabled={!loginIdentifier.trim() || !password}
                                 >
-                                    {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
-                                </button>
+                                    {t('pages.login.loginButton')}
+                                </Button>
                                 {passwordResetEnabled && (
-                                    <div className="verify-actions">
-                                        <button
-                                            type="button"
-                                            className="btn-link"
-                                            onClick={() => switchMode(MODE_FORGOT)}
-                                        >
+                                    <div className="verify-actions" style={{ marginTop: 16, textAlign: 'center' }}>
+                                        <Button type="link" onClick={() => switchMode(MODE_FORGOT)}>
                                             {t('pages.login.toForgot')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
-                            </form>
+                            </Form>
                         )}
 
                         {mode === MODE_REGISTER && (
-                            <form onSubmit={handleRegister} className="auth-form">
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.username')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineUser className="input-icon" />
-                                        <input
-                                            type="text"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerUsernamePlaceholder')}
-                                            value={regUsername}
-                                            onChange={(e) => setRegUsername(e.target.value)}
-                                            autoFocus
-                                            autoComplete="username"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.email')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineEnvelope className="input-icon" />
-                                        <input
-                                            type="email"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerEmailPlaceholder')}
-                                            value={regEmail}
-                                            onChange={(e) => setRegEmail(e.target.value)}
-                                            autoComplete="email"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.password')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerPasswordPlaceholder')}
-                                            value={regPassword}
-                                            onChange={(e) => setRegPassword(e.target.value)}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.confirmPasswordPlaceholder')}
-                                            value={regConfirm}
-                                            onChange={(e) => setRegConfirm(e.target.value)}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    {regConfirm && regPassword !== regConfirm && (
-                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                    )}
-                                </div>
-                                {inviteOnlyEnabled && (
-                                    <div className="form-group">
-                                        <label className="form-label">{t('pages.login.inviteCode')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineShieldCheck className="input-icon" />
-                                            <input
-                                                type="text"
-                                                className="form-input input-with-icon"
-                                                placeholder={t('pages.login.inviteCodePlaceholder')}
-                                                value={inviteCode}
-                                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                                                autoComplete="off"
-                                                autoCapitalize="characters"
-                                                autoCorrect="off"
-                                                spellCheck={false}
-                                            />
-                                        </div>
-                                        <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
-                                    </div>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
+                            <Form onFinish={handleRegister} layout="vertical" className="auth-form">
+                                <Form.Item label={t('pages.login.username')}>
+                                    <Input
+                                        prefix={<HiOutlineUser />}
+                                        placeholder={t('pages.login.registerUsernamePlaceholder')}
+                                        value={regUsername}
+                                        onChange={(e) => setRegUsername(e.target.value)}
+                                        autoFocus
+                                        autoComplete="username"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                <Form.Item label={t('pages.login.email')}>
+                                    <Input
+                                        type="email"
+                                        prefix={<HiOutlineEnvelope />}
+                                        placeholder={t('pages.login.registerEmailPlaceholder')}
+                                        value={regEmail}
+                                        onChange={(e) => setRegEmail(e.target.value)}
+                                        autoComplete="email"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    label={t('pages.login.password')}
+                                    help={<span className="text-muted text-sm">{passwordPolicyHint}</span>}
                                 >
-                                    {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
-                                </button>
-                            </form>
+                                    <Input.Password
+                                        prefix={<HiOutlineLockClosed />}
+                                        placeholder={t('pages.login.registerPasswordPlaceholder')}
+                                        value={regPassword}
+                                        onChange={(e) => setRegPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    label={t('pages.login.confirmPassword')}
+                                    help={regConfirm && regPassword !== regConfirm ? <span className="field-error">{t('pages.login.passwordMismatch')}</span> : null}
+                                    validateStatus={regConfirm && regPassword !== regConfirm ? 'error' : ''}
+                                >
+                                    <Input.Password
+                                        prefix={<HiOutlineLockClosed />}
+                                        placeholder={t('pages.login.confirmPasswordPlaceholder')}
+                                        value={regConfirm}
+                                        onChange={(e) => setRegConfirm(e.target.value)}
+                                        autoComplete="new-password"
+                                        size="large"
+                                    />
+                                </Form.Item>
+                                {inviteOnlyEnabled && (
+                                    <Form.Item
+                                        label={t('pages.login.inviteCode')}
+                                        help={<span className="text-muted text-sm">{t('pages.login.inviteOnlyHint')}</span>}
+                                    >
+                                        <Input
+                                            prefix={<HiOutlineShieldCheck />}
+                                            placeholder={t('pages.login.inviteCodePlaceholder')}
+                                            value={inviteCode}
+                                            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                            autoComplete="off"
+                                            autoCapitalize="characters"
+                                            autoCorrect="off"
+                                            spellCheck={false}
+                                            size="large"
+                                        />
+                                    </Form.Item>
+                                )}
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    size="large"
+                                    loading={loading}
+                                    disabled={!regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
+                                >
+                                    {t('pages.login.registerButton')}
+                                </Button>
+                            </Form>
                         )}
 
                         {mode === MODE_VERIFY && (
-                            <form onSubmit={handleVerify} className="auth-form">
-                                <div className="verify-header">
-                                    <HiOutlineShieldCheck className="verify-icon" />
+                            <Form onFinish={handleVerify} layout="vertical" className="auth-form">
+                                <div className="verify-header" style={{ textAlign: 'center', marginBottom: 24 }}>
+                                    <HiOutlineShieldCheck className="verify-icon" style={{ fontSize: 48, marginBottom: 16 }} />
                                     <h2>{t('pages.login.verifyTitle')}</h2>
                                     <p className="text-muted text-sm">
                                         {t('pages.login.verifySentTo', { email: verifyEmail })}
                                     </p>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
-                                    <input
-                                        type="text"
-                                        className="form-input verify-code-input"
+                                <Form.Item label={t('pages.login.verifyCode')}>
+                                    <Input
                                         placeholder={t('pages.login.verifyCodePlaceholder')}
                                         value={verifyCode}
                                         onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -616,40 +583,40 @@ export default function Login() {
                                         autoFocus
                                         autoComplete="one-time-code"
                                         inputMode="numeric"
+                                        size="large"
+                                        style={{ textAlign: 'center', letterSpacing: '0.25em', fontSize: '1.2rem' }}
                                     />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || verifyCode.length !== 6}
+                                </Form.Item>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    size="large"
+                                    loading={loading}
+                                    disabled={verifyCode.length !== 6}
                                 >
-                                    {loading ? <span className="spinner" /> : t('pages.login.verifyButton')}
-                                </button>
-                                <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
+                                    {t('pages.login.verifyButton')}
+                                </Button>
+                                <div className="verify-actions" style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+                                    <Button
+                                        type="link"
                                         onClick={handleResend}
                                         disabled={resendCooldown > 0}
+                                        icon={<HiOutlineArrowPath className={resendCooldown > 0 ? '' : 'spin-on-hover'} />}
                                     >
-                                        <HiOutlineArrowPath className={resendCooldown > 0 ? '' : 'spin-on-hover'} />
                                         {resendCooldown > 0 ? `${resendCooldown}s` : t('pages.login.resendCode')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => switchMode(MODE_LOGIN)}
-                                    >
+                                    </Button>
+                                    <Button type="link" onClick={() => switchMode(MODE_LOGIN)}>
                                         {t('pages.login.toLogin')}
-                                    </button>
+                                    </Button>
                                 </div>
-                            </form>
+                            </Form>
                         )}
 
                         {passwordResetEnabled && mode === MODE_FORGOT && (
-                            <form onSubmit={handleResetPassword} className="auth-form">
-                                <div className="verify-header">
-                                    <HiOutlineShieldCheck className="verify-icon" />
+                            <Form onFinish={handleResetPassword} layout="vertical" className="auth-form">
+                                <div className="verify-header" style={{ textAlign: 'center', marginBottom: 24 }}>
+                                    <HiOutlineShieldCheck className="verify-icon" style={{ fontSize: 48, marginBottom: 16 }} />
                                     <h2>{t('pages.login.forgotTitle')}</h2>
                                     <p className="text-muted text-sm">
                                         {t('pages.login.forgotSubtitle')}
@@ -659,100 +626,89 @@ export default function Login() {
                                     </p>
                                 </div>
 
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.email')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineEnvelope className="input-icon" />
-                                        <input
-                                            type="email"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetEmailPlaceholder')}
-                                            value={resetEmail}
-                                            onChange={(e) => setResetEmail(e.target.value)}
-                                            autoComplete="email"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                </div>
+                                <Form.Item label={t('pages.login.email')}>
+                                    <Input
+                                        type="email"
+                                        prefix={<HiOutlineEnvelope />}
+                                        placeholder={t('pages.login.resetEmailPlaceholder')}
+                                        value={resetEmail}
+                                        onChange={(e) => setResetEmail(e.target.value)}
+                                        autoComplete="email"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        size="large"
+                                    />
+                                </Form.Item>
 
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
-                                    <div className="verify-code-row">
-                                        <input
-                                            type="text"
-                                            className="form-input verify-code-input"
+                                <Form.Item label={t('pages.login.verifyCode')}>
+                                    <Space.Compact style={{ width: '100%' }}>
+                                        <Input
                                             placeholder={t('pages.login.resetCodePlaceholder')}
                                             value={resetCode}
                                             onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                             maxLength={6}
                                             inputMode="numeric"
+                                            size="large"
+                                            style={{ textAlign: 'center', letterSpacing: '0.25em' }}
                                         />
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm verify-code-send-btn"
+                                        <Button
+                                            size="large"
                                             onClick={handleSendResetCode}
                                             disabled={loading || !resetEmail || resetCooldown > 0}
+                                            icon={<HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />}
                                         >
-                                            <HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />
                                             {resetCooldown > 0 ? `${resetCooldown}s` : t('pages.login.sendCode')}
-                                        </button>
-                                    </div>
-                                </div>
+                                        </Button>
+                                    </Space.Compact>
+                                </Form.Item>
 
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.newPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetPasswordPlaceholder')}
-                                            value={resetPassword}
-                                            onChange={(e) => setResetPassword(e.target.value)}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetConfirmPlaceholder')}
-                                            value={resetConfirm}
-                                            onChange={(e) => setResetConfirm(e.target.value)}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    {resetConfirm && resetPassword !== resetConfirm && (
-                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                    )}
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !resetEmail || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
+                                <Form.Item
+                                    label={t('pages.login.newPassword')}
+                                    help={<span className="text-muted text-sm">{passwordPolicyHint}</span>}
                                 >
-                                    {loading ? <span className="spinner" /> : t('pages.login.resetButton')}
-                                </button>
+                                    <Input.Password
+                                        prefix={<HiOutlineLockClosed />}
+                                        placeholder={t('pages.login.resetPasswordPlaceholder')}
+                                        value={resetPassword}
+                                        onChange={(e) => setResetPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                        size="large"
+                                    />
+                                </Form.Item>
 
-                                <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => switchMode(MODE_LOGIN)}
-                                    >
+                                <Form.Item
+                                    label={t('pages.login.confirmPassword')}
+                                    help={resetConfirm && resetPassword !== resetConfirm ? <span className="field-error">{t('pages.login.passwordMismatch')}</span> : null}
+                                    validateStatus={resetConfirm && resetPassword !== resetConfirm ? 'error' : ''}
+                                >
+                                    <Input.Password
+                                        prefix={<HiOutlineLockClosed />}
+                                        placeholder={t('pages.login.resetConfirmPlaceholder')}
+                                        value={resetConfirm}
+                                        onChange={(e) => setResetConfirm(e.target.value)}
+                                        autoComplete="new-password"
+                                        size="large"
+                                    />
+                                </Form.Item>
+
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    size="large"
+                                    loading={loading}
+                                    disabled={!resetEmail || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
+                                >
+                                    {t('pages.login.resetButton')}
+                                </Button>
+
+                                <div className="verify-actions" style={{ marginTop: 16, textAlign: 'center' }}>
+                                    <Button type="link" onClick={() => switchMode(MODE_LOGIN)}>
                                         {t('pages.login.toLogin')}
-                                    </button>
+                                    </Button>
                                 </div>
-                            </form>
+                            </Form>
                         )}
                     </div>
                 </div>

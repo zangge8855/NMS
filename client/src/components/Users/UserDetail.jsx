@@ -5,7 +5,6 @@ import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
-import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, formatDateOnly, formatDateTime } from '../../utils/format.js';
@@ -36,6 +35,28 @@ import {
     HiOutlinePencilSquare,
     HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
+
+import { 
+  ConfigProvider, 
+  theme, 
+  Card, 
+  Button, 
+  Table, 
+  Tabs, 
+  Row, 
+  Col, 
+  Tag, 
+  Statistic, 
+  Modal, 
+  Descriptions, 
+  Space, 
+  Typography, 
+  Tooltip, 
+  Input, 
+  Badge,
+  Spin
+} from 'antd';
+const { Title, Text, Paragraph } = Typography;
 
 function clampProgress(value) {
     const numeric = Number(value);
@@ -423,31 +444,33 @@ function getUserDetailCopy(locale = 'zh-CN') {
 
 function UserAvatar({ username }) {
     const initial = String(username || '?').charAt(0).toUpperCase();
-    return <div className="user-avatar user-avatar-lg">{initial}</div>;
+    return (
+        <div style={{ 
+            width: 64, height: 64, borderRadius: '50%', backgroundColor: '#177ddc', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            fontSize: 24, fontWeight: 'bold', color: '#fff' 
+        }}>
+            {initial}
+        </div>
+    );
 }
 
 function StatCard({ label, value }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
     const displayValue = typeof value === 'number' ? String(animated) : '...';
     return (
-        <div className="stat-mini-card">
-            <div className="stat-mini-value" title={displayValue}>
-                <span className="stat-mini-value-text">{displayValue}</span>
-            </div>
-            <div className="stat-mini-label">{label}</div>
-        </div>
+        <Card bordered={false} style={{ background: '#1f1f1f', textAlign: 'center' }}>
+            <Statistic 
+                title={<span style={{ color: '#a6a6a6' }}>{label}</span>} 
+                value={displayValue} 
+                valueStyle={{ color: '#fff', fontSize: '24px', fontWeight: 600 }} 
+            />
+        </Card>
     );
 }
 
 function formatTime(ts, locale = 'zh-CN') {
     return formatDateTime(ts, locale);
-}
-
-function timelineOutcomeClass(outcome) {
-    if (outcome === 'success' || outcome === 'ok') return 'success';
-    if (outcome === 'failed' || outcome === 'denied') return 'danger';
-    if (outcome === 'info') return 'info';
-    return '';
 }
 
 function normalizeAccessOutcome(status) {
@@ -475,6 +498,20 @@ function formatOutcomeLabel(item, copy) {
     if (item.outcome === 'info') return copy.labels.info;
     return copy.labels.unknown;
 }
+
+function getOutcomeColor(item) {
+    if (item.type === 'access') {
+        if (item.accessStatus === 'success' || item.accessStatus === 'ok') return 'success';
+        if (item.accessStatus === 'expired') return 'warning';
+        if (item.accessStatus === 'revoked') return 'error';
+        return 'error';
+    }
+    if (item.outcome === 'success' || item.outcome === 'ok') return 'success';
+    if (item.outcome === 'failed' || item.outcome === 'denied') return 'error';
+    if (item.outcome === 'info') return 'processing';
+    return 'default';
+}
+
 
 function formatSummaryText(item, copy) {
     const parts = [];
@@ -564,35 +601,36 @@ function normalizeUserDetailPayload(payload) {
 
 function TimelineEntry({ item, index, copy, locale }) {
     return (
-        <div key={item.id || index} className="timeline-item">
-            <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
-            <div className="timeline-content">
-                <div className="timeline-head">
-                    <span className="font-medium">{formatTimelineTitle(item, copy)}</span>
-                    <span className="timeline-time">{formatTime(item.ts, locale)}</span>
-                </div>
-                <div className="flex gap-2 flex-wrap mt-2">
-                    <span className={`badge ${item.type === 'access' ? 'badge-info' : 'badge-neutral'}`}>
-                        {item.type === 'access' ? copy.labels.subscriptionAccess : copy.labels.auditEvent}
-                    </span>
-                    <span className={`badge ${item.outcome === 'success' || item.outcome === 'ok' ? 'badge-success' : item.outcome === 'failed' || item.outcome === 'denied' ? 'badge-danger' : 'badge-neutral'}`}>
-                        {formatOutcomeLabel(item, copy)}
-                    </span>
-                    {item.actor && <span className="badge badge-neutral">{copy.labels.actor} {item.actor}</span>}
-                    {item.serverId && <span className="badge badge-info">{copy.labels.node} {item.serverId}</span>}
-                    {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
-                </div>
-                {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
-                <div className="timeline-fact-grid mt-3">
-                    {buildTimelineFacts(item, copy).map((fact) => (
-                        <div key={`${item.id}-${fact.label}`} className="timeline-fact-card">
-                            <div className="timeline-fact-label">{fact.label}</div>
-                            <div className="timeline-fact-value">{fact.value}</div>
-                        </div>
-                    ))}
-                </div>
+        <Card bordered={true} style={{ marginBottom: 16, borderColor: '#303030', backgroundColor: '#141414' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text strong style={{ color: '#fff' }}>{formatTimelineTitle(item, copy)}</Text>
+                <Text type="secondary">{formatTime(item.ts, locale)}</Text>
             </div>
-        </div>
+            <Space wrap style={{ marginBottom: 8 }}>
+                <Tag color={item.type === 'access' ? 'cyan' : 'default'}>
+                    {item.type === 'access' ? copy.labels.subscriptionAccess : copy.labels.auditEvent}
+                </Tag>
+                <Tag color={getOutcomeColor(item)}>
+                    {formatOutcomeLabel(item, copy)}
+                </Tag>
+                {item.actor && <Tag>{copy.labels.actor} {item.actor}</Tag>}
+                {item.serverId && <Tag color="blue">{copy.labels.node} {item.serverId}</Tag>}
+                {item.tokenId && <Tag>Token {item.tokenId}</Tag>}
+            </Space>
+            {formatSummaryText(item, copy) && (
+                <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 12 }}>{formatSummaryText(item, copy)}</div>
+            )}
+            <Row gutter={[16, 16]}>
+                {buildTimelineFacts(item, copy).map((fact) => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={`${item.id}-${fact.label}`}>
+                        <div style={{ background: '#1f1f1f', padding: '8px 12px', borderRadius: 4 }}>
+                            <div style={{ fontSize: 12, color: '#a6a6a6', marginBottom: 4 }}>{fact.label}</div>
+                            <div style={{ color: '#fff', wordBreak: 'break-all' }}>{fact.value}</div>
+                        </div>
+                    </Col>
+                ))}
+            </Row>
+        </Card>
     );
 }
 
@@ -621,34 +659,21 @@ export default function UserDetail() {
     const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
     const [subscriptionResetLoading, setSubscriptionResetLoading] = useState(false);
 
-    // Client data from servers
     const [clientData, setClientData] = useState([]);
     const [clientsLoading, setClientsLoading] = useState(false);
     const [clientsFetched, setClientsFetched] = useState(false);
     const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
     const [subscriptionFetched, setSubscriptionFetched] = useState(false);
     const [clientIpModal, setClientIpModal] = useState({
-        open: false,
-        serverId: '',
-        serverName: '',
-        email: '',
-        title: '',
-        subtitle: '',
-        items: [],
-        loading: false,
-        clearing: false,
-        error: '',
+        open: false, serverId: '', serverName: '', email: '', title: '', subtitle: '', items: [], loading: false, clearing: false, error: '',
     });
 
     const applyTab = (tabKey) => {
         const normalized = normalizeDetailTab(tabKey);
         setActiveTab(normalized);
         const nextParams = new URLSearchParams(searchParams);
-        if (normalized === 'overview') {
-            nextParams.delete('tab');
-        } else {
-            nextParams.set('tab', normalized);
-        }
+        if (normalized === 'overview') nextParams.delete('tab');
+        else nextParams.set('tab', normalized);
         setSearchParams(nextParams, { replace: true });
     };
 
@@ -656,9 +681,7 @@ export default function UserDetail() {
         const requestId = detailRequestIdRef.current + 1;
         detailRequestIdRef.current = requestId;
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && detail !== null);
-        if (!preserveCurrent) {
-            setLoading(true);
-        }
+        if (!preserveCurrent) setLoading(true);
         try {
             const res = await api.get(`/users/${encodeURIComponent(userId)}/detail`);
             if (requestId !== detailRequestIdRef.current) return null;
@@ -673,27 +696,19 @@ export default function UserDetail() {
             if (requestId !== detailRequestIdRef.current) return null;
             toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
         } finally {
-            if (requestId === detailRequestIdRef.current) {
-                setLoading(false);
-            }
+            if (requestId === detailRequestIdRef.current) setLoading(false);
         }
         return null;
     };
 
     const loadSubscription = async (options = {}) => {
         const quiet = options.quiet === true;
-        const email = String(
-            detail?.user?.subscriptionEmail
-            || detail?.user?.email
-            || ''
-        ).trim().toLowerCase();
-
+        const email = String(detail?.user?.subscriptionEmail || detail?.user?.email || '').trim().toLowerCase();
         if (!email) {
             setSubscriptionResult(null);
             setSubscriptionFetched(true);
             return;
         }
-
         setSubscriptionLoading(true);
         try {
             const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
@@ -718,14 +733,10 @@ export default function UserDetail() {
                 matchedClientsActive: Number(payload.matchedClientsActive || 0),
                 token: payload.token || null,
             });
-            if (bundle.defaultProfileKey) {
-                setSubscriptionProfileKey(bundle.defaultProfileKey);
-            }
+            if (bundle.defaultProfileKey) setSubscriptionProfileKey(bundle.defaultProfileKey);
         } catch (err) {
             setSubscriptionResult(null);
-            if (!quiet) {
-                toast.error(err.response?.data?.msg || copy.labels.loadSubscriptionFailed);
-            }
+            if (!quiet) toast.error(err.response?.data?.msg || copy.labels.loadSubscriptionFailed);
         }
         setSubscriptionFetched(true);
         setSubscriptionLoading(false);
@@ -839,7 +850,6 @@ export default function UserDetail() {
     const clientsPanelLoading = !!detail && clientData.length === 0 && (clientsLoading || (serversLoading && !clientsFetched));
     const clientSummaryLoading = clientsPanelLoading && (activeTab === 'overview' || activeTab === 'clients');
 
-    // Merge audit + subscription access into timeline
     const timeline = useMemo(() => {
         if (!detail) return [];
         const items = [];
@@ -904,16 +914,18 @@ export default function UserDetail() {
         });
         return items.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 50);
     }, [detail, copy, locale, recentAudit, subscriptionAccess]);
+    
     const shouldVirtualizeTimeline = timeline.length > 80;
 
-    // Stats
     const totalTraffic = useMemo(() => {
         return clientData.reduce((sum, c) => sum + (c.up || 0) + (c.down || 0), 0);
     }, [clientData]);
+
     const activeSubscriptionProfile = useMemo(
         () => findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey),
         [subscriptionResult, subscriptionProfileKey]
     );
+
     const availableSubscriptionProfiles = Array.isArray(subscriptionResult?.bundle?.availableProfiles)
         ? subscriptionResult.bundle.availableProfiles
         : [];
@@ -922,6 +934,15 @@ export default function UserDetail() {
         || subscriptionResult?.filteredDisabled
         || subscriptionResult?.filteredByPolicy
     );
+
+    const subscriptionFilterSummary = useMemo(() => {
+        if (!hasSubscriptionFilters) return '';
+        const parts = [];
+        if (subscriptionResult?.filteredExpired > 0) parts.push(`过滤了 ${subscriptionResult.filteredExpired} 个过期节点`);
+        if (subscriptionResult?.filteredDisabled > 0) parts.push(`过滤了 ${subscriptionResult.filteredDisabled} 个停用节点`);
+        if (subscriptionResult?.filteredByPolicy > 0) parts.push(`根据策略过滤了 ${subscriptionResult.filteredByPolicy} 个节点`);
+        return parts.join('，');
+    }, [hasSubscriptionFilters, subscriptionResult]);
     const usedTrafficBytes = Number(subscriptionResult?.usedTrafficBytes || 0);
     const trafficLimitBytes = Number(subscriptionResult?.trafficLimitBytes || 0);
     const remainingTrafficBytes = Number(subscriptionResult?.remainingTrafficBytes || 0);
@@ -932,37 +953,6 @@ export default function UserDetail() {
         ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
         : 100;
     const expiryProgressState = buildExpiryProgress(subscriptionResult?.expiryTime, locale);
-    const subscriptionStatusCards = [
-        {
-            key: 'used',
-            label: copy.labels.usedTraffic,
-            value: formatBytes(usedTrafficBytes),
-            meta: trafficLimitBytes > 0 ? `${Math.round(usedTrafficProgress)}%` : '∞',
-            tone: trafficLimitBytes > 0 ? pickProgressTone(usedTrafficProgress) : 'info',
-        },
-        {
-            key: 'available',
-            label: copy.labels.availableTraffic,
-            value: trafficLimitBytes > 0 ? formatBytes(remainingTrafficBytes) : copy.labels.unlimited,
-            meta: trafficLimitBytes > 0 ? `${Math.round(availableTrafficProgress)}%` : '∞',
-            tone: trafficLimitBytes > 0 ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
-        },
-        {
-            key: 'expiry',
-            label: copy.labels.expiryTime,
-            value: Number(subscriptionResult?.expiryTime || 0) > 0
-                ? formatDateOnly(Number(subscriptionResult.expiryTime), locale)
-                : copy.labels.permanent,
-            meta: expiryProgressState.meta,
-            tone: expiryProgressState.tone,
-        },
-    ];
-    const subscriptionFilterSummary = hasSubscriptionFilters
-        ? copy.labels.filteredSummary
-            .replace('{expired}', String(subscriptionResult?.filteredExpired || 0))
-            .replace('{disabled}', String(subscriptionResult?.filteredDisabled || 0))
-            .replace('{policy}', String(subscriptionResult?.filteredByPolicy || 0))
-        : '';
 
     const handleResetSubscription = async () => {
         const targetEmail = String(subscriptionResult?.email || user?.subscriptionEmail || user?.email || '').trim().toLowerCase();
@@ -1004,10 +994,7 @@ export default function UserDetail() {
                     if (!prev?.user) return prev;
                     return {
                         ...prev,
-                        user: {
-                            ...prev.user,
-                            enabled: confirmedEnabled,
-                        },
+                        user: { ...prev.user, enabled: confirmedEnabled },
                     };
                 });
                 const message = res.data?.msg || (newEnabled ? copy.labels.userEnabled : copy.labels.userDisabled);
@@ -1025,16 +1012,7 @@ export default function UserDetail() {
 
     const closeClientIpModal = () => {
         setClientIpModal({
-            open: false,
-            serverId: '',
-            serverName: '',
-            email: '',
-            title: '',
-            subtitle: '',
-            items: [],
-            loading: false,
-            clearing: false,
-            error: '',
+            open: false, serverId: '', serverName: '', email: '', title: '', subtitle: '', items: [], loading: false, clearing: false, error: '',
         });
     };
 
@@ -1045,67 +1023,26 @@ export default function UserDetail() {
 
         if (options.preserveOpen !== true) {
             setClientIpModal((prev) => ({
-                ...prev,
-                open: true,
-                serverId: target.serverId,
-                serverName: target.serverName || '',
-                email: target.email,
+                ...prev, open: true, serverId: target.serverId, serverName: target.serverName || '', email: target.email,
                 title: copy.labels.clientIpTitle.replace('{server}', target.serverName || target.serverId),
-                subtitle: copy.labels.clientIpSubtitle
-                    .replace('{email}', target.email)
-                    .replace('{inbound}', target.inboundRemark ? copy.labels.clientIpInbound.replace('{name}', target.inboundRemark) : ''),
-                items: [],
-                loading: true,
-                clearing: false,
-                error: '',
+                subtitle: copy.labels.clientIpSubtitle.replace('{email}', target.email).replace('{inbound}', target.inboundRemark ? copy.labels.clientIpInbound.replace('{name}', target.inboundRemark) : ''),
+                items: [], loading: true, clearing: false, error: '',
             }));
         } else {
-            setClientIpModal((prev) => ({
-                ...prev,
-                loading: true,
-                error: '',
-            }));
+            setClientIpModal((prev) => ({ ...prev, loading: true, error: '' }));
         }
 
         try {
             const res = await api.post(`/panel/${encodeURIComponent(target.serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(target.email)}`);
             const items = normalizePanelClientIps(res.data?.obj);
-            setClientIpSupportByServer((prev) => ({
-                ...prev,
-                [target.serverId]: { supported: true, reason: '' },
-            }));
-            setClientIpModal((prev) => ({
-                ...prev,
-                open: true,
-                serverId: target.serverId,
-                serverName: target.serverName || '',
-                email: target.email,
-                title: copy.labels.clientIpTitle.replace('{server}', target.serverName || target.serverId),
-                subtitle: copy.labels.clientIpSubtitle
-                    .replace('{email}', target.email)
-                    .replace('{inbound}', target.inboundRemark ? copy.labels.clientIpInbound.replace('{name}', target.inboundRemark) : ''),
-                items,
-                loading: false,
-                error: '',
-            }));
+            setClientIpSupportByServer((prev) => ({ ...prev, [target.serverId]: { supported: true, reason: '' } }));
+            setClientIpModal((prev) => ({ ...prev, open: true, items, loading: false, error: '' }));
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || copy.labels.clientIpLoadFailed;
             if (isUnsupportedPanelClientIpsError(err)) {
-                setClientIpSupportByServer((prev) => ({
-                    ...prev,
-                    [target.serverId]: {
-                        supported: false,
-                        reason: msg || copy.labels.clientIpUnsupported,
-                    },
-                }));
+                setClientIpSupportByServer((prev) => ({ ...prev, [target.serverId]: { supported: false, reason: msg || copy.labels.clientIpUnsupported } }));
             }
-            setClientIpModal((prev) => ({
-                ...prev,
-                open: true,
-                loading: false,
-                error: msg,
-                items: [],
-            }));
+            setClientIpModal((prev) => ({ ...prev, open: true, loading: false, error: msg, items: [] }));
             toast.error(msg);
         }
     };
@@ -1114,517 +1051,360 @@ export default function UserDetail() {
         if (!clientIpModal.serverId || !clientIpModal.email) return;
         const ok = await confirmAction({
             title: copy.labels.clearClientIpTitle,
-            message: copy.labels.clearClientIpMessage
-                .replace('{email}', clientIpModal.email)
-                .replace('{server}', clientIpModal.serverName || clientIpModal.serverId),
-            confirmText: copy.labels.clearClientIpConfirm,
-            tone: 'danger',
+            message: copy.labels.clearClientIpMessage.replace('{email}', clientIpModal.email).replace('{server}', clientIpModal.serverName || clientIpModal.serverId),
+            confirmText: copy.labels.clearClientIpConfirm, tone: 'danger',
         });
         if (!ok) return;
 
-        setClientIpModal((prev) => ({
-            ...prev,
-            clearing: true,
-            error: '',
-        }));
-
+        setClientIpModal((prev) => ({ ...prev, clearing: true, error: '' }));
         try {
             await api.post(`/panel/${encodeURIComponent(clientIpModal.serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
             toast.success(copy.labels.clearClientIpDone);
-            await loadClientIps({
-                serverId: clientIpModal.serverId,
-                serverName: clientIpModal.serverName,
-                email: clientIpModal.email,
-                inboundRemark: '',
-                inboundId: '',
-            }, { preserveOpen: true });
+            await loadClientIps({ serverId: clientIpModal.serverId, serverName: clientIpModal.serverName, email: clientIpModal.email, inboundRemark: '', inboundId: '' }, { preserveOpen: true });
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || copy.labels.clearClientIpFailed;
-            setClientIpModal((prev) => ({
-                ...prev,
-                clearing: false,
-                error: msg,
-            }));
+            setClientIpModal((prev) => ({ ...prev, clearing: false, error: msg }));
             toast.error(msg);
             return;
         }
-
-        setClientIpModal((prev) => ({
-            ...prev,
-            clearing: false,
-        }));
+        setClientIpModal((prev) => ({ ...prev, clearing: false }));
     };
 
     if (loading) {
         return (
-            <>
-                <Header
-                    title={t('pages.userDetail.title')}
-                    eyebrow={t('pages.userDetail.eyebrow')}
-                />
-                <div className="page-content page-enter user-detail-page">
-                    <div className="glass-panel p-6">
-                        <SkeletonTable rows={3} cols={4} />
-                    </div>
+            <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
+                <Header title={t('pages.userDetail.title')} eyebrow={t('pages.userDetail.eyebrow')} />
+                <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                    <Card><Spin tip="Loading..." /></Card>
                 </div>
-            </>
+            </ConfigProvider>
         );
     }
 
     if (!user) {
         return (
-            <>
-                <Header
-                    title={t('pages.userDetail.title')}
-                    eyebrow={t('pages.userDetail.eyebrow')}
-                />
-                <div className="page-content page-enter user-detail-page">
-                    <EmptyState title={copy.userMissingTitle} subtitle={copy.userMissingSubtitle} action={
-                        <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
-                            <HiOutlineArrowLeft /> {copy.backToUsers}
-                        </button>
-                    } />
+            <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
+                <Header title={t('pages.userDetail.title')} eyebrow={t('pages.userDetail.eyebrow')} />
+                <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                    <Card style={{ textAlign: 'center' }}>
+                        <Title level={4}>{copy.userMissingTitle}</Title>
+                        <Text type="secondary">{copy.userMissingSubtitle}</Text>
+                        <div style={{ marginTop: 16 }}>
+                            <Button icon={<HiOutlineArrowLeft />} onClick={() => navigate('/clients')}>
+                                {copy.backToUsers}
+                            </Button>
+                        </div>
+                    </Card>
                 </div>
-            </>
+            </ConfigProvider>
         );
     }
 
-    const tabs = [
-        { key: 'overview', label: copy.tabs.overview },
-        { key: 'subscription', label: copy.tabs.subscription },
-        { key: 'clients', label: copy.tabs.clients },
-        { key: 'activity', label: copy.tabs.activity },
+    const tabItems = [
+        { 
+            key: 'overview', 
+            label: copy.tabs.overview,
+            children: (
+                <div>
+                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                        <Col xs={12} sm={12} md={6}>
+                            <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
+                        </Col>
+                        <Col xs={12} sm={12} md={6}>
+                            <StatCard label={copy.labels.nodeCount} value={clientSummaryLoading ? null : clientData.length} />
+                        </Col>
+                        <Col xs={12} sm={12} md={6}>
+                            <StatCard label={copy.labels.accessCount} value={detail?.subscriptionAccess?.total || 0} />
+                        </Col>
+                        <Col xs={12} sm={12} md={6}>
+                            <StatCard label={copy.labels.auditCount} value={detail?.recentAudit?.total || 0} />
+                        </Col>
+                    </Row>
+                    {clientSummaryLoading && <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{copy.labels.clientSummaryLoading}</Text>}
+                    {totalTraffic > 0 && <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{copy.labels.totalTraffic}: {formatBytes(totalTraffic)}</Text>}
+                    
+                    {detail?.policy && (
+                        <Card title={<><HiOutlineShieldCheck style={{ marginRight: 8 }} /> {copy.labels.accessPolicy}</>}>
+                            <Descriptions column={{ xxl: 2, xl: 2, lg: 2, md: 2, sm: 1, xs: 1 }}>
+                                <Descriptions.Item label={copy.labels.server}>
+                                    <Text strong>
+                                        {detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}
+                                    </Text>
+                                </Descriptions.Item>
+                                <Descriptions.Item label={copy.labels.protocol}>
+                                    <Text strong>
+                                        {detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}
+                                    </Text>
+                                </Descriptions.Item>
+                            </Descriptions>
+                        </Card>
+                    )}
+                </div>
+            )
+        },
+        { 
+            key: 'subscription', 
+            label: copy.tabs.subscription,
+            children: (
+                <div>
+                    <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                        <Col>
+                            <Space align="center">
+                                <Title level={5} style={{ margin: 0 }}>{copy.labels.subscriptionInfo}</Title>
+                                {subscriptionResult && (
+                                    <>
+                                        <Badge status={subscriptionResult.subscriptionActive ? 'success' : 'warning'} text={subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable} />
+                                        {subscriptionResult.inactiveReason && <Text type="secondary" style={{ fontSize: 12 }}>{subscriptionResult.inactiveReason}</Text>}
+                                    </>
+                                )}
+                            </Space>
+                        </Col>
+                        <Col>
+                            <Button icon={<HiOutlineArrowPath />} onClick={() => loadSubscription()} disabled={subscriptionLoading}>
+                                {copy.labels.refresh}
+                            </Button>
+                        </Col>
+                    </Row>
+                    
+                    {subscriptionLoading && !subscriptionResult ? (
+                        <Card><Spin /></Card>
+                    ) : !subscriptionResult ? (
+                        <Card style={{ textAlign: 'center' }}>
+                            <Title level={5}>{copy.labels.noSubscriptionTitle}</Title>
+                            <Text type="secondary">{copy.labels.noSubscriptionSubtitle}</Text>
+                        </Card>
+                    ) : (
+                        <Row gutter={[24, 24]}>
+                            <Col xs={24} md={16}>
+                                <Card>
+                                    <Space wrap style={{ marginBottom: 16 }}>
+                                        {availableSubscriptionProfiles.map((item) => (
+                                            <Button 
+                                                key={item.key} 
+                                                type={subscriptionProfileKey === item.key ? 'primary' : 'default'} 
+                                                onClick={() => setSubscriptionProfileKey(item.key)}
+                                            >
+                                                {item.label}
+                                            </Button>
+                                        ))}
+                                    </Space>
+                                    <div style={{ marginBottom: 16 }}>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            {copy.labels.availableProfiles.replace('{count}', String(availableSubscriptionProfiles.length || 0))} · {copy.labels.selectedProfileHint}
+                                        </Text>
+                                        {hasSubscriptionFilters && <div><Text type="secondary" style={{ fontSize: 12 }}>{subscriptionFilterSummary}</Text></div>}
+                                    </div>
+                                    <div style={{ marginBottom: 16 }}>
+                                        <Title level={5}>{activeSubscriptionProfile?.label || copy.labels.copyAddress}</Title>
+                                    </div>
+                                    <Space.Compact style={{ width: '100%', marginBottom: 24 }}>
+                                        <Input 
+                                            value={activeSubscriptionProfile?.url || ''} 
+                                            readOnly 
+                                            placeholder={copy.labels.noSubscriptionAddress} 
+                                            style={{ fontFamily: 'monospace' }}
+                                        />
+                                        <Button 
+                                            type="primary" 
+                                            disabled={!activeSubscriptionProfile?.url || subscriptionResult.subscriptionActive === false}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(activeSubscriptionProfile?.url || '');
+                                                toast.success(copy.labels.copiedSubscription.replace('{label}', activeSubscriptionProfile?.label || copy.labels.copyAddress));
+                                            }}
+                                        >
+                                            {copy.labels.copyAddress}
+                                        </Button>
+                                    </Space.Compact>
+                                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                                        <Col span={8}>
+                                            <Card size="small" style={{ background: '#1f1f1f' }}>
+                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.usedTraffic}</span>} value={formatBytes(usedTrafficBytes)} />
+                                            </Card>
+                                        </Col>
+                                        <Col span={8}>
+                                            <Card size="small" style={{ background: '#1f1f1f' }}>
+                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.availableTraffic}</span>} value={trafficLimitBytes > 0 ? formatBytes(remainingTrafficBytes) : copy.labels.unlimited} />
+                                            </Card>
+                                        </Col>
+                                        <Col span={8}>
+                                            <Card size="small" style={{ background: '#1f1f1f' }}>
+                                                <Statistic title={<span style={{ color: '#a6a6a6' }}>{copy.labels.expiryTime}</span>} value={Number(subscriptionResult?.expiryTime || 0) > 0 ? formatDateOnly(Number(subscriptionResult.expiryTime), locale) : copy.labels.permanent} />
+                                            </Card>
+                                        </Col>
+                                    </Row>
+                                    <div style={{ marginBottom: 24 }}>
+                                        <Text type="secondary">{copy.labels.subscriptionEmail}: {subscriptionResult.email}</Text>
+                                        <Text type="secondary"> · {subscriptionResult.bundle?.externalConverterConfigured ? copy.labels.converterEnabled : copy.labels.converterBuiltin}</Text>
+                                    </div>
+                                    <Button onClick={handleResetSubscription} disabled={subscriptionResetLoading || !subscriptionResult.email} icon={<HiOutlineArrowPath />}>
+                                        {copy.labels.resetLink}
+                                    </Button>
+                                </Card>
+                            </Col>
+                            <Col xs={24} md={8}>
+                                <Card>
+                                    <Title level={5}>{copy.labels.qrTitle}</Title>
+                                    {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
+                                        <div style={{ textAlign: 'center', background: '#fff', padding: 16, borderRadius: 8, display: 'inline-block' }}>
+                                            <QRCodeSVG value={activeSubscriptionProfile.url} size={176} />
+                                        </div>
+                                    ) : (
+                                        <Text type="secondary">{copy.labels.qrUnavailable}</Text>
+                                    )}
+                                    <div style={{ marginTop: 16 }}>
+                                        <Text type="secondary">{copy.labels.qrHint.replace('{label}', activeSubscriptionProfile?.label || '')}</Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                        </Row>
+                    )}
+                </div>
+            )
+        },
+        { 
+            key: 'clients', 
+            label: copy.tabs.clients,
+            children: (
+                <div>
+                    {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
+                        <div style={{ marginBottom: 16 }}><Text type="secondary" style={{ fontSize: 12 }}>{copy.labels.clientIpNotice}</Text></div>
+                    )}
+                    {clientsPanelLoading ? (
+                        <Card><Spin /></Card>
+                    ) : clientData.length === 0 ? (
+                        <Card style={{ textAlign: 'center' }}>
+                            <Title level={5}>{copy.labels.noClientsTitle}</Title>
+                            <Text type="secondary">{copy.labels.noClientsSubtitle}</Text>
+                        </Card>
+                    ) : (
+                        <Table 
+                            dataSource={clientData} 
+                            rowKey={(record, i) => `${record.serverId}-${record.inboundId || i}`}
+                            pagination={false}
+                            scroll={{ x: 800 }}
+                            columns={[
+                                {
+                                    title: copy.labels.server,
+                                    dataIndex: 'serverName',
+                                    render: (text, record) => {
+                                        const presence = resolveClientPresence(record, copy);
+                                        return (
+                                            <div>
+                                                <div style={{ fontWeight: 500 }}>{text}</div>
+                                                <Space size="small">
+                                                    <Badge status={presence.online ? 'success' : 'default'} />
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>{presence.label}</Text>
+                                                </Space>
+                                            </div>
+                                        );
+                                    }
+                                },
+                                { title: copy.labels.inbound, render: (_, r) => r.inboundRemark || r.inboundId },
+                                { title: copy.labels.protocol, dataIndex: 'protocol', render: text => <Tag>{text}</Tag> },
+                                { title: copy.labels.traffic, render: (_, r) => formatBytes((r.up || 0) + (r.down || 0)) },
+                                { title: copy.labels.expiryTime, render: (_, r) => r.expiryTime > 0 ? formatDateOnly(r.expiryTime, locale) : copy.labels.permanent },
+                                { title: copy.labels.status, render: (_, r) => <Tag color={r.enable ? 'success' : 'error'}>{r.enable ? copy.labels.enabled : copy.labels.disabled}</Tag> },
+                                {
+                                    title: copy.labels.actions,
+                                    render: (_, record) => {
+                                        const supportState = clientIpSupportByServer[record.serverId];
+                                        const clientIpUnsupported = supportState?.supported === false;
+                                        const clientIpDisabled = !record.email || clientIpUnsupported;
+                                        return (
+                                            <Button 
+                                                size="small" 
+                                                onClick={() => loadClientIps(record)} 
+                                                disabled={clientIpDisabled}
+                                                icon={<HiOutlineGlobeAlt />}
+                                            >
+                                                {copy.labels.nodeIp}
+                                            </Button>
+                                        );
+                                    }
+                                }
+                            ]}
+                        />
+                    )}
+                </div>
+            )
+        },
+        { 
+            key: 'activity', 
+            label: copy.tabs.activity,
+            children: (
+                <div>
+                    {timeline.length === 0 ? (
+                        <Card style={{ textAlign: 'center' }}>
+                            <Title level={5}>{copy.labels.noActivityTitle}</Title>
+                            <Text type="secondary">{copy.labels.noActivitySubtitle}</Text>
+                        </Card>
+                    ) : (
+                        <div>
+                            {timeline.map((item, i) => <TimelineEntry key={item.id || i} item={item} index={i} copy={copy} locale={locale} />)}
+                        </div>
+                    )}
+                </div>
+            )
+        }
     ];
 
-    const renderClientActionButton = (client, supportState) => {
-        const clientIpUnsupported = supportState?.supported === false;
-        const clientIpDisabled = !client.email || clientIpUnsupported;
-        const clientIpTitle = !client.email
-            ? copy.labels.missingEmailForClient
-            : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
-
-        return (
-            <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => loadClientIps(client)}
-                disabled={clientIpDisabled}
-                title={clientIpTitle}
-            >
-                <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
-            </button>
-        );
-    };
-
     return (
-        <>
-            <Header
-                title={t('pages.userDetail.titleWithName', { name: user.username })}
-                eyebrow={t('pages.userDetail.eyebrow')}
-            />
-            <div className="page-content page-enter user-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
-                    <HiOutlineArrowLeft /> {copy.backToUsers}
-                </button>
+        <ConfigProvider theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#177ddc', colorBgBase: '#000000', colorBgContainer: '#141414', borderRadius: 4 } }}>
+            <Header title={t('pages.userDetail.titleWithName', { name: user.username })} eyebrow={t('pages.userDetail.eyebrow')} />
+            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <Button icon={<HiOutlineArrowLeft />} onClick={() => navigate('/clients')} style={{ marginBottom: 24 }}>
+                    {copy.backToUsers}
+                </Button>
 
-                <div className="glass-panel mb-6">
-                    <div className="user-profile-card">
-                        <UserAvatar username={user.username} />
-                        <div className="user-profile-info">
-                            <div className="user-profile-name">{user.username}</div>
-                            <div className="user-profile-email">{user.email || user.subscriptionEmail || copy.unsetEmail}</div>
-                            <div className="user-profile-badges">
-                                <span className={`badge ${user.role === 'admin' ? 'badge-info' : 'badge-neutral'}`}>{user.role === 'admin' ? copy.labels.roleAdmin : copy.labels.roleUser}</span>
-                                <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</span>
-                                {user.emailVerified && <span className="badge badge-success">{copy.labels.emailVerified}</span>}
+                <Card style={{ marginBottom: 24 }}>
+                    <Row wrap={false} align="middle" gutter={24}>
+                        <Col flex="none"><UserAvatar username={user.username} /></Col>
+                        <Col flex="auto">
+                            <Title level={4} style={{ margin: 0 }}>{user.username}</Title>
+                            <Text type="secondary">{user.email || user.subscriptionEmail || copy.unsetEmail}</Text>
+                            <div style={{ marginTop: 8, marginBottom: 8 }}>
+                                <Tag color={user.role === 'admin' ? 'blue' : 'default'}>{user.role === 'admin' ? copy.labels.roleAdmin : copy.labels.roleUser}</Tag>
+                                <Tag color={user.enabled ? 'success' : 'error'}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</Tag>
+                                {user.emailVerified && <Tag color="success">{copy.labels.emailVerified}</Tag>}
                             </div>
-                            <div className="user-profile-meta">
-                                <div className="user-profile-meta-item">
-                                    <HiOutlineKey /> {copy.labels.userId}: {user.id}
-                                    <CopyFeedbackButton
-                                        text={user.id}
-                                        successText={copy.labels.copiedUserId}
-                                        className="btn btn-ghost btn-xs btn-icon"
-                                        title={copy.labels.userId}
-                                    />
-                                </div>
-                                <div className="user-profile-meta-item">
-                                    <HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}
-                                </div>
-                                <div className="user-profile-meta-item">
-                                    <HiOutlineClock /> {copy.labels.lastLoginAt}: {formatTime(user.lastLoginAt, locale)}
-                                </div>
-                                {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
-                                    <div className="user-profile-meta-item">
-                                        <HiOutlineEnvelope /> {copy.labels.subscriptionEmail}: {user.subscriptionEmail}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="user-profile-actions">
-                            <button
-                                className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
-                                onClick={handleToggleEnabled}
-                            >
-                                {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disabled}</> : <><HiOutlinePlayCircle /> {copy.labels.enabled}</>}
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
-                                <HiOutlinePencilSquare /> {t('comp.common.edit')}
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchDetail}>
-                                <HiOutlineArrowPath /> {copy.labels.refresh}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                            <Space size="middle" wrap style={{ color: '#a6a6a6', fontSize: 13 }}>
+                                <span><HiOutlineKey /> {copy.labels.userId}: {user.id}</span>
+                                <span><HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}</span>
+                                <span><HiOutlineClock /> {copy.labels.lastLoginAt}: {formatTime(user.lastLoginAt, locale)}</span>
+                            </Space>
+                        </Col>
+                        <Col flex="none">
+                            <Space direction="vertical" align="end">
+                                <Button 
+                                    danger={user.enabled} 
+                                    type={user.enabled ? 'default' : 'primary'} 
+                                    icon={user.enabled ? <HiOutlineNoSymbol /> : <HiOutlinePlayCircle />} 
+                                    onClick={handleToggleEnabled}
+                                >
+                                    {user.enabled ? copy.labels.disabled : copy.labels.enabled}
+                                </Button>
+                                <Space>
+                                    <Button icon={<HiOutlinePencilSquare />} onClick={() => navigate(`/clients?edit=${user.id}`)}>
+                                        {t('comp.common.edit')}
+                                    </Button>
+                                    <Button icon={<HiOutlineArrowPath />} onClick={fetchDetail}>
+                                        {copy.labels.refresh}
+                                    </Button>
+                                </Space>
+                            </Space>
+                        </Col>
+                    </Row>
+                </Card>
 
-                <div className="user-detail-tabs">
-                    <div className="tabs">
-                        {tabs.map(t => (
-                            <button
-                                key={t.key}
-                                className={`tab ${activeTab === t.key ? 'active' : ''}`}
-                                onClick={() => applyTab(t.key)}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
-                        {activeTab === 'overview' && (
-                            <div>
-                                <div className="stat-mini-grid">
-                                    <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
-                                    <StatCard label={copy.labels.nodeCount} value={clientSummaryLoading ? null : clientData.length} />
-                                    <StatCard label={copy.labels.accessCount} value={detail?.subscriptionAccess?.total || 0} />
-                                    <StatCard label={copy.labels.auditCount} value={detail?.recentAudit?.total || 0} />
-                                </div>
-                                {clientSummaryLoading && (
-                                    <p className="text-muted text-sm mb-4">{copy.labels.clientSummaryLoading}</p>
-                                )}
-                                {totalTraffic > 0 && (
-                                    <p className="text-muted text-sm mb-4">{copy.labels.totalTraffic}: {formatBytes(totalTraffic)}</p>
-                                )}
-                                {detail?.policy && (
-                                    <div className="card mb-4">
-                                        <div className="card-header pb-0 mb-0" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>
-                                            <span className="card-title"><HiOutlineShieldCheck className="inline-flex mr-2" /> {copy.labels.accessPolicy}</span>
-                                        </div>
-                                        <div className="p-3">
-                                            <div className="flex gap-4 text-sm">
-                                                <span>{copy.labels.server}: <strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
-                                                <span>{copy.labels.protocol}: <strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === 'subscription' && (
-                            <div>
-                                <SectionHeader
-                                    className="mb-4"
-                                    compact
-                                    title={copy.labels.subscriptionInfo}
-                                    meta={subscriptionResult && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
-                                            </span>
-                                            {subscriptionResult.inactiveReason ? (
-                                                <span className="text-xs text-muted">{subscriptionResult.inactiveReason}</span>
-                                            ) : null}
-                                        </div>
-                                    )}
-                                    actions={(
-                                        <div className="flex gap-2 flex-wrap">
-                                            <button className="btn btn-secondary btn-sm" onClick={() => loadSubscription()} disabled={subscriptionLoading}>
-                                                {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.refresh}</>}
-                                            </button>
-                                        </div>
-                                    )}
-                                />
-
-                                {subscriptionLoading && !subscriptionResult ? (
-                                    <SkeletonTable rows={3} cols={3} />
-                                ) : !subscriptionResult ? (
-                                    <EmptyState title={copy.labels.noSubscriptionTitle} subtitle={copy.labels.noSubscriptionSubtitle} />
-                                ) : (
-                                    <div className="user-detail-subscription-layout">
-                                        <div className="subscription-link-with-qr user-detail-subscription-main">
-                                            <div className="subscription-link-card subscription-link-card--import-focus user-detail-subscription-card">
-                                                <div className="subscription-profile-switches">
-                                                    {availableSubscriptionProfiles.map((item) => (
-                                                        <button
-                                                            key={item.key}
-                                                            type="button"
-                                                            className={`btn btn-sm ${subscriptionProfileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                                                            onClick={() => setSubscriptionProfileKey(item.key)}
-                                                        >
-                                                            {item.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-
-                                                <div className="subscription-profile-notes">
-                                                    <div className="text-xs text-muted">
-                                                        {copy.labels.availableProfiles.replace('{count}', String(availableSubscriptionProfiles.length || 0))}
-                                                        {' · '}
-                                                        {copy.labels.selectedProfileHint}
-                                                    </div>
-                                                    {hasSubscriptionFilters ? (
-                                                        <div className="text-xs text-muted">{subscriptionFilterSummary}</div>
-                                                    ) : null}
-                                                </div>
-
-                                                <div className="subscription-user-address-head">
-                                                    <div className="subscription-user-address-copy">
-                                                        <div className="subscription-user-address-label">{copy.labels.subscriptionInfo}</div>
-                                                        <div className="subscription-user-address-kicker">{activeSubscriptionProfile?.label || copy.labels.copyAddress}</div>
-                                                    </div>
-                                                    <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
-                                                    </span>
-                                                </div>
-
-                                                <div className="subscription-link-grid subscription-link-grid--compact">
-                                                    <input
-                                                        className="form-input font-mono subscription-url-input"
-                                                        value={activeSubscriptionProfile?.url || ''}
-                                                        readOnly
-                                                        placeholder={copy.labels.noSubscriptionAddress}
-                                                    />
-                                                    <CopyFeedbackButton
-                                                        className="btn btn-primary subscription-copy-btn"
-                                                        text={activeSubscriptionProfile?.url || ''}
-                                                        successText={copy.labels.copiedSubscription.replace(
-                                                            '{label}',
-                                                            activeSubscriptionProfile?.label || copy.labels.copyAddress
-                                                        )}
-                                                        errorText={copy.labels.noCopyableSubscription}
-                                                        disabled={!activeSubscriptionProfile?.url || subscriptionResult.subscriptionActive === false}
-                                                    >
-                                                        {copy.labels.copyAddress}
-                                                    </CopyFeedbackButton>
-                                                </div>
-
-                                                <div className="subscription-address-status-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                                                    {subscriptionStatusCards.map((item) => (
-                                                        <div key={item.key} className={`subscription-address-status-card subscription-address-status-card--${item.tone}`}>
-                                                            <div className="subscription-address-status-head">
-                                                                <div className="subscription-address-status-label">{item.label}</div>
-                                                                <div className="subscription-address-status-meta">{item.meta}</div>
-                                                            </div>
-                                                            <div className="subscription-address-status-value">{item.value}</div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                <div className="subscription-user-address-note">
-                                                    {copy.labels.subscriptionEmail}: {subscriptionResult.email}
-                                                    {subscriptionResult.bundle?.externalConverterConfigured ? ` · ${copy.labels.converterEnabled}` : ` · ${copy.labels.converterBuiltin}`}
-                                                </div>
-
-                                                <div className="subscription-user-address-foot">
-                                                    <button
-                                                        className="btn btn-secondary subscription-user-reset-inline-btn"
-                                                        onClick={handleResetSubscription}
-                                                        disabled={subscriptionResetLoading || !subscriptionResult.email}
-                                                    >
-                                                        {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.resetLink}</>}
-                                                    </button>
-                                                    <div className="subscription-user-reset-inline-copy">
-                                                        <div className="subscription-user-reset-inline-title">
-                                                            <HiOutlineArrowPath />
-                                                            {copy.labels.resetTitle}
-                                                        </div>
-                                                        <div className="subscription-user-reset-inline-text">{copy.labels.resetMessage}</div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="user-detail-subscription-guides">
-                                                    <div className="subscription-user-address-copy">
-                                                        <div className="subscription-user-address-label">{copy.labels.stepImportClientTitle}</div>
-                                                        <div className="subscription-user-address-note">
-                                                            {copy.labels.matchedNodes
-                                                                .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
-                                                                .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
-                                                        </div>
-                                                    </div>
-                                                    <SubscriptionClientLinks
-                                                        bundle={subscriptionResult.bundle}
-                                                        compact
-                                                        showHeading={false}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="subscription-inline-qr subscription-inline-qr--featured user-detail-subscription-qr">
-                                                {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
-                                                    <>
-                                                        <div className="subscription-inline-qr-title">{copy.labels.qrTitle}</div>
-                                                        <div className="subscription-inline-qr-surface rounded-xl bg-white">
-                                                            <QRCodeSVG value={activeSubscriptionProfile.url} size={176} />
-                                                        </div>
-                                                        <div className="subscription-inline-qr-text">
-                                                            {copy.labels.qrHint.replace('{label}', activeSubscriptionProfile.label)}
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className="subscription-inline-qr-text">{copy.labels.qrUnavailable}</div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Clients Tab */}
-                        {activeTab === 'clients' && (
-                            <div>
-                                {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
-                                    <div className="text-xs text-muted mb-3">{copy.labels.clientIpNotice}</div>
-                                )}
-                                {clientsPanelLoading ? (
-                                    <SkeletonTable rows={4} cols={6} />
-                                ) : clientData.length === 0 ? (
-                                    <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />
-                                ) : isCompactLayout ? (
-                                    <div className="user-detail-client-list">
-                                        {clientData.map((client, index) => {
-                                            const supportState = clientIpSupportByServer[client.serverId];
-                                            const presence = resolveClientPresence(client, copy);
-                                            return (
-                                                <div key={`${client.serverId}-${client.inboundId || index}`} className="user-detail-client-card">
-                                                    <div className="user-detail-client-head">
-                                                        <div className="user-detail-client-copy">
-                                                            <div className="user-detail-client-title-row">
-                                                                <div className="user-detail-client-title">{client.serverName}</div>
-                                                                <span
-                                                                    className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
-                                                                    title={presence.detail || presence.label}
-                                                                >
-                                                                    <span className="user-detail-presence-dot" aria-hidden="true" />
-                                                                    <span className="user-detail-presence-label">{presence.label}</span>
-                                                                    {presence.detail ? <span className="user-detail-presence-detail">{presence.detail}</span> : null}
-                                                                </span>
-                                                            </div>
-                                                            <div className="user-detail-client-subtitle">{client.inboundRemark || client.inboundId}</div>
-                                                        </div>
-                                                        <span className={`badge ${client.enable ? 'badge-success' : 'badge-danger'}`}>
-                                                            {client.enable ? copy.labels.enabled : copy.labels.disabled}
-                                                        </span>
-                                                    </div>
-                                                    <div className="user-detail-client-meta">
-                                                        <span className="badge badge-neutral">{client.protocol}</span>
-                                                        <span className="user-detail-client-meta-pill">:{client.port}</span>
-                                                    </div>
-                                                    <div className="user-detail-client-metrics">
-                                                        <div className="user-detail-client-metric">
-                                                            <span className="user-detail-client-metric-label">{copy.labels.traffic}</span>
-                                                            <span className="user-detail-client-metric-value">{formatBytes((client.up || 0) + (client.down || 0))}</span>
-                                                        </div>
-                                                        <div className="user-detail-client-metric">
-                                                            <span className="user-detail-client-metric-label">{copy.labels.expiryTime}</span>
-                                                            <span className="user-detail-client-metric-value">
-                                                                {client.expiryTime > 0 ? formatDateOnly(client.expiryTime, locale) : copy.labels.permanent}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="user-detail-client-actions">
-                                                        {renderClientActionButton(client, supportState)}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="table-container">
-                                        <table className="table user-detail-clients-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>{copy.labels.server}</th>
-                                                    <th>{copy.labels.inbound}</th>
-                                                    <th className="table-cell-center user-detail-protocol-column">{copy.labels.protocol}</th>
-                                                    <th className="table-cell-right user-detail-traffic-column">{copy.labels.traffic}</th>
-                                                    <th className="table-cell-center user-detail-expiry-column">{copy.labels.expiryTime}</th>
-                                                    <th className="table-cell-center user-detail-status-column">{copy.labels.status}</th>
-                                                    <th className="table-cell-actions user-detail-actions-column">{copy.labels.actions}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {clientData.map((c, i) => {
-                                                    const supportState = clientIpSupportByServer[c.serverId];
-                                                    const presence = resolveClientPresence(c, copy);
-                                                    return (
-                                                    <tr key={i}>
-                                                        <td data-label={copy.labels.server} className="user-detail-server-cell">
-                                                            <div className="user-detail-server-stack">
-                                                                <span className="user-detail-server-name">{c.serverName}</span>
-                                                                <span
-                                                                    className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
-                                                                    title={presence.detail || presence.label}
-                                                                >
-                                                                    <span className="user-detail-presence-dot" aria-hidden="true" />
-                                                                    <span className="user-detail-presence-label">{presence.label}</span>
-                                                                    {presence.detail ? <span className="user-detail-presence-detail">{presence.detail}</span> : null}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
-                                                        <td data-label={copy.labels.protocol} className="table-cell-center user-detail-protocol-cell"><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes((c.up || 0) + (c.down || 0))}</td>
-                                                        <td data-label={copy.labels.expiryTime} className="table-cell-center cell-mono user-detail-expiry-cell">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
-                                                        <td data-label={copy.labels.status} className="table-cell-center user-detail-status-cell"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
-                                                        <td data-label={copy.labels.actions} className="table-cell-actions user-detail-actions-cell">
-                                                            {renderClientActionButton(c, supportState)}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Activity Tab */}
-                        {activeTab === 'activity' && (
-                            <div>
-                                {timeline.length === 0 ? (
-                                    <EmptyState title={copy.labels.noActivityTitle} subtitle={copy.labels.noActivitySubtitle} />
-                                ) : (
-                                    <div className={`timeline-list${shouldVirtualizeTimeline ? ' timeline-list--virtualized' : ''}`}>
-                                        {shouldVirtualizeTimeline ? (
-                                            <VirtualList
-                                                className="timeline-virtual-list"
-                                                innerClassName="timeline-virtual-list-inner"
-                                                items={timeline}
-                                                itemSize={220}
-                                                overscan={4}
-                                                ariaLabel={locale === 'en-US' ? 'User activity timeline' : '用户活动时间线'}
-                                                renderItem={(item, index) => (
-                                                    <TimelineEntry item={item} index={index} copy={copy} locale={locale} />
-                                                )}
-                                                getKey={(item, index) => item.id || `${item.ts}-${index}`}
-                                            />
-                                        ) : (
-                                            timeline.map((item, i) => (
-                                                <TimelineEntry key={item.id || i} item={item} index={i} copy={copy} locale={locale} />
-                                            ))
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <Tabs 
+                    activeKey={activeTab} 
+                    onChange={applyTab} 
+                    items={tabItems}
+                    style={{ backgroundColor: '#141414', padding: '16px 24px', borderRadius: 8, border: '1px solid #303030' }}
+                />
             </div>
 
+            {/* TODO: Ant Design Modal for ClientIpModal if needed, assuming ClientIpModal itself might be separate or we just pass Antd styling. */}
             <ClientIpModal
                 isOpen={clientIpModal.open}
                 title={clientIpModal.title}
@@ -1635,14 +1415,10 @@ export default function UserDetail() {
                 error={clientIpModal.error}
                 onClose={closeClientIpModal}
                 onRefresh={() => loadClientIps({
-                    serverId: clientIpModal.serverId,
-                    serverName: clientIpModal.serverName,
-                    email: clientIpModal.email,
-                    inboundRemark: '',
-                    inboundId: '',
+                    serverId: clientIpModal.serverId, serverName: clientIpModal.serverName, email: clientIpModal.email, inboundRemark: '', inboundId: '',
                 }, { preserveOpen: true })}
                 onClear={clientIpSupportByServer[clientIpModal.serverId]?.supported === false ? undefined : clearClientIps}
             />
-        </>
+        </ConfigProvider>
     );
 }

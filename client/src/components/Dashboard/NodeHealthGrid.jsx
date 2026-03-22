@@ -1,27 +1,22 @@
-/**
- * NodeHealthGrid — 节点健康状态网格
- *
- * 以色彩编码的磁贴展示每个节点的实时状态，
- * 支持 hover 显示详细信息，点击可导航到节点管理。
- */
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBytes } from '../../utils/format.js';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
+import { Card, Row, Col, Badge, Empty, Typography, Skeleton, Space, Tooltip } from 'antd';
 import {
     HiOutlineServerStack,
     HiOutlineSignal,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 
+const { Text, Title } = Typography;
+
 function getNodeColor(serverData, t) {
-    if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusOffline') };
+    if (!serverData?.online) return { tone: 'danger', dot: '#ff4d4f', label: t('pages.nodeHealth.statusOffline') };
     const cpu = serverData.status?.cpu ?? 0;
-    if (cpu > 85) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusHighLoad') };
-    if (cpu > 70) return { tone: 'warning', dot: 'var(--accent-warning)', label: t('pages.nodeHealth.statusElevated') };
-    return { tone: 'success', dot: 'var(--accent-success)', label: t('pages.nodeHealth.statusHealthy') };
+    if (cpu > 85) return { tone: 'danger', dot: '#ff4d4f', label: t('pages.nodeHealth.statusHighLoad') };
+    if (cpu > 70) return { tone: 'warning', dot: '#faad14', label: t('pages.nodeHealth.statusElevated') };
+    return { tone: 'success', dot: '#52c41a', label: t('pages.nodeHealth.statusHealthy') };
 }
 
 function buildSparkline(points, width = 132, height = 34, padding = 3) {
@@ -71,6 +66,7 @@ function NodeTile({ server, serverData, trend = [] }) {
     const remarksTitle = Array.isArray(serverData?.nodeRemarks) ? serverData.nodeRemarks.join(' / ') : '';
     const statusLabel = `${server.name} — ${color.label}`;
     const sparkline = buildSparkline(trend);
+    
     const handleOpen = () => navigate('/settings?tab=console');
     const handleKeyDown = (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -80,123 +76,113 @@ function NodeTile({ server, serverData, trend = [] }) {
     };
 
     return (
-        <div
-            className="node-health-tile"
-            onClick={handleOpen}
-            onKeyDown={handleKeyDown}
-            role="button"
-            tabIndex={0}
-            aria-label={statusLabel}
-            style={{
-                '--node-color': color.dot,
-            }}
-            data-tone={color.tone}
-        >
-            <div className="node-health-tile-head">
-                <div className="node-health-tile-title">
-                    {isOnline
-                        ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
-                        : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
-                    }
-                    <div className="node-health-tile-heading">
-                        <span className="node-health-tile-name">{server.name}</span>
-                        {remarkPreview.length > 0 && (
-                            <div className="node-health-tile-remarks" title={remarksTitle}>
-                                {remarkPreview.map((remark) => (
-                                    <span key={`${server.id}-${remark}`} className="node-health-tile-remark">
-                                        {remark}
-                                    </span>
-                                ))}
-                                {extraRemarkCount > 0 && (
-                                    <span className="node-health-tile-remark node-health-tile-remark-muted">
-                                        +{extraRemarkCount}
-                                    </span>
-                                )}
-                            </div>
+        <Col xs={24} sm={12} md={12} lg={8} xl={6}>
+            <Card
+                hoverable
+                onClick={handleOpen}
+                onKeyDown={handleKeyDown}
+                tabIndex={0}
+                aria-label={statusLabel}
+                style={{ 
+                    borderColor: color.dot, 
+                    borderWidth: 1, 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    background: 'var(--surface-overlay)' 
+                }}
+                bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}
+            >
+                <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+                    <Space align="start">
+                        {isOnline ? (
+                            <HiOutlineSignal style={{ color: color.dot, fontSize: '20px' }} />
+                        ) : (
+                            <HiOutlineXMark style={{ color: color.dot, fontSize: '20px' }} />
                         )}
-                    </div>
-                </div>
-                <span className="node-health-tone-pill">{color.label}</span>
-            </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <Text strong style={{ fontSize: '16px' }}>{server.name}</Text>
+                            {remarkPreview.length > 0 && (
+                                <Tooltip title={remarksTitle}>
+                                    <Space size={4} wrap>
+                                        {remarkPreview.map((remark) => (
+                                            <Badge key={`${server.id}-${remark}`} count={remark} style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-muted)' }} />
+                                        ))}
+                                        {extraRemarkCount > 0 && (
+                                            <Badge count={`+${extraRemarkCount}`} style={{ backgroundColor: 'transparent', color: 'var(--text-muted)' }} />
+                                        )}
+                                    </Space>
+                                </Tooltip>
+                            )}
+                        </div>
+                    </Space>
+                    <Badge color={color.dot} text={<Text style={{ color: color.dot }}>{color.label}</Text>} />
+                </Row>
 
-            {isOnline ? (
-                <div className="node-health-tile-meta">
-                    <div>
-                        <div>{t('pages.nodeHealth.cpu')}</div>
-                        <div className="node-health-tile-value" style={{ color: cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
-                            {cpu.toFixed(1)}%
-                        </div>
+                {isOnline ? (
+                    <Row gutter={[16, 16]} style={{ flex: 1, marginBottom: sparkline ? 16 : 0 }}>
+                        <Col span={12}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>{t('pages.nodeHealth.cpu')}</Text>
+                            <div style={{ color: cpu > 70 ? '#faad14' : 'inherit', fontWeight: 'bold' }}>{cpu.toFixed(1)}%</div>
+                        </Col>
+                        <Col span={12}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>{t('pages.nodeHealth.memory')}</Text>
+                            <div style={{ color: memPercent > 80 ? '#faad14' : 'inherit', fontWeight: 'bold' }}>{memPercent.toFixed(1)}%</div>
+                        </Col>
+                        <Col span={12}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>{t('pages.nodeHealth.onlineUsers')}</Text>
+                            <div style={{ fontWeight: 'bold' }}>{serverData?.managedOnlineCount ?? serverData?.onlineCount ?? 0}</div>
+                        </Col>
+                        <Col span={12}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>{t('pages.nodeHealth.traffic')}</Text>
+                            <div style={{ fontWeight: 'bold' }}>{trafficReady ? formatBytes(traffic) : '--'}</div>
+                        </Col>
+                    </Row>
+                ) : (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', color: '#ff4d4f' }}>
+                        {serverData?.error || t('pages.nodeHealth.unreachable')}
                     </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.memory')}</div>
-                        <div className="node-health-tile-value" style={{ color: memPercent > 80 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
-                            {memPercent.toFixed(1)}%
-                        </div>
-                    </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.onlineUsers')}</div>
-                        <div className="node-health-tile-value">
-                            {serverData?.managedOnlineCount ?? serverData?.onlineCount ?? 0}
-                        </div>
-                    </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.traffic')}</div>
-                        <div className="node-health-tile-value">
-                            {trafficReady ? formatBytes(traffic) : '--'}
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="node-health-tile-message">
-                    {serverData?.error || t('pages.nodeHealth.unreachable')}
-                </div>
-            )}
+                )}
 
-            {sparkline && (
-                <div className="node-health-sparkline-shell" aria-hidden="true">
-                    <div className="node-health-sparkline-copy">
-                        <span>{t('pages.nodeHealth.cpuSamples')}</span>
-                        <strong>{sparkline.lastValue.toFixed(1)}%</strong>
+                {sparkline && isOnline && (
+                    <div style={{ position: 'relative', height: 40, marginTop: 'auto' }} aria-hidden="true">
+                        <div style={{ position: 'absolute', top: -10, right: 0, fontSize: '10px' }}>
+                            <Text type="secondary">{t('pages.nodeHealth.cpuSamples')} </Text>
+                            <Text strong>{sparkline.lastValue.toFixed(1)}%</Text>
+                        </div>
+                        <svg viewBox="0 0 132 34" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+                            <path d={sparkline.fill} fill={`${color.dot}20`} />
+                            <path d={sparkline.path} stroke={color.dot} strokeWidth="1.5" fill="none" />
+                            <circle cx={sparkline.last.x} cy={sparkline.last.y} r="2.6" fill={color.dot} />
+                        </svg>
                     </div>
-                    <svg
-                        className="node-health-sparkline"
-                        viewBox="0 0 132 34"
-                        preserveAspectRatio="none"
-                    >
-                        <path className="node-health-sparkline-fill" d={sparkline.fill} />
-                        <path className="node-health-sparkline-path" d={sparkline.path} />
-                        <circle
-                            className="node-health-sparkline-dot"
-                            cx={sparkline.last.x}
-                            cy={sparkline.last.y}
-                            r="2.6"
-                        />
-                    </svg>
-                </div>
-            )}
-        </div>
+                )}
+            </Card>
+        </Col>
     );
 }
 
 function SkeletonTile() {
     return (
-        <div className="node-health-skeleton">
-            <div className="node-health-skeleton-head">
-                <div className="node-health-skeleton-title">
-                    <div className="skeleton node-health-skeleton-bar" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
-                    <div className="skeleton node-health-skeleton-bar" style={{ width: '80px' }} />
-                </div>
-                <div className="skeleton node-health-skeleton-pill" />
-            </div>
-            <div className="node-health-skeleton-meta">
-                {[1, 2, 3, 4].map(i => (
-                    <div className="node-health-skeleton-metric" key={i}>
-                        <div className="skeleton node-health-skeleton-metric-label" />
-                        <div className="skeleton node-health-skeleton-metric-value" />
-                    </div>
-                ))}
-            </div>
-        </div>
+        <Col xs={24} sm={12} md={12} lg={8} xl={6}>
+            <Card style={{ height: '100%', background: 'var(--surface-overlay)' }} bodyStyle={{ padding: '16px' }}>
+                <Row justify="space-between" style={{ marginBottom: 16 }}>
+                    <Space>
+                        <Skeleton.Avatar active size="small" shape="square" />
+                        <Skeleton.Input active size="small" style={{ width: 80 }} />
+                    </Space>
+                    <Skeleton.Button active size="small" style={{ width: 50, borderRadius: 10 }} />
+                </Row>
+                <Row gutter={[16, 16]}>
+                    {[1, 2, 3, 4].map(i => (
+                        <Col span={12} key={i}>
+                            <Skeleton.Input active size="small" style={{ width: '100%', height: 16, marginBottom: 4 }} />
+                            <Skeleton.Input active size="small" style={{ width: '60%', height: 20 }} />
+                        </Col>
+                    ))}
+                </Row>
+            </Card>
+        </Col>
     );
 }
 
@@ -205,20 +191,23 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
 
     if (!servers || servers.length === 0) {
         return (
-            <div className="card node-health-empty-shell">
-                <EmptyState
-                    title={t('pages.nodeHealth.empty')}
-                    size="compact"
-                    icon={<HiOutlineServerStack className="node-health-empty-icon" />}
+            <Card style={{ textAlign: 'center', padding: '40px 0', background: 'var(--surface-overlay)', borderColor: 'var(--border-color)' }}>
+                <Empty
+                    image={<HiOutlineServerStack style={{ fontSize: 48, color: 'var(--text-muted)', margin: '0 auto' }} />}
+                    description={
+                        <Typography.Text type="secondary">
+                            {t('pages.nodeHealth.empty')}
+                        </Typography.Text>
+                    }
                 />
-            </div>
+            </Card>
         );
     }
 
     const hasStatuses = serverStatuses && Object.keys(serverStatuses).length > 0;
 
     return (
-        <div className="node-health-grid">
+        <Row gutter={[16, 16]}>
             {servers.map(server => (
                 hasStatuses ? (
                     <NodeTile
@@ -231,6 +220,6 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                     <SkeletonTile key={server.id} />
                 )
             ))}
-        </div>
+        </Row>
     );
 }

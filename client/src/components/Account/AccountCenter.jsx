@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Card, Typography, Button, Input, Space, Row, Col, Tag, Divider } from 'antd';
 import Header from '../Layout/Header.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
+
+const { Title, Text, Paragraph } = Typography;
 
 function getAccountCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -250,138 +252,125 @@ export default function AccountCenter() {
     return (
         <>
             <Header title={copy.title} />
-            <div className="page-content page-content--wide page-enter account-page">
-                <div className="account-shell">
-                    <div className="card account-profile-card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title={copy.profileTitle}
-                            subtitle={copy.profileSubtitle}
-                        />
-                        <div className="account-profile-grid">
-                            <div className="form-group mb-0">
-                                <label className="form-label" htmlFor="account-username">{copy.username}</label>
-                                <input
-                                    id="account-username"
-                                    className="form-input"
-                                    value={username}
-                                    onChange={(event) => setUsername(event.target.value)}
-                                    autoComplete="username"
-                                />
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label">{copy.role}</label>
-                                <div className="account-role-row">
-                                    <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>{roleLabel}</span>
-                                    <span className={`badge ${user?.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
-                                        {user?.emailVerified ? copy.verified : copy.unverified}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label" htmlFor="account-email">{copy.email}</label>
-                                <input
-                                    id="account-email"
-                                    type="email"
-                                    className="form-input"
-                                    value={email}
-                                    onChange={(event) => setEmail(event.target.value)}
-                                    autoComplete="email"
-                                    placeholder="user@example.com"
-                                />
-                            </div>
-                            <div className="form-group mb-0 account-profile-verify">
-                                <label className="form-label" htmlFor="account-profile-code">{copy.profileVerifyCode}</label>
-                                <div className="account-profile-verify-row">
-                                    <input
-                                        id="account-profile-code"
-                                        className="form-input"
-                                        inputMode="numeric"
-                                        autoComplete="one-time-code"
-                                        value={profileCode}
-                                        onChange={(event) => setProfileCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
-                                        placeholder={copy.profileVerifyPlaceholder}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={handleSendProfileCode}
-                                        disabled={profileCodeSending || !profileChanged}
-                                    >
-                                        {profileCodeSending ? <span className="spinner" /> : (profileCodeSentTo ? copy.profileVerifyResend : copy.profileVerifySend)}
-                                    </button>
-                                </div>
-                                <div className="account-profile-verify-note">
-                                    {profileCodeSentTo
-                                        ? copy.profileVerifySent.replace('{email}', profileCodeSentTo)
-                                        : copy.profileVerifyHint}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="account-actions">
-                            <button
-                                className="btn btn-primary btn-sm"
-                                onClick={handleSaveProfile}
-                                disabled={profileSaving || !profileChanged || !/^\d{6}$/.test(String(profileCode || '').trim())}
-                            >
-                                {profileSaving ? <span className="spinner" /> : copy.saveProfile}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="card account-password-card">
-                        <SectionHeader
-                            className="card-header section-header section-header--compact"
-                            title={copy.passwordTitle}
-                            subtitle={copy.passwordSubtitle}
-                        />
-                        <div className="account-password-grid">
-                            <div className="form-group mb-0">
-                                <label className="form-label" htmlFor="account-current-password">{copy.currentPassword}</label>
-                                <input
-                                    id="account-current-password"
-                                    type="password"
-                                    className="form-input"
-                                    value={oldPassword}
-                                    onChange={(event) => setOldPassword(event.target.value)}
-                                    autoComplete="current-password"
-                                />
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label" htmlFor="account-new-password">{copy.newPassword}</label>
-                                <input
-                                    id="account-new-password"
-                                    type="password"
-                                    className="form-input"
-                                    value={newPassword}
-                                    onChange={(event) => setNewPassword(event.target.value)}
-                                    autoComplete="new-password"
-                                />
-                            </div>
-                            <div className="form-group mb-0">
-                                <label className="form-label" htmlFor="account-confirm-password">{copy.confirmPassword}</label>
-                                <input
-                                    id="account-confirm-password"
-                                    type="password"
-                                    className="form-input"
-                                    value={confirmPassword}
-                                    onChange={(event) => setConfirmPassword(event.target.value)}
-                                    autoComplete="new-password"
-                                />
-                            </div>
-                            <div className="account-password-submit">
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={handleChangePassword}
-                                    disabled={passwordSaving || !oldPassword || !newPassword || !confirmPassword}
+            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={12}>
+                        <Card 
+                            title={<Title level={4} style={{ margin: 0 }}>{copy.profileTitle}</Title>}
+                            extra={
+                                <Button 
+                                    type="primary" 
+                                    onClick={handleSaveProfile}
+                                    loading={profileSaving}
+                                    disabled={!profileChanged || !/^\d{6}$/.test(String(profileCode || '').trim())}
                                 >
-                                    {passwordSaving ? <span className="spinner" /> : copy.changePassword}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="account-card-note">{getPasswordPolicyHint(locale)}</div>
-                    </div>
-                </div>
+                                    {copy.saveProfile}
+                                </Button>
+                            }
+                        >
+                            <Paragraph type="secondary">{copy.profileSubtitle}</Paragraph>
+                            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.username}</Text>
+                                    <Input 
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        autoComplete="username"
+                                    />
+                                </div>
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.role}</Text>
+                                    <Space>
+                                        <Tag color={user?.role === 'admin' ? 'orange' : 'default'}>{roleLabel}</Tag>
+                                        <Tag color={user?.emailVerified ? 'success' : 'default'}>
+                                            {user?.emailVerified ? copy.verified : copy.unverified}
+                                        </Tag>
+                                    </Space>
+                                </div>
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.email}</Text>
+                                    <Input 
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        autoComplete="email"
+                                        placeholder="user@example.com"
+                                    />
+                                </div>
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.profileVerifyCode}</Text>
+                                    <Space.Compact style={{ width: '100%' }}>
+                                        <Input 
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            value={profileCode}
+                                            onChange={(e) => setProfileCode(e.target.value.replace(/\D+/g, '').slice(0, 6))}
+                                            placeholder={copy.profileVerifyPlaceholder}
+                                        />
+                                        <Button 
+                                            type="default" 
+                                            onClick={handleSendProfileCode}
+                                            loading={profileCodeSending}
+                                            disabled={!profileChanged}
+                                        >
+                                            {profileCodeSentTo ? copy.profileVerifyResend : copy.profileVerifySend}
+                                        </Button>
+                                    </Space.Compact>
+                                    <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                        {profileCodeSentTo
+                                            ? copy.profileVerifySent.replace('{email}', profileCodeSentTo)
+                                            : copy.profileVerifyHint}
+                                    </Text>
+                                </div>
+                            </Space>
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} lg={12}>
+                        <Card title={<Title level={4} style={{ margin: 0 }}>{copy.passwordTitle}</Title>}>
+                            <Paragraph type="secondary">{copy.passwordSubtitle}</Paragraph>
+                            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.currentPassword}</Text>
+                                    <Input.Password 
+                                        value={oldPassword}
+                                        onChange={(e) => setOldPassword(e.target.value)}
+                                        autoComplete="current-password"
+                                    />
+                                </div>
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.newPassword}</Text>
+                                    <Input.Password 
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                                <div>
+                                    <Text strong block style={{ marginBottom: 8 }}>{copy.confirmPassword}</Text>
+                                    <Input.Password 
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                                <Button 
+                                    type="primary" 
+                                    block 
+                                    onClick={handleChangePassword}
+                                    loading={passwordSaving}
+                                    disabled={!oldPassword || !newPassword || !confirmPassword}
+                                >
+                                    {copy.changePassword}
+                                </Button>
+                                <Divider />
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                    {getPasswordPolicyHint(locale)}
+                                </Text>
+                            </Space>
+                        </Card>
+                    </Col>
+                </Row>
             </div>
         </>
     );

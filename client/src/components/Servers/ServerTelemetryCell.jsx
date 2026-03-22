@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
+import { Tag, Typography, Space, Row, Col, Badge } from 'antd';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import { formatTimeOnly } from '../../utils/format.js';
+
+const { Text } = Typography;
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -42,40 +45,48 @@ export default function ServerTelemetryCell({
     const tone = sampled ? (online ? 'info' : 'danger') : 'warning';
 
     return (
-        <div className={`servers-telemetry-cell${online ? ' is-online' : ' is-offline'}`}>
-            <div className="servers-telemetry-meta">
-                <div className="servers-telemetry-metric">
-                    <span className="servers-telemetry-label">{copy.rtt}</span>
-                    <span className="servers-telemetry-value">
-                        {loading
-                            ? copy.pending
-                            : (hasCurrentLatency ? `${currentLatency} ms` : '--')}
-                    </span>
-                </div>
-                <div className="servers-telemetry-metric">
-                    <span className="servers-telemetry-label">{copy.uptime}</span>
-                    <span className="servers-telemetry-value">
-                        {Number.isFinite(uptimePercent) ? `${uptimePercent}%` : '--'}
-                    </span>
-                </div>
+        <div style={{ padding: '8px 0' }}>
+            <Row gutter={[8, 8]} align="middle">
+                <Col span={12}>
+                    <Space direction="vertical" size={0}>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>{copy.rtt}</Text>
+                        <Text strong style={{ fontSize: '13px' }}>
+                            {loading ? copy.pending : (hasCurrentLatency ? `${currentLatency} ms` : '--')}
+                        </Text>
+                    </Space>
+                </Col>
+                <Col span={12}>
+                    <Space direction="vertical" size={0}>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>{copy.uptime}</Text>
+                        <Text strong style={{ fontSize: '13px' }}>
+                            {Number.isFinite(uptimePercent) ? `${uptimePercent}%` : '--'}
+                        </Text>
+                    </Space>
+                </Col>
+            </Row>
+
+            <div style={{ margin: '8px 0' }}>
+                <MiniSparkline
+                    points={trend}
+                    tone={tone}
+                    width={130}
+                    height={34}
+                />
             </div>
 
-            <MiniSparkline
-                className="servers-telemetry-sparkline"
-                points={trend}
-                tone={tone}
-                width={130}
-                height={34}
-            />
-
-            <div className="servers-telemetry-foot">
-                <span className={`badge ${!sampled ? 'badge-warning' : online ? 'badge-success' : 'badge-danger'}`}>
-                    {!sampled ? copy.pending : online ? copy.online : copy.offline}
-                </span>
-                <span className="servers-telemetry-checked-at">
-                    {copy.checkedAt} {telemetry?.checkedAt ? formatTimeOnly(telemetry.checkedAt, locale) : '--'}
-                </span>
-            </div>
+            <Row align="middle" justify="space-between">
+                <Col>
+                    <Badge 
+                        status={!sampled ? 'warning' : (online ? 'success' : 'error')} 
+                        text={<Text style={{ fontSize: '12px' }}>{!sampled ? copy.pending : (online ? copy.online : copy.offline)}</Text>}
+                    />
+                </Col>
+                <Col>
+                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                        {copy.checkedAt} {telemetry?.checkedAt ? formatTimeOnly(telemetry.checkedAt, locale) : '--'}
+                    </Text>
+                </Col>
+            </Row>
         </div>
     );
 }
