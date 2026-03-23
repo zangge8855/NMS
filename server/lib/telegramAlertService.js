@@ -20,7 +20,7 @@ const DEFAULT_API_BASE_URL = 'https://api.telegram.org';
 const POLL_INTERVAL_MS = 5000;
 const OPS_DIGEST_INTERVAL_MS = 30 * 60 * 1000;
 const DAILY_DIGEST_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const DAILY_BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const DEFAULT_QUERY_COMMANDS = [
     { command: '/status', description: '系统状态总览' },
     { command: '/online', description: '在线人数与节点分布' },
@@ -33,6 +33,7 @@ const DEFAULT_QUERY_COMMANDS = [
 ];
 const DEFAULT_OPERATION_COMMANDS = [
     { command: '/monitor', description: '立即执行节点巡检' },
+    { command: '/backup', description: '立即发送一次加密备份' },
 ];
 const AGGREGATE_SAMPLE_LIMIT = 5;
 
@@ -104,6 +105,20 @@ function normalizeDigestIntervalHours(value, fallbackHours) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
     if (!Number.isInteger(parsed) || parsed < 0) return fallbackHours;
     return parsed;
+}
+
+function normalizeDailyBackupTime(value, fallback = DEFAULT_DAILY_BACKUP_TIME) {
+    const fallbackValue = String(fallback || DEFAULT_DAILY_BACKUP_TIME).trim() || DEFAULT_DAILY_BACKUP_TIME;
+    const text = String(value || '').trim();
+    if (!text) return fallbackValue;
+    const match = text.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return fallbackValue;
+    const hours = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        return fallbackValue;
+    }
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
 function stringifyDetails(value) {
@@ -220,6 +235,31 @@ function buildDayKey(value = Date.now()) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+export function computeDailyBackupSchedule(options = {}) {
+    const nowMs = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+    const now = new Date(nowMs);
+    const dailyBackupTime = normalizeDailyBackupTime(options.dailyBackupTime, DEFAULT_DAILY_BACKUP_TIME);
+    const [hoursText, minutesText] = dailyBackupTime.split(':');
+    const targetToday = new Date(now);
+    targetToday.setHours(Number(hoursText), Number(minutesText), 0, 0);
+    const todayKey = buildDayKey(now);
+    const lastHandledDayKey = buildDayKey(options.lastBackupAt || options.lastBackupAttemptAt);
+    const handledToday = Boolean(todayKey && lastHandledDayKey && todayKey === lastHandledDayKey);
+    const shouldSendNow = !handledToday && nowMs >= targetToday.getTime();
+    const nextTarget = new Date(targetToday);
+
+    if (shouldSendNow || handledToday) {
+        nextTarget.setDate(nextTarget.getDate() + 1);
+    }
+
+    return {
+        dailyBackupTime,
+        todayTargetAt: targetToday.toISOString(),
+        nextDailyBackupAt: nextTarget.toISOString(),
+        shouldSendNow,
+    };
 }
 
 function severityLabel(severity = 'info') {
@@ -654,7 +694,7 @@ export function formatCommandCatalogMessage(options = {}) {
         blocks.push(`${sectionHeader('运维动作')}\n${operationTable}`);
     }
     return joinHtmlMessage(title, blocks, {
-        subtitle: '状态摘要查询与巡检触发入口',
+        subtitle: '状态摘要查询、巡检与备份入口',
     });
 }
 
@@ -891,6 +931,10 @@ export function createTelegramAlertService(options = {}) {
     const documentFetcher = typeof options.documentFetcher === 'function'
         ? options.documentFetcher
         : createDefaultDocumentFetcher();
+    const nowProvider = typeof options.now === 'function' ? options.now : () => Date.now();
+    const backgroundTimeout = typeof options.startBackgroundTimeout === 'function'
+        ? options.startBackgroundTimeout
+        : startBackgroundTimeout;
     const overrideAlertSeverities = new Set(
         normalizeStringArray(options.alertSeverities).filter((item) => ['info', 'warning', 'critical'].includes(item))
     );
@@ -916,6 +960,7 @@ export function createTelegramAlertService(options = {}) {
         lastBackupAttemptAt: null,
         lastBackupFilename: '',
         lastBackupError: '',
+        nextDailyBackupAt: '',
     };
     let running = false;
     let timer = null;
@@ -975,6 +1020,10 @@ export function createTelegramAlertService(options = {}) {
             dailyDigestIntervalHours: normalizeDigestIntervalHours(
                 options.dailyDigestIntervalHours ?? stored?.dailyDigestIntervalHours,
                 Math.round(DAILY_DIGEST_INTERVAL_MS / 3_600_000)
+            ),
+            dailyBackupTime: normalizeDailyBackupTime(
+                options.dailyBackupTime ?? stored?.dailyBackupTime ?? envDefaults.dailyBackupTime,
+                DEFAULT_DAILY_BACKUP_TIME
             ),
             apiBaseUrl: String(options.apiBaseUrl || envDefaults.apiBaseUrl || DEFAULT_API_BASE_URL).trim() || DEFAULT_API_BASE_URL,
             alertSeverities: overrideAlertSeverities.size > 0
@@ -1211,8 +1260,14 @@ export function createTelegramAlertService(options = {}) {
         if (!running || !settings.enabled || !settings.configured || !settings.sendDailyBackup) {
             return false;
         }
-        const todayKey = buildDayKey();
-        if (todayKey && buildDayKey(runtimeStatus.lastBackupAt) === todayKey) {
+        const schedule = computeDailyBackupSchedule({
+            now: nowProvider(),
+            dailyBackupTime: settings.dailyBackupTime,
+            lastBackupAt: runtimeStatus.lastBackupAt,
+            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+        });
+        runtimeStatus.nextDailyBackupAt = schedule.nextDailyBackupAt;
+        if (!schedule.shouldSendNow) {
             return false;
         }
         try {
@@ -1222,6 +1277,40 @@ export function createTelegramAlertService(options = {}) {
             runtimeStatus.lastBackupError = error.message || 'telegram-daily-backup-failed';
             return false;
         }
+    }
+
+    function scheduleNextDailyBackup() {
+        if (dailyBackupTimer) {
+            clearTimeout(dailyBackupTimer);
+            dailyBackupTimer = null;
+        }
+        const settings = resolveSettings();
+        if (!running || !settings.enabled || !settings.configured || !settings.sendDailyBackup) {
+            runtimeStatus.nextDailyBackupAt = '';
+            return;
+        }
+
+        const schedule = computeDailyBackupSchedule({
+            now: nowProvider(),
+            dailyBackupTime: settings.dailyBackupTime,
+            lastBackupAt: runtimeStatus.lastBackupAt,
+            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+        });
+        runtimeStatus.nextDailyBackupAt = schedule.nextDailyBackupAt;
+        const nextTargetMs = new Date(schedule.shouldSendNow ? nowProvider() : schedule.nextDailyBackupAt).getTime();
+        const delayMs = schedule.shouldSendNow
+            ? 0
+            : Math.max(1_000, nextTargetMs - nowProvider());
+
+        dailyBackupTimer = backgroundTimeout(() => {
+            maybeSendDailyBackup()
+                .catch((error) => {
+                    runtimeStatus.lastBackupError = error.message || 'telegram-daily-backup-failed';
+                })
+                .finally(() => {
+                    scheduleNextDailyBackup();
+                });
+        }, delayMs);
     }
 
     async function syncCommands(force = false) {
@@ -1940,6 +2029,23 @@ export function createTelegramAlertService(options = {}) {
             };
         }
 
+        if (normalized === '/backup') {
+            const result = await sendBackupArchive(actor, { reason: 'manual' });
+            return {
+                text: joinHtmlMessage('NMS Telegram 控制台', [
+                    `${sectionHeader('运维动作')}\n• 已发送加密备份到当前会话`,
+                    `${sectionHeader('关键信息')}\n${trimLines([
+                        formatHtmlKeyValueRow('文件', result?.archive?.filename || result?.filename || '-'),
+                        formatHtmlKeyValueRow('大小', formatBytesHuman(result?.archive?.bytes || result?.bytes || 0)),
+                        formatHtmlKeyValueRow('时间', formatDateTime(result?.ts || result?.sentAt || new Date().toISOString())),
+                    ])}`,
+                ], {
+                    subtitle: '手动备份执行结果',
+                }),
+                kind: 'backup_manual_result',
+            };
+        }
+
         return {
             text: joinHtmlMessage('NMS Telegram 控制台', [
                 `${sectionHeader('提示')}\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
@@ -2005,7 +2111,7 @@ export function createTelegramAlertService(options = {}) {
             dailyDigestTimer = null;
         }
         if (dailyBackupTimer) {
-            clearInterval(dailyBackupTimer);
+            clearTimeout(dailyBackupTimer);
             dailyBackupTimer = null;
         }
         if (!running) return;
@@ -2030,14 +2136,7 @@ export function createTelegramAlertService(options = {}) {
             }, dailyIntervalMs);
         }
 
-        if (settings.sendDailyBackup) {
-            dailyBackupTimer = startBackgroundInterval(() => {
-                maybeSendDailyBackup().catch((error) => {
-                    runtimeStatus.lastBackupError = error.message || 'telegram-daily-backup-failed';
-                });
-            }, DAILY_BACKUP_CHECK_INTERVAL_MS);
-            void maybeSendDailyBackup();
-        }
+        scheduleNextDailyBackup();
     }
 
     async function processUpdates(updates = []) {
@@ -2085,7 +2184,7 @@ export function createTelegramAlertService(options = {}) {
             clearTimeout(timer);
             timer = null;
         }
-        timer = startBackgroundTimeout(() => {
+        timer = backgroundTimeout(() => {
             pollOnce()
                 .catch((error) => {
                     runtimeStatus.lastPollError = error.message || 'telegram-poll-failed';
@@ -2120,9 +2219,10 @@ export function createTelegramAlertService(options = {}) {
             dailyDigestTimer = null;
         }
         if (dailyBackupTimer) {
-            clearInterval(dailyBackupTimer);
+            clearTimeout(dailyBackupTimer);
             dailyBackupTimer = null;
         }
+        runtimeStatus.nextDailyBackupAt = '';
         for (const key of aggregateTimers.keys()) {
             clearAggregateTimer(key);
         }
@@ -2140,6 +2240,14 @@ export function createTelegramAlertService(options = {}) {
 
     function getStatus() {
         const settings = resolveSettings();
+        const backupSchedule = settings.sendDailyBackup
+            ? computeDailyBackupSchedule({
+                now: nowProvider(),
+                dailyBackupTime: settings.dailyBackupTime,
+                lastBackupAt: runtimeStatus.lastBackupAt,
+                lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+            })
+            : null;
         return {
             enabled: settings.enabled && settings.configured,
             configured: settings.configured,
@@ -2154,6 +2262,8 @@ export function createTelegramAlertService(options = {}) {
             sendEmergencyAlerts: settings.sendEmergencyAlerts,
             opsDigestIntervalMinutes: settings.opsDigestIntervalMinutes,
             dailyDigestIntervalHours: settings.dailyDigestIntervalHours,
+            dailyBackupTime: settings.dailyBackupTime,
+            nextDailyBackupAt: runtimeStatus.nextDailyBackupAt || backupSchedule?.nextDailyBackupAt || '',
             commandMenuEnabled: settings.commandMenuEnabled,
             commandsEnabled: settings.enabled && settings.configured && isNumericChatId(settings.chatId),
             polling: running && settings.enabled && settings.configured && isNumericChatId(settings.chatId),
@@ -2197,6 +2307,7 @@ export function createTelegramAlertService(options = {}) {
         runtimeStatus.lastBackupAttemptAt = null;
         runtimeStatus.lastBackupFilename = '';
         runtimeStatus.lastBackupError = '';
+        runtimeStatus.nextDailyBackupAt = '';
         commandsSynced = false;
         commandMenuCleared = false;
         commandSyncPromise = null;

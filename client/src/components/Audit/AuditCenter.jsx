@@ -39,6 +39,7 @@ import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
 
 const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
+const AUDIT_TRAFFIC_WEEK_DAYS = 7;
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -90,7 +91,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: '批量任务、重试和取消记录集中在这里，方便追踪执行链路。',
             trafficEyebrow: 'Traffic',
-            trafficSummary: '先看累计流量和采样状态，再下钻到用户趋势、节点趋势和排行榜。',
+            trafficSummary: '先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: '筛选订阅访问、真实 IP、归属地和状态分布，快速定位异常访问。',
             logsEyebrow: 'Panel Logs',
@@ -145,18 +146,20 @@ const AUDIT_COPY = {
             uploadTraffic: '上行流量',
             downloadTraffic: '下行流量',
             activeAccounts: '活跃账号',
+            weeklyActiveAccounts: '周活跃账号',
+            monthlyActiveAccounts: '月活跃账号',
             samplePoints: '采样点',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
-            totalTrafficScope: '当前累计 · 已注册用户总流量',
-            totalTrafficCurrentNote: '按已注册用户当前计数汇总',
-            totalTrafficSampledNote: '最近 30 天采样汇总',
-            activeAccountsScope: '最近 30 天 · 有流量的已注册用户',
+            totalTrafficScope: '近 30 天流量',
+            totalTrafficMonthNote: '最近 30 天采样汇总',
+            weeklyActiveAccountsScope: '最近 7 天 · 有流量的已注册用户',
+            monthlyActiveAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
             userTrendScope: '当前所选用户 · 最近 30 天趋势',
             serverTrendScope: '当前所选节点 · 最近 30 天趋势',
             topUsersScope: '最近 30 天 · 已注册用户排行',
-            topServersScope: '当前累计 · 全部节点排行',
+            topServersScope: '最近 30 天 · 全部节点排行',
             selectUser: '请选择用户',
             selectServer: '请选择节点',
             userLevelUnsupported: '当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。',
@@ -166,6 +169,11 @@ const AUDIT_COPY = {
             pv: '访问次数 (PV)',
             uv: '独立 IP (UV)',
             uniqueUsers: '访问用户数',
+            weeklyVisitedUsers: '周访问用户',
+            monthlyVisitedUsers: '月访问用户',
+            allVisitedUsersScope: '当前筛选结果 · 访问用户总数',
+            weeklyVisitedUsersScope: '最近 7 天 · 命中筛选条件的访问用户',
+            monthlyVisitedUsersScope: '最近 30 天 · 命中筛选条件的访问用户',
         },
         confirm: {
             clearEventsTitle: '清空操作审计日志',
@@ -264,7 +272,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: 'Batch history, retries, and cancellations stay in one place for easier traceability.',
             trafficEyebrow: 'Traffic',
-            trafficSummary: 'Start from cumulative traffic and sample health, then drill into user trends, node trends, and rankings.',
+            trafficSummary: 'Start from last-30-day traffic and weekly/monthly active accounts, then drill into trends and rankings.',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: 'Filter subscription access, real IP, geo, and status distribution to find abnormal requests quickly.',
             logsEyebrow: 'Panel Logs',
@@ -319,18 +327,20 @@ const AUDIT_COPY = {
             uploadTraffic: 'Upload',
             downloadTraffic: 'Download',
             activeAccounts: 'Active Accounts',
+            weeklyActiveAccounts: 'Weekly Active Accounts',
+            monthlyActiveAccounts: 'Monthly Active Accounts',
             samplePoints: 'Samples',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
-            totalTrafficScope: 'Current cumulative · registered user traffic',
-            totalTrafficCurrentNote: 'Summed from current registered-user counters',
-            totalTrafficSampledNote: 'Summed from last 30 days samples',
-            activeAccountsScope: 'Last 30 days · registered users with traffic',
+            totalTrafficScope: 'Traffic in the last 30 days',
+            totalTrafficMonthNote: 'Summed from last 30 days samples',
+            weeklyActiveAccountsScope: 'Last 7 days · registered users with traffic',
+            monthlyActiveAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
             userTrendScope: 'Selected user · last 30 days',
             serverTrendScope: 'Selected node · last 30 days',
             topUsersScope: 'Last 30 days · registered user ranking',
-            topServersScope: 'Current cumulative · all nodes ranking',
+            topServersScope: 'Last 30 days · all nodes ranking',
             selectUser: 'Select a user',
             selectServer: 'Select a node',
             userLevelUnsupported: 'Current 3x-ui data only supports node-level traffic and does not provide per-user traffic details.',
@@ -340,6 +350,11 @@ const AUDIT_COPY = {
             pv: 'Page Views (PV)',
             uv: 'Unique IPs (UV)',
             uniqueUsers: 'Visited Users',
+            weeklyVisitedUsers: 'Weekly Visited Users',
+            monthlyVisitedUsers: 'Monthly Visited Users',
+            allVisitedUsersScope: 'Current filters · all visited users',
+            weeklyVisitedUsersScope: 'Last 7 days · visited users matching filters',
+            monthlyVisitedUsersScope: 'Last 30 days · visited users matching filters',
         },
         confirm: {
             clearEventsTitle: 'Clear Audit Log',
@@ -403,6 +418,15 @@ const EMPTY_ACCESS_FILTERS = Object.freeze({
     email: '',
     status: '',
 });
+const EMPTY_ACCESS_SUMMARY = Object.freeze({
+    total: 0,
+    uniqueIpCount: 0,
+    uniqueUsers: 0,
+    statusBreakdown: {},
+    topIps: [],
+    from: '',
+    to: '',
+});
 
 const MASKED_AUDIT_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
@@ -412,6 +436,28 @@ function getAuditCopy(locale = 'zh-CN') {
 
 function formatDateTime(value, locale = 'zh-CN') {
     return formatDateTimeValue(value, locale, { hour12: false });
+}
+
+function buildRollingWindowRange(days) {
+    const windowDays = Math.max(1, Number(days || 1));
+    const to = new Date();
+    const from = new Date(to.getTime() - (windowDays * 24 * 60 * 60 * 1000));
+    return {
+        from: from.toISOString(),
+        to: to.toISOString(),
+    };
+}
+
+function buildAccessSummaryParams(filters = {}, { days = null } = {}) {
+    const params = new URLSearchParams();
+    if (filters.email) params.append('email', filters.email);
+    if (filters.status) params.append('status', filters.status);
+    if (Number(days || 0) > 0) {
+        const range = buildRollingWindowRange(days);
+        params.append('from', range.from);
+        params.append('to', range.to);
+    }
+    return params;
 }
 
 function statusBadgeClass(status) {
@@ -876,6 +922,7 @@ export default function AuditCenter() {
 
     const [trafficLoading, setTrafficLoading] = useState(false);
     const [trafficOverview, setTrafficOverview] = useState(null);
+    const [trafficWindows, setTrafficWindows] = useState({ week: null, month: null });
     const [trafficGranularity, setTrafficGranularity] = useState('auto');
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedServerId, setSelectedServerId] = useState('');
@@ -884,7 +931,11 @@ export default function AuditCenter() {
 
     const [accessLoading, setAccessLoading] = useState(false);
     const [accessData, setAccessData] = useState({ items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} });
-    const [accessSummary, setAccessSummary] = useState({ total: 0, uniqueIpCount: 0, uniqueUsers: 0, statusBreakdown: {}, topIps: [], from: '', to: '' });
+    const [accessSummary, setAccessSummary] = useState({ ...EMPTY_ACCESS_SUMMARY });
+    const [accessUserWindows, setAccessUserWindows] = useState({
+        week: { ...EMPTY_ACCESS_SUMMARY },
+        month: { ...EMPTY_ACCESS_SUMMARY },
+    });
     const [accessPage, setAccessPage] = useState(1);
     const [accessFilters, setAccessFilters] = useState({
         email: '',
@@ -916,10 +967,16 @@ export default function AuditCenter() {
         try {
             const params = new URLSearchParams();
             params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
+            params.append('windows', `${AUDIT_TRAFFIC_WEEK_DAYS},${AUDIT_TRAFFIC_WINDOW_DAYS}`);
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
             const payload = res.data?.obj || null;
+            const weekPayload = payload?.windows?.[String(AUDIT_TRAFFIC_WEEK_DAYS)] || null;
             setTrafficOverview(payload);
+            setTrafficWindows({
+                week: weekPayload,
+                month: payload,
+            });
             if (!selectedUser && payload?.topUsers?.length > 0) {
                 setSelectedUser(payload.topUsers[0].email);
             }
@@ -933,6 +990,7 @@ export default function AuditCenter() {
                 toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
+            setTrafficWindows({ week: null, month: null });
             toast.error(err.response?.data?.msg || err.message || copy.toast.trafficLoadFailed);
         }
         setTrafficLoading(false);
@@ -979,14 +1037,26 @@ export default function AuditCenter() {
             params.append('pageSize', '30');
             if (sourceFilters.email) params.append('email', sourceFilters.email);
             if (sourceFilters.status) params.append('status', sourceFilters.status);
+            const summaryParams = buildAccessSummaryParams(sourceFilters);
+            summaryParams.append('windows', `${AUDIT_TRAFFIC_WEEK_DAYS},${AUDIT_TRAFFIC_WINDOW_DAYS}`);
             const [res, summaryRes] = await Promise.all([
                 api.get(`/subscriptions/access?${params.toString()}`),
-                api.get(`/subscriptions/access/summary?${params.toString()}`),
+                api.get(`/subscriptions/access/summary?${summaryParams.toString()}`),
             ]);
+            const summaryPayload = summaryRes.data?.obj || { ...EMPTY_ACCESS_SUMMARY };
             setAccessData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1, statusBreakdown: {} });
-            setAccessSummary(summaryRes.data?.obj || { total: 0, uniqueIpCount: 0, uniqueUsers: 0, statusBreakdown: {}, topIps: [], from: '', to: '' });
+            setAccessSummary(summaryPayload);
+            setAccessUserWindows({
+                week: summaryPayload?.windows?.[String(AUDIT_TRAFFIC_WEEK_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
+                month: summaryPayload?.windows?.[String(AUDIT_TRAFFIC_WINDOW_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
+            });
             setAccessPage(targetPage);
         } catch (err) {
+            setAccessSummary({ ...EMPTY_ACCESS_SUMMARY });
+            setAccessUserWindows({
+                week: { ...EMPTY_ACCESS_SUMMARY },
+                month: { ...EMPTY_ACCESS_SUMMARY },
+            });
             toast.error(err.response?.data?.msg || err.message || copy.toast.accessLoadFailed);
         }
         setAccessLoading(false);
@@ -1082,22 +1152,17 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
-    const usesRegisteredTrafficTotals = Boolean(
-        trafficOverview?.registeredTotals
-        && typeof trafficOverview.registeredTotals === 'object'
-        && !Array.isArray(trafficOverview.registeredTotals)
-    );
-    const trafficTotals = trafficOverview?.registeredTotals || trafficOverview?.totals || {
+    const trafficTotals = trafficOverview?.totals || {
         upBytes: 0,
         downBytes: 0,
         totalBytes: 0,
     };
-    const trafficTotalsNote = usesRegisteredTrafficTotals
-        ? copy.traffic.totalTrafficCurrentNote
-        : copy.traffic.totalTrafficSampledNote;
+    const trafficTotalsNote = copy.traffic.totalTrafficMonthNote;
     const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
         ? trafficOverview.collection.warnings.length
         : 0;
+    const trafficWeeklyActiveUsers = Number(trafficWindows.week?.activeUsers || 0);
+    const trafficMonthlyActiveUsers = Number((trafficWindows.month || trafficOverview)?.activeUsers || 0);
     const activeEventFilterCount = useMemo(() => countActiveFilters(eventFilters), [eventFilters]);
     const activeAccessFilterCount = useMemo(() => countActiveFilters(accessFilters), [accessFilters]);
     const selectedTrafficUser = useMemo(
@@ -1433,9 +1498,14 @@ export default function AuditCenter() {
                                 </div>
                                 <div className="audit-traffic-mini-grid">
                                     <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.activeAccounts}</div>
-                                        <div className="audit-traffic-mini-value">{trafficOverview?.activeUsers || 0}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.activeAccountsScope}</div>
+                                        <div className="audit-traffic-mini-label">{copy.traffic.weeklyActiveAccounts}</div>
+                                        <div className="audit-traffic-mini-value">{trafficWeeklyActiveUsers}</div>
+                                        <div className="audit-traffic-mini-note">{copy.traffic.weeklyActiveAccountsScope}</div>
+                                    </div>
+                                    <div className="audit-traffic-mini-card">
+                                        <div className="audit-traffic-mini-label">{copy.traffic.monthlyActiveAccounts}</div>
+                                        <div className="audit-traffic-mini-value">{trafficMonthlyActiveUsers}</div>
+                                        <div className="audit-traffic-mini-note">{copy.traffic.monthlyActiveAccountsScope}</div>
                                     </div>
                                     <div className="audit-traffic-mini-card">
                                         <div className="audit-traffic-mini-label">{copy.traffic.samplePoints}</div>
@@ -1697,6 +1767,17 @@ export default function AuditCenter() {
                             <div className="card audit-stat-card">
                                 <div className="card-header"><span className="card-title">{copy.traffic.uniqueUsers}</span><HiOutlineDocumentText /></div>
                                 <div className="card-value">{accessSummary.uniqueUsers || 0}</div>
+                                <div className="text-xs text-muted mt-1">{copy.traffic.allVisitedUsersScope}</div>
+                            </div>
+                            <div className="card audit-stat-card">
+                                <div className="card-header"><span className="card-title">{copy.traffic.weeklyVisitedUsers}</span><HiOutlineDocumentText /></div>
+                                <div className="card-value">{accessUserWindows.week?.uniqueUsers || 0}</div>
+                                <div className="text-xs text-muted mt-1">{copy.traffic.weeklyVisitedUsersScope}</div>
+                            </div>
+                            <div className="card audit-stat-card">
+                                <div className="card-header"><span className="card-title">{copy.traffic.monthlyVisitedUsers}</span><HiOutlineDocumentText /></div>
+                                <div className="card-value">{accessUserWindows.month?.uniqueUsers || 0}</div>
+                                <div className="text-xs text-muted mt-1">{copy.traffic.monthlyVisitedUsersScope}</div>
                             </div>
                             {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
                                 <div className="card audit-stat-card" key={key}>

@@ -10838,3 +10838,219 @@ p, .empty-state-body, td {
     padding-top: 0;
   }
 }
+
+.subscriptions-page .subscription-user-panel--import,
+.subscriptions-page .subscription-user-panel--summary {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.22), rgba(15, 23, 42, 0.12)),
+    rgba(15, 23, 42, 0.18);
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.subscriptions-page .subscription-user-status-block {
+  background: rgba(15, 23, 42, 0.18);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+[data-theme="light"] .subscriptions-page .subscription-user-panel--import,
+[data-theme="light"] .subscriptions-page .subscription-user-panel--summary {
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.94)),
+    rgba(255, 255, 255, 0.96);
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="light"] .subscriptions-page .subscription-user-status-block {
+  background: rgba(248, 250, 252, 0.92);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+@media (max-width: 768px) {
+  .dashboard-page .dashboard-section-head {
+    gap: 6px;
+    margin-bottom: 6px !important;
+  }
+
+  .dashboard-page .dashboard-section-head .section-header-copy {
+    gap: 4px;
+  }
+
+  .dashboard-page .dashboard-section-head .section-header-title {
+    font-size: 15px;
+    line-height: 1.24;
+  }
+
+  .dashboard-page .dashboard-section-head .section-header-subtitle {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .dashboard-page .dashboard-quick-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    align-items: start;
+  }
+
+  .dashboard-page .dashboard-quick-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .dashboard-page .dashboard-quick-card-copy {
+    gap: 2px;
+  }
+
+  .dashboard-page .dashboard-quick-card-title,
+  .dashboard-page .node-health-tile-name {
+    font-size: 13px;
+    line-height: 1.28;
+  }
+
+  .dashboard-page .dashboard-quick-card-detail,
+  .dashboard-page .dashboard-quick-card-meta {
+    font-size: 11px;
+    line-height: 1.38;
+  }
+
+  .dashboard-page .node-health-tile {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .dashboard-page .node-health-tile-head,
+  .dashboard-page .node-health-tile-title {
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .dashboard-page .node-health-tile-remarks {
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .dashboard-page .node-health-tile-meta {
+    gap: 6px 10px;
+  }
+
+  .dashboard-page .node-health-tile-value {
+    font-size: 13px;
+  }
+
+  .dashboard-page .node-health-sparkline-shell {
+    padding-top: 4px;
+  }
+
+  .settings-page .settings-status-panel > .section-header {
+    gap: 6px;
+    padding-bottom: 4px;
+    margin-bottom: 6px !important;
+  }
+
+  .settings-page .settings-status-panel > .section-header .section-header-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .settings-page .settings-status-panel > .section-header .section-header-title {
+    font-size: 15px;
+    line-height: 1.24;
+  }
+
+  .settings-page .settings-status-panel > .section-header .section-header-subtitle {
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .settings-page .settings-status-panel .settings-monitor-log-meta {
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card {
+    padding-top: 10px;
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card .subscription-client-links {
+    gap: 10px;
+  }
+
+  .subscriptions-page .subscription-user-panel--import,
+  .subscriptions-page .subscription-user-panel--summary,
+  .subscriptions-page .subscription-user-status-block {
+    gap: 10px;
+  }
+
+  .subscriptions-page .subscription-user-panel-topbar,
+  .subscriptions-page .subscription-user-panel-meta,
+  .subscriptions-page .subscription-user-address-shell,
+  .subscriptions-page .subscription-user-address-grid,
+  .subscriptions-page .subscription-user-aside {
+    gap: 8px;
+  }
+
+  .subscriptions-page .subscription-user-address-actions {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-page .dashboard-quick-grid,
+  .dashboard-page .node-health-grid {
+    gap: 4px;
+  }
+
+  .dashboard-page .dashboard-quick-card,
+  .dashboard-page .node-health-tile {
+    padding: 7px;
+  }
+
+  .dashboard-page .dashboard-quick-card-title,
+  .dashboard-page .node-health-tile-name {
+    font-size: 12.5px;
+  }
+
+  .dashboard-page .dashboard-quick-card-detail,
+  .dashboard-page .dashboard-quick-card-meta,
+  .dashboard-page .node-health-tile-meta {
+    font-size: 10.5px;
+    line-height: 1.36;
+  }
+
+  .settings-page .settings-status-panel {
+    padding: 10px;
+  }
+
+  .settings-page .settings-status-panel > .section-header .section-header-title {
+    font-size: 14px;
+  }
+
+  .subscriptions-page .subscription-downloads-page-card {
+    padding-top: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* When section headers stack vertically, reset the desktop flex basis so
+     the copy block does not keep a 320px height on mobile. */
+  .section-header-copy,
+  .section-header-side,
+  .section-header-actions,
+  .page-toolbar-main,
+  .page-toolbar-actions,
+  .page-pagination-actions {
+    flex-basis: auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  .dashboard-page .dashboard-section-head,
+  .settings-page .settings-status-panel > .section-header {
+    align-items: flex-start;
+  }
+}

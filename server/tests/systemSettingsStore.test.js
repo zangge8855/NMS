@@ -21,6 +21,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
 
     before(async () => {
         cleanTestData();
+        fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
         const module = await import('../store/systemSettingsStore.js');
         systemSettingsStore = module.default;
         systemSettingsStore.settings = systemSettingsStore._normalizeSettings({});
@@ -71,6 +72,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
                 commandMenuEnabled: true,
                 opsDigestIntervalMinutes: 45,
                 dailyDigestIntervalHours: 12,
+                dailyBackupTime: '08:30',
                 sendDailyBackup: true,
                 sendSystemStatus: true,
                 sendSecurityAudit: true,
@@ -85,6 +87,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(updated.telegram.commandMenuEnabled, true);
         assert.equal(updated.telegram.opsDigestIntervalMinutes, 45);
         assert.equal(updated.telegram.dailyDigestIntervalHours, 12);
+        assert.equal(updated.telegram.dailyBackupTime, '08:30');
         assert.equal(updated.telegram.sendDailyBackup, true);
 
         const telegram = systemSettingsStore.getTelegram();
@@ -94,6 +97,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(telegram.commandMenuEnabled, true);
         assert.equal(telegram.opsDigestIntervalMinutes, 45);
         assert.equal(telegram.dailyDigestIntervalHours, 12);
+        assert.equal(telegram.dailyBackupTime, '08:30');
         assert.equal(telegram.sendDailyBackup, true);
     });
 

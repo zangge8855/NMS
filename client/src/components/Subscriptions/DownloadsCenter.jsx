@@ -4,6 +4,7 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
+import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 function getDownloadsCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -23,6 +24,7 @@ function getDownloadsCopy(locale = 'zh-CN') {
 
 export default function DownloadsCenter() {
     const { locale } = useI18n();
+    const isCompactViewport = useMediaQuery('(max-width: 768px)');
     const copy = useMemo(() => getDownloadsCopy(locale), [locale]);
     const bundle = useMemo(() => {
         const baseBundle = buildSubscriptionProfileBundle({}, locale);
@@ -37,11 +39,13 @@ export default function DownloadsCenter() {
             <Header title={copy.title} />
             <div className="page-content page-content--wide page-enter subscriptions-page">
                 <div className="card subscription-downloads-card subscription-downloads-page-card">
-                    <SectionHeader
-                        className="card-header section-header section-header--compact"
-                        title={copy.panelTitle}
-                        subtitle={copy.panelSubtitle}
-                    />
+                    {!isCompactViewport ? (
+                        <SectionHeader
+                            className="card-header section-header section-header--compact"
+                            title={copy.panelTitle}
+                            subtitle={copy.panelSubtitle}
+                        />
+                    ) : null}
                     <SubscriptionClientLinks
                         bundle={bundle}
                         showHeading={false}

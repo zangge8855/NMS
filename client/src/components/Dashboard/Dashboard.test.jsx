@@ -67,6 +67,35 @@ function mockMatchMedia(matches = false) {
     }));
 }
 
+function matchTrafficOverviewRequest(url, config, windows = {}) {
+    if (url !== '/traffic/overview') return null;
+    const dayTotals = windows.day || { upBytes: 0, downBytes: 0 };
+    const weekTotals = windows.week || dayTotals;
+    const monthTotals = windows.month || dayTotals;
+    const windowKeys = String(config?.params?.windows || '')
+        .split(',')
+        .map((item) => String(item || '').trim())
+        .filter(Boolean);
+    const days = Number(config?.params?.days || 0);
+    const totals = days === 7
+        ? weekTotals
+        : days === 30
+            ? monthTotals
+            : dayTotals;
+    return Promise.resolve({
+        data: {
+            obj: {
+                totals,
+                windows: {
+                    ...(windowKeys.includes('today') ? { today: { totals: dayTotals } } : {}),
+                    ...(windowKeys.includes('7') ? { '7': { totals: weekTotals } } : {}),
+                    ...(windowKeys.includes('30') ? { '30': { totals: monthTotals } } : {}),
+                },
+            },
+        },
+    });
+}
+
 describe('Dashboard', () => {
     beforeEach(() => {
         invalidateManagedUsersCache();
@@ -283,7 +312,7 @@ describe('Dashboard', () => {
         let serverAStatusCalls = 0;
         let serverBStatusCalls = 0;
 
-        api.get.mockImplementation((url) => {
+        api.get.mockImplementation((url, config) => {
             if (url === '/auth/users') {
                 return Promise.resolve({
                     data: {
@@ -376,18 +405,12 @@ describe('Dashboard', () => {
                     },
                 });
             }
-            if (url === '/traffic/overview') {
-                return Promise.resolve({
-                    data: {
-                        obj: {
-                            totals: {
-                                upBytes: 180,
-                                downBytes: 360,
-                            },
-                        },
-                    },
-                });
-            }
+            const trafficResponse = matchTrafficOverviewRequest(url, config, {
+                day: { upBytes: 180, downBytes: 360 },
+                week: { upBytes: 210, downBytes: 420 },
+                month: { upBytes: 220, downBytes: 440 },
+            });
+            if (trafficResponse) return trafficResponse;
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -445,8 +468,16 @@ describe('Dashboard', () => {
             expect(throughputCard).toHaveTextContent(/\/s/);
         });
 
-        const trafficCard = screen.getByText('累计流量').closest('[role="button"]');
-        if (!trafficCard) throw new Error('Missing cumulative traffic card');
+        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
+        await waitFor(() => {
+            expect(weekTrafficCard).toHaveTextContent('630 B');
+            expect(weekTrafficCard).toHaveTextContent(/↑\s*210 B/);
+            expect(weekTrafficCard).toHaveTextContent(/↓\s*420 B/);
+        });
+
+        const trafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        if (!trafficCard) throw new Error('Missing monthly traffic card');
         await waitFor(() => {
             expect(trafficCard).toHaveTextContent('660 B');
             expect(trafficCard).toHaveTextContent(/↑\s*220 B/);
@@ -473,7 +504,7 @@ describe('Dashboard', () => {
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
     });
 
-    it('keeps cumulative traffic on a loading placeholder until managed-user totals are ready', async () => {
+    it('keeps weekly and monthly traffic on loading placeholders until managed-user totals are ready', async () => {
         let resolveInbounds;
         const delayedInbounds = new Promise((resolve) => {
             resolveInbounds = resolve;
@@ -524,7 +555,7 @@ describe('Dashboard', () => {
             servers: [{ id: 'server-a', name: 'Node A' }],
         });
 
-        api.get.mockImplementation((url) => {
+        api.get.mockImplementation((url, config) => {
             if (url === '/auth/users') {
                 return Promise.resolve({
                     data: {
@@ -544,6 +575,12 @@ describe('Dashboard', () => {
             if (url === '/panel/server-a/panel/api/inbounds/list') {
                 return delayedInbounds;
             }
+            const trafficResponse = matchTrafficOverviewRequest(url, config, {
+                day: { upBytes: 50, downBytes: 100 },
+                week: { upBytes: 70, downBytes: 140 },
+                month: { upBytes: 90, downBytes: 180 },
+            });
+            if (trafficResponse) return trafficResponse;
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -562,10 +599,14 @@ describe('Dashboard', () => {
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
         if (!onlineCard) throw new Error('Missing online users card');
-        const trafficCard = screen.getByText('累计流量').closest('[role="button"]');
-        if (!trafficCard) throw new Error('Missing cumulative traffic card');
+        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
+        const trafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        if (!trafficCard) throw new Error('Missing monthly traffic card');
 
         await waitFor(() => {
+            expect(weekTrafficCard).toHaveTextContent('--');
+            expect(weekTrafficCard).toHaveTextContent('统计当前用户流量中');
             expect(trafficCard).toHaveTextContent('--');
             expect(trafficCard).toHaveTextContent('统计当前用户流量中');
             expect(onlineCard).toHaveTextContent('--');
@@ -594,9 +635,12 @@ describe('Dashboard', () => {
         await waitFor(() => {
             expect(onlineCard).toHaveTextContent('1');
             expect(onlineCard).toHaveTextContent('已注册 1 · 在线会话 1');
-            expect(trafficCard).toHaveTextContent('300 B');
-            expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
-            expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
+            expect(weekTrafficCard).toHaveTextContent('210 B');
+            expect(weekTrafficCard).toHaveTextContent(/↑\s*70 B/);
+            expect(weekTrafficCard).toHaveTextContent(/↓\s*140 B/);
+            expect(trafficCard).toHaveTextContent('270 B');
+            expect(trafficCard).toHaveTextContent(/↑\s*90 B/);
+            expect(trafficCard).toHaveTextContent(/↓\s*180 B/);
         });
     });
 
@@ -611,7 +655,7 @@ describe('Dashboard', () => {
             ],
         });
 
-        api.get.mockImplementation((url) => {
+        api.get.mockImplementation((url, config) => {
             if (url === '/auth/users') {
                 return Promise.resolve({
                     data: {
@@ -653,6 +697,12 @@ describe('Dashboard', () => {
                     },
                 });
             }
+            const trafficResponse = matchTrafficOverviewRequest(url, config, {
+                day: { upBytes: 100, downBytes: 200 },
+                week: { upBytes: 140, downBytes: 280 },
+                month: { upBytes: 180, downBytes: 360 },
+            });
+            if (trafficResponse) return trafficResponse;
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -727,7 +777,7 @@ describe('Dashboard', () => {
             servers: [{ id: 'server-a', name: 'Node A' }],
         });
 
-        api.get.mockImplementation((url) => {
+        api.get.mockImplementation((url, config) => {
             if (url === '/auth/users') {
                 return Promise.resolve({
                     data: {
@@ -757,6 +807,12 @@ describe('Dashboard', () => {
                     },
                 });
             }
+            const trafficResponse = matchTrafficOverviewRequest(url, config, {
+                day: { upBytes: 80, downBytes: 160 },
+                week: { upBytes: 120, downBytes: 240 },
+                month: { upBytes: 160, downBytes: 320 },
+            });
+            if (trafficResponse) return trafficResponse;
             throw new Error(`Unexpected GET ${url}`);
         });
 
@@ -897,7 +953,7 @@ describe('Dashboard', () => {
 
             let userFetches = 0;
             let statusFetches = 0;
-            api.get.mockImplementation((url) => {
+            api.get.mockImplementation((url, config) => {
                 if (url === '/auth/users') {
                     userFetches += 1;
                     return Promise.resolve({
@@ -922,6 +978,12 @@ describe('Dashboard', () => {
                 if (url === '/panel/server-a/panel/api/inbounds/list') {
                     return Promise.resolve({ data: { obj: [] } });
                 }
+                const trafficResponse = matchTrafficOverviewRequest(url, config, {
+                    day: { upBytes: 0, downBytes: 0 },
+                    week: { upBytes: 0, downBytes: 0 },
+                    month: { upBytes: 0, downBytes: 0 },
+                });
+                if (trafficResponse) return trafficResponse;
                 throw new Error(`Unexpected GET ${url}`);
             });
             api.post.mockImplementation((url) => {

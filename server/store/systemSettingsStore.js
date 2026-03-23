@@ -53,6 +53,7 @@ const ALLOWED_KEYS = {
         'commandMenuEnabled',
         'opsDigestIntervalMinutes',
         'dailyDigestIntervalHours',
+        'dailyBackupTime',
         'sendDailyBackup',
         'sendSystemStatus',
         'sendSecurityAudit',
@@ -67,6 +68,7 @@ const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const DEFAULT_CAMOUFLAGE_TEMPLATE = 'corporate';
 const DEFAULT_CAMOUFLAGE_TITLE = 'Edge Precision Systems';
+const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
 const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
@@ -258,6 +260,21 @@ function normalizeTelegramChatId(value, fallback = '') {
     return text.replace(/\s+/g, '').slice(0, 160);
 }
 
+function normalizeDailyBackupTime(value, fallback = DEFAULT_DAILY_BACKUP_TIME) {
+    const text = String(value || '').trim();
+    if (!text) return String(fallback || DEFAULT_DAILY_BACKUP_TIME).trim() || DEFAULT_DAILY_BACKUP_TIME;
+    const match = text.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+        return String(fallback || DEFAULT_DAILY_BACKUP_TIME).trim() || DEFAULT_DAILY_BACKUP_TIME;
+    }
+    const hour = Number.parseInt(match[1], 10);
+    const minute = Number.parseInt(match[2], 10);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return String(fallback || DEFAULT_DAILY_BACKUP_TIME).trim() || DEFAULT_DAILY_BACKUP_TIME;
+    }
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 function maskTelegramTokenPreview(value) {
     const token = String(value || '').trim();
     if (!token) return '';
@@ -398,6 +415,7 @@ export class SystemSettingsStore {
             commandMenuEnabled: section.commandMenuEnabled === true,
             opsDigestIntervalMinutes: Number(section.opsDigestIntervalMinutes || 0),
             dailyDigestIntervalHours: Number(section.dailyDigestIntervalHours || 0),
+            dailyBackupTime: normalizeDailyBackupTime(section.dailyBackupTime, DEFAULT_DAILY_BACKUP_TIME),
             sendDailyBackup: section.sendDailyBackup === true,
             sendSystemStatus: section.sendSystemStatus !== false,
             sendSecurityAudit: section.sendSecurityAudit !== false,
@@ -453,6 +471,7 @@ export class SystemSettingsStore {
                 commandMenuEnabled: config.telegram?.commandMenuEnabled === true,
                 opsDigestIntervalMinutes: 30,
                 dailyDigestIntervalHours: 24,
+                dailyBackupTime: DEFAULT_DAILY_BACKUP_TIME,
                 sendDailyBackup: false,
                 sendSystemStatus: true,
                 sendSecurityAudit: true,
@@ -562,6 +581,7 @@ export class SystemSettingsStore {
             commandMenuEnabled: normalizeBoolean(input.commandMenuEnabled, fallback.commandMenuEnabled),
             opsDigestIntervalMinutes: normalizeInt(input.opsDigestIntervalMinutes, fallback.opsDigestIntervalMinutes, { min: 0, max: 1440 }),
             dailyDigestIntervalHours: normalizeInt(input.dailyDigestIntervalHours, fallback.dailyDigestIntervalHours, { min: 0, max: 168 }),
+            dailyBackupTime: normalizeDailyBackupTime(input.dailyBackupTime, fallback.dailyBackupTime || DEFAULT_DAILY_BACKUP_TIME),
             sendDailyBackup: normalizeBoolean(input.sendDailyBackup, fallback.sendDailyBackup),
             sendSystemStatus: normalizeBoolean(input.sendSystemStatus, fallback.sendSystemStatus),
             sendSecurityAudit: normalizeBoolean(input.sendSecurityAudit, fallback.sendSecurityAudit),
@@ -688,6 +708,7 @@ export class SystemSettingsStore {
             commandMenuEnabled: section.commandMenuEnabled === true,
             opsDigestIntervalMinutes: Number(section.opsDigestIntervalMinutes || 0),
             dailyDigestIntervalHours: Number(section.dailyDigestIntervalHours || 0),
+            dailyBackupTime: normalizeDailyBackupTime(section.dailyBackupTime, DEFAULT_DAILY_BACKUP_TIME),
             sendDailyBackup: section.sendDailyBackup === true,
             sendSystemStatus: section.sendSystemStatus !== false,
             sendSecurityAudit: section.sendSecurityAudit !== false,

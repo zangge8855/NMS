@@ -220,6 +220,26 @@ describe('AuditCenter localization', () => {
                             topIps: [],
                             from: '',
                             to: '',
+                            windows: {
+                                '7': {
+                                    total: 1,
+                                    uniqueIpCount: 1,
+                                    uniqueUsers: 1,
+                                    statusBreakdown: { revoked: 1 },
+                                    topIps: [],
+                                    from: '',
+                                    to: '',
+                                },
+                                '30': {
+                                    total: 1,
+                                    uniqueIpCount: 1,
+                                    uniqueUsers: 1,
+                                    statusBreakdown: { revoked: 1 },
+                                    topIps: [],
+                                    from: '',
+                                    to: '',
+                                },
+                            },
                         },
                     },
                 });
@@ -233,6 +253,8 @@ describe('AuditCenter localization', () => {
         expect(screen.getByText('筛选订阅访问')).toBeInTheDocument();
         expect(screen.queryByText('暂无访问记录')).not.toBeInTheDocument();
         expect(screen.getByRole('option', { name: '已撤销' })).toBeInTheDocument();
+        expect(screen.getByText('周访问用户')).toBeInTheDocument();
+        expect(screen.getByText('月访问用户')).toBeInTheDocument();
         expect(document.querySelector('.audit-access-ua-text')).toBeTruthy();
 
         const subscriptionsTable = document.querySelector('.audit-subscriptions-table');
@@ -287,6 +309,26 @@ describe('AuditCenter localization', () => {
                             topIps: [],
                             from: '',
                             to: '',
+                            windows: {
+                                '7': {
+                                    total: 1,
+                                    uniqueIpCount: 1,
+                                    uniqueUsers: 1,
+                                    statusBreakdown: { success: 1 },
+                                    topIps: [],
+                                    from: '',
+                                    to: '',
+                                },
+                                '30': {
+                                    total: 1,
+                                    uniqueIpCount: 1,
+                                    uniqueUsers: 1,
+                                    statusBreakdown: { success: 1 },
+                                    topIps: [],
+                                    from: '',
+                                    to: '',
+                                },
+                            },
                         },
                     },
                 });
@@ -334,6 +376,24 @@ describe('AuditCenter localization', () => {
                                     totalBytes: 4096,
                                 },
                             ],
+                            windows: {
+                                '7': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 256,
+                                        downBytes: 768,
+                                        totalBytes: 1024,
+                                    },
+                                },
+                                '30': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 512,
+                                        downBytes: 1536,
+                                        totalBytes: 2048,
+                                    },
+                                },
+                            },
                             collection: {
                                 warnings: [],
                             },
@@ -380,14 +440,17 @@ describe('AuditCenter localization', () => {
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
-        expect((await screen.findAllByText('活跃账号')).length).toBeGreaterThan(0);
+        expect(await screen.findByText('周活跃账号')).toBeInTheDocument();
         await waitFor(() => {
             expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('days=30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('windows=7%2C30'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('days=30'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('days=30'))).toBe(true);
         });
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
-        expect(screen.getAllByText('先看累计流量和采样状态，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getByText('周活跃账号')).toBeInTheDocument();
+        expect(screen.getByText('月活跃账号')).toBeInTheDocument();
         expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getByText('当前所选节点 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);

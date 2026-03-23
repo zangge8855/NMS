@@ -1198,6 +1198,15 @@ function parseNumericParam(value, fallback = undefined) {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseWindowDays(value) {
+    return Array.from(new Set(
+        String(value || '')
+            .split(',')
+            .map((item) => Number.parseInt(String(item || '').trim(), 10))
+            .filter((item) => Number.isInteger(item) && item > 0 && item <= 365)
+    )).slice(0, 6);
+}
+
 function extractLinkLabel(link, fallback = '') {
     const hashIndex = String(link || '').indexOf('#');
     const raw = hashIndex >= 0 ? String(link).slice(hashIndex + 1) : '';
@@ -3323,7 +3332,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
 
 router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const summary = await summarizeSubscriptionAccess({
+        const baseFilters = {
             from: req.query.from,
             to: req.query.to,
             email: req.query.email,
@@ -3331,12 +3340,33 @@ router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
             status: req.query.status,
             ip: req.query.ip,
             serverId: req.query.serverId,
-        }, {
+        };
+        const summary = await summarizeSubscriptionAccess(baseFilters, {
             includeGeo: shouldIncludeGeoLookup(req),
         });
+        const windows = {};
+        const windowDays = parseWindowDays(req.query.windows);
+
+        if (windowDays.length > 0) {
+            const now = Date.now();
+            for (const days of windowDays) {
+                const from = new Date(now - (days * 24 * 60 * 60 * 1000)).toISOString();
+                const to = new Date(now).toISOString();
+                windows[String(days)] = await summarizeSubscriptionAccess({
+                    ...baseFilters,
+                    from,
+                    to,
+                }, {
+                    includeGeo: false,
+                });
+            }
+        }
         return res.json({
             success: true,
-            obj: summary,
+            obj: {
+                ...summary,
+                windows,
+            },
         });
     } catch (error) {
         return res.status(500).json({

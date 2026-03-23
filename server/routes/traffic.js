@@ -14,6 +14,32 @@ function normalizeBoolean(value, fallback = false) {
     return fallback;
 }
 
+function buildTodayRange() {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return {
+        from: start.toISOString(),
+        to: now.toISOString(),
+    };
+}
+
+function parseWindowKeys(value) {
+    return Array.from(new Set(
+        String(value || '')
+            .split(',')
+            .map((item) => String(item || '').trim().toLowerCase())
+            .filter((item) => (
+                item === 'today'
+                || (
+                    Number.isInteger(Number.parseInt(item, 10))
+                    && Number.parseInt(item, 10) > 0
+                    && Number.parseInt(item, 10) <= 365
+                )
+            ))
+    )).slice(0, 6);
+}
+
 router.use(authMiddleware);
 
 router.post('/refresh', async (req, res) => {
@@ -27,16 +53,33 @@ router.post('/refresh', async (req, res) => {
 router.get('/overview', async (req, res) => {
     const forceRefresh = normalizeBoolean(req.query.refresh, false);
     const collection = await trafficStatsStore.collectIfStale(forceRefresh);
-    const overview = trafficStatsStore.getOverview({
+    const options = {
         from: req.query.from,
         to: req.query.to,
         days: req.query.days,
         top: req.query.top,
-    });
+    };
+    const overview = trafficStatsStore.getOverview(options);
+    const windows = parseWindowKeys(req.query.windows).reduce((acc, key) => {
+        acc[key] = key === 'today'
+            ? trafficStatsStore.getOverview({
+                ...options,
+                ...buildTodayRange(),
+                days: undefined,
+            })
+            : trafficStatsStore.getOverview({
+                ...options,
+                from: undefined,
+                to: undefined,
+                days: Number.parseInt(key, 10),
+            });
+        return acc;
+    }, {});
     return res.json({
         success: true,
         obj: {
             ...overview,
+            windows,
             collection,
         },
     });
@@ -80,4 +123,3 @@ router.get('/servers/:serverId/trend', async (req, res) => {
 });
 
 export default router;
-

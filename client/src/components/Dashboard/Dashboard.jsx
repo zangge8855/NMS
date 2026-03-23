@@ -37,16 +37,18 @@ const GLOBAL_WS_GRACE_MS = 500;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const MAX_NODE_TREND_POINTS = 12;
-const INITIAL_GLOBAL_TRAFFIC_TOTALS = {
+const INITIAL_TRAFFIC_WINDOW_TOTAL = {
     totalUp: 0,
     totalDown: 0,
     ready: false,
 };
-const INITIAL_DAILY_TRAFFIC_TOTALS = {
-    totalUp: 0,
-    totalDown: 0,
-    ready: false,
-};
+function buildInitialTrafficWindowTotals({ ready = false } = {}) {
+    return {
+        day: { ...INITIAL_TRAFFIC_WINDOW_TOTAL, ready },
+        week: { ...INITIAL_TRAFFIC_WINDOW_TOTAL, ready },
+        month: { ...INITIAL_TRAFFIC_WINDOW_TOTAL, ready },
+    };
+}
 const DASHBOARD_ACCENT = {
     primary: { tone: 'primary' },
     info: { tone: 'info' },
@@ -306,16 +308,6 @@ function normalizeOnlineList(raw, serverName = '') {
 
 function normalizeOnlineValue(value) {
     return String(value || '').trim().toLowerCase();
-}
-
-function buildTodayTrafficRange() {
-    const now = new Date();
-    const from = new Date(now);
-    from.setHours(0, 0, 0, 0);
-    return {
-        from: from.toISOString(),
-        to: now.toISOString(),
-    };
 }
 
 function normalizeOnlineKeys(item) {
@@ -694,9 +686,7 @@ export default function Dashboard() {
     const [hasLiveClusterSnapshot, setHasLiveClusterSnapshot] = useState(false);
     const [globalPresenceLoading, setGlobalPresenceLoading] = useState(false);
     const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
-    const [globalTrafficTotals, setGlobalTrafficTotals] = useState(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-    const [dailyTrafficTotals, setDailyTrafficTotals] = useState(INITIAL_DAILY_TRAFFIC_TOTALS);
-    const [dbStatus, setDbStatus] = useState(null);
+    const [trafficWindowTotals, setTrafficWindowTotals] = useState(() => buildInitialTrafficWindowTotals());
 
     // Shared State
     const [loading, setLoading] = useState(true);
@@ -725,28 +715,43 @@ export default function Dashboard() {
         () => summarizeClusterThroughput(serverTrendHistory),
         [serverTrendHistory]
     );
-    const syncGlobalTrafficTotals = useCallback((presence) => {
-        setGlobalTrafficTotals({
-            totalUp: Number(presence?.totalUp || 0),
-            totalDown: Number(presence?.totalDown || 0),
-            ready: true,
-        });
-    }, []);
-    const fetchDailyTrafficTotals = useCallback(async () => {
+    const fetchTrafficWindowTotals = useCallback(async () => {
         try {
-            const range = buildTodayTrafficRange();
             const res = await api.get('/traffic/overview', {
-                params: range,
+                params: {
+                    days: 30,
+                    windows: 'today,7,30',
+                },
             });
-            const totals = res.data?.obj?.totals || {};
+            const payload = res.data?.obj || {};
+            const readWindow = (key) => {
+                const totals = payload?.windows?.[key]?.totals || {};
+                return {
+                    totalUp: Number(totals.upBytes || 0),
+                    totalDown: Number(totals.downBytes || 0),
+                    ready: true,
+                };
+            };
             return {
-                totalUp: Number(totals.upBytes || 0),
-                totalDown: Number(totals.downBytes || 0),
-                ready: true,
+                day: readWindow('today'),
+                week: readWindow('7'),
+                month: readWindow('30'),
             };
         } catch {
-            return INITIAL_DAILY_TRAFFIC_TOTALS;
+            return buildInitialTrafficWindowTotals();
         }
+    }, []);
+    const syncTrafficWindowTotals = useCallback((windows) => {
+        setTrafficWindowTotals((previous) => ({
+            ...previous,
+            ...windows,
+        }));
+    }, []);
+    const markTrafficWindowsReady = useCallback(() => {
+        setTrafficWindowTotals(buildInitialTrafficWindowTotals({ ready: true }));
+    }, []);
+    const resetTrafficWindows = useCallback(() => {
+        setTrafficWindowTotals(buildInitialTrafficWindowTotals());
     }, []);
 
     const fetchGlobalAccountSummary = useCallback(async (options = {}) => {
@@ -761,30 +766,6 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
         }
     }, []);
-
-    useEffect(() => {
-        if (activeServerId !== 'global') {
-            setDbStatus(null);
-            return undefined;
-        }
-        let disposed = false;
-        const loadDbStatus = async () => {
-            try {
-                const res = await api.get('/system/db/status');
-                if (!disposed) {
-                    setDbStatus(res.data?.obj || null);
-                }
-            } catch {
-                if (!disposed) {
-                    setDbStatus(null);
-                }
-            }
-        };
-        loadDbStatus();
-        return () => {
-            disposed = true;
-        };
-    }, [activeServerId]);
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!token) {
@@ -930,8 +911,7 @@ export default function Dashboard() {
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
-            setGlobalTrafficTotals({ ...INITIAL_GLOBAL_TRAFFIC_TOTALS, ready: true });
-            setDailyTrafficTotals({ ...INITIAL_DAILY_TRAFFIC_TOTALS, ready: true });
+            markTrafficWindowsReady();
             setLoading(false);
             return;
         }
@@ -942,9 +922,9 @@ export default function Dashboard() {
                 totalInbounds: 0, activeInbounds: 0,
                 serverCount: servers.length, onlineServers: 0,
             };
-            const [usersRes, todayTraffic] = await Promise.all([
+            const [usersRes, trafficWindows] = await Promise.all([
                 fetchManagedUsers(api).catch(() => []),
-                fetchDailyTrafficTotals(),
+                fetchTrafficWindowTotals(),
                 ...servers.map(async (server) => {
                     try {
                         const [statusRes, inboundsRes, onlineRes] = await Promise.all([
@@ -986,8 +966,7 @@ export default function Dashboard() {
             stats.totalOnline = presence.onlineRows.length;
             stats.totalUp = presence.totalUp;
             stats.totalDown = presence.totalDown;
-            syncGlobalTrafficTotals(presence);
-            setDailyTrafficTotals(todayTraffic);
+            syncTrafficWindowTotals(trafficWindows);
             const managedOnlineCountByServer = new Map();
             presence.onlineRows.forEach((row) => {
                 row.servers.forEach((serverName) => {
@@ -1016,11 +995,10 @@ export default function Dashboard() {
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(false);
-            setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-            setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
+            resetTrafficWindows();
         }
         setLoading(false);
-    }, [fetchDailyTrafficTotals, servers, syncGlobalTrafficTotals]);
+    }, [fetchTrafficWindowTotals, markTrafficWindowsReady, resetTrafficWindows, servers, syncTrafficWindowTotals]);
 
     const hydrateGlobalPresence = useCallback(async (options = {}) => {
         if (servers.length === 0) {
@@ -1028,16 +1006,15 @@ export default function Dashboard() {
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
-            setGlobalTrafficTotals({ ...INITIAL_GLOBAL_TRAFFIC_TOTALS, ready: true });
-            setDailyTrafficTotals({ ...INITIAL_DAILY_TRAFFIC_TOTALS, ready: true });
+            markTrafficWindowsReady();
             return;
         }
 
         setGlobalPresenceLoading(true);
         try {
-            const [users, todayTraffic, serverPayloads] = await Promise.all([
+            const [users, trafficWindows, serverPayloads] = await Promise.all([
                 fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []),
-                fetchDailyTrafficTotals(),
+                fetchTrafficWindowTotals(),
                 Promise.all(
                     servers.map(async (server) => {
                         try {
@@ -1082,8 +1059,7 @@ export default function Dashboard() {
                 totalOnline: presence.onlineRows.length,
             }));
             setGlobalPresenceReady(true);
-            syncGlobalTrafficTotals(presence);
-            setDailyTrafficTotals(todayTraffic);
+            syncTrafficWindowTotals(trafficWindows);
             setServerStatuses((previous) => {
                 const next = { ...previous };
                 serverPayloads.forEach((item) => {
@@ -1105,17 +1081,15 @@ export default function Dashboard() {
             setGlobalOnlineUsers([]);
             setGlobalOnlineSessionCount(0);
             setGlobalPresenceReady(false);
-            setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-            setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
+            resetTrafficWindows();
         }
         setGlobalPresenceLoading(false);
-    }, [fetchDailyTrafficTotals, servers, syncGlobalTrafficTotals]);
+    }, [fetchTrafficWindowTotals, markTrafficWindowsReady, resetTrafficWindows, servers, syncTrafficWindowTotals]);
 
     useEffect(() => {
         if (activeServerId === 'global') return;
-        setGlobalTrafficTotals(INITIAL_GLOBAL_TRAFFIC_TOTALS);
-        setDailyTrafficTotals(INITIAL_DAILY_TRAFFIC_TOTALS);
-    }, [activeServerId]);
+        resetTrafficWindows();
+    }, [activeServerId, resetTrafficWindows]);
 
     useEffect(() => {
         if (activeServerId === 'global') return;
@@ -1226,6 +1200,8 @@ export default function Dashboard() {
 
     // ── Global Dashboard ─────────────────────────────────
     if (activeServerId === 'global') {
+        const clusterSummaryReady = hasLiveClusterSnapshot || Object.keys(serverStatuses || {}).length > 0;
+        const clusterServerCount = globalStats.serverCount || servers.length;
         const globalManagedOnlineCount = globalPresenceReady ? globalOnlineUsers.length : null;
         const globalOnlineSummary = globalPresenceReady
             ? t('pages.dashboardCommon.registeredSessionSummary', {
@@ -1240,12 +1216,14 @@ export default function Dashboard() {
         const globalCards = [
             {
                 icon: HiOutlineServerStack,
-                value: `${globalStats.onlineServers} / ${globalStats.serverCount}`,
+                value: clusterSummaryReady ? `${globalStats.onlineServers} / ${clusterServerCount}` : `-- / ${clusterServerCount}`,
                 kicker: t('pages.dashboardCommon.onlineTotal'),
-                sub: t('pages.dashboardGlobal.inboundSummary', {
-                    active: globalStats.activeInbounds,
-                    total: globalStats.totalInbounds,
-                }),
+                sub: clusterSummaryReady
+                    ? t('pages.dashboardGlobal.inboundSummary', {
+                        active: globalStats.activeInbounds,
+                        total: globalStats.totalInbounds,
+                    })
+                    : t('pages.dashboardCommon.clusterPending'),
                 ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/servers'),
                 skeletonWidth: '9rem',
@@ -1287,12 +1265,12 @@ export default function Dashboard() {
             {
                 icon: HiOutlineCloud,
                 label: t('pages.dashboardGlobal.cards.todayTraffic'),
-                ...(dailyTrafficTotals.ready ? {
-                    animateValue: dailyTrafficTotals.totalUp + dailyTrafficTotals.totalDown,
+                ...(trafficWindowTotals.day.ready ? {
+                    animateValue: trafficWindowTotals.day.totalUp + trafficWindowTotals.day.totalDown,
                     renderAnimatedValue: (value) => formatBytes(value),
                     sub: t('pages.dashboardCommon.trafficSplit', {
-                        up: formatBytes(dailyTrafficTotals.totalUp),
-                        down: formatBytes(dailyTrafficTotals.totalDown),
+                        up: formatBytes(trafficWindowTotals.day.totalUp),
+                        down: formatBytes(trafficWindowTotals.day.totalDown),
                     }),
                 } : {
                     value: '--',
@@ -1303,13 +1281,32 @@ export default function Dashboard() {
                 skeletonWidth: '8.5rem',
             },
             {
-                icon: HiOutlineChartBarSquare, label: t('pages.dashboardGlobal.cards.cumulativeTraffic'),
-                ...(globalTrafficTotals.ready ? {
-                    animateValue: globalTrafficTotals.totalUp + globalTrafficTotals.totalDown,
+                icon: HiOutlineClock,
+                label: t('pages.dashboardGlobal.cards.weekTraffic'),
+                ...(trafficWindowTotals.week.ready ? {
+                    animateValue: trafficWindowTotals.week.totalUp + trafficWindowTotals.week.totalDown,
                     renderAnimatedValue: (value) => formatBytes(value),
                     sub: t('pages.dashboardCommon.trafficSplit', {
-                        up: formatBytes(globalTrafficTotals.totalUp),
-                        down: formatBytes(globalTrafficTotals.totalDown),
+                        up: formatBytes(trafficWindowTotals.week.totalUp),
+                        down: formatBytes(trafficWindowTotals.week.totalDown),
+                    }),
+                } : {
+                    value: '--',
+                    sub: t('pages.dashboardCommon.trafficPending'),
+                }),
+                ...DASHBOARD_ACCENT.warning,
+                onClick: () => navigate('/audit?tab=traffic'),
+                skeletonWidth: '8.5rem',
+            },
+            {
+                icon: HiOutlineChartBarSquare,
+                label: t('pages.dashboardGlobal.cards.monthTraffic'),
+                ...(trafficWindowTotals.month.ready ? {
+                    animateValue: trafficWindowTotals.month.totalUp + trafficWindowTotals.month.totalDown,
+                    renderAnimatedValue: (value) => formatBytes(value),
+                    sub: t('pages.dashboardCommon.trafficSplit', {
+                        up: formatBytes(trafficWindowTotals.month.totalUp),
+                        down: formatBytes(trafficWindowTotals.month.totalDown),
                     }),
                 } : {
                     value: '--',
@@ -1389,7 +1386,7 @@ export default function Dashboard() {
                             <StatCard
                                 key={`${card.label || card.kicker || 'global-card'}-${index}`}
                                 card={card}
-                                loading={loading}
+                                loading={false}
                             />
                         ))}
                     </div>

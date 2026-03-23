@@ -154,6 +154,7 @@ function buildDraft(source = null) {
             commandMenuEnabled: settings.telegram?.commandMenuEnabled === true,
             opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),
             dailyDigestIntervalHours: toInt(settings.telegram?.dailyDigestIntervalHours, 24),
+            dailyBackupTime: toText(settings.telegram?.dailyBackupTime, '09:00'),
             sendDailyBackup: settings.telegram?.sendDailyBackup === true,
             sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
             sendSecurityAudit: settings.telegram?.sendSecurityAudit !== false,
@@ -1479,6 +1480,9 @@ export default function SystemSettings() {
                 ? '当前 Chat ID 已清空，保存后会移除现有目标。'
                 : `当前仅显示脱敏值：${telegramMaskedDisplayValue}`)
         : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。';
+    const telegramNextBackupLabel = monitorStatus?.telegram?.nextDailyBackupAt
+        ? formatDateTime(monitorStatus.telegram.nextDailyBackupAt, locale)
+        : '未安排';
     const readyAlertChainCount = [
         Boolean(emailStatus?.configured),
         Boolean(monitorStatus?.healthMonitor?.running),
@@ -2263,6 +2267,18 @@ export default function SystemSettings() {
                             />
                             <div className="text-xs text-muted mt-1">单位：小时，填 0 关闭定时报。</div>
                         </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="telegram-daily-backup-time">每日备份时间</label>
+                            <input
+                                id="telegram-daily-backup-time"
+                                className="form-input"
+                                type="time"
+                                step="60"
+                                value={draft.telegram.dailyBackupTime}
+                                onChange={(event) => patchField('telegram', 'dailyBackupTime', event.target.value || '09:00')}
+                            />
+                            <div className="text-xs text-muted mt-1">按服务器本地时间执行，默认 09:00。</div>
+                        </div>
                     </div>
                     <div className="settings-toggle-collection settings-toggle-collection--telegram mt-3">
                         <SettingsToggleCard
@@ -2395,7 +2411,7 @@ export default function SystemSettings() {
                             <div className="text-sm font-medium">Telegram 备份状态</div>
                             <div className="text-xs text-muted mt-1">
                                 {draft.telegram.sendDailyBackup
-                                    ? '已启用每日自动发送；手动发送会复用同一目标 Chat。'
+                                    ? `已启用每日自动发送，时间 ${draft.telegram.dailyBackupTime || '09:00'}；手动发送会复用同一目标 Chat。`
                                     : '当前仅支持手动发送，启用上方开关后会按日自动发送。'}
                             </div>
                         </div>
@@ -2408,6 +2424,7 @@ export default function SystemSettings() {
                             ? `${formatDateTime(lastTelegramBackup.ts, locale)} · ${lastTelegramBackup.filename || '未记录文件名'}`
                             : '还没有 Telegram 备份记录。'}
                     </div>
+                    <div className="text-xs text-muted mt-1">下次自动备份：{telegramNextBackupLabel}</div>
                     {lastTelegramBackup?.error ? (
                         <div className="text-xs text-danger">{lastTelegramBackup.error}</div>
                     ) : null}
@@ -2710,7 +2727,7 @@ export default function SystemSettings() {
                             <span className="settings-monitor-log-label">Telegram</span>
                             <span className="settings-monitor-log-value">
                                 {monitorStatus?.telegram?.enabled
-                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}`
+                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}${monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''}`
                                     : monitorStatus?.telegram?.configured
                                         ? '已配置未启用'
                                         : '未配置'}

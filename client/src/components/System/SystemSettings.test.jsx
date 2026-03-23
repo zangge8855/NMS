@@ -96,6 +96,7 @@ function mockAdminBootstrap(overrides = {}) {
                         commandMenuEnabled: false,
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        dailyBackupTime: '08:30',
                         sendDailyBackup: true,
                         sendSystemStatus: true,
                         sendSecurityAudit: true,
@@ -205,6 +206,8 @@ function mockAdminBootstrap(overrides = {}) {
                         botTokenPreview: '1234...ABCD',
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        dailyBackupTime: '08:30',
+                        nextDailyBackupAt: '2026-03-16T00:30:00.000Z',
                         sendDailyBackup: true,
                         lastSentAt: '2026-03-15T06:30:00.000Z',
                         lastError: '',
@@ -305,6 +308,7 @@ function buildPutResponse(overrides = {}) {
             commandMenuEnabled: false,
             opsDigestIntervalMinutes: 45,
             dailyDigestIntervalHours: 12,
+            dailyBackupTime: '08:30',
             sendDailyBackup: true,
             sendSystemStatus: true,
             sendSecurityAudit: true,
@@ -485,6 +489,7 @@ describe('SystemSettings', () => {
         expect(screen.getByLabelText('Bot Token')).toBeInTheDocument();
         expect(screen.getByLabelText('运维汇总间隔')).toHaveValue(45);
         expect(screen.getByLabelText('日报间隔')).toHaveValue(12);
+        expect(screen.getByLabelText('每日备份时间')).toHaveValue('08:30');
         expect(screen.getByText('每日备份到 Telegram')).toBeInTheDocument();
         expect(screen.getByText(/当前已保存 Token/)).toBeInTheDocument();
         expect(screen.queryByText('节点控制台')).not.toBeInTheDocument();
@@ -545,6 +550,7 @@ describe('SystemSettings', () => {
                 telegram: expect.objectContaining({
                     botToken: '987654:XYZ',
                     clearBotToken: false,
+                    dailyBackupTime: '08:30',
                 }),
             }));
         });
@@ -568,6 +574,7 @@ describe('SystemSettings', () => {
                         commandMenuEnabled: false,
                         opsDigestIntervalMinutes: 45,
                         dailyDigestIntervalHours: 12,
+                        dailyBackupTime: '08:30',
                         sendDailyBackup: true,
                         sendSystemStatus: true,
                         sendSecurityAudit: true,
@@ -588,6 +595,7 @@ describe('SystemSettings', () => {
                 telegram: expect.objectContaining({
                     botToken: '',
                     clearBotToken: true,
+                    dailyBackupTime: '08:30',
                 }),
             }));
         });

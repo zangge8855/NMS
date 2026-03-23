@@ -104,6 +104,35 @@ export function initWebSocket(httpServer) {
         if (unread > 0) {
             safeSend(ws, { type: 'NMS_NOTIFICATION_COUNT', ts: Date.now(), data: { unreadCount: unread } });
         }
+
+        // Push a fresh cluster snapshot immediately so dashboard clients
+        // do not wait for the next broadcast interval before rendering.
+        collectClusterStatusSnapshot({
+            includeDetails: true,
+            maxAgeMs: Math.max(0, BROADCAST_INTERVAL - 1_000),
+        }).then((snapshot) => {
+            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
+                return;
+            }
+            safeSend(ws, {
+                type: 'cluster_status',
+                ts: Date.now(),
+                data: {
+                    serverCount: snapshot.summary?.total || 0,
+                    onlineServers: snapshot.summary?.onlineServers || 0,
+                    totalOnline: snapshot.summary?.totalOnline || 0,
+                    totalUp: snapshot.summary?.totalUp || 0,
+                    totalDown: snapshot.summary?.totalDown || 0,
+                    totalInbounds: snapshot.summary?.totalInbounds || 0,
+                    activeInbounds: snapshot.summary?.activeInbounds || 0,
+                    byReason: snapshot.summary?.byReason || snapshot.summary?.reasonCounts || {},
+                    reasonCounts: snapshot.summary?.reasonCounts || {},
+                    servers: snapshot.byServerId || {},
+                },
+            });
+        }).catch((err) => {
+            console.error('[WebSocket] Initial snapshot error:', err.message);
+        });
     });
 
     // ── Broadcast Loop ─────────────────────────────

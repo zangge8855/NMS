@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     collectStatusDigestContext,
+    computeDailyBackupSchedule,
     createTelegramAlertService,
     formatCommandCatalogMessage,
     formatStatusDigestMessage,
@@ -124,13 +125,14 @@ test('telegramAlertService syncs Telegram command menus only when explicitly ena
     assert.equal(service.getStatus().commandMenuEnabled, true);
     assert.equal(service.getStatus().enabled, true);
     assert.ok(commandCall);
-    assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor']);
+    assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor', 'backup']);
     assert.equal(messageCall.body.parse_mode, 'HTML');
     assert.match(messageCall.body.text, /<b>🧪 NMS Telegram 测试通知<\/b>/);
     assert.match(messageCall.body.text, /<i>消息结构与命令菜单检查<\/i>/);
     assert.match(messageCall.body.text, /<b>🚀 快速开始<\/b>/);
     assert.match(messageCall.body.text, /<pre>[\s\S]*\/expiry\s+用户到期提醒摘要[\s\S]*<\/pre>/);
     assert.match(messageCall.body.text, /<b>🔧 运维动作<\/b>/);
+    assert.match(messageCall.body.text, /<pre>[\s\S]*\/backup\s+立即发送一次加密备份[\s\S]*<\/pre>/);
     assert.deepEqual(messageCall.body.reply_markup, { remove_keyboard: true });
 });
 
@@ -191,10 +193,30 @@ test('telegramAlertService sends encrypted backups as Telegram documents and tra
     assert.equal(result.archive.filename, 'nms_backup_20260321_080000.nmsbak');
     assert.equal(result.archive.bytes, 11);
     assert.equal(service.getStatus().sendDailyBackup, true);
+    assert.equal(service.getStatus().dailyBackupTime, '09:00');
+    assert.match(service.getStatus().nextDailyBackupAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.equal(service.getStatus().lastBackupFilename, 'nms_backup_20260321_080000.nmsbak');
     assert.equal(service.getStatus().lastSentKind, 'backup_manual');
     assert.equal(recorded[0].status, 'sent');
     assert.equal(recorded[0].reason, 'manual');
+});
+
+test('computeDailyBackupSchedule triggers missed backups at the configured local time and schedules the next day', () => {
+    const schedule = computeDailyBackupSchedule({
+        now: new Date(2026, 2, 23, 10, 15, 0, 0).getTime(),
+        dailyBackupTime: '09:30',
+        lastBackupAt: new Date(2026, 2, 22, 9, 30, 0, 0).toISOString(),
+    });
+    const todayTarget = new Date(schedule.todayTargetAt);
+    const nextTarget = new Date(schedule.nextDailyBackupAt);
+
+    assert.equal(schedule.dailyBackupTime, '09:30');
+    assert.equal(schedule.shouldSendNow, true);
+    assert.equal(todayTarget.getHours(), 9);
+    assert.equal(todayTarget.getMinutes(), 30);
+    assert.equal(nextTarget.getHours(), 9);
+    assert.equal(nextTarget.getMinutes(), 30);
+    assert.equal(nextTarget.getDate(), todayTarget.getDate() + 1);
 });
 
 test('formatCommandCatalogMessage keeps manual command guidance in the help text', () => {
@@ -429,11 +451,12 @@ test('formatCommandCatalogMessage renders structured HTML help output', () => {
     const text = formatCommandCatalogMessage();
 
     assert.match(text, /<b>🤖 NMS Telegram 控制台<\/b>/);
-    assert.match(text, /<i>状态摘要查询与巡检触发入口<\/i>/);
+    assert.match(text, /<i>状态摘要查询、巡检与备份入口<\/i>/);
     assert.match(text, /<b>🚀 快速开始<\/b>/);
     assert.match(text, /<b>📊 状态查询<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/status\s+系统状态总览[\s\S]*<\/pre>/);
     assert.match(text, /<b>🔧 运维动作<\/b>/);
     assert.match(text, /<pre>[\s\S]*\/monitor\s+立即执行节点巡检[\s\S]*<\/pre>/);
+    assert.match(text, /<pre>[\s\S]*\/backup\s+立即发送一次加密备份[\s\S]*<\/pre>/);
     assert.doesNotMatch(text, /快捷按钮/);
 });
