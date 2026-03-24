@@ -52,6 +52,19 @@ function calculateMonotonicDelta(current, previous) {
     return current - previous;
 }
 
+function resolveNetworkTrafficTotals(item = {}) {
+    const netTraffic = item?.status?.netTraffic || {};
+    const sentTotal = Number(netTraffic.sent ?? netTraffic.up ?? netTraffic.upload);
+    const recvTotal = Number(netTraffic.recv ?? netTraffic.down ?? netTraffic.download);
+    if (!Number.isFinite(sentTotal) || !Number.isFinite(recvTotal)) {
+        return null;
+    }
+    return {
+        up: safeTrafficTotal(sentTotal),
+        down: safeTrafficTotal(recvTotal),
+    };
+}
+
 function buildThroughputSnapshot(current = {}, previous = null) {
     const currentCheckedAtMs = Date.parse(current?.checkedAt || '');
     const previousCheckedAtMs = Date.parse(previous?.checkedAt || '');
@@ -62,12 +75,26 @@ function buildThroughputSnapshot(current = {}, previous = null) {
     )
         ? Math.max(1, (currentCheckedAtMs - previousCheckedAtMs) / 1000)
         : 0;
+    const currentNetworkTotals = resolveNetworkTrafficTotals(current);
+    const previousNetworkTotals = resolveNetworkTrafficTotals(previous);
+    const currentTotals = currentNetworkTotals && previousNetworkTotals
+        ? currentNetworkTotals
+        : {
+            up: safeTrafficTotal(current?.up),
+            down: safeTrafficTotal(current?.down),
+        };
+    const previousTotals = currentNetworkTotals && previousNetworkTotals
+        ? previousNetworkTotals
+        : {
+            up: safeTrafficTotal(previous?.up),
+            down: safeTrafficTotal(previous?.down),
+        };
     const ready = current?.online === true && previous?.online === true && elapsedSeconds > 0;
     const upPerSecond = ready
-        ? calculateMonotonicDelta(safeTrafficTotal(current?.up), safeTrafficTotal(previous?.up)) / elapsedSeconds
+        ? calculateMonotonicDelta(currentTotals.up, previousTotals.up) / elapsedSeconds
         : 0;
     const downPerSecond = ready
-        ? calculateMonotonicDelta(safeTrafficTotal(current?.down), safeTrafficTotal(previous?.down)) / elapsedSeconds
+        ? calculateMonotonicDelta(currentTotals.down, previousTotals.down) / elapsedSeconds
         : 0;
 
     return {

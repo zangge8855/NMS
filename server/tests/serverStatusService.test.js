@@ -193,6 +193,94 @@ test('collectClusterStatusSnapshot computes throughput deltas from the cached pr
     assert.ok(second.summary.throughput.totalPerSecond > 0);
 });
 
+test('collectClusterStatusSnapshot prefers netTraffic counters over inbound totals for throughput', async () => {
+    let statusCall = 0;
+    const readStatus = async () => {
+        statusCall += 1;
+        return {
+            data: {
+                obj: {
+                    cpu: 10,
+                    mem: { current: 128, total: 256 },
+                    uptime: 300,
+                    xray: { state: 'running', errorMsg: '' },
+                    netTraffic: {
+                        sent: statusCall === 1 ? 1000 : 1300,
+                        recv: statusCall === 1 ? 2000 : 2600,
+                    },
+                },
+            },
+        };
+    };
+    const readInbounds = async () => ({
+        data: {
+            obj: [
+                {
+                    id: 1,
+                    enable: true,
+                    // Deliberately much larger than the network delta so the test
+                    // fails if throughput still follows inbound cumulative totals.
+                    up: statusCall === 1 ? 50_000 : 80_000,
+                    down: statusCall === 1 ? 100_000 : 160_000,
+                },
+            ],
+        },
+    });
+
+    await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: true,
+        servers: [{
+            id: 'srv-net-priority',
+            name: 'Net Priority Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async (path) => {
+                if (path === '/panel/api/inbounds/list') return readInbounds();
+                throw new Error(`unexpected get ${path}`);
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') return readStatus();
+                if (path === '/panel/api/inbounds/onlines') {
+                    return { data: { obj: [] } };
+                }
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const second = await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: true,
+        servers: [{
+            id: 'srv-net-priority',
+            name: 'Net Priority Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async (path) => {
+                if (path === '/panel/api/inbounds/list') return readInbounds();
+                throw new Error(`unexpected get ${path}`);
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') return readStatus();
+                if (path === '/panel/api/inbounds/onlines') {
+                    return { data: { obj: [] } };
+                }
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    assert.equal(second.summary.throughput.ready, true);
+    assert.ok(second.summary.throughput.upPerSecond > 0);
+    assert.ok(second.summary.throughput.downPerSecond > 0);
+    assert.ok(second.summary.throughput.totalPerSecond < 10_000);
+});
+
 test('collectClusterStatusSnapshot exposes fresh panel snapshots for managed realtime summaries', async () => {
     const snapshot = await collectClusterStatusSnapshot({
         force: true,
