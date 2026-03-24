@@ -67,6 +67,30 @@ function normalizeDateInput(value, fallback = null) {
     return date.toISOString();
 }
 
+function hasPositiveRegisteredTrafficTotals(value) {
+    const totals = normalizeRegisteredTotals(value);
+    return Number(totals.upBytes || 0) > 0
+        || Number(totals.downBytes || 0) > 0
+        || Number(totals.totalBytes || 0) > 0;
+}
+
+function hasPositiveServerTrafficTotals(value) {
+    return normalizeServerTotals(value).some((item) => Number(item.totalBytes || 0) > 0);
+}
+
+function resolveTrafficBaselineStatus(meta = {}) {
+    const currentTotalsAt = normalizeDateInput(meta?.currentTotalsAt, null);
+    const hasRegisteredSnapshot = hasRegisteredTotalsSnapshot(meta);
+    const hasServerSnapshot = hasServerTotalsSnapshot(meta);
+    const baselineReady = Boolean(currentTotalsAt && hasRegisteredSnapshot && hasServerSnapshot);
+    return {
+        currentTotalsAt,
+        baselineReady,
+        registeredTotalsReady: baselineReady && hasRegisteredSnapshot,
+        serverTotalsReady: baselineReady && hasServerSnapshot,
+    };
+}
+
 function hasOwn(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
@@ -438,9 +462,15 @@ class TrafficStatsStore {
         ensureDataDir();
         this.samples = loadArray(TRAFFIC_SAMPLES_FILE);
         this.counters = loadObject(TRAFFIC_COUNTERS_FILE, {});
-        const loadedMeta = loadObject(TRAFFIC_META_FILE, { lastCollectionAt: null, registeredTotals: createRegisteredTotals(), serverTotals: [] });
+        const loadedMeta = loadObject(TRAFFIC_META_FILE, {
+            lastCollectionAt: null,
+            currentTotalsAt: null,
+            registeredTotals: createRegisteredTotals(),
+            serverTotals: [],
+        });
         this.meta = {
             ...loadedMeta,
+            currentTotalsAt: normalizeDateInput(loadedMeta.currentTotalsAt, null),
             registeredTotals: hasOwn(loadedMeta, 'registeredTotals')
                 ? normalizeRegisteredTotals(loadedMeta.registeredTotals)
                 : null,
@@ -715,9 +745,10 @@ class TrafficStatsStore {
         const lastCollectionTs = this.meta?.lastCollectionAt
             ? new Date(this.meta.lastCollectionAt).getTime()
             : 0;
+        const baselineStatus = resolveTrafficBaselineStatus(this.meta);
         if (!force
-            && hasRegisteredTotalsSnapshot(this.meta)
-            && hasServerTotalsSnapshot(this.meta)
+            && baselineStatus.registeredTotalsReady
+            && baselineStatus.serverTotalsReady
             && lastCollectionTs
             && (Date.now() - lastCollectionTs) < this._sampleIntervalMs()) {
             return {
@@ -742,6 +773,9 @@ class TrafficStatsStore {
         const warnings = [];
         const newSamples = [];
         const serverPayloads = [];
+        const previousRegisteredTotals = normalizeRegisteredTotals(this.meta?.registeredTotals, buildTrafficUserDirectory(users).totalUsers);
+        const previousServerTotals = normalizeServerTotals(this.meta?.serverTotals);
+        const previousCurrentTotalsAt = normalizeDateInput(this.meta?.currentTotalsAt, null);
 
         await runWithConcurrency(
             servers,
@@ -785,8 +819,20 @@ class TrafficStatsStore {
             this.samples.push(...newSamples);
         }
         this.meta.lastCollectionAt = collectedAtIso;
-        this.meta.registeredTotals = summarizeRegisteredTrafficTotals(users, serverPayloads);
-        this.meta.serverTotals = serverTotals;
+        const hasLiveTotalsSnapshot = servers.length === 0 || serverPayloads.length > 0;
+        if (hasLiveTotalsSnapshot) {
+            this.meta.registeredTotals = summarizeRegisteredTrafficTotals(users, serverPayloads);
+            this.meta.serverTotals = serverTotals;
+            this.meta.currentTotalsAt = collectedAtIso;
+        } else {
+            this.meta.registeredTotals = hasPositiveRegisteredTrafficTotals(previousRegisteredTotals)
+                ? previousRegisteredTotals
+                : normalizeRegisteredTotals(previousRegisteredTotals, buildTrafficUserDirectory(users).totalUsers);
+            this.meta.serverTotals = hasPositiveServerTrafficTotals(previousServerTotals)
+                ? previousServerTotals
+                : normalizeServerTotals(previousServerTotals);
+            this.meta.currentTotalsAt = previousCurrentTotalsAt;
+        }
         this._prune();
         this._persist();
 
@@ -799,8 +845,13 @@ class TrafficStatsStore {
     }
 
     getCollectionStatus() {
+        const baselineStatus = resolveTrafficBaselineStatus(this.meta);
         return {
             lastCollectionAt: this.meta?.lastCollectionAt || null,
+            currentTotalsAt: baselineStatus.currentTotalsAt,
+            baselineReady: baselineStatus.baselineReady,
+            registeredTotalsReady: baselineStatus.registeredTotalsReady,
+            serverTotalsReady: baselineStatus.serverTotalsReady,
             sampleCount: Array.isArray(this.samples) ? this.samples.length : 0,
             collecting: Boolean(this.collectingPromise),
         };
@@ -808,8 +859,9 @@ class TrafficStatsStore {
 
     getOverview(options = {}) {
         const range = this._buildTimeRange(options, { defaultDays: 30 });
-        const top = toPositiveInt(options.top, 10);
+        const top = Math.min(10, toPositiveInt(options.top, 10));
         const samples = this._filterSamples({ fromTs: range.fromTs, toTs: range.toTs });
+        const baselineStatus = resolveTrafficBaselineStatus(this.meta);
 
         const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
         const managedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
@@ -865,12 +917,16 @@ class TrafficStatsStore {
             acc.get(serverId).push(item);
             return acc;
         }, new Map());
+        let topServersReady = false;
         const topServersFromWindow = Array.from(serverSnapshotBuckets.entries())
             .map(([serverId, serverSamples]) => {
                 const points = this._aggregateSnapshotDeltaTrend(serverSamples, 'hour', {
                     fromTs: range.fromTs,
                     toTs: range.toTs,
                 });
+                if (points.length > 0) {
+                    topServersReady = true;
+                }
                 const totals = points.reduce((acc, item) => {
                     acc.upBytes += Number(item?.upBytes || 0);
                     acc.downBytes += Number(item?.downBytes || 0);
@@ -885,9 +941,7 @@ class TrafficStatsStore {
                 });
             })
             .filter((item) => item.totalBytes > 0);
-        const topServers = (topServersFromWindow.length > 0
-            ? topServersFromWindow
-            : normalizeServerTotals(this.meta?.serverTotals))
+        const topServers = topServersFromWindow
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 
@@ -900,10 +954,15 @@ class TrafficStatsStore {
             unattributedTotals,
             totals,
             managedTotals,
+            currentTotalsAt: baselineStatus.currentTotalsAt,
+            baselineReady: baselineStatus.baselineReady,
+            registeredTotalsReady: baselineStatus.registeredTotalsReady,
+            serverTotalsReady: baselineStatus.serverTotalsReady,
             registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),
             serverTotals: normalizeServerTotals(this.meta?.serverTotals),
             topUsers,
             topServers,
+            topServersReady,
             lastCollectionAt: this.meta.lastCollectionAt || null,
         };
     }
@@ -1006,6 +1065,7 @@ class TrafficStatsStore {
         this.meta = snapshot?.meta && typeof snapshot.meta === 'object' && !Array.isArray(snapshot.meta)
             ? {
                 ...snapshot.meta,
+                currentTotalsAt: normalizeDateInput(snapshot?.meta?.currentTotalsAt, null),
                 registeredTotals: hasOwn(snapshot.meta, 'registeredTotals')
                     ? normalizeRegisteredTotals(snapshot?.meta?.registeredTotals)
                     : null,
@@ -1013,7 +1073,12 @@ class TrafficStatsStore {
                     ? normalizeServerTotals(snapshot?.meta?.serverTotals)
                     : null,
             }
-            : { lastCollectionAt: null, registeredTotals: createRegisteredTotals(), serverTotals: [] };
+            : {
+                lastCollectionAt: null,
+                currentTotalsAt: null,
+                registeredTotals: createRegisteredTotals(),
+                serverTotals: [],
+            };
         this._prune();
     }
 }

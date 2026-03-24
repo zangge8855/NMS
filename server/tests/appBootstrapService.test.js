@@ -16,10 +16,23 @@ describe('app bootstrap service', () => {
     });
 
     it('returns cached admin summaries for admin users', async () => {
-        const payload = await buildAppBootstrapPayload({
-            role: 'admin',
-            userId: 'admin-1',
+        const originalCollectIfStale = trafficStatsStore.collectIfStale;
+        trafficStatsStore.collectIfStale = async () => ({
+            collected: false,
+            lastCollectionAt: null,
+            samplesAdded: 0,
+            warnings: [],
         });
+
+        let payload;
+        try {
+            payload = await buildAppBootstrapPayload({
+                role: 'admin',
+                userId: 'admin-1',
+            });
+        } finally {
+            trafficStatsStore.collectIfStale = originalCollectIfStale;
+        }
 
         assert.equal(typeof payload.issuedAt, 'string');
         assert.ok(payload.serverContext);
@@ -48,9 +61,49 @@ describe('app bootstrap service', () => {
 
     it('builds audit traffic bootstrap with an explicit top-10 limit', async () => {
         const originalGetOverview = trafficStatsStore.getOverview.bind(trafficStatsStore);
+        const originalCollectIfStale = trafficStatsStore.collectIfStale;
         const recordedOptions = [];
         trafficStatsStore.getOverview = (options = {}) => {
             recordedOptions.push(options);
+            return originalGetOverview(options);
+        };
+        trafficStatsStore.collectIfStale = async () => ({
+            collected: false,
+            lastCollectionAt: null,
+            samplesAdded: 0,
+            warnings: [],
+        });
+
+        try {
+            await buildAppBootstrapPayload({
+                role: 'admin',
+                userId: 'admin-1',
+            });
+        } finally {
+            trafficStatsStore.getOverview = originalGetOverview;
+            trafficStatsStore.collectIfStale = originalCollectIfStale;
+        }
+
+        assert.ok(recordedOptions.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
+        assert.ok(recordedOptions.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
+    });
+
+    it('waits for traffic sampling before reading admin traffic bootstrap snapshots', async () => {
+        const originalCollectIfStale = trafficStatsStore.collectIfStale;
+        const originalGetOverview = trafficStatsStore.getOverview.bind(trafficStatsStore);
+        let collected = false;
+
+        trafficStatsStore.collectIfStale = async () => {
+            collected = true;
+            return {
+                collected: true,
+                lastCollectionAt: '2026-03-24T00:10:00.000Z',
+                samplesAdded: 1,
+                warnings: [],
+            };
+        };
+        trafficStatsStore.getOverview = (options = {}) => {
+            assert.equal(collected, true);
             return originalGetOverview(options);
         };
 
@@ -60,10 +113,8 @@ describe('app bootstrap service', () => {
                 userId: 'admin-1',
             });
         } finally {
+            trafficStatsStore.collectIfStale = originalCollectIfStale;
             trafficStatsStore.getOverview = originalGetOverview;
         }
-
-        assert.ok(recordedOptions.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
-        assert.ok(recordedOptions.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
     });
 });

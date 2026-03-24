@@ -565,6 +565,94 @@ describe('AuditCenter localization', () => {
         expect(within(samplePointsCard).getByText('12')).toBeInTheDocument();
     });
 
+    it('does not mark traffic sampling as ready when the latest collection did not produce a usable baseline', async () => {
+        const never = new Promise(() => {});
+
+        api.get.mockImplementation((url) => {
+            if (url === '/traffic/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: null,
+                            baselineReady: false,
+                            sampleCount: 12,
+                            collecting: false,
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/overview?')) {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/traffic/status');
+        });
+
+        const statusCard = screen.getByText('采样状态').closest('.audit-traffic-mini-card');
+        if (!statusCard) {
+            throw new Error('Missing traffic status card');
+        }
+
+        expect(within(statusCard).getByText('暂无数据')).toBeInTheDocument();
+        expect(within(statusCard).queryByText('已就绪')).not.toBeInTheDocument();
+    });
+
+    it('explains when top node rankings are still waiting for windowed snapshot samples', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/traffic/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                            baselineReady: true,
+                            sampleCount: 12,
+                            collecting: false,
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                            baselineReady: true,
+                            sampleCount: 12,
+                            activeUsers: 1,
+                            userLevelSupported: true,
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                            topUsers: [],
+                            topServers: [],
+                            topServersReady: false,
+                            collection: {
+                                warnings: [],
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        expect(await screen.findAllByText('节点排行样本不足')).toHaveLength(2);
+        expect(screen.getByText('当前窗口内缺少足够的节点快照增量，暂时无法生成节点趋势。')).toBeInTheDocument();
+        expect(screen.getByText('当前窗口内缺少足够的节点快照增量，先刷新采样后再查看 Top 节点和节点趋势。')).toBeInTheDocument();
+    });
+
     it('keeps the cached subscription summary visible when live access hydration fails', async () => {
         window.sessionStorage.setItem('nms_session_snapshot:audit_access_v1', JSON.stringify({
             savedAt: Date.now(),

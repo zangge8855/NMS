@@ -190,10 +190,11 @@ function normalizeTrafficWindowPayload(windows = {}) {
             .map((key) => windows?.[key])
             .find(Boolean) || {};
         const totals = payload?.managedTotals || payload?.totals || payload;
+        const sampleCount = Number(payload?.sampleCount || 0);
         return {
             totalUp: Number(totals?.upBytes || 0),
             totalDown: Number(totals?.downBytes || 0),
-            ready: true,
+            ready: payload?.ready === true || payload?.baselineReady === true || sampleCount > 0,
         };
     };
 

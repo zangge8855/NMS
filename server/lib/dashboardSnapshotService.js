@@ -390,12 +390,17 @@ function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
     const liveServerPayloads = buildLiveServerPayloads(deps.panelSnapshots || []);
     const overview = trafficStatsStoreRef.getOverview(options);
     const baseTotals = overview?.managedTotals || overview?.totals || { upBytes: 0, downBytes: 0 };
+    const hasWindowSamples = Number(overview?.sampleCount || 0) > 0;
+    const baselineReady = overview?.baselineReady === true;
+    const canOverlayRealtimeTraffic = liveServerPayloads.length > 0
+        && baselineReady
+        && shouldOverlayRealtimeTraffic(overview);
 
-    if (liveServerPayloads.length === 0 || !shouldOverlayRealtimeTraffic(overview)) {
+    if (!canOverlayRealtimeTraffic) {
         return {
             totalUp: Number(baseTotals?.upBytes || 0),
             totalDown: Number(baseTotals?.downBytes || 0),
-            ready: true,
+            ready: hasWindowSamples,
         };
     }
 

@@ -77,6 +77,35 @@ test('getBackupStatus exposes the latest Telegram backup delivery metadata', () 
     assert.equal(status.lastTelegramBackup.reason, 'daily');
 });
 
+test('recordTelegramBackupMeta persists Telegram backup delivery metadata to the configured status file', () => {
+    resetBackupStatusForTests();
+    const backupDir = createTempBackupDir();
+    const backupStatusFile = path.join(backupDir, 'system_backup_status.json');
+
+    try {
+        recordTelegramBackupMeta({
+            status: 'sent',
+            ts: '2026-03-21T08:00:00.000Z',
+            filename: 'nms_backup_20260321.nmsbak',
+            bytes: 2048,
+            storeKeys: ['users', 'servers'],
+            reason: 'daily',
+            actor: 'system',
+            chatIdPreview: '********7890',
+        }, buildDeps({ backupStatusFile }));
+
+        const persisted = JSON.parse(fs.readFileSync(backupStatusFile, 'utf8'));
+        const status = getBackupStatus(buildDeps({ backupStatusFile }));
+
+        assert.equal(persisted.lastTelegramBackup.ts, '2026-03-21T08:00:00.000Z');
+        assert.equal(persisted.lastTelegramBackup.reason, 'daily');
+        assert.equal(status.lastTelegramBackup.filename, 'nms_backup_20260321.nmsbak');
+    } finally {
+        resetBackupStatusForTests(buildDeps({ backupStatusFile }));
+        fs.rmSync(backupDir, { recursive: true, force: true });
+    }
+});
+
 test('inspectBackupArchive returns restorable metadata from a backup buffer', () => {
     resetBackupStatusForTests();
     const { buffer } = createBackupArchive({ keys: ['users'] }, buildDeps());

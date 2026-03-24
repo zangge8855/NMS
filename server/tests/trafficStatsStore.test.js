@@ -16,6 +16,7 @@ const {
     summarizeServerTrafficTotals,
 } = await import('../store/trafficStatsStore.js');
 const userStore = (await import('../store/userStore.js')).default;
+const serverStore = (await import('../store/serverStore.js')).default;
 
 function maskEmail(value) {
     const normalized = String(value || '').trim().toLowerCase();
@@ -242,7 +243,7 @@ describe('traffic stats inbound fallback', () => {
         }
     });
 
-    it('falls back to current inbound-based server totals for top node ranking when no snapshot history exists', () => {
+    it('returns an empty top node ranking when no windowed server snapshot history exists', () => {
         const serverTotals = summarizeServerTrafficTotals([
             {
                 serverId: 'server-a',
@@ -309,11 +310,11 @@ describe('traffic stats inbound fallback', () => {
         });
 
         const overview = store.getOverview({ days: 30, top: 10 });
-        assert.equal(overview.topServers.length, 2);
-        assert.equal(overview.topServers[0].serverId, 'server-b');
-        assert.equal(overview.topServers[0].totalBytes, 1000);
-        assert.equal(overview.topServers[1].serverId, 'server-a');
-        assert.equal(overview.topServers[1].totalBytes, 200);
+        assert.equal(overview.topServers.length, 0);
+        assert.equal(overview.topServersReady, false);
+        assert.equal(overview.serverTotals.length, 2);
+        assert.equal(overview.serverTotals[0].serverId, 'server-a');
+        assert.equal(overview.serverTotals[1].serverId, 'server-b');
         assert.equal(overview.totals.totalBytes, 30);
     });
 
@@ -390,6 +391,141 @@ describe('traffic stats inbound fallback', () => {
         assert.equal(overview.topServers[0].totalBytes, 160);
         assert.equal(overview.topServers[1].serverId, 'server-b');
         assert.equal(overview.topServers[1].totalBytes, 60);
+    });
+
+    it('clamps top node ranking responses to the top 10 entries', () => {
+        const store = new TrafficStatsStore();
+        const samples = Array.from({ length: 12 }, (_, index) => {
+            const serverIndex = index + 1;
+            return [
+                {
+                    id: `snapshot-${serverIndex}-1`,
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T00:05:00.000Z',
+                    serverId: `server-${serverIndex}`,
+                    serverName: `Node ${serverIndex}`,
+                    upBytes: 100,
+                    downBytes: 50,
+                    totalBytes: 150,
+                },
+                {
+                    id: `snapshot-${serverIndex}-2`,
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T01:05:00.000Z',
+                    serverId: `server-${serverIndex}`,
+                    serverName: `Node ${serverIndex}`,
+                    upBytes: 100 + (serverIndex * 10),
+                    downBytes: 50 + (serverIndex * 20),
+                    totalBytes: 150 + (serverIndex * 30),
+                },
+            ];
+        }).flat();
+
+        store.importState({
+            samples,
+            counters: {},
+            meta: {
+                lastCollectionAt: '2026-03-13T01:05:00.000Z',
+                currentTotalsAt: '2026-03-13T01:05:00.000Z',
+                registeredTotals: {
+                    totalUsers: 0,
+                    activeUsers: 0,
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                },
+                serverTotals: [],
+            },
+        });
+
+        const overview = store.getOverview({
+            from: '2026-03-13T00:00:00.000Z',
+            to: '2026-03-13T02:00:00.000Z',
+            top: 99,
+        });
+
+        assert.equal(overview.topServersReady, true);
+        assert.equal(overview.topServers.length, 10);
+        assert.equal(overview.topServers[0].serverId, 'server-12');
+        assert.equal(overview.topServers[9].serverId, 'server-3');
+    });
+
+    it('preserves the previous baseline totals when a collection cannot fetch any live server payloads', async () => {
+        const originalUsers = userStore.exportState();
+        const originalGetAll = serverStore.getAll;
+        const store = new TrafficStatsStore();
+
+        userStore.importState({
+            users: [
+                {
+                    id: 'user-1',
+                    username: 'alice',
+                    email: 'alice@example.com',
+                    subscriptionEmail: 'alice@example.com',
+                    role: 'user',
+                    enabled: true,
+                    passwordHash: 'hash',
+                    passwordSalt: 'salt',
+                    createdAt: '2026-03-01T00:00:00.000Z',
+                },
+            ],
+        });
+        serverStore.getAll = () => [
+            { id: 'server-a', name: 'Node A' },
+        ];
+
+        store.importState({
+            samples: [],
+            counters: {},
+            meta: {
+                lastCollectionAt: '2026-03-13T00:00:00.000Z',
+                currentTotalsAt: '2026-03-13T00:00:00.000Z',
+                registeredTotals: {
+                    totalUsers: 1,
+                    activeUsers: 1,
+                    upBytes: 100,
+                    downBytes: 200,
+                    totalBytes: 300,
+                },
+                serverTotals: [
+                    {
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        upBytes: 400,
+                        downBytes: 500,
+                        totalBytes: 900,
+                    },
+                ],
+            },
+        });
+
+        const originalCollectFromServer = store._collectFromServer.bind(store);
+        store._collectFromServer = async () => ({
+            samples: [],
+            warning: {
+                serverId: 'server-a',
+                server: 'Node A',
+                reason: 'panel unavailable',
+            },
+            inbounds: null,
+        });
+
+        try {
+            const result = await store.collectIfStale(true);
+            const overview = store.getOverview({ days: 30, top: 10 });
+            const status = store.getCollectionStatus();
+
+            assert.equal(result.collected, true);
+            assert.equal(overview.baselineReady, true);
+            assert.equal(overview.registeredTotals.totalBytes, 300);
+            assert.equal(overview.serverTotals[0].totalBytes, 900);
+            assert.equal(status.currentTotalsAt, '2026-03-13T00:00:00.000Z');
+            assert.notEqual(status.lastCollectionAt, '2026-03-13T00:00:00.000Z');
+        } finally {
+            store._collectFromServer = originalCollectFromServer;
+            serverStore.getAll = originalGetAll;
+            userStore.importState(originalUsers);
+        }
     });
 
     it('builds server trend from snapshot deltas aggregated into each bucket', () => {

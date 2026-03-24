@@ -47,6 +47,16 @@ function buildExternalUrl(baseUrl, format, configUrl) {
     return `${baseUrl}/${format}?${params.toString()}`;
 }
 
+function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+
 describe('Subscriptions', () => {
     const confirmMock = vi.fn();
 
@@ -543,5 +553,93 @@ describe('Subscriptions', () => {
         expect(screen.queryByLabelText('确认新密码')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '修改登录密码' })).not.toBeInTheDocument();
         expect(api.put).not.toHaveBeenCalled();
+    });
+
+    it('ignores a stale all-nodes subscription response after the admin switches scope', async () => {
+        const user = userEvent.setup();
+        const allNodesDeferred = deferred();
+
+        window.sessionStorage.setItem('nms_session_snapshot:subscriptions_center_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                users: ['admin@example.com'],
+                usersAccessDenied: false,
+                selectedEmail: 'admin@example.com',
+                selectedServerId: 'all',
+                profileKey: 'v2rayn',
+                subscriptionEmail: 'admin@example.com',
+                subscriptionServerId: '',
+                subscriptionPayload: null,
+            },
+        }));
+
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                subscriptionEmail: '',
+            },
+        });
+        useServer.mockReturnValue({
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+                { id: 'server-b', name: 'Node B' },
+            ],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            users: ['admin@example.com'],
+                            warnings: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/subscriptions/admin%40example.com') {
+                return allNodesDeferred.promise;
+            }
+            if (url === '/subscriptions/admin%40example.com?serverId=server-b') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'admin@example.com',
+                            total: 1,
+                            subscriptionActive: true,
+                            subscriptionUrl: 'https://sub.example.com/server-b',
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Subscriptions />);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/subscriptions/admin%40example.com');
+        });
+
+        await user.selectOptions(screen.getAllByRole('combobox')[1], 'server-b');
+
+        expect(await screen.findByDisplayValue('https://sub.example.com/server-b')).toBeInTheDocument();
+
+        allNodesDeferred.resolve({
+            data: {
+                obj: {
+                    email: 'admin@example.com',
+                    total: 2,
+                    subscriptionActive: true,
+                    subscriptionUrl: 'https://sub.example.com/all',
+                },
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('https://sub.example.com/server-b')).toBeInTheDocument();
+            expect(screen.queryByDisplayValue('https://sub.example.com/all')).not.toBeInTheDocument();
+            expect(screen.getByText('查看范围: 节点 server-b · 已匹配 0/0')).toBeInTheDocument();
+        });
     });
 });

@@ -1,7 +1,9 @@
 import React from 'react';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import api from '../../api/client.js';
+import { LanguageProvider } from '../../contexts/LanguageContext.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
@@ -65,6 +67,22 @@ vi.mock('react-hot-toast', () => ({
         success: vi.fn(),
     },
 }));
+
+function renderInbounds() {
+    return render(
+        <MemoryRouter
+            future={{
+                v7_relativeSplatPath: true,
+                v7_startTransition: true,
+            }}
+            initialEntries={['/']}
+        >
+            <LanguageProvider>
+                <Inbounds />
+            </LanguageProvider>
+        </MemoryRouter>
+    );
+}
 
 describe('Inbounds', () => {
     beforeEach(() => {
@@ -595,6 +613,123 @@ describe('Inbounds', () => {
                     password: '',
                 }],
             });
+        });
+    });
+
+    it('ignores stale inbound snapshots after the server inventory changes', async () => {
+        const serverState = {
+            servers: [{ id: 'server-a', name: 'Node A' }],
+            activeServerId: undefined,
+        };
+        let resolveServerAList;
+
+        useServer.mockImplementation(() => serverState);
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return new Promise((resolve) => {
+                    resolveServerAList = resolve;
+                });
+            }
+            if (url === '/panel/server-b/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 9,
+                            remark: 'Beta Inbound',
+                            protocol: 'vmess',
+                            listen: '0.0.0.0',
+                            port: 8443,
+                            enable: true,
+                            up: 0,
+                            down: 0,
+                            settings: JSON.stringify({ clients: [] }),
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines' || url === '/panel/server-b/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: [],
+                    },
+                });
+            }
+            if (url === '/system/batch-risk-token') {
+                return Promise.resolve({
+                    data: {
+                        obj: { required: false },
+                    },
+                });
+            }
+            if (url === '/batch/clients') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            summary: { success: 1, total: 1, failed: 0 },
+                            results: [],
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        const view = renderInbounds();
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/panel/server-a/panel/api/inbounds/list');
+        });
+
+        serverState.servers = [{ id: 'server-b', name: 'Node B' }];
+        view.rerender(
+            <MemoryRouter
+                future={{
+                    v7_relativeSplatPath: true,
+                    v7_startTransition: true,
+                }}
+                initialEntries={['/']}
+            >
+                <LanguageProvider>
+                    <Inbounds />
+                </LanguageProvider>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText('Beta Inbound')).toBeInTheDocument();
+
+        resolveServerAList({
+            data: {
+                obj: [{
+                    id: 1,
+                    remark: 'Alpha Inbound',
+                    protocol: 'vless',
+                    listen: '0.0.0.0',
+                    port: 443,
+                    enable: true,
+                    up: 0,
+                    down: 0,
+                    settings: JSON.stringify({ clients: [] }),
+                }],
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Beta Inbound')).toBeInTheDocument();
+            expect(screen.queryByText('Alpha Inbound')).not.toBeInTheDocument();
         });
     });
 });

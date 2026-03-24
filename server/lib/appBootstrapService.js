@@ -118,6 +118,14 @@ function buildAuditBootstrap() {
     };
 }
 
+async function ensureTrafficBootstrapSamples() {
+    try {
+        await trafficStatsStore.collectIfStale(false);
+    } catch {
+        // Bootstrap should still render with the latest persisted traffic snapshot.
+    }
+}
+
 async function buildDbStatusBootstrap() {
     const supportedModes = getSupportedModes();
     const status = getSnapshotStatus();
@@ -304,6 +312,7 @@ export async function buildAppBootstrapPayload(user = null) {
         unreadCount: notificationService.unreadCount(),
         loadedLimit: INITIAL_NOTIFICATION_LIMIT,
     };
+    await ensureTrafficBootstrapSamples();
     payload.dashboard = buildDashboardSnapshot(telemetryOverview);
     payload.audit = buildAuditBootstrap();
     payload.systemSettings = await buildSystemSettingsBootstrap();

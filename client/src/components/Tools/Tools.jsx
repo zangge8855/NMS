@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -50,6 +50,8 @@ export default function Tools() {
     const navigate = useNavigate();
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
     const cachedState = hasTargetServer ? readToolsSnapshot(activeServerId) : null;
+    const toolsCatalogRequestIdRef = useRef(0);
+    const toolExecutionRequestIdRef = useRef(0);
     const [results, setResults] = useState(() => cachedState?.results || {});
     const [loading, setLoading] = useState({});
     const [catalogLoading, setCatalogLoading] = useState(() => hasTargetServer && cachedState == null);
@@ -100,37 +102,47 @@ export default function Tools() {
 
     const fetchCatalog = async (options = {}) => {
         if (!hasTargetServer) {
+            toolsCatalogRequestIdRef.current += 1;
             setTools([]);
             return;
         }
         const preserveCurrent = options.preserveCurrent === true;
+        const requestId = toolsCatalogRequestIdRef.current + 1;
+        toolsCatalogRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setCatalogLoading(true);
         }
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
+            if (requestId !== toolsCatalogRequestIdRef.current) return;
             const entries = Object.values(res.data?.obj?.tools || {})
                 .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
                 .filter((item) => item.supportedByNms === true);
             setTools(entries);
         } catch (error) {
+            if (requestId !== toolsCatalogRequestIdRef.current) return;
             const msg = error.response?.data?.msg || error.message || copy.catalogLoadFailed;
             toast.error(msg);
             if (!preserveCurrent) {
                 setTools([]);
             }
         } finally {
-            setCatalogLoading(false);
+            if (requestId === toolsCatalogRequestIdRef.current) {
+                setCatalogLoading(false);
+            }
         }
     };
 
     useEffect(() => {
         if (!hasTargetServer) {
+            toolsCatalogRequestIdRef.current += 1;
+            toolExecutionRequestIdRef.current += 1;
             setResults({});
             setTools([]);
             setCatalogLoading(false);
             return;
         }
+        toolExecutionRequestIdRef.current += 1;
         const snapshot = readToolsSnapshot(activeServerId);
         setResults(snapshot?.results || {});
         setTools(snapshot?.tools || []);
@@ -159,18 +171,24 @@ export default function Tools() {
             toast.error(copy.selectServerFirst);
             return;
         }
+        const requestId = toolExecutionRequestIdRef.current + 1;
+        toolExecutionRequestIdRef.current = requestId;
         setLoading((prev) => ({ ...prev, [tool.key]: true }));
         try {
             const method = tool.method || 'get';
             const res = await panelApi(method, tool.path);
+            if (requestId !== toolExecutionRequestIdRef.current) return;
             setResults((prev) => ({
                 ...prev,
                 [tool.key]: formatToolValue(res.data?.obj),
             }));
         } catch (error) {
+            if (requestId !== toolExecutionRequestIdRef.current) return;
             toast.error(error.response?.data?.msg || error.message || copy.executeFailed);
         }
-        setLoading((prev) => ({ ...prev, [tool.key]: false }));
+        if (requestId === toolExecutionRequestIdRef.current) {
+            setLoading((prev) => ({ ...prev, [tool.key]: false }));
+        }
     };
 
     const handleCopy = async (text) => {

@@ -78,6 +78,7 @@ function buildDashboardTrafficWindows(panelSnapshots = []) {
         },
         activeUsers: 0,
         lastCollectionAt: '',
+        ready: window?.ready === true,
     });
 
     return {

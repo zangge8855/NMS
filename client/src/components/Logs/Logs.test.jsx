@@ -210,4 +210,88 @@ describe('Logs', () => {
             expect(screen.getByText(/upstream failed/)).toBeInTheDocument();
         });
     });
+
+    it('ignores stale global log results after the selection changes', async () => {
+        const user = userEvent.setup();
+        let globalRequestCount = 0;
+        let resolveInitialLogs;
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            activeServer: null,
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+                { id: 'server-b', name: 'Node B' },
+            ],
+        });
+        api.get.mockImplementation((url, options) => {
+            if (url !== '/servers/logs/snapshot') {
+                throw new Error(`Unexpected GET ${url}`);
+            }
+
+            globalRequestCount += 1;
+            const serverIds = String(options?.params?.serverIds || '');
+            if (globalRequestCount === 1) {
+                return new Promise((resolve) => {
+                    resolveInitialLogs = resolve;
+                });
+            }
+            if (serverIds === 'server-a') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [
+                                {
+                                    serverId: 'server-a',
+                                    serverName: 'Node A',
+                                    lines: ['2026-03-09T00:00:00Z [info] fresh node-a line'],
+                                    supported: true,
+                                },
+                            ],
+                        },
+                    },
+                });
+            }
+
+            throw new Error(`Unexpected serverIds ${serverIds}`);
+        });
+
+        renderWithRouter(<Logs embedded />);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledTimes(1);
+        });
+
+        await user.click(screen.getByRole('button', { name: '清空' }));
+        await user.click(screen.getByLabelText('Node A'));
+
+        expect(await screen.findByText(/fresh node-a line/)).toBeInTheDocument();
+
+        resolveInitialLogs({
+            data: {
+                obj: {
+                    items: [
+                        {
+                            serverId: 'server-a',
+                            serverName: 'Node A',
+                            lines: ['2026-03-09T00:00:00Z [info] stale node-a line'],
+                            supported: true,
+                        },
+                        {
+                            serverId: 'server-b',
+                            serverName: 'Node B',
+                            lines: ['2026-03-09T00:00:01Z [warning] stale node-b line'],
+                            supported: true,
+                        },
+                    ],
+                },
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText(/fresh node-a line/)).toBeInTheDocument();
+            expect(screen.queryByText(/stale node-a line/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/stale node-b line/)).not.toBeInTheDocument();
+        });
+    });
 });

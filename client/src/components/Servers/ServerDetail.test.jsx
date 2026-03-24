@@ -75,6 +75,50 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
+function buildServerSnapshot({
+    name = 'Test Server',
+    inboundBytes = 0,
+    onlines = [],
+} = {}) {
+    return {
+        data: {
+            success: true,
+            obj: {
+                server: {
+                    id: 'server-1',
+                    name,
+                    url: 'http://127.0.0.1:20530',
+                    username: 'nmsadmin',
+                    environment: 'staging',
+                    group: 'edge',
+                    health: 'healthy',
+                    tags: [],
+                    basePath: '/',
+                },
+                status: {
+                    cpu: 12.5,
+                    mem: { current: 1024, total: 2048 },
+                    uptime: 600,
+                    xray: { version: '1.8.13' },
+                },
+                inbounds: inboundBytes > 0 ? [
+                    {
+                        id: 'ib-1',
+                        remark: 'JP Relay',
+                        protocol: 'vless',
+                        port: 443,
+                        enable: true,
+                        settings: JSON.stringify({ clients: [{ id: 'uuid-1' }] }),
+                        up: inboundBytes / 2,
+                        down: inboundBytes / 2,
+                    },
+                ] : [],
+                onlines,
+            },
+        },
+    };
+}
+
 describe('ServerDetail', () => {
     beforeEach(() => {
         window.sessionStorage.clear();
@@ -266,5 +310,58 @@ describe('ServerDetail', () => {
         await user.click(screen.getByRole('button', { name: '在线用户' }));
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/ })).toBeInTheDocument();
+    });
+
+    it('ignores a stale online snapshot after a newer online refresh completes', async () => {
+        const user = userEvent.setup();
+        const staleOnlineDeferred = deferred();
+        const latestOnlineDeferred = deferred();
+        let snapshotCallCount = 0;
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                snapshotCallCount += 1;
+                if (snapshotCallCount === 1) {
+                    return Promise.resolve(buildServerSnapshot({ inboundBytes: 1024, onlines: [] }));
+                }
+                if (snapshotCallCount === 2) {
+                    return staleOnlineDeferred.promise;
+                }
+                if (snapshotCallCount === 3) {
+                    return latestOnlineDeferred.promise;
+                }
+            }
+            if (url === '/audit/events') {
+                return Promise.resolve({ data: { obj: { items: [] } } });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        await screen.findByText('服务器 · Test Server');
+
+        await user.click(screen.getByRole('button', { name: '在线用户' }));
+        await user.click(screen.getAllByRole('button', { name: '刷新' })[1]);
+
+        latestOnlineDeferred.resolve(buildServerSnapshot({
+            inboundBytes: 4096,
+            onlines: ['alice@example.com', 'alice@example.com'],
+        }));
+
+        expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
+
+        staleOnlineDeferred.resolve(buildServerSnapshot({
+            inboundBytes: 1024,
+            onlines: [],
+        }));
+
+        await waitFor(() => {
+            const onlineCard = screen.getAllByText('在线用户')[0].closest('.stat-mini-card');
+            const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');
+            expect(onlineCard?.querySelector('.stat-mini-value')?.textContent).toBe('1 / 2 会话');
+            expect(trafficCard?.querySelector('.stat-mini-value')?.textContent).toBe('4 KB');
+            expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+        });
     });
 });

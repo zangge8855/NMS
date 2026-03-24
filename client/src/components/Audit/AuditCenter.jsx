@@ -176,8 +176,11 @@ const AUDIT_COPY = {
             selectServer: '请选择节点',
             userLevelUnsupported: '当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。',
             userLevelNoCounts: '当前节点列表未提供用户级流量计数。',
+            serverTrendPending: '当前窗口内缺少足够的节点快照增量，暂时无法生成节点趋势。',
             topUsers: '流量 Top 用户',
             topServers: '流量 Top 节点',
+            topServersPendingTitle: '节点排行样本不足',
+            topServersPendingSubtitle: '当前窗口内缺少足够的节点快照增量，先刷新采样后再查看 Top 节点和节点趋势。',
             pv: '访问次数 (PV)',
             uv: '独立 IP (UV)',
             uniqueUsers: '访问用户数',
@@ -358,8 +361,11 @@ const AUDIT_COPY = {
             selectServer: 'Select a node',
             userLevelUnsupported: 'Current 3x-ui data only supports node-level traffic and does not provide per-user traffic details.',
             userLevelNoCounts: 'Current nodes do not provide per-user traffic counters.',
+            serverTrendPending: 'The current window does not have enough node snapshot deltas to build a node trend yet.',
             topUsers: 'Top Users by Traffic',
             topServers: 'Top Nodes by Traffic',
+            topServersPendingTitle: 'Node ranking is still sampling',
+            topServersPendingSubtitle: 'The current window does not have enough node snapshot deltas yet. Refresh sampling before checking top nodes and node trends.',
             pv: 'Page Views (PV)',
             uv: 'Unique IPs (UV)',
             uniqueUsers: 'Visited Users',
@@ -465,10 +471,19 @@ function normalizeTrafficStatus(status = null, overview = null) {
     const statusPayload = status && typeof status === 'object' ? status : {};
     const overviewPayload = overview && typeof overview === 'object' ? overview : {};
     const sampleCount = Number(statusPayload?.sampleCount ?? overviewPayload?.sampleCount ?? 0);
+    const currentTotalsAt = String(
+        statusPayload?.currentTotalsAt
+        || overviewPayload?.currentTotalsAt
+        || ''
+    ).trim();
+    const baselineReady = statusPayload?.baselineReady === true || overviewPayload?.baselineReady === true;
     return {
         lastCollectionAt: String(statusPayload?.lastCollectionAt || overviewPayload?.lastCollectionAt || '').trim(),
+        currentTotalsAt,
+        sampledAt: currentTotalsAt,
         sampleCount: Number.isFinite(sampleCount) && sampleCount >= 0 ? sampleCount : 0,
         collecting: statusPayload?.collecting === true,
+        baselineReady,
     };
 }
 
@@ -1489,6 +1504,7 @@ export default function AuditCenter() {
         : 0;
     const trafficWeeklyActiveUsers = Number(trafficWindows.week?.activeUsers || 0);
     const trafficMonthlyActiveUsers = Number((trafficWindows.month || trafficOverview)?.activeUsers || 0);
+    const topServersPending = topServers.length === 0 && trafficOverview?.topServersReady === false;
     const activeEventFilterCount = useMemo(() => countActiveFilters(eventFilters), [eventFilters]);
     const activeAccessFilterCount = useMemo(() => countActiveFilters(accessFilters), [accessFilters]);
     const selectedTrafficUser = useMemo(
@@ -1788,9 +1804,9 @@ export default function AuditCenter() {
                                     <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
                                 </div>
                                 <div className="audit-traffic-overview-actions">
-                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficStatus?.lastCollectionAt, locale)}>
+                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficStatus?.sampledAt, locale)}>
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
-                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.lastCollectionAt, locale)}</span>
+                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.sampledAt, locale)}</span>
                                     </div>
                                     <select
                                         className="form-select w-130"
@@ -1838,11 +1854,11 @@ export default function AuditCenter() {
                                         <div className="audit-traffic-mini-value">
                                             {trafficStatus.collecting
                                                 ? copy.workspace.loading
-                                                : (trafficStatus.lastCollectionAt ? copy.workspace.ready : copy.states.noData)}
+                                                : (trafficStatus.baselineReady ? copy.workspace.ready : copy.states.noData)}
                                         </div>
                                         <div className="audit-traffic-mini-note">
-                                            {trafficStatus.lastCollectionAt
-                                                ? formatDateTime(trafficStatus.lastCollectionAt, locale)
+                                            {trafficStatus.sampledAt
+                                                ? formatDateTime(trafficStatus.sampledAt, locale)
                                                 : copy.workspace.dataWindowTraffic}
                                         </div>
                                     </div>
@@ -1935,17 +1951,28 @@ export default function AuditCenter() {
                                         {selectedTrafficServer?.serverName || copy.workspace.noServerSelected}
                                     </span>
                                 </div>
-                                <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={serverTrend.points || []}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
-                                            <YAxis />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
-                                            <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                {topServersPending ? (
+                                    <div className="p-4">
+                                        <EmptyState
+                                            title={copy.traffic.topServersPendingTitle}
+                                            subtitle={copy.traffic.serverTrendPending}
+                                            size="compact"
+                                            hideIcon
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="dashboard-chart audit-chart-body">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={serverTrend.points || []}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                                                <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
+                                                <YAxis />
+                                                <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
+                                                <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -2001,7 +2028,12 @@ export default function AuditCenter() {
                                 />
                                 {topServers.length === 0 ? (
                                     <div className="p-4">
-                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
+                                        <EmptyState
+                                            title={topServersPending ? copy.traffic.topServersPendingTitle : copy.states.noData}
+                                            subtitle={topServersPending ? copy.traffic.topServersPendingSubtitle : undefined}
+                                            size="compact"
+                                            hideIcon
+                                        />
                                     </div>
                                 ) : (
                                     <div className="table-container audit-nested-table-shell">

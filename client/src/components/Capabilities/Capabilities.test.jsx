@@ -1,9 +1,11 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { renderWithRouter } from '../../test/render.jsx';
 import Capabilities from './Capabilities.jsx';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
+import { LanguageProvider } from '../../contexts/LanguageContext.jsx';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -24,6 +26,22 @@ vi.mock('react-hot-toast', () => ({
         error: vi.fn(),
     },
 }));
+
+function renderCapabilities() {
+    return render(
+        <MemoryRouter
+            future={{
+                v7_relativeSplatPath: true,
+                v7_startTransition: true,
+            }}
+            initialEntries={['/']}
+        >
+            <LanguageProvider>
+                <Capabilities />
+            </LanguageProvider>
+        </MemoryRouter>
+    );
+}
 
 describe('Capabilities', () => {
     beforeEach(() => {
@@ -159,5 +177,86 @@ describe('Capabilities', () => {
         expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
         expect(screen.getByText('No matrix entries')).toBeInTheDocument();
         expect(screen.getByText('No tool entries')).toBeInTheDocument();
+    });
+
+    it('ignores stale capability results after switching to another node', async () => {
+        const serverState = {
+            activeServerId: 'server-a',
+        };
+        let resolveServerA;
+
+        useServer.mockImplementation(() => serverState);
+        api.get.mockImplementation((url) => {
+            if (url === '/capabilities/server-a') {
+                return new Promise((resolve) => {
+                    resolveServerA = resolve;
+                });
+            }
+            if (url === '/capabilities/server-b') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            protocolDetails: [
+                                { key: 'trojan', label: 'TROJAN', legacyKeys: [] },
+                            ],
+                            tools: {},
+                            systemModules: [],
+                            batchActions: {
+                                clients: [],
+                                inbounds: [],
+                            },
+                            subscriptionModes: [],
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        const view = renderCapabilities();
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
+        });
+
+        serverState.activeServerId = 'server-b';
+        view.rerender(
+            <MemoryRouter
+                future={{
+                    v7_relativeSplatPath: true,
+                    v7_startTransition: true,
+                }}
+                initialEntries={['/']}
+            >
+                <LanguageProvider>
+                    <Capabilities />
+                </LanguageProvider>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText('协议 1 · 工具 0')).toBeInTheDocument();
+        expect(screen.getByText('TROJAN')).toBeInTheDocument();
+
+        resolveServerA({
+            data: {
+                obj: {
+                    protocolDetails: [
+                        { key: 'vless', label: 'VLESS', legacyKeys: [] },
+                    ],
+                    tools: {},
+                    systemModules: [],
+                    batchActions: {
+                        clients: [],
+                        inbounds: [],
+                    },
+                    subscriptionModes: [],
+                },
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('TROJAN')).toBeInTheDocument();
+            expect(screen.queryByText('VLESS')).not.toBeInTheDocument();
+        });
     });
 });

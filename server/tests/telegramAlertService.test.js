@@ -235,6 +235,38 @@ test('computeDailyBackupSchedule can defer a missed run until the next scheduled
     assert.equal(nextTarget.getDate(), todayTarget.getDate() + 1);
 });
 
+test('telegramAlertService does not reschedule an immediate daily backup when persisted state already handled today', () => {
+    const timeoutCalls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        sendDailyBackup: true,
+        dailyBackupTime: '09:30',
+        opsDigestIntervalMinutes: 0,
+        dailyDigestIntervalHours: 0,
+        now: () => new Date(2026, 2, 23, 10, 15, 0, 0).getTime(),
+        getLatestTelegramBackupMeta: () => ({
+            status: 'sent',
+            ts: new Date(2026, 2, 23, 9, 31, 0, 0).toISOString(),
+            filename: 'nms_backup_20260323_093100.nmsbak',
+            reason: 'daily',
+        }),
+        startBackgroundTimeout: (_fn, delayMs) => {
+            timeoutCalls.push(delayMs);
+            return delayMs;
+        },
+        fetcher: async () => ({ ok: true, result: {} }),
+    });
+
+    service.start();
+    service.stop();
+
+    assert.equal(timeoutCalls.includes(0), false);
+    assert.ok(timeoutCalls.includes(2000));
+    assert.ok(timeoutCalls.some((delayMs) => delayMs > 20 * 60 * 60 * 1000));
+});
+
 test('formatCommandCatalogMessage keeps manual command guidance in the help text', () => {
     const message = formatCommandCatalogMessage();
 

@@ -147,6 +147,9 @@ export default function ServerDetail() {
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
+    const snapshotRequestIdRef = useRef(0);
+    const auditRequestIdRef = useRef(0);
+    const clientIpRequestIdRef = useRef(0);
 
     const [loading, setLoading] = useState(() => detailBootstrapRef.current?.server == null);
     const [server, setServer] = useState(() => detailBootstrapRef.current?.server || null);
@@ -170,6 +173,8 @@ export default function ServerDetail() {
     const fetchSnapshot = async (options = {}) => {
         const preserveCurrent = options.preserveCurrent === true;
         const force = options.force === true;
+        const requestId = snapshotRequestIdRef.current + 1;
+        snapshotRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
             setInboundsLoading(true);
@@ -179,6 +184,7 @@ export default function ServerDetail() {
             const res = await api.get(`/servers/${encodeURIComponent(serverId)}/snapshot`, {
                 params: force ? { refresh: true } : undefined,
             });
+            if (requestId !== snapshotRequestIdRef.current) return;
             if (res.data?.success) {
                 const payload = res.data?.obj || {};
                 setServer(payload.server || null);
@@ -189,6 +195,7 @@ export default function ServerDetail() {
                 toast.error('服务器不存在');
             }
         } catch (err) {
+            if (requestId !== snapshotRequestIdRef.current) return;
             if (!preserveCurrent) {
                 toast.error(err.response?.data?.msg || '加载服务器快照失败');
                 setServer(null);
@@ -197,20 +204,27 @@ export default function ServerDetail() {
                 setOnlines([]);
             }
         } finally {
-            setLoading(false);
-            setInboundsLoading(false);
-            setOnlinesLoading(false);
+            if (requestId === snapshotRequestIdRef.current) {
+                setLoading(false);
+                setInboundsLoading(false);
+                setOnlinesLoading(false);
+            }
         }
     };
 
     const fetchAudit = async () => {
+        const requestId = auditRequestIdRef.current + 1;
+        auditRequestIdRef.current = requestId;
         try {
             const res = await api.get('/audit/events', { params: { serverId, pageSize: 20 } });
+            if (requestId !== auditRequestIdRef.current) return;
             setAuditEvents(res.data?.obj?.items || []);
         } catch { /* ignore */ }
     };
 
     useEffect(() => {
+        auditRequestIdRef.current += 1;
+        clientIpRequestIdRef.current += 1;
         const snapshot = readServerDetailSnapshot(serverId);
         detailBootstrapRef.current = snapshot;
         setLoading(snapshot?.server == null);
@@ -281,6 +295,7 @@ export default function ServerDetail() {
     };
 
     const closeClientIpModal = () => {
+        clientIpRequestIdRef.current += 1;
         setClientIpModal({
             open: false,
             email: '',
@@ -294,6 +309,8 @@ export default function ServerDetail() {
     const loadClientIps = async (email, options = {}) => {
         const normalizedEmail = String(email || '').trim();
         if (!normalizedEmail || clientIpSupport.supported === false) return;
+        const requestId = clientIpRequestIdRef.current + 1;
+        clientIpRequestIdRef.current = requestId;
 
         if (options.preserveOpen !== true) {
             setClientIpModal({
@@ -314,6 +331,7 @@ export default function ServerDetail() {
 
         try {
             const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(normalizedEmail)}`);
+            if (requestId !== clientIpRequestIdRef.current) return;
             const items = normalizePanelClientIps(res.data?.obj);
             setClientIpSupport({ supported: true, reason: '' });
             setClientIpModal((prev) => ({
@@ -325,6 +343,7 @@ export default function ServerDetail() {
                 error: '',
             }));
         } catch (err) {
+            if (requestId !== clientIpRequestIdRef.current) return;
             const msg = err.response?.data?.msg || err.message || '加载节点访问 IP 失败';
             if (isUnsupportedPanelClientIpsError(err)) {
                 setClientIpSupport({

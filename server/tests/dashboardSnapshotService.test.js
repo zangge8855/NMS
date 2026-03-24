@@ -361,6 +361,8 @@ test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel sn
                 from: from || (days === 7 ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
                 to: to || nowIso,
                 lastCollectionAt: nowIso,
+                sampleCount: 1,
+                baselineReady: true,
                 managedTotals: {
                     upBytes: days === 7 ? 210 : 220,
                     downBytes: days === 7 ? 420 : 440,
@@ -422,6 +424,72 @@ test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel sn
     assert.equal(windows.week.totalDown, 480);
     assert.equal(windows.month.totalUp, 250);
     assert.equal(windows.month.totalDown, 500);
+});
+
+test('buildDashboardTrafficWindowTotals does not overlay live cumulative totals when the overview baseline is not ready', () => {
+    const nowIso = new Date().toISOString();
+    const windows = buildDashboardTrafficWindowTotals({
+        trafficStatsStore: {
+            getOverview: ({ days, from, to } = {}) => ({
+                from: from || (days === 7 ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
+                to: to || nowIso,
+                lastCollectionAt: nowIso,
+                sampleCount: 0,
+                baselineReady: false,
+                managedTotals: {
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                },
+                totals: {
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                },
+                registeredTotals: {
+                    totalUsers: 1,
+                    activeUsers: 0,
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                },
+                serverTotals: [],
+            }),
+        },
+        users: [
+            {
+                id: 'user-a',
+                role: 'user',
+                username: 'Alice',
+                email: 'alice@example.com',
+                subscriptionEmail: 'alice@example.com',
+                enabled: true,
+            },
+        ],
+        panelSnapshots: [
+            {
+                server: { id: 'server-a', name: 'Node A' },
+                inbounds: [
+                    {
+                        id: 'ib-a',
+                        protocol: 'vless',
+                        enable: true,
+                        settings: JSON.stringify({
+                            clients: [
+                                { id: 'uuid-a', email: 'alice@example.com', up: 130, down: 260 },
+                            ],
+                        }),
+                    },
+                ],
+            },
+        ],
+    });
+
+    assert.equal(windows.day.totalUp, 0);
+    assert.equal(windows.day.totalDown, 0);
+    assert.equal(windows.day.ready, false);
+    assert.equal(windows.week.totalUp, 0);
+    assert.equal(windows.month.totalDown, 0);
 });
 
 test('buildSingleDashboardSnapshot returns sorted inbounds and managed online sessions', async () => {

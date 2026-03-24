@@ -178,6 +178,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         source: initialResolvedSource,
     });
     const logsBootstrapRef = useRef(readLogsSnapshot(initialSnapshotKey));
+    const logRequestIdRef = useRef(0);
     const [scopeSnapshotState, setScopeSnapshotState] = useState(() => ({
         key: initialSnapshotKey,
         hasSnapshot: logsBootstrapRef.current != null,
@@ -265,8 +266,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     ].filter(Boolean);
 
     const fetchSingleLogs = useCallback(async (options = {}) => {
-        if (!activeServerId || activeServerId === 'global') return;
+        if (!activeServerId || activeServerId === 'global') {
+            logRequestIdRef.current += 1;
+            return;
+        }
         const preserveCurrent = options.preserveCurrent === true;
+        const requestId = logRequestIdRef.current + 1;
+        logRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
         } else {
@@ -279,6 +285,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             const res = await api.get(`/servers/${encodeURIComponent(activeServerId)}/logs`, {
                 params: { source: resolvedSource, count },
             });
+            if (requestId !== logRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             const lines = Array.isArray(payload.lines) ? payload.lines : [];
             setLogs(lines.map((line) => ({ line, serverName: activeServer?.name || '' })));
@@ -289,6 +296,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 });
             }
         } catch (err) {
+            if (requestId !== logRequestIdRef.current) return;
             const message = err.response?.data?.msg || err.message;
             toast.error(t('pages.logs.fetchFailed', { message }));
             setFetchSummary({
@@ -299,13 +307,17 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 setLogs([]);
             }
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (requestId === logRequestIdRef.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t]);
 
     const fetchGlobalLogs = useCallback(async (options = {}) => {
         const preserveCurrent = options.preserveCurrent === true;
+        const requestId = logRequestIdRef.current + 1;
+        logRequestIdRef.current = requestId;
         if (!isGlobal || selectedServerIds.length === 0) {
             if (!preserveCurrent) {
                 setLogs([]);
@@ -314,6 +326,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 tone: 'info',
                 message: t('pages.logs.selectNodeHint'),
             });
+            setLoading(false);
+            setRefreshing(false);
             return;
         }
         if (!preserveCurrent) {
@@ -332,6 +346,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     count: perServerCount,
                 },
             });
+            if (requestId !== logRequestIdRef.current) return;
             const items = Array.isArray(res.data?.obj?.items) ? res.data.obj.items : [];
             const allLogs = [];
             const failedServers = [];
@@ -370,6 +385,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 setFetchSummary(null);
             }
         } catch (err) {
+            if (requestId !== logRequestIdRef.current) return;
             toast.error(t('pages.logs.globalFetchFailed', { message: err.message || t('pages.logs.unknownError') }));
             setFetchSummary({
                 tone: 'danger',
@@ -382,8 +398,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 setLogs([]);
             }
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (requestId === logRequestIdRef.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel, t]);
 

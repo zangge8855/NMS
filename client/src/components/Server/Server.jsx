@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
@@ -40,6 +40,10 @@ export default function ServerManagement({ embedded = false }) {
     const [capabilities, setCapabilities] = useState(null);
     const [toolResults, setToolResults] = useState({});
     const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
+    const versionsRequestIdRef = useRef(0);
+    const capabilitiesRequestIdRef = useRef(0);
+    const configRequestIdRef = useRef(0);
+    const toolRunRequestIdRef = useRef(0);
 
     const getTargets = () => {
         if (isGlobalView) return servers;
@@ -101,45 +105,65 @@ export default function ServerManagement({ embedded = false }) {
     const fetchVersions = async () => {
         const targets = getTargets();
         if (targets.length === 0) {
+            versionsRequestIdRef.current += 1;
             setXrayVersions([]);
             setSelectedVersion('');
             return;
         }
+        const requestId = versionsRequestIdRef.current + 1;
+        versionsRequestIdRef.current = requestId;
         setActionLoading('refreshVersions', true);
         try {
             const probeServerId = targets[0].id;
             const res = await panelRequest(probeServerId, 'get', '/panel/api/server/getXrayVersion');
+            if (requestId !== versionsRequestIdRef.current) return;
             const versions = Array.isArray(res.data?.obj) ? res.data.obj : [];
             setXrayVersions(versions);
             if (versions.length > 0) setSelectedVersion(versions[0]);
         } catch {
+            if (requestId !== versionsRequestIdRef.current) return;
             setXrayVersions([]);
             setSelectedVersion('');
         } finally {
-            setActionLoading('refreshVersions', false);
+            if (requestId === versionsRequestIdRef.current) {
+                setActionLoading('refreshVersions', false);
+            }
         }
     };
 
     const fetchCapabilities = async () => {
         if (isGlobalView || !activeServerId) {
+            capabilitiesRequestIdRef.current += 1;
             setCapabilities(null);
             return;
         }
+        const requestId = capabilitiesRequestIdRef.current + 1;
+        capabilitiesRequestIdRef.current = requestId;
         setCapabilitiesLoading(true);
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
+            if (requestId !== capabilitiesRequestIdRef.current) return;
             setCapabilities(res.data?.obj || null);
         } catch (error) {
+            if (requestId !== capabilitiesRequestIdRef.current) return;
             toast.error(error.response?.data?.msg || error.message || '加载节点能力失败');
+        } finally {
+            if (requestId === capabilitiesRequestIdRef.current) {
+                setCapabilitiesLoading(false);
+            }
         }
-        setCapabilitiesLoading(false);
     };
 
     useEffect(() => {
         if (!activeServerId) return;
+        configRequestIdRef.current += 1;
+        toolRunRequestIdRef.current += 1;
+        setLoading({});
         fetchVersions();
         fetchCapabilities();
         setToolResults({});
+        setShowConfig(false);
+        setConfigJson('');
     }, [activeServerId, servers.length]);
 
     const toolEntries = useMemo(() => {
@@ -302,29 +326,39 @@ export default function ServerManagement({ embedded = false }) {
             toast.error('集群总览下不支持查看单节点配置，请切换到具体节点');
             return;
         }
+        const requestId = configRequestIdRef.current + 1;
+        configRequestIdRef.current = requestId;
         try {
             const res = await panelApi('get', '/panel/api/server/getConfigJson');
+            if (requestId !== configRequestIdRef.current) return;
             setConfigJson(typeof res.data?.obj === 'string' ? res.data.obj : JSON.stringify(res.data?.obj, null, 2));
             setShowConfig(true);
         } catch {
+            if (requestId !== configRequestIdRef.current) return;
             toast.error('获取配置失败');
         }
     };
 
     const handleRunTool = async (tool) => {
         if (isGlobalView) return;
+        const requestId = toolRunRequestIdRef.current + 1;
+        toolRunRequestIdRef.current = requestId;
         setActionLoading(`tool-${tool.key}`, true);
         try {
             const res = await panelApi(tool.method || 'get', tool.path);
+            if (requestId !== toolRunRequestIdRef.current) return;
             const value = typeof res.data?.obj === 'object'
                 ? JSON.stringify(res.data.obj, null, 2)
                 : String(res.data?.obj || '');
             setToolResults((prev) => ({ ...prev, [tool.key]: value }));
             toast.success(`${tool.label || tool.key} 已生成`);
         } catch (error) {
+            if (requestId !== toolRunRequestIdRef.current) return;
             toast.error(error.response?.data?.msg || error.message || '执行失败');
         }
-        setActionLoading(`tool-${tool.key}`, false);
+        if (requestId === toolRunRequestIdRef.current) {
+            setActionLoading(`tool-${tool.key}`, false);
+        }
     };
 
     if (!activeServerId) {

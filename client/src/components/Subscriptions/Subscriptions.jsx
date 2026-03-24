@@ -347,6 +347,7 @@ export default function Subscriptions() {
     const queryEmail = String(searchParams.get('email') || '').trim();
     const queryServerId = String(searchParams.get('serverId') || '').trim();
     const bootstrapRef = useRef(readSubscriptionsSnapshot());
+    const subscriptionRequestIdRef = useRef(0);
     const initialSelectedEmail = queryEmail || (isUserOnly ? defaultIdentity : bootstrapRef.current?.selectedEmail || '');
     const initialSelectedServerId = isAdmin ? (queryServerId || bootstrapRef.current?.selectedServerId || 'all') : 'all';
     const initialScopedServerId = initialSelectedServerId !== 'all' ? initialSelectedServerId : '';
@@ -527,7 +528,11 @@ export default function Subscriptions() {
 
     const loadSubscription = async (targetEmail = normalizedEmail, options = {}) => {
         const resolvedEmail = String(targetEmail || '').trim();
+        const requestServerId = isAdmin
+            ? String((options.serverId ?? selectedServerId) || '').trim() || 'all'
+            : 'all';
         if (!resolvedEmail) {
+            subscriptionRequestIdRef.current += 1;
             setResult(null);
             setLoading(false);
             setRefreshing(false);
@@ -535,6 +540,8 @@ export default function Subscriptions() {
         }
 
         const preserveCurrent = options.preserveCurrent === true;
+        const requestId = subscriptionRequestIdRef.current + 1;
+        subscriptionRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
         } else {
@@ -542,16 +549,17 @@ export default function Subscriptions() {
         }
         try {
             const query = new URLSearchParams();
-            if (isAdmin && selectedServerId && selectedServerId !== 'all') {
-                query.append('serverId', selectedServerId);
+            if (isAdmin && requestServerId && requestServerId !== 'all') {
+                query.append('serverId', requestServerId);
             }
 
             const res = await api.get(`/subscriptions/${encodeURIComponent(resolvedEmail)}${query.toString() ? `?${query.toString()}` : ''}`);
+            if (requestId !== subscriptionRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             const nextResult = buildSubscriptionResult(payload, {
                 locale,
                 resolvedEmail,
-                selectedServerId,
+                selectedServerId: requestServerId,
             });
             setResult(nextResult);
             setProfileKey((currentKey) => {
@@ -564,14 +572,17 @@ export default function Subscriptions() {
                 return nextResult.bundle?.defaultProfileKey || availableKeys[0] || currentKey || 'v2rayn';
             });
         } catch (error) {
+            if (requestId !== subscriptionRequestIdRef.current) return;
             if (!preserveCurrent) {
                 setResult(null);
             }
             const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.subLoadFailed');
             toast.error(msg);
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (requestId === subscriptionRequestIdRef.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
 
@@ -610,7 +621,10 @@ export default function Subscriptions() {
             }
             setLoading(false);
         }
-        loadSubscription(deferredEmail, { preserveCurrent: canUseSnapshot });
+        loadSubscription(deferredEmail, {
+            preserveCurrent: canUseSnapshot,
+            serverId: selectedServerId,
+        });
     }, [deferredEmail, selectedServerId, locale]);
 
     useEffect(() => {
@@ -656,7 +670,9 @@ export default function Subscriptions() {
             }
             await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/reset-link`, payload);
             toast.success(t('comp.subscriptions.subResetDone'));
-            await loadSubscription();
+            await loadSubscription(normalizedEmail, {
+                serverId: selectedServerId,
+            });
         } catch (error) {
             toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.resetSubFailed'));
         }

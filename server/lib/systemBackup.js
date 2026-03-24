@@ -4,6 +4,12 @@ import path from 'path';
 import zlib from 'zlib';
 import config from '../config.js';
 import { collectStoreSnapshots, listStoreKeys, restoreStoreSnapshots } from '../store/storeRegistry.js';
+import {
+    getLatestTelegramBackupMeta as readLatestTelegramBackupMeta,
+    loadPersistedBackupState,
+    persistBackupState as persistBackupStatus,
+    resetPersistedBackupState,
+} from './systemBackupStatus.js';
 
 let lastExportMeta = null;
 let lastImportMeta = null;
@@ -53,6 +59,21 @@ function deriveBackupKey(deps = {}) {
     return crypto.createHash('sha256').update(secret).digest();
 }
 
+function persistBackupState(deps = {}) {
+    persistBackupStatus({
+        lastExport: lastExportMeta,
+        lastImport: lastImportMeta,
+        lastTelegramBackup: lastTelegramBackupMeta,
+    }, deps);
+}
+
+function hydrateBackupState(deps = {}) {
+    const state = loadPersistedBackupState(deps);
+    lastExportMeta = state.lastExport;
+    lastImportMeta = state.lastImport;
+    lastTelegramBackupMeta = state.lastTelegramBackup;
+}
+
 function normalizeBackupPayload(payload) {
     if (!payload || payload.format !== 'nms-backup') {
         throw new Error('备份格式不受支持');
@@ -73,6 +94,8 @@ function normalizeBackupPayload(payload) {
         snapshots: payload.snapshots,
     };
 }
+
+hydrateBackupState();
 
 function parseLegacyBackupArchive(buffer, deps = {}) {
     const gunzipSync = deps.gunzipSync || zlib.gunzipSync;
@@ -196,6 +219,7 @@ async function restoreBackupArchive(input, options = {}, deps = {}) {
         restored: Number(result?.restored || 0),
         failed: Number(result?.failed || 0),
     };
+    persistBackupState(deps);
 
     return {
         inspection: inspectBackupArchive(input, deps),
@@ -243,6 +267,7 @@ function createBackupArchive(options = {}, deps = {}) {
         cipher: BACKUP_CIPHER,
         keyHint: 'CREDENTIALS_SECRET',
     };
+    persistBackupState(deps);
 
     return {
         filename,
@@ -348,23 +373,28 @@ async function restoreLocalBackupArchive(filename, options = {}, deps = {}) {
 }
 
 function getBackupStatus(deps = {}) {
+    const state = (deps.backupStatusFile || deps.statusFile)
+        ? loadPersistedBackupState(deps)
+        : {
+            lastExport: lastExportMeta,
+            lastImport: lastImportMeta,
+            lastTelegramBackup: lastTelegramBackupMeta,
+        };
     return {
         storeKeys: listStoreKeys(),
-        lastExport: lastExportMeta ? { ...lastExportMeta } : null,
-        lastImport: lastImportMeta ? { ...lastImportMeta } : null,
-        lastTelegramBackup: lastTelegramBackupMeta ? { ...lastTelegramBackupMeta } : null,
+        lastExport: state.lastExport ? { ...state.lastExport } : null,
+        lastImport: state.lastImport ? { ...state.lastImport } : null,
+        lastTelegramBackup: state.lastTelegramBackup ? { ...state.lastTelegramBackup } : null,
         localBackupDir: backupDirPath(deps),
         localBackups: listLocalBackups(deps),
     };
 }
 
-function recordTelegramBackupMeta(input = {}) {
+function recordTelegramBackupMeta(input = {}, deps = {}) {
     const status = String(input.status || '').trim().toLowerCase() === 'failed' ? 'failed' : 'sent';
-    const ts = String(input.ts || input.sentAt || new Date().toISOString()).trim() || new Date().toISOString();
-
     lastTelegramBackupMeta = {
         status,
-        ts,
+        ts: String(input.ts || input.sentAt || new Date().toISOString()).trim() || new Date().toISOString(),
         filename: String(input.filename || '').trim(),
         bytes: Math.max(0, Number(input.bytes || 0)),
         storeKeys: normalizeStoreKeysInput(input.storeKeys),
@@ -373,16 +403,25 @@ function recordTelegramBackupMeta(input = {}) {
         reason: String(input.reason || 'manual').trim() || 'manual',
         error: status === 'failed' ? String(input.error || '').trim() : '',
     };
+    persistBackupState(deps);
 
     return {
         ...lastTelegramBackupMeta,
     };
 }
 
-function resetBackupStatusForTests() {
+function getLatestTelegramBackupMeta(deps = {}) {
+    if (deps.backupStatusFile || deps.statusFile) {
+        return readLatestTelegramBackupMeta(deps);
+    }
+    return lastTelegramBackupMeta ? { ...lastTelegramBackupMeta } : null;
+}
+
+function resetBackupStatusForTests(deps = {}) {
     lastExportMeta = null;
     lastImportMeta = null;
     lastTelegramBackupMeta = null;
+    resetPersistedBackupState(deps);
 }
 
 export {
@@ -396,6 +435,7 @@ export {
     restoreLocalBackupArchive,
     saveBackupArchiveLocally,
     getBackupStatus,
+    getLatestTelegramBackupMeta,
     recordTelegramBackupMeta,
     resetBackupStatusForTests,
 };

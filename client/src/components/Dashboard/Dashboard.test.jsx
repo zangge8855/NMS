@@ -617,14 +617,17 @@ describe('Dashboard', () => {
                         day: {
                             totals: { upBytes: 900, downBytes: 900, totalBytes: 1800 },
                             managedTotals: { upBytes: 80, downBytes: 160, totalBytes: 240 },
+                            ready: true,
                         },
                         week: {
                             totals: { upBytes: 9000, downBytes: 9000, totalBytes: 18000 },
                             managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                            ready: true,
                         },
                         month: {
                             totals: { upBytes: 90000, downBytes: 90000, totalBytes: 180000 },
                             managedTotals: { upBytes: 160, downBytes: 320, totalBytes: 480 },
+                            ready: true,
                         },
                     },
                     servers: {
@@ -705,12 +708,15 @@ describe('Dashboard', () => {
                     trafficWindows: {
                         day: {
                             managedTotals: { upBytes: 80, downBytes: 160, totalBytes: 240 },
+                            ready: true,
                         },
                         week: {
                             managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                            ready: true,
                         },
                         month: {
                             managedTotals: { upBytes: 160, downBytes: 320, totalBytes: 480 },
+                            ready: true,
                         },
                     },
                     managedOnlineUsers: [
@@ -866,12 +872,15 @@ describe('Dashboard', () => {
                     trafficWindows: {
                         day: {
                             managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            ready: true,
                         },
                         week: {
                             managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            ready: true,
                         },
                         month: {
                             managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            ready: true,
                         },
                     },
                     servers: {
@@ -919,6 +928,90 @@ describe('Dashboard', () => {
             expect(throughputCard).toHaveTextContent('360 B');
             expect(throughputCard).toHaveTextContent(/↑\s*120 B\/s/);
             expect(throughputCard).toHaveTextContent(/↓\s*240 B\/s/);
+        });
+    });
+
+    it('keeps websocket traffic cards pending until pushed traffic windows are marked ready', async () => {
+        const never = new Promise(() => {});
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalOnline: 0,
+                    totalUp: 0,
+                    totalDown: 0,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 4,
+                        pendingUsers: 1,
+                    },
+                    trafficWindows: {
+                        day: {
+                            managedTotals: { upBytes: 80, downBytes: 160, totalBytes: 240 },
+                            ready: false,
+                        },
+                        week: {
+                            managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                            ready: false,
+                        },
+                        month: {
+                            managedTotals: { upBytes: 160, downBytes: 320, totalBytes: 480 },
+                            ready: false,
+                        },
+                    },
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        if (!weekTrafficCard || !monthTrafficCard) {
+            throw new Error('Missing traffic cards');
+        }
+
+        await waitFor(() => {
+            expect(weekTrafficCard).toHaveTextContent('统计当前用户流量中');
+            expect(monthTrafficCard).toHaveTextContent('统计当前用户流量中');
+            expect(weekTrafficCard).not.toHaveTextContent('360 B');
+            expect(monthTrafficCard).not.toHaveTextContent('480 B');
         });
     });
 

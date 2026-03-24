@@ -457,8 +457,6 @@ describe('SystemSettings', () => {
     });
 
     it('ignores a late app bootstrap snapshot after live settings and invite codes have loaded', async () => {
-        const user = userEvent.setup();
-
         useAuthMock.mockReturnValue({
             user: { role: 'admin' },
         });

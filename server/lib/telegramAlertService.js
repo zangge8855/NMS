@@ -1,5 +1,6 @@
 import config from '../config.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import { getLatestTelegramBackupMeta } from './systemBackupStatus.js';
 
 const DEFAULT_ALERT_SEVERITIES = new Set(['warning', 'critical']);
 const DEFAULT_AUDIT_EVENT_RULES = {
@@ -993,6 +994,26 @@ export function createTelegramAlertService(options = {}) {
         };
     }
 
+    function resolvePersistedBackupMeta() {
+        const meta = typeof options.getLatestTelegramBackupMeta === 'function'
+            ? options.getLatestTelegramBackupMeta()
+            : getLatestTelegramBackupMeta();
+        return meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : null;
+    }
+
+    function resolveLastHandledBackupState() {
+        const persistedMeta = resolvePersistedBackupMeta();
+        const persistedTs = String(persistedMeta?.ts || '').trim() || null;
+        const persistedStatus = String(persistedMeta?.status || '').trim().toLowerCase();
+
+        return {
+            lastBackupAt: runtimeStatus.lastBackupAt || (persistedStatus === 'sent' ? persistedTs : null),
+            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt || persistedTs,
+            lastBackupFilename: runtimeStatus.lastBackupFilename || String(persistedMeta?.filename || '').trim(),
+            lastBackupError: runtimeStatus.lastBackupError || (persistedStatus === 'failed' ? String(persistedMeta?.error || '').trim() : ''),
+        };
+    }
+
     function resolveSettings() {
         const stored = typeof options.getSettings === 'function'
             ? options.getSettings()
@@ -1262,11 +1283,12 @@ export function createTelegramAlertService(options = {}) {
         if (!running || !settings.enabled || !settings.configured || !settings.sendDailyBackup) {
             return false;
         }
+        const backupState = resolveLastHandledBackupState();
         const schedule = computeDailyBackupSchedule({
             now: nowProvider(),
             dailyBackupTime: settings.dailyBackupTime,
-            lastBackupAt: runtimeStatus.lastBackupAt,
-            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+            lastBackupAt: backupState.lastBackupAt,
+            lastBackupAttemptAt: backupState.lastBackupAttemptAt,
         });
         runtimeStatus.nextDailyBackupAt = schedule.nextDailyBackupAt;
         if (!schedule.shouldSendNow) {
@@ -1291,12 +1313,13 @@ export function createTelegramAlertService(options = {}) {
             runtimeStatus.nextDailyBackupAt = '';
             return;
         }
+        const backupState = resolveLastHandledBackupState();
 
         const schedule = computeDailyBackupSchedule({
             now: nowProvider(),
             dailyBackupTime: settings.dailyBackupTime,
-            lastBackupAt: runtimeStatus.lastBackupAt,
-            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+            lastBackupAt: backupState.lastBackupAt,
+            lastBackupAttemptAt: backupState.lastBackupAttemptAt,
             deferMissedRun: options.deferMissedRun === true,
         });
         runtimeStatus.nextDailyBackupAt = schedule.nextDailyBackupAt;
@@ -2247,12 +2270,13 @@ export function createTelegramAlertService(options = {}) {
 
     function getStatus() {
         const settings = resolveSettings();
+        const backupState = resolveLastHandledBackupState();
         const backupSchedule = settings.sendDailyBackup
             ? computeDailyBackupSchedule({
                 now: nowProvider(),
                 dailyBackupTime: settings.dailyBackupTime,
-                lastBackupAt: runtimeStatus.lastBackupAt,
-                lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+                lastBackupAt: backupState.lastBackupAt,
+                lastBackupAttemptAt: backupState.lastBackupAttemptAt,
             })
             : null;
         return {
@@ -2286,10 +2310,10 @@ export function createTelegramAlertService(options = {}) {
             lastDigestAt: runtimeStatus.lastDigestAt,
             lastDigestKind: runtimeStatus.lastDigestKind,
             lastDigestError: runtimeStatus.lastDigestError,
-            lastBackupAt: runtimeStatus.lastBackupAt,
-            lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
-            lastBackupFilename: runtimeStatus.lastBackupFilename,
-            lastBackupError: runtimeStatus.lastBackupError,
+            lastBackupAt: backupState.lastBackupAt,
+            lastBackupAttemptAt: backupState.lastBackupAttemptAt,
+            lastBackupFilename: backupState.lastBackupFilename,
+            lastBackupError: backupState.lastBackupError,
         };
     }
 

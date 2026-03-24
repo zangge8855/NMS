@@ -162,6 +162,7 @@ export default function Inbounds() {
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const bootstrapRef = useRef(readInboundsSnapshot());
+    const inboundsRequestIdRef = useRef(0);
     const resolvedActiveFilterServerId = activeServerId && activeServerId !== 'global' ? activeServerId : 'all';
     const isServerFilterLocked = Boolean(activeServerId && activeServerId !== 'global');
 
@@ -206,12 +207,15 @@ export default function Inbounds() {
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && inbounds.length > 0);
         const force = options.force === true;
         if (servers.length === 0) {
+            inboundsRequestIdRef.current += 1;
             if (!preserveCurrent) {
                 setInbounds([]);
             }
             setLoading(false);
             return;
         }
+        const requestId = inboundsRequestIdRef.current + 1;
+        inboundsRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
         }
@@ -235,6 +239,7 @@ export default function Inbounds() {
                 api.get('/system/inbounds/order'),
                 api.get('/system/servers/order'),
             ]);
+            if (requestId !== inboundsRequestIdRef.current) return;
             orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
             nextServerOrder = Array.isArray(serverOrderRes.data?.obj)
                 ? serverOrderRes.data.obj.map((item) => String(item || '').trim()).filter(Boolean)
@@ -242,14 +247,17 @@ export default function Inbounds() {
             setInboundOrder(orderMap);
             setServerOrder(nextServerOrder);
         } catch (err) {
+            if (requestId !== inboundsRequestIdRef.current) return;
             console.error('Failed to load inbound or server order:', err);
         }
 
         try {
             const overrideRes = await api.get('/clients/entitlement-overrides');
+            if (requestId !== inboundsRequestIdRef.current) return;
             const items = Array.isArray(overrideRes.data?.obj) ? overrideRes.data.obj : [];
             setOverrideKeySet(new Set(items.map((item) => buildOverrideKey(item.serverId, item.inboundId, item.clientIdentifier))));
         } catch (err) {
+            if (requestId !== inboundsRequestIdRef.current) return;
             console.error('Failed to load entitlement overrides:', err);
             if (!preserveCurrent) {
                 setOverrideKeySet(new Set());
@@ -261,6 +269,7 @@ export default function Inbounds() {
                 includeOnlines: true,
                 force,
             });
+            if (requestId !== inboundsRequestIdRef.current) return;
 
             serverResults.forEach((result) => {
                 const server = result.server;
@@ -322,6 +331,7 @@ export default function Inbounds() {
                 }
             });
         } catch (err) {
+            if (requestId !== inboundsRequestIdRef.current) return;
             console.error('Failed to load aggregated inbound snapshot:', err);
             if (preserveCurrent) {
                 Object.values(previousInboundsByServer).forEach((items) => {
@@ -333,6 +343,8 @@ export default function Inbounds() {
                 toast.error(t('comp.common.loadFailed'));
             }
         }
+
+        if (requestId !== inboundsRequestIdRef.current) return;
 
         const sortedItems = sortVisibleInbounds(allResults, orderMap, nextServerOrder);
         const nextOrderMap = { ...orderMap };

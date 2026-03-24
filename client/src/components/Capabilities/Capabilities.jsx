@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineCircleStack } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -184,34 +184,43 @@ export default function Capabilities() {
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
     const cachedData = hasTargetServer ? readCapabilitiesSnapshot(activeServerId) : null;
+    const capabilitiesRequestIdRef = useRef(0);
     const [loading, setLoading] = useState(() => hasTargetServer && !cachedData);
     const [data, setData] = useState(() => cachedData);
 
     const fetchCapabilities = async (options = {}) => {
         if (!hasTargetServer) {
+            capabilitiesRequestIdRef.current += 1;
             setData(null);
             return;
         }
         const preserveCurrent = options.preserveCurrent === true;
+        const requestId = capabilitiesRequestIdRef.current + 1;
+        capabilitiesRequestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
         }
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
+            if (requestId !== capabilitiesRequestIdRef.current) return;
             setData(res.data?.obj || null);
         } catch (err) {
+            if (requestId !== capabilitiesRequestIdRef.current) return;
             const msg = err.response?.data?.msg || err.message || copy.fetchFailed;
             toast.error(msg);
             if (!preserveCurrent) {
                 setData(null);
             }
         } finally {
-            setLoading(false);
+            if (requestId === capabilitiesRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     };
 
     useEffect(() => {
         if (!hasTargetServer) {
+            capabilitiesRequestIdRef.current += 1;
             setData(null);
             setLoading(false);
             return;
