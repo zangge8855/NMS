@@ -794,6 +794,14 @@ class TrafficStatsStore {
         };
     }
 
+    getCollectionStatus() {
+        return {
+            lastCollectionAt: this.meta?.lastCollectionAt || null,
+            sampleCount: Array.isArray(this.samples) ? this.samples.length : 0,
+            collecting: Boolean(this.collectingPromise),
+        };
+    }
+
     getOverview(options = {}) {
         const range = this._buildTimeRange(options, { defaultDays: 30 });
         const top = toPositiveInt(options.top, 10);

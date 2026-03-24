@@ -37,6 +37,53 @@ const snapshotCache = {
     checkedAtMs: 0,
 };
 
+function safeTrafficTotal(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function calculateMonotonicDelta(current, previous) {
+    if (!Number.isFinite(current) || !Number.isFinite(previous)) return 0;
+    if (current < previous) return 0;
+    return current - previous;
+}
+
+function buildThroughputSnapshot(current = {}, previous = null) {
+    const currentCheckedAtMs = Date.parse(current?.checkedAt || '');
+    const previousCheckedAtMs = Date.parse(previous?.checkedAt || '');
+    const elapsedSeconds = (
+        Number.isFinite(currentCheckedAtMs)
+        && Number.isFinite(previousCheckedAtMs)
+        && currentCheckedAtMs > previousCheckedAtMs
+    )
+        ? Math.max(1, (currentCheckedAtMs - previousCheckedAtMs) / 1000)
+        : 0;
+    const ready = current?.online === true && previous?.online === true && elapsedSeconds > 0;
+    const upPerSecond = ready
+        ? calculateMonotonicDelta(safeTrafficTotal(current?.up), safeTrafficTotal(previous?.up)) / elapsedSeconds
+        : 0;
+    const downPerSecond = ready
+        ? calculateMonotonicDelta(safeTrafficTotal(current?.down), safeTrafficTotal(previous?.down)) / elapsedSeconds
+        : 0;
+
+    return {
+        ready,
+        upPerSecond,
+        downPerSecond,
+        totalPerSecond: upPerSecond + downPerSecond,
+    };
+}
+
+function attachThroughputSnapshots(items = [], previousByServerId = {}) {
+    return (Array.isArray(items) ? items : []).map((item) => ({
+        ...item,
+        throughput: buildThroughputSnapshot(
+            item,
+            previousByServerId[String(item?.serverId || '').trim()] || null
+        ),
+    }));
+}
+
 function normalizeReasonMessage(value) {
     return String(
         value?.response?.data?.msg
@@ -253,6 +300,13 @@ function buildSummary(items = []) {
         activeInbounds: 0,
         checkedAt: new Date().toISOString(),
         byReason: {},
+        throughput: {
+            ready: false,
+            readyServers: 0,
+            upPerSecond: 0,
+            downPerSecond: 0,
+            totalPerSecond: 0,
+        },
     };
 
     items.forEach((item) => {
@@ -266,10 +320,17 @@ function buildSummary(items = []) {
         summary.totalDown += Number(item.down || 0);
         summary.totalInbounds += Number(item.inboundCount || 0);
         summary.activeInbounds += Number(item.activeInbounds || 0);
+        if (item?.throughput?.ready === true) {
+            summary.throughput.readyServers += 1;
+            summary.throughput.upPerSecond += Number(item.throughput.upPerSecond || 0);
+            summary.throughput.downPerSecond += Number(item.throughput.downPerSecond || 0);
+            summary.throughput.totalPerSecond += Number(item.throughput.totalPerSecond || 0);
+        }
         const reasonCode = String(item.reasonCode || STATUS_REASON.NONE);
         summary.byReason[reasonCode] = (summary.byReason[reasonCode] || 0) + 1;
     });
 
+    summary.throughput.ready = summary.throughput.readyServers > 0;
     summary.reasonCounts = summary.byReason;
 
     return summary;
@@ -293,11 +354,15 @@ export async function collectClusterStatusSnapshot(options = {}) {
 
     const task = (async () => {
         const servers = Array.isArray(options.servers) ? options.servers : serverStore.getAll();
-        const items = await runWithConcurrency(
+        const previousByServerId = snapshotCache.value?.byServerId && typeof snapshotCache.value.byServerId === 'object'
+            ? snapshotCache.value.byServerId
+            : {};
+        const rawItems = await runWithConcurrency(
             servers,
             (server) => collectServerStatusSnapshot(server, options),
             Number(options.concurrency || DEFAULT_CONCURRENCY)
         );
+        const items = attachThroughputSnapshots(rawItems, previousByServerId);
         const byServerId = Object.fromEntries(items.map((item) => [item.serverId, item]));
         const snapshot = {
             summary: buildSummary(items),

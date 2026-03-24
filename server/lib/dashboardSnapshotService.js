@@ -400,7 +400,9 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
     const servers = serverStoreRef.getAll();
     const users = userStoreRef.getAll();
 
-    await trafficStatsStoreRef.collectIfStale(force);
+    Promise.resolve()
+        .then(() => trafficStatsStoreRef.collectIfStale(force))
+        .catch(() => null);
 
     const [clusterSnapshot, panelSnapshots] = await Promise.all([
         collectClusterStatusSnapshotRef({
@@ -464,11 +466,19 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             serverCount: Number(clusterSnapshot?.summary?.total || servers.length || 0),
             onlineServers: Number(clusterSnapshot?.summary?.onlineServers || 0),
         },
+        globalManagedOnlineCount: presence.onlineRows.length,
         globalOnlineUsers: presence.onlineRows,
         globalOnlineSessionCount: Number(presence.onlineSessionCount || 0),
         globalAccountSummary: {
             totalUsers: presence.rows.length,
             pendingUsers: Number(presence.pendingCount || 0),
+        },
+        throughputSummary: clusterSnapshot?.summary?.throughput || {
+            ready: false,
+            readyServers: 0,
+            upPerSecond: 0,
+            downPerSecond: 0,
+            totalPerSecond: 0,
         },
         trafficWindowTotals: buildTrafficWindowTotals({
             ...deps,

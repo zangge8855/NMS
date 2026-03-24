@@ -66,10 +66,16 @@ export function applyAppBootstrapSnapshots(payload = {}) {
             globalOnlineUsers: Array.isArray(dashboard.globalOnlineUsers)
                 ? dashboard.globalOnlineUsers
                 : [],
+            globalManagedOnlineCount: Number.isFinite(Number(dashboard.globalManagedOnlineCount))
+                ? Number(dashboard.globalManagedOnlineCount)
+                : null,
             globalOnlineSessionCount: Number(dashboard.globalOnlineSessionCount || 0),
             globalAccountSummary: dashboard.globalAccountSummary && typeof dashboard.globalAccountSummary === 'object'
                 ? dashboard.globalAccountSummary
                 : {},
+            throughputSummary: dashboard.throughputSummary && typeof dashboard.throughputSummary === 'object'
+                ? dashboard.throughputSummary
+                : null,
             trafficWindowTotals: dashboard.trafficWindowTotals && typeof dashboard.trafficWindowTotals === 'object'
                 ? dashboard.trafficWindowTotals
                 : {},
@@ -94,6 +100,9 @@ export function applyAppBootstrapSnapshots(payload = {}) {
             trafficWindows: audit.traffic.trafficWindows && typeof audit.traffic.trafficWindows === 'object'
                 ? audit.traffic.trafficWindows
                 : { week: null, month: null },
+            trafficStatus: audit.traffic.trafficStatus && typeof audit.traffic.trafficStatus === 'object'
+                ? audit.traffic.trafficStatus
+                : null,
         }), { source: APP_BOOTSTRAP_SOURCE });
     }
 

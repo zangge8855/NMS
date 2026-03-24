@@ -57,6 +57,13 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
                 onlineServers: 2,
                 totalInbounds: 2,
                 activeInbounds: 2,
+                throughput: {
+                    ready: true,
+                    readyServers: 2,
+                    upPerSecond: 12,
+                    downPerSecond: 24,
+                    totalPerSecond: 36,
+                },
             },
             byServerId: {
                 'server-a': {
@@ -145,9 +152,11 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(snapshot.globalStats.totalUp, 220);
     assert.equal(snapshot.globalStats.totalDown, 440);
     assert.equal(snapshot.globalStats.totalOnline, 1);
+    assert.equal(snapshot.globalManagedOnlineCount, 1);
     assert.equal(snapshot.globalOnlineSessionCount, 3);
     assert.equal(snapshot.globalAccountSummary.totalUsers, 2);
     assert.equal(snapshot.globalAccountSummary.pendingUsers, 1);
+    assert.equal(snapshot.throughputSummary.totalPerSecond, 36);
     assert.equal(snapshot.serverStatuses['server-a'].managedOnlineCount, 1);
     assert.equal(snapshot.serverStatuses['server-a'].managedTrafficTotal, 300);
     assert.deepEqual(snapshot.serverStatuses['server-a'].nodeRemarkPreview, ['港口专线']);
@@ -156,6 +165,191 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(snapshot.trafficWindowTotals.month.totalUp, 220);
     assert.equal(snapshot.globalOnlineUsers[0].displayName, 'Alice');
     assert.equal(snapshot.globalOnlineUsers[0].sessions, 3);
+});
+
+test('buildGlobalDashboardSnapshot does not block core cards on slow traffic sampling', async () => {
+    let resolveTrafficSampling = null;
+    const snapshot = await Promise.race([
+        buildGlobalDashboardSnapshot({ force: true }, {
+            serverStore: {
+                getAll: () => [
+                    { id: 'server-a', name: 'Node A' },
+                ],
+            },
+            userStore: {
+                getAll: () => [
+                    {
+                        id: 'user-a',
+                        role: 'user',
+                        username: 'Alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        enabled: true,
+                    },
+                ],
+            },
+            trafficStatsStore: {
+                collectIfStale: async () => new Promise((resolve) => {
+                    resolveTrafficSampling = resolve;
+                }),
+                getOverview: () => ({ managedTotals: { upBytes: 0, downBytes: 0 } }),
+            },
+            collectClusterStatusSnapshot: async () => ({
+                summary: {
+                    total: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    throughput: {
+                        ready: false,
+                        readyServers: 0,
+                        upPerSecond: 0,
+                        downPerSecond: 0,
+                        totalPerSecond: 0,
+                    },
+                },
+                byServerId: {
+                    'server-a': {
+                        serverId: 'server-a',
+                        name: 'Node A',
+                        online: true,
+                        inboundCount: 1,
+                        activeInbounds: 1,
+                        status: {
+                            cpu: 12,
+                            mem: { current: 256, total: 1024 },
+                            uptime: 3600,
+                            netTraffic: { sent: 1000, recv: 2000 },
+                        },
+                    },
+                },
+            }),
+            getServerPanelSnapshots: async () => [
+                {
+                    server: { id: 'server-a', name: 'Node A' },
+                    inbounds: [
+                        {
+                            id: 'ib-a',
+                            protocol: 'vless',
+                            enable: true,
+                            remark: '港口专线',
+                            settings: JSON.stringify({
+                                clients: [
+                                    { id: 'uuid-a', email: 'alice@example.com' },
+                                ],
+                            }),
+                            clientStats: [
+                                { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                            ],
+                        },
+                    ],
+                    onlines: [
+                        { email: 'alice@example.com', id: 'uuid-a' },
+                    ],
+                },
+            ],
+        }),
+        new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('dashboard snapshot timed out')), 100);
+        }),
+    ]);
+
+    resolveTrafficSampling?.({
+        collected: true,
+        lastCollectionAt: '2026-03-24T00:10:00.000Z',
+        samplesAdded: 1,
+        warnings: [],
+    });
+
+    assert.equal(snapshot.globalManagedOnlineCount, 1);
+    assert.equal(snapshot.globalStats.totalOnline, 1);
+    assert.equal(snapshot.globalOnlineUsers[0].displayName, 'Alice');
+});
+
+test('buildGlobalDashboardSnapshot ignores synchronous traffic sampling failures', async () => {
+    const snapshot = await buildGlobalDashboardSnapshot({ force: true }, {
+        serverStore: {
+            getAll: () => [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        },
+        userStore: {
+            getAll: () => [
+                {
+                    id: 'user-a',
+                    role: 'user',
+                    username: 'Alice',
+                    email: 'alice@example.com',
+                    subscriptionEmail: 'alice@example.com',
+                    enabled: true,
+                },
+            ],
+        },
+        trafficStatsStore: {
+            collectIfStale: () => {
+                throw new Error('collector init failed');
+            },
+            getOverview: () => ({ managedTotals: { upBytes: 0, downBytes: 0 } }),
+        },
+        collectClusterStatusSnapshot: async () => ({
+            summary: {
+                total: 1,
+                onlineServers: 1,
+                totalInbounds: 1,
+                activeInbounds: 1,
+                throughput: {
+                    ready: false,
+                    readyServers: 0,
+                    upPerSecond: 0,
+                    downPerSecond: 0,
+                    totalPerSecond: 0,
+                },
+            },
+            byServerId: {
+                'server-a': {
+                    serverId: 'server-a',
+                    name: 'Node A',
+                    online: true,
+                    inboundCount: 1,
+                    activeInbounds: 1,
+                    status: {
+                        cpu: 12,
+                        mem: { current: 256, total: 1024 },
+                        uptime: 3600,
+                        netTraffic: { sent: 1000, recv: 2000 },
+                    },
+                },
+            },
+        }),
+        getServerPanelSnapshots: async () => [
+            {
+                server: { id: 'server-a', name: 'Node A' },
+                inbounds: [
+                    {
+                        id: 'ib-a',
+                        protocol: 'vless',
+                        enable: true,
+                        remark: '港口专线',
+                        settings: JSON.stringify({
+                            clients: [
+                                { id: 'uuid-a', email: 'alice@example.com' },
+                            ],
+                        }),
+                        clientStats: [
+                            { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                        ],
+                    },
+                ],
+                onlines: [
+                    { email: 'alice@example.com', id: 'uuid-a' },
+                ],
+            },
+        ],
+    });
+
+    assert.equal(snapshot.globalManagedOnlineCount, 1);
+    assert.equal(snapshot.globalStats.totalOnline, 1);
+    assert.equal(snapshot.globalOnlineUsers[0].displayName, 'Alice');
 });
 
 test('buildSingleDashboardSnapshot returns sorted inbounds and managed online sessions', async () => {

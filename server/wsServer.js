@@ -29,6 +29,7 @@ import userStore from './store/userStore.js';
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
+const DASHBOARD_FOLLOWUP_DELAY_MS = 2_500;
 
 function buildTodayRange() {
     const now = new Date();
@@ -102,6 +103,13 @@ function buildClusterStatusMessage(snapshot) {
             byReason: snapshot?.summary?.byReason || snapshot?.summary?.reasonCounts || {},
             reasonCounts: snapshot?.summary?.reasonCounts || {},
             servers: snapshot?.byServerId || {},
+            throughputSummary: snapshot?.summary?.throughput || {
+                ready: false,
+                readyServers: 0,
+                upPerSecond: 0,
+                downPerSecond: 0,
+                totalPerSecond: 0,
+            },
             accountSummary: buildDashboardAccountSummary(),
             trafficWindows: buildDashboardTrafficWindows(),
             managedOnlineUsers: presence.onlineRows,
@@ -110,6 +118,35 @@ function buildClusterStatusMessage(snapshot) {
             managedPresenceReady: presence.ready,
         },
     };
+}
+
+function dashboardMessageNeedsFollowup(message) {
+    const data = message?.data || {};
+    return data?.managedPresenceReady !== true || data?.throughputSummary?.ready !== true;
+}
+
+function maybeScheduleDashboardFollowup(ws) {
+    if (ws.dashboardFollowupTimer) return;
+    const timer = setTimeout(async () => {
+        ws.dashboardFollowupTimer = null;
+        if (ws.readyState !== 1) return;
+        try {
+            const snapshot = await collectClusterStatusSnapshot({
+                includeDetails: true,
+                force: true,
+            });
+            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
+                return;
+            }
+            safeSend(ws, buildClusterStatusMessage(snapshot));
+        } catch (err) {
+            console.error('[WebSocket] Follow-up snapshot error:', err?.message || err);
+        }
+    }, DASHBOARD_FOLLOWUP_DELAY_MS);
+    if (typeof timer?.unref === 'function') {
+        timer.unref();
+    }
+    ws.dashboardFollowupTimer = timer;
 }
 
 /**
@@ -155,8 +192,15 @@ export function initWebSocket(httpServer) {
         ws.subscribedServerId = null;
         ws.subscribedTaskIds = new Set();
         ws.user = req?.wsUser || null;
+        ws.dashboardFollowupTimer = null;
 
         ws.on('pong', () => { ws.isAlive = true; });
+        ws.on('close', () => {
+            if (ws.dashboardFollowupTimer) {
+                clearTimeout(ws.dashboardFollowupTimer);
+                ws.dashboardFollowupTimer = null;
+            }
+        });
 
         ws.on('message', (raw) => {
             try {
@@ -195,7 +239,11 @@ export function initWebSocket(httpServer) {
         // immediately, then follow it with a fresh snapshot if needed.
         const cachedSnapshot = getCachedClusterStatusSnapshot();
         if (Array.isArray(cachedSnapshot?.items) && cachedSnapshot.items.length > 0) {
-            safeSend(ws, buildClusterStatusMessage(cachedSnapshot));
+            const message = buildClusterStatusMessage(cachedSnapshot);
+            safeSend(ws, message);
+            if (dashboardMessageNeedsFollowup(message)) {
+                maybeScheduleDashboardFollowup(ws);
+            }
         }
 
         collectClusterStatusSnapshot({
@@ -205,7 +253,11 @@ export function initWebSocket(httpServer) {
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
             }
-            safeSend(ws, buildClusterStatusMessage(snapshot));
+            const message = buildClusterStatusMessage(snapshot);
+            safeSend(ws, message);
+            if (dashboardMessageNeedsFollowup(message)) {
+                maybeScheduleDashboardFollowup(ws);
+            }
         }).catch((err) => {
             console.error('[WebSocket] Initial snapshot error:', err.message);
         });

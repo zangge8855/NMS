@@ -777,6 +777,151 @@ describe('Dashboard', () => {
         });
     });
 
+    it('renders websocket managed online counts before detail rows are ready', async () => {
+        const never = new Promise(() => {});
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 3,
+                        pendingUsers: 1,
+                    },
+                    managedOnlineUserCount: 2,
+                    managedOnlineSessionCount: 4,
+                    managedPresenceReady: false,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        if (!onlineCard) throw new Error('Missing online users card');
+
+        await waitFor(() => {
+            expect(onlineCard).toHaveTextContent('2');
+            expect(onlineCard).toHaveTextContent('已注册 3 · 正在统计在线');
+        });
+    });
+
+    it('renders websocket throughput summaries immediately without waiting for a second client sample', async () => {
+        const never = new Promise(() => {});
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 1,
+                        pendingUsers: 0,
+                    },
+                    throughputSummary: {
+                        ready: true,
+                        upPerSecond: 120,
+                        downPerSecond: 240,
+                        totalPerSecond: 360,
+                    },
+                    trafficWindows: {
+                        day: {
+                            managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                        },
+                        week: {
+                            managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                        },
+                        month: {
+                            managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                        },
+                    },
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const throughputCard = screen.getByText('当前总吞吐').closest('[role="button"]');
+        if (!throughputCard) throw new Error('Missing throughput card');
+
+        await waitFor(() => {
+            expect(throughputCard).toHaveTextContent('360 B');
+            expect(throughputCard).toHaveTextContent(/↑\s*120 B\/s/);
+            expect(throughputCard).toHaveTextContent(/↓\s*240 B\/s/);
+        });
+    });
+
     it('renders the last session snapshot before live dashboard hydration finishes', async () => {
         const never = new Promise(() => {});
         window.sessionStorage.setItem('nms_session_snapshot:dashboard_global_v1', JSON.stringify({

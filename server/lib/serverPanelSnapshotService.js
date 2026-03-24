@@ -59,7 +59,24 @@ async function fetchServerPanelSnapshot(server, options = {}) {
     const getPanelClient = options.getAuthenticatedPanelClient || getAuthenticatedPanelClient;
     const includeOnlines = options.includeOnlines !== false;
     const checkedAt = new Date().toISOString();
-    const client = await getPanelClient(server.id);
+    let client = null;
+
+    try {
+        client = await getPanelClient(server.id);
+    } catch (error) {
+        const normalized = normalizeError(error, 'PANEL_REQUEST_FAILED');
+        return {
+            server: {
+                id: server.id,
+                name: server.name,
+            },
+            inbounds: [],
+            onlines: [],
+            inboundsError: normalized,
+            onlinesError: includeOnlines ? normalized : null,
+            checkedAt,
+        };
+    }
 
     const [inboundsResult, onlinesResult] = await Promise.allSettled([
         client.get('/panel/api/inbounds/list'),

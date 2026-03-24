@@ -44,6 +44,10 @@ export async function ensureTrafficSamples({ forceRefresh = false } = {}) {
     return trafficStatsStore.collectIfStale(forceRefresh);
 }
 
+export function readTrafficCollectionStatus() {
+    return trafficStatsStore.getCollectionStatus();
+}
+
 router.use(authMiddleware);
 
 router.post('/refresh', async (req, res) => {
@@ -85,7 +89,15 @@ router.get('/overview', async (req, res) => {
             ...overview,
             windows,
             collection,
+            status: readTrafficCollectionStatus(),
         },
+    });
+});
+
+router.get('/status', (_req, res) => {
+    return res.json({
+        success: true,
+        obj: readTrafficCollectionStatus(),
     });
 });
 

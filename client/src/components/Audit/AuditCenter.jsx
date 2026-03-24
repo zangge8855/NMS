@@ -46,6 +46,11 @@ const AUDIT_EVENTS_SNAPSHOT_KEY = 'audit_events_v1';
 const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v1';
 const AUDIT_ACCESS_SNAPSHOT_KEY = 'audit_access_v1';
 const AUDIT_SNAPSHOT_TTL_MS = 90_000;
+const EMPTY_TRAFFIC_STATUS = {
+    lastCollectionAt: '',
+    sampleCount: 0,
+    collecting: false,
+};
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -454,6 +459,17 @@ function buildRollingWindowRange(days) {
     };
 }
 
+function normalizeTrafficStatus(status = null, overview = null) {
+    const statusPayload = status && typeof status === 'object' ? status : {};
+    const overviewPayload = overview && typeof overview === 'object' ? overview : {};
+    const sampleCount = Number(statusPayload?.sampleCount ?? overviewPayload?.sampleCount ?? 0);
+    return {
+        lastCollectionAt: String(statusPayload?.lastCollectionAt || overviewPayload?.lastCollectionAt || '').trim(),
+        sampleCount: Number.isFinite(sampleCount) && sampleCount >= 0 ? sampleCount : 0,
+        collecting: statusPayload?.collecting === true,
+    };
+}
+
 function readAuditTrafficSnapshot() {
     const snapshot = readSessionSnapshot(AUDIT_TRAFFIC_SNAPSHOT_KEY, {
         maxAgeMs: AUDIT_SNAPSHOT_TTL_MS,
@@ -467,6 +483,7 @@ function readAuditTrafficSnapshot() {
         trafficWindows: snapshot?.trafficWindows && typeof snapshot.trafficWindows === 'object'
             ? snapshot.trafficWindows
             : { week: null, month: null },
+        trafficStatus: normalizeTrafficStatus(snapshot?.trafficStatus, snapshot?.trafficOverview),
         issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
 }
@@ -999,6 +1016,7 @@ export default function AuditCenter() {
     const trafficStateRef = useRef({
         trafficOverview: trafficBootstrapRef.current?.trafficOverview || null,
         trafficWindows: trafficBootstrapRef.current?.trafficWindows || { week: null, month: null },
+        trafficStatus: trafficBootstrapRef.current?.trafficStatus || { ...EMPTY_TRAFFIC_STATUS },
     });
     const accessStateRef = useRef({
         accessData: accessBootstrapRef.current?.accessData || { items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} },
@@ -1041,6 +1059,9 @@ export default function AuditCenter() {
     const [trafficOverview, setTrafficOverview] = useState(() => trafficBootstrapRef.current?.trafficOverview || null);
     const [trafficWindows, setTrafficWindows] = useState(() => (
         trafficBootstrapRef.current?.trafficWindows || { week: null, month: null }
+    ));
+    const [trafficStatus, setTrafficStatus] = useState(() => (
+        trafficBootstrapRef.current?.trafficStatus || { ...EMPTY_TRAFFIC_STATUS }
     ));
     const [trafficGranularity, setTrafficGranularity] = useState('auto');
     const [selectedUser, setSelectedUser] = useState('');
@@ -1120,9 +1141,11 @@ export default function AuditCenter() {
                 trafficStateRef.current = {
                     trafficOverview: snapshot.trafficOverview,
                     trafficWindows: snapshot.trafficWindows || { week: null, month: null },
+                    trafficStatus: normalizeTrafficStatus(snapshot.trafficStatus, snapshot.trafficOverview),
                 };
                 setTrafficOverview(snapshot.trafficOverview);
                 setTrafficWindows(snapshot.trafficWindows || { week: null, month: null });
+                setTrafficStatus(normalizeTrafficStatus(snapshot.trafficStatus, snapshot.trafficOverview));
                 if (!selectedUser && snapshot?.trafficOverview?.topUsers?.length > 0) {
                     setSelectedUser(snapshot.trafficOverview.topUsers[0].email);
                 }
@@ -1191,8 +1214,21 @@ export default function AuditCenter() {
         setEventsLoading(false);
     };
 
+    const fetchTrafficStatus = async () => {
+        try {
+            const res = await api.get('/traffic/status');
+            setTrafficStatus(normalizeTrafficStatus(res.data?.obj, trafficOverview));
+        } catch {
+            // keep the latest visible status snapshot
+        }
+    };
+
     const fetchTrafficOverview = async (force = false) => {
         setTrafficLoading(true);
+        setTrafficStatus((current) => ({
+            ...current,
+            collecting: true,
+        }));
         try {
             const params = new URLSearchParams();
             params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
@@ -1202,11 +1238,21 @@ export default function AuditCenter() {
             const res = await api.get(`/traffic/overview?${params.toString()}`);
             const payload = res.data?.obj || null;
             const weekPayload = payload?.windows?.[String(AUDIT_TRAFFIC_WEEK_DAYS)] || null;
+            const nextTrafficStatus = normalizeTrafficStatus(payload?.status, payload);
+            trafficStateRef.current = {
+                trafficOverview: payload,
+                trafficWindows: {
+                    week: weekPayload,
+                    month: payload,
+                },
+                trafficStatus: nextTrafficStatus,
+            };
             setTrafficOverview(payload);
             setTrafficWindows({
                 week: weekPayload,
                 month: payload,
             });
+            setTrafficStatus(nextTrafficStatus);
             if (!selectedUser && payload?.topUsers?.length > 0) {
                 setSelectedUser(payload.topUsers[0].email);
             }
@@ -1221,6 +1267,10 @@ export default function AuditCenter() {
                 toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
+            setTrafficStatus((current) => ({
+                ...current,
+                collecting: false,
+            }));
             if (!hasVisibleTrafficSnapshot(trafficStateRef.current)) {
                 setTrafficWindows({ week: null, month: null });
             }
@@ -1314,8 +1364,9 @@ export default function AuditCenter() {
         writeSessionSnapshot(AUDIT_TRAFFIC_SNAPSHOT_KEY, {
             trafficOverview,
             trafficWindows,
+            trafficStatus,
         });
-    }, [trafficOverview, trafficWindows]);
+    }, [trafficOverview, trafficStatus, trafficWindows]);
 
     useEffect(() => {
         const hasDefaultFilters = !accessFilters.email && !accessFilters.status;
@@ -1398,6 +1449,7 @@ export default function AuditCenter() {
         if (tab === 'events') {
             fetchEvents(1);
         } else if (tab === 'traffic') {
+            fetchTrafficStatus();
             fetchTrafficOverview(false);
         } else if (tab === 'subscriptions') {
             fetchAccess(1);
@@ -1732,9 +1784,9 @@ export default function AuditCenter() {
                                     <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
                                 </div>
                                 <div className="audit-traffic-overview-actions">
-                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficOverview?.lastCollectionAt, locale)}>
+                                    <div className="audit-traffic-sample-pill" title={formatDateTime(trafficStatus?.lastCollectionAt, locale)}>
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
-                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficOverview?.lastCollectionAt, locale)}</span>
+                                        <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.lastCollectionAt, locale)}</span>
                                     </div>
                                     <select
                                         className="form-select w-130"
@@ -1745,7 +1797,7 @@ export default function AuditCenter() {
                                         <option value="hour">{copy.filters.byHour}</option>
                                         <option value="day">{copy.filters.byDay}</option>
                                     </select>
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
+                                    <button className="btn btn-primary btn-sm" onClick={() => { fetchTrafficStatus(); fetchTrafficOverview(true); }} disabled={trafficLoading}>
                                         <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
                                     </button>
                                 </div>
@@ -1778,8 +1830,21 @@ export default function AuditCenter() {
                                         <div className="audit-traffic-mini-note">{copy.traffic.monthlyActiveAccountsScope}</div>
                                     </div>
                                     <div className="audit-traffic-mini-card">
+                                        <div className="audit-traffic-mini-label">{copy.workspace.sampleStatus}</div>
+                                        <div className="audit-traffic-mini-value">
+                                            {trafficStatus.collecting
+                                                ? copy.workspace.loading
+                                                : (trafficStatus.lastCollectionAt ? copy.workspace.ready : copy.states.noData)}
+                                        </div>
+                                        <div className="audit-traffic-mini-note">
+                                            {trafficStatus.lastCollectionAt
+                                                ? formatDateTime(trafficStatus.lastCollectionAt, locale)
+                                                : copy.workspace.dataWindowTraffic}
+                                        </div>
+                                    </div>
+                                    <div className="audit-traffic-mini-card">
                                         <div className="audit-traffic-mini-label">{copy.traffic.samplePoints}</div>
-                                        <div className="audit-traffic-mini-value">{trafficOverview?.sampleCount || 0}</div>
+                                        <div className="audit-traffic-mini-value">{trafficStatus.sampleCount || 0}</div>
                                         <div className="audit-traffic-mini-note">{copy.traffic.samplePointsScope}</div>
                                     </div>
                                     <div className="audit-traffic-mini-card">

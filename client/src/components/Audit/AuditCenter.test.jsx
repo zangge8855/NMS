@@ -528,6 +528,43 @@ describe('AuditCenter localization', () => {
         expect(within(monthlyCard).getByText('19')).toBeInTheDocument();
     });
 
+    it('shows traffic sampling status immediately from the lightweight status endpoint', async () => {
+        const never = new Promise(() => {});
+
+        api.get.mockImplementation((url) => {
+            if (url === '/traffic/status') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            sampleCount: 12,
+                            collecting: true,
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/overview?')) {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/traffic/status');
+        });
+
+        const statusCard = screen.getByText('采样状态').closest('.audit-traffic-mini-card');
+        const samplePointsCard = screen.getByText('采样点').closest('.audit-traffic-mini-card');
+        if (!statusCard || !samplePointsCard) {
+            throw new Error('Missing traffic status cards');
+        }
+
+        expect(within(statusCard).getByText('加载中')).toBeInTheDocument();
+        expect(within(samplePointsCard).getByText('12')).toBeInTheDocument();
+    });
+
     it('keeps the cached subscription summary visible when live access hydration fails', async () => {
         window.sessionStorage.setItem('nms_session_snapshot:audit_access_v1', JSON.stringify({
             savedAt: Date.now(),

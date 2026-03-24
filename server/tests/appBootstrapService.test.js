@@ -32,10 +32,12 @@ describe('app bootstrap service', () => {
         assert.ok(Array.isArray(payload.telemetryOverview.items));
         assert.ok(payload.dashboard);
         assert.equal(typeof payload.dashboard.globalPresenceReady, 'boolean');
+        assert.ok(Object.prototype.hasOwnProperty.call(payload.dashboard, 'throughputSummary'));
         assert.ok(payload.audit);
         assert.ok(payload.audit.events);
         assert.ok(payload.audit.traffic);
         assert.ok(payload.audit.access);
+        assert.ok(payload.audit.traffic.trafficStatus);
         assert.ok(Array.isArray(payload.audit.events.eventsData.items));
         assert.equal(typeof payload.audit.access.accessSummary.total, 'number');
         assert.ok(payload.systemSettings);

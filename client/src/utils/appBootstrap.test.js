@@ -38,10 +38,17 @@ describe('applyAppBootstrapSnapshots', () => {
                 globalOnlineUsers: [
                     { userId: 'user-1', displayName: 'Alice', sessions: 2 },
                 ],
+                globalManagedOnlineCount: 1,
                 globalOnlineSessionCount: 2,
                 globalAccountSummary: {
                     totalUsers: 12,
                     pendingUsers: 1,
+                },
+                throughputSummary: {
+                    ready: true,
+                    upPerSecond: 12,
+                    downPerSecond: 24,
+                    totalPerSecond: 36,
                 },
                 trafficWindowTotals: {
                     day: { totalUp: 1, totalDown: 2, ready: true },
@@ -66,6 +73,11 @@ describe('applyAppBootstrapSnapshots', () => {
                     trafficWindows: {
                         week: { activeUsers: 4 },
                         month: { activeUsers: 9 },
+                    },
+                    trafficStatus: {
+                        lastCollectionAt: '2026-03-24T00:00:00.000Z',
+                        sampleCount: 24,
+                        collecting: false,
                     },
                 },
                 access: {
@@ -159,7 +171,11 @@ describe('applyAppBootstrapSnapshots', () => {
             globalOnlineUsers: [
                 { userId: 'user-1', displayName: 'Alice', sessions: 2 },
             ],
+            globalManagedOnlineCount: 1,
             globalOnlineSessionCount: 2,
+            throughputSummary: {
+                totalPerSecond: 36,
+            },
         });
         expect(readSessionSnapshot('audit_events_v1')).toMatchObject({
             eventsData: {
@@ -170,6 +186,9 @@ describe('applyAppBootstrapSnapshots', () => {
             trafficWindows: {
                 week: { activeUsers: 4 },
                 month: { activeUsers: 9 },
+            },
+            trafficStatus: {
+                sampleCount: 24,
             },
         });
         expect(readSessionSnapshot('audit_access_v1')).toMatchObject({

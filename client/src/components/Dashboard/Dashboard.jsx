@@ -51,6 +51,13 @@ const INITIAL_TRAFFIC_WINDOW_TOTAL = {
     totalDown: 0,
     ready: false,
 };
+const EMPTY_THROUGHPUT_SUMMARY = {
+    up: 0,
+    down: 0,
+    total: 0,
+    ready: false,
+};
+
 function buildInitialTrafficWindowTotals({ ready = false } = {}) {
     return {
         day: { ...INITIAL_TRAFFIC_WINDOW_TOTAL, ready },
@@ -84,6 +91,24 @@ function normalizeStoredTrafficWindowTotals(windows = {}) {
     };
 }
 
+function normalizeThroughputSummary(summary = null) {
+    if (!summary || typeof summary !== 'object') return { ...EMPTY_THROUGHPUT_SUMMARY };
+    const up = Number(summary?.upPerSecond ?? summary?.up ?? 0);
+    const down = Number(summary?.downPerSecond ?? summary?.down ?? 0);
+    const total = Number(summary?.totalPerSecond ?? summary?.total ?? (up + down));
+    return {
+        up: Number.isFinite(up) ? up : 0,
+        down: Number.isFinite(down) ? down : 0,
+        total: Number.isFinite(total) ? total : 0,
+        ready: summary?.ready === true,
+    };
+}
+
+function normalizeManagedOnlineCount(value, fallback = null) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function readDashboardBootstrapSnapshot() {
     const snapshot = readSessionSnapshot(DASHBOARD_SNAPSHOT_KEY, {
         maxAgeMs: DASHBOARD_SNAPSHOT_TTL_MS,
@@ -100,12 +125,19 @@ function readDashboardBootstrapSnapshot() {
         pendingUsers: Number(snapshot?.globalAccountSummary?.pendingUsers || 0),
     };
     const globalOnlineUsers = Array.isArray(snapshot?.globalOnlineUsers) ? snapshot.globalOnlineUsers : [];
+    const globalManagedOnlineCount = normalizeManagedOnlineCount(
+        snapshot?.globalManagedOnlineCount,
+        snapshot?.globalPresenceReady === true ? globalOnlineUsers.length : null
+    );
     const globalOnlineSessionCount = Number(snapshot?.globalOnlineSessionCount || 0);
+    const throughputSummary = normalizeThroughputSummary(snapshot?.throughputSummary || null);
     const trafficWindowTotals = normalizeStoredTrafficWindowTotals(snapshot?.trafficWindowTotals || {});
     const hasRenderableData = (
         Object.keys(serverStatuses).length > 0
         || globalStats.serverCount > 0
         || globalAccountSummary.totalUsers > 0
+        || globalManagedOnlineCount !== null
+        || throughputSummary.ready === true
         || Object.values(trafficWindowTotals).some((window) => window?.ready === true)
     );
 
@@ -114,7 +146,9 @@ function readDashboardBootstrapSnapshot() {
         globalStats,
         globalAccountSummary,
         globalOnlineUsers,
+        globalManagedOnlineCount,
         globalOnlineSessionCount,
+        throughputSummary,
         trafficWindowTotals,
         globalPresenceReady: snapshot?.globalPresenceReady === true && Array.isArray(snapshot?.globalOnlineUsers),
         hasRenderableData,
@@ -551,6 +585,9 @@ export default function Dashboard() {
     const [globalOnlineUsers, setGlobalOnlineUsers] = useState(() => (
         dashboardBootstrapRef.current?.globalOnlineUsers || []
     ));
+    const [globalManagedOnlineCount, setGlobalManagedOnlineCount] = useState(() => (
+        dashboardBootstrapRef.current?.globalManagedOnlineCount ?? null
+    ));
     const [globalOnlineSessionCount, setGlobalOnlineSessionCount] = useState(() => (
         dashboardBootstrapRef.current?.globalOnlineSessionCount || 0
     ));
@@ -564,6 +601,9 @@ export default function Dashboard() {
     ));
     const [trafficWindowTotals, setTrafficWindowTotals] = useState(() => (
         dashboardBootstrapRef.current?.trafficWindowTotals || buildInitialTrafficWindowTotals()
+    ));
+    const [throughputSummary, setThroughputSummary] = useState(() => (
+        dashboardBootstrapRef.current?.throughputSummary || { ...EMPTY_THROUGHPUT_SUMMARY }
     ));
     const liveGlobalDataAtRef = useRef(0);
 
@@ -610,19 +650,26 @@ export default function Dashboard() {
         const nextServerStatuses = buildDashboardSnapshotServerStatuses(payload?.serverStatuses || {});
         const nextGlobalStats = normalizeGlobalStatsSnapshot(payload?.globalStats || {});
         const nextGlobalOnlineUsers = Array.isArray(payload?.globalOnlineUsers) ? payload.globalOnlineUsers : [];
+        const nextGlobalManagedOnlineCount = normalizeManagedOnlineCount(
+            payload?.globalManagedOnlineCount,
+            payload?.globalPresenceReady === true ? nextGlobalOnlineUsers.length : null
+        );
         const nextGlobalOnlineSessionCount = Number(payload?.globalOnlineSessionCount || 0);
         const nextGlobalAccountSummary = {
             totalUsers: Number(payload?.globalAccountSummary?.totalUsers || 0),
             pendingUsers: Number(payload?.globalAccountSummary?.pendingUsers || 0),
         };
+        const nextThroughputSummary = normalizeThroughputSummary(payload?.throughputSummary || null);
         const nextTrafficWindowTotals = normalizeStoredTrafficWindowTotals(payload?.trafficWindowTotals || {});
 
         setServerStatuses(nextServerStatuses);
         setServerTrendHistory((previous) => pushServerTrendSamples(previous, nextServerStatuses));
         setGlobalStats(nextGlobalStats);
         setGlobalOnlineUsers(nextGlobalOnlineUsers);
+        setGlobalManagedOnlineCount(nextGlobalManagedOnlineCount);
         setGlobalOnlineSessionCount(nextGlobalOnlineSessionCount);
         setGlobalAccountSummary(nextGlobalAccountSummary);
+        setThroughputSummary(nextThroughputSummary);
         setTrafficWindowTotals(nextTrafficWindowTotals);
         setGlobalPresenceReady(payload?.globalPresenceReady === true);
     }, []);
@@ -727,8 +774,14 @@ export default function Dashboard() {
                 pendingUsers: Number(data.accountSummary.pendingUsers || 0),
             });
         }
+        if (data?.throughputSummary && typeof data.throughputSummary === 'object') {
+            setThroughputSummary(normalizeThroughputSummary(data.throughputSummary));
+        }
         if (data?.trafficWindows && typeof data.trafficWindows === 'object') {
             syncTrafficWindowTotals(normalizeTrafficWindowPayload(data.trafficWindows));
+        }
+        if (Number.isFinite(Number(data?.managedOnlineUserCount))) {
+            setGlobalManagedOnlineCount(Number(data.managedOnlineUserCount));
         }
         if (Array.isArray(data?.managedOnlineUsers)) {
             setGlobalOnlineUsers(data.managedOnlineUsers);
@@ -752,18 +805,22 @@ export default function Dashboard() {
             serverStatuses: buildDashboardSnapshotServerStatuses(serverStatuses),
             globalAccountSummary,
             globalOnlineUsers,
+            globalManagedOnlineCount,
             globalOnlineSessionCount,
+            throughputSummary,
             trafficWindowTotals,
             globalPresenceReady,
         });
     }, [
         activeServerId,
         globalAccountSummary,
+        globalManagedOnlineCount,
         globalOnlineSessionCount,
         globalOnlineUsers,
         globalPresenceReady,
         globalStats,
         serverStatuses,
+        throughputSummary,
         trafficWindowTotals,
     ]);
 
@@ -795,9 +852,11 @@ export default function Dashboard() {
     const fetchGlobalData = useCallback(async (options = {}) => {
         if (servers.length === 0) {
             setGlobalOnlineUsers([]);
+            setGlobalManagedOnlineCount(0);
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
+            setThroughputSummary({ ...EMPTY_THROUGHPUT_SUMMARY });
             setTrafficWindowTotals(buildInitialTrafficWindowTotals({ ready: true }));
             markGlobalDataLive();
             setLoading(false);
@@ -837,6 +896,7 @@ export default function Dashboard() {
         setGlobalPresenceReady(false);
         setGlobalPresenceLoading(false);
         setGlobalOnlineUsers([]);
+        setGlobalManagedOnlineCount(null);
         setGlobalOnlineSessionCount(0);
     }, [activeServerId]);
 
@@ -845,7 +905,9 @@ export default function Dashboard() {
         const hasRenderableGlobalData = (
             Object.keys(serverStatuses || {}).length > 0
             || globalAccountSummary.totalUsers > 0
+            || globalManagedOnlineCount !== null
             || globalOnlineUsers.length > 0
+            || throughputSummary.ready === true
             || Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true)
         );
         setLoading(!hasRenderableGlobalData);
@@ -863,9 +925,11 @@ export default function Dashboard() {
         activeServerId,
         fetchGlobalData,
         globalAccountSummary.totalUsers,
+        globalManagedOnlineCount,
         globalOnlineUsers.length,
         hasLiveClusterSnapshot,
         serverStatuses,
+        throughputSummary.ready,
         trafficWindowTotals,
     ]);
 
@@ -979,13 +1043,18 @@ export default function Dashboard() {
     if (activeServerId === 'global') {
         const clusterSummaryReady = hasLiveClusterSnapshot || Object.keys(serverStatuses || {}).length > 0;
         const clusterServerCount = globalStats.serverCount || servers.length;
-        const globalManagedOnlineCount = globalPresenceReady ? globalOnlineUsers.length : null;
+        const effectiveManagedOnlineCount = globalManagedOnlineCount ?? (globalPresenceReady ? globalOnlineUsers.length : null);
+        const effectiveThroughput = throughputSummary.ready ? throughputSummary : clusterThroughput;
         const globalOnlineSummary = globalPresenceReady
             ? t('pages.dashboardCommon.registeredSessionSummary', {
                 users: globalAccountSummary.totalUsers,
                 sessions: globalOnlineSessionCount,
             })
-            : globalAccountSummary.totalUsers > 0
+            : effectiveManagedOnlineCount !== null
+                ? t('pages.dashboardCommon.registeredPendingSummary', {
+                    users: globalAccountSummary.totalUsers,
+                })
+                : globalAccountSummary.totalUsers > 0
                 ? t('pages.dashboardCommon.registeredPendingSummary', {
                     users: globalAccountSummary.totalUsers,
                 })
@@ -1009,12 +1078,12 @@ export default function Dashboard() {
             },
             {
                 icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
-                ...(globalManagedOnlineCount === null
+                ...(effectiveManagedOnlineCount === null
                     ? {
                         value: '--',
                     }
                     : {
-                        animateValue: globalManagedOnlineCount,
+                        animateValue: effectiveManagedOnlineCount,
                         renderAnimatedValue: (value) => String(value),
                     }),
                 sub: globalOnlineSummary,
@@ -1027,11 +1096,11 @@ export default function Dashboard() {
             {
                 icon: HiOutlineArrowsUpDown,
                 label: t('pages.dashboardGlobal.cards.liveThroughput'),
-                value: clusterThroughput.ready ? formatBytes(clusterThroughput.total) : '--',
-                sub: clusterThroughput.ready
+                value: effectiveThroughput.ready ? formatBytes(effectiveThroughput.total) : '--',
+                sub: effectiveThroughput.ready
                     ? t('pages.dashboardCommon.throughputSplit', {
-                        up: formatBytes(clusterThroughput.up),
-                        down: formatBytes(clusterThroughput.down),
+                        up: formatBytes(effectiveThroughput.up),
+                        down: formatBytes(effectiveThroughput.down),
                     })
                     : t('pages.dashboardCommon.throughputPending'),
                 ...DASHBOARD_ACCENT.warning,

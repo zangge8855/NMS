@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureTrafficSamples } from '../routes/traffic.js';
+import { ensureTrafficSamples, readTrafficCollectionStatus } from '../routes/traffic.js';
 import trafficStatsStore from '../store/trafficStatsStore.js';
 
 test('ensureTrafficSamples waits for stale collection before returning', async (t) => {
@@ -52,4 +52,26 @@ test('ensureTrafficSamples forwards explicit refresh requests to the collector',
 
     assert.equal(receivedForce, true);
     assert.equal(result.samplesAdded, 2);
+});
+
+test('readTrafficCollectionStatus exposes the latest sampling metadata', async (t) => {
+    const originalGetCollectionStatus = trafficStatsStore.getCollectionStatus;
+
+    trafficStatsStore.getCollectionStatus = () => ({
+        lastCollectionAt: '2026-03-24T00:10:00.000Z',
+        sampleCount: 12,
+        collecting: true,
+    });
+
+    t.after(() => {
+        trafficStatsStore.getCollectionStatus = originalGetCollectionStatus;
+    });
+
+    const result = readTrafficCollectionStatus();
+
+    assert.deepEqual(result, {
+        lastCollectionAt: '2026-03-24T00:10:00.000Z',
+        sampleCount: 12,
+        collecting: true,
+    });
 });

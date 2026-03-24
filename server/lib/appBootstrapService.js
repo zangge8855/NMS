@@ -112,6 +112,7 @@ function buildAuditTrafficBootstrap() {
             week: trafficWeek,
             month: trafficOverview,
         },
+        trafficStatus: trafficStatsStore.getCollectionStatus(),
     };
 }
 
@@ -277,9 +278,17 @@ function buildDashboardSnapshot(telemetryOverview = {}) {
             serverCount: Number(summary?.total || telemetryItems.length || 0),
             onlineServers: Number(summary?.onlineServers || onlineServersFallback || 0),
         },
+        globalManagedOnlineCount: presence ? presence.onlineRows.length : null,
         globalOnlineUsers: presence?.onlineRows || [],
         globalOnlineSessionCount: Number(presence?.onlineSessionCount || 0),
         globalAccountSummary: buildDashboardAccountSummary(),
+        throughputSummary: summary?.throughput || {
+            ready: false,
+            readyServers: 0,
+            upPerSecond: 0,
+            downPerSecond: 0,
+            totalPerSecond: 0,
+        },
         trafficWindowTotals: buildDashboardTrafficWindows(),
         globalPresenceReady: presence != null,
     };
