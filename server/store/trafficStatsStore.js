@@ -813,20 +813,25 @@ class TrafficStatsStore {
 
         const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
         const managedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
+        const unattributedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
         const users = new Map();
+        let hasUnattributedTraffic = false;
 
         for (const item of samples) {
-            totals.upBytes += toNonNegativeInt(item.upBytes, 0);
-            totals.downBytes += toNonNegativeInt(item.downBytes, 0);
-            totals.totalBytes += toNonNegativeInt(item.totalBytes, 0);
+            const upBytes = toNonNegativeInt(item.upBytes, 0);
+            const downBytes = toNonNegativeInt(item.downBytes, 0);
+            const totalBytes = toNonNegativeInt(item.totalBytes, 0);
+            totals.upBytes += upBytes;
+            totals.downBytes += downBytes;
+            totals.totalBytes += totalBytes;
 
             const email = String(item.email || '').trim().toLowerCase();
             if (email) {
                 const userInfo = resolveTrafficUserInfo(email);
                 if (userInfo?.email) {
-                    managedTotals.upBytes += toNonNegativeInt(item.upBytes, 0);
-                    managedTotals.downBytes += toNonNegativeInt(item.downBytes, 0);
-                    managedTotals.totalBytes += toNonNegativeInt(item.totalBytes, 0);
+                    managedTotals.upBytes += upBytes;
+                    managedTotals.downBytes += downBytes;
+                    managedTotals.totalBytes += totalBytes;
                     const current = users.get(userInfo.email) || {
                         userId: userInfo.userId,
                         username: userInfo.username,
@@ -834,10 +839,16 @@ class TrafficStatsStore {
                         displayLabel: userInfo.displayLabel,
                         totalBytes: 0,
                     };
-                    current.totalBytes += toNonNegativeInt(item.totalBytes, 0);
+                    current.totalBytes += totalBytes;
                     users.set(userInfo.email, current);
                 }
+                continue;
             }
+            if (totalBytes <= 0) continue;
+            hasUnattributedTraffic = true;
+            unattributedTotals.upBytes += upBytes;
+            unattributedTotals.downBytes += downBytes;
+            unattributedTotals.totalBytes += totalBytes;
         }
 
         const topUsers = Array.from(users.values())
@@ -885,7 +896,8 @@ class TrafficStatsStore {
             to: range.to,
             sampleCount: samples.length,
             activeUsers: users.size,
-            userLevelSupported: samples.some((item) => Boolean(String(item.email || '').trim())),
+            userLevelSupported: hasUnattributedTraffic !== true,
+            unattributedTotals,
             totals,
             managedTotals,
             registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),

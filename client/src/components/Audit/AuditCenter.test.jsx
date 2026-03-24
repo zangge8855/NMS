@@ -762,16 +762,129 @@ describe('AuditCenter localization', () => {
             expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('days=30'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('days=30'))).toBe(true);
         });
+        const totalTrafficCard = document.querySelector('.audit-traffic-total-card');
+        if (!totalTrafficCard) {
+            throw new Error('Missing traffic total card');
+        }
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
         expect(screen.getAllByText('先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
-        expect(screen.getByText('512 B')).toBeInTheDocument();
-        expect(screen.getByText('最近 30 天已注册用户采样')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('2 KB')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('最近 30 天全部节点采样')).toBeInTheDocument();
         expect(screen.getByText('周活跃账号')).toBeInTheDocument();
         expect(screen.getByText('月活跃账号')).toBeInTheDocument();
         expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getByText('当前所选节点 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to node totals for the 30-day traffic card when user attribution is incomplete', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            sampleCount: 12,
+                            activeUsers: 1,
+                            userLevelSupported: false,
+                            managedTotals: {
+                                upBytes: 128,
+                                downBytes: 384,
+                                totalBytes: 512,
+                            },
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                            topUsers: [
+                                {
+                                    email: 'alice@example.com',
+                                    username: 'alice',
+                                    displayLabel: 'alice · alice@example.com',
+                                    totalBytes: 512,
+                                },
+                            ],
+                            topServers: [
+                                {
+                                    serverId: 'server-a',
+                                    serverName: 'Node A',
+                                    totalBytes: 2048,
+                                },
+                            ],
+                            windows: {
+                                '7': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 128,
+                                        downBytes: 384,
+                                        totalBytes: 512,
+                                    },
+                                },
+                                '30': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 512,
+                                        downBytes: 1536,
+                                        totalBytes: 2048,
+                                    },
+                                },
+                            },
+                            collection: {
+                                warnings: [],
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/users/alice%40example.com/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'alice@example.com',
+                            username: 'alice',
+                            displayLabel: 'alice · alice@example.com',
+                            granularity: 'hour',
+                            points: [],
+                            totals: {
+                                upBytes: 128,
+                                downBytes: 384,
+                                totalBytes: 512,
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/servers/server-a/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            serverId: 'server-a',
+                            granularity: 'day',
+                            points: [],
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        expect(await screen.findByText('采样点')).toBeInTheDocument();
+        const totalTrafficCard = document.querySelector('.audit-traffic-total-card');
+        if (!totalTrafficCard) {
+            throw new Error('Missing traffic total card');
+        }
+        expect(within(totalTrafficCard).getByText('2 KB')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('最近 30 天全部节点采样；用户级归属不完整')).toBeInTheDocument();
+        expect(screen.getByText('仅支持节点级流量')).toBeInTheDocument();
     });
 
     it('ignores a late bootstrap traffic snapshot after live traffic data has loaded', async () => {

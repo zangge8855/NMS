@@ -468,4 +468,89 @@ describe('traffic stats inbound fallback', () => {
             totalBytes: 160,
         });
     });
+
+    it('marks user-level traffic as limited when the window includes unattributed node-level samples', () => {
+        const originalUsers = userStore.exportState();
+        try {
+            userStore.importState({
+                users: [
+                    {
+                        id: 'user-1',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const store = new TrafficStatsStore();
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-managed',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    {
+                        id: 'sample-unattributed',
+                        ts: '2026-03-13T01:00:00.000Z',
+                        serverId: 'server-b',
+                        serverName: 'Node B',
+                        inboundId: '2',
+                        inboundRemark: 'Fallback',
+                        email: '',
+                        clientIdentifier: '__inbound_total__',
+                        upBytes: 400,
+                        downBytes: 500,
+                        totalBytes: 900,
+                    },
+                ],
+                counters: {},
+                meta: {
+                    lastCollectionAt: '2026-03-13T01:00:00.000Z',
+                    registeredTotals: {
+                        totalUsers: 1,
+                        activeUsers: 1,
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    serverTotals: [],
+                },
+            });
+
+            const overview = store.getOverview({ days: 30, top: 10 });
+            assert.equal(overview.userLevelSupported, false);
+            assert.deepEqual(overview.managedTotals, {
+                upBytes: 100,
+                downBytes: 200,
+                totalBytes: 300,
+            });
+            assert.deepEqual(overview.unattributedTotals, {
+                upBytes: 400,
+                downBytes: 500,
+                totalBytes: 900,
+            });
+            assert.deepEqual(overview.totals, {
+                upBytes: 500,
+                downBytes: 700,
+                totalBytes: 1200,
+            });
+        } finally {
+            userStore.importState(originalUsers);
+        }
+    });
 });

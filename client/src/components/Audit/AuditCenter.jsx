@@ -163,7 +163,8 @@ const AUDIT_COPY = {
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
             totalTrafficScope: '近 30 天流量',
-            totalTrafficMonthNote: '最近 30 天已注册用户采样',
+            totalTrafficMonthNote: '最近 30 天全部节点采样',
+            totalTrafficLimitedNote: '最近 30 天全部节点采样；用户级归属不完整',
             weeklyActiveAccountsScope: '最近 7 天 · 有流量的已注册用户',
             monthlyActiveAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
@@ -344,7 +345,8 @@ const AUDIT_COPY = {
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
             totalTrafficScope: 'Traffic in the last 30 days',
-            totalTrafficMonthNote: 'Summed from last-30-day registered-user samples',
+            totalTrafficMonthNote: 'Sampled traffic across all nodes in the last 30 days',
+            totalTrafficLimitedNote: 'Sampled traffic across all nodes in the last 30 days; user attribution is incomplete',
             weeklyActiveAccountsScope: 'Last 7 days · registered users with traffic',
             monthlyActiveAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
@@ -1474,12 +1476,14 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
-    const trafficTotals = trafficOverview?.managedTotals || trafficOverview?.totals || {
+    const trafficTotals = trafficOverview?.totals || {
         upBytes: 0,
         downBytes: 0,
         totalBytes: 0,
     };
-    const trafficTotalsNote = copy.traffic.totalTrafficMonthNote;
+    const trafficTotalsNote = trafficOverview?.userLevelSupported === false
+        ? copy.traffic.totalTrafficLimitedNote
+        : copy.traffic.totalTrafficMonthNote;
     const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
         ? trafficOverview.collection.warnings.length
         : 0;
