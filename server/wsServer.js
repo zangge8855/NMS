@@ -21,6 +21,8 @@ import { verifyWsTicket } from './lib/wsTicket.js';
 import taskQueue from './lib/taskQueue.js';
 import notificationService from './lib/notifications.js';
 import { collectClusterStatusSnapshot, getCachedClusterStatusSnapshot } from './lib/serverStatusService.js';
+import { getCachedServerPanelSnapshots } from './lib/serverPanelSnapshotService.js';
+import { buildDashboardPresenceFromPanelSnapshots } from './lib/dashboardSnapshotService.js';
 import trafficStatsStore from './store/trafficStatsStore.js';
 import userStore from './store/userStore.js';
 
@@ -64,7 +66,28 @@ function buildDashboardTrafficWindows() {
     };
 }
 
+function buildDashboardPresenceSummary() {
+    const users = userStore.getAll();
+    const panelSnapshots = getCachedServerPanelSnapshots({
+        includeOnlines: true,
+    });
+    if (!Array.isArray(panelSnapshots) || panelSnapshots.length === 0) {
+        return {
+            onlineRows: [],
+            onlineSessionCount: 0,
+            ready: false,
+        };
+    }
+    const presence = buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots);
+    return {
+        onlineRows: presence.onlineRows,
+        onlineSessionCount: Number(presence.onlineSessionCount || 0),
+        ready: true,
+    };
+}
+
 function buildClusterStatusMessage(snapshot) {
+    const presence = buildDashboardPresenceSummary();
     return {
         type: 'cluster_status',
         ts: Date.now(),
@@ -81,6 +104,10 @@ function buildClusterStatusMessage(snapshot) {
             servers: snapshot?.byServerId || {},
             accountSummary: buildDashboardAccountSummary(),
             trafficWindows: buildDashboardTrafficWindows(),
+            managedOnlineUsers: presence.onlineRows,
+            managedOnlineUserCount: presence.onlineRows.length,
+            managedOnlineSessionCount: presence.onlineSessionCount,
+            managedPresenceReady: presence.ready,
         },
     };
 }

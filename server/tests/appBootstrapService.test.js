@@ -23,6 +23,7 @@ describe('app bootstrap service', () => {
         assert.equal(typeof payload.issuedAt, 'string');
         assert.ok(payload.serverContext);
         assert.ok(Array.isArray(payload.serverContext.servers));
+        assert.equal(payload.serverContext.activeServerId, 'global');
         assert.ok(payload.notifications);
         assert.equal(typeof payload.notifications.unreadCount, 'number');
         assert.ok(Array.isArray(payload.managedUsers));

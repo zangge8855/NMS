@@ -19,9 +19,11 @@ export function applyAppBootstrapSnapshots(payload = {}) {
 
     const serverContext = payload?.serverContext;
     if (serverContext && Array.isArray(serverContext.servers)) {
+        const nextActiveServerId = String(serverContext.activeServerId || '').trim()
+            || (serverContext.servers.length > 0 ? 'global' : '');
         writeSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
             servers: serverContext.servers,
-            activeServerId: String(serverContext.activeServerId || '').trim(),
+            activeServerId: nextActiveServerId,
         });
     }
 
@@ -58,6 +60,10 @@ export function applyAppBootstrapSnapshots(payload = {}) {
             globalStats: dashboard.globalStats && typeof dashboard.globalStats === 'object'
                 ? dashboard.globalStats
                 : {},
+            globalOnlineUsers: Array.isArray(dashboard.globalOnlineUsers)
+                ? dashboard.globalOnlineUsers
+                : [],
+            globalOnlineSessionCount: Number(dashboard.globalOnlineSessionCount || 0),
             globalAccountSummary: dashboard.globalAccountSummary && typeof dashboard.globalAccountSummary === 'object'
                 ? dashboard.globalAccountSummary
                 : {},

@@ -35,6 +35,10 @@ describe('applyAppBootstrapSnapshots', () => {
                     serverCount: 1,
                     onlineServers: 1,
                 },
+                globalOnlineUsers: [
+                    { userId: 'user-1', displayName: 'Alice', sessions: 2 },
+                ],
+                globalOnlineSessionCount: 2,
                 globalAccountSummary: {
                     totalUsers: 12,
                     pendingUsers: 1,
@@ -134,6 +138,7 @@ describe('applyAppBootstrapSnapshots', () => {
 
         expect(readSessionSnapshot('server_context_bootstrap_v1')).toMatchObject({
             servers: [{ id: 'server-a', name: 'Node A' }],
+            activeServerId: 'global',
         });
         expect(readSessionSnapshot('notification_center_bootstrap_v1')).toMatchObject({
             unreadCount: 2,
@@ -151,6 +156,10 @@ describe('applyAppBootstrapSnapshots', () => {
                 serverCount: 1,
                 onlineServers: 1,
             },
+            globalOnlineUsers: [
+                { userId: 'user-1', displayName: 'Alice', sessions: 2 },
+            ],
+            globalOnlineSessionCount: 2,
         });
         expect(readSessionSnapshot('audit_events_v1')).toMatchObject({
             eventsData: {

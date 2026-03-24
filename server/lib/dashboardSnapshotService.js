@@ -311,6 +311,18 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
     };
 }
 
+function buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots = []) {
+    return buildManagedOnlineSummary(
+        users,
+        (Array.isArray(panelSnapshots) ? panelSnapshots : []).map((item) => ({
+            serverId: item?.server?.id || item?.serverId || '',
+            serverName: item?.server?.name || item?.serverName || '',
+            inbounds: Array.isArray(item?.inbounds) ? item.inbounds : [],
+            onlines: Array.isArray(item?.onlines) ? item.onlines : [],
+        }))
+    );
+}
+
 function buildTrafficWindowTotals(deps = {}) {
     const trafficStatsStoreRef = deps.trafficStatsStore || trafficStatsStore;
     const readWindow = (options = {}) => {
@@ -529,6 +541,7 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
 }
 
 export {
+    buildDashboardPresenceFromPanelSnapshots,
     buildGlobalDashboardSnapshot,
     buildSingleDashboardSnapshot,
 };

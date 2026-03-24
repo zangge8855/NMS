@@ -1032,6 +1032,7 @@ export default function AuditCenter() {
     };
 
     const fetchTrafficOverview = async (force = false) => {
+        const preserveCurrent = trafficOverview != null || trafficWindows.week != null || trafficWindows.month != null;
         setTrafficLoading(true);
         try {
             const params = new URLSearchParams();
@@ -1059,7 +1060,9 @@ export default function AuditCenter() {
                 toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
-            setTrafficWindows({ week: null, month: null });
+            if (!preserveCurrent) {
+                setTrafficWindows({ week: null, month: null });
+            }
             toast.error(err.response?.data?.msg || err.message || copy.toast.trafficLoadFailed);
         }
         setTrafficLoading(false);
@@ -1098,6 +1101,14 @@ export default function AuditCenter() {
     };
 
     const fetchAccess = async (targetPage = accessPage, filtersOverride = null) => {
+        const preserveCurrent = (
+            (Array.isArray(accessData.items) && accessData.items.length > 0)
+            || Number(accessData.total || 0) > 0
+            || Number(accessSummary.total || 0) > 0
+            || Number(accessSummary.uniqueUsers || 0) > 0
+            || Number(accessUserWindows.week?.uniqueUsers || 0) > 0
+            || Number(accessUserWindows.month?.uniqueUsers || 0) > 0
+        );
         setAccessLoading(true);
         try {
             const sourceFilters = filtersOverride || accessFilters;
@@ -1121,11 +1132,13 @@ export default function AuditCenter() {
             });
             setAccessPage(targetPage);
         } catch (err) {
-            setAccessSummary({ ...EMPTY_ACCESS_SUMMARY });
-            setAccessUserWindows({
-                week: { ...EMPTY_ACCESS_SUMMARY },
-                month: { ...EMPTY_ACCESS_SUMMARY },
-            });
+            if (!preserveCurrent) {
+                setAccessSummary({ ...EMPTY_ACCESS_SUMMARY });
+                setAccessUserWindows({
+                    week: { ...EMPTY_ACCESS_SUMMARY },
+                    month: { ...EMPTY_ACCESS_SUMMARY },
+                });
+            }
             toast.error(err.response?.data?.msg || err.message || copy.toast.accessLoadFailed);
         }
         setAccessLoading(false);

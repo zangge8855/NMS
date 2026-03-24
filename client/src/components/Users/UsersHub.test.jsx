@@ -494,6 +494,68 @@ describe('UsersHub ordering', () => {
         expect(screen.getByText(/节点统计同步中/)).toBeInTheDocument();
     });
 
+    it('renders the cached node stats snapshot before the live node hydration finishes', async () => {
+        const never = new Promise(() => {});
+        window.sessionStorage.setItem('nms_session_snapshot:managed_users_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: [
+                {
+                    id: 'user-snapshot',
+                    username: 'snapshot-user',
+                    email: 'snapshot@example.com',
+                    subscriptionEmail: 'snapshot@example.com',
+                    role: 'user',
+                    enabled: true,
+                    createdAt: '2026-03-10T00:00:00.000Z',
+                },
+            ],
+        }));
+        window.sessionStorage.setItem('nms_session_snapshot:managed_user_stats_v1:server-a', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                clientsEntries: [
+                    ['snapshot@example.com', {
+                        count: 1,
+                        totalUsed: 30,
+                        totalUp: 10,
+                        totalDown: 20,
+                        expiryValues: [],
+                        onlineSessions: 1,
+                    }],
+                ],
+                onlineEntries: [
+                    ['snapshot@example.com', 1],
+                ],
+                inboundExpiries: [],
+                allInbounds: [],
+                partialErrors: [],
+                statsReady: true,
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users' || url === '/panel/server-a/panel/api/inbounds/list') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return never;
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('snapshot-user')).toBeInTheDocument();
+        expect(screen.getByText('snapshot@example.com')).toBeInTheDocument();
+        expect(screen.getByText('↑10 B')).toBeInTheDocument();
+        expect(screen.getByText('↓20 B')).toBeInTheDocument();
+        expect(screen.getByText('在线')).toBeInTheDocument();
+    });
+
     it('localizes the empty-state copy when no users exist in English', async () => {
         window.localStorage.setItem('nms_locale', 'en-US');
 

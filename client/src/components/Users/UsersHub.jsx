@@ -15,6 +15,7 @@ import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../ut
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
 import { fetchManagedUsers, getManagedUsersSnapshot, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -46,6 +47,29 @@ const PROTOCOL_OPTIONS = [
     { key: 'trojan', label: 'Trojan' },
     { key: 'shadowsocks', label: 'Shadowsocks' },
 ];
+const USERS_STATS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildUsersStatsSnapshotKey(serverInventoryKey = '') {
+    const normalizedKey = String(serverInventoryKey || '').trim() || 'default';
+    return `managed_user_stats_v1:${normalizedKey}`;
+}
+
+function readUsersStatsSnapshot(snapshotKey) {
+    const snapshot = readSessionSnapshot(snapshotKey, {
+        maxAgeMs: USERS_STATS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        clientsEntries: Array.isArray(snapshot?.clientsEntries) ? snapshot.clientsEntries : [],
+        onlineEntries: Array.isArray(snapshot?.onlineEntries) ? snapshot.onlineEntries : [],
+        inboundExpiries: Array.isArray(snapshot?.inboundExpiries) ? snapshot.inboundExpiries : [],
+        allInbounds: Array.isArray(snapshot?.allInbounds) ? snapshot.allInbounds : [],
+        partialErrors: Array.isArray(snapshot?.partialErrors) ? snapshot.partialErrors : [],
+        statsReady: snapshot?.statsReady === true,
+    };
+}
 
 function buildProvisionSuccessMessage(deployment, locale = 'zh-CN') {
     const dep = deployment && typeof deployment === 'object' ? deployment : {};
@@ -269,15 +293,20 @@ export default function UsersHub() {
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
         [servers]
     );
+    const usersStatsSnapshotKey = useMemo(
+        () => buildUsersStatsSnapshotKey(serverInventoryKey),
+        [serverInventoryKey]
+    );
+    const statsBootstrapRef = useRef(readUsersStatsSnapshot(usersStatsSnapshotKey));
 
     const [users, setUsers] = useState(() => usersBootstrapRef.current);
-    const [clientsMap, setClientsMap] = useState(new Map());
-    const [onlineMap, setOnlineMap] = useState(new Map());
+    const [clientsMap, setClientsMap] = useState(() => new Map(statsBootstrapRef.current?.clientsEntries || []));
+    const [onlineMap, setOnlineMap] = useState(() => new Map(statsBootstrapRef.current?.onlineEntries || []));
     const [loading, setLoading] = useState(() => usersBootstrapRef.current.length === 0);
     const [statsLoading, setStatsLoading] = useState(false);
-    const [statsReady, setStatsReady] = useState(false);
+    const [statsReady, setStatsReady] = useState(() => statsBootstrapRef.current?.statsReady === true);
     const [primaryError, setPrimaryError] = useState('');
-    const [partialErrors, setPartialErrors] = useState([]);
+    const [partialErrors, setPartialErrors] = useState(() => statsBootstrapRef.current?.partialErrors || []);
     const [searchTerm, setSearchTerm] = useState('');
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const navigate = useNavigate();
@@ -298,8 +327,8 @@ export default function UsersHub() {
     const [provisionTrafficLimitGb, setProvisionTrafficLimitGb] = useState('0');
     const [provisionResult, setProvisionResult] = useState(null);
     const [provisionSelectedInboundKeys, setProvisionSelectedInboundKeys] = useState(new Set());
-    const [inboundExpiries, setInboundExpiries] = useState([]);
-    const [allInbounds, setAllInbounds] = useState([]);
+    const [inboundExpiries, setInboundExpiries] = useState(() => statsBootstrapRef.current?.inboundExpiries || []);
+    const [allInbounds, setAllInbounds] = useState(() => statsBootstrapRef.current?.allInbounds || []);
 
     // Edit user modal
     const [editOpen, setEditOpen] = useState(false);
@@ -338,11 +367,32 @@ export default function UsersHub() {
         setSearchTerm(queryValue);
     }, [searchParams]);
 
+    useEffect(() => {
+        const snapshot = readUsersStatsSnapshot(usersStatsSnapshotKey);
+        statsBootstrapRef.current = snapshot;
+        if (!snapshot) return;
+        setClientsMap(new Map(snapshot.clientsEntries));
+        setOnlineMap(new Map(snapshot.onlineEntries));
+        setInboundExpiries(snapshot.inboundExpiries);
+        setAllInbounds(snapshot.allInbounds);
+        setPartialErrors(snapshot.partialErrors);
+        setStatsReady(snapshot.statsReady === true);
+    }, [usersStatsSnapshotKey]);
+
     const hydrateNodeStats = async (requestId, options = {}) => {
         const forceStats = options.forceStats === true;
+        const preserveCurrentStats = (
+            statsReady
+            || clientsMap.size > 0
+            || onlineMap.size > 0
+            || inboundExpiries.length > 0
+            || allInbounds.length > 0
+        );
         setStatsLoading(true);
-        setStatsReady(false);
-        setPartialErrors([]);
+        if (!preserveCurrentStats) {
+            setStatsReady(false);
+            setPartialErrors([]);
+        }
 
         if (servers.length === 0) {
             if (requestId !== requestIdRef.current) return;
@@ -460,11 +510,13 @@ export default function UsersHub() {
         } catch (err) {
             if (requestId !== requestIdRef.current) return;
             console.error('Failed to hydrate users node stats', err);
-            setClientsMap(new Map());
-            setOnlineMap(new Map());
-            setInboundExpiries([]);
-            setAllInbounds([]);
-            setPartialErrors([]);
+            if (!preserveCurrentStats) {
+                setClientsMap(new Map());
+                setOnlineMap(new Map());
+                setInboundExpiries([]);
+                setAllInbounds([]);
+                setPartialErrors([]);
+            }
         }
 
         if (requestId !== requestIdRef.current) return;
@@ -478,12 +530,21 @@ export default function UsersHub() {
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
         const hasVisibleUsers = Array.isArray(users) && users.length > 0;
+        const hasVisibleStats = (
+            statsReady
+            || clientsMap.size > 0
+            || onlineMap.size > 0
+            || inboundExpiries.length > 0
+            || allInbounds.length > 0
+        );
 
         setLoading(!hasVisibleUsers);
         setPrimaryError('');
         setStatsLoading(true);
-        setStatsReady(false);
-        setPartialErrors([]);
+        if (!hasVisibleStats) {
+            setStatsReady(false);
+            setPartialErrors([]);
+        }
         try {
             const userList = await fetchManagedUsers(api, { force: forceUsers });
             if (requestId !== requestIdRef.current) return;
@@ -516,6 +577,26 @@ export default function UsersHub() {
     useEffect(() => {
         fetchData();
     }, [serverInventoryKey]);
+
+    useEffect(() => {
+        const hasStatsSnapshot = (
+            statsReady
+            || clientsMap.size > 0
+            || onlineMap.size > 0
+            || inboundExpiries.length > 0
+            || allInbounds.length > 0
+            || partialErrors.length > 0
+        );
+        if (!hasStatsSnapshot || statsLoading) return;
+        writeSessionSnapshot(usersStatsSnapshotKey, {
+            clientsEntries: Array.from(clientsMap.entries()),
+            onlineEntries: Array.from(onlineMap.entries()),
+            inboundExpiries,
+            allInbounds,
+            partialErrors,
+            statsReady,
+        });
+    }, [allInbounds, clientsMap, inboundExpiries, onlineMap, partialErrors, statsLoading, statsReady, usersStatsSnapshotKey]);
 
     const allOrderedUsers = useMemo(() => {
         return users

@@ -186,6 +186,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     // State
     const [logs, setLogs] = useState(() => logsBootstrapRef.current?.logs || []);
     const [loading, setLoading] = useState(() => logsBootstrapRef.current == null);
+    const [refreshing, setRefreshing] = useState(false);
     const [keywords, setKeywords] = useState('');
     const [levelFilter, setLevelFilter] = useState('');
     const [selectedSource, setSelectedSource] = useState('panel');
@@ -266,7 +267,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const fetchSingleLogs = useCallback(async (options = {}) => {
         if (!activeServerId || activeServerId === 'global') return;
         const preserveCurrent = options.preserveCurrent === true;
-        setLoading(true);
+        if (!preserveCurrent) {
+            setLoading(true);
+        } else {
+            setRefreshing(true);
+        }
         if (!preserveCurrent) {
             setFetchSummary(null);
         }
@@ -293,8 +298,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             if (!preserveCurrent) {
                 setLogs([]);
             }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-        setLoading(false);
     }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t]);
 
     const fetchGlobalLogs = useCallback(async (options = {}) => {
@@ -309,8 +316,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             });
             return;
         }
-        setLoading(true);
-        setFetchSummary(null);
+        if (!preserveCurrent) {
+            setLoading(true);
+            setFetchSummary(null);
+        } else {
+            setRefreshing(true);
+        }
         try {
             const targetServers = servers.filter(s => selectedServerIds.includes(s.id));
             const perServerCount = Math.max(1, Math.ceil(count / targetServers.length));
@@ -370,11 +381,14 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             if (!preserveCurrent) {
                 setLogs([]);
             }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-        setLoading(false);
     }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel, t]);
 
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
+    const logRequestPending = loading || refreshing;
 
     useEffect(() => {
         const snapshot = readLogsSnapshot(logsSnapshotKey);
@@ -558,9 +572,9 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 >
                                     {t('pages.logs.copy')}
                                 </CopyFeedbackButton>
-                                <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={loading}>
-                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
-                                    {loading ? t('pages.logs.loading') : t('pages.logs.refresh')}
+                                <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={logRequestPending}>
+                                    <HiOutlineArrowPath className={logRequestPending ? 'spinning' : ''} />
+                                    {logRequestPending ? t('pages.logs.loading') : t('pages.logs.refresh')}
                                 </button>
                             </div>
                         </>

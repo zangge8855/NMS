@@ -365,6 +365,7 @@ export default function Subscriptions() {
     const [selectedEmail, setSelectedEmail] = useState(initialSelectedEmail);
     const [selectedServerId, setSelectedServerId] = useState(initialSelectedServerId);
     const [loading, setLoading] = useState(() => Boolean(initialSelectedEmail) && initialResult == null);
+    const [refreshing, setRefreshing] = useState(false);
     const [result, setResult] = useState(initialResult);
     const [profileKey, setProfileKey] = useState(() => bootstrapRef.current?.profileKey || initialResult?.bundle?.defaultProfileKey || 'v2rayn');
     const [resetLoading, setResetLoading] = useState(false);
@@ -529,11 +530,16 @@ export default function Subscriptions() {
         if (!resolvedEmail) {
             setResult(null);
             setLoading(false);
+            setRefreshing(false);
             return;
         }
 
         const preserveCurrent = options.preserveCurrent === true;
-        setLoading(true);
+        if (!preserveCurrent) {
+            setLoading(true);
+        } else {
+            setRefreshing(true);
+        }
         try {
             const query = new URLSearchParams();
             if (isAdmin && selectedServerId && selectedServerId !== 'all') {
@@ -563,8 +569,10 @@ export default function Subscriptions() {
             }
             const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.subLoadFailed');
             toast.error(msg);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -655,6 +663,8 @@ export default function Subscriptions() {
         setResetLoading(false);
     };
 
+    const subscriptionBusy = loading || refreshing;
+
     return (
         <>
             <Header title={t('pages.subscriptions.title')} />
@@ -710,8 +720,8 @@ export default function Subscriptions() {
                                     </button>
                                 </div>
                                 <div className="subscriptions-toolbar-primary">
-                                    <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={loading || !normalizedEmail}>
-                                        {loading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
+                                    <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !normalizedEmail}>
+                                        {subscriptionBusy ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
                                     </button>
                                 </div>
                             </>

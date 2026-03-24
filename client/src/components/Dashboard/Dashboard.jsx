@@ -516,7 +516,7 @@ function getWsUrl(ticket) {
 
 
 export default function Dashboard() {
-    const { activeServerId, activeServer, servers } = useServer();
+    const { activeServerId, activeServer, servers, loading: serverContextLoading } = useServer();
     const { token } = useAuth();
     const { t, locale } = useI18n();
     const navigate = useNavigate();
@@ -703,7 +703,9 @@ export default function Dashboard() {
         setGlobalStats((previous) => ({
             totalUp: Number(data.totalUp || 0),
             totalDown: Number(data.totalDown || 0),
-            totalOnline: previous.totalOnline,
+            totalOnline: Number.isFinite(Number(data.managedOnlineUserCount))
+                ? Number(data.managedOnlineUserCount)
+                : previous.totalOnline,
             totalInbounds,
             activeInbounds,
             serverCount: data.serverCount || 0,
@@ -717,6 +719,11 @@ export default function Dashboard() {
         }
         if (data?.trafficWindows && typeof data.trafficWindows === 'object') {
             syncTrafficWindowTotals(normalizeTrafficWindowPayload(data.trafficWindows));
+        }
+        if (Array.isArray(data?.managedOnlineUsers)) {
+            setGlobalOnlineUsers(data.managedOnlineUsers);
+            setGlobalOnlineSessionCount(Number(data?.managedOnlineSessionCount || 0));
+            setGlobalPresenceReady(data?.managedPresenceReady === true);
         }
         setLoading(false);
     }, [activeServerId, lastMessage, syncTrafficWindowTotals]);
@@ -909,7 +916,7 @@ export default function Dashboard() {
     const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
 
     // Empty State
-    if (!activeServerId && servers.length === 0 && activeServerId !== 'global') {
+    if (!serverContextLoading && !activeServerId && servers.length === 0 && activeServerId !== 'global') {
         return (
             <>
                 <Header

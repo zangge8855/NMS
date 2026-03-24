@@ -463,6 +463,158 @@ describe('AuditCenter localization', () => {
         expect(document.querySelector('.audit-subscriptions-table')).toBeTruthy();
     });
 
+    it('keeps the cached traffic summary visible when live traffic hydration fails', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:audit_traffic_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                trafficOverview: {
+                    lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                    sampleCount: 8,
+                    activeUsers: 19,
+                    userLevelSupported: true,
+                    totals: {
+                        upBytes: 512,
+                        downBytes: 1536,
+                        totalBytes: 2048,
+                    },
+                    topUsers: [],
+                    topServers: [],
+                    collection: {
+                        warnings: [],
+                    },
+                },
+                trafficWindows: {
+                    week: {
+                        activeUsers: 7,
+                        totals: {
+                            upBytes: 128,
+                            downBytes: 384,
+                            totalBytes: 512,
+                        },
+                    },
+                    month: {
+                        activeUsers: 19,
+                        totals: {
+                            upBytes: 512,
+                            downBytes: 1536,
+                            totalBytes: 2048,
+                        },
+                    },
+                },
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.reject(new Error('traffic unavailable'));
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        await waitFor(() => {
+            expect(api.get.mock.calls.some(([url]) => /^\/traffic\/overview\?/.test(url))).toBe(true);
+        });
+
+        const weeklyCard = screen.getByText('周活跃账号').closest('.audit-traffic-mini-card');
+        const monthlyCard = screen.getByText('月活跃账号').closest('.audit-traffic-mini-card');
+        if (!weeklyCard || !monthlyCard) {
+            throw new Error('Missing traffic summary cards');
+        }
+
+        expect(within(weeklyCard).getByText('7')).toBeInTheDocument();
+        expect(within(monthlyCard).getByText('19')).toBeInTheDocument();
+    });
+
+    it('keeps the cached subscription summary visible when live access hydration fails', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:audit_access_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                accessData: {
+                    items: [
+                        {
+                            id: 'access-1',
+                            ts: '2026-03-13T10:00:00.000Z',
+                            userLabel: 'Alice',
+                            email: 'alice@example.com',
+                            status: 'success',
+                            clientIp: '203.0.113.8',
+                            ipSource: 'real',
+                            userAgent: 'Mihomo',
+                        },
+                    ],
+                    total: 1,
+                    page: 1,
+                    totalPages: 1,
+                    statusBreakdown: {
+                        success: 1,
+                    },
+                },
+                accessSummary: {
+                    total: 5,
+                    uniqueIpCount: 3,
+                    uniqueUsers: 4,
+                    statusBreakdown: {
+                        success: 5,
+                    },
+                    topIps: [],
+                    from: '',
+                    to: '',
+                },
+                accessUserWindows: {
+                    week: {
+                        total: 2,
+                        uniqueIpCount: 2,
+                        uniqueUsers: 2,
+                        statusBreakdown: {
+                            success: 2,
+                        },
+                        topIps: [],
+                        from: '',
+                        to: '',
+                    },
+                    month: {
+                        total: 5,
+                        uniqueIpCount: 3,
+                        uniqueUsers: 9,
+                        statusBreakdown: {
+                            success: 5,
+                        },
+                        topIps: [],
+                        from: '',
+                        to: '',
+                    },
+                },
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/subscriptions/access?') || url.startsWith('/subscriptions/access/summary?')) {
+                return Promise.reject(new Error('access unavailable'));
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
+
+        expect(await screen.findByText('Alice')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(api.get.mock.calls.some(([url]) => /^\/subscriptions\/access\?/.test(url))).toBe(true);
+            expect(api.get.mock.calls.some(([url]) => /^\/subscriptions\/access\/summary\?/.test(url))).toBe(true);
+        });
+
+        const weeklyCard = screen.getByText('周访问用户').closest('.audit-stat-card');
+        const monthlyCard = screen.getByText('月访问用户').closest('.audit-stat-card');
+        if (!weeklyCard || !monthlyCard) {
+            throw new Error('Missing access summary cards');
+        }
+
+        expect(within(weeklyCard).getByText('2')).toBeInTheDocument();
+        expect(within(monthlyCard).getByText('9')).toBeInTheDocument();
+        expect(document.querySelector('.audit-subscriptions-table')).toBeTruthy();
+    });
+
     it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {
         const requestedUrls = [];
         api.get.mockImplementation((url) => {

@@ -15,9 +15,12 @@ function readServerContextSnapshot() {
     });
     if (!snapshot || typeof snapshot !== 'object') return null;
 
+    const servers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
+    const activeServerId = String(snapshot?.activeServerId || '').trim() || null;
+
     return {
-        servers: Array.isArray(snapshot?.servers) ? snapshot.servers : [],
-        activeServerId: String(snapshot?.activeServerId || '').trim() || null,
+        servers,
+        activeServerId: activeServerId || (servers.length > 0 ? 'global' : null),
     };
 }
 
@@ -50,7 +53,9 @@ export function ServerProvider({ children }) {
     const bootstrapRef = useRef(readServerContextSnapshot());
     const [servers, setServers] = useState(() => bootstrapRef.current?.servers || []);
     const [activeServerId, setActiveServerId] = useState(
-        () => bootstrapRef.current?.activeServerId || getStoredActiveServerId()
+        () => bootstrapRef.current?.activeServerId
+            || getStoredActiveServerId()
+            || (bootstrapRef.current?.servers?.length ? 'global' : null)
     );
     const [loading, setLoading] = useState(() => bootstrapRef.current == null);
 

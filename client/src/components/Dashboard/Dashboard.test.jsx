@@ -686,6 +686,96 @@ describe('Dashboard', () => {
         });
     });
 
+    it('renders managed online counts directly from websocket snapshots when available', async () => {
+        const never = new Promise(() => {});
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 3,
+                        pendingUsers: 1,
+                    },
+                    trafficWindows: {
+                        day: {
+                            managedTotals: { upBytes: 80, downBytes: 160, totalBytes: 240 },
+                        },
+                        week: {
+                            managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                        },
+                        month: {
+                            managedTotals: { upBytes: 160, downBytes: 320, totalBytes: 480 },
+                        },
+                    },
+                    managedOnlineUsers: [
+                        {
+                            userId: 'user-a',
+                            username: 'Alice',
+                            email: 'alice@example.com',
+                            displayName: 'Alice',
+                            label: 'alice@example.com',
+                            sessions: 2,
+                            clientCount: 1,
+                            enabled: true,
+                            servers: ['Node A'],
+                            nodeLabels: ['Node A Link'],
+                        },
+                    ],
+                    managedOnlineUserCount: 1,
+                    managedOnlineSessionCount: 2,
+                    managedPresenceReady: true,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        if (!onlineCard) throw new Error('Missing online users card');
+
+        await waitFor(() => {
+            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineCard).toHaveTextContent('已注册 3 · 在线会话 2');
+        });
+    });
+
     it('renders the last session snapshot before live dashboard hydration finishes', async () => {
         const never = new Promise(() => {});
         window.sessionStorage.setItem('nms_session_snapshot:dashboard_global_v1', JSON.stringify({

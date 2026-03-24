@@ -1,5 +1,7 @@
 import notificationService from './notifications.js';
 import { getCachedClusterStatusSnapshot } from './serverStatusService.js';
+import { getCachedServerPanelSnapshots } from './serverPanelSnapshotService.js';
+import { buildDashboardPresenceFromPanelSnapshots } from './dashboardSnapshotService.js';
 import alertEngine from './alertEngine.js';
 import serverHealthMonitor from './serverHealthMonitor.js';
 import telegramAlertService from './telegramAlertService.js';
@@ -223,6 +225,12 @@ function buildFallbackServerStatuses(telemetryOverview = {}) {
 
 function buildDashboardSnapshot(telemetryOverview = {}) {
     const cachedSnapshot = getCachedClusterStatusSnapshot();
+    const cachedPanelSnapshots = getCachedServerPanelSnapshots({
+        includeOnlines: true,
+    });
+    const presence = cachedPanelSnapshots.length > 0
+        ? buildDashboardPresenceFromPanelSnapshots(userStore.getAll(), cachedPanelSnapshots)
+        : null;
     const summary = cachedSnapshot?.summary || {};
     const byServerId = cachedSnapshot?.byServerId && typeof cachedSnapshot.byServerId === 'object'
         ? cachedSnapshot.byServerId
@@ -260,15 +268,17 @@ function buildDashboardSnapshot(telemetryOverview = {}) {
         globalStats: {
             totalUp: Number(summary?.totalUp || 0),
             totalDown: Number(summary?.totalDown || 0),
-            totalOnline: Number(summary?.totalOnline || 0),
+            totalOnline: presence ? presence.onlineRows.length : Number(summary?.totalOnline || 0),
             totalInbounds: Number(summary?.totalInbounds || 0),
             activeInbounds: Number(summary?.activeInbounds || 0),
             serverCount: Number(summary?.total || telemetryItems.length || 0),
             onlineServers: Number(summary?.onlineServers || onlineServersFallback || 0),
         },
+        globalOnlineUsers: presence?.onlineRows || [],
+        globalOnlineSessionCount: Number(presence?.onlineSessionCount || 0),
         globalAccountSummary: buildDashboardAccountSummary(),
         trafficWindowTotals: buildDashboardTrafficWindows(),
-        globalPresenceReady: hasCachedClusterData || telemetryItems.length > 0,
+        globalPresenceReady: presence != null,
     };
 }
 
@@ -291,6 +301,7 @@ export async function buildAppBootstrapPayload(user = null) {
 
     payload.serverContext = {
         servers,
+        activeServerId: 'global',
     };
     payload.managedUsers = buildManagedUsersBootstrap();
     payload.telemetryOverview = telemetryOverview;

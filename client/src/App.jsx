@@ -109,7 +109,6 @@ function ProtectedLayout() {
     const isAdmin = user?.role === 'admin';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [bootstrapReady, setBootstrapReady] = useState(() => !token);
     const [rootWsTicket, setRootWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
     const isMobile = useMediaQuery('(max-width: 768px)');
@@ -126,29 +125,21 @@ function ProtectedLayout() {
     }, [isMobile]);
 
     useEffect(() => {
+        if (!token) return undefined;
         let cancelled = false;
-
-        if (!token) {
-            setBootstrapReady(true);
-            return undefined;
-        }
-
-        setBootstrapReady(false);
-        (async () => {
+        const timer = window.setTimeout(async () => {
             try {
                 const res = await api.get('/auth/bootstrap');
+                if (cancelled) return;
                 applyAppBootstrapSnapshots(res.data?.obj || {});
             } catch (error) {
                 console.error('Failed to load app bootstrap:', error?.response?.data || error?.message || error);
-            } finally {
-                if (!cancelled) {
-                    setBootstrapReady(true);
-                }
             }
-        })();
+        }, 0);
 
         return () => {
             cancelled = true;
+            window.clearTimeout(timer);
         };
     }, [token]);
 
@@ -188,20 +179,6 @@ function ProtectedLayout() {
     }, [fetchRootWsTicket, isAdmin, rootWsStatus, token]);
 
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
-
-    if (!bootstrapReady) {
-        return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--bg-primary)',
-            }}>
-                <span className="spinner" style={{ width: '28px', height: '28px' }} />
-            </div>
-        );
-    }
 
     return (
         <ServerProvider>
