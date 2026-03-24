@@ -192,3 +192,75 @@ test('collectClusterStatusSnapshot computes throughput deltas from the cached pr
     assert.equal(second.summary.throughput.ready, true);
     assert.ok(second.summary.throughput.totalPerSecond > 0);
 });
+
+test('collectClusterStatusSnapshot exposes fresh panel snapshots for managed realtime summaries', async () => {
+    const snapshot = await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: true,
+        servers: [{
+            id: 'srv-live-panel',
+            name: 'Live Panel Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async (path) => {
+                if (path === '/panel/api/inbounds/list') {
+                    return {
+                        data: {
+                            obj: [
+                                {
+                                    id: 1,
+                                    protocol: 'vmess',
+                                    enable: true,
+                                    up: 1024,
+                                    down: 2048,
+                                    settings: JSON.stringify({
+                                        clients: [{
+                                            id: 'client-1',
+                                            email: 'alice@example.com',
+                                            up: 1024,
+                                            down: 2048,
+                                        }],
+                                    }),
+                                },
+                            ],
+                        },
+                    };
+                }
+                throw new Error(`unexpected get ${path}`);
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') {
+                    return {
+                        data: {
+                            obj: {
+                                cpu: 10,
+                                mem: { current: 128, total: 256 },
+                                uptime: 300,
+                                xray: { state: 'running', errorMsg: '' },
+                                netTraffic: { sent: 1024, recv: 2048 },
+                            },
+                        },
+                    };
+                }
+                if (path === '/panel/api/inbounds/onlines') {
+                    return {
+                        data: {
+                            obj: [
+                                { email: 'alice@example.com' },
+                            ],
+                        },
+                    };
+                }
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    assert.equal(Array.isArray(snapshot.panelSnapshots), true);
+    assert.equal(snapshot.panelSnapshots.length, 1);
+    assert.equal(snapshot.panelSnapshots[0]?.server?.id, 'srv-live-panel');
+    assert.equal(snapshot.panelSnapshots[0]?.inbounds?.length, 1);
+    assert.equal(snapshot.panelSnapshots[0]?.onlines?.length, 1);
+    assert.equal(Object.prototype.hasOwnProperty.call(snapshot.items[0], 'panelSnapshot'), false);
+});

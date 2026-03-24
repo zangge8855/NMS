@@ -188,10 +188,11 @@ export async function collectServerStatusSnapshot(server, options = {}) {
 
         let inbounds = [];
         let onlineUsers = [];
+        let panelSnapshot = null;
         const collectionIssues = [];
         if (includeDetails) {
             try {
-                const panelSnapshot = await readServerPanelSnapshot(server, {
+                panelSnapshot = await readServerPanelSnapshot(server, {
                     includeOnlines: true,
                     force: options.force === true,
                     getAuthenticatedPanelClient: async () => client,
@@ -214,6 +215,25 @@ export async function collectServerStatusSnapshot(server, options = {}) {
                 inbounds = [];
                 onlineUsers = [];
                 const failure = classifyPanelError(error, { context: 'inbounds' });
+                panelSnapshot = {
+                    server: {
+                        id: server.id,
+                        name: server.name,
+                    },
+                    inbounds: [],
+                    onlines: [],
+                    checkedAt,
+                    inboundsError: {
+                        code: failure.reasonCode,
+                        message: failure.reasonMessage,
+                        status: 0,
+                    },
+                    onlinesError: {
+                        code: failure.reasonCode,
+                        message: failure.reasonMessage,
+                        status: 0,
+                    },
+                };
                 collectionIssues.push({
                     source: 'inbounds',
                     ...failure,
@@ -257,6 +277,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             onlineCount: onlineUsers.length,
             onlineUsers,
             collectionIssues,
+            panelSnapshot: includeDetails ? panelSnapshot : null,
         };
     } catch (error) {
         const failure = classifyPanelError(error, { context: 'server_status' });
@@ -285,6 +306,25 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             onlineCount: 0,
             onlineUsers: [],
             collectionIssues: [],
+            panelSnapshot: includeDetails ? {
+                server: {
+                    id: server.id,
+                    name: server.name,
+                },
+                inbounds: [],
+                onlines: [],
+                checkedAt,
+                inboundsError: {
+                    code: failure.reasonCode,
+                    message: failure.reasonMessage,
+                    status: 0,
+                },
+                onlinesError: {
+                    code: failure.reasonCode,
+                    message: failure.reasonMessage,
+                    status: 0,
+                },
+            } : null,
         };
     }
 }
@@ -366,13 +406,24 @@ export async function collectClusterStatusSnapshot(options = {}) {
             (server) => collectServerStatusSnapshot(server, options),
             Number(options.concurrency || DEFAULT_CONCURRENCY)
         );
-        const items = attachThroughputSnapshots(rawItems, previousByServerId);
+        const panelSnapshots = rawItems
+            .map((item) => item?.panelSnapshot)
+            .filter((item) => item && typeof item === 'object');
+        const items = attachThroughputSnapshots(
+            rawItems.map((item) => {
+                if (!item || typeof item !== 'object') return item;
+                const { panelSnapshot, ...publicItem } = item;
+                return publicItem;
+            }),
+            previousByServerId
+        );
         const byServerId = Object.fromEntries(items.map((item) => [item.serverId, item]));
         const snapshot = {
             summary: buildSummary(items),
             items,
             byServerId,
             includeDetails,
+            panelSnapshots,
         };
         serverTelemetryStore.recordSnapshot(snapshot);
         snapshotCache.value = snapshot;

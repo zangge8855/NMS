@@ -32,6 +32,7 @@ const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
 const DASHBOARD_FOLLOWUP_DELAY_MS = 2_500;
+const FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS = 2_000;
 
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
@@ -92,8 +93,29 @@ function readDashboardPanelSnapshots() {
     });
 }
 
+function mergeDashboardPanelSnapshots(primarySnapshots = [], fallbackSnapshots = []) {
+    const merged = new Map();
+    const pushSnapshot = (snapshot) => {
+        const serverId = String(snapshot?.server?.id || snapshot?.serverId || '').trim();
+        if (!serverId || !snapshot || typeof snapshot !== 'object') return;
+        merged.set(serverId, snapshot);
+    };
+
+    (Array.isArray(fallbackSnapshots) ? fallbackSnapshots : []).forEach(pushSnapshot);
+    (Array.isArray(primarySnapshots) ? primarySnapshots : []).forEach(pushSnapshot);
+    return Array.from(merged.values());
+}
+
+function resolveDashboardPanelSnapshots(snapshot) {
+    const liveSnapshots = Array.isArray(snapshot?.panelSnapshots) ? snapshot.panelSnapshots : [];
+    if (liveSnapshots.length === 0) {
+        return readDashboardPanelSnapshots();
+    }
+    return mergeDashboardPanelSnapshots(liveSnapshots, readDashboardPanelSnapshots());
+}
+
 function buildClusterStatusMessage(snapshot) {
-    const panelSnapshots = readDashboardPanelSnapshots();
+    const panelSnapshots = resolveDashboardPanelSnapshots(snapshot);
     const presence = buildDashboardPresenceSummary(panelSnapshots);
     return {
         type: 'cluster_status',
@@ -254,7 +276,7 @@ export function initWebSocket(httpServer) {
 
         collectClusterStatusSnapshot({
             includeDetails: true,
-            maxAgeMs: Math.max(0, BROADCAST_INTERVAL - 1_000),
+            maxAgeMs: FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS,
         }).then((snapshot) => {
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
