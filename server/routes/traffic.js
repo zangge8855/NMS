@@ -40,6 +40,10 @@ function parseWindowKeys(value) {
     )).slice(0, 6);
 }
 
+export async function ensureTrafficSamples({ forceRefresh = false } = {}) {
+    return trafficStatsStore.collectIfStale(forceRefresh);
+}
+
 router.use(authMiddleware);
 
 router.post('/refresh', async (req, res) => {
@@ -52,7 +56,7 @@ router.post('/refresh', async (req, res) => {
 
 router.get('/overview', async (req, res) => {
     const forceRefresh = normalizeBoolean(req.query.refresh, false);
-    const collection = await trafficStatsStore.collectIfStale(forceRefresh);
+    const collection = await ensureTrafficSamples({ forceRefresh });
     const options = {
         from: req.query.from,
         to: req.query.to,
@@ -87,7 +91,7 @@ router.get('/overview', async (req, res) => {
 
 router.get('/users/:email/trend', async (req, res) => {
     const forceRefresh = normalizeBoolean(req.query.refresh, false);
-    await trafficStatsStore.collectIfStale(forceRefresh);
+    await ensureTrafficSamples({ forceRefresh });
     const trend = trafficStatsStore.getUserTrend(req.params.email, {
         from: req.query.from,
         to: req.query.to,
@@ -109,7 +113,7 @@ router.get('/servers/:serverId/trend', async (req, res) => {
         });
     }
     const forceRefresh = normalizeBoolean(req.query.refresh, false);
-    await trafficStatsStore.collectIfStale(forceRefresh);
+    await ensureTrafficSamples({ forceRefresh });
     const trend = trafficStatsStore.getServerTrend(serverId, {
         from: req.query.from,
         to: req.query.to,

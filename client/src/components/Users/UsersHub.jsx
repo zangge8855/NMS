@@ -13,9 +13,14 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
-import { fetchManagedUsers, getManagedUsersSnapshot, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
+import {
+    applyManagedUsersSnapshot,
+    fetchManagedUsers,
+    getManagedUsersSnapshotMeta,
+    invalidateManagedUsersCache,
+} from '../../utils/managedUsersCache.js';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
@@ -69,6 +74,37 @@ function readUsersStatsSnapshot(snapshotKey) {
         partialErrors: Array.isArray(snapshot?.partialErrors) ? snapshot.partialErrors : [],
         statsReady: snapshot?.statsReady === true,
     };
+}
+
+function hasVisibleUsersList(users = []) {
+    return Array.isArray(users) && users.length > 0;
+}
+
+function createUsersStatsStateSnapshot({
+    statsReady = false,
+    clientsMap = new Map(),
+    onlineMap = new Map(),
+    inboundExpiries = [],
+    allInbounds = [],
+    partialErrors = [],
+} = {}) {
+    return {
+        statsReady: statsReady === true,
+        clientsSize: clientsMap instanceof Map ? clientsMap.size : 0,
+        onlineSize: onlineMap instanceof Map ? onlineMap.size : 0,
+        inboundExpiryCount: Array.isArray(inboundExpiries) ? inboundExpiries.length : 0,
+        inboundCount: Array.isArray(allInbounds) ? allInbounds.length : 0,
+        partialErrorCount: Array.isArray(partialErrors) ? partialErrors.length : 0,
+    };
+}
+
+function hasVisibleUsersStats(snapshot = {}) {
+    return snapshot?.statsReady === true
+        || Number(snapshot?.clientsSize || 0) > 0
+        || Number(snapshot?.onlineSize || 0) > 0
+        || Number(snapshot?.inboundExpiryCount || 0) > 0
+        || Number(snapshot?.inboundCount || 0) > 0
+        || Number(snapshot?.partialErrorCount || 0) > 0;
 }
 
 function buildProvisionSuccessMessage(deployment, locale = 'zh-CN') {
@@ -288,7 +324,8 @@ export default function UsersHub() {
     const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
     const syncingCopy = useMemo(() => getSyncingBadgeCopy(locale), [locale]);
     const requestIdRef = useRef(0);
-    const usersBootstrapRef = useRef(getManagedUsersSnapshot());
+    const initialUsersSnapshotMeta = useMemo(() => getManagedUsersSnapshotMeta(), []);
+    const usersBootstrapRef = useRef(initialUsersSnapshotMeta.users);
     const serverInventoryKey = useMemo(
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
         [servers]
@@ -298,6 +335,16 @@ export default function UsersHub() {
         [serverInventoryKey]
     );
     const statsBootstrapRef = useRef(readUsersStatsSnapshot(usersStatsSnapshotKey));
+    const usersStateRef = useRef(Array.isArray(usersBootstrapRef.current) ? usersBootstrapRef.current : []);
+    const liveUsersLoadedRef = useRef(initialUsersSnapshotMeta.source === 'live');
+    const statsStateRef = useRef(createUsersStatsStateSnapshot({
+        statsReady: statsBootstrapRef.current?.statsReady === true,
+        clientsMap: new Map(statsBootstrapRef.current?.clientsEntries || []),
+        onlineMap: new Map(statsBootstrapRef.current?.onlineEntries || []),
+        inboundExpiries: statsBootstrapRef.current?.inboundExpiries || [],
+        allInbounds: statsBootstrapRef.current?.allInbounds || [],
+        partialErrors: statsBootstrapRef.current?.partialErrors || [],
+    }));
 
     const [users, setUsers] = useState(() => usersBootstrapRef.current);
     const [clientsMap, setClientsMap] = useState(() => new Map(statsBootstrapRef.current?.clientsEntries || []));
@@ -362,6 +409,44 @@ export default function UsersHub() {
     const [createProvisionAfterCreate, setCreateProvisionAfterCreate] = useState(true);
 
     useEffect(() => {
+        usersStateRef.current = Array.isArray(users) ? users : [];
+    }, [users]);
+
+    useEffect(() => {
+        statsStateRef.current = createUsersStatsStateSnapshot({
+            statsReady,
+            clientsMap,
+            onlineMap,
+            inboundExpiries,
+            allInbounds,
+            partialErrors,
+        });
+    }, [allInbounds, clientsMap, inboundExpiries, onlineMap, partialErrors, statsReady]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write' || event?.detail?.key !== 'managed_users_v1') {
+                return;
+            }
+            if (liveUsersLoadedRef.current) return;
+            const snapshot = readSessionSnapshot('managed_users_v1', { fallback: null });
+            if (!Array.isArray(snapshot)) return;
+            const nextUsers = applyManagedUsersSnapshot(snapshot, { source: 'bootstrap' });
+            usersBootstrapRef.current = nextUsers;
+            usersStateRef.current = nextUsers;
+            setUsers(nextUsers);
+            setSelectedIds((previous) => new Set(
+                Array.from(previous).filter((id) => nextUsers.some((user) => user.id === id))
+            ));
+            setPrimaryError('');
+            setLoading(false);
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, []);
+
+    useEffect(() => {
         const queryValue = String(searchParams.get('q') || '').trim();
         if (!queryValue) return;
         setSearchTerm(queryValue);
@@ -381,13 +466,7 @@ export default function UsersHub() {
 
     const hydrateNodeStats = async (requestId, options = {}) => {
         const forceStats = options.forceStats === true;
-        const preserveCurrentStats = (
-            statsReady
-            || clientsMap.size > 0
-            || onlineMap.size > 0
-            || inboundExpiries.length > 0
-            || allInbounds.length > 0
-        );
+        const preserveCurrentStats = hasVisibleUsersStats(statsStateRef.current);
         setStatsLoading(true);
         if (!preserveCurrentStats) {
             setStatsReady(false);
@@ -510,7 +589,7 @@ export default function UsersHub() {
         } catch (err) {
             if (requestId !== requestIdRef.current) return;
             console.error('Failed to hydrate users node stats', err);
-            if (!preserveCurrentStats) {
+            if (!hasVisibleUsersStats(statsStateRef.current)) {
                 setClientsMap(new Map());
                 setOnlineMap(new Map());
                 setInboundExpiries([]);
@@ -529,14 +608,8 @@ export default function UsersHub() {
         const forceStats = options.forceStats === true || forceUsers;
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
-        const hasVisibleUsers = Array.isArray(users) && users.length > 0;
-        const hasVisibleStats = (
-            statsReady
-            || clientsMap.size > 0
-            || onlineMap.size > 0
-            || inboundExpiries.length > 0
-            || allInbounds.length > 0
-        );
+        const hasVisibleUsers = hasVisibleUsersList(usersStateRef.current);
+        const hasVisibleStats = hasVisibleUsersStats(statsStateRef.current);
 
         setLoading(!hasVisibleUsers);
         setPrimaryError('');
@@ -546,8 +619,13 @@ export default function UsersHub() {
             setPartialErrors([]);
         }
         try {
-            const userList = await fetchManagedUsers(api, { force: forceUsers });
+            const result = await fetchManagedUsers(api, {
+                force: forceUsers,
+                returnMeta: true,
+            });
             if (requestId !== requestIdRef.current) return;
+            const userList = Array.isArray(result?.users) ? result.users : [];
+            liveUsersLoadedRef.current = String(result?.source || '').trim() === 'live';
             setUsers(userList);
             setSelectedIds((previous) => new Set(
                 Array.from(previous).filter((id) => userList.some((user) => user.id === id))
@@ -558,7 +636,7 @@ export default function UsersHub() {
             if (requestId !== requestIdRef.current) return;
             console.error('Failed to fetch users data', err);
             const message = err?.response?.data?.msg || err?.message || t('comp.users.loadFailed');
-            if (!hasVisibleUsers) {
+            if (!hasVisibleUsersList(usersStateRef.current)) {
                 setPrimaryError(message);
                 setUsers([]);
                 setSelectedIds(new Set());

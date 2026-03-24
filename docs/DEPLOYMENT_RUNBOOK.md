@@ -52,6 +52,28 @@ pm2 save
 
 The production startup entry now runs a preflight that fails fast when `.env` is unsafe or `client/dist/index.html` is missing.
 
+### Source Install Verification Status
+
+The source deployment path was re-verified on March 24, 2026 with:
+
+```bash
+cd client
+npm ci
+npm run build
+npm test
+
+cd ../server
+npm ci
+npm test
+```
+
+Recorded result:
+
+- `client`: install, production build, and full tests passed (`197/197`)
+- `server`: install and full tests passed (`271/271`)
+- `client`: `npm audit` reports `0` vulnerabilities after refreshing the Vite toolchain and transitive overrides
+- `server`: `npm audit` reports `0` vulnerabilities after moving `multer` to `2.x` and pinning `qs`
+
 ### Option 1.5: CI/CD Automated Build
 
 The repository includes GitHub Actions workflows:
@@ -144,6 +166,7 @@ NMS is easier to operate in production because it already includes:
 - Node health status refreshes correctly
 - Subscription links can be generated
 - Audit and traffic pages open normally
+- Users, notifications, audit traffic, system settings, and server telemetry stay on fresh live data after login instead of jumping back to stale bootstrap previews
 - WebSocket-driven status areas work behind the proxy
 
 ### Quick Troubleshooting
@@ -227,6 +250,28 @@ pm2 save
 
 新的生产启动入口会先执行 preflight；如果 `.env` 不安全或 `client/dist/index.html` 缺失，会在真正启动前直接失败并输出修复提示。
 
+### 源码安装验证状态
+
+已在 2026 年 3 月 24 日重新验证源码部署链路:
+
+```bash
+cd client
+npm ci
+npm run build
+npm test
+
+cd ../server
+npm ci
+npm test
+```
+
+记录结果:
+
+- `client`: 依赖安装、生产构建和全量测试均通过（`197/197`）
+- `server`: 依赖安装和全量测试均通过（`271/271`）
+- `client`: 刷新 Vite 工具链及其传递依赖覆盖后，`npm audit` 为 `0` 告警
+- `server`: 升级 `multer` 到 `2.x` 并固定 `qs` 后，`npm audit` 为 `0` 告警
+
 ### 方式二: Docker 部署
 
 仓库根目录的 `Dockerfile` 已经包含前端构建、后端生产依赖安装和运行镜像组装，默认监听 `3001` 端口。
@@ -298,6 +343,7 @@ NMS 自带了一些生产环境里很实用的能力:
 - 可以生成订阅链接
 - 调整服务器顺序或入站顺序后，订阅内容顺序会变化，但订阅链接地址本身不变
 - 审计页和流量页能正常打开
+- 登录后的用户列表、通知、审计流量、系统设置和节点遥测不会再回跳到旧的 bootstrap 首屏数据
 - 经过代理后 WebSocket 相关区域工作正常
 
 ### 快速排障

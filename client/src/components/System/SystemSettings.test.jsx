@@ -1,9 +1,10 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
 import api from '../../api/client.js';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -453,6 +454,54 @@ describe('SystemSettings', () => {
         expect(screen.getByText('已配置 · 最近发送成功')).toBeInTheDocument();
         expect(screen.getByText(/运行中 · 正常 2 \/ 异常 1/)).toBeInTheDocument();
         expect(screen.getByText(/已启用 · \*+\d{4} · 下次备份/)).toBeInTheDocument();
+    });
+
+    it('ignores a late app bootstrap snapshot after live settings and invite codes have loaded', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap({
+            '/system/invite-codes': {
+                data: {
+                    obj: [],
+                },
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
+
+        expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/system/invite-codes');
+        });
+
+        await act(async () => {
+            writeSessionSnapshot('system_settings_bootstrap_v1', {
+                settings: buildPutResponse({
+                    site: {
+                        accessPath: '/stale',
+                        camouflageEnabled: true,
+                        camouflageTemplate: 'nginx',
+                        camouflageTitle: 'Stale Relay',
+                    },
+                }),
+                inviteCodes: [
+                    {
+                        id: 'invite-stale',
+                        preview: 'INV-STALE',
+                        status: 'active',
+                    },
+                ],
+            }, { source: 'app-bootstrap' });
+        });
+
+        expect(screen.getByDisplayValue('/portal')).toBeInTheDocument();
+        expect(screen.queryByDisplayValue('/stale')).not.toBeInTheDocument();
+
+        expect(screen.queryByText('INV-STALE')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '展开台账' })).not.toBeInTheDocument();
     });
 
     it('lazy-loads only the status workspace dependencies on the default tab', async () => {

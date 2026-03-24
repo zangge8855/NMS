@@ -1,11 +1,12 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import { invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import UsersHub from './UsersHub.jsx';
 
 vi.mock('../../api/client.js', () => ({
@@ -492,6 +493,30 @@ describe('UsersHub ordering', () => {
         expect(await screen.findByText('snapshot-user')).toBeInTheDocument();
         expect(screen.getByText('snapshot@example.com')).toBeInTheDocument();
         expect(screen.getByText(/节点统计同步中/)).toBeInTheDocument();
+    });
+
+    it('ignores a late app bootstrap user snapshot after the live user list has loaded', async () => {
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('alice')).toBeInTheDocument();
+        expect(screen.queryByText('stale-user')).not.toBeInTheDocument();
+
+        await act(async () => {
+            writeSessionSnapshot('managed_users_v1', [
+                {
+                    id: 'user-stale',
+                    username: 'stale-user',
+                    email: 'stale@example.com',
+                    subscriptionEmail: 'stale@example.com',
+                    role: 'user',
+                    enabled: true,
+                    createdAt: '2026-03-08T00:00:00.000Z',
+                },
+            ], { source: 'app-bootstrap' });
+        });
+
+        expect(screen.getByText('alice')).toBeInTheDocument();
+        expect(screen.queryByText('stale-user')).not.toBeInTheDocument();
     });
 
     it('renders the cached node stats snapshot before the live node hydration finishes', async () => {

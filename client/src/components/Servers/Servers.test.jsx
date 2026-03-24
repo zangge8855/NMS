@@ -1,9 +1,10 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import Servers from './Servers.jsx';
 
 vi.mock('../../api/client.js', () => ({
@@ -149,6 +150,92 @@ describe('Servers', () => {
         expect(screen.getByText('98 ms')).toBeInTheDocument();
         expect(screen.getByText('100%')).toBeInTheDocument();
         expect(within(document.querySelector('.servers-telemetry-cell')).getByText('在线')).toBeInTheDocument();
+    });
+
+    it('ignores a late app bootstrap telemetry snapshot after a live empty response has loaded', async () => {
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: '新加坡边缘节点',
+                url: 'https://panel.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'production',
+                environment: 'prod',
+                health: 'healthy',
+                tags: ['edge'],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/servers/telemetry/overview') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [],
+                            byServerId: {},
+                            generatedAt: '2026-03-24T01:00:00.000Z',
+                        },
+                    },
+                });
+            }
+            return Promise.resolve({ data: { obj: [] } });
+        });
+
+        renderWithRouter(<Servers />);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/servers/telemetry/overview', {
+                params: {
+                    hours: 24,
+                    points: 24,
+                },
+            });
+        });
+
+        expect(screen.queryByText('98 ms')).not.toBeInTheDocument();
+
+        await act(async () => {
+            writeSessionSnapshot('server_telemetry_overview_v1:24:24', {
+                items: [
+                    {
+                        serverId: 'server-1',
+                        serverName: '新加坡边缘节点',
+                        checkedAt: '2026-03-22T00:00:00.000Z',
+                        uptimePercent: 100,
+                        current: { online: true, latencyMs: 98, health: 'healthy' },
+                        latencyTrend: [84, 96, 98],
+                        availabilityTrend: [1, 1, 1],
+                    },
+                ],
+                byServerId: {
+                    'server-1': {
+                        serverId: 'server-1',
+                        serverName: '新加坡边缘节点',
+                        checkedAt: '2026-03-22T00:00:00.000Z',
+                        uptimePercent: 100,
+                        current: { online: true, latencyMs: 98, health: 'healthy' },
+                        latencyTrend: [84, 96, 98],
+                        availabilityTrend: [1, 1, 1],
+                    },
+                },
+                generatedAt: '2026-03-22T00:00:00.000Z',
+            }, { source: 'app-bootstrap' });
+        });
+
+        expect(screen.queryByText('98 ms')).not.toBeInTheDocument();
     });
 
     it('renders long server names as a wrapping detail trigger without hiding nearby controls', async () => {

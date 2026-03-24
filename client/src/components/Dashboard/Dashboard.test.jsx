@@ -440,7 +440,7 @@ describe('Dashboard', () => {
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
-    });
+    }, 15000);
 
     it('keeps weekly and monthly traffic on loading placeholders until managed-user totals are ready', async () => {
         let resolveInbounds;

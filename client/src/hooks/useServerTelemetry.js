@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api/client.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
 
 const EMPTY_TELEMETRY = {
     items: [],
@@ -35,6 +35,7 @@ export default function useServerTelemetry(options = {}) {
     const requestIdRef = useRef(0);
     const telemetryBootstrapRef = useRef(readTelemetrySnapshot(hours, points));
     const telemetryStateRef = useRef(telemetryBootstrapRef.current || EMPTY_TELEMETRY);
+    const liveTelemetryLoadedRef = useRef(false);
     const [loading, setLoading] = useState(false);
     const [telemetry, setTelemetry] = useState(() => telemetryBootstrapRef.current || EMPTY_TELEMETRY);
 
@@ -42,6 +43,24 @@ export default function useServerTelemetry(options = {}) {
         telemetryStateRef.current = telemetry;
         writeSessionSnapshot(snapshotKey, telemetry);
     }, [snapshotKey, telemetry]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write' || event?.detail?.key !== snapshotKey) {
+                return;
+            }
+            const snapshot = readTelemetrySnapshot(hours, points);
+            if (!snapshot) return;
+            telemetryBootstrapRef.current = snapshot;
+            if (liveTelemetryLoadedRef.current) return;
+            telemetryStateRef.current = snapshot;
+            setTelemetry(snapshot);
+            setLoading(false);
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, [hours, points, snapshotKey]);
 
     const refresh = useCallback(async (fetchOptions = {}) => {
         if (!enabled) {
@@ -51,7 +70,9 @@ export default function useServerTelemetry(options = {}) {
 
         const quiet = fetchOptions.quiet === true;
         const preserveCurrent = fetchOptions.preserveCurrent === true
-            || (fetchOptions.preserveCurrent == null && telemetryStateRef.current.items.length > 0);
+            || (fetchOptions.preserveCurrent == null && (
+                liveTelemetryLoadedRef.current || telemetryStateRef.current.items.length > 0
+            ));
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
         if (!preserveCurrent) {
@@ -73,16 +94,17 @@ export default function useServerTelemetry(options = {}) {
                 byServerId: payload.byServerId && typeof payload.byServerId === 'object' ? payload.byServerId : {},
                 generatedAt: String(payload.generatedAt || '').trim(),
             };
+            liveTelemetryLoadedRef.current = true;
             setTelemetry(normalized);
             return normalized;
         } catch (error) {
             if (!quiet) {
                 console.error('Failed to fetch server telemetry:', error?.response?.data || error?.message || error);
             }
-            if (requestId === requestIdRef.current && !preserveCurrent) {
+            if (requestId === requestIdRef.current && telemetryStateRef.current.items.length === 0) {
                 setTelemetry(EMPTY_TELEMETRY);
             }
-            return preserveCurrent ? telemetryStateRef.current : EMPTY_TELEMETRY;
+            return telemetryStateRef.current.items.length > 0 ? telemetryStateRef.current : EMPTY_TELEMETRY;
         } finally {
             if (requestId === requestIdRef.current) {
                 setLoading(false);
@@ -92,6 +114,8 @@ export default function useServerTelemetry(options = {}) {
 
     useEffect(() => {
         if (!enabled) {
+            liveTelemetryLoadedRef.current = false;
+            telemetryStateRef.current = EMPTY_TELEMETRY;
             setTelemetry(EMPTY_TELEMETRY);
             return undefined;
         }

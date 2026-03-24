@@ -24,7 +24,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import SiteAccessDangerModal from './SiteAccessDangerModal.jsx';
-import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -414,6 +414,13 @@ export default function SystemSettings() {
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
     const settingsBootstrapRef = useRef(readSystemSettingsSnapshot());
+    const settingsLiveLoadedRef = useRef(false);
+    const dbStatusLiveLoadedRef = useRef(false);
+    const emailStatusLiveLoadedRef = useRef(false);
+    const backupStatusLiveLoadedRef = useRef(false);
+    const monitorStatusLiveLoadedRef = useRef(false);
+    const registrationRuntimeLiveLoadedRef = useRef(false);
+    const inviteCodesLiveLoadedRef = useRef(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedView = resolveSettingsTab(searchParams.get('tab'));
     const activeWorkspaceSectionId = resolveWorkspaceSection(requestedView);
@@ -591,6 +598,50 @@ export default function SystemSettings() {
     ), [inviteRecords]);
     const inviteCodeActionLoading = inviteCodeActionKey !== '';
 
+    useEffect(() => {
+        if (!isAdmin) return undefined;
+
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write' || event?.detail?.key !== SYSTEM_SETTINGS_SNAPSHOT_KEY) {
+                return;
+            }
+            const snapshot = readSystemSettingsSnapshot();
+            if (!snapshot) return;
+            settingsBootstrapRef.current = snapshot;
+
+            if (snapshot.settings && !settingsLiveLoadedRef.current) {
+                setSettings((current) => (hasPendingChanges ? (current || snapshot.settings) : snapshot.settings));
+                if (!hasPendingChanges) {
+                    setDraft(buildDraft(snapshot.settings));
+                    setEditingTelegramChatId(false);
+                }
+                setLoading(false);
+            }
+
+            if (!dbStatusLiveLoadedRef.current) {
+                setDbStatus(snapshot.dbStatus || null);
+            }
+            if (!emailStatusLiveLoadedRef.current) {
+                setEmailStatus(snapshot.emailStatus || null);
+            }
+            if (!backupStatusLiveLoadedRef.current) {
+                setBackupStatus(snapshot.backupStatus || null);
+            }
+            if (!monitorStatusLiveLoadedRef.current) {
+                setMonitorStatus(snapshot.monitorStatus || null);
+            }
+            if (!registrationRuntimeLiveLoadedRef.current) {
+                setRegistrationRuntime(snapshot.registrationRuntime || null);
+            }
+            if (!inviteCodesLiveLoadedRef.current) {
+                setInviteCodes(Array.isArray(snapshot.inviteCodes) ? snapshot.inviteCodes : []);
+            }
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, [hasPendingChanges, isAdmin]);
+
     const fetchSettings = async (options = {}) => {
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && settings !== null);
         if (!preserveCurrent) {
@@ -599,6 +650,7 @@ export default function SystemSettings() {
         try {
             const res = await api.get('/system/settings');
             const payload = res.data?.obj || null;
+            settingsLiveLoadedRef.current = true;
             setSettings(payload);
             setDraft(buildDraft(payload));
             setEditingTelegramChatId(false);
@@ -614,6 +666,7 @@ export default function SystemSettings() {
         try {
             const res = await api.get('/system/db/status');
             const payload = res.data?.obj || null;
+            dbStatusLiveLoadedRef.current = true;
             setDbStatus(payload);
             setDbModeDraft({
                 readMode: payload?.currentModes?.readMode || 'file',
@@ -638,6 +691,7 @@ export default function SystemSettings() {
         setEmailStatusLoading(true);
         try {
             const res = await api.get('/system/email/status');
+            emailStatusLiveLoadedRef.current = true;
             setEmailStatus(res.data?.obj || null);
         } catch (error) {
             if (!quiet) {
@@ -728,6 +782,7 @@ export default function SystemSettings() {
         setBackupStatusLoading(true);
         try {
             const res = await api.get('/system/backup/status');
+            backupStatusLiveLoadedRef.current = true;
             setBackupStatus(res.data?.obj || null);
         } catch (error) {
             if (!quiet) {
@@ -742,6 +797,7 @@ export default function SystemSettings() {
         setMonitorStatusLoading(true);
         try {
             const res = await api.get('/system/monitor/status');
+            monitorStatusLiveLoadedRef.current = true;
             setMonitorStatus(res.data?.obj || null);
         } catch (error) {
             if (!quiet) {
@@ -754,6 +810,7 @@ export default function SystemSettings() {
     const fetchRegistrationRuntime = async () => {
         try {
             const res = await api.get('/auth/registration-status');
+            registrationRuntimeLiveLoadedRef.current = true;
             setRegistrationRuntime(res.data?.obj || null);
         } catch {
             setRegistrationRuntime(null);
@@ -765,6 +822,7 @@ export default function SystemSettings() {
         setInviteCodesLoading(true);
         try {
             const res = await api.get('/system/invite-codes');
+            inviteCodesLiveLoadedRef.current = true;
             setInviteCodes(Array.isArray(res.data?.obj) ? res.data.obj : []);
         } catch (error) {
             if (!quiet) {
@@ -996,6 +1054,7 @@ export default function SystemSettings() {
             const payload = buildDraft(draft);
             const res = await api.put('/system/settings', payload);
             const next = res.data?.obj || payload;
+            settingsLiveLoadedRef.current = true;
             setSettings(next);
             setDraft(buildDraft(next));
             setEditingTelegramChatId(false);
