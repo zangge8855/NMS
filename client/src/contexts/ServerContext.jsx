@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
 
 const ServerContext = createContext(null);
 const ACTIVE_SERVER_KEY = 'nms_active_server';
@@ -47,6 +47,21 @@ function persistActiveServerId(value) {
 
     localStorage.removeItem(ACTIVE_SERVER_KEY);
     localStorage.removeItem(LEGACY_ACTIVE_SERVER_KEY);
+}
+
+function resolvePreferredServerId(serverList = [], ...candidates) {
+    const hasServers = Array.isArray(serverList) && serverList.length > 0;
+    for (const candidate of candidates) {
+        const normalized = String(candidate || '').trim();
+        if (!normalized) continue;
+        if (normalized === 'global') {
+            return hasServers ? 'global' : null;
+        }
+        if (serverList.some((server) => server?.id === normalized)) {
+            return normalized;
+        }
+    }
+    return hasServers ? 'global' : null;
 }
 
 export function ServerProvider({ children }) {
@@ -100,6 +115,35 @@ export function ServerProvider({ children }) {
     useEffect(() => {
         fetchServers({ preserveCurrent: bootstrapRef.current != null });
     }, [fetchServers]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            const detail = event?.detail && typeof event.detail === 'object' ? event.detail : null;
+            if (!detail || detail.key !== SERVER_CONTEXT_SNAPSHOT_KEY || detail.source !== 'app-bootstrap') return;
+            const snapshot = readServerContextSnapshot();
+            if (!snapshot) return;
+            setServers(snapshot.servers);
+            setActiveServerId((currentId) => {
+                const persistedId = getStoredActiveServerId();
+                const nextId = resolvePreferredServerId(
+                    snapshot.servers,
+                    currentId,
+                    persistedId,
+                    snapshot.activeServerId
+                );
+                if (nextId) {
+                    persistActiveServerId(nextId);
+                } else {
+                    persistActiveServerId(null);
+                }
+                return nextId;
+            });
+            setLoading(false);
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, []);
 
     useEffect(() => {
         writeSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {

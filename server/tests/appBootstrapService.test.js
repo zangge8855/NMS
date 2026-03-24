@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAppBootstrapPayload } from '../lib/appBootstrapService.js';
+const trafficStatsStore = (await import('../store/trafficStatsStore.js')).default;
 
 describe('app bootstrap service', () => {
     it('returns a minimal payload for non-admin users', async () => {
@@ -41,5 +42,26 @@ describe('app bootstrap service', () => {
         assert.ok(payload.tasks);
         assert.ok(Array.isArray(payload.systemSettings.inviteCodes));
         assert.ok(Array.isArray(payload.tasks.tasks));
+    });
+
+    it('builds audit traffic bootstrap with an explicit top-10 limit', async () => {
+        const originalGetOverview = trafficStatsStore.getOverview.bind(trafficStatsStore);
+        const recordedOptions = [];
+        trafficStatsStore.getOverview = (options = {}) => {
+            recordedOptions.push(options);
+            return originalGetOverview(options);
+        };
+
+        try {
+            await buildAppBootstrapPayload({
+                role: 'admin',
+                userId: 'admin-1',
+            });
+        } finally {
+            trafficStatsStore.getOverview = originalGetOverview;
+        }
+
+        assert.ok(recordedOptions.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
+        assert.ok(recordedOptions.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
     });
 });

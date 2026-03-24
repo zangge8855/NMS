@@ -101,4 +101,38 @@ describe('NotificationContext', () => {
         });
         expect(screen.getByTestId('notification-items')).toHaveTextContent('3');
     });
+
+    it('still performs the first live preview request when a previous session cached an expanded limit', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:notification_center_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                notifications: Array.from({ length: 30 }, (_, index) => ({
+                    id: `cached-${index + 1}`,
+                    title: `Cached ${index + 1}`,
+                })),
+                unreadCount: 30,
+                loadedLimit: 30,
+            },
+        }));
+        api.get.mockResolvedValueOnce({
+            data: {
+                obj: {
+                    items: [{ id: 'live-preview', title: 'Live preview' }],
+                    unreadCount: 1,
+                },
+            },
+        });
+
+        render(
+            <NotificationProvider wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+        });
+        expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
+        expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
+    });
 });

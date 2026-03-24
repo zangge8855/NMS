@@ -18,7 +18,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import { formatDateTime } from '../../utils/format.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const TASKS_SNAPSHOT_KEY = 'tasks_page_bootstrap_v1';
 const TASKS_SNAPSHOT_TTL_MS = 2 * 60_000;
@@ -32,7 +32,13 @@ function readTasksSnapshot() {
 
     return {
         tasks: Array.isArray(snapshot?.tasks) ? snapshot.tasks : [],
+        issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
+}
+
+function toSnapshotIssuedAtMs(value) {
+    const timestamp = new Date(String(value || '').trim()).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 const TASKS_COPY = {
@@ -217,6 +223,9 @@ export default function Tasks({ embedded = false }) {
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getTasksCopy(locale);
     const tasksBootstrapRef = useRef(readTasksSnapshot());
+    const tasksStateRef = useRef(tasksBootstrapRef.current?.tasks || []);
+    const tasksRequestIdRef = useRef(0);
+    const liveTasksUpdatedAtRef = useRef(0);
     const [loading, setLoading] = useState(() => tasksBootstrapRef.current == null);
     const [tasks, setTasks] = useState(() => tasksBootstrapRef.current?.tasks || []);
     const [selectedTask, setSelectedTask] = useState(null);
@@ -227,22 +236,58 @@ export default function Tasks({ embedded = false }) {
     const [failedOnlyFilter, setFailedOnlyFilter] = useState(false);
     const [retryGroupBy, setRetryGroupBy] = useState('none');
 
+    useEffect(() => {
+        tasksStateRef.current = Array.isArray(tasks) ? tasks : [];
+    }, [tasks]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write' || event?.detail?.key !== TASKS_SNAPSHOT_KEY) {
+                return;
+            }
+            const snapshot = readTasksSnapshot();
+            if (!snapshot) return;
+            const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
+            if (
+                liveTasksUpdatedAtRef.current > 0
+                && (snapshotIssuedAtMs === 0 || snapshotIssuedAtMs <= liveTasksUpdatedAtRef.current)
+            ) {
+                return;
+            }
+            tasksBootstrapRef.current = snapshot;
+            tasksStateRef.current = snapshot.tasks;
+            setTasks(snapshot.tasks);
+            setLoading(false);
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, []);
+
     const fetchTasks = async (options = {}) => {
-        const preserveCurrent = options.preserveCurrent === true;
+        const requestId = tasksRequestIdRef.current + 1;
+        tasksRequestIdRef.current = requestId;
+        const preserveCurrent = options.preserveCurrent === true
+            || (options.preserveCurrent == null && tasksStateRef.current.length > 0);
         if (!preserveCurrent) {
             setLoading(true);
         }
         try {
             const res = await api.get('/jobs?page=1&pageSize=100&includeResults=true');
+            if (requestId !== tasksRequestIdRef.current) return;
             setTasks(res.data?.obj?.items || []);
+            liveTasksUpdatedAtRef.current = Date.now();
         } catch (err) {
+            if (requestId !== tasksRequestIdRef.current) return;
             const msg = err.response?.data?.msg || err.message || copy.loadFailed;
             toast.error(msg);
-            if (!preserveCurrent) {
+            if (tasksStateRef.current.length === 0) {
                 setTasks([]);
             }
         } finally {
-            setLoading(false);
+            if (requestId === tasksRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     };
 

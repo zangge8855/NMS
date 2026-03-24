@@ -4,6 +4,7 @@ import { renderWithRouter } from '../../test/render.jsx';
 import Dashboard from './Dashboard.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 let webSocketState = {
     status: 'disconnected',
@@ -849,6 +850,228 @@ describe('Dashboard', () => {
             expect(monthTrafficCard).toHaveTextContent('900 B');
             expect(screen.getByText('待审核 2 个')).toBeInTheDocument();
             expect(screen.getByText('Node A')).toBeInTheDocument();
+        });
+    });
+
+    it('hydrates dashboard cards immediately when the bootstrap snapshot arrives after mount', async () => {
+        const never = new Promise(() => {});
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
+            throw new Error('Missing dashboard cards');
+        }
+
+        act(() => {
+            writeSessionSnapshot('dashboard_global_v1', {
+                globalStats: {
+                    totalUp: 120,
+                    totalDown: 240,
+                    totalOnline: 3,
+                    totalInbounds: 4,
+                    activeInbounds: 3,
+                    serverCount: 1,
+                    onlineServers: 1,
+                },
+                serverStatuses: {
+                    'server-a': {
+                        serverId: 'server-a',
+                        name: 'Node A',
+                        online: true,
+                        inboundCount: 4,
+                        activeInbounds: 3,
+                        managedOnlineCount: 3,
+                        managedTrafficTotal: 360,
+                        managedTrafficReady: true,
+                        status: {
+                            cpu: 12,
+                            mem: { current: 256, total: 1024 },
+                            uptime: 3600,
+                        },
+                    },
+                },
+                globalAccountSummary: {
+                    totalUsers: 8,
+                    pendingUsers: 2,
+                },
+                globalOnlineUsers: [
+                    {
+                        userId: 'user-a',
+                        username: 'Alice',
+                        email: 'alice@example.com',
+                        displayName: 'Alice',
+                        label: 'alice@example.com',
+                        sessions: 2,
+                        clientCount: 1,
+                        enabled: true,
+                        servers: ['Node A'],
+                        nodeLabels: ['Node A Link'],
+                    },
+                ],
+                globalOnlineSessionCount: 2,
+                globalPresenceReady: true,
+                trafficWindowTotals: {
+                    day: { totalUp: 30, totalDown: 60, ready: true },
+                    week: { totalUp: 120, totalDown: 240, ready: true },
+                    month: { totalUp: 300, totalDown: 600, ready: true },
+                },
+            }, { source: 'app-bootstrap' });
+        });
+
+        await waitFor(() => {
+            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineCard).toHaveTextContent('已注册 8 · 在线会话 2');
+            expect(weekTrafficCard).toHaveTextContent('360 B');
+            expect(monthTrafficCard).toHaveTextContent('900 B');
+            expect(screen.getByText('Node A')).toBeInTheDocument();
+        });
+    });
+
+    it('ignores a late bootstrap snapshot after live global data has already loaded', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return Promise.resolve({
+                    data: {
+                        obj: createGlobalDashboardSnapshot({
+                            serverStatuses: {
+                                'server-a': {
+                                    serverId: 'server-a',
+                                    name: 'Node A',
+                                    online: true,
+                                    inboundCount: 1,
+                                    activeInbounds: 1,
+                                    managedOnlineCount: 1,
+                                    managedTrafficTotal: 300,
+                                    managedTrafficReady: true,
+                                    nodeRemarks: ['Node A Link'],
+                                    nodeRemarkPreview: ['Node A Link'],
+                                    nodeRemarkCount: 1,
+                                    status: {
+                                        cpu: 10,
+                                        mem: { current: 256, total: 1024 },
+                                        uptime: 3600,
+                                        netTraffic: {},
+                                    },
+                                },
+                            },
+                            globalStats: {
+                                totalUp: 100,
+                                totalDown: 200,
+                                totalOnline: 1,
+                                totalInbounds: 1,
+                                activeInbounds: 1,
+                                serverCount: 1,
+                                onlineServers: 1,
+                            },
+                            globalOnlineUsers: [
+                                {
+                                    userId: 'user-a',
+                                    username: 'Alice',
+                                    email: 'alice@example.com',
+                                    displayName: 'Alice',
+                                    label: 'alice@example.com',
+                                    sessions: 1,
+                                    clientCount: 1,
+                                    enabled: true,
+                                    servers: ['Node A'],
+                                    nodeLabels: ['Node A Link'],
+                                },
+                            ],
+                            globalOnlineSessionCount: 1,
+                            globalAccountSummary: {
+                                totalUsers: 4,
+                                pendingUsers: 1,
+                            },
+                            trafficWindowTotals: {
+                                day: { totalUp: 50, totalDown: 100, ready: true },
+                                week: { totalUp: 70, totalDown: 140, ready: true },
+                                month: { totalUp: 90, totalDown: 180, ready: true },
+                            },
+                        }),
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const monthTrafficCard = await screen.findByText('月使用流量');
+        const monthCardShell = monthTrafficCard.closest('[role="button"]');
+        if (!monthCardShell) throw new Error('Missing monthly traffic card');
+
+        await waitFor(() => {
+            expect(monthCardShell).toHaveTextContent('270 B');
+            expect(screen.getByText('Node A')).toBeInTheDocument();
+        });
+
+        act(() => {
+            writeSessionSnapshot('dashboard_global_v1', {
+                issuedAt: '2000-01-01T00:00:00.000Z',
+                globalStats: {
+                    totalUp: 999,
+                    totalDown: 999,
+                    totalOnline: 9,
+                    totalInbounds: 9,
+                    activeInbounds: 9,
+                    serverCount: 1,
+                    onlineServers: 1,
+                },
+                serverStatuses: {
+                    'server-a': {
+                        serverId: 'server-a',
+                        name: 'Stale Node',
+                        online: true,
+                        inboundCount: 9,
+                        activeInbounds: 9,
+                        managedOnlineCount: 9,
+                        managedTrafficTotal: 999,
+                        managedTrafficReady: true,
+                    },
+                },
+                globalAccountSummary: {
+                    totalUsers: 99,
+                    pendingUsers: 0,
+                },
+                globalOnlineUsers: [],
+                globalOnlineSessionCount: 0,
+                globalPresenceReady: true,
+                trafficWindowTotals: {
+                    day: { totalUp: 1, totalDown: 1, ready: true },
+                    week: { totalUp: 1, totalDown: 1, ready: true },
+                    month: { totalUp: 1, totalDown: 1, ready: true },
+                },
+            }, { source: 'app-bootstrap' });
+        });
+
+        await waitFor(() => {
+            expect(monthCardShell).toHaveTextContent('270 B');
+            expect(screen.getByText('Node A')).toBeInTheDocument();
+            expect(screen.queryByText('Stale Node')).not.toBeInTheDocument();
         });
     });
 

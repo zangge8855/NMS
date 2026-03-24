@@ -1,8 +1,9 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render.jsx';
 import api from '../../api/client.js';
 import Tasks from './Tasks.jsx';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -99,6 +100,63 @@ describe('Tasks', () => {
         expect(await screen.findByText('用户 / 更新')).toBeInTheDocument();
         expect(screen.getByText('Node A, Node B')).toBeInTheDocument();
         expect(screen.queryByText('loading-table')).not.toBeInTheDocument();
+    });
+
+    it('ignores a late bootstrap task snapshot after live data has loaded', async () => {
+        api.get.mockResolvedValueOnce({
+            data: {
+                obj: {
+                    items: [
+                        {
+                            id: 'live-task',
+                            createdAt: '2026-03-13T10:00:00.000Z',
+                            type: 'clients',
+                            action: 'update',
+                            summary: {
+                                total: 3,
+                                success: 3,
+                                failed: 0,
+                            },
+                            results: [
+                                { serverName: 'Live Node' },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+
+        renderWithRouter(<Tasks embedded />);
+
+        expect(await screen.findByText('用户 / 更新')).toBeInTheDocument();
+        expect(screen.getAllByText('Live Node').length).toBeGreaterThan(0);
+
+        act(() => {
+            writeSessionSnapshot('tasks_page_bootstrap_v1', {
+                issuedAt: '2000-01-01T00:00:00.000Z',
+                tasks: [
+                    {
+                        id: 'stale-task',
+                        createdAt: '2026-03-12T10:00:00.000Z',
+                        type: 'clients',
+                        action: 'delete',
+                        summary: {
+                            total: 1,
+                            success: 0,
+                            failed: 1,
+                        },
+                        results: [
+                            { serverName: 'Stale Node' },
+                        ],
+                    },
+                ],
+            }, { source: 'app-bootstrap' });
+        });
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Live Node').length).toBeGreaterThan(0);
+            expect(screen.queryByText('Stale Node')).not.toBeInTheDocument();
+        });
     });
 
     it('renders a standalone loading shell before tasks are loaded', async () => {

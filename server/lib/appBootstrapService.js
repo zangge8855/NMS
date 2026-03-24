@@ -27,6 +27,7 @@ const INITIAL_ACCESS_PAGE_SIZE = 30;
 const INITIAL_TASK_HISTORY_PAGE_SIZE = 100;
 const AUDIT_TRAFFIC_WEEK_DAYS = 7;
 const AUDIT_TRAFFIC_MONTH_DAYS = 30;
+const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 
 function buildTodayRange() {
     const now = new Date();
@@ -98,9 +99,11 @@ function buildAuditEventsBootstrap() {
 function buildAuditTrafficBootstrap() {
     const trafficOverview = trafficStatsStore.getOverview({
         days: AUDIT_TRAFFIC_MONTH_DAYS,
+        top: AUDIT_TRAFFIC_TOP_LIMIT,
     });
     const trafficWeek = trafficStatsStore.getOverview({
         days: AUDIT_TRAFFIC_WEEK_DAYS,
+        top: AUDIT_TRAFFIC_TOP_LIMIT,
     });
 
     return {

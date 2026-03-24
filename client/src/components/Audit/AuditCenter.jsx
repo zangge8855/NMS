@@ -37,10 +37,11 @@ import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
 const AUDIT_TRAFFIC_WEEK_DAYS = 7;
+const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 const AUDIT_EVENTS_SNAPSHOT_KEY = 'audit_events_v1';
 const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v1';
 const AUDIT_ACCESS_SNAPSHOT_KEY = 'audit_access_v1';
@@ -157,7 +158,7 @@ const AUDIT_COPY = {
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
             totalTrafficScope: '近 30 天流量',
-            totalTrafficMonthNote: '最近 30 天采样汇总',
+            totalTrafficMonthNote: '最近 30 天已注册用户采样',
             weeklyActiveAccountsScope: '最近 7 天 · 有流量的已注册用户',
             monthlyActiveAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
@@ -338,7 +339,7 @@ const AUDIT_COPY = {
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
             totalTrafficScope: 'Traffic in the last 30 days',
-            totalTrafficMonthNote: 'Summed from last 30 days samples',
+            totalTrafficMonthNote: 'Summed from last-30-day registered-user samples',
             weeklyActiveAccountsScope: 'Last 7 days · registered users with traffic',
             monthlyActiveAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
@@ -466,6 +467,7 @@ function readAuditTrafficSnapshot() {
         trafficWindows: snapshot?.trafficWindows && typeof snapshot.trafficWindows === 'object'
             ? snapshot.trafficWindows
             : { week: null, month: null },
+        issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
 }
 
@@ -479,6 +481,7 @@ function readAuditEventsSnapshot() {
         eventsData: snapshot?.eventsData && typeof snapshot.eventsData === 'object'
             ? snapshot.eventsData
             : { items: [], total: 0, page: 1, totalPages: 1 },
+        issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
 }
 
@@ -501,7 +504,45 @@ function readAuditAccessSnapshot() {
                 week: { ...EMPTY_ACCESS_SUMMARY },
                 month: { ...EMPTY_ACCESS_SUMMARY },
             },
+        issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
+}
+
+function toSnapshotIssuedAtMs(value) {
+    const timestamp = new Date(String(value || '').trim()).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function hasDefaultEventFilters(filters = {}, page = 1) {
+    return !filters.q
+        && !filters.eventType
+        && !filters.outcome
+        && !filters.targetEmail
+        && !filters.serverId
+        && Number(page || 1) === 1;
+}
+
+function hasVisibleTrafficSnapshot(snapshot = {}) {
+    const overview = snapshot?.trafficOverview;
+    const windows = snapshot?.trafficWindows || {};
+    return Boolean(overview)
+        || Boolean(windows.week)
+        || Boolean(windows.month);
+}
+
+function hasVisibleAccessSnapshot(snapshot = {}) {
+    const accessData = snapshot?.accessData || { items: [], total: 0 };
+    const accessSummary = snapshot?.accessSummary || EMPTY_ACCESS_SUMMARY;
+    const accessUserWindows = snapshot?.accessUserWindows || {
+        week: EMPTY_ACCESS_SUMMARY,
+        month: EMPTY_ACCESS_SUMMARY,
+    };
+    return (Array.isArray(accessData.items) && accessData.items.length > 0)
+        || Number(accessData.total || 0) > 0
+        || Number(accessSummary.total || 0) > 0
+        || Number(accessSummary.uniqueUsers || 0) > 0
+        || Number(accessUserWindows.week?.uniqueUsers || 0) > 0
+        || Number(accessUserWindows.month?.uniqueUsers || 0) > 0;
 }
 
 function buildAccessSummaryParams(filters = {}, { days = null } = {}) {
@@ -955,6 +996,21 @@ export default function AuditCenter() {
     const eventsBootstrapRef = useRef(readAuditEventsSnapshot());
     const trafficBootstrapRef = useRef(readAuditTrafficSnapshot());
     const accessBootstrapRef = useRef(readAuditAccessSnapshot());
+    const trafficStateRef = useRef({
+        trafficOverview: trafficBootstrapRef.current?.trafficOverview || null,
+        trafficWindows: trafficBootstrapRef.current?.trafficWindows || { week: null, month: null },
+    });
+    const accessStateRef = useRef({
+        accessData: accessBootstrapRef.current?.accessData || { items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} },
+        accessSummary: accessBootstrapRef.current?.accessSummary || { ...EMPTY_ACCESS_SUMMARY },
+        accessUserWindows: accessBootstrapRef.current?.accessUserWindows || {
+            week: { ...EMPTY_ACCESS_SUMMARY },
+            month: { ...EMPTY_ACCESS_SUMMARY },
+        },
+    });
+    const eventsLiveUpdatedAtRef = useRef(0);
+    const trafficLiveUpdatedAtRef = useRef(0);
+    const accessLiveUpdatedAtRef = useRef(0);
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
     const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
@@ -1011,6 +1067,109 @@ export default function AuditCenter() {
         status: '',
     });
 
+    useEffect(() => {
+        trafficStateRef.current = {
+            trafficOverview,
+            trafficWindows,
+        };
+    }, [trafficOverview, trafficWindows]);
+
+    useEffect(() => {
+        accessStateRef.current = {
+            accessData,
+            accessSummary,
+            accessUserWindows,
+        };
+    }, [accessData, accessSummary, accessUserWindows]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write') {
+                return;
+            }
+
+            if (event.detail.key === AUDIT_EVENTS_SNAPSHOT_KEY) {
+                if (!hasDefaultEventFilters(eventFilters, eventsPage)) return;
+                const snapshot = readAuditEventsSnapshot();
+                if (!snapshot) return;
+                const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
+                if (
+                    eventsLiveUpdatedAtRef.current > 0
+                    && (snapshotIssuedAtMs === 0 || snapshotIssuedAtMs <= eventsLiveUpdatedAtRef.current)
+                ) {
+                    return;
+                }
+                eventsBootstrapRef.current = snapshot;
+                setEventsData(snapshot.eventsData);
+                setEventsPage(Number(snapshot?.eventsData?.page || 1) || 1);
+                setEventsLoading(false);
+                return;
+            }
+
+            if (event.detail.key === AUDIT_TRAFFIC_SNAPSHOT_KEY) {
+                const snapshot = readAuditTrafficSnapshot();
+                if (!snapshot) return;
+                const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
+                if (
+                    trafficLiveUpdatedAtRef.current > 0
+                    && (snapshotIssuedAtMs === 0 || snapshotIssuedAtMs <= trafficLiveUpdatedAtRef.current)
+                ) {
+                    return;
+                }
+                trafficBootstrapRef.current = snapshot;
+                trafficStateRef.current = {
+                    trafficOverview: snapshot.trafficOverview,
+                    trafficWindows: snapshot.trafficWindows || { week: null, month: null },
+                };
+                setTrafficOverview(snapshot.trafficOverview);
+                setTrafficWindows(snapshot.trafficWindows || { week: null, month: null });
+                if (!selectedUser && snapshot?.trafficOverview?.topUsers?.length > 0) {
+                    setSelectedUser(snapshot.trafficOverview.topUsers[0].email);
+                }
+                if (!selectedServerId && snapshot?.trafficOverview?.topServers?.length > 0) {
+                    setSelectedServerId(snapshot.trafficOverview.topServers[0].serverId);
+                }
+                setTrafficLoading(false);
+                return;
+            }
+
+            if (event.detail.key === AUDIT_ACCESS_SNAPSHOT_KEY) {
+                if (accessFilters.email || accessFilters.status || Number(accessPage || 1) !== 1) return;
+                const snapshot = readAuditAccessSnapshot();
+                if (!snapshot) return;
+                const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
+                if (
+                    accessLiveUpdatedAtRef.current > 0
+                    && (snapshotIssuedAtMs === 0 || snapshotIssuedAtMs <= accessLiveUpdatedAtRef.current)
+                ) {
+                    return;
+                }
+                accessBootstrapRef.current = snapshot;
+                accessStateRef.current = {
+                    accessData: snapshot.accessData,
+                    accessSummary: snapshot.accessSummary,
+                    accessUserWindows: snapshot.accessUserWindows,
+                };
+                setAccessData(snapshot.accessData);
+                setAccessSummary(snapshot.accessSummary);
+                setAccessUserWindows(snapshot.accessUserWindows);
+                setAccessPage(Number(snapshot?.accessData?.page || 1) || 1);
+                setAccessLoading(false);
+            }
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, [
+        accessFilters.email,
+        accessFilters.status,
+        accessPage,
+        eventFilters,
+        eventsPage,
+        selectedServerId,
+        selectedUser,
+    ]);
+
     const fetchEvents = async (targetPage = eventsPage, filters = eventFilters) => {
         setEventsLoading(true);
         try {
@@ -1025,6 +1184,7 @@ export default function AuditCenter() {
             const res = await api.get(`/audit/events?${params.toString()}`);
             setEventsData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1 });
             setEventsPage(targetPage);
+            eventsLiveUpdatedAtRef.current = Date.now();
         } catch (err) {
             toast.error(err.response?.data?.msg || err.message || copy.toast.auditLoadFailed);
         }
@@ -1032,12 +1192,12 @@ export default function AuditCenter() {
     };
 
     const fetchTrafficOverview = async (force = false) => {
-        const preserveCurrent = trafficOverview != null || trafficWindows.week != null || trafficWindows.month != null;
         setTrafficLoading(true);
         try {
             const params = new URLSearchParams();
             params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
             params.append('windows', `${AUDIT_TRAFFIC_WEEK_DAYS},${AUDIT_TRAFFIC_WINDOW_DAYS}`);
+            params.append('top', String(AUDIT_TRAFFIC_TOP_LIMIT));
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
             const payload = res.data?.obj || null;
@@ -1056,11 +1216,12 @@ export default function AuditCenter() {
             const warningCount = Array.isArray(payload?.collection?.warnings)
                 ? payload.collection.warnings.length
                 : 0;
+            trafficLiveUpdatedAtRef.current = Date.now();
             if (warningCount > 0) {
                 toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
-            if (!preserveCurrent) {
+            if (!hasVisibleTrafficSnapshot(trafficStateRef.current)) {
                 setTrafficWindows({ week: null, month: null });
             }
             toast.error(err.response?.data?.msg || err.message || copy.toast.trafficLoadFailed);
@@ -1101,14 +1262,6 @@ export default function AuditCenter() {
     };
 
     const fetchAccess = async (targetPage = accessPage, filtersOverride = null) => {
-        const preserveCurrent = (
-            (Array.isArray(accessData.items) && accessData.items.length > 0)
-            || Number(accessData.total || 0) > 0
-            || Number(accessSummary.total || 0) > 0
-            || Number(accessSummary.uniqueUsers || 0) > 0
-            || Number(accessUserWindows.week?.uniqueUsers || 0) > 0
-            || Number(accessUserWindows.month?.uniqueUsers || 0) > 0
-        );
         setAccessLoading(true);
         try {
             const sourceFilters = filtersOverride || accessFilters;
@@ -1131,8 +1284,9 @@ export default function AuditCenter() {
                 month: summaryPayload?.windows?.[String(AUDIT_TRAFFIC_WINDOW_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
             });
             setAccessPage(targetPage);
+            accessLiveUpdatedAtRef.current = Date.now();
         } catch (err) {
-            if (!preserveCurrent) {
+            if (!hasVisibleAccessSnapshot(accessStateRef.current)) {
                 setAccessSummary({ ...EMPTY_ACCESS_SUMMARY });
                 setAccessUserWindows({
                     week: { ...EMPTY_ACCESS_SUMMARY },
@@ -1145,12 +1299,7 @@ export default function AuditCenter() {
     };
 
     useEffect(() => {
-        const hasDefaultFilters = !eventFilters.q
-            && !eventFilters.eventType
-            && !eventFilters.outcome
-            && !eventFilters.targetEmail
-            && !eventFilters.serverId
-            && Number(eventsPage || 1) === 1;
+        const hasDefaultFilters = hasDefaultEventFilters(eventFilters, eventsPage);
         const hasPersistableEvents = eventsBootstrapRef.current != null
             || (Array.isArray(eventsData.items) && eventsData.items.length > 0)
             || Number(eventsData.total || 0) > 0;
@@ -1273,7 +1422,7 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
-    const trafficTotals = trafficOverview?.totals || {
+    const trafficTotals = trafficOverview?.managedTotals || trafficOverview?.totals || {
         upBytes: 0,
         downBytes: 0,
         totalBytes: 0,

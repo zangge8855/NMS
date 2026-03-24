@@ -28,7 +28,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const GLOBAL_WS_GRACE_MS = 150;
@@ -118,7 +118,13 @@ function readDashboardBootstrapSnapshot() {
         trafficWindowTotals,
         globalPresenceReady: snapshot?.globalPresenceReady === true && Array.isArray(snapshot?.globalOnlineUsers),
         hasRenderableData,
+        issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
+}
+
+function toSnapshotIssuedAtMs(value) {
+    const timestamp = new Date(String(value || '').trim()).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function buildDashboardSnapshotServerStatuses(serverStatuses = {}) {
@@ -559,6 +565,7 @@ export default function Dashboard() {
     const [trafficWindowTotals, setTrafficWindowTotals] = useState(() => (
         dashboardBootstrapRef.current?.trafficWindowTotals || buildInitialTrafficWindowTotals()
     ));
+    const liveGlobalDataAtRef = useRef(0);
 
     // Shared State
     const [loading, setLoading] = useState(() => dashboardBootstrapRef.current?.hasRenderableData !== true);
@@ -595,6 +602,9 @@ export default function Dashboard() {
             ...previous,
             ...normalizeStoredTrafficWindowTotals(windows),
         }));
+    }, []);
+    const markGlobalDataLive = useCallback((updatedAt = Date.now()) => {
+        liveGlobalDataAtRef.current = Math.max(liveGlobalDataAtRef.current, Number(updatedAt) || 0);
     }, []);
     const applyGlobalDashboardSnapshot = useCallback((payload = {}) => {
         const nextServerStatuses = buildDashboardSnapshotServerStatuses(payload?.serverStatuses || {});
@@ -725,8 +735,9 @@ export default function Dashboard() {
             setGlobalOnlineSessionCount(Number(data?.managedOnlineSessionCount || 0));
             setGlobalPresenceReady(data?.managedPresenceReady === true);
         }
+        markGlobalDataLive();
         setLoading(false);
-    }, [activeServerId, lastMessage, syncTrafficWindowTotals]);
+    }, [activeServerId, lastMessage, markGlobalDataLive, syncTrafficWindowTotals]);
 
     useEffect(() => {
         if (activeServerId !== 'global') return;
@@ -788,6 +799,7 @@ export default function Dashboard() {
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
             setTrafficWindowTotals(buildInitialTrafficWindowTotals({ ready: true }));
+            markGlobalDataLive();
             setLoading(false);
             return;
         }
@@ -797,6 +809,7 @@ export default function Dashboard() {
                 params: options.force === true ? { refresh: true } : undefined,
             });
             applyGlobalDashboardSnapshot(res.data?.obj || {});
+            markGlobalDataLive();
         } catch (err) {
             console.error('Global fetch error:', err);
             if (!options.preserveCurrent) {
@@ -805,7 +818,7 @@ export default function Dashboard() {
         }
         setGlobalPresenceLoading(false);
         setLoading(false);
-    }, [applyGlobalDashboardSnapshot, servers.length]);
+    }, [applyGlobalDashboardSnapshot, markGlobalDataLive, servers.length]);
 
     const hydrateGlobalPresence = useCallback(async (options = {}) => {
         return fetchGlobalData({
@@ -855,6 +868,29 @@ export default function Dashboard() {
         serverStatuses,
         trafficWindowTotals,
     ]);
+
+    useEffect(() => {
+        const handleSnapshotUpdate = (event) => {
+            const detail = event?.detail && typeof event.detail === 'object' ? event.detail : null;
+            if (!detail || detail.key !== DASHBOARD_SNAPSHOT_KEY || detail.source !== 'app-bootstrap') return;
+            const snapshot = readDashboardBootstrapSnapshot();
+            if (!snapshot) return;
+            const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
+            if (
+                liveGlobalDataAtRef.current > 0
+                && (snapshotIssuedAtMs === 0 || snapshotIssuedAtMs <= liveGlobalDataAtRef.current)
+            ) {
+                return;
+            }
+            applyGlobalDashboardSnapshot(snapshot);
+            if (snapshot.hasRenderableData) {
+                setLoading(false);
+            }
+        };
+
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+    }, [applyGlobalDashboardSnapshot]);
 
     useEffect(() => {
         if (activeServerId === 'global') return;

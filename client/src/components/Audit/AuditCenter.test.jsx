@@ -1,9 +1,10 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { renderWithRouter } from '../../test/render.jsx';
 import AuditCenter from './AuditCenter.jsx';
+import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -627,6 +628,11 @@ describe('AuditCenter localization', () => {
                             sampleCount: 12,
                             activeUsers: 1,
                             userLevelSupported: true,
+                            managedTotals: {
+                                upBytes: 128,
+                                downBytes: 384,
+                                totalBytes: 512,
+                            },
                             totals: {
                                 upBytes: 512,
                                 downBytes: 1536,
@@ -715,17 +721,190 @@ describe('AuditCenter localization', () => {
         await waitFor(() => {
             expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('days=30'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('windows=7%2C30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('top=10'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('days=30'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('days=30'))).toBe(true);
         });
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
         expect(screen.getAllByText('先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getByText('512 B')).toBeInTheDocument();
+        expect(screen.getByText('最近 30 天已注册用户采样')).toBeInTheDocument();
         expect(screen.getByText('周活跃账号')).toBeInTheDocument();
         expect(screen.getByText('月活跃账号')).toBeInTheDocument();
         expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getByText('当前所选节点 · 最近 30 天趋势')).toBeInTheDocument();
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
+    });
+
+    it('ignores a late bootstrap traffic snapshot after live traffic data has loaded', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            sampleCount: 12,
+                            activeUsers: 1,
+                            userLevelSupported: true,
+                            managedTotals: {
+                                upBytes: 128,
+                                downBytes: 384,
+                                totalBytes: 512,
+                            },
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                            topUsers: [
+                                {
+                                    email: 'alice@example.com',
+                                    username: 'alice',
+                                    displayLabel: 'alice · alice@example.com',
+                                    totalBytes: 2048,
+                                },
+                            ],
+                            topServers: [
+                                {
+                                    serverId: 'server-a',
+                                    serverName: 'Node A',
+                                    totalBytes: 4096,
+                                },
+                            ],
+                            windows: {
+                                '7': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 256,
+                                        downBytes: 768,
+                                        totalBytes: 1024,
+                                    },
+                                },
+                                '30': {
+                                    activeUsers: 1,
+                                    totals: {
+                                        upBytes: 512,
+                                        downBytes: 1536,
+                                        totalBytes: 2048,
+                                    },
+                                },
+                            },
+                            collection: {
+                                warnings: [],
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/users/alice%40example.com/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'alice@example.com',
+                            username: 'alice',
+                            displayLabel: 'alice · alice@example.com',
+                            granularity: 'hour',
+                            points: [],
+                            totals: {
+                                upBytes: 512,
+                                downBytes: 1536,
+                                totalBytes: 2048,
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/servers/server-a/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            serverId: 'server-a',
+                            granularity: 'day',
+                            points: [],
+                            totals: {
+                                upBytes: 1024,
+                                downBytes: 3072,
+                                totalBytes: 4096,
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        await waitFor(() => {
+            expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
+        });
+        expect(screen.getAllByText('Node A').length).toBeGreaterThan(0);
+
+        act(() => {
+            writeSessionSnapshot('audit_traffic_v1', {
+                issuedAt: '2000-01-01T00:00:00.000Z',
+                trafficOverview: {
+                    lastCollectionAt: '2000-01-01T00:00:00.000Z',
+                    sampleCount: 1,
+                    activeUsers: 1,
+                    userLevelSupported: true,
+                    managedTotals: {
+                        upBytes: 1,
+                        downBytes: 1,
+                        totalBytes: 2,
+                    },
+                    totals: {
+                        upBytes: 1,
+                        downBytes: 1,
+                        totalBytes: 2,
+                    },
+                    topUsers: [
+                        {
+                            email: 'stale@example.com',
+                            username: 'stale',
+                            displayLabel: 'stale · stale@example.com',
+                            totalBytes: 2,
+                        },
+                    ],
+                    topServers: [
+                        {
+                            serverId: 'server-stale',
+                            serverName: 'Stale Node',
+                            totalBytes: 2,
+                        },
+                    ],
+                    collection: {
+                        warnings: [],
+                    },
+                },
+                trafficWindows: {
+                    week: {
+                        activeUsers: 1,
+                        totals: {
+                            upBytes: 1,
+                            downBytes: 1,
+                            totalBytes: 2,
+                        },
+                    },
+                    month: {
+                        activeUsers: 1,
+                        totals: {
+                            upBytes: 1,
+                            downBytes: 1,
+                            totalBytes: 2,
+                        },
+                    },
+                },
+            }, { source: 'app-bootstrap' });
+        });
+
+        await waitFor(() => {
+            expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
+            expect(screen.getAllByText('Node A').length).toBeGreaterThan(0);
+            expect(screen.queryByText('stale · stale@example.com')).not.toBeInTheDocument();
+            expect(screen.queryByText('Stale Node')).not.toBeInTheDocument();
+        });
     });
 
     it('switches audit event and actor labels with the selected locale', async () => {
