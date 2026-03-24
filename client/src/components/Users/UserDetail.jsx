@@ -195,10 +195,14 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 totalTraffic: 'Total Traffic',
                 usedTraffic: 'Used Traffic',
                 availableTraffic: 'Available Traffic',
+                liveUsageSpeed: 'Live Speed',
+                liveUsagePending: 'Calculating',
                 nodeCount: 'Nodes',
                 accessCount: 'Subscription Access',
                 auditCount: 'Audit Records',
                 clientSummaryLoading: 'Loading node summary...',
+                upload: 'Upload',
+                download: 'Download',
                 online: 'Online',
                 offline: 'Offline',
                 onlineSessions: '{count} sessions',
@@ -352,10 +356,14 @@ function getUserDetailCopy(locale = 'zh-CN') {
             totalTraffic: '总流量',
             usedTraffic: '已用流量',
             availableTraffic: '可用流量',
+            liveUsageSpeed: '实时速度',
+            liveUsagePending: '计算中',
             nodeCount: '节点数',
             accessCount: '订阅访问',
             auditCount: '审计记录',
             clientSummaryLoading: '节点汇总加载中...',
+            upload: '上行',
+            download: '下行',
             online: '在线',
             offline: '离线',
             onlineSessions: '{count} 会话',
@@ -564,6 +572,76 @@ function normalizeUserDetailPayload(payload) {
 }
 
 const USER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
+const USER_DETAIL_LIVE_TRAFFIC_POLL_MS = 5_000;
+const EMPTY_LIVE_TRAFFIC_SUMMARY = Object.freeze({
+    ready: false,
+    upPerSecond: 0,
+    downPerSecond: 0,
+    totalPerSecond: 0,
+});
+
+function normalizeTrafficCounter(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function buildTrackedClientKey(client = {}) {
+    const serverId = String(client?.serverId || '').trim();
+    const inboundId = String(client?.inboundId || '').trim();
+    const email = String(client?.email || '').trim().toLowerCase();
+    const protocol = String(client?.protocol || '').trim().toLowerCase();
+    const port = String(client?.port || '').trim();
+    if (!serverId || !inboundId || !email) return '';
+    return [serverId, inboundId, email, protocol, port].join('::');
+}
+
+function buildClientTrafficCounterMap(clients = []) {
+    const counters = new Map();
+    (Array.isArray(clients) ? clients : []).forEach((client) => {
+        const key = buildTrackedClientKey(client);
+        if (!key) return;
+        const current = counters.get(key) || { up: 0, down: 0 };
+        current.up += normalizeTrafficCounter(client?.up);
+        current.down += normalizeTrafficCounter(client?.down);
+        counters.set(key, current);
+    });
+    return counters;
+}
+
+function buildLiveTrafficSnapshot(clients = [], previousSnapshot = null, checkedAtMs = Date.now()) {
+    const counters = buildClientTrafficCounterMap(clients);
+    const previousCheckedAtMs = Number(previousSnapshot?.checkedAtMs || 0);
+    const elapsedSeconds = previousCheckedAtMs > 0 && checkedAtMs > previousCheckedAtMs
+        ? Math.max(1, (checkedAtMs - previousCheckedAtMs) / 1000)
+        : 0;
+
+    let upDelta = 0;
+    let downDelta = 0;
+
+    if (elapsedSeconds > 0 && previousSnapshot?.counters instanceof Map) {
+        counters.forEach((counter, key) => {
+            const previousCounter = previousSnapshot.counters.get(key);
+            if (!previousCounter) return;
+            upDelta += Math.max(0, normalizeTrafficCounter(counter.up) - normalizeTrafficCounter(previousCounter.up));
+            downDelta += Math.max(0, normalizeTrafficCounter(counter.down) - normalizeTrafficCounter(previousCounter.down));
+        });
+    }
+
+    const ready = elapsedSeconds > 0;
+    const upPerSecond = ready ? upDelta / elapsedSeconds : 0;
+    const downPerSecond = ready ? downDelta / elapsedSeconds : 0;
+
+    return {
+        checkedAtMs,
+        counters,
+        summary: {
+            ready,
+            upPerSecond,
+            downPerSecond,
+            totalPerSecond: upPerSecond + downPerSecond,
+        },
+    };
+}
 
 function buildUserDetailSnapshotKey(userId) {
     return `user_detail_v1:${String(userId || '').trim()}`;
@@ -638,6 +716,8 @@ export default function UserDetail() {
     const clientRequestIdRef = useRef(0);
     const detailBootstrapRef = useRef(readUserDetailSnapshot(userId));
     const preserveBootstrapClientsRef = useRef(detailBootstrapRef.current?.clientsFetched === true);
+    const liveTrafficSnapshotRef = useRef(null);
+    const lastClientFetchAtRef = useRef(0);
     const serverInventoryKey = useMemo(
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
         [servers]
@@ -656,6 +736,7 @@ export default function UserDetail() {
     const [clientData, setClientData] = useState(() => detailBootstrapRef.current?.clientData || []);
     const [clientsLoading, setClientsLoading] = useState(false);
     const [clientsFetched, setClientsFetched] = useState(() => detailBootstrapRef.current?.clientsFetched === true);
+    const [liveTrafficSummary, setLiveTrafficSummary] = useState(() => ({ ...EMPTY_LIVE_TRAFFIC_SUMMARY }));
     const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
     const [subscriptionFetched, setSubscriptionFetched] = useState(() => detailBootstrapRef.current?.subscriptionFetched === true);
     const [clientIpModal, setClientIpModal] = useState({
@@ -762,28 +843,43 @@ export default function UserDetail() {
         setSubscriptionLoading(false);
     };
 
-    const fetchClients = async () => {
+    const fetchClients = async (options = {}) => {
         const requestId = clientRequestIdRef.current + 1;
         clientRequestIdRef.current = requestId;
+        const preserveCurrent = options.preserveCurrent === true;
+        const background = options.background === true;
         const trackedEmails = collectTrackedUserEmails(detail?.user);
         if (trackedEmails.length === 0) {
             if (requestId !== clientRequestIdRef.current) return;
             setClientData([]);
             setClientsFetched(true);
+            setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
+            liveTrafficSnapshotRef.current = null;
+            lastClientFetchAtRef.current = 0;
             return;
         }
-        setClientsLoading(true);
+        if (!background) {
+            setClientsLoading(true);
+        }
         try {
             if (servers.length === 0) {
                 if (requestId !== clientRequestIdRef.current) return;
                 setClientData([]);
                 setClientsFetched(true);
-                setClientsLoading(false);
+                setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
+                liveTrafficSnapshotRef.current = null;
+                lastClientFetchAtRef.current = 0;
+                if (!background) {
+                    setClientsLoading(false);
+                }
                 return;
             }
             const emailSet = new Set(trackedEmails);
             const clients = [];
-            const serverResults = await fetchServerPanelData(api, servers, { includeOnlines: true });
+            const serverResults = await fetchServerPanelData(api, servers, {
+                includeOnlines: true,
+                force: options.force === true,
+            });
             if (requestId !== clientRequestIdRef.current) return;
 
             serverResults.forEach((result) => {
@@ -817,13 +913,29 @@ export default function UserDetail() {
 
             if (requestId !== clientRequestIdRef.current) return;
             setClientData(clients);
+            const checkedAtMs = Date.now();
+            const nextLiveTrafficSnapshot = buildLiveTrafficSnapshot(
+                clients,
+                liveTrafficSnapshotRef.current,
+                checkedAtMs
+            );
+            liveTrafficSnapshotRef.current = nextLiveTrafficSnapshot;
+            lastClientFetchAtRef.current = checkedAtMs;
+            setLiveTrafficSummary(nextLiveTrafficSnapshot.summary);
         } catch {
             if (requestId !== clientRequestIdRef.current) return;
-            setClientData([]);
+            if (!preserveCurrent) {
+                setClientData([]);
+                setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
+                liveTrafficSnapshotRef.current = null;
+                lastClientFetchAtRef.current = 0;
+            }
         }
         if (requestId !== clientRequestIdRef.current) return;
         setClientsFetched(true);
-        setClientsLoading(false);
+        if (!background) {
+            setClientsLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -836,6 +948,9 @@ export default function UserDetail() {
         setSubscriptionResult(snapshot?.subscriptionResult || null);
         setSubscriptionFetched(snapshot?.subscriptionFetched === true);
         setSubscriptionProfileKey(snapshot?.subscriptionProfileKey || 'v2rayn');
+        setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
+        liveTrafficSnapshotRef.current = null;
+        lastClientFetchAtRef.current = 0;
         setClientIpSupportByServer({});
         detailRequestIdRef.current += 1;
         clientRequestIdRef.current += 1;
@@ -850,8 +965,11 @@ export default function UserDetail() {
         }
         setClientData([]);
         setClientsFetched(false);
+        setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
+        liveTrafficSnapshotRef.current = null;
+        lastClientFetchAtRef.current = 0;
         clientRequestIdRef.current += 1;
-    }, [detail?.user?.id, serverInventoryKey]);
+    }, [detail?.user?.id, detail?.user?.email, detail?.user?.subscriptionEmail, serverInventoryKey]);
 
     useEffect(() => {
         const normalizedUserId = String(userId || '').trim();
@@ -878,6 +996,31 @@ export default function UserDetail() {
             fetchClients();
         }
     }, [detail, activeTab, clientsFetched, clientsLoading, serversLoading, serverInventoryKey]);
+
+    useEffect(() => {
+        if (!detail) return undefined;
+        if (serversLoading) return undefined;
+        if (activeTab !== 'overview' && activeTab !== 'clients') return undefined;
+        if (!clientsFetched || clientsLoading) return undefined;
+
+        if (lastClientFetchAtRef.current === 0) {
+            fetchClients({
+                background: true,
+                force: true,
+                preserveCurrent: true,
+            });
+        }
+
+        const timer = window.setInterval(() => (
+            fetchClients({
+                background: true,
+                force: true,
+                preserveCurrent: true,
+            })
+        ), USER_DETAIL_LIVE_TRAFFIC_POLL_MS);
+
+        return () => window.clearInterval(timer);
+    }, [activeTab, clientsFetched, clientsLoading, detail, serversLoading, serverInventoryKey]);
 
     useEffect(() => {
         if (!detail) return;
@@ -963,6 +1106,12 @@ export default function UserDetail() {
     const totalTraffic = useMemo(() => {
         return clientData.reduce((sum, c) => sum + (c.up || 0) + (c.down || 0), 0);
     }, [clientData]);
+    const liveTrafficSummaryText = liveTrafficSummary.ready
+        ? `${formatBytes(liveTrafficSummary.totalPerSecond)}/s`
+        : copy.labels.liveUsagePending;
+    const liveTrafficSplitText = liveTrafficSummary.ready
+        ? `${copy.labels.upload} ${formatBytes(liveTrafficSummary.upPerSecond)}/s · ${copy.labels.download} ${formatBytes(liveTrafficSummary.downPerSecond)}/s`
+        : '';
     const activeSubscriptionProfile = useMemo(
         () => findSubscriptionProfile(subscriptionResult?.bundle, subscriptionProfileKey),
         [subscriptionResult, subscriptionProfileKey]
@@ -1356,8 +1505,14 @@ export default function UserDetail() {
                                 {clientSummaryLoading && (
                                     <p className="text-muted text-sm mb-4">{copy.labels.clientSummaryLoading}</p>
                                 )}
-                                {totalTraffic > 0 && (
+                                {!clientSummaryLoading && (
                                     <p className="text-muted text-sm mb-4">{copy.labels.totalTraffic}: {formatBytes(totalTraffic)}</p>
+                                )}
+                                {!clientSummaryLoading && (
+                                    <p className="text-muted text-sm mb-4">
+                                        {copy.labels.liveUsageSpeed}: {liveTrafficSummaryText}
+                                        {liveTrafficSplitText ? ` (${liveTrafficSplitText})` : ''}
+                                    </p>
                                 )}
                                 {detail?.policy && (
                                     <div className="card mb-4">

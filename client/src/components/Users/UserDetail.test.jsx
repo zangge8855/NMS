@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -121,6 +121,49 @@ function buildUserDetailResponse(enabled = true, overrides = {}) {
     };
 }
 
+function buildPanelSnapshotResponse({ up = 1024, down = 2048, onlines = [] } = {}) {
+    return {
+        data: {
+            obj: {
+                items: [
+                    {
+                        server: {
+                            id: 'server-a',
+                            name: 'Node A',
+                        },
+                        inbounds: [
+                            {
+                                id: 101,
+                                protocol: 'vless',
+                                enable: true,
+                                remark: 'Inbound A',
+                                port: 443,
+                                settings: JSON.stringify({
+                                    clients: [{
+                                        email: 'alice@example.com',
+                                        id: '11111111-1111-1111-1111-111111111111',
+                                        enable: true,
+                                        expiryTime: 0,
+                                    }],
+                                }),
+                                clientStats: [
+                                    {
+                                        email: 'alice@example.com',
+                                        id: '11111111-1111-1111-1111-111111111111',
+                                        up,
+                                        down,
+                                    },
+                                ],
+                            },
+                        ],
+                        onlines,
+                    },
+                ],
+            },
+        },
+    };
+}
+
 describe('UserDetail', () => {
     beforeEach(() => {
         api.get.mockReset();
@@ -193,6 +236,11 @@ describe('UserDetail', () => {
             }
             throw new Error(`Unexpected GET ${url}`);
         });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     it('renders successful subscription access as success in the activity timeline', async () => {
@@ -373,6 +421,61 @@ describe('UserDetail', () => {
         expect(screen.getByText('在线')).toBeInTheDocument();
         expect(screen.getByText('1 会话')).toBeInTheDocument();
         expect(document.querySelector('.user-detail-presence.is-online')).toBeTruthy();
+    });
+
+    it('shows per-user live usage speed below total traffic after background refresh', async () => {
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-a', name: 'Node A' }],
+            loading: false,
+        });
+
+        let nowMs = 1_000;
+        const intervalRegistrations = [];
+        vi.spyOn(Date, 'now').mockImplementation(() => nowMs);
+        vi.spyOn(window, 'setInterval').mockImplementation((callback, delay) => {
+            intervalRegistrations.push({ callback, delay });
+            return intervalRegistrations.length;
+        });
+        vi.spyOn(window, 'clearInterval').mockImplementation(() => {});
+
+        let snapshotCall = 0;
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve(buildUserDetailResponse());
+            }
+            if (String(url).startsWith('/system/panel/snapshot')) {
+                snapshotCall += 1;
+                if (snapshotCall === 1) {
+                    return Promise.resolve(buildPanelSnapshotResponse({
+                        up: 1024,
+                        down: 2048,
+                    }));
+                }
+                return Promise.resolve(buildPanelSnapshotResponse({
+                    up: 1324,
+                    down: 2548,
+                }));
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />);
+
+        await screen.findByText('用户详情 · alice');
+        await screen.findByText('总流量: 3 KB');
+        expect(screen.getByText('实时速度: 计算中')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(intervalRegistrations.some((item) => item.delay === 5000)).toBe(true);
+        });
+        const refreshCallback = intervalRegistrations.find((item) => item.delay === 5000)?.callback;
+
+        await act(async () => {
+            nowMs = 6_000;
+            await refreshCallback();
+        });
+
+        expect(snapshotCall).toBe(2);
+        expect(screen.getByText('实时速度: 160 B/s (上行 60 B/s · 下行 100 B/s)')).toBeInTheDocument();
     });
 
     it('renders audit events with structured facts and hides masked audit values', async () => {
