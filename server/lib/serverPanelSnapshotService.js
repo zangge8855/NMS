@@ -1,8 +1,8 @@
 import serverStore from '../store/serverStore.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
 
-const DEFAULT_TTL_MS = 10_000;
-const DEFAULT_WARM_INTERVAL_MS = 10_000;
+const DEFAULT_TTL_MS = 5_000;
+const DEFAULT_WARM_INTERVAL_MS = 5_000;
 const DEFAULT_CONCURRENCY = 5;
 
 const cache = new Map();

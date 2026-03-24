@@ -28,11 +28,11 @@ import {
 } from './lib/dashboardSnapshotService.js';
 import userStore from './store/userStore.js';
 
-const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
+const BROADCAST_INTERVAL = 5_000;    // 5 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
-const DASHBOARD_FOLLOWUP_DELAY_MS = 2_500;
-const FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS = 2_000;
+const DASHBOARD_FOLLOWUP_DELAY_MS = 1_200;
+const FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS = 1_000;
 
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');

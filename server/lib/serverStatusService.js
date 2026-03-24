@@ -29,8 +29,8 @@ export const STATUS_REASON = {
 };
 
 const DEFAULT_CONCURRENCY = 5;
-const DEFAULT_WARM_INTERVAL_MS = 10_000;
-const DEFAULT_WARM_FOLLOWUP_DELAY_MS = 2_500;
+const DEFAULT_WARM_INTERVAL_MS = 5_000;
+const DEFAULT_WARM_FOLLOWUP_DELAY_MS = 1_200;
 const snapshotCache = {
     promise: null,
     promiseIncludeDetails: false,
