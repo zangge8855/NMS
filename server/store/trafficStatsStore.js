@@ -12,6 +12,10 @@ import { saveObjectAtomic } from './fileUtils.js';
 const TRAFFIC_SAMPLES_FILE = path.join(config.dataDir, 'traffic_samples.json');
 const TRAFFIC_COUNTERS_FILE = path.join(config.dataDir, 'traffic_counters.json');
 const TRAFFIC_META_FILE = path.join(config.dataDir, 'traffic_meta.json');
+const DEFAULT_WARM_LOOP_MIN_INTERVAL_MS = 30_000;
+
+let trafficWarmLoopTimer = null;
+let trafficWarmLoopInFlight = null;
 
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
@@ -1003,6 +1007,51 @@ class TrafficStatsStore {
 }
 
 const trafficStatsStore = new TrafficStatsStore();
+
+function runTrafficWarmCycle() {
+    if (trafficWarmLoopInFlight) return trafficWarmLoopInFlight;
+    trafficWarmLoopInFlight = Promise.resolve()
+        .then(() => trafficStatsStore.collectIfStale(false))
+        .catch((error) => {
+            console.error('Failed to warm traffic stats:', error?.message || error);
+            return null;
+        })
+        .finally(() => {
+            trafficWarmLoopInFlight = null;
+        });
+    return trafficWarmLoopInFlight;
+}
+
+function startTrafficStatsWarmLoop(options = {}) {
+    if (trafficWarmLoopTimer) return;
+    const intervalMs = Math.max(
+        DEFAULT_WARM_LOOP_MIN_INTERVAL_MS,
+        Number(options.intervalMs || trafficStatsStore._sampleIntervalMs())
+    );
+
+    const initialTimer = setTimeout(() => {
+        runTrafficWarmCycle();
+    }, 0);
+    if (typeof initialTimer?.unref === 'function') {
+        initialTimer.unref();
+    }
+
+    trafficWarmLoopTimer = setInterval(() => {
+        runTrafficWarmCycle();
+    }, intervalMs);
+    if (typeof trafficWarmLoopTimer?.unref === 'function') {
+        trafficWarmLoopTimer.unref();
+    }
+}
+
+function stopTrafficStatsWarmLoop() {
+    if (trafficWarmLoopTimer) {
+        clearInterval(trafficWarmLoopTimer);
+        trafficWarmLoopTimer = null;
+    }
+    trafficWarmLoopInFlight = null;
+}
+
 export default trafficStatsStore;
 export {
     TrafficStatsStore,
@@ -1010,6 +1059,8 @@ export {
     extractInboundClients,
     resolveTrafficUserInfo,
     shouldUseInboundTotalFallback,
+    startTrafficStatsWarmLoop,
+    stopTrafficStatsWarmLoop,
     summarizeRegisteredTrafficTotals,
     summarizeServerTrafficTotals,
 };

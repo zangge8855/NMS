@@ -22,24 +22,16 @@ import taskQueue from './lib/taskQueue.js';
 import notificationService from './lib/notifications.js';
 import { collectClusterStatusSnapshot, getCachedClusterStatusSnapshot } from './lib/serverStatusService.js';
 import { getCachedServerPanelSnapshots } from './lib/serverPanelSnapshotService.js';
-import { buildDashboardPresenceFromPanelSnapshots } from './lib/dashboardSnapshotService.js';
-import trafficStatsStore from './store/trafficStatsStore.js';
+import {
+    buildDashboardPresenceFromPanelSnapshots,
+    buildDashboardTrafficWindowTotals,
+} from './lib/dashboardSnapshotService.js';
 import userStore from './store/userStore.js';
 
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
 const DASHBOARD_FOLLOWUP_DELAY_MS = 2_500;
-
-function buildTodayRange() {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    return {
-        from: start.toISOString(),
-        to: now.toISOString(),
-    };
-}
 
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
@@ -49,37 +41,17 @@ function buildDashboardAccountSummary() {
     };
 }
 
-function buildDashboardTrafficWindows() {
-    const readWindow = (options = {}) => {
-        const overview = trafficStatsStore.getOverview(options);
-        return {
-            totals: overview?.totals || { upBytes: 0, downBytes: 0, totalBytes: 0 },
-            managedTotals: overview?.managedTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 },
-            activeUsers: Number(overview?.activeUsers || 0),
-            lastCollectionAt: overview?.lastCollectionAt || '',
-        };
-    };
-
-    return {
-        day: readWindow(buildTodayRange()),
-        week: readWindow({ days: 7 }),
-        month: readWindow({ days: 30 }),
-    };
-}
-
-function buildDashboardPresenceSummary() {
+function buildDashboardPresenceSummary(panelSnapshots = []) {
     const users = userStore.getAll();
-    const panelSnapshots = getCachedServerPanelSnapshots({
-        includeOnlines: true,
-    });
-    if (!Array.isArray(panelSnapshots) || panelSnapshots.length === 0) {
+    const snapshots = Array.isArray(panelSnapshots) ? panelSnapshots : [];
+    if (snapshots.length === 0) {
         return {
             onlineRows: [],
             onlineSessionCount: 0,
             ready: false,
         };
     }
-    const presence = buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots);
+    const presence = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
     return {
         onlineRows: presence.onlineRows,
         onlineSessionCount: Number(presence.onlineSessionCount || 0),
@@ -87,8 +59,42 @@ function buildDashboardPresenceSummary() {
     };
 }
 
+function buildDashboardTrafficWindows(panelSnapshots = []) {
+    const windows = buildDashboardTrafficWindowTotals({
+        users: userStore.getAll(),
+        panelSnapshots,
+    });
+    const toPayload = (window = {}) => ({
+        totals: {
+            upBytes: Number(window?.totalUp || 0),
+            downBytes: Number(window?.totalDown || 0),
+            totalBytes: Number(window?.totalUp || 0) + Number(window?.totalDown || 0),
+        },
+        managedTotals: {
+            upBytes: Number(window?.totalUp || 0),
+            downBytes: Number(window?.totalDown || 0),
+            totalBytes: Number(window?.totalUp || 0) + Number(window?.totalDown || 0),
+        },
+        activeUsers: 0,
+        lastCollectionAt: '',
+    });
+
+    return {
+        day: toPayload(windows.day),
+        week: toPayload(windows.week),
+        month: toPayload(windows.month),
+    };
+}
+
+function readDashboardPanelSnapshots() {
+    return getCachedServerPanelSnapshots({
+        includeOnlines: true,
+    });
+}
+
 function buildClusterStatusMessage(snapshot) {
-    const presence = buildDashboardPresenceSummary();
+    const panelSnapshots = readDashboardPanelSnapshots();
+    const presence = buildDashboardPresenceSummary(panelSnapshots);
     return {
         type: 'cluster_status',
         ts: Date.now(),
@@ -111,7 +117,7 @@ function buildClusterStatusMessage(snapshot) {
                 totalPerSecond: 0,
             },
             accountSummary: buildDashboardAccountSummary(),
-            trafficWindows: buildDashboardTrafficWindows(),
+            trafficWindows: buildDashboardTrafficWindows(panelSnapshots),
             managedOnlineUsers: presence.onlineRows,
             managedOnlineUserCount: presence.onlineRows.length,
             managedOnlineSessionCount: presence.onlineSessionCount,

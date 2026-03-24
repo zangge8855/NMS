@@ -127,3 +127,68 @@ test('collectServerStatusSnapshot keeps inbound traffic totals at zero when coun
     assert.equal(result.down, 0);
     assert.equal(typeof result.latencyMs, 'number');
 });
+
+test('collectClusterStatusSnapshot computes throughput deltas from the cached previous snapshot', async () => {
+    let statusCall = 0;
+    const readStatus = async () => {
+        statusCall += 1;
+        return {
+            data: {
+                obj: {
+                    cpu: 10,
+                    mem: { current: 128, total: 256 },
+                    uptime: 300,
+                    xray: { state: 'running', errorMsg: '' },
+                    netTraffic: {
+                        sent: statusCall === 1 ? 1000 : 1600,
+                        recv: statusCall === 1 ? 2000 : 3200,
+                    },
+                },
+            },
+        };
+    };
+
+    const first = await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: false,
+        servers: [{
+            id: 'srv-throughput',
+            name: 'Throughput Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async () => {
+                throw new Error('unexpected get');
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') return readStatus();
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const second = await collectClusterStatusSnapshot({
+        force: true,
+        includeDetails: false,
+        servers: [{
+            id: 'srv-throughput',
+            name: 'Throughput Node',
+            health: 'healthy',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async () => {
+                throw new Error('unexpected get');
+            },
+            post: async (path) => {
+                if (path === '/panel/api/server/status') return readStatus();
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+    });
+
+    assert.equal(first.summary.throughput.ready, false);
+    assert.equal(second.summary.throughput.ready, true);
+    assert.ok(second.summary.throughput.totalPerSecond > 0);
+});

@@ -1,7 +1,10 @@
 import notificationService from './notifications.js';
 import { getCachedClusterStatusSnapshot } from './serverStatusService.js';
 import { getCachedServerPanelSnapshots } from './serverPanelSnapshotService.js';
-import { buildDashboardPresenceFromPanelSnapshots } from './dashboardSnapshotService.js';
+import {
+    buildDashboardPresenceFromPanelSnapshots,
+    buildDashboardTrafficWindowTotals,
+} from './dashboardSnapshotService.js';
 import alertEngine from './alertEngine.js';
 import serverHealthMonitor from './serverHealthMonitor.js';
 import telegramAlertService from './telegramAlertService.js';
@@ -29,16 +32,6 @@ const AUDIT_TRAFFIC_WEEK_DAYS = 7;
 const AUDIT_TRAFFIC_MONTH_DAYS = 30;
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 
-function buildTodayRange() {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    return {
-        from: start.toISOString(),
-        to: now.toISOString(),
-    };
-}
-
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
     return {
@@ -56,24 +49,6 @@ function buildRegistrationRuntimeSnapshot() {
         enabled: config.registration.enabled === true,
         inviteOnlyEnabled: systemSettingsStore.getRegistration().inviteOnlyEnabled === true,
         passwordResetEnabled: config.registration.passwordResetEnabled !== false,
-    };
-}
-
-function buildDashboardTrafficWindows() {
-    const readWindow = (options = {}) => {
-        const overview = trafficStatsStore.getOverview(options);
-        const totals = overview?.managedTotals || overview?.totals || { upBytes: 0, downBytes: 0 };
-        return {
-            totalUp: Number(totals?.upBytes || 0),
-            totalDown: Number(totals?.downBytes || 0),
-            ready: true,
-        };
-    };
-
-    return {
-        day: readWindow(buildTodayRange()),
-        week: readWindow({ days: 7 }),
-        month: readWindow({ days: 30 }),
     };
 }
 
@@ -289,7 +264,11 @@ function buildDashboardSnapshot(telemetryOverview = {}) {
             downPerSecond: 0,
             totalPerSecond: 0,
         },
-        trafficWindowTotals: buildDashboardTrafficWindows(),
+        trafficWindowTotals: buildDashboardTrafficWindowTotals({
+            trafficStatsStore,
+            users: userStore.getAll(),
+            panelSnapshots: cachedPanelSnapshots,
+        }),
         globalPresenceReady: presence != null,
     };
 }

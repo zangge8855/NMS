@@ -29,6 +29,8 @@ export const STATUS_REASON = {
 };
 
 const DEFAULT_CONCURRENCY = 5;
+const DEFAULT_WARM_INTERVAL_MS = 10_000;
+const DEFAULT_WARM_FOLLOWUP_DELAY_MS = 2_500;
 const snapshotCache = {
     promise: null,
     promiseIncludeDetails: false,
@@ -36,6 +38,8 @@ const snapshotCache = {
     valueIncludeDetails: false,
     checkedAtMs: 0,
 };
+let warmLoopTimer = null;
+let warmLoopFollowupTimer = null;
 
 function safeTrafficTotal(value) {
     const parsed = Number(value);
@@ -399,4 +403,55 @@ export function resetClusterStatusSnapshotCache() {
     snapshotCache.value = null;
     snapshotCache.valueIncludeDetails = false;
     snapshotCache.checkedAtMs = 0;
+}
+
+function runWarmSnapshotCycle(options = {}) {
+    return collectClusterStatusSnapshot({
+        includeDetails: false,
+        maxAgeMs: Math.max(0, Number(options.maxAgeMs || 0)),
+        force: options.force === true,
+    }).catch((error) => {
+        console.error('Failed to warm cluster status snapshots:', error?.message || error);
+        return null;
+    });
+}
+
+export function startClusterStatusWarmLoop(options = {}) {
+    if (warmLoopTimer) return;
+    const intervalMs = Math.max(5_000, Number(options.intervalMs || DEFAULT_WARM_INTERVAL_MS));
+    const followupDelayMs = Math.max(500, Number(options.followupDelayMs || DEFAULT_WARM_FOLLOWUP_DELAY_MS));
+
+    const initialTimer = setTimeout(() => {
+        runWarmSnapshotCycle({ force: true });
+    }, 0);
+    if (typeof initialTimer?.unref === 'function') {
+        initialTimer.unref();
+    }
+
+    warmLoopFollowupTimer = setTimeout(() => {
+        runWarmSnapshotCycle({ force: true });
+    }, Math.min(followupDelayMs, intervalMs));
+    if (typeof warmLoopFollowupTimer?.unref === 'function') {
+        warmLoopFollowupTimer.unref();
+    }
+
+    warmLoopTimer = setInterval(() => {
+        runWarmSnapshotCycle({
+            maxAgeMs: Math.max(0, intervalMs - 1_000),
+        });
+    }, intervalMs);
+    if (typeof warmLoopTimer?.unref === 'function') {
+        warmLoopTimer.unref();
+    }
+}
+
+export function stopClusterStatusWarmLoop() {
+    if (warmLoopTimer) {
+        clearInterval(warmLoopTimer);
+        warmLoopTimer = null;
+    }
+    if (warmLoopFollowupTimer) {
+        clearTimeout(warmLoopFollowupTimer);
+        warmLoopFollowupTimer = null;
+    }
 }

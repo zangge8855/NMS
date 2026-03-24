@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    buildDashboardTrafficWindowTotals,
     buildGlobalDashboardSnapshot,
     buildSingleDashboardSnapshot,
 } from '../lib/dashboardSnapshotService.js';
@@ -350,6 +351,77 @@ test('buildGlobalDashboardSnapshot ignores synchronous traffic sampling failures
     assert.equal(snapshot.globalManagedOnlineCount, 1);
     assert.equal(snapshot.globalStats.totalOnline, 1);
     assert.equal(snapshot.globalOnlineUsers[0].displayName, 'Alice');
+});
+
+test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel snapshots', () => {
+    const nowIso = new Date().toISOString();
+    const windows = buildDashboardTrafficWindowTotals({
+        trafficStatsStore: {
+            getOverview: ({ days, from, to } = {}) => ({
+                from: from || (days === 7 ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
+                to: to || nowIso,
+                lastCollectionAt: nowIso,
+                managedTotals: {
+                    upBytes: days === 7 ? 210 : 220,
+                    downBytes: days === 7 ? 420 : 440,
+                    totalBytes: days === 7 ? 630 : 660,
+                },
+                totals: {
+                    upBytes: days === 7 ? 310 : 320,
+                    downBytes: days === 7 ? 520 : 540,
+                    totalBytes: days === 7 ? 830 : 860,
+                },
+                registeredTotals: {
+                    totalUsers: 1,
+                    activeUsers: 1,
+                    upBytes: 100,
+                    downBytes: 200,
+                    totalBytes: 300,
+                },
+                serverTotals: [
+                    {
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        upBytes: 600,
+                        downBytes: 900,
+                        totalBytes: 1500,
+                    },
+                ],
+            }),
+        },
+        users: [
+            {
+                id: 'user-a',
+                role: 'user',
+                username: 'Alice',
+                email: 'alice@example.com',
+                subscriptionEmail: 'alice@example.com',
+                enabled: true,
+            },
+        ],
+        panelSnapshots: [
+            {
+                server: { id: 'server-a', name: 'Node A' },
+                inbounds: [
+                    {
+                        id: 'ib-a',
+                        protocol: 'vless',
+                        enable: true,
+                        settings: JSON.stringify({
+                            clients: [
+                                { id: 'uuid-a', email: 'alice@example.com', up: 130, down: 260 },
+                            ],
+                        }),
+                    },
+                ],
+            },
+        ],
+    });
+
+    assert.equal(windows.week.totalUp, 240);
+    assert.equal(windows.week.totalDown, 480);
+    assert.equal(windows.month.totalUp, 250);
+    assert.equal(windows.month.totalDown, 500);
 });
 
 test('buildSingleDashboardSnapshot returns sorted inbounds and managed online sessions', async () => {
