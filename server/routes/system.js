@@ -26,6 +26,7 @@ import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
 import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
+import { getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import telegramAlertService from '../lib/telegramAlertService.js';
 import {
@@ -709,6 +710,37 @@ router.get('/monitor/status', adminOnly, (req, res) => {
     });
 });
 
+router.get('/panel/snapshot', adminOnly, async (req, res) => {
+    try {
+        const requestedServerIds = normalizeStoreKeys(req.query.serverIds);
+        const includeOnlines = normalizeBoolean(req.query.includeOnlines, true);
+        const force = normalizeBoolean(req.query.refresh, false);
+        const knownServers = serverStore.getAll();
+        const servers = requestedServerIds.length > 0
+            ? knownServers.filter((server) => requestedServerIds.includes(String(server?.id || '').trim()))
+            : knownServers;
+
+        const items = await getServerPanelSnapshots({
+            servers,
+            includeOnlines,
+            force,
+        });
+
+        return res.json({
+            success: true,
+            obj: {
+                items,
+                generatedAt: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            msg: error.message || '加载节点面板快照失败',
+        });
+    }
+});
+
 router.post('/monitor/run', adminOnly, async (req, res) => {
     try {
         const result = await serverHealthMonitor.runOnce({ force: true });
@@ -767,7 +799,9 @@ router.put('/settings', adminOnly, (req, res) => {
     try {
         const payload = req.body && typeof req.body === 'object' ? req.body : {};
         const updated = systemSettingsStore.update(payload);
-        telegramAlertService.reloadSettings();
+        telegramAlertService.reloadSettings({
+            deferMissedRun: true,
+        });
         appendSecurityAudit('system_settings_updated', req, {
             updatedSections: Object.keys(payload || {}),
         });

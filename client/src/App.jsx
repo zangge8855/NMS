@@ -1,4 +1,4 @@
-import React, { Component, Suspense, lazy, useEffect, useState } from 'react';
+import React, { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { ServerProvider } from './contexts/ServerContext.jsx';
@@ -9,6 +9,9 @@ import useMediaQuery from './hooks/useMediaQuery.js';
 import { getLocaleMessage } from './i18n/messages.js';
 import MobileBottomNav from './components/Layout/MobileBottomNav.jsx';
 import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard.jsx';
+import api from './api/client.js';
+import useWebSocket from './hooks/useWebSocket.js';
+import { applyAppBootstrapSnapshots } from './utils/appBootstrap.js';
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
@@ -94,12 +97,27 @@ function LazyPage({ children }) {
     return <Suspense fallback={<PageFallback />}>{children}</Suspense>;
 }
 
+function getWsUrl(ticket) {
+    if (!ticket) return null;
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = String(import.meta.env.VITE_WS_HOST || '').trim() || window.location.host;
+    return `${proto}://${host}/ws?ticket=${encodeURIComponent(ticket)}`;
+}
+
 function ProtectedLayout() {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const isAdmin = user?.role === 'admin';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [bootstrapReady, setBootstrapReady] = useState(() => !token);
+    const [rootWsTicket, setRootWsTicket] = useState('');
+    const lastWsTicketFetchAtRef = useRef(0);
     const isMobile = useMediaQuery('(max-width: 768px)');
+    const rootWsUrl = useMemo(
+        () => (isAdmin ? getWsUrl(rootWsTicket) : null),
+        [isAdmin, rootWsTicket]
+    );
+    const { status: rootWsStatus, lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl);
 
     useEffect(() => {
         if (!isMobile) {
@@ -107,11 +125,87 @@ function ProtectedLayout() {
         }
     }, [isMobile]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!token) {
+            setBootstrapReady(true);
+            return undefined;
+        }
+
+        setBootstrapReady(false);
+        (async () => {
+            try {
+                const res = await api.get('/auth/bootstrap');
+                applyAppBootstrapSnapshots(res.data?.obj || {});
+            } catch (error) {
+                console.error('Failed to load app bootstrap:', error?.response?.data || error?.message || error);
+            } finally {
+                if (!cancelled) {
+                    setBootstrapReady(true);
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [token]);
+
+    const fetchRootWsTicket = useCallback(async ({ force = false } = {}) => {
+        if (!isAdmin || !token) {
+            setRootWsTicket('');
+            return;
+        }
+        const now = Date.now();
+        if (!force && now - lastWsTicketFetchAtRef.current < 30_000) {
+            return;
+        }
+        lastWsTicketFetchAtRef.current = now;
+        try {
+            const res = await api.post('/ws/ticket');
+            setRootWsTicket(String(res.data?.obj?.ticket || ''));
+        } catch (error) {
+            console.error('Failed to fetch root websocket ticket:', error?.response?.data || error?.message || error);
+        }
+    }, [isAdmin, token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) {
+            setRootWsTicket('');
+            return undefined;
+        }
+        fetchRootWsTicket({ force: true });
+        const interval = setInterval(() => fetchRootWsTicket({ force: true }), 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [fetchRootWsTicket, isAdmin, token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) return;
+        if (rootWsStatus === 'reconnecting' || rootWsStatus === 'disconnected') {
+            fetchRootWsTicket();
+        }
+    }, [fetchRootWsTicket, isAdmin, rootWsStatus, token]);
+
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
+
+    if (!bootstrapReady) {
+        return (
+            <div style={{
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-primary)',
+            }}>
+                <span className="spinner" style={{ width: '28px', height: '28px' }} />
+            </div>
+        );
+    }
 
     return (
         <ServerProvider>
-        <NotificationProvider>
+        <NotificationProvider wsLastMessage={isAdmin ? rootWsLastMessage : null}>
             <div className="app-layout">
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}

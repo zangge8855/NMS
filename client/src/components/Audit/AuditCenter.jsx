@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     HiOutlineArrowPath,
@@ -37,9 +37,14 @@ import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
 const AUDIT_TRAFFIC_WEEK_DAYS = 7;
+const AUDIT_EVENTS_SNAPSHOT_KEY = 'audit_events_v1';
+const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v1';
+const AUDIT_ACCESS_SNAPSHOT_KEY = 'audit_access_v1';
+const AUDIT_SNAPSHOT_TTL_MS = 90_000;
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -445,6 +450,57 @@ function buildRollingWindowRange(days) {
     return {
         from: from.toISOString(),
         to: to.toISOString(),
+    };
+}
+
+function readAuditTrafficSnapshot() {
+    const snapshot = readSessionSnapshot(AUDIT_TRAFFIC_SNAPSHOT_KEY, {
+        maxAgeMs: AUDIT_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    return {
+        trafficOverview: snapshot?.trafficOverview && typeof snapshot.trafficOverview === 'object'
+            ? snapshot.trafficOverview
+            : null,
+        trafficWindows: snapshot?.trafficWindows && typeof snapshot.trafficWindows === 'object'
+            ? snapshot.trafficWindows
+            : { week: null, month: null },
+    };
+}
+
+function readAuditEventsSnapshot() {
+    const snapshot = readSessionSnapshot(AUDIT_EVENTS_SNAPSHOT_KEY, {
+        maxAgeMs: AUDIT_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    return {
+        eventsData: snapshot?.eventsData && typeof snapshot.eventsData === 'object'
+            ? snapshot.eventsData
+            : { items: [], total: 0, page: 1, totalPages: 1 },
+    };
+}
+
+function readAuditAccessSnapshot() {
+    const snapshot = readSessionSnapshot(AUDIT_ACCESS_SNAPSHOT_KEY, {
+        maxAgeMs: AUDIT_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    return {
+        accessData: snapshot?.accessData && typeof snapshot.accessData === 'object'
+            ? snapshot.accessData
+            : { items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} },
+        accessSummary: snapshot?.accessSummary && typeof snapshot.accessSummary === 'object'
+            ? snapshot.accessSummary
+            : { ...EMPTY_ACCESS_SUMMARY },
+        accessUserWindows: snapshot?.accessUserWindows && typeof snapshot.accessUserWindows === 'object'
+            ? snapshot.accessUserWindows
+            : {
+                week: { ...EMPTY_ACCESS_SUMMARY },
+                month: { ...EMPTY_ACCESS_SUMMARY },
+            },
     };
 }
 
@@ -896,6 +952,9 @@ export default function AuditCenter() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getAuditCopy(locale);
+    const eventsBootstrapRef = useRef(readAuditEventsSnapshot());
+    const trafficBootstrapRef = useRef(readAuditTrafficSnapshot());
+    const accessBootstrapRef = useRef(readAuditAccessSnapshot());
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
     const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
@@ -914,15 +973,19 @@ export default function AuditCenter() {
     };
 
     const [eventsLoading, setEventsLoading] = useState(false);
-    const [eventsData, setEventsData] = useState({ items: [], total: 0, page: 1, totalPages: 1 });
-    const [eventsPage, setEventsPage] = useState(1);
+    const [eventsData, setEventsData] = useState(() => (
+        eventsBootstrapRef.current?.eventsData || { items: [], total: 0, page: 1, totalPages: 1 }
+    ));
+    const [eventsPage, setEventsPage] = useState(() => Number(eventsBootstrapRef.current?.eventsData?.page || 1) || 1);
     const [eventFilters, setEventFilters] = useState(() => ({ ...EMPTY_EVENT_FILTERS }));
     const [showAdvancedEventFilters, setShowAdvancedEventFilters] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     const [trafficLoading, setTrafficLoading] = useState(false);
-    const [trafficOverview, setTrafficOverview] = useState(null);
-    const [trafficWindows, setTrafficWindows] = useState({ week: null, month: null });
+    const [trafficOverview, setTrafficOverview] = useState(() => trafficBootstrapRef.current?.trafficOverview || null);
+    const [trafficWindows, setTrafficWindows] = useState(() => (
+        trafficBootstrapRef.current?.trafficWindows || { week: null, month: null }
+    ));
     const [trafficGranularity, setTrafficGranularity] = useState('auto');
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedServerId, setSelectedServerId] = useState('');
@@ -930,12 +993,18 @@ export default function AuditCenter() {
     const [serverTrend, setServerTrend] = useState({ points: [], granularity: 'hour' });
 
     const [accessLoading, setAccessLoading] = useState(false);
-    const [accessData, setAccessData] = useState({ items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} });
-    const [accessSummary, setAccessSummary] = useState({ ...EMPTY_ACCESS_SUMMARY });
-    const [accessUserWindows, setAccessUserWindows] = useState({
-        week: { ...EMPTY_ACCESS_SUMMARY },
-        month: { ...EMPTY_ACCESS_SUMMARY },
-    });
+    const [accessData, setAccessData] = useState(() => (
+        accessBootstrapRef.current?.accessData || { items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} }
+    ));
+    const [accessSummary, setAccessSummary] = useState(() => (
+        accessBootstrapRef.current?.accessSummary || { ...EMPTY_ACCESS_SUMMARY }
+    ));
+    const [accessUserWindows, setAccessUserWindows] = useState(() => (
+        accessBootstrapRef.current?.accessUserWindows || {
+            week: { ...EMPTY_ACCESS_SUMMARY },
+            month: { ...EMPTY_ACCESS_SUMMARY },
+        }
+    ));
     const [accessPage, setAccessPage] = useState(1);
     const [accessFilters, setAccessFilters] = useState({
         email: '',
@@ -1061,6 +1130,45 @@ export default function AuditCenter() {
         }
         setAccessLoading(false);
     };
+
+    useEffect(() => {
+        const hasDefaultFilters = !eventFilters.q
+            && !eventFilters.eventType
+            && !eventFilters.outcome
+            && !eventFilters.targetEmail
+            && !eventFilters.serverId
+            && Number(eventsPage || 1) === 1;
+        const hasPersistableEvents = eventsBootstrapRef.current != null
+            || (Array.isArray(eventsData.items) && eventsData.items.length > 0)
+            || Number(eventsData.total || 0) > 0;
+        if (!hasDefaultFilters || eventsLoading || !hasPersistableEvents) return;
+        writeSessionSnapshot(AUDIT_EVENTS_SNAPSHOT_KEY, {
+            eventsData,
+        });
+    }, [eventFilters.eventType, eventFilters.outcome, eventFilters.q, eventFilters.serverId, eventFilters.targetEmail, eventsData, eventsLoading, eventsPage]);
+
+    useEffect(() => {
+        if (!trafficOverview && !trafficWindows.week && !trafficWindows.month) return;
+        writeSessionSnapshot(AUDIT_TRAFFIC_SNAPSHOT_KEY, {
+            trafficOverview,
+            trafficWindows,
+        });
+    }, [trafficOverview, trafficWindows]);
+
+    useEffect(() => {
+        const hasDefaultFilters = !accessFilters.email && !accessFilters.status;
+        const hasAccessSnapshot = (
+            (Array.isArray(accessData.items) && accessData.items.length > 0)
+            || Number(accessSummary.total || 0) > 0
+            || Number(accessSummary.uniqueUsers || 0) > 0
+        );
+        if (!hasDefaultFilters || !hasAccessSnapshot) return;
+        writeSessionSnapshot(AUDIT_ACCESS_SNAPSHOT_KEY, {
+            accessData,
+            accessSummary,
+            accessUserWindows,
+        });
+    }, [accessData, accessFilters.email, accessFilters.status, accessSummary, accessUserWindows]);
 
     const handleExportAuditCSV = async () => {
         try {
@@ -1367,7 +1475,7 @@ export default function AuditCenter() {
                                 </div>
                             </div>
 
-                            {eventsLoading ? (
+                            {eventsLoading && eventsData.items.length === 0 ? (
                                 <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
                                     <SkeletonTable rows={5} cols={7} />
                                 </div>
@@ -1787,7 +1895,7 @@ export default function AuditCenter() {
                             ))}
                         </div>
 
-                        {accessLoading ? (
+                        {accessLoading && accessData.items.length === 0 ? (
                             <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
                                 <SkeletonTable rows={5} cols={6} />
                             </div>

@@ -325,6 +325,7 @@ describe('SystemSettings', () => {
         api.post.mockReset();
         api.put.mockReset();
         api.delete.mockReset();
+        sessionStorage.clear();
     });
 
     it('shows the access restriction empty state for non-admin users', () => {
@@ -353,6 +354,105 @@ describe('SystemSettings', () => {
         expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
         expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
+    });
+
+    it('renders the cached settings snapshot before the live status queries finish', async () => {
+        const never = new Promise(() => {});
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        window.sessionStorage.setItem('nms_session_snapshot:system_settings_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                settings: buildPutResponse({
+                    site: {
+                        accessPath: '/cached',
+                        camouflageEnabled: true,
+                        camouflageTemplate: 'nginx',
+                        camouflageTitle: 'Cached Relay',
+                    },
+                }),
+                emailStatus: {
+                    configured: true,
+                    lastVerification: {
+                        success: true,
+                        ts: '2026-03-15T02:00:00.000Z',
+                    },
+                    lastDelivery: {
+                        success: true,
+                        ts: '2026-03-15T03:00:00.000Z',
+                    },
+                },
+                dbStatus: {
+                    connection: {
+                        enabled: true,
+                        ready: true,
+                    },
+                    currentModes: {
+                        readMode: 'file',
+                        writeMode: 'dual',
+                    },
+                    writesQueued: 1,
+                    pendingWrites: 2,
+                },
+                backupStatus: {
+                    lastExport: {
+                        filename: 'cached-export.nmsbak',
+                        createdAt: '2026-03-15T04:00:00.000Z',
+                    },
+                    localBackups: [
+                        {
+                            filename: 'cached-local.nmsbak',
+                            createdAt: '2026-03-15T04:30:00.000Z',
+                        },
+                    ],
+                    lastImport: {
+                        sourceFilename: 'cached-restore.nmsbak',
+                        restoredAt: '2026-03-15T05:00:00.000Z',
+                    },
+                },
+                monitorStatus: {
+                    healthMonitor: {
+                        running: true,
+                        summary: {
+                            healthy: 2,
+                            degraded: 1,
+                            unreachable: 0,
+                            byReason: {
+                                dns_error: 1,
+                                none: 2,
+                            },
+                        },
+                    },
+                    notifications: {
+                        unreadCount: 2,
+                    },
+                    dbAlerts: {
+                        consecutiveFailures: 1,
+                    },
+                    telegram: {
+                        enabled: true,
+                        configured: true,
+                        chatIdPreview: '********7890',
+                        sendDailyBackup: true,
+                        nextDailyBackupAt: '2026-03-16T00:30:00.000Z',
+                    },
+                },
+                registrationRuntime: {
+                    enabled: true,
+                },
+                inviteCodes: [],
+            },
+        }));
+
+        api.get.mockImplementation(() => never);
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
+
+        expect(await screen.findByText('配置已加载')).toBeInTheDocument();
+        expect(screen.getByText('已配置 · 最近发送成功')).toBeInTheDocument();
+        expect(screen.getByText(/运行中 · 正常 2 \/ 异常 1/)).toBeInTheDocument();
+        expect(screen.getByText(/已启用 · \*+\d{4} · 下次备份/)).toBeInTheDocument();
     });
 
     it('lazy-loads only the status workspace dependencies on the default tab', async () => {

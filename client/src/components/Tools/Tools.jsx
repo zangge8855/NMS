@@ -14,6 +14,29 @@ import {
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const TOOLS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildToolsSnapshotKey(serverId) {
+    return `tools_view_v1:${String(serverId || '').trim()}`;
+}
+
+function readToolsSnapshot(serverId) {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return null;
+
+    const snapshot = readSessionSnapshot(buildToolsSnapshotKey(normalizedServerId), {
+        maxAgeMs: TOOLS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        tools: Array.isArray(snapshot?.tools) ? snapshot.tools : [],
+        results: snapshot?.results && typeof snapshot.results === 'object' ? snapshot.results : {},
+    };
+}
 
 function formatToolValue(value) {
     if (value === undefined || value === null) return '';
@@ -25,11 +48,12 @@ export default function Tools() {
     const { activeServerId, panelApi } = useServer();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
-    const [results, setResults] = useState({});
-    const [loading, setLoading] = useState({});
-    const [catalogLoading, setCatalogLoading] = useState(false);
-    const [tools, setTools] = useState([]);
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
+    const cachedState = hasTargetServer ? readToolsSnapshot(activeServerId) : null;
+    const [results, setResults] = useState(() => cachedState?.results || {});
+    const [loading, setLoading] = useState({});
+    const [catalogLoading, setCatalogLoading] = useState(() => hasTargetServer && cachedState == null);
+    const [tools, setTools] = useState(() => cachedState?.tools || []);
     const copy = useMemo(() => (
         locale === 'en-US'
             ? {
@@ -74,12 +98,15 @@ export default function Tools() {
             }
     ), [locale]);
 
-    const fetchCatalog = async () => {
+    const fetchCatalog = async (options = {}) => {
         if (!hasTargetServer) {
             setTools([]);
             return;
         }
-        setCatalogLoading(true);
+        const preserveCurrent = options.preserveCurrent === true;
+        if (!preserveCurrent) {
+            setCatalogLoading(true);
+        }
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
             const entries = Object.values(res.data?.obj?.tools || {})
@@ -89,18 +116,35 @@ export default function Tools() {
         } catch (error) {
             const msg = error.response?.data?.msg || error.message || copy.catalogLoadFailed;
             toast.error(msg);
+            if (!preserveCurrent) {
+                setTools([]);
+            }
+        } finally {
+            setCatalogLoading(false);
         }
-        setCatalogLoading(false);
     };
 
     useEffect(() => {
-        setResults({});
         if (!hasTargetServer) {
+            setResults({});
             setTools([]);
+            setCatalogLoading(false);
             return;
         }
-        fetchCatalog();
+        const snapshot = readToolsSnapshot(activeServerId);
+        setResults(snapshot?.results || {});
+        setTools(snapshot?.tools || []);
+        setCatalogLoading(snapshot == null);
+        fetchCatalog({ preserveCurrent: snapshot != null });
     }, [activeServerId, hasTargetServer]);
+
+    useEffect(() => {
+        if (!hasTargetServer) return;
+        writeSessionSnapshot(buildToolsSnapshotKey(activeServerId), {
+            tools,
+            results,
+        });
+    }, [activeServerId, hasTargetServer, results, tools]);
 
     const enabledTools = useMemo(
         () => tools.filter((item) => item.available !== false),

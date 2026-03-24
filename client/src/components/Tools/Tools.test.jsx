@@ -31,6 +31,7 @@ describe('Tools', () => {
     beforeEach(() => {
         api.get.mockReset();
         useServer.mockReset();
+        window.sessionStorage.clear();
     });
 
     it('treats global view as no selected node and skips loading node tools', () => {
@@ -87,5 +88,36 @@ describe('Tools', () => {
 
         expect(panelApi).toHaveBeenCalledWith('get', '/panel/api/tools/diag');
         expect(await screen.findByText(/message/)).toBeInTheDocument();
+    });
+
+    it('renders the cached tool catalog before the live request finishes', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            panelApi: vi.fn(),
+        });
+        window.sessionStorage.setItem('nms_session_snapshot:tools_view_v1:server-a', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                tools: [
+                    {
+                        key: 'diag',
+                        label: '诊断工具',
+                        description: '执行节点诊断',
+                        uiAction: 'node_tools',
+                        supportedByNms: true,
+                        available: true,
+                        path: '/panel/api/tools/diag',
+                        method: 'get',
+                    },
+                ],
+                results: {},
+            },
+        }));
+        api.get.mockImplementation(() => new Promise(() => {}));
+
+        renderWithRouter(<Tools />);
+
+        expect(await screen.findByText('可执行 1 / 1')).toBeInTheDocument();
+        expect(screen.getByText('诊断工具')).toBeInTheDocument();
     });
 });

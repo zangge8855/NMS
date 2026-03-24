@@ -8,6 +8,25 @@ import toast from 'react-hot-toast';
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const CAPABILITIES_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildCapabilitiesSnapshotKey(serverId) {
+    return `capabilities_view_v1:${String(serverId || '').trim()}`;
+}
+
+function readCapabilitiesSnapshot(serverId) {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return null;
+
+    const snapshot = readSessionSnapshot(buildCapabilitiesSnapshotKey(normalizedServerId), {
+        maxAgeMs: CAPABILITIES_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    return snapshot?.data || null;
+}
 
 function getCapabilitiesCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -162,34 +181,53 @@ function renderProbeSource(source, copy) {
 export default function Capabilities() {
     const { activeServerId } = useServer();
     const { locale, t } = useI18n();
-    const [loading, setLoading] = useState(false);
-    const [data, setData] = useState(null);
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
+    const cachedData = hasTargetServer ? readCapabilitiesSnapshot(activeServerId) : null;
+    const [loading, setLoading] = useState(() => hasTargetServer && !cachedData);
+    const [data, setData] = useState(() => cachedData);
 
-    const fetchCapabilities = async () => {
+    const fetchCapabilities = async (options = {}) => {
         if (!hasTargetServer) {
             setData(null);
             return;
         }
-        setLoading(true);
+        const preserveCurrent = options.preserveCurrent === true;
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get(`/capabilities/${activeServerId}`);
             setData(res.data?.obj || null);
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || copy.fetchFailed;
             toast.error(msg);
+            if (!preserveCurrent) {
+                setData(null);
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
         if (!hasTargetServer) {
             setData(null);
+            setLoading(false);
             return;
         }
-        fetchCapabilities();
+        const snapshot = readCapabilitiesSnapshot(activeServerId);
+        setData(snapshot);
+        setLoading(snapshot == null);
+        fetchCapabilities({ preserveCurrent: snapshot != null });
     }, [activeServerId, hasTargetServer]);
+
+    useEffect(() => {
+        if (!hasTargetServer || !data) return;
+        writeSessionSnapshot(buildCapabilitiesSnapshotKey(activeServerId), {
+            data,
+        });
+    }, [activeServerId, data, hasTargetServer]);
 
     const protocolList = useMemo(
         () => (Array.isArray(data?.protocolDetails) ? data.protocolDetails : []),

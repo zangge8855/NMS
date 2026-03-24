@@ -219,6 +219,22 @@ test('computeDailyBackupSchedule triggers missed backups at the configured local
     assert.equal(nextTarget.getDate(), todayTarget.getDate() + 1);
 });
 
+test('computeDailyBackupSchedule can defer a missed run until the next scheduled day', () => {
+    const schedule = computeDailyBackupSchedule({
+        now: new Date(2026, 2, 23, 10, 15, 0, 0).getTime(),
+        dailyBackupTime: '09:30',
+        lastBackupAt: new Date(2026, 2, 22, 9, 30, 0, 0).toISOString(),
+        deferMissedRun: true,
+    });
+    const todayTarget = new Date(schedule.todayTargetAt);
+    const nextTarget = new Date(schedule.nextDailyBackupAt);
+
+    assert.equal(schedule.shouldSendNow, false);
+    assert.equal(nextTarget.getHours(), 9);
+    assert.equal(nextTarget.getMinutes(), 30);
+    assert.equal(nextTarget.getDate(), todayTarget.getDate() + 1);
+});
+
 test('formatCommandCatalogMessage keeps manual command guidance in the help text', () => {
     const message = formatCommandCatalogMessage();
 

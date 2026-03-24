@@ -1,5 +1,6 @@
 import serverStore from '../store/serverStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
+import { getServerPanelSnapshot } from './serverPanelSnapshotService.js';
 import {
     classifyPanelError as classifyPanelFailure,
     derivePanelHealthFromStatus,
@@ -126,6 +127,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
 
     const auth = options.ensureAuthenticated || ensureAuthenticated;
     const includeDetails = options.includeDetails !== false;
+    const readServerPanelSnapshot = options.getServerPanelSnapshot || getServerPanelSnapshot;
     const startedAt = Date.now();
 
     try {
@@ -138,20 +140,33 @@ export async function collectServerStatusSnapshot(server, options = {}) {
         const collectionIssues = [];
         if (includeDetails) {
             try {
-                const inboundsRes = await client.get('/panel/api/inbounds/list');
-                inbounds = Array.isArray(inboundsRes?.data?.obj) ? inboundsRes.data.obj : [];
+                const panelSnapshot = await readServerPanelSnapshot(server, {
+                    includeOnlines: true,
+                    force: options.force === true,
+                    getAuthenticatedPanelClient: async () => client,
+                });
+                inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
+                onlineUsers = normalizeOnlineEntries(Array.isArray(panelSnapshot?.onlines) ? panelSnapshot.onlines : []);
+                if (panelSnapshot?.inboundsError) {
+                    collectionIssues.push({
+                        source: 'inbounds',
+                        ...classifyPanelError(panelSnapshot.inboundsError, { context: 'inbounds' }),
+                    });
+                }
+                if (panelSnapshot?.onlinesError) {
+                    collectionIssues.push({
+                        source: 'online_users',
+                        ...classifyPanelError(panelSnapshot.onlinesError, { context: 'online_users' }),
+                    });
+                }
             } catch (error) {
                 inbounds = [];
+                onlineUsers = [];
+                const failure = classifyPanelError(error, { context: 'inbounds' });
                 collectionIssues.push({
                     source: 'inbounds',
-                    ...classifyPanelError(error, { context: 'inbounds' }),
+                    ...failure,
                 });
-            }
-            try {
-                const onlinesRes = await client.post('/panel/api/inbounds/onlines');
-                onlineUsers = normalizeOnlineEntries(Array.isArray(onlinesRes?.data?.obj) ? onlinesRes.data.obj : []);
-            } catch (error) {
-                onlineUsers = [];
                 collectionIssues.push({
                     source: 'online_users',
                     ...classifyPanelError(error, { context: 'online_users' }),

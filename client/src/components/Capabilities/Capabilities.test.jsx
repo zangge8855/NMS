@@ -30,6 +30,7 @@ describe('Capabilities', () => {
         api.get.mockReset();
         useServer.mockReset();
         window.localStorage.clear();
+        window.sessionStorage.clear();
     });
 
     it('treats global view as no selected node and skips capability requests', () => {
@@ -90,6 +91,46 @@ describe('Capabilities', () => {
         expect(await screen.findByText('协议 1 · 工具 1')).toBeInTheDocument();
         expect(screen.getByText('证书检查')).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
+    });
+
+    it('renders the cached capability snapshot before the live request finishes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:capabilities_view_v1:server-a', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                data: {
+                    protocolDetails: [
+                        { key: 'vless', label: 'VLESS', legacyKeys: [] },
+                    ],
+                    tools: {
+                        cert: {
+                            key: 'cert',
+                            label: '证书检查',
+                            description: '检查证书状态',
+                            available: true,
+                            status: 'integrated',
+                            source: 'probed',
+                            uiActionLabel: '节点工具',
+                        },
+                    },
+                    systemModules: [],
+                    batchActions: {
+                        clients: [],
+                        inbounds: [],
+                    },
+                    subscriptionModes: [],
+                },
+            },
+        }));
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+        });
+        api.get.mockImplementation(() => new Promise(() => {}));
+
+        renderWithRouter(<Capabilities />);
+
+        expect(await screen.findByText('协议 1 · 工具 1')).toBeInTheDocument();
+        expect(screen.getByText('证书检查')).toBeInTheDocument();
     });
 
     it('uses shared empty states for empty capability tables and localizes the chrome in English', async () => {

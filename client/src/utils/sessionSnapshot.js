@@ -1,0 +1,61 @@
+const SNAPSHOT_PREFIX = 'nms_session_snapshot:';
+
+function canUseSessionStorage() {
+    try {
+        return typeof window !== 'undefined' && Boolean(window.sessionStorage);
+    } catch {
+        return false;
+    }
+}
+
+function buildSnapshotKey(key) {
+    return `${SNAPSHOT_PREFIX}${String(key || '').trim()}`;
+}
+
+export function readSessionSnapshot(key, options = {}) {
+    if (!canUseSessionStorage()) return options.fallback ?? null;
+
+    const fallback = options.fallback ?? null;
+    const maxAgeMs = Number(options.maxAgeMs || 0);
+
+    try {
+        const raw = window.sessionStorage.getItem(buildSnapshotKey(key));
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        const savedAt = Number(parsed?.savedAt || 0);
+        if (maxAgeMs > 0 && savedAt > 0 && (Date.now() - savedAt) > maxAgeMs) {
+            window.sessionStorage.removeItem(buildSnapshotKey(key));
+            return fallback;
+        }
+        return parsed?.value ?? fallback;
+    } catch {
+        try {
+            window.sessionStorage.removeItem(buildSnapshotKey(key));
+        } catch {
+            // ignore storage cleanup failures
+        }
+        return fallback;
+    }
+}
+
+export function writeSessionSnapshot(key, value) {
+    if (!canUseSessionStorage()) return;
+
+    try {
+        window.sessionStorage.setItem(buildSnapshotKey(key), JSON.stringify({
+            savedAt: Date.now(),
+            value,
+        }));
+    } catch {
+        // ignore storage quota errors
+    }
+}
+
+export function clearSessionSnapshot(key) {
+    if (!canUseSessionStorage()) return;
+    try {
+        window.sessionStorage.removeItem(buildSnapshotKey(key));
+    } catch {
+        // ignore storage cleanup failures
+    }
+}

@@ -1,9 +1,25 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
 
 const ServerContext = createContext(null);
 const ACTIVE_SERVER_KEY = 'nms_active_server';
 const LEGACY_ACTIVE_SERVER_KEY = 'xui_active_server';
+const SERVER_CONTEXT_SNAPSHOT_KEY = 'server_context_bootstrap_v1';
+const SERVER_CONTEXT_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readServerContextSnapshot() {
+    const snapshot = readSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
+        maxAgeMs: SERVER_CONTEXT_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        servers: Array.isArray(snapshot?.servers) ? snapshot.servers : [],
+        activeServerId: String(snapshot?.activeServerId || '').trim() || null,
+    };
+}
 
 function getStoredActiveServerId() {
     const value = localStorage.getItem(ACTIVE_SERVER_KEY);
@@ -31,11 +47,18 @@ function persistActiveServerId(value) {
 }
 
 export function ServerProvider({ children }) {
-    const [servers, setServers] = useState([]);
-    const [activeServerId, setActiveServerId] = useState(getStoredActiveServerId);
-    const [loading, setLoading] = useState(true);
+    const bootstrapRef = useRef(readServerContextSnapshot());
+    const [servers, setServers] = useState(() => bootstrapRef.current?.servers || []);
+    const [activeServerId, setActiveServerId] = useState(
+        () => bootstrapRef.current?.activeServerId || getStoredActiveServerId()
+    );
+    const [loading, setLoading] = useState(() => bootstrapRef.current == null);
 
-    const fetchServers = useCallback(async () => {
+    const fetchServers = useCallback(async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && servers.length > 0);
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get('/servers');
             const serverList = res.data.obj || [];
@@ -59,16 +82,26 @@ export function ServerProvider({ children }) {
             if (err.response?.status !== 403) {
                 console.error('Failed to fetch servers:', err);
             }
-            setServers([]);
-            setActiveServerId('global');
-            persistActiveServerId('global');
+            if (!preserveCurrent) {
+                setServers([]);
+                setActiveServerId('global');
+                persistActiveServerId('global');
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, []);
+    }, [servers.length]);
 
     useEffect(() => {
-        fetchServers();
+        fetchServers({ preserveCurrent: bootstrapRef.current != null });
     }, [fetchServers]);
+
+    useEffect(() => {
+        writeSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
+            servers,
+            activeServerId,
+        });
+    }, [servers, activeServerId]);
 
     const selectServer = (id) => {
         setActiveServerId(id);

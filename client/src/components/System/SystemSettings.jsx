@@ -24,6 +24,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import SiteAccessDangerModal from './SiteAccessDangerModal.jsx';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -173,6 +174,27 @@ function buildNoticeDraft(source = null, fallbackUrl = '') {
         actionLabel: '查看最新地址',
         scope: 'all',
         includeDisabled: true,
+    };
+}
+
+const SYSTEM_SETTINGS_SNAPSHOT_KEY = 'system_settings_bootstrap_v1';
+const SYSTEM_SETTINGS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readSystemSettingsSnapshot() {
+    const snapshot = readSessionSnapshot(SYSTEM_SETTINGS_SNAPSHOT_KEY, {
+        maxAgeMs: SYSTEM_SETTINGS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        settings: snapshot?.settings || null,
+        dbStatus: snapshot?.dbStatus || null,
+        emailStatus: snapshot?.emailStatus || null,
+        backupStatus: snapshot?.backupStatus || null,
+        monitorStatus: snapshot?.monitorStatus || null,
+        registrationRuntime: snapshot?.registrationRuntime || null,
+        inviteCodes: Array.isArray(snapshot?.inviteCodes) ? snapshot.inviteCodes : [],
     };
 }
 
@@ -391,16 +413,17 @@ export default function SystemSettings() {
     const { user } = useAuth();
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
+    const settingsBootstrapRef = useRef(readSystemSettingsSnapshot());
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedView = resolveSettingsTab(searchParams.get('tab'));
     const activeWorkspaceSectionId = resolveWorkspaceSection(requestedView);
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => (isAdmin ? !settingsBootstrapRef.current?.settings : true));
     const [saving, setSaving] = useState(false);
-    const [settings, setSettings] = useState(null);
-    const [draft, setDraft] = useState(buildDraft(null));
+    const [settings, setSettings] = useState(() => settingsBootstrapRef.current?.settings || null);
+    const [draft, setDraft] = useState(() => buildDraft(settingsBootstrapRef.current?.settings || null));
     const [dbLoading, setDbLoading] = useState(false);
-    const [dbStatus, setDbStatus] = useState(null);
+    const [dbStatus, setDbStatus] = useState(() => settingsBootstrapRef.current?.dbStatus || null);
     const [dbModeDraft, setDbModeDraft] = useState({
         readMode: 'file',
         writeMode: 'file',
@@ -417,7 +440,7 @@ export default function SystemSettings() {
     const [backfillTaskId, setBackfillTaskId] = useState(null);
     const [emailStatusLoading, setEmailStatusLoading] = useState(false);
     const [emailTestLoading, setEmailTestLoading] = useState(false);
-    const [emailStatus, setEmailStatus] = useState(null);
+    const [emailStatus, setEmailStatus] = useState(() => settingsBootstrapRef.current?.emailStatus || null);
     const [dangerConfirmOpen, setDangerConfirmOpen] = useState(false);
     const [noticeModalOpen, setNoticeModalOpen] = useState(false);
     const [noticeSending, setNoticeSending] = useState(false);
@@ -428,7 +451,7 @@ export default function SystemSettings() {
     const [noticePreview, setNoticePreview] = useState(null);
     const [backupLoading, setBackupLoading] = useState(false);
     const [backupStatusLoading, setBackupStatusLoading] = useState(false);
-    const [backupStatus, setBackupStatus] = useState(null);
+    const [backupStatus, setBackupStatus] = useState(() => settingsBootstrapRef.current?.backupStatus || null);
     const [backupInspectLoading, setBackupInspectLoading] = useState(false);
     const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
     const [backupLocalSaving, setBackupLocalSaving] = useState(false);
@@ -442,13 +465,13 @@ export default function SystemSettings() {
     const [backupDragActive, setBackupDragActive] = useState(false);
     const [monitorLoading, setMonitorLoading] = useState(false);
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
-    const [monitorStatus, setMonitorStatus] = useState(null);
+    const [monitorStatus, setMonitorStatus] = useState(() => settingsBootstrapRef.current?.monitorStatus || null);
     const [telegramTestLoading, setTelegramTestLoading] = useState(false);
     const [editingTelegramChatId, setEditingTelegramChatId] = useState(false);
-    const [registrationRuntime, setRegistrationRuntime] = useState(null);
+    const [registrationRuntime, setRegistrationRuntime] = useState(() => settingsBootstrapRef.current?.registrationRuntime || null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
     const [inviteCodeActionKey, setInviteCodeActionKey] = useState('');
-    const [_inviteCodes, setInviteCodes] = useState([]);
+    const [_inviteCodes, setInviteCodes] = useState(() => settingsBootstrapRef.current?.inviteCodes || []);
     const [inviteGenerationDraft, setInviteGenerationDraft] = useState({
         count: '1',
         usageLimit: '1',
@@ -568,8 +591,11 @@ export default function SystemSettings() {
     ), [inviteRecords]);
     const inviteCodeActionLoading = inviteCodeActionKey !== '';
 
-    const fetchSettings = async () => {
-        setLoading(true);
+    const fetchSettings = async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && settings !== null);
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get('/system/settings');
             const payload = res.data?.obj || null;
@@ -755,8 +781,21 @@ export default function SystemSettings() {
         }
         if (lazyLoadRef.current.settings) return;
         lazyLoadRef.current.settings = true;
-        fetchSettings();
+        fetchSettings({ preserveCurrent: settingsBootstrapRef.current?.settings != null });
     }, [isAdmin]);
+
+    useEffect(() => {
+        if (!isAdmin || !settings) return;
+        writeSessionSnapshot(SYSTEM_SETTINGS_SNAPSHOT_KEY, {
+            settings,
+            dbStatus,
+            emailStatus,
+            backupStatus,
+            monitorStatus,
+            registrationRuntime,
+            inviteCodes: _inviteCodes,
+        });
+    }, [isAdmin, settings, dbStatus, emailStatus, backupStatus, monitorStatus, registrationRuntime, _inviteCodes]);
 
     useEffect(() => {
         if (!isAdmin) return;

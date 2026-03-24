@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
@@ -8,8 +8,8 @@ import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
-import { normalizeInboundOrderMap, sortInboundsByOrder } from '../../utils/inboundOrder.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -24,6 +24,31 @@ import {
     HiOutlineGlobeAlt,
     HiOutlineServerStack,
 } from 'react-icons/hi2';
+
+const SERVER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildServerDetailSnapshotKey(serverId) {
+    return `server_detail_v1:${String(serverId || '').trim()}`;
+}
+
+function readServerDetailSnapshot(serverId) {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return null;
+
+    const snapshot = readSessionSnapshot(buildServerDetailSnapshotKey(normalizedServerId), {
+        maxAgeMs: SERVER_DETAIL_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        server: snapshot?.server || null,
+        status: snapshot?.status || null,
+        inbounds: Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : [],
+        onlines: Array.isArray(snapshot?.onlines) ? snapshot.onlines : [],
+        auditEvents: Array.isArray(snapshot?.auditEvents) ? snapshot.auditEvents : [],
+    };
+}
 
 function StatMini({ label, value, suffix }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
@@ -121,15 +146,16 @@ export default function ServerDetail() {
     const { serverId } = useParams();
     const navigate = useNavigate();
     const confirmAction = useConfirm();
+    const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
 
-    const [loading, setLoading] = useState(true);
-    const [server, setServer] = useState(null);
-    const [status, setStatus] = useState(null);
-    const [inbounds, setInbounds] = useState([]);
-    const [onlines, setOnlines] = useState([]);
-    const [inboundsLoading, setInboundsLoading] = useState(true);
-    const [onlinesLoading, setOnlinesLoading] = useState(true);
-    const [auditEvents, setAuditEvents] = useState([]);
+    const [loading, setLoading] = useState(() => detailBootstrapRef.current?.server == null);
+    const [server, setServer] = useState(() => detailBootstrapRef.current?.server || null);
+    const [status, setStatus] = useState(() => detailBootstrapRef.current?.status || null);
+    const [inbounds, setInbounds] = useState(() => detailBootstrapRef.current?.inbounds || []);
+    const [onlines, setOnlines] = useState(() => detailBootstrapRef.current?.onlines || []);
+    const [inboundsLoading, setInboundsLoading] = useState(() => detailBootstrapRef.current?.inbounds == null);
+    const [onlinesLoading, setOnlinesLoading] = useState(() => detailBootstrapRef.current?.onlines == null);
+    const [auditEvents, setAuditEvents] = useState(() => detailBootstrapRef.current?.auditEvents || []);
     const [activeTab, setActiveTab] = useState('overview');
     const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
     const [clientIpModal, setClientIpModal] = useState({
@@ -141,74 +167,40 @@ export default function ServerDetail() {
         error: '',
     });
 
-    const fetchServer = async () => {
-        setLoading(true);
+    const fetchSnapshot = async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true;
+        const force = options.force === true;
+        if (!preserveCurrent) {
+            setLoading(true);
+            setInboundsLoading(true);
+            setOnlinesLoading(true);
+        }
         try {
-            const res = await api.get(`/servers/${encodeURIComponent(serverId)}`);
+            const res = await api.get(`/servers/${encodeURIComponent(serverId)}/snapshot`, {
+                params: force ? { refresh: true } : undefined,
+            });
             if (res.data?.success) {
-                setServer(res.data.obj);
+                const payload = res.data?.obj || {};
+                setServer(payload.server || null);
+                setStatus(payload.status || null);
+                setInbounds(Array.isArray(payload.inbounds) ? payload.inbounds : []);
+                setOnlines(Array.isArray(payload.onlines) ? payload.onlines : []);
             } else {
                 toast.error('服务器不存在');
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || '加载服务器信息失败');
-        }
-        setLoading(false);
-    };
-
-    const fetchStatus = async () => {
-        try {
-            const res = await api.get(`/panel/${encodeURIComponent(serverId)}/panel/api/server/status`);
-            if (res.data?.success) {
-                setStatus(res.data.obj);
+            if (!preserveCurrent) {
+                toast.error(err.response?.data?.msg || '加载服务器快照失败');
+                setServer(null);
+                setStatus(null);
+                setInbounds([]);
+                setOnlines([]);
             }
-        } catch { /* server may be offline */ }
-    };
-
-    const fetchInbounds = async () => {
-        setInboundsLoading(true);
-        try {
-            const [res, orderRes] = await Promise.all([
-                api.get(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/list`),
-                api.get('/system/inbounds/order').catch(() => ({ data: { obj: {} } })),
-            ]);
-            const rows = Array.isArray(res.data?.obj) ? res.data.obj.map((item) => ({
-                ...item,
-                serverId,
-                serverName: server?.name || '',
-            })) : [];
-            const orderMap = normalizeInboundOrderMap(orderRes.data?.obj || {});
-            const sorted = sortInboundsByOrder(rows, orderMap).map(({ serverId: _sid, serverName: _sname, ...item }) => item);
-            setInbounds(sorted);
-        } catch {
-            setInbounds([]);
+        } finally {
+            setLoading(false);
+            setInboundsLoading(false);
+            setOnlinesLoading(false);
         }
-        setInboundsLoading(false);
-    };
-
-    const fetchOnlines = async () => {
-        setOnlinesLoading(true);
-        try {
-            const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/onlines`);
-            const data = res.data?.obj || [];
-            // Flatten online users from all inbounds
-            const users = [];
-            if (Array.isArray(data)) {
-                data.forEach(item => {
-                    if (typeof item === 'string') {
-                        const email = item.trim();
-                        if (email) users.push(email);
-                    } else if (item?.email) {
-                        const email = String(item.email).trim();
-                        if (email) users.push(email);
-                    }
-                });
-            }
-            setOnlines(users);
-        } catch {
-            setOnlines([]);
-        }
-        setOnlinesLoading(false);
     };
 
     const fetchAudit = async () => {
@@ -219,22 +211,36 @@ export default function ServerDetail() {
     };
 
     useEffect(() => {
-        setInbounds([]);
-        setOnlines([]);
-        setInboundsLoading(true);
-        setOnlinesLoading(true);
+        const snapshot = readServerDetailSnapshot(serverId);
+        detailBootstrapRef.current = snapshot;
+        setLoading(snapshot?.server == null);
+        setServer(snapshot?.server || null);
+        setStatus(snapshot?.status || null);
+        setInbounds(snapshot?.inbounds || []);
+        setOnlines(snapshot?.onlines || []);
+        setInboundsLoading(snapshot?.inbounds == null);
+        setOnlinesLoading(snapshot?.onlines == null);
+        setAuditEvents(snapshot?.auditEvents || []);
         setClientIpSupport({ supported: true, reason: '' });
         closeClientIpModal();
-        fetchServer();
-        fetchStatus();
-        fetchInbounds();
-        fetchOnlines();
+        fetchSnapshot({ preserveCurrent: snapshot?.server != null });
     }, [serverId]);
 
     useEffect(() => {
-        if (activeTab === 'onlines') fetchOnlines();
+        if (activeTab === 'onlines') fetchSnapshot({ preserveCurrent: true, force: true });
         if (activeTab === 'audit') fetchAudit();
     }, [activeTab, serverId]);
+
+    useEffect(() => {
+        if (!server) return;
+        writeSessionSnapshot(buildServerDetailSnapshotKey(serverId), {
+            server,
+            status,
+            inbounds,
+            onlines,
+            auditEvents,
+        });
+    }, [auditEvents, inbounds, onlines, server, serverId, status]);
 
     const totalTraffic = useMemo(() => {
         return inbounds.reduce((sum, ib) => sum + (ib.up || 0) + (ib.down || 0), 0);
@@ -268,10 +274,10 @@ export default function ServerDetail() {
     }, [inbounds]);
 
     const refreshAll = () => {
-        fetchServer();
-        fetchStatus();
-        fetchInbounds();
-        fetchOnlines();
+        fetchSnapshot({ force: true });
+        if (activeTab === 'audit') {
+            fetchAudit();
+        }
     };
 
     const closeClientIpModal = () => {
@@ -590,7 +596,7 @@ export default function ServerDetail() {
                                         </div>
                                     )}
                                     actions={(
-                                        <button className="btn btn-secondary btn-sm" onClick={fetchOnlines}><HiOutlineArrowPath /> 刷新</button>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}><HiOutlineArrowPath /> 刷新</button>
                                     )}
                                 />
                                 {onlinesLoading ? (

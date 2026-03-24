@@ -81,6 +81,7 @@ describe('UsersHub ordering', () => {
         consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         invalidateManagedUsersCache();
         invalidateServerPanelDataCache();
+        sessionStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
@@ -453,6 +454,44 @@ describe('UsersHub ordering', () => {
 
         expect(await screen.findByText('用户列表加载失败')).toBeInTheDocument();
         expect(screen.getByText('user list unavailable')).toBeInTheDocument();
+    });
+
+    it('renders the last session user snapshot before the live user list finishes loading', async () => {
+        const never = new Promise(() => {});
+        window.sessionStorage.setItem('nms_session_snapshot:managed_users_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: [
+                {
+                    id: 'user-snapshot',
+                    username: 'snapshot-user',
+                    email: 'snapshot@example.com',
+                    subscriptionEmail: 'snapshot@example.com',
+                    role: 'user',
+                    enabled: true,
+                    createdAt: '2026-03-10T00:00:00.000Z',
+                },
+            ],
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users' || url === '/panel/server-a/panel/api/inbounds/list') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return never;
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        expect(await screen.findByText('snapshot-user')).toBeInTheDocument();
+        expect(screen.getByText('snapshot@example.com')).toBeInTheDocument();
+        expect(screen.getByText(/节点统计同步中/)).toBeInTheDocument();
     });
 
     it('localizes the empty-state copy when no users exist in English', async () => {

@@ -13,7 +13,7 @@ import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '
 import { generateSecurePassword } from '../../utils/crypto.js';
 import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
-import { fetchManagedUsers, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
+import { fetchManagedUsers, getManagedUsersSnapshot, invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
@@ -264,15 +264,16 @@ export default function UsersHub() {
     const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
     const syncingCopy = useMemo(() => getSyncingBadgeCopy(locale), [locale]);
     const requestIdRef = useRef(0);
+    const usersBootstrapRef = useRef(getManagedUsersSnapshot());
     const serverInventoryKey = useMemo(
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
         [servers]
     );
 
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState(() => usersBootstrapRef.current);
     const [clientsMap, setClientsMap] = useState(new Map());
     const [onlineMap, setOnlineMap] = useState(new Map());
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => usersBootstrapRef.current.length === 0);
     const [statsLoading, setStatsLoading] = useState(false);
     const [statsReady, setStatsReady] = useState(false);
     const [primaryError, setPrimaryError] = useState('');
@@ -476,8 +477,9 @@ export default function UsersHub() {
         const forceStats = options.forceStats === true || forceUsers;
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
+        const hasVisibleUsers = Array.isArray(users) && users.length > 0;
 
-        setLoading(true);
+        setLoading(!hasVisibleUsers);
         setPrimaryError('');
         setStatsLoading(true);
         setStatsReady(false);
@@ -495,13 +497,15 @@ export default function UsersHub() {
             if (requestId !== requestIdRef.current) return;
             console.error('Failed to fetch users data', err);
             const message = err?.response?.data?.msg || err?.message || t('comp.users.loadFailed');
-            setPrimaryError(message);
-            setUsers([]);
-            setSelectedIds(new Set());
-            setClientsMap(new Map());
-            setOnlineMap(new Map());
-            setInboundExpiries([]);
-            setAllInbounds([]);
+            if (!hasVisibleUsers) {
+                setPrimaryError(message);
+                setUsers([]);
+                setSelectedIds(new Set());
+                setClientsMap(new Map());
+                setOnlineMap(new Map());
+                setInboundExpiries([]);
+                setAllInbounds([]);
+            }
             setStatsLoading(false);
             setStatsReady(false);
             setLoading(false);

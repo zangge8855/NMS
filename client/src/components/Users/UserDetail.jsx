@@ -23,6 +23,7 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import {
     HiOutlineArrowLeft,
     HiOutlineNoSymbol,
@@ -562,6 +563,34 @@ function normalizeUserDetailPayload(payload) {
     };
 }
 
+const USER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildUserDetailSnapshotKey(userId) {
+    return `user_detail_v1:${String(userId || '').trim()}`;
+}
+
+function readUserDetailSnapshot(userId) {
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) return null;
+
+    const snapshot = readSessionSnapshot(buildUserDetailSnapshotKey(normalizedUserId), {
+        maxAgeMs: USER_DETAIL_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        detail: normalizeUserDetailPayload(snapshot?.detail || null),
+        clientData: Array.isArray(snapshot?.clientData) ? snapshot.clientData : [],
+        clientsFetched: snapshot?.clientsFetched === true,
+        subscriptionResult: snapshot?.subscriptionResult && typeof snapshot.subscriptionResult === 'object'
+            ? snapshot.subscriptionResult
+            : null,
+        subscriptionFetched: snapshot?.subscriptionFetched === true,
+        subscriptionProfileKey: String(snapshot?.subscriptionProfileKey || 'v2rayn'),
+    };
+}
+
 function TimelineEntry({ item, index, copy, locale }) {
     return (
         <div key={item.id || index} className="timeline-item">
@@ -607,26 +636,28 @@ export default function UserDetail() {
     const confirmAction = useConfirm();
     const detailRequestIdRef = useRef(0);
     const clientRequestIdRef = useRef(0);
+    const detailBootstrapRef = useRef(readUserDetailSnapshot(userId));
+    const preserveBootstrapClientsRef = useRef(detailBootstrapRef.current?.clientsFetched === true);
     const serverInventoryKey = useMemo(
         () => servers.map((server) => String(server?.id || '')).filter(Boolean).join('|'),
         [servers]
     );
 
-    const [loading, setLoading] = useState(true);
-    const [detail, setDetail] = useState(null);
+    const [loading, setLoading] = useState(() => !detailBootstrapRef.current?.detail);
+    const [detail, setDetail] = useState(() => detailBootstrapRef.current?.detail || null);
     const [activeTab, setActiveTab] = useState(() => normalizeDetailTab(searchParams.get('tab')));
 
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-    const [subscriptionResult, setSubscriptionResult] = useState(null);
-    const [subscriptionProfileKey, setSubscriptionProfileKey] = useState('v2rayn');
+    const [subscriptionResult, setSubscriptionResult] = useState(() => detailBootstrapRef.current?.subscriptionResult || null);
+    const [subscriptionProfileKey, setSubscriptionProfileKey] = useState(() => detailBootstrapRef.current?.subscriptionProfileKey || 'v2rayn');
     const [subscriptionResetLoading, setSubscriptionResetLoading] = useState(false);
 
     // Client data from servers
-    const [clientData, setClientData] = useState([]);
+    const [clientData, setClientData] = useState(() => detailBootstrapRef.current?.clientData || []);
     const [clientsLoading, setClientsLoading] = useState(false);
-    const [clientsFetched, setClientsFetched] = useState(false);
+    const [clientsFetched, setClientsFetched] = useState(() => detailBootstrapRef.current?.clientsFetched === true);
     const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
-    const [subscriptionFetched, setSubscriptionFetched] = useState(false);
+    const [subscriptionFetched, setSubscriptionFetched] = useState(() => detailBootstrapRef.current?.subscriptionFetched === true);
     const [clientIpModal, setClientIpModal] = useState({
         open: false,
         serverId: '',
@@ -796,22 +827,44 @@ export default function UserDetail() {
     };
 
     useEffect(() => {
-        setClientData([]);
-        setClientsFetched(false);
-        setSubscriptionResult(null);
-        setSubscriptionFetched(false);
+        const snapshot = readUserDetailSnapshot(userId);
+        preserveBootstrapClientsRef.current = snapshot?.clientsFetched === true;
+        setDetail(snapshot?.detail || null);
+        setLoading(!snapshot?.detail);
+        setClientData(snapshot?.clientData || []);
+        setClientsFetched(snapshot?.clientsFetched === true);
+        setSubscriptionResult(snapshot?.subscriptionResult || null);
+        setSubscriptionFetched(snapshot?.subscriptionFetched === true);
+        setSubscriptionProfileKey(snapshot?.subscriptionProfileKey || 'v2rayn');
         setClientIpSupportByServer({});
         detailRequestIdRef.current += 1;
         clientRequestIdRef.current += 1;
-        fetchDetail({ preserveCurrent: false });
+        fetchDetail({ preserveCurrent: snapshot?.detail != null });
     }, [userId]);
 
     useEffect(() => {
         if (!detail) return;
+        if (preserveBootstrapClientsRef.current) {
+            preserveBootstrapClientsRef.current = false;
+            return;
+        }
         setClientData([]);
         setClientsFetched(false);
         clientRequestIdRef.current += 1;
     }, [detail?.user?.id, serverInventoryKey]);
+
+    useEffect(() => {
+        const normalizedUserId = String(userId || '').trim();
+        if (!normalizedUserId || !detail) return;
+        writeSessionSnapshot(buildUserDetailSnapshotKey(normalizedUserId), {
+            detail,
+            clientData,
+            clientsFetched,
+            subscriptionResult,
+            subscriptionFetched,
+            subscriptionProfileKey,
+        });
+    }, [clientData, clientsFetched, detail, subscriptionFetched, subscriptionProfileKey, subscriptionResult, userId]);
 
     useEffect(() => {
         const nextTab = normalizeDetailTab(searchParams.get('tab'));

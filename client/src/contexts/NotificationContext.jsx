@@ -8,28 +8,57 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
+import { readSessionSnapshot, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
 
 const NotificationContext = createContext(null);
 const INITIAL_NOTIFICATION_LIMIT = 1;
 const EXPANDED_NOTIFICATION_LIMIT = 30;
+const NOTIFICATION_SNAPSHOT_KEY = 'notification_center_bootstrap_v1';
+const NOTIFICATION_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readNotificationSnapshot() {
+    const snapshot = readSessionSnapshot(NOTIFICATION_SNAPSHOT_KEY, {
+        maxAgeMs: NOTIFICATION_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        notifications: Array.isArray(snapshot?.notifications) ? snapshot.notifications : [],
+        unreadCount: typeof snapshot?.unreadCount === 'number' ? snapshot.unreadCount : 0,
+        loadedLimit: Number(snapshot?.loadedLimit || 0),
+    };
+}
 
 export function NotificationProvider({ children, wsLastMessage }) {
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(false);
+    const bootstrapRef = useRef(readNotificationSnapshot());
+    const [notifications, setNotifications] = useState(() => bootstrapRef.current?.notifications || []);
+    const [unreadCount, setUnreadCount] = useState(() => bootstrapRef.current?.unreadCount || 0);
+    const [loading, setLoading] = useState(() => bootstrapRef.current == null);
     const initialFetchDone = useRef(false);
-    const loadedLimitRef = useRef(0);
+    const loadedLimitRef = useRef(Number(bootstrapRef.current?.loadedLimit || 0));
     const requestIdRef = useRef(0);
+
+    useEffect(() => {
+        writeSessionSnapshot(NOTIFICATION_SNAPSHOT_KEY, {
+            notifications,
+            unreadCount,
+            loadedLimit: loadedLimitRef.current,
+        });
+    }, [notifications, unreadCount]);
 
     const fetchNotifications = useCallback(async (options = {}) => {
         const requestedLimit = Number(options.limit) > 0 ? Number(options.limit) : EXPANDED_NOTIFICATION_LIMIT;
         const force = options.force === true;
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && notifications.length > 0);
         if (!force && loadedLimitRef.current >= requestedLimit) {
             return;
         }
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
-        setLoading(true);
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get(`/system/notifications?limit=${requestedLimit}`);
             if (requestId !== requestIdRef.current) return;
@@ -39,18 +68,24 @@ export function NotificationProvider({ children, wsLastMessage }) {
             setUnreadCount(typeof obj.unreadCount === 'number' ? obj.unreadCount : 0);
             loadedLimitRef.current = Math.max(loadedLimitRef.current, items.length, requestedLimit);
         } catch {
-            // 静默失败，不影响主功能
+            if (!preserveCurrent && requestId === requestIdRef.current) {
+                setNotifications([]);
+                setUnreadCount(0);
+            }
         }
         if (requestId === requestIdRef.current) {
             setLoading(false);
         }
-    }, []);
+    }, [notifications.length]);
 
     // 首次加载
     useEffect(() => {
         if (initialFetchDone.current) return;
         initialFetchDone.current = true;
-        fetchNotifications({ limit: INITIAL_NOTIFICATION_LIMIT });
+        fetchNotifications({
+            limit: INITIAL_NOTIFICATION_LIMIT,
+            preserveCurrent: bootstrapRef.current != null,
+        });
     }, [fetchNotifications]);
 
     // 监听 WebSocket 通知消息

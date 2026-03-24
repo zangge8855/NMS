@@ -65,10 +65,90 @@ describe('Servers', () => {
             removeEventListener: vi.fn(),
             dispatchEvent: vi.fn(),
         }));
+        window.sessionStorage.clear();
         api.get.mockReset();
         api.put.mockReset();
         api.get.mockResolvedValue({ data: { obj: [] } });
         useServer.mockReset();
+    });
+
+    it('renders the cached telemetry snapshot before the live telemetry request finishes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:server_telemetry_overview_v1:24:24', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                items: [
+                    {
+                        serverId: 'server-1',
+                        serverName: '新加坡边缘节点',
+                        checkedAt: '2026-03-22T00:00:00.000Z',
+                        uptimePercent: 100,
+                        current: { online: true, latencyMs: 98, health: 'healthy' },
+                        latencyTrend: [84, 96, 98],
+                        availabilityTrend: [1, 1, 1],
+                    },
+                ],
+                byServerId: {
+                    'server-1': {
+                        serverId: 'server-1',
+                        serverName: '新加坡边缘节点',
+                        checkedAt: '2026-03-22T00:00:00.000Z',
+                        uptimePercent: 100,
+                        current: { online: true, latencyMs: 98, health: 'healthy' },
+                        latencyTrend: [84, 96, 98],
+                        availabilityTrend: [1, 1, 1],
+                    },
+                },
+                generatedAt: '2026-03-22T00:00:00.000Z',
+            },
+        }));
+
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: '新加坡边缘节点',
+                url: 'https://panel.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'production',
+                environment: 'prod',
+                health: 'healthy',
+                tags: ['edge'],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer: vi.fn(),
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/servers/telemetry/overview') {
+                return new Promise(() => {});
+            }
+            return Promise.resolve({ data: { obj: [] } });
+        });
+
+        renderWithRouter(<Servers />);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/servers/telemetry/overview', {
+                params: {
+                    hours: 24,
+                    points: 24,
+                },
+            });
+        });
+
+        expect(screen.getByText('98 ms')).toBeInTheDocument();
+        expect(screen.getByText('100%')).toBeInTheDocument();
+        expect(within(document.querySelector('.servers-telemetry-cell')).getByText('在线')).toBeInTheDocument();
     });
 
     it('renders long server names as a wrapping detail trigger without hiding nearby controls', async () => {

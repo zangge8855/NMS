@@ -21,6 +21,7 @@ import {
     updateOwnProfile,
     validateSession,
 } from '../services/authSessionService.js';
+import { buildAppBootstrapPayload } from '../lib/appBootstrapService.js';
 import {
     adminResetUserPassword,
     buildManagedUserSyncJobPayload,
@@ -36,7 +37,7 @@ import {
     updateManagedUserExpiry,
     updateUserSubscriptionBinding,
 } from '../services/userAdminService.js';
-import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, adminOnly, anyRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -361,6 +362,21 @@ router.get('/check', (req, res) => {
         });
     } catch {
         res.status(401).json({ success: false });
+    }
+});
+
+router.get('/bootstrap', authMiddleware, anyRole, async (req, res) => {
+    try {
+        return res.json({
+            success: true,
+            obj: await buildAppBootstrapPayload(req.user || null),
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 500, '加载应用首包失败');
+        return res.status(httpError.status).json({
+            success: false,
+            msg: httpError.message,
+        });
     }
 });
 

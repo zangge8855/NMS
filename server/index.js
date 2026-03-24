@@ -30,6 +30,7 @@ import { createCamouflageAssetMiddleware } from './lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
 import { createSearchBotProtectionMiddleware } from './middleware/searchBotProtection.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
+import { startServerPanelSnapshotWarmLoop, stopServerPanelSnapshotWarmLoop } from './lib/serverPanelSnapshotService.js';
 import telegramAlertService from './lib/telegramAlertService.js';
 import subscriptionExpiryNotifier from './lib/subscriptionExpiryNotifier.js';
 import { pathToFileURL } from 'url';
@@ -202,6 +203,7 @@ function setupGracefulShutdown(httpServer) {
         console.log(`\n  ⏳ Received ${signal}, shutting down gracefully...`);
 
         serverHealthMonitor.stop();
+        stopServerPanelSnapshotWarmLoop();
         telegramAlertService.stop();
         subscriptionExpiryNotifier.stop();
 
@@ -274,6 +276,7 @@ export async function startServer(options = {}) {
         enableWebSocket: options.enableWebSocket,
     });
     serverHealthMonitor.start();
+    startServerPanelSnapshotWarmLoop();
     telegramAlertService.start();
     subscriptionExpiryNotifier.start();
 

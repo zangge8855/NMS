@@ -5,8 +5,6 @@ import Header from '../Layout/Header.jsx';
 import { formatBytes, formatUptime } from '../../utils/format.js';
 import useWebSocket from '../../hooks/useWebSocket.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { getClientIdentifier, normalizeEmail } from '../../utils/protocol.js';
-import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients.js';
 import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
@@ -30,13 +28,24 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { fetchManagedUsers } from '../../utils/managedUsersCache.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const AUTO_REFRESH_INTERVAL = 30_000;
-const GLOBAL_WS_GRACE_MS = 500;
+const GLOBAL_WS_GRACE_MS = 150;
 const MAX_SINGLE_ONLINE_ROWS = 120;
 const MAX_GLOBAL_ONLINE_ROWS = 200;
 const MAX_NODE_TREND_POINTS = 12;
+const DASHBOARD_SNAPSHOT_KEY = 'dashboard_global_v1';
+const DASHBOARD_SNAPSHOT_TTL_MS = 90_000;
+const INITIAL_GLOBAL_STATS = {
+    totalUp: 0,
+    totalDown: 0,
+    totalOnline: 0,
+    totalInbounds: 0,
+    activeInbounds: 0,
+    serverCount: 0,
+    onlineServers: 0,
+};
 const INITIAL_TRAFFIC_WINDOW_TOTAL = {
     totalUp: 0,
     totalDown: 0,
@@ -49,6 +58,112 @@ function buildInitialTrafficWindowTotals({ ready = false } = {}) {
         month: { ...INITIAL_TRAFFIC_WINDOW_TOTAL, ready },
     };
 }
+
+function normalizeGlobalStatsSnapshot(stats = {}) {
+    return {
+        totalUp: Number(stats?.totalUp || 0),
+        totalDown: Number(stats?.totalDown || 0),
+        totalOnline: Number(stats?.totalOnline || 0),
+        totalInbounds: Number(stats?.totalInbounds || 0),
+        activeInbounds: Number(stats?.activeInbounds || 0),
+        serverCount: Number(stats?.serverCount || 0),
+        onlineServers: Number(stats?.onlineServers || 0),
+    };
+}
+
+function normalizeStoredTrafficWindowTotals(windows = {}) {
+    const normalizeWindow = (key) => ({
+        totalUp: Number(windows?.[key]?.totalUp || 0),
+        totalDown: Number(windows?.[key]?.totalDown || 0),
+        ready: windows?.[key]?.ready === true,
+    });
+    return {
+        day: normalizeWindow('day'),
+        week: normalizeWindow('week'),
+        month: normalizeWindow('month'),
+    };
+}
+
+function readDashboardBootstrapSnapshot() {
+    const snapshot = readSessionSnapshot(DASHBOARD_SNAPSHOT_KEY, {
+        maxAgeMs: DASHBOARD_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    const serverStatuses = snapshot?.serverStatuses && typeof snapshot.serverStatuses === 'object'
+        ? snapshot.serverStatuses
+        : {};
+    const globalStats = normalizeGlobalStatsSnapshot(snapshot?.globalStats || {});
+    const globalAccountSummary = {
+        totalUsers: Number(snapshot?.globalAccountSummary?.totalUsers || 0),
+        pendingUsers: Number(snapshot?.globalAccountSummary?.pendingUsers || 0),
+    };
+    const globalOnlineUsers = Array.isArray(snapshot?.globalOnlineUsers) ? snapshot.globalOnlineUsers : [];
+    const globalOnlineSessionCount = Number(snapshot?.globalOnlineSessionCount || 0);
+    const trafficWindowTotals = normalizeStoredTrafficWindowTotals(snapshot?.trafficWindowTotals || {});
+    const hasRenderableData = (
+        Object.keys(serverStatuses).length > 0
+        || globalStats.serverCount > 0
+        || globalAccountSummary.totalUsers > 0
+        || Object.values(trafficWindowTotals).some((window) => window?.ready === true)
+    );
+
+    return {
+        serverStatuses,
+        globalStats,
+        globalAccountSummary,
+        globalOnlineUsers,
+        globalOnlineSessionCount,
+        trafficWindowTotals,
+        globalPresenceReady: snapshot?.globalPresenceReady === true && Array.isArray(snapshot?.globalOnlineUsers),
+        hasRenderableData,
+    };
+}
+
+function buildDashboardSnapshotServerStatuses(serverStatuses = {}) {
+    return Object.entries(serverStatuses || {}).reduce((acc, [serverId, serverData]) => {
+        acc[serverId] = {
+            serverId: serverData?.serverId || serverId,
+            name: serverData?.name || '',
+            online: serverData?.online === true,
+            error: serverData?.error || '',
+            inboundCount: Number(serverData?.inboundCount || 0),
+            activeInbounds: Number(serverData?.activeInbounds || 0),
+            managedOnlineCount: Number(serverData?.managedOnlineCount || 0),
+            managedTrafficTotal: Number(serverData?.managedTrafficTotal || 0),
+            managedTrafficReady: serverData?.managedTrafficReady === true,
+            nodeRemarks: Array.isArray(serverData?.nodeRemarks) ? serverData.nodeRemarks : [],
+            nodeRemarkPreview: Array.isArray(serverData?.nodeRemarkPreview) ? serverData.nodeRemarkPreview : [],
+            nodeRemarkCount: Number(serverData?.nodeRemarkCount || 0),
+            status: serverData?.status && typeof serverData.status === 'object'
+                ? serverData.status
+                : null,
+        };
+        return acc;
+    }, {});
+}
+
+function normalizeTrafficWindowPayload(windows = {}) {
+    const readWindow = (...keys) => {
+        const payload = keys
+            .map((key) => windows?.[key])
+            .find(Boolean) || {};
+        const totals = payload?.managedTotals || payload?.totals || payload;
+        return {
+            totalUp: Number(totals?.upBytes || 0),
+            totalDown: Number(totals?.downBytes || 0),
+            ready: true,
+        };
+    };
+
+    return {
+        day: readWindow('day', 'today'),
+        week: readWindow('week', '7'),
+        month: readWindow('month', '30'),
+    };
+}
+
 const DASHBOARD_ACCENT = {
     primary: { tone: 'primary' },
     info: { tone: 'info' },
@@ -279,260 +394,6 @@ function InboundSummaryMobileList({ inbounds = [], loading, t }) {
     );
 }
 
-function normalizeOnlineEntry(item, serverName = '') {
-    if (item === undefined || item === null) return null;
-    if (typeof item === 'string') {
-        const email = item.trim();
-        if (!email) return null;
-        return { email, serverName };
-    }
-    if (typeof item === 'object') {
-        const email = String(
-            item.email || item.user || item.username || item.clientEmail || item.client || item.remark || ''
-        ).trim();
-        if (!email) return null;
-        return { email, serverName };
-    }
-    return null;
-}
-
-function normalizeOnlineList(raw, serverName = '') {
-    const list = Array.isArray(raw) ? raw : [];
-    const normalized = [];
-    for (const item of list) {
-        const entry = normalizeOnlineEntry(item, serverName);
-        if (entry) normalized.push(entry);
-    }
-    return normalized;
-}
-
-function normalizeOnlineValue(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function normalizeOnlineKeys(item) {
-    if (typeof item === 'string') {
-        const value = normalizeOnlineValue(item);
-        return value ? [value] : [];
-    }
-    if (!item || typeof item !== 'object') {
-        return [];
-    }
-    return Array.from(new Set(
-        [
-            item.email,
-            item.user,
-            item.username,
-            item.clientEmail,
-            item.client,
-            item.remark,
-            item.id,
-            item.password,
-        ]
-            .map((value) => normalizeOnlineValue(value))
-            .filter(Boolean)
-    ));
-}
-
-function buildClientOnlineKeys(client, protocol) {
-    const keys = new Set();
-    const email = normalizeOnlineValue(client?.email);
-    const identifier = normalizeOnlineValue(getClientIdentifier(client, protocol));
-    const id = normalizeOnlineValue(client?.id);
-    const password = normalizeOnlineValue(client?.password);
-
-    if (email) keys.add(email);
-    if (identifier) keys.add(identifier);
-    if (id) keys.add(id);
-    if (password) keys.add(password);
-
-    return Array.from(keys);
-}
-
-function buildManagedOnlineSummary(users, serverPayloads = []) {
-    const clientsMap = new Map();
-    const onlineMap = new Map();
-    const onlineServerMap = new Map();
-    const managedEmailSet = new Set();
-    const serverTrafficByServerId = {};
-
-    (Array.isArray(users) ? users : [])
-        .filter((user) => user?.role !== 'admin')
-        .forEach((user) => {
-            const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
-            const loginEmail = normalizeEmail(user?.email);
-            if (subscriptionEmail) managedEmailSet.add(subscriptionEmail);
-            if (loginEmail) managedEmailSet.add(loginEmail);
-        });
-
-    serverPayloads.forEach((payload) => {
-        const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
-        const onlines = Array.isArray(payload?.onlines) ? payload.onlines : [];
-        const serverName = String(payload?.serverName || '').trim();
-        const serverId = String(payload?.serverId || '').trim();
-        const onlineMatchMap = new Map();
-
-        onlines.forEach((entry, index) => {
-            normalizeOnlineKeys(entry).forEach((key) => {
-                if (!onlineMatchMap.has(key)) {
-                    onlineMatchMap.set(key, new Set());
-                }
-                onlineMatchMap.get(key).add(index);
-            });
-            const email = normalizeEmail(entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry);
-            if (email) {
-                onlineMap.set(email, (onlineMap.get(email) || 0) + 1);
-                if (!onlineServerMap.has(email)) {
-                    onlineServerMap.set(email, new Set());
-                }
-                if (serverName) {
-                    onlineServerMap.get(email).add(serverName);
-                }
-            }
-        });
-
-        inbounds.forEach((inbound) => {
-            const protocol = String(inbound?.protocol || '').toLowerCase();
-            if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
-            if (inbound?.enable === false) return;
-
-            const clients = mergeInboundClientStats(inbound);
-            clients.forEach((client) => {
-                const email = normalizeEmail(client?.email);
-                if (!email) return;
-                if (!clientsMap.has(email)) {
-                    clientsMap.set(email, {
-                        count: 0,
-                        totalUsed: 0,
-                        totalUp: 0,
-                        totalDown: 0,
-                        onlineSessions: 0,
-                        servers: new Set(),
-                        nodeLabels: new Set(),
-                    });
-                }
-                const entry = clientsMap.get(email);
-                const matchedOnlineEntries = new Set();
-                buildClientOnlineKeys(client, protocol).forEach((key) => {
-                    const matches = onlineMatchMap.get(key);
-                    if (!matches) return;
-                    matches.forEach((matchIndex) => matchedOnlineEntries.add(matchIndex));
-                });
-                const onlineSessions = matchedOnlineEntries.size;
-                entry.count += 1;
-                entry.totalUsed += resolveClientUsed(client);
-                entry.totalUp += safeNumber(client?.up);
-                entry.totalDown += safeNumber(client?.down);
-                if (serverId && managedEmailSet.has(email)) {
-                    const bucket = serverTrafficByServerId[serverId] || { up: 0, down: 0, total: 0 };
-                    bucket.up += safeNumber(client?.up);
-                    bucket.down += safeNumber(client?.down);
-                    bucket.total += safeNumber(client?.up) + safeNumber(client?.down);
-                    serverTrafficByServerId[serverId] = bucket;
-                }
-                entry.onlineSessions += onlineSessions;
-                if (onlineSessions > 0 && serverName) {
-                    entry.servers.add(serverName);
-                }
-                if (onlineSessions > 0) {
-                    const nodeLabel = String(inbound?.remark || '').trim() || serverName;
-                    if (nodeLabel) {
-                        entry.nodeLabels.add(nodeLabel);
-                    }
-                }
-            });
-        });
-    });
-
-    const rows = (Array.isArray(users) ? users : [])
-        .filter((user) => user?.role !== 'admin')
-        .map((user) => {
-            const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
-            const loginEmail = normalizeEmail(user?.email);
-            const username = String(user?.username || '').trim();
-            const resolvedEmail = subscriptionEmail || loginEmail || '';
-            const clientData = clientsMap.get(subscriptionEmail) || clientsMap.get(loginEmail) || { count: 0, onlineSessions: 0, servers: new Set() };
-            const sessions = clientData.onlineSessions || onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0;
-            const matchedServers = clientData.servers?.size
-                ? Array.from(clientData.servers)
-                : Array.from(onlineServerMap.get(subscriptionEmail) || onlineServerMap.get(loginEmail) || []);
-            const matchedNodes = clientData.nodeLabels?.size
-                ? Array.from(clientData.nodeLabels)
-                : matchedServers;
-            const displayName = username || resolvedEmail || user?.id || '-';
-            return {
-                userId: user?.id,
-                username,
-                email: resolvedEmail,
-                displayName,
-                label: resolvedEmail || displayName,
-                sessions,
-                clientData,
-                clientCount: clientData.count || 0,
-                enabled: user?.enabled !== false,
-                servers: matchedServers,
-                nodeLabels: matchedNodes,
-            };
-        })
-        .sort((left, right) => {
-            if (right.sessions !== left.sessions) return right.sessions - left.sessions;
-            return String(left.displayName || left.label || '').localeCompare(String(right.displayName || right.label || ''));
-        });
-
-    const totalUp = rows.reduce((sum, row) => sum + Number(row?.clientData?.totalUp || 0), 0);
-    const totalDown = rows.reduce((sum, row) => sum + Number(row?.clientData?.totalDown || 0), 0);
-
-    return {
-        rows,
-        onlineRows: rows.filter((row) => row.sessions > 0),
-        onlineSessionCount: rows.reduce((sum, row) => sum + Number(row.sessions || 0), 0),
-        pendingCount: rows.filter((row) => row.enabled === false && row.clientCount === 0).length,
-        totalUp,
-        totalDown,
-        totalUsed: totalUp + totalDown,
-        serverTrafficByServerId,
-    };
-}
-
-function collectServerInboundRemarks(inbounds = [], serverName = '') {
-    const enabledRemarks = [];
-    const fallbackRemarks = [];
-    const seen = new Set();
-    const normalizedServerName = String(serverName || '').trim().toLowerCase();
-
-    const pushRemark = (list, remark) => {
-        const text = String(remark || '').trim();
-        if (!text) return;
-        const normalized = text.toLowerCase();
-        if (normalized === normalizedServerName) return;
-        if (seen.has(normalized)) return;
-        seen.add(normalized);
-        list.push(text);
-    };
-
-    (Array.isArray(inbounds) ? inbounds : []).forEach((inbound) => {
-        const remark = String(inbound?.remark || '').trim();
-        if (!remark) return;
-        if (inbound?.enable === false) {
-            pushRemark(fallbackRemarks, remark);
-            return;
-        }
-        pushRemark(enabledRemarks, remark);
-    });
-
-    return enabledRemarks.length > 0 ? enabledRemarks : fallbackRemarks;
-}
-
-function withServerRemarkMeta(serverData, serverName = '') {
-    const nodeRemarks = collectServerInboundRemarks(serverData?.rawInbounds || [], serverName);
-    return {
-        ...serverData,
-        nodeRemarks,
-        nodeRemarkPreview: nodeRemarks.slice(0, 2),
-        nodeRemarkCount: nodeRemarks.length,
-    };
-}
-
 function pushServerTrendSamples(previous, serverMap) {
     const next = {};
     for (const [serverId, serverData] of Object.entries(serverMap || {})) {
@@ -655,13 +516,14 @@ function getWsUrl(ticket) {
 
 
 export default function Dashboard() {
-    const { activeServerId, panelApi, activeServer, servers } = useServer();
+    const { activeServerId, activeServer, servers } = useServer();
     const { token } = useAuth();
     const { t, locale } = useI18n();
     const navigate = useNavigate();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
+    const dashboardBootstrapRef = useRef(readDashboardBootstrapSnapshot());
 
     // Single Server State
     const [status, setStatus] = useState(null);
@@ -673,23 +535,33 @@ export default function Dashboard() {
     const [singleServerTrafficTotals, setSingleServerTrafficTotals] = useState({ totalUp: 0, totalDown: 0 });
 
     // Global State
-    const [globalStats, setGlobalStats] = useState({
-        totalUp: 0, totalDown: 0, totalOnline: 0,
-        totalInbounds: 0, activeInbounds: 0,
-        serverCount: 0, onlineServers: 0,
-    });
-    const [serverStatuses, setServerStatuses] = useState({});
+    const [globalStats, setGlobalStats] = useState(() => (
+        dashboardBootstrapRef.current?.globalStats || { ...INITIAL_GLOBAL_STATS }
+    ));
+    const [serverStatuses, setServerStatuses] = useState(() => (
+        dashboardBootstrapRef.current?.serverStatuses || {}
+    ));
     const [serverTrendHistory, setServerTrendHistory] = useState({});
-    const [globalOnlineUsers, setGlobalOnlineUsers] = useState([]);
-    const [globalOnlineSessionCount, setGlobalOnlineSessionCount] = useState(0);
-    const [globalAccountSummary, setGlobalAccountSummary] = useState({ totalUsers: 0, pendingUsers: 0 });
+    const [globalOnlineUsers, setGlobalOnlineUsers] = useState(() => (
+        dashboardBootstrapRef.current?.globalOnlineUsers || []
+    ));
+    const [globalOnlineSessionCount, setGlobalOnlineSessionCount] = useState(() => (
+        dashboardBootstrapRef.current?.globalOnlineSessionCount || 0
+    ));
+    const [globalAccountSummary, setGlobalAccountSummary] = useState(() => (
+        dashboardBootstrapRef.current?.globalAccountSummary || { totalUsers: 0, pendingUsers: 0 }
+    ));
     const [hasLiveClusterSnapshot, setHasLiveClusterSnapshot] = useState(false);
     const [globalPresenceLoading, setGlobalPresenceLoading] = useState(false);
-    const [globalPresenceReady, setGlobalPresenceReady] = useState(false);
-    const [trafficWindowTotals, setTrafficWindowTotals] = useState(() => buildInitialTrafficWindowTotals());
+    const [globalPresenceReady, setGlobalPresenceReady] = useState(() => (
+        dashboardBootstrapRef.current?.globalPresenceReady === true
+    ));
+    const [trafficWindowTotals, setTrafficWindowTotals] = useState(() => (
+        dashboardBootstrapRef.current?.trafficWindowTotals || buildInitialTrafficWindowTotals()
+    ));
 
     // Shared State
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => dashboardBootstrapRef.current?.hasRenderableData !== true);
     const [autoRefresh, setAutoRefresh] = useState(() => {
         try {
             const stored = localStorage.getItem('nms_dashboard_autorefresh');
@@ -715,56 +587,34 @@ export default function Dashboard() {
         () => summarizeClusterThroughput(serverTrendHistory),
         [serverTrendHistory]
     );
-    const fetchTrafficWindowTotals = useCallback(async () => {
-        try {
-            const res = await api.get('/traffic/overview', {
-                params: {
-                    days: 30,
-                    windows: 'today,7,30',
-                },
-            });
-            const payload = res.data?.obj || {};
-            const readWindow = (key) => {
-                const totals = payload?.windows?.[key]?.totals || {};
-                return {
-                    totalUp: Number(totals.upBytes || 0),
-                    totalDown: Number(totals.downBytes || 0),
-                    ready: true,
-                };
-            };
-            return {
-                day: readWindow('today'),
-                week: readWindow('7'),
-                month: readWindow('30'),
-            };
-        } catch {
-            return buildInitialTrafficWindowTotals();
-        }
+    const resetTrafficWindows = useCallback(() => {
+        setTrafficWindowTotals(buildInitialTrafficWindowTotals());
     }, []);
     const syncTrafficWindowTotals = useCallback((windows) => {
         setTrafficWindowTotals((previous) => ({
             ...previous,
-            ...windows,
+            ...normalizeStoredTrafficWindowTotals(windows),
         }));
     }, []);
-    const markTrafficWindowsReady = useCallback(() => {
-        setTrafficWindowTotals(buildInitialTrafficWindowTotals({ ready: true }));
-    }, []);
-    const resetTrafficWindows = useCallback(() => {
-        setTrafficWindowTotals(buildInitialTrafficWindowTotals());
-    }, []);
+    const applyGlobalDashboardSnapshot = useCallback((payload = {}) => {
+        const nextServerStatuses = buildDashboardSnapshotServerStatuses(payload?.serverStatuses || {});
+        const nextGlobalStats = normalizeGlobalStatsSnapshot(payload?.globalStats || {});
+        const nextGlobalOnlineUsers = Array.isArray(payload?.globalOnlineUsers) ? payload.globalOnlineUsers : [];
+        const nextGlobalOnlineSessionCount = Number(payload?.globalOnlineSessionCount || 0);
+        const nextGlobalAccountSummary = {
+            totalUsers: Number(payload?.globalAccountSummary?.totalUsers || 0),
+            pendingUsers: Number(payload?.globalAccountSummary?.pendingUsers || 0),
+        };
+        const nextTrafficWindowTotals = normalizeStoredTrafficWindowTotals(payload?.trafficWindowTotals || {});
 
-    const fetchGlobalAccountSummary = useCallback(async (options = {}) => {
-        try {
-            const users = await fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []);
-            const rows = Array.isArray(users) ? users.filter((item) => item?.role !== 'admin') : [];
-            setGlobalAccountSummary({
-                totalUsers: rows.length,
-                pendingUsers: rows.filter((item) => item?.enabled === false).length,
-            });
-        } catch {
-            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
-        }
+        setServerStatuses(nextServerStatuses);
+        setServerTrendHistory((previous) => pushServerTrendSamples(previous, nextServerStatuses));
+        setGlobalStats(nextGlobalStats);
+        setGlobalOnlineUsers(nextGlobalOnlineUsers);
+        setGlobalOnlineSessionCount(nextGlobalOnlineSessionCount);
+        setGlobalAccountSummary(nextGlobalAccountSummary);
+        setTrafficWindowTotals(nextTrafficWindowTotals);
+        setGlobalPresenceReady(payload?.globalPresenceReady === true);
     }, []);
 
     const fetchWsTicket = useCallback(async ({ force = false } = {}) => {
@@ -859,232 +709,103 @@ export default function Dashboard() {
             serverCount: data.serverCount || 0,
             onlineServers: data.onlineServers || 0,
         }));
+        if (data?.accountSummary && typeof data.accountSummary === 'object') {
+            setGlobalAccountSummary({
+                totalUsers: Number(data.accountSummary.totalUsers || 0),
+                pendingUsers: Number(data.accountSummary.pendingUsers || 0),
+            });
+        }
+        if (data?.trafficWindows && typeof data.trafficWindows === 'object') {
+            syncTrafficWindowTotals(normalizeTrafficWindowPayload(data.trafficWindows));
+        }
         setLoading(false);
-    }, [lastMessage, activeServerId]);
+    }, [activeServerId, lastMessage, syncTrafficWindowTotals]);
+
+    useEffect(() => {
+        if (activeServerId !== 'global') return;
+        const hasSnapshotData = (
+            Object.keys(serverStatuses || {}).length > 0
+            || globalAccountSummary.totalUsers > 0
+            || Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true)
+        );
+        if (!hasSnapshotData) return;
+        writeSessionSnapshot(DASHBOARD_SNAPSHOT_KEY, {
+            globalStats,
+            serverStatuses: buildDashboardSnapshotServerStatuses(serverStatuses),
+            globalAccountSummary,
+            globalOnlineUsers,
+            globalOnlineSessionCount,
+            trafficWindowTotals,
+            globalPresenceReady,
+        });
+    }, [
+        activeServerId,
+        globalAccountSummary,
+        globalOnlineSessionCount,
+        globalOnlineUsers,
+        globalPresenceReady,
+        globalStats,
+        serverStatuses,
+        trafficWindowTotals,
+    ]);
 
     // ── REST Fetchers (fallback / single server) ─────────
-    const fetchSingleData = useCallback(async () => {
+    const fetchSingleData = useCallback(async (options = {}) => {
         if (!activeServerId || activeServerId === 'global') return;
         try {
-            const [statusRes, cpuRes, inboundsRes, onlineRes, usersRes] = await Promise.all([
-                panelApi('get', '/panel/api/server/status'),
-                panelApi('get', '/panel/api/server/cpuHistory/30'),
-                panelApi('get', '/panel/api/inbounds/list'),
-                panelApi('post', '/panel/api/inbounds/onlines').catch(() => ({ data: { obj: [] } })),
-                fetchManagedUsers(api).catch(() => []),
-            ]);
-            if (statusRes.data?.obj) setStatus(statusRes.data.obj);
-            if (cpuRes.data?.obj) {
-                setCpuHistory(cpuRes.data.obj.map((p, i) => ({
-                    time: i,
-                    cpu: typeof p === 'number' ? p : p?.cpu || 0,
-                })));
-            }
-            const singleInbounds = Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [];
-            const singleOnlines = Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [];
-            const users = Array.isArray(usersRes) ? usersRes : [];
-            setInbounds(singleInbounds);
-
-            const presence = buildManagedOnlineSummary(users, [{
-                serverId: activeServerId,
-                inbounds: singleInbounds,
-                onlines: singleOnlines,
-                serverName: activeServer?.name || '',
-            }]);
-            setOnlineUsers(presence.onlineRows);
-            setOnlineSessionCount(presence.onlineSessionCount);
-            setOnlineCount(presence.onlineRows.length);
+            const res = await api.get(`/servers/${activeServerId}/dashboard/snapshot`, {
+                params: options.force === true ? { refresh: true } : undefined,
+            });
+            const payload = res.data?.obj || {};
+            setStatus(payload?.status && typeof payload.status === 'object' ? payload.status : null);
+            setCpuHistory(Array.isArray(payload?.cpuHistory) ? payload.cpuHistory : []);
+            setInbounds(Array.isArray(payload?.inbounds) ? payload.inbounds : []);
+            const nextOnlineUsers = Array.isArray(payload?.onlineUsers) ? payload.onlineUsers : [];
+            setOnlineUsers(nextOnlineUsers);
+            setOnlineSessionCount(Number(payload?.onlineSessionCount || 0));
+            setOnlineCount(Number(payload?.onlineCount || nextOnlineUsers.length || 0));
             setSingleServerTrafficTotals({
-                totalUp: presence.totalUp,
-                totalDown: presence.totalDown,
+                totalUp: Number(payload?.singleServerTrafficTotals?.totalUp || 0),
+                totalDown: Number(payload?.singleServerTrafficTotals?.totalDown || 0),
             });
         } catch (err) {
             console.error('Dashboard fetch error:', err);
-            setSingleServerTrafficTotals({ totalUp: 0, totalDown: 0 });
         }
         setLoading(false);
-    }, [activeServer?.name, activeServerId, panelApi]);
+    }, [activeServerId]);
 
-    const fetchGlobalData = useCallback(async () => {
+    const fetchGlobalData = useCallback(async (options = {}) => {
         if (servers.length === 0) {
             setGlobalOnlineUsers([]);
             setGlobalOnlineSessionCount(0);
             setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
             setGlobalPresenceReady(true);
-            markTrafficWindowsReady();
+            setTrafficWindowTotals(buildInitialTrafficWindowTotals({ ready: true }));
             setLoading(false);
             return;
         }
-        try {
-            const results = {};
-            let stats = {
-                totalUp: 0, totalDown: 0, totalOnline: 0,
-                totalInbounds: 0, activeInbounds: 0,
-                serverCount: servers.length, onlineServers: 0,
-            };
-            const [usersRes, trafficWindows] = await Promise.all([
-                fetchManagedUsers(api).catch(() => []),
-                fetchTrafficWindowTotals(),
-                ...servers.map(async (server) => {
-                    try {
-                        const [statusRes, inboundsRes, onlineRes] = await Promise.all([
-                            api.get(`/panel/${server.id}/panel/api/server/status`),
-                            api.get(`/panel/${server.id}/panel/api/inbounds/list`),
-                            api.post(`/panel/${server.id}/panel/api/inbounds/onlines`),
-                        ]);
-                        const sStatus = statusRes.data.obj;
-                        const sInbounds = inboundsRes.data.obj || [];
-                        const sOnlines = normalizeOnlineList(onlineRes.data?.obj || [], server.name);
-
-                        results[server.id] = withServerRemarkMeta({
-                            serverId: server.id,
-                            online: true, status: sStatus, name: server.name,
-                            inboundCount: sInbounds.length, onlineCount: sOnlines.length,
-                            onlineUsers: sOnlines,
-                            activeInbounds: sInbounds.filter(i => i.enable).length,
-                            rawInbounds: sInbounds,
-                            rawOnlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
-                        }, server.name);
-                        stats.onlineServers++;
-                        stats.totalInbounds += results[server.id].inboundCount;
-                        stats.activeInbounds += results[server.id].activeInbounds;
-                    } catch (err) {
-                        results[server.id] = { online: false, error: err.message };
-                    }
-                }),
-            ]);
-            const users = Array.isArray(usersRes) ? usersRes : [];
-            const presence = buildManagedOnlineSummary(
-                users,
-                Object.values(results).map((item) => ({
-                    serverId: item?.serverId || '',
-                    inbounds: item?.rawInbounds || [],
-                    onlines: item?.rawOnlines || [],
-                    serverName: item?.name || '',
-                }))
-            );
-            stats.totalOnline = presence.onlineRows.length;
-            stats.totalUp = presence.totalUp;
-            stats.totalDown = presence.totalDown;
-            syncTrafficWindowTotals(trafficWindows);
-            const managedOnlineCountByServer = new Map();
-            presence.onlineRows.forEach((row) => {
-                row.servers.forEach((serverName) => {
-                    managedOnlineCountByServer.set(serverName, (managedOnlineCountByServer.get(serverName) || 0) + 1);
-                });
-            });
-            Object.values(results).forEach((item) => {
-                item.managedOnlineCount = managedOnlineCountByServer.get(item?.name || '') || 0;
-                item.managedTrafficTotal = Number(presence.serverTrafficByServerId?.[item?.serverId || '']?.total || 0);
-                item.managedTrafficReady = true;
-            });
-
-            setServerStatuses(results);
-            setServerTrendHistory((previous) => pushServerTrendSamples(previous, results));
-            setGlobalStats(stats);
-            setGlobalOnlineUsers(presence.onlineRows);
-            setGlobalOnlineSessionCount(presence.onlineSessionCount);
-            setGlobalAccountSummary({
-                totalUsers: presence.rows.length,
-                pendingUsers: presence.pendingCount,
-            });
-            setGlobalPresenceReady(true);
-        } catch (err) {
-            console.error('Global fetch error:', err);
-            setGlobalOnlineUsers([]);
-            setGlobalOnlineSessionCount(0);
-            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
-            setGlobalPresenceReady(false);
-            resetTrafficWindows();
-        }
-        setLoading(false);
-    }, [fetchTrafficWindowTotals, markTrafficWindowsReady, resetTrafficWindows, servers, syncTrafficWindowTotals]);
-
-    const hydrateGlobalPresence = useCallback(async (options = {}) => {
-        if (servers.length === 0) {
-            setGlobalOnlineUsers([]);
-            setGlobalOnlineSessionCount(0);
-            setGlobalAccountSummary({ totalUsers: 0, pendingUsers: 0 });
-            setGlobalPresenceReady(true);
-            markTrafficWindowsReady();
-            return;
-        }
-
         setGlobalPresenceLoading(true);
         try {
-            const [users, trafficWindows, serverPayloads] = await Promise.all([
-                fetchManagedUsers(api, { force: options.forceUsers === true }).catch(() => []),
-                fetchTrafficWindowTotals(),
-                Promise.all(
-                    servers.map(async (server) => {
-                        try {
-                            const [inboundsRes, onlineRes] = await Promise.all([
-                                api.get(`/panel/${server.id}/panel/api/inbounds/list`),
-                                api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
-                            ]);
-                            return {
-                                server,
-                                inbounds: Array.isArray(inboundsRes.data?.obj) ? inboundsRes.data.obj : [],
-                                onlines: Array.isArray(onlineRes.data?.obj) ? onlineRes.data.obj : [],
-                            };
-                        } catch {
-                            return {
-                                server,
-                                inbounds: [],
-                                onlines: [],
-                            };
-                        }
-                    })
-                ),
-            ]);
-
-            const presence = buildManagedOnlineSummary(
-                Array.isArray(users) ? users : [],
-                serverPayloads.map((item) => ({
-                    serverId: item.server.id,
-                    inbounds: item.inbounds,
-                    onlines: item.onlines,
-                    serverName: item.server.name,
-                }))
-            );
-
-            setGlobalOnlineUsers(presence.onlineRows);
-            setGlobalOnlineSessionCount(presence.onlineSessionCount);
-            setGlobalAccountSummary({
-                totalUsers: presence.rows.length,
-                pendingUsers: presence.pendingCount,
+            const res = await api.get('/servers/dashboard/snapshot', {
+                params: options.force === true ? { refresh: true } : undefined,
             });
-            setGlobalStats((previous) => ({
-                ...previous,
-                totalOnline: presence.onlineRows.length,
-            }));
-            setGlobalPresenceReady(true);
-            syncTrafficWindowTotals(trafficWindows);
-            setServerStatuses((previous) => {
-                const next = { ...previous };
-                serverPayloads.forEach((item) => {
-                    const current = previous?.[item.server.id] || {};
-                    next[item.server.id] = withServerRemarkMeta({
-                        ...current,
-                        serverId: current.serverId || item.server.id,
-                        name: current.name || item.server.name,
-                        rawInbounds: item.inbounds,
-                        rawOnlines: item.onlines,
-                        managedTrafficTotal: Number(presence.serverTrafficByServerId?.[item.server.id]?.total || 0),
-                        managedTrafficReady: true,
-                    }, item.server.name);
-                });
-                return next;
-            });
+            applyGlobalDashboardSnapshot(res.data?.obj || {});
         } catch (err) {
-            console.error('Global presence hydration error:', err);
-            setGlobalOnlineUsers([]);
-            setGlobalOnlineSessionCount(0);
-            setGlobalPresenceReady(false);
-            resetTrafficWindows();
+            console.error('Global fetch error:', err);
+            if (!options.preserveCurrent) {
+                setGlobalPresenceReady(false);
+            }
         }
         setGlobalPresenceLoading(false);
-    }, [fetchTrafficWindowTotals, markTrafficWindowsReady, resetTrafficWindows, servers, syncTrafficWindowTotals]);
+        setLoading(false);
+    }, [applyGlobalDashboardSnapshot, servers.length]);
+
+    const hydrateGlobalPresence = useCallback(async (options = {}) => {
+        return fetchGlobalData({
+            force: options.force === true,
+            preserveCurrent: true,
+        });
+    }, [fetchGlobalData]);
 
     useEffect(() => {
         if (activeServerId === 'global') return;
@@ -1100,28 +821,45 @@ export default function Dashboard() {
     }, [activeServerId]);
 
     useEffect(() => {
-        setLoading(true);
-        if (activeServerId === 'global') {
-            fetchGlobalAccountSummary();
-            if (hasLiveClusterSnapshot) {
-                setLoading(false);
-                return;
-            }
-            const timer = window.setTimeout(() => {
-                if (!hasLiveClusterSnapshot) {
-                    fetchGlobalData();
-                }
-            }, GLOBAL_WS_GRACE_MS);
-            return () => window.clearTimeout(timer);
+        if (activeServerId !== 'global') return undefined;
+        const hasRenderableGlobalData = (
+            Object.keys(serverStatuses || {}).length > 0
+            || globalAccountSummary.totalUsers > 0
+            || globalOnlineUsers.length > 0
+            || Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true)
+        );
+        setLoading(!hasRenderableGlobalData);
+        if (hasLiveClusterSnapshot) {
+            setLoading(false);
+            return undefined;
         }
+        const timer = window.setTimeout(() => {
+            if (!hasLiveClusterSnapshot) {
+                fetchGlobalData();
+            }
+        }, GLOBAL_WS_GRACE_MS);
+        return () => window.clearTimeout(timer);
+    }, [
+        activeServerId,
+        fetchGlobalData,
+        globalAccountSummary.totalUsers,
+        globalOnlineUsers.length,
+        hasLiveClusterSnapshot,
+        serverStatuses,
+        trafficWindowTotals,
+    ]);
+
+    useEffect(() => {
+        if (activeServerId === 'global') return;
         if (activeServerId) {
             setHasLiveClusterSnapshot(false);
+            setLoading(true);
             fetchSingleData();
             return;
         }
         setHasLiveClusterSnapshot(false);
         setLoading(false);
-    }, [activeServerId, fetchSingleData, fetchGlobalAccountSummary, fetchGlobalData, hasLiveClusterSnapshot, hydrateGlobalPresence]);
+    }, [activeServerId, fetchSingleData]);
 
     useEffect(() => {
         if (activeServerId !== 'global') return;
@@ -1151,16 +889,12 @@ export default function Dashboard() {
 
     const refresh = () => {
         if (activeServerId !== 'global') {
-            return fetchSingleData();
+            return fetchSingleData({ force: true });
         }
         if (wsStatus === 'connected') {
-            const summaryTask = fetchGlobalAccountSummary({ forceUsers: true });
-            return Promise.all([
-                summaryTask,
-                hydrateGlobalPresence({ forceUsers: true }),
-            ]);
+            return hydrateGlobalPresence({ force: true });
         }
-        return fetchGlobalData();
+        return fetchGlobalData({ force: true });
     };
     const toggleAutoRefresh = () => {
         setAutoRefresh((previous) => {

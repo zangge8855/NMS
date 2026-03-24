@@ -51,6 +51,7 @@ describe('Subscriptions', () => {
     const confirmMock = vi.fn();
 
     beforeEach(() => {
+        window.sessionStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
         api.put.mockReset();
@@ -63,6 +64,41 @@ describe('Subscriptions', () => {
         });
         useConfirm.mockReturnValue(confirmMock);
         confirmMock.mockResolvedValue(true);
+    });
+
+    it('renders the cached admin subscription snapshot before live requests finish', async () => {
+        useAuth.mockReturnValue({
+            user: {
+                role: 'admin',
+                subscriptionEmail: '',
+            },
+        });
+        window.sessionStorage.setItem('nms_session_snapshot:subscriptions_center_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                users: ['admin@example.com'],
+                usersAccessDenied: false,
+                selectedEmail: 'admin@example.com',
+                selectedServerId: 'all',
+                profileKey: 'v2rayn',
+                subscriptionEmail: 'admin@example.com',
+                subscriptionServerId: '',
+                subscriptionPayload: {
+                    email: 'admin@example.com',
+                    total: 1,
+                    subscriptionActive: true,
+                    subscriptionUrl: 'https://sub.example.com/base',
+                },
+            },
+        }));
+
+        api.get.mockImplementation(() => new Promise(() => {}));
+
+        renderWithRouter(<Subscriptions />);
+
+        expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('admin@example.com')).toBeInTheDocument();
+        expect(screen.getByText('用户列表 1')).toBeInTheDocument();
     });
 
     it('auto-loads the current user subscription without exposing admin controls', async () => {

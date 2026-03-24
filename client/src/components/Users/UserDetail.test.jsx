@@ -127,6 +127,7 @@ describe('UserDetail', () => {
         api.put.mockReset();
         api.post.mockReset();
         api.delete.mockReset();
+        sessionStorage.clear();
         useServer.mockReset();
         invalidateServerPanelDataCache();
         useServer.mockReturnValue({
@@ -522,6 +523,49 @@ describe('UserDetail', () => {
         expect(screen.getByDisplayValue('https://sub.example.com/v2rayn')).toBeInTheDocument();
         expect(screen.getByText('subscription-client-links')).toBeInTheDocument();
         expect(screen.getByText('qr-code')).toBeInTheDocument();
+    });
+
+    it('renders the last session detail snapshot before the live detail request finishes', async () => {
+        const never = new Promise(() => {});
+        window.sessionStorage.setItem('nms_session_snapshot:user_detail_v1:user-1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                detail: {
+                    user: {
+                        id: 'user-1',
+                        username: 'snapshot-user',
+                        email: 'snapshot@example.com',
+                        subscriptionEmail: 'snapshot@example.com',
+                        emailVerified: true,
+                        role: 'user',
+                        enabled: true,
+                        createdAt: '2026-03-11T10:00:00.000Z',
+                        lastLoginAt: '2026-03-11T11:00:00.000Z',
+                    },
+                    policy: null,
+                    recentAudit: { items: [], total: 0 },
+                    subscriptionAccess: { items: [], total: 0 },
+                    tokens: [],
+                },
+                clientData: [],
+                clientsFetched: false,
+                subscriptionResult: null,
+                subscriptionFetched: false,
+                subscriptionProfileKey: 'v2rayn',
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UserDetail />);
+
+        expect(await screen.findByText('用户详情 · snapshot-user')).toBeInTheDocument();
+        expect(screen.getByText('snapshot@example.com')).toBeInTheDocument();
     });
 
     it('uses node wording for the node tab and empty state', async () => {

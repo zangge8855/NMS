@@ -20,11 +20,70 @@ import { URL } from 'url';
 import { verifyWsTicket } from './lib/wsTicket.js';
 import taskQueue from './lib/taskQueue.js';
 import notificationService from './lib/notifications.js';
-import { collectClusterStatusSnapshot } from './lib/serverStatusService.js';
+import { collectClusterStatusSnapshot, getCachedClusterStatusSnapshot } from './lib/serverStatusService.js';
+import trafficStatsStore from './store/trafficStatsStore.js';
+import userStore from './store/userStore.js';
 
 const BROADCAST_INTERVAL = 10_000;   // 10 秒采集/广播一次
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
+
+function buildTodayRange() {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return {
+        from: start.toISOString(),
+        to: now.toISOString(),
+    };
+}
+
+function buildDashboardAccountSummary() {
+    const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
+    return {
+        totalUsers: rows.length,
+        pendingUsers: rows.filter((item) => item?.enabled === false).length,
+    };
+}
+
+function buildDashboardTrafficWindows() {
+    const readWindow = (options = {}) => {
+        const overview = trafficStatsStore.getOverview(options);
+        return {
+            totals: overview?.totals || { upBytes: 0, downBytes: 0, totalBytes: 0 },
+            managedTotals: overview?.managedTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 },
+            activeUsers: Number(overview?.activeUsers || 0),
+            lastCollectionAt: overview?.lastCollectionAt || '',
+        };
+    };
+
+    return {
+        day: readWindow(buildTodayRange()),
+        week: readWindow({ days: 7 }),
+        month: readWindow({ days: 30 }),
+    };
+}
+
+function buildClusterStatusMessage(snapshot) {
+    return {
+        type: 'cluster_status',
+        ts: Date.now(),
+        data: {
+            serverCount: snapshot?.summary?.total || 0,
+            onlineServers: snapshot?.summary?.onlineServers || 0,
+            totalOnline: snapshot?.summary?.totalOnline || 0,
+            totalUp: snapshot?.summary?.totalUp || 0,
+            totalDown: snapshot?.summary?.totalDown || 0,
+            totalInbounds: snapshot?.summary?.totalInbounds || 0,
+            activeInbounds: snapshot?.summary?.activeInbounds || 0,
+            byReason: snapshot?.summary?.byReason || snapshot?.summary?.reasonCounts || {},
+            reasonCounts: snapshot?.summary?.reasonCounts || {},
+            servers: snapshot?.byServerId || {},
+            accountSummary: buildDashboardAccountSummary(),
+            trafficWindows: buildDashboardTrafficWindows(),
+        },
+    };
+}
 
 /**
  * 初始化 WebSocket 服务器
@@ -105,8 +164,13 @@ export function initWebSocket(httpServer) {
             safeSend(ws, { type: 'NMS_NOTIFICATION_COUNT', ts: Date.now(), data: { unreadCount: unread } });
         }
 
-        // Push a fresh cluster snapshot immediately so dashboard clients
-        // do not wait for the next broadcast interval before rendering.
+        // Push the latest cached snapshot first so the dashboard can render
+        // immediately, then follow it with a fresh snapshot if needed.
+        const cachedSnapshot = getCachedClusterStatusSnapshot();
+        if (Array.isArray(cachedSnapshot?.items) && cachedSnapshot.items.length > 0) {
+            safeSend(ws, buildClusterStatusMessage(cachedSnapshot));
+        }
+
         collectClusterStatusSnapshot({
             includeDetails: true,
             maxAgeMs: Math.max(0, BROADCAST_INTERVAL - 1_000),
@@ -114,22 +178,7 @@ export function initWebSocket(httpServer) {
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
             }
-            safeSend(ws, {
-                type: 'cluster_status',
-                ts: Date.now(),
-                data: {
-                    serverCount: snapshot.summary?.total || 0,
-                    onlineServers: snapshot.summary?.onlineServers || 0,
-                    totalOnline: snapshot.summary?.totalOnline || 0,
-                    totalUp: snapshot.summary?.totalUp || 0,
-                    totalDown: snapshot.summary?.totalDown || 0,
-                    totalInbounds: snapshot.summary?.totalInbounds || 0,
-                    activeInbounds: snapshot.summary?.activeInbounds || 0,
-                    byReason: snapshot.summary?.byReason || snapshot.summary?.reasonCounts || {},
-                    reasonCounts: snapshot.summary?.reasonCounts || {},
-                    servers: snapshot.byServerId || {},
-                },
-            });
+            safeSend(ws, buildClusterStatusMessage(snapshot));
         }).catch((err) => {
             console.error('[WebSocket] Initial snapshot error:', err.message);
         });
@@ -152,22 +201,7 @@ export function initWebSocket(httpServer) {
                 return;
             }
 
-            const clusterPayload = JSON.stringify({
-                type: 'cluster_status',
-                ts: Date.now(),
-                data: {
-                    serverCount: snapshot.summary?.total || 0,
-                    onlineServers: snapshot.summary?.onlineServers || 0,
-                    totalOnline: snapshot.summary?.totalOnline || 0,
-                    totalUp: snapshot.summary?.totalUp || 0,
-                    totalDown: snapshot.summary?.totalDown || 0,
-                    totalInbounds: snapshot.summary?.totalInbounds || 0,
-                    activeInbounds: snapshot.summary?.activeInbounds || 0,
-                    byReason: snapshot.summary?.byReason || snapshot.summary?.reasonCounts || {},
-                    reasonCounts: snapshot.summary?.reasonCounts || {},
-                    servers: snapshot.byServerId || {},
-                },
-            });
+            const clusterPayload = JSON.stringify(buildClusterStatusMessage(snapshot));
 
             // Broadcast to all connected clients
             for (const ws of wss.clients) {

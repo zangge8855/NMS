@@ -61,6 +61,7 @@ describe('AuditCenter localization', () => {
         api.get.mockReset();
         api.delete.mockReset();
         window.localStorage.clear();
+        window.sessionStorage.clear();
         mockMatchMedia(false);
     });
 
@@ -177,6 +178,45 @@ describe('AuditCenter localization', () => {
 
         expect(screen.getByPlaceholderText('事件类型')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('节点 ID')).toBeInTheDocument();
+    });
+
+    it('renders the cached events snapshot while the live query is still pending', async () => {
+        const never = new Promise(() => {});
+        window.sessionStorage.setItem('nms_session_snapshot:audit_events_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                eventsData: {
+                    items: [
+                        {
+                            id: 'event-1',
+                            ts: '2026-03-13T10:00:00.000Z',
+                            eventType: 'login_success',
+                            outcome: 'success',
+                            actor: 'review-admin',
+                            serverId: 'server-a',
+                            details: {
+                                email: 'alice@example.com',
+                            },
+                        },
+                    ],
+                    total: 1,
+                    page: 1,
+                    totalPages: 1,
+                },
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/audit/events?')) {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('登录成功')).toBeInTheDocument();
+        expect(screen.queryByText('暂无审计记录')).not.toBeInTheDocument();
     });
 
     it('renders localized subscription access statuses in the subscriptions tab', async () => {
@@ -342,6 +382,85 @@ describe('AuditCenter localization', () => {
         expect(screen.getByText('已脱敏 UA')).toBeInTheDocument();
         expect(screen.queryByText('dd43f8a31ad7ff43@masked.local')).not.toBeInTheDocument();
         expect(screen.queryByText('ua_1234567890abcdef')).not.toBeInTheDocument();
+    });
+
+    it('renders the cached subscription snapshot while the live query is still pending', async () => {
+        const never = new Promise(() => {});
+        window.sessionStorage.setItem('nms_session_snapshot:audit_access_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                accessData: {
+                    items: [
+                        {
+                            id: 'access-1',
+                            ts: '2026-03-13T10:00:00.000Z',
+                            userLabel: 'Alice',
+                            email: 'alice@example.com',
+                            status: 'success',
+                            clientIp: '203.0.113.8',
+                            ipSource: 'real',
+                            userAgent: 'Mihomo',
+                        },
+                    ],
+                    total: 1,
+                    page: 1,
+                    totalPages: 1,
+                    statusBreakdown: {
+                        success: 1,
+                    },
+                },
+                accessSummary: {
+                    total: 5,
+                    uniqueIpCount: 3,
+                    uniqueUsers: 2,
+                    statusBreakdown: {
+                        success: 5,
+                    },
+                    topIps: [],
+                    from: '',
+                    to: '',
+                },
+                accessUserWindows: {
+                    week: {
+                        total: 2,
+                        uniqueIpCount: 2,
+                        uniqueUsers: 1,
+                        statusBreakdown: {
+                            success: 2,
+                        },
+                        topIps: [],
+                        from: '',
+                        to: '',
+                    },
+                    month: {
+                        total: 5,
+                        uniqueIpCount: 3,
+                        uniqueUsers: 2,
+                        statusBreakdown: {
+                            success: 5,
+                        },
+                        topIps: [],
+                        from: '',
+                        to: '',
+                    },
+                },
+            },
+        }));
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/subscriptions/access?') || url.startsWith('/subscriptions/access/summary?')) {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
+
+        expect(await screen.findByText('Alice')).toBeInTheDocument();
+        expect(screen.queryByText('暂无访问记录')).not.toBeInTheDocument();
+        expect(screen.getByText('周访问用户')).toBeInTheDocument();
+        expect(screen.getByText('月访问用户')).toBeInTheDocument();
+        expect(document.querySelector('.audit-subscriptions-table')).toBeTruthy();
     });
 
     it('shows registered user labels in traffic rankings instead of masked identifiers', async () => {

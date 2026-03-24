@@ -240,6 +240,7 @@ function buildDayKey(value = Date.now()) {
 export function computeDailyBackupSchedule(options = {}) {
     const nowMs = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
     const now = new Date(nowMs);
+    const deferMissedRun = options.deferMissedRun === true;
     const dailyBackupTime = normalizeDailyBackupTime(options.dailyBackupTime, DEFAULT_DAILY_BACKUP_TIME);
     const [hoursText, minutesText] = dailyBackupTime.split(':');
     const targetToday = new Date(now);
@@ -247,10 +248,11 @@ export function computeDailyBackupSchedule(options = {}) {
     const todayKey = buildDayKey(now);
     const lastHandledDayKey = buildDayKey(options.lastBackupAt || options.lastBackupAttemptAt);
     const handledToday = Boolean(todayKey && lastHandledDayKey && todayKey === lastHandledDayKey);
-    const shouldSendNow = !handledToday && nowMs >= targetToday.getTime();
+    const missedToday = !handledToday && nowMs >= targetToday.getTime();
+    const shouldSendNow = !deferMissedRun && missedToday;
     const nextTarget = new Date(targetToday);
 
-    if (shouldSendNow || handledToday) {
+    if (missedToday || handledToday) {
         nextTarget.setDate(nextTarget.getDate() + 1);
     }
 
@@ -1279,7 +1281,7 @@ export function createTelegramAlertService(options = {}) {
         }
     }
 
-    function scheduleNextDailyBackup() {
+    function scheduleNextDailyBackup(options = {}) {
         if (dailyBackupTimer) {
             clearTimeout(dailyBackupTimer);
             dailyBackupTimer = null;
@@ -1295,6 +1297,7 @@ export function createTelegramAlertService(options = {}) {
             dailyBackupTime: settings.dailyBackupTime,
             lastBackupAt: runtimeStatus.lastBackupAt,
             lastBackupAttemptAt: runtimeStatus.lastBackupAttemptAt,
+            deferMissedRun: options.deferMissedRun === true,
         });
         runtimeStatus.nextDailyBackupAt = schedule.nextDailyBackupAt;
         const nextTargetMs = new Date(schedule.shouldSendNow ? nowProvider() : schedule.nextDailyBackupAt).getTime();
@@ -2101,7 +2104,7 @@ export function createTelegramAlertService(options = {}) {
         return sent;
     }
 
-    function schedulePeriodicDigests() {
+    function schedulePeriodicDigests(options = {}) {
         if (opsDigestTimer) {
             clearInterval(opsDigestTimer);
             opsDigestTimer = null;
@@ -2136,7 +2139,9 @@ export function createTelegramAlertService(options = {}) {
             }, dailyIntervalMs);
         }
 
-        scheduleNextDailyBackup();
+        scheduleNextDailyBackup({
+            deferMissedRun: options.deferMissedRun === true,
+        });
     }
 
     async function processUpdates(updates = []) {
@@ -2229,13 +2234,15 @@ export function createTelegramAlertService(options = {}) {
         aggregateBuckets.clear();
     }
 
-    function reloadSettings() {
+    function reloadSettings(options = {}) {
         commandsSynced = false;
         commandMenuCleared = false;
         commandSyncPromise = null;
         if (!running) return;
         void syncCommands(true);
-        schedulePeriodicDigests();
+        schedulePeriodicDigests({
+            deferMissedRun: options.deferMissedRun === true,
+        });
     }
 
     function getStatus() {

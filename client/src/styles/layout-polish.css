@@ -9822,13 +9822,17 @@ p, .empty-state-body, td {
   display: flex;
 }
 
+.settings-page .settings-main {
+  gap: 10px;
+}
+
 .settings-page .settings-workspace-section {
-  gap: 14px;
+  gap: 12px;
 }
 
 .settings-page .settings-workspace-hero {
-  gap: 14px;
-  padding: clamp(16px, 1.7vw, 22px);
+  gap: 12px;
+  padding: clamp(14px, 1.45vw, 18px);
   border-radius: 22px;
 }
 
@@ -9876,12 +9880,14 @@ p, .empty-state-body, td {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 8px 12px;
 }
 
 .settings-page .settings-panel > .section-header .section-header-copy {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .settings-page .settings-panel > .section-header .section-header-side {
@@ -9896,7 +9902,7 @@ p, .empty-state-body, td {
 .settings-page .settings-panel > .section-header .section-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -9966,21 +9972,78 @@ p, .empty-state-body, td {
 }
 
 .settings-page .settings-save-dock {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 20px;
 }
 
 .settings-page .settings-save-dock-inner {
   align-items: flex-start;
+  justify-content: flex-start;
   gap: 12px 16px;
 }
 
 .settings-page .settings-save-dock-main {
-  flex: 1 1 360px;
+  flex: 0 1 auto;
+  max-width: min(100%, 56rem);
+  gap: 6px 10px;
 }
 
 .settings-page .settings-save-dock-actions {
   flex: 0 0 auto;
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.settings-page .settings-save-dock-summary {
+  max-width: 48rem;
+}
+
+.settings-page .settings-panel .section-header-title {
+  line-height: 1.22;
+}
+
+.settings-page .settings-panel .section-header-subtitle {
+  max-width: 58ch;
+  line-height: 1.46;
+}
+
+@media (min-width: 769px) {
+  .settings-page .settings-main {
+    gap: 8px;
+  }
+
+  .settings-page .settings-workspace-section {
+    gap: 10px;
+  }
+
+  .settings-page .settings-workspace-hero {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .settings-page .settings-save-dock-inner {
+    flex-wrap: nowrap;
+    gap: 10px 14px;
+  }
+
+  .settings-page .settings-save-dock-main {
+    flex: 0 1 auto;
+    max-width: min(100%, 44rem);
+  }
+
+  .settings-page .settings-save-dock-actions,
+  .settings-page .settings-save-dock-actions .btn {
+    width: auto;
+  }
+
+  .settings-page .settings-save-dock-actions {
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  .settings-page .settings-save-dock-summary {
+    max-width: 34rem;
+  }
 }
 
 .subscriptions-page .subscriptions-toolbar {

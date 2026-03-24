@@ -2,13 +2,18 @@ import { Router } from 'express';
 import dns from 'dns/promises';
 import net from 'net';
 import serverStore from '../store/serverStore.js';
+import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
+import { buildGlobalDashboardSnapshot, buildSingleDashboardSnapshot } from '../lib/dashboardSnapshotService.js';
+import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js';
+import { getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
@@ -285,30 +290,120 @@ router.get('/telemetry/overview', (req, res) => {
     });
 });
 
-router.get('/:id/logs', async (req, res) => {
+router.get('/dashboard/snapshot', async (req, res) => {
     try {
-        const source = normalizeRequestedLogSource(req.query?.source);
-        const count = normalizeRequestedLogCount(req.query?.count, 100);
-        const payload = await fetchServerLogResult(req.params.id, { source, count });
-        const server = serverStore.getById(req.params.id);
+        const payload = await buildGlobalDashboardSnapshot({
+            force: parseBoolean(req.query?.refresh, false),
+        }, {
+            serverStore,
+            userStore,
+            systemSettingsStore,
+        });
+        return res.json({
+            success: true,
+            obj: payload,
+        });
+    } catch (error) {
+        return res.status(error?.status || 500).json({
+            success: false,
+            msg: error.message || '获取仪表盘快照失败',
+        });
+    }
+});
+
+router.get('/logs/snapshot', async (req, res) => {
+    try {
+        const items = await getServerLogSnapshots({
+            serverIds: String(req.query?.serverIds || '').trim(),
+            source: req.query?.source,
+            count: req.query?.count,
+            force: parseBoolean(req.query?.refresh, false),
+        });
         return res.json({
             success: true,
             obj: {
-                serverId: req.params.id,
-                serverName: server?.name || '',
-                source,
-                count,
-                supported: payload.supported !== false,
-                warning: payload.warning || '',
-                sourcePath: payload.sourcePath || '',
-                lines: Array.isArray(payload.lines) ? payload.lines : [],
+                items,
                 fetchedAt: new Date().toISOString(),
             },
         });
     } catch (error) {
         return res.status(error?.status || 502).json({
             success: false,
+            msg: error.message || '获取日志快照失败',
+        });
+    }
+});
+
+router.get('/:id/logs', async (req, res) => {
+    try {
+        const source = normalizeRequestedLogSource(req.query?.source);
+        const count = normalizeRequestedLogCount(req.query?.count, 100);
+        const payload = await getServerLogSnapshot(req.params.id, {
+            source,
+            count,
+            force: parseBoolean(req.query?.refresh, false),
+        }, {
+            fetchServerLogPayload: fetchServerLogResult,
+        });
+        return res.json({
+            success: true,
+            obj: {
+                serverId: payload.serverId,
+                serverName: payload.serverName || '',
+                source: payload.source || source,
+                count: payload.count || count,
+                supported: payload.supported !== false,
+                warning: payload.warning || '',
+                sourcePath: payload.sourcePath || '',
+                lines: Array.isArray(payload.lines) ? payload.lines : [],
+                fetchedAt: payload.fetchedAt || new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        return res.status(error?.status || 502).json({
+            success: false,
             msg: error.message || '获取日志失败',
+        });
+    }
+});
+
+router.get('/:id/dashboard/snapshot', async (req, res) => {
+    try {
+        const payload = await buildSingleDashboardSnapshot(req.params.id, {
+            force: parseBoolean(req.query?.refresh, false),
+        }, {
+            serverStore,
+            userStore,
+            systemSettingsStore,
+        });
+        return res.json({
+            success: true,
+            obj: payload,
+        });
+    } catch (error) {
+        return res.status(error?.status || 500).json({
+            success: false,
+            msg: error.message || '获取节点仪表盘快照失败',
+        });
+    }
+});
+
+router.get('/:id/snapshot', async (req, res) => {
+    try {
+        const payload = await buildServerDetailSnapshot(req.params.id, {
+            force: parseBoolean(req.query?.refresh, false),
+        }, {
+            serverStore,
+            systemSettingsStore,
+        });
+        return res.json({
+            success: true,
+            obj: payload,
+        });
+    } catch (error) {
+        return res.status(error?.status || 500).json({
+            success: false,
+            msg: error.message || '获取服务器快照失败',
         });
     }
 });

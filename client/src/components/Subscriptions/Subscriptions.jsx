@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
@@ -18,6 +18,31 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import CircularMeter from '../UI/CircularMeter.jsx';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const SUBSCRIPTIONS_SNAPSHOT_KEY = 'subscriptions_center_bootstrap_v1';
+const SUBSCRIPTIONS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readSubscriptionsSnapshot() {
+    const snapshot = readSessionSnapshot(SUBSCRIPTIONS_SNAPSHOT_KEY, {
+        maxAgeMs: SUBSCRIPTIONS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        users: Array.isArray(snapshot?.users) ? snapshot.users : [],
+        usersAccessDenied: snapshot?.usersAccessDenied === true,
+        selectedEmail: String(snapshot?.selectedEmail || '').trim(),
+        selectedServerId: String(snapshot?.selectedServerId || '').trim() || 'all',
+        profileKey: String(snapshot?.profileKey || '').trim(),
+        subscriptionEmail: String(snapshot?.subscriptionEmail || '').trim(),
+        subscriptionServerId: String(snapshot?.subscriptionServerId || '').trim(),
+        subscriptionPayload: snapshot?.subscriptionPayload && typeof snapshot.subscriptionPayload === 'object'
+            ? snapshot.subscriptionPayload
+            : null,
+    };
+}
 
 function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
@@ -281,6 +306,31 @@ function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN') {
     return [];
 }
 
+function buildSubscriptionResult(payload, { locale = 'zh-CN', resolvedEmail = '', selectedServerId = 'all' } = {}) {
+    const bundle = buildSubscriptionProfileBundle(payload, locale);
+    return {
+        email: payload.email || resolvedEmail,
+        total: Number(payload.total || 0),
+        sourceMode: payload.sourceMode || 'unknown',
+        mergedUrl: bundle.mergedUrl,
+        bundle,
+        subscriptionActive: payload.subscriptionActive !== false,
+        inactiveReason: normalizeInactiveReason(payload.inactiveReason, locale),
+        filteredExpired: Number(payload.filteredExpired || 0),
+        filteredDisabled: Number(payload.filteredDisabled || 0),
+        filteredByPolicy: Number(payload.filteredByPolicy || 0),
+        usedTrafficBytes: Number(payload.usedTrafficBytes || 0),
+        trafficLimitBytes: Number(payload.trafficLimitBytes || 0),
+        remainingTrafficBytes: Number(payload.remainingTrafficBytes || 0),
+        expiryTime: Number(payload.expiryTime || 0),
+        matchedClientsRaw: Number(payload.matchedClientsRaw || 0),
+        matchedClientsActive: Number(payload.matchedClientsActive || 0),
+        scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
+        serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
+        rawPayload: payload,
+    };
+}
+
 export default function Subscriptions() {
     const { servers } = useServer();
     const { user } = useAuth();
@@ -294,14 +344,29 @@ export default function Subscriptions() {
         () => String(user?.subscriptionEmail || '').trim(),
         [user?.subscriptionEmail]
     );
-    const [users, setUsers] = useState([]);
+    const queryEmail = String(searchParams.get('email') || '').trim();
+    const queryServerId = String(searchParams.get('serverId') || '').trim();
+    const bootstrapRef = useRef(readSubscriptionsSnapshot());
+    const initialSelectedEmail = queryEmail || (isUserOnly ? defaultIdentity : bootstrapRef.current?.selectedEmail || '');
+    const initialSelectedServerId = isAdmin ? (queryServerId || bootstrapRef.current?.selectedServerId || 'all') : 'all';
+    const initialScopedServerId = initialSelectedServerId !== 'all' ? initialSelectedServerId : '';
+    const initialResult = bootstrapRef.current?.subscriptionPayload
+        && bootstrapRef.current?.subscriptionEmail === initialSelectedEmail
+        && bootstrapRef.current?.subscriptionServerId === initialScopedServerId
+        ? buildSubscriptionResult(bootstrapRef.current.subscriptionPayload, {
+            locale,
+            resolvedEmail: initialSelectedEmail,
+            selectedServerId: initialSelectedServerId,
+        })
+        : null;
+    const [users, setUsers] = useState(() => (isAdmin ? bootstrapRef.current?.users || [] : []));
     const [usersLoading, setUsersLoading] = useState(false);
-    const [usersAccessDenied, setUsersAccessDenied] = useState(false);
-    const [selectedEmail, setSelectedEmail] = useState('');
-    const [selectedServerId, setSelectedServerId] = useState('all');
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState(null);
-    const [profileKey, setProfileKey] = useState('v2rayn');
+    const [usersAccessDenied, setUsersAccessDenied] = useState(() => isAdmin ? bootstrapRef.current?.usersAccessDenied === true : false);
+    const [selectedEmail, setSelectedEmail] = useState(initialSelectedEmail);
+    const [selectedServerId, setSelectedServerId] = useState(initialSelectedServerId);
+    const [loading, setLoading] = useState(() => Boolean(initialSelectedEmail) && initialResult == null);
+    const [result, setResult] = useState(initialResult);
+    const [profileKey, setProfileKey] = useState(() => bootstrapRef.current?.profileKey || initialResult?.bundle?.defaultProfileKey || 'v2rayn');
     const [resetLoading, setResetLoading] = useState(false);
     const [qrModalOpen, setQrModalOpen] = useState(false);
     const ui = useMemo(
@@ -419,12 +484,13 @@ export default function Subscriptions() {
         if (isAdmin && serverIdFromQuery) setSelectedServerId(serverIdFromQuery);
     };
 
-    const loadUsers = async () => {
+    const loadUsers = async (options = {}) => {
         if (!isAdmin) {
             setUsers([]);
             setUsersAccessDenied(true);
             return;
         }
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && users.length > 0);
         setUsersLoading(true);
         try {
             const res = await api.get('/subscriptions/users');
@@ -450,18 +516,23 @@ export default function Subscriptions() {
             } else {
                 const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.userListFailed');
                 toast.error(msg);
+                if (!preserveCurrent) {
+                    setUsers([]);
+                }
             }
         }
         setUsersLoading(false);
     };
 
-    const loadSubscription = async (targetEmail = normalizedEmail) => {
+    const loadSubscription = async (targetEmail = normalizedEmail, options = {}) => {
         const resolvedEmail = String(targetEmail || '').trim();
         if (!resolvedEmail) {
             setResult(null);
+            setLoading(false);
             return;
         }
 
+        const preserveCurrent = options.preserveCurrent === true;
         setLoading(true);
         try {
             const query = new URLSearchParams();
@@ -471,33 +542,25 @@ export default function Subscriptions() {
 
             const res = await api.get(`/subscriptions/${encodeURIComponent(resolvedEmail)}${query.toString() ? `?${query.toString()}` : ''}`);
             const payload = res.data?.obj || {};
-            const bundle = buildSubscriptionProfileBundle(payload, locale);
-
-            setResult({
-                email: payload.email || resolvedEmail,
-                total: Number(payload.total || 0),
-                sourceMode: payload.sourceMode || 'unknown',
-                mergedUrl: bundle.mergedUrl,
-                bundle,
-                subscriptionActive: payload.subscriptionActive !== false,
-                inactiveReason: normalizeInactiveReason(payload.inactiveReason, locale),
-                filteredExpired: Number(payload.filteredExpired || 0),
-                filteredDisabled: Number(payload.filteredDisabled || 0),
-                filteredByPolicy: Number(payload.filteredByPolicy || 0),
-                usedTrafficBytes: Number(payload.usedTrafficBytes || 0),
-                trafficLimitBytes: Number(payload.trafficLimitBytes || 0),
-                remainingTrafficBytes: Number(payload.remainingTrafficBytes || 0),
-                expiryTime: Number(payload.expiryTime || 0),
-                matchedClientsRaw: Number(payload.matchedClientsRaw || 0),
-                matchedClientsActive: Number(payload.matchedClientsActive || 0),
-                scope: selectedServerId && selectedServerId !== 'all' ? 'server' : 'all',
-                serverId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
+            const nextResult = buildSubscriptionResult(payload, {
+                locale,
+                resolvedEmail,
+                selectedServerId,
             });
-            if (bundle.defaultProfileKey) {
-                setProfileKey(bundle.defaultProfileKey);
-            }
+            setResult(nextResult);
+            setProfileKey((currentKey) => {
+                const availableKeys = Array.isArray(nextResult.bundle?.availableProfiles)
+                    ? nextResult.bundle.availableProfiles.map((item) => String(item?.key || '').trim()).filter(Boolean)
+                    : [];
+                if (currentKey && availableKeys.includes(currentKey)) {
+                    return currentKey;
+                }
+                return nextResult.bundle?.defaultProfileKey || availableKeys[0] || currentKey || 'v2rayn';
+            });
         } catch (error) {
-            setResult(null);
+            if (!preserveCurrent) {
+                setResult(null);
+            }
             const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.subLoadFailed');
             toast.error(msg);
         }
@@ -509,7 +572,10 @@ export default function Subscriptions() {
     }, [searchParams, isAdmin]);
 
     useEffect(() => {
-        loadUsers();
+        loadUsers({
+            preserveCurrent: bootstrapRef.current != null
+                && (bootstrapRef.current.users.length > 0 || bootstrapRef.current.usersAccessDenied === true),
+        });
     }, [isAdmin]);
 
     useEffect(() => {
@@ -520,8 +586,37 @@ export default function Subscriptions() {
     }, [defaultIdentity, isUserOnly, selectedEmail]);
 
     useEffect(() => {
-        loadSubscription(deferredEmail);
+        const snapshot = readSubscriptionsSnapshot();
+        const scopedServerId = selectedServerId && selectedServerId !== 'all' ? selectedServerId : '';
+        const canUseSnapshot = snapshot?.subscriptionPayload
+            && snapshot?.subscriptionEmail === deferredEmail
+            && snapshot?.subscriptionServerId === scopedServerId;
+        if (canUseSnapshot) {
+            setResult(buildSubscriptionResult(snapshot.subscriptionPayload, {
+                locale,
+                resolvedEmail: deferredEmail,
+                selectedServerId,
+            }));
+            if (snapshot.profileKey) {
+                setProfileKey(snapshot.profileKey);
+            }
+            setLoading(false);
+        }
+        loadSubscription(deferredEmail, { preserveCurrent: canUseSnapshot });
     }, [deferredEmail, selectedServerId, locale]);
+
+    useEffect(() => {
+        writeSessionSnapshot(SUBSCRIPTIONS_SNAPSHOT_KEY, {
+            users,
+            usersAccessDenied,
+            selectedEmail,
+            selectedServerId,
+            profileKey,
+            subscriptionEmail: normalizedEmail,
+            subscriptionServerId: selectedServerId && selectedServerId !== 'all' ? selectedServerId : '',
+            subscriptionPayload: result?.rawPayload || null,
+        });
+    }, [normalizedEmail, profileKey, result, selectedEmail, selectedServerId, users, usersAccessDenied]);
 
     useEffect(() => {
         if (!canShowQr) {

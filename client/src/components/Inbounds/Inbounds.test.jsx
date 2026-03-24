@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
+import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 import Inbounds from './Inbounds.jsx';
 
 const confirmMock = vi.fn();
@@ -67,6 +68,8 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Inbounds', () => {
     beforeEach(() => {
+        window.sessionStorage.clear();
+        invalidateServerPanelDataCache();
         window.matchMedia.mockImplementation((query) => ({
             matches: false,
             media: query,
@@ -171,6 +174,49 @@ describe('Inbounds', () => {
                 },
             },
         });
+    });
+
+    it('renders the cached inbound snapshot before the live requests finish', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:inbounds_page_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                inbounds: [
+                    {
+                        id: 1,
+                        remark: 'Cached Inbound',
+                        protocol: 'vless',
+                        listen: '0.0.0.0',
+                        port: 443,
+                        enable: true,
+                        up: 1024,
+                        down: 2048,
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        uiKey: 'server-a-1',
+                        clients: [],
+                        onlineSessionCount: 0,
+                        onlineUserCount: 0,
+                        hasOnlineUsers: false,
+                        trafficUp: 1024,
+                        trafficDown: 2048,
+                        settings: JSON.stringify({ clients: [] }),
+                    },
+                ],
+                inboundOrder: {
+                    'server-a': ['1'],
+                },
+                serverOrder: ['server-a'],
+                overrideKeys: [],
+            },
+        }));
+
+        api.get.mockImplementation(() => new Promise(() => {}));
+        api.post.mockImplementation(() => new Promise(() => {}));
+
+        renderWithRouter(<Inbounds />);
+
+        expect(await screen.findByText('Cached Inbound')).toBeInTheDocument();
+        expect(screen.queryByTestId('skeleton-table')).not.toBeInTheDocument();
     });
 
     it('shows only the client count in the summary and exposes per-user online status', async () => {

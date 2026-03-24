@@ -99,6 +99,16 @@ describe('traffic stats inbound fallback', () => {
 
             const overview = store.getOverview({ days: 30, top: 10 });
             assert.equal(overview.activeUsers, 1);
+            assert.deepEqual(overview.managedTotals, {
+                upBytes: 100,
+                downBytes: 200,
+                totalBytes: 300,
+            });
+            assert.deepEqual(overview.totals, {
+                upBytes: 600,
+                downBytes: 700,
+                totalBytes: 1300,
+            });
             assert.equal(overview.topUsers.length, 1);
             assert.equal(overview.topUsers[0].email, 'alice@example.com');
             assert.equal(overview.topUsers[0].username, 'alice');
@@ -117,86 +127,119 @@ describe('traffic stats inbound fallback', () => {
     });
 
     it('reports current cumulative traffic for registered users separately from sampled overview totals', () => {
-        const totals = summarizeRegisteredTrafficTotals([
-            {
-                id: 'user-1',
-                username: 'alice',
-                email: 'alice@example.com',
-                subscriptionEmail: 'alice@example.com',
-                role: 'user',
-                enabled: true,
-            },
-            {
-                id: 'user-2',
-                username: 'bob',
-                email: 'bob@example.com',
-                subscriptionEmail: '',
-                role: 'user',
-                enabled: true,
-            },
-        ], [
-            {
-                inbounds: [
+        const originalUsers = userStore.exportState();
+        try {
+            userStore.importState({
+                users: [
                     {
-                        id: 1,
-                        protocol: 'vless',
-                        enable: true,
-                        settings: JSON.stringify({
-                            clients: [
-                                { email: 'alice@example.com', up: 100, down: 200 },
-                                { email: 'anonymous@example.com', up: 500, down: 600 },
-                            ],
-                        }),
+                        id: 'user-1',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
                     },
                     {
-                        id: 2,
-                        protocol: 'vmess',
-                        enable: true,
-                        settings: JSON.stringify({
-                            clients: [
-                                { email: 'bob@example.com', up: 50, down: 25 },
-                            ],
-                        }),
+                        id: 'user-2',
+                        username: 'bob',
+                        email: 'bob@example.com',
+                        subscriptionEmail: '',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
                     },
                 ],
-            },
-        ]);
+            });
 
-        assert.deepEqual(totals, {
-            totalUsers: 2,
-            activeUsers: 2,
-            upBytes: 150,
-            downBytes: 225,
-            totalBytes: 375,
-        });
-
-        const store = new TrafficStatsStore();
-        store.importState({
-            samples: [
+            const totals = summarizeRegisteredTrafficTotals([
                 {
-                    id: 'sample-1',
-                    ts: '2026-03-13T00:00:00.000Z',
-                    serverId: 'server-a',
-                    serverName: 'Node A',
-                    inboundId: '1',
-                    inboundRemark: 'Main',
+                    id: 'user-1',
+                    username: 'alice',
                     email: 'alice@example.com',
-                    clientIdentifier: 'alice',
-                    upBytes: 10,
-                    downBytes: 20,
-                    totalBytes: 30,
+                    subscriptionEmail: 'alice@example.com',
+                    role: 'user',
+                    enabled: true,
                 },
-            ],
-            counters: {},
-            meta: {
-                lastCollectionAt: '2026-03-13T01:00:00.000Z',
-                registeredTotals: totals,
-            },
-        });
+                {
+                    id: 'user-2',
+                    username: 'bob',
+                    email: 'bob@example.com',
+                    subscriptionEmail: '',
+                    role: 'user',
+                    enabled: true,
+                },
+            ], [
+                {
+                    inbounds: [
+                        {
+                            id: 1,
+                            protocol: 'vless',
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [
+                                    { email: 'alice@example.com', up: 100, down: 200 },
+                                    { email: 'anonymous@example.com', up: 500, down: 600 },
+                                ],
+                            }),
+                        },
+                        {
+                            id: 2,
+                            protocol: 'vmess',
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [
+                                    { email: 'bob@example.com', up: 50, down: 25 },
+                                ],
+                            }),
+                        },
+                    ],
+                },
+            ]);
 
-        const overview = store.getOverview({ days: 30, top: 10 });
-        assert.equal(overview.totals.totalBytes, 30);
-        assert.deepEqual(overview.registeredTotals, totals);
+            assert.deepEqual(totals, {
+                totalUsers: 2,
+                activeUsers: 2,
+                upBytes: 150,
+                downBytes: 225,
+                totalBytes: 375,
+            });
+
+            const store = new TrafficStatsStore();
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-1',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 10,
+                        downBytes: 20,
+                        totalBytes: 30,
+                    },
+                ],
+                counters: {},
+                meta: {
+                    lastCollectionAt: '2026-03-13T01:00:00.000Z',
+                    registeredTotals: totals,
+                },
+            });
+
+            const overview = store.getOverview({ days: 30, top: 10 });
+            assert.equal(overview.totals.totalBytes, 30);
+            assert.equal(overview.managedTotals.totalBytes, 30);
+            assert.deepEqual(overview.registeredTotals, totals);
+        } finally {
+            userStore.importState(originalUsers);
+        }
     });
 
     it('uses current inbound-based server totals for top node ranking', () => {

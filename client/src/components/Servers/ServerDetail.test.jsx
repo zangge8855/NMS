@@ -77,56 +77,76 @@ function deferred() {
 
 describe('ServerDetail', () => {
     beforeEach(() => {
+        window.sessionStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
         mockMatchMedia(false);
     });
 
-    it('keeps summary stats in loading state until inbound and online data resolve', async () => {
-        const inboundsDeferred = deferred();
-        const onlinesDeferred = deferred();
+    it('renders the cached server detail snapshot before the live requests finish', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:server_detail_v1:server-1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                server: {
+                    id: 'server-1',
+                    name: 'Snapshot Server',
+                    url: 'https://snapshot.example.com',
+                    username: 'nmsadmin',
+                    environment: 'staging',
+                    group: 'edge',
+                    health: 'healthy',
+                    tags: [],
+                    basePath: '/',
+                },
+                status: {
+                    cpu: 12.5,
+                    mem: { current: 1024, total: 2048 },
+                    uptime: 600,
+                    xray: { version: '1.8.13' },
+                },
+                inbounds: [
+                    {
+                        id: 'ib-1',
+                        remark: 'JP Relay',
+                        protocol: 'vless',
+                        port: 443,
+                        enable: true,
+                        settings: JSON.stringify({ clients: [{ id: 'uuid-1' }] }),
+                        up: 1024,
+                        down: 2048,
+                    },
+                ],
+                onlines: ['alice@example.com', 'alice@example.com'],
+                auditEvents: [],
+            },
+        }));
 
         api.get.mockImplementation((url) => {
-            if (url === '/servers/server-1') {
-                return Promise.resolve({
-                    data: {
-                        success: true,
-                        obj: {
-                            id: 'server-1',
-                            name: 'Test Server',
-                            url: 'http://127.0.0.1:20530',
-                            username: 'nmsadmin',
-                            environment: 'staging',
-                            group: 'edge',
-                            health: 'healthy',
-                            tags: [],
-                            basePath: '/',
-                        },
-                    },
-                });
+            if (url === '/servers/server-1/snapshot') {
+                return new Promise(() => {});
             }
-            if (url === '/panel/server-1/panel/api/server/status') {
-                return Promise.resolve({
-                    data: {
-                        success: true,
-                        obj: {
-                            cpu: 12.5,
-                            mem: { current: 1024, total: 2048 },
-                            uptime: 600,
-                            xray: { version: '1.8.13' },
-                        },
-                    },
-                });
+            if (url === '/audit/events') {
+                return new Promise(() => {});
             }
-            if (url === '/panel/server-1/panel/api/inbounds/list') {
-                return inboundsDeferred.promise;
-            }
-            if (url === '/system/inbounds/order') {
-                return Promise.resolve({
-                    data: {
-                        obj: {},
-                    },
-                });
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        expect(await screen.findByText('服务器 · Snapshot Server')).toBeInTheDocument();
+        expect(screen.getAllByText('https://snapshot.example.com')).toHaveLength(2);
+        expect(screen.getByText(/CPU: 12.5%/)).toBeInTheDocument();
+
+        const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');
+        expect(trafficCard?.querySelector('.stat-mini-value')?.textContent).toBe('3 KB');
+    });
+
+    it('keeps the page in loading state until the server snapshot resolves', async () => {
+        const snapshotDeferred = deferred();
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                return snapshotDeferred.promise;
             }
             if (url === '/audit/events') {
                 return Promise.resolve({
@@ -140,39 +160,43 @@ describe('ServerDetail', () => {
             throw new Error(`Unexpected GET ${url}`);
         });
 
-        api.post.mockImplementation((url) => {
-            if (url === '/panel/server-1/panel/api/inbounds/onlines') {
-                return onlinesDeferred.promise;
-            }
-            throw new Error(`Unexpected POST ${url}`);
-        });
-
         renderWithRouter(<ServerDetail />);
 
-        await screen.findByText('服务器 · Test Server');
+        expect(await screen.findByText('loading')).toBeInTheDocument();
 
-        const inboundCard = screen.getByText('入站规则').closest('.stat-mini-card');
-        const clientsCard = screen.getByText('客户端数').closest('.stat-mini-card');
-        const onlineCard = screen.getAllByText('在线用户')[0].closest('.stat-mini-card');
-        const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');
-
-        expect(inboundCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
-        expect(clientsCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
-        expect(onlineCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
-        expect(trafficCard?.querySelector('.stat-mini-value')?.textContent).toBe('...');
-
-        inboundsDeferred.resolve({
+        snapshotDeferred.resolve({
             data: {
-                obj: [],
-            },
-        });
-        onlinesDeferred.resolve({
-            data: {
-                obj: [],
+                success: true,
+                obj: {
+                    server: {
+                        id: 'server-1',
+                        name: 'Test Server',
+                        url: 'http://127.0.0.1:20530',
+                        username: 'nmsadmin',
+                        environment: 'staging',
+                        group: 'edge',
+                        health: 'healthy',
+                        tags: [],
+                        basePath: '/',
+                    },
+                    status: {
+                        cpu: 12.5,
+                        mem: { current: 1024, total: 2048 },
+                        uptime: 600,
+                        xray: { version: '1.8.13' },
+                    },
+                    inbounds: [],
+                    onlines: [],
+                },
             },
         });
 
         await waitFor(() => {
+            expect(screen.getByText('服务器 · Test Server')).toBeInTheDocument();
+            const inboundCard = screen.getByText('入站规则').closest('.stat-mini-card');
+            const clientsCard = screen.getByText('客户端数').closest('.stat-mini-card');
+            const onlineCard = screen.getAllByText('在线用户')[0].closest('.stat-mini-card');
+            const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');
             expect(inboundCard?.querySelector('.stat-mini-value')?.textContent).toBe('0 / 0');
             expect(clientsCard?.querySelector('.stat-mini-value')?.textContent).toBe('0');
             expect(onlineCard?.querySelector('.stat-mini-value')?.textContent).toBe('0');
@@ -185,73 +209,49 @@ describe('ServerDetail', () => {
         mockMatchMedia(true);
 
         api.get.mockImplementation((url) => {
-            if (url === '/servers/server-1') {
+            if (url === '/servers/server-1/snapshot') {
                 return Promise.resolve({
                     data: {
                         success: true,
                         obj: {
-                            id: 'server-1',
-                            name: 'Test Server',
-                            url: 'http://127.0.0.1:20530',
-                            username: 'nmsadmin',
-                            environment: 'staging',
-                            group: 'edge',
-                            health: 'healthy',
-                            tags: [],
-                            basePath: '/',
-                        },
-                    },
-                });
-            }
-            if (url === '/panel/server-1/panel/api/server/status') {
-                return Promise.resolve({
-                    data: {
-                        success: true,
-                        obj: {
-                            cpu: 12.5,
-                            mem: { current: 1024, total: 2048 },
-                            uptime: 600,
-                            xray: { version: '1.8.13' },
-                        },
-                    },
-                });
-            }
-            if (url === '/panel/server-1/panel/api/inbounds/list') {
-                return Promise.resolve({
-                    data: {
-                        obj: [
-                            {
-                                id: 'ib-1',
-                                remark: 'JP Relay',
-                                protocol: 'vless',
-                                port: 443,
-                                enable: true,
-                                settings: JSON.stringify({ clients: [{ id: 'uuid-1' }] }),
-                                up: 1024,
-                                down: 2048,
+                            server: {
+                                id: 'server-1',
+                                name: 'Test Server',
+                                url: 'http://127.0.0.1:20530',
+                                username: 'nmsadmin',
+                                environment: 'staging',
+                                group: 'edge',
+                                health: 'healthy',
+                                tags: [],
+                                basePath: '/',
                             },
-                        ],
+                            status: {
+                                cpu: 12.5,
+                                mem: { current: 1024, total: 2048 },
+                                uptime: 600,
+                                xray: { version: '1.8.13' },
+                            },
+                            inbounds: [
+                                {
+                                    id: 'ib-1',
+                                    remark: 'JP Relay',
+                                    protocol: 'vless',
+                                    port: 443,
+                                    enable: true,
+                                    settings: JSON.stringify({ clients: [{ id: 'uuid-1' }] }),
+                                    up: 1024,
+                                    down: 2048,
+                                },
+                            ],
+                            onlines: ['alice@example.com', 'alice@example.com'],
+                        },
                     },
                 });
-            }
-            if (url === '/system/inbounds/order') {
-                return Promise.resolve({ data: { obj: {} } });
             }
             if (url === '/audit/events') {
                 return Promise.resolve({ data: { obj: { items: [] } } });
             }
             throw new Error(`Unexpected GET ${url}`);
-        });
-
-        api.post.mockImplementation((url) => {
-            if (url === '/panel/server-1/panel/api/inbounds/onlines') {
-                return Promise.resolve({
-                    data: {
-                        obj: [{ email: 'alice@example.com' }, { email: 'alice@example.com' }],
-                    },
-                });
-            }
-            throw new Error(`Unexpected POST ${url}`);
         });
 
         renderWithRouter(<ServerDetail />);

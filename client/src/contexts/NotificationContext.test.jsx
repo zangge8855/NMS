@@ -31,8 +31,30 @@ function NotificationConsumer() {
 
 describe('NotificationContext', () => {
     beforeEach(() => {
+        window.sessionStorage.clear();
         api.get.mockReset();
         api.post.mockReset();
+    });
+
+    it('renders the cached notification snapshot before the live preview request finishes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:notification_center_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                notifications: [{ id: 'n1', title: 'Cached notice' }],
+                unreadCount: 3,
+                loadedLimit: 1,
+            },
+        }));
+        api.get.mockImplementation(() => new Promise(() => {}));
+
+        render(
+            <NotificationProvider wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        expect(await screen.findByTestId('notification-count')).toHaveTextContent('3');
+        expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
     });
 
     it('loads a lightweight preview first and expands only when requested', async () => {

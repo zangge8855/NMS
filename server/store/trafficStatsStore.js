@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import config from '../config.js';
 import serverStore from './serverStore.js';
 import userStore from './userStore.js';
-import { ensureAuthenticated } from '../lib/panelClient.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
+import { getServerPanelSnapshot } from '../lib/serverPanelSnapshotService.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 
@@ -593,13 +593,22 @@ class TrafficStatsStore {
         return Array.from(bucketMap.values()).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     }
 
-    async _collectFromServer(serverMeta, collectedAtIso) {
+    async _collectFromServer(serverMeta, collectedAtIso, options = {}) {
         const result = { samples: [], warning: null, inbounds: [] };
         try {
-            const client = await ensureAuthenticated(serverMeta.id);
-            const listRes = await client.get('/panel/api/inbounds/list');
-            const inbounds = Array.isArray(listRes.data?.obj) ? listRes.data.obj : [];
+            const panelSnapshot = await getServerPanelSnapshot(serverMeta, {
+                includeOnlines: false,
+                force: options.force === true,
+            });
+            const inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
             result.inbounds = inbounds;
+            if (panelSnapshot?.inboundsError) {
+                result.warning = {
+                    serverId: serverMeta.id,
+                    server: serverMeta.name,
+                    reason: panelSnapshot.inboundsError.message || 'panel inbounds unavailable',
+                };
+            }
 
             for (const inbound of inbounds) {
                 const { clients, hasClientTraffic } = extractInboundClients(inbound);
@@ -716,13 +725,13 @@ class TrafficStatsStore {
         }
 
         if (this.collectingPromise) return this.collectingPromise;
-        this.collectingPromise = this._collectNow().finally(() => {
+        this.collectingPromise = this._collectNow({ force }).finally(() => {
             this.collectingPromise = null;
         });
         return this.collectingPromise;
     }
 
-    async _collectNow() {
+    async _collectNow(options = {}) {
         const collectedAtIso = new Date().toISOString();
         const servers = serverStore.getAll();
         const users = userStore.getAll();
@@ -733,7 +742,7 @@ class TrafficStatsStore {
         await runWithConcurrency(
             servers,
             async (serverMeta) => {
-                const result = await this._collectFromServer(serverMeta, collectedAtIso);
+                const result = await this._collectFromServer(serverMeta, collectedAtIso, options);
                 if (Array.isArray(result.samples) && result.samples.length > 0) {
                     newSamples.push(...result.samples);
                 }
@@ -791,6 +800,7 @@ class TrafficStatsStore {
         const samples = this._filterSamples({ fromTs: range.fromTs, toTs: range.toTs });
 
         const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
+        const managedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
         const users = new Map();
 
         for (const item of samples) {
@@ -802,6 +812,9 @@ class TrafficStatsStore {
             if (email) {
                 const userInfo = resolveTrafficUserInfo(email);
                 if (userInfo?.email) {
+                    managedTotals.upBytes += toNonNegativeInt(item.upBytes, 0);
+                    managedTotals.downBytes += toNonNegativeInt(item.downBytes, 0);
+                    managedTotals.totalBytes += toNonNegativeInt(item.totalBytes, 0);
                     const current = users.get(userInfo.email) || {
                         userId: userInfo.userId,
                         username: userInfo.username,
@@ -830,6 +843,7 @@ class TrafficStatsStore {
             activeUsers: users.size,
             userLevelSupported: samples.some((item) => Boolean(String(item.email || '').trim())),
             totals,
+            managedTotals,
             registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),
             serverTotals: normalizeServerTotals(this.meta?.serverTotals),
             topUsers,

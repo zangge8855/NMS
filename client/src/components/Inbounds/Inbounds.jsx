@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -49,6 +49,26 @@ import EmptyState from '../UI/EmptyState.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
+
+const INBOUNDS_SNAPSHOT_KEY = 'inbounds_page_bootstrap_v1';
+const INBOUNDS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readInboundsSnapshot() {
+    const snapshot = readSessionSnapshot(INBOUNDS_SNAPSHOT_KEY, {
+        maxAgeMs: INBOUNDS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        inbounds: Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : [],
+        inboundOrder: snapshot?.inboundOrder && typeof snapshot.inboundOrder === 'object' ? snapshot.inboundOrder : {},
+        serverOrder: Array.isArray(snapshot?.serverOrder) ? snapshot.serverOrder : [],
+        overrideKeys: Array.isArray(snapshot?.overrideKeys) ? snapshot.overrideKeys : [],
+    };
+}
 
 function toLocalDateTimeString(timestamp) {
     if (!timestamp) return '';
@@ -141,17 +161,18 @@ export default function Inbounds() {
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
+    const bootstrapRef = useRef(readInboundsSnapshot());
     const resolvedActiveFilterServerId = activeServerId && activeServerId !== 'global' ? activeServerId : 'all';
     const isServerFilterLocked = Boolean(activeServerId && activeServerId !== 'global');
 
-    const [inbounds, setInbounds] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [inbounds, setInbounds] = useState(() => bootstrapRef.current?.inbounds || []);
+    const [loading, setLoading] = useState(() => bootstrapRef.current == null);
     const [expandedId, setExpandedId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInbound, setEditingInbound] = useState(null);
     const [filterServerId, setFilterServerId] = useState(resolvedActiveFilterServerId);
-    const [inboundOrder, setInboundOrder] = useState({});
-    const [serverOrder, setServerOrder] = useState([]);
+    const [inboundOrder, setInboundOrder] = useState(() => bootstrapRef.current?.inboundOrder || {});
+    const [serverOrder, setServerOrder] = useState(() => bootstrapRef.current?.serverOrder || []);
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
     const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
 
@@ -169,7 +190,7 @@ export default function Inbounds() {
     const [entitlementLimitIp, setEntitlementLimitIp] = useState('0');
     const [entitlementTrafficLimitGb, setEntitlementTrafficLimitGb] = useState('0');
     const [entitlementSaving, setEntitlementSaving] = useState(false);
-    const [overrideKeySet, setOverrideKeySet] = useState(new Set());
+    const [overrideKeySet, setOverrideKeySet] = useState(() => new Set(bootstrapRef.current?.overrideKeys || []));
     const [clientActionKey, setClientActionKey] = useState('');
     const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
     const orderedServerOptions = useMemo(
@@ -181,18 +202,33 @@ export default function Inbounds() {
         serverOrder: nextServerOrder,
     });
 
-    const fetchAllInbounds = async () => {
+    const fetchAllInbounds = async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && inbounds.length > 0);
+        const force = options.force === true;
         if (servers.length === 0) {
+            if (!preserveCurrent) {
+                setInbounds([]);
+            }
             setLoading(false);
             return;
         }
-        setLoading(true);
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         const allResults = [];
-        setSelectedKeys(new Set());
-        setSelectedClientKeys(new Set());
-        setInboundOrderDrafts({});
+        if (!preserveCurrent) {
+            setSelectedKeys(new Set());
+            setSelectedClientKeys(new Set());
+            setInboundOrderDrafts({});
+        }
         let orderMap = inboundOrder;
         let nextServerOrder = serverOrder;
+        const previousInboundsByServer = preserveCurrent
+            ? servers.reduce((acc, server) => {
+                acc[server.id] = inbounds.filter((item) => item.serverId === server.id);
+                return acc;
+            }, {})
+            : {};
 
         try {
             const [orderRes, serverOrderRes] = await Promise.all([
@@ -215,67 +251,88 @@ export default function Inbounds() {
             setOverrideKeySet(new Set(items.map((item) => buildOverrideKey(item.serverId, item.inboundId, item.clientIdentifier))));
         } catch (err) {
             console.error('Failed to load entitlement overrides:', err);
-            setOverrideKeySet(new Set());
+            if (!preserveCurrent) {
+                setOverrideKeySet(new Set());
+            }
         }
 
-        await Promise.all(servers.map(async (server) => {
-            try {
-                const [inboundsRes, onlinesRes] = await Promise.all([
-                    api.get(`/panel/${server.id}/panel/api/inbounds/list`),
-                    api.post(`/panel/${server.id}/panel/api/inbounds/onlines`).catch(() => ({ data: { obj: [] } })),
-                ]);
+        try {
+            const serverResults = await fetchServerPanelData(api, servers, {
+                includeOnlines: true,
+                force,
+            });
 
-                const onlineEntries = Array.isArray(onlinesRes.data?.obj) ? onlinesRes.data.obj : [];
-                const onlineCounter = new Map();
-                onlineEntries.forEach((entry) => {
-                    normalizeOnlineEntry(entry).forEach((key) => {
-                        onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+            serverResults.forEach((result) => {
+                const server = result.server;
+                try {
+                    const onlineEntries = Array.isArray(result?.onlines) ? result.onlines : [];
+                    const onlineCounter = new Map();
+                    onlineEntries.forEach((entry) => {
+                        normalizeOnlineEntry(entry).forEach((key) => {
+                            onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
+                        });
                     });
-                });
 
-                if (inboundsRes.data?.obj) {
-                    const serverInbounds = inboundsRes.data.obj.map((ib) => {
-                        const inboundClients = mergeInboundClientStats(ib).map((client) => {
-                            const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
-                                return total + (onlineCounter.get(key) || 0);
-                            }, 0);
+                    if (Array.isArray(result?.inbounds)) {
+                        const serverInbounds = result.inbounds.map((ib) => {
+                            const inboundClients = mergeInboundClientStats(ib).map((client) => {
+                                const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
+                                    return total + (onlineCounter.get(key) || 0);
+                                }, 0);
+                                return {
+                                    ...client,
+                                    onlineSessionCount: matchedSessions,
+                                    isOnline: matchedSessions > 0,
+                                };
+                            });
+                            let onlineSessionCount = 0;
+                            let onlineUserCount = 0;
+
+                            inboundClients.forEach((client) => {
+                                if (client.onlineSessionCount > 0) {
+                                    onlineUserCount += 1;
+                                    onlineSessionCount += client.onlineSessionCount;
+                                }
+                            });
+                            const trafficSummary = resolveInboundTrafficSummary(ib, inboundClients);
+
                             return {
-                                ...client,
-                                onlineSessionCount: matchedSessions,
-                                isOnline: matchedSessions > 0,
+                                ...ib,
+                                clients: inboundClients,
+                                serverId: server.id,
+                                serverName: server.name,
+                                uiKey: `${server.id}-${ib.id}`,
+                                onlineSessionCount,
+                                onlineUserCount,
+                                hasOnlineUsers: onlineSessionCount > 0,
+                                trafficUp: trafficSummary.up,
+                                trafficDown: trafficSummary.down,
                             };
                         });
-                        let onlineSessionCount = 0;
-                        let onlineUserCount = 0;
-
-                        inboundClients.forEach((client) => {
-                            if (client.onlineSessionCount > 0) {
-                                onlineUserCount += 1;
-                                onlineSessionCount += client.onlineSessionCount;
-                            }
-                        });
-                        const trafficSummary = resolveInboundTrafficSummary(ib, inboundClients);
-
-                        return {
-                            ...ib,
-                            clients: inboundClients,
-                            serverId: server.id,
-                            serverName: server.name,
-                            uiKey: `${server.id}-${ib.id}`,
-                            onlineSessionCount,
-                            onlineUserCount,
-                            hasOnlineUsers: onlineSessionCount > 0,
-                            trafficUp: trafficSummary.up,
-                            trafficDown: trafficSummary.down,
-                        };
-                    });
-                    allResults.push(...serverInbounds);
+                        allResults.push(...serverInbounds);
+                    }
+                    if (result?.inboundsError || result?.onlinesError) {
+                        toast.error(`节点 ${server.name} 连接失败`, { id: `err-${server.id}` });
+                    }
+                } catch (err) {
+                    console.error(`Failed to normalize inbounds from ${server.name}`, err);
+                    if (preserveCurrent && Array.isArray(previousInboundsByServer[server.id])) {
+                        allResults.push(...previousInboundsByServer[server.id]);
+                    }
                 }
-            } catch (err) {
-                console.error(`Failed to fetch inbounds from ${server.name}`, err);
-                toast.error(`节点 ${server.name} 连接失败`, { id: `err-${server.id}` });
+            });
+        } catch (err) {
+            console.error('Failed to load aggregated inbound snapshot:', err);
+            if (preserveCurrent) {
+                Object.values(previousInboundsByServer).forEach((items) => {
+                    if (Array.isArray(items)) {
+                        allResults.push(...items);
+                    }
+                });
+            } else {
+                toast.error(t('comp.common.loadFailed'));
             }
-        }));
+        }
 
         const sortedItems = sortVisibleInbounds(allResults, orderMap, nextServerOrder);
         const nextOrderMap = { ...orderMap };
@@ -302,8 +359,17 @@ export default function Inbounds() {
     };
 
     useEffect(() => {
-        fetchAllInbounds();
+        fetchAllInbounds({ preserveCurrent: bootstrapRef.current?.inbounds?.length > 0 });
     }, [servers]);
+
+    useEffect(() => {
+        writeSessionSnapshot(INBOUNDS_SNAPSHOT_KEY, {
+            inbounds,
+            inboundOrder,
+            serverOrder,
+            overrideKeys: Array.from(overrideKeySet),
+        });
+    }, [inbounds, inboundOrder, overrideKeySet, serverOrder]);
 
     useEffect(() => {
         if (filterServerId !== 'all' && servers.length > 0 && !servers.some(s => s.id === filterServerId)) {

@@ -64,7 +64,41 @@ describe('Tasks', () => {
         api.delete.mockReset();
         api.post.mockReset();
         window.localStorage.clear();
+        window.sessionStorage.clear();
         mockMatchMedia(false);
+    });
+
+    it('renders the cached task list before the live request finishes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:tasks_page_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                tasks: [
+                    {
+                        id: 'task-1',
+                        createdAt: '2026-03-13T10:00:00.000Z',
+                        type: 'clients',
+                        action: 'update',
+                        summary: {
+                            total: 6,
+                            success: 4,
+                            failed: 2,
+                        },
+                        results: [
+                            { serverName: 'Node A' },
+                            { serverName: 'Node B' },
+                        ],
+                    },
+                ],
+            },
+        }));
+
+        api.get.mockReturnValueOnce(new Promise(() => {}));
+
+        renderWithRouter(<Tasks embedded />);
+
+        expect(await screen.findByText('用户 / 更新')).toBeInTheDocument();
+        expect(screen.getByText('Node A, Node B')).toBeInTheDocument();
+        expect(screen.queryByText('loading-table')).not.toBeInTheDocument();
     });
 
     it('renders a standalone loading shell before tasks are loaded', async () => {

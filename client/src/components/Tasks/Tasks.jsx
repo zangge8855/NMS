@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
@@ -18,6 +18,22 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import { formatDateTime } from '../../utils/format.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const TASKS_SNAPSHOT_KEY = 'tasks_page_bootstrap_v1';
+const TASKS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function readTasksSnapshot() {
+    const snapshot = readSessionSnapshot(TASKS_SNAPSHOT_KEY, {
+        maxAgeMs: TASKS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        tasks: Array.isArray(snapshot?.tasks) ? snapshot.tasks : [],
+    };
+}
 
 const TASKS_COPY = {
     'zh-CN': {
@@ -200,8 +216,9 @@ export default function Tasks({ embedded = false }) {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getTasksCopy(locale);
-    const [loading, setLoading] = useState(false);
-    const [tasks, setTasks] = useState([]);
+    const tasksBootstrapRef = useRef(readTasksSnapshot());
+    const [loading, setLoading] = useState(() => tasksBootstrapRef.current == null);
+    const [tasks, setTasks] = useState(() => tasksBootstrapRef.current?.tasks || []);
     const [selectedTask, setSelectedTask] = useState(null);
     const [retryingId, setRetryingId] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -210,21 +227,34 @@ export default function Tasks({ embedded = false }) {
     const [failedOnlyFilter, setFailedOnlyFilter] = useState(false);
     const [retryGroupBy, setRetryGroupBy] = useState('none');
 
-    const fetchTasks = async () => {
-        setLoading(true);
+    const fetchTasks = async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true;
+        if (!preserveCurrent) {
+            setLoading(true);
+        }
         try {
             const res = await api.get('/jobs?page=1&pageSize=100&includeResults=true');
             setTasks(res.data?.obj?.items || []);
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || copy.loadFailed;
             toast.error(msg);
+            if (!preserveCurrent) {
+                setTasks([]);
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
-        fetchTasks();
+        fetchTasks({ preserveCurrent: tasksBootstrapRef.current != null });
     }, []);
+
+    useEffect(() => {
+        writeSessionSnapshot(TASKS_SNAPSHOT_KEY, {
+            tasks,
+        });
+    }, [tasks]);
 
     const typeOptions = useMemo(() => (
         Array.from(new Set(tasks.map((task) => task.type).filter(Boolean))).sort()

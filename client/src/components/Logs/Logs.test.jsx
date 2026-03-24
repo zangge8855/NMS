@@ -29,8 +29,41 @@ vi.mock('react-hot-toast', () => ({
 
 describe('Logs', () => {
     beforeEach(() => {
+        window.sessionStorage.clear();
         api.get.mockReset();
         useServer.mockReset();
+    });
+
+    it('renders the cached single-server logs before the live request finishes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:logs_viewer_v1:server-a:panel', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                logs: [
+                    {
+                        line: '2026-03-24T00:00:00Z [info] cached log line',
+                        serverName: 'Node A',
+                    },
+                ],
+                fetchSummary: null,
+            },
+        }));
+
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+        api.get.mockImplementation(() => new Promise(() => {}));
+
+        renderWithRouter(<Logs embedded />);
+
+        expect(await screen.findByText(/cached log line/)).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/servers/server-a/logs', expect.objectContaining({
+            params: expect.objectContaining({
+                source: 'panel',
+                count: 100,
+            }),
+        }));
     });
 
     it('always uses panel logs in global mode', async () => {
@@ -45,8 +78,20 @@ describe('Logs', () => {
         api.get.mockResolvedValue({
             data: {
                 obj: {
-                    lines: ['2026-03-09T00:00:00Z first line'],
-                    supported: true,
+                    items: [
+                        {
+                            serverId: 'server-a',
+                            serverName: 'Node A',
+                            lines: ['2026-03-09T00:00:00Z first line'],
+                            supported: true,
+                        },
+                        {
+                            serverId: 'server-b',
+                            serverName: 'Node B',
+                            lines: ['2026-03-09T00:00:01Z second line'],
+                            supported: true,
+                        },
+                    ],
                 },
             },
         });
@@ -54,13 +99,15 @@ describe('Logs', () => {
         renderWithRouter(<Logs embedded />);
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledTimes(2);
+            expect(api.get).toHaveBeenCalledTimes(1);
         });
 
-        const urls = api.get.mock.calls.map(([url]) => url);
-        expect(urls).toContain('/servers/server-a/logs');
-        expect(urls).toContain('/servers/server-b/logs');
-        expect(api.get.mock.calls.every(([, options]) => options?.params?.source === 'panel')).toBe(true);
+        expect(api.get).toHaveBeenCalledWith('/servers/logs/snapshot', expect.objectContaining({
+            params: expect.objectContaining({
+                serverIds: 'server-a,server-b',
+                source: 'panel',
+            }),
+        }));
     });
 
     it('shows a selection hint when no global server is available', async () => {
@@ -88,33 +135,44 @@ describe('Logs', () => {
             ],
         });
 
-        api.get.mockImplementation((url) => Promise.resolve({
-            data: {
-                obj: {
-                    lines: [`2026-03-09T00:00:00Z ${url}`],
-                    supported: true,
+        api.get.mockImplementation((url, options) => {
+            const requested = String(options?.params?.serverIds || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean);
+            return Promise.resolve({
+                data: {
+                    obj: {
+                        items: requested.map((serverId) => ({
+                            serverId,
+                            serverName: serverId === 'server-a' ? 'Node A' : 'Node B',
+                            lines: [`2026-03-09T00:00:00Z ${serverId}`],
+                            supported: true,
+                        })),
+                    },
                 },
-            },
-        }));
+            });
+        });
 
         renderWithRouter(<Logs embedded />);
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledTimes(2);
+            expect(api.get).toHaveBeenCalledTimes(1);
         });
 
         await user.click(screen.getByRole('button', { name: '清空' }));
 
         expect(await screen.findByText('请至少选择一个节点后再查看聚合日志')).toBeInTheDocument();
-        expect(api.get).toHaveBeenCalledTimes(2);
+        expect(api.get).toHaveBeenCalledTimes(1);
 
         await user.click(screen.getByLabelText('Node A'));
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledTimes(3);
+            expect(api.get).toHaveBeenCalledTimes(2);
         });
-        expect(api.get).toHaveBeenLastCalledWith('/servers/server-a/logs', expect.objectContaining({
+        expect(api.get).toHaveBeenLastCalledWith('/servers/logs/snapshot', expect.objectContaining({
             params: expect.objectContaining({
+                serverIds: 'server-a',
                 source: 'panel',
             }),
         }));

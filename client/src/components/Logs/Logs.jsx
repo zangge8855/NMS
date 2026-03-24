@@ -21,6 +21,26 @@ import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
+import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const LOGS_SNAPSHOT_TTL_MS = 2 * 60_000;
+
+function buildLogsSnapshotKey({ activeServerId, source }) {
+    return `logs_viewer_v1:${String(activeServerId || '').trim() || 'none'}:${String(source || 'panel').trim() || 'panel'}`;
+}
+
+function readLogsSnapshot(snapshotKey) {
+    const snapshot = readSessionSnapshot(snapshotKey, {
+        maxAgeMs: LOGS_SNAPSHOT_TTL_MS,
+        fallback: null,
+    });
+    if (!snapshot || typeof snapshot !== 'object') return null;
+
+    return {
+        logs: Array.isArray(snapshot?.logs) ? snapshot.logs : [],
+        fetchSummary: snapshot?.fetchSummary || null,
+    };
+}
 
 function getSummaryToneMeta(tone) {
     if (tone === 'danger') {
@@ -152,15 +172,25 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         { value: 'xray', label: t('pages.logs.sourceXray') },
         { value: 'system', label: t('pages.logs.sourceSystem') },
     ]), [t]);
+    const initialResolvedSource = lockedSourceMode === 'auto' ? 'panel' : lockedSourceMode;
+    const initialSnapshotKey = buildLogsSnapshotKey({
+        activeServerId,
+        source: initialResolvedSource,
+    });
+    const logsBootstrapRef = useRef(readLogsSnapshot(initialSnapshotKey));
+    const [scopeSnapshotState, setScopeSnapshotState] = useState(() => ({
+        key: initialSnapshotKey,
+        hasSnapshot: logsBootstrapRef.current != null,
+    }));
 
     // State
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [logs, setLogs] = useState(() => logsBootstrapRef.current?.logs || []);
+    const [loading, setLoading] = useState(() => logsBootstrapRef.current == null);
     const [keywords, setKeywords] = useState('');
     const [levelFilter, setLevelFilter] = useState('');
     const [selectedSource, setSelectedSource] = useState('panel');
     const [count, setCount] = useState(100);
-    const [fetchSummary, setFetchSummary] = useState(null);
+    const [fetchSummary, setFetchSummary] = useState(() => logsBootstrapRef.current?.fetchSummary || null);
     const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
     const [wrapLines, setWrapLines] = useState(true);
     const [immersiveMode, setImmersiveMode] = useState(false);
@@ -199,6 +229,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const resolvedSource = lockedSourceMode === 'auto'
         ? selectedSource
         : lockedSourceMode;
+    const logsSnapshotKey = useMemo(() => buildLogsSnapshotKey({
+        activeServerId,
+        source: resolvedSource,
+    }), [activeServerId, resolvedSource]);
     const activeSourceMeta = logSources.find((item) => item.value === resolvedSource) || logSources[0];
     const activeLevelMeta = logLevels.find((item) => item.value === levelFilter) || null;
     const sourceLabel = String(displayLabel || '').trim() || (
@@ -229,10 +263,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             : null,
     ].filter(Boolean);
 
-    const fetchSingleLogs = useCallback(async () => {
+    const fetchSingleLogs = useCallback(async (options = {}) => {
         if (!activeServerId || activeServerId === 'global') return;
+        const preserveCurrent = options.preserveCurrent === true;
         setLoading(true);
-        setFetchSummary(null);
+        if (!preserveCurrent) {
+            setFetchSummary(null);
+        }
         try {
             const res = await api.get(`/servers/${encodeURIComponent(activeServerId)}/logs`, {
                 params: { source: resolvedSource, count },
@@ -253,14 +290,19 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 tone: 'danger',
                 message: t('pages.logs.loadFailed', { source: sourceLabel, message }),
             });
-            setLogs([]);
+            if (!preserveCurrent) {
+                setLogs([]);
+            }
         }
         setLoading(false);
     }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t]);
 
-    const fetchGlobalLogs = useCallback(async () => {
+    const fetchGlobalLogs = useCallback(async (options = {}) => {
+        const preserveCurrent = options.preserveCurrent === true;
         if (!isGlobal || selectedServerIds.length === 0) {
-            setLogs([]);
+            if (!preserveCurrent) {
+                setLogs([]);
+            }
             setFetchSummary({
                 tone: 'info',
                 message: t('pages.logs.selectNodeHint'),
@@ -271,33 +313,31 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         setFetchSummary(null);
         try {
             const targetServers = servers.filter(s => selectedServerIds.includes(s.id));
-            const results = await Promise.allSettled(
-                targetServers.map(async (server) => {
-                    const res = await api.get(`/servers/${encodeURIComponent(server.id)}/logs`, {
-                        params: {
-                            source: resolvedSource,
-                            count: Math.max(1, Math.ceil(count / targetServers.length)),
-                        },
-                    });
-                    const payload = res.data?.obj || {};
-                    const lines = Array.isArray(payload.lines) ? payload.lines : [];
-                    return lines.map((line, index) => ({
-                        line,
-                        serverName: server.name,
-                        sortTs: extractLogTimestamp(line),
-                        seq: index,
-                    }));
-                })
-            );
-
+            const perServerCount = Math.max(1, Math.ceil(count / targetServers.length));
+            const res = await api.get('/servers/logs/snapshot', {
+                params: {
+                    serverIds: targetServers.map((server) => server.id).join(','),
+                    source: resolvedSource,
+                    count: perServerCount,
+                },
+            });
+            const items = Array.isArray(res.data?.obj?.items) ? res.data.obj.items : [];
             const allLogs = [];
             const failedServers = [];
-            for (const result of results) {
-                if (result.status === 'fulfilled') {
-                    allLogs.push(...result.value);
-                } else {
-                    failedServers.push(result.reason?.response?.data?.msg || result.reason?.message || '未知错误');
+            for (const item of items) {
+                const lines = Array.isArray(item?.lines) ? item.lines : [];
+                const serverName = String(item?.serverName || '').trim();
+                const error = item?.error && typeof item.error === 'object' ? item.error : null;
+                if (error) {
+                    failedServers.push(error.message || '未知错误');
+                    continue;
                 }
+                allLogs.push(...lines.map((line, index) => ({
+                    line,
+                    serverName,
+                    sortTs: extractLogTimestamp(line),
+                    seq: index,
+                })));
             }
             allLogs.sort((left, right) => {
                 if (left.sortTs !== null && right.sortTs !== null && left.sortTs !== right.sortTs) {
@@ -327,7 +367,9 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     message: err.message || t('pages.logs.unknownError'),
                 }),
             });
-            setLogs([]);
+            if (!preserveCurrent) {
+                setLogs([]);
+            }
         }
         setLoading(false);
     }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel, t]);
@@ -335,8 +377,29 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
 
     useEffect(() => {
-        if (activeServerId) fetchLogs();
-    }, [activeServerId, fetchLogs]);
+        const snapshot = readLogsSnapshot(logsSnapshotKey);
+        logsBootstrapRef.current = snapshot;
+        setLogs(snapshot?.logs || []);
+        setFetchSummary(snapshot?.fetchSummary || null);
+        setLoading(snapshot == null);
+        setScopeSnapshotState({
+            key: logsSnapshotKey,
+            hasSnapshot: snapshot != null,
+        });
+    }, [logsSnapshotKey]);
+
+    useEffect(() => {
+        if (!activeServerId || scopeSnapshotState.key !== logsSnapshotKey) return;
+        fetchLogs({ preserveCurrent: scopeSnapshotState.hasSnapshot });
+    }, [activeServerId, fetchLogs, logsSnapshotKey, scopeSnapshotState]);
+
+    useEffect(() => {
+        if (!activeServerId) return;
+        writeSessionSnapshot(logsSnapshotKey, {
+            logs,
+            fetchSummary,
+        });
+    }, [activeServerId, fetchSummary, logs, logsSnapshotKey]);
 
     useEffect(() => {
         if (autoScrollEnabled && logContainerRef.current) {

@@ -9,6 +9,7 @@ import config from '../config.js';
 import auditStore from '../store/auditStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
+import { getServerPanelSnapshot, getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
 import { normalizeBoolean, parseJsonObjectLike } from '../lib/normalize.js';
@@ -785,9 +786,11 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
     }
 
     try {
-        const client = await ensureAuthenticated(serverMeta.id);
-        const listRes = await client.get('/panel/api/inbounds/list');
-        const inbounds = sortInboundsForServer(serverMeta.id, listRes.data?.obj || []);
+        let client = null;
+        const panelSnapshot = await getServerPanelSnapshot(serverMeta, {
+            includeOnlines: false,
+        });
+        const inbounds = sortInboundsForServer(serverMeta.id, panelSnapshot?.inbounds || []);
         const matchedEntries = [];
         const subIds = new Set();
         const fallbackSubIds = new Set();
@@ -886,6 +889,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
         const nativeSubIds = selectNativeSubIds(mode, Array.from(subIds), Array.from(fallbackSubIds));
         const shouldCollectNative = nativeSubIds.length > 0;
         if (shouldCollectNative) {
+            client = await ensureAuthenticated(serverMeta.id);
             nativeLinks = await collectNativeLinks({
                 client,
                 subIds: nativeSubIds,
@@ -3295,28 +3299,33 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     const emails = new Set();
     const warnings = [];
 
-    await Promise.all(targetServers.map(async (serverMeta) => {
-        try {
-            const client = await ensureAuthenticated(serverMeta.id);
-            const listRes = await client.get('/panel/api/inbounds/list');
-            const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(listRes.data?.obj) ? listRes.data.obj : []);
+    const snapshots = await getServerPanelSnapshots({
+        servers: targetServers,
+        includeOnlines: false,
+    });
 
-            for (const inbound of inbounds) {
-                const settings = parseJsonObjectLike(inbound.settings, {});
-                const clients = Array.isArray(settings.clients) ? settings.clients : [];
-                for (const entry of clients) {
-                    const email = normalizeEmail(entry.email);
-                    if (email) emails.add(email);
-                }
-            }
-        } catch (error) {
+    snapshots.forEach((snapshot, index) => {
+        const serverMeta = targetServers[index] || snapshot?.server || {};
+        const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : []);
+
+        if (snapshot?.inboundsError) {
             warnings.push({
                 serverId: serverMeta.id,
                 server: serverMeta.name,
-                reason: error.message,
+                reason: snapshot.inboundsError.message,
             });
+            return;
         }
-    }));
+
+        for (const inbound of inbounds) {
+            const settings = parseJsonObjectLike(inbound.settings, {});
+            const clients = Array.isArray(settings.clients) ? settings.clients : [];
+            for (const entry of clients) {
+                const email = normalizeEmail(entry.email);
+                if (email) emails.add(email);
+            }
+        }
+    });
 
     const users = Array.from(emails).sort((a, b) => a.localeCompare(b));
     return res.json({
