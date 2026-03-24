@@ -832,7 +832,39 @@ class TrafficStatsStore {
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 
-        const topServers = normalizeServerTotals(this.meta?.serverTotals)
+        const snapshotSamples = this.samples.filter((item) => normalizeSampleKind(item?.kind) === SAMPLE_KIND_SERVER_SNAPSHOT);
+        const serverSnapshotBuckets = snapshotSamples.reduce((acc, item) => {
+            const serverId = String(item?.serverId || '').trim();
+            if (!serverId) return acc;
+            if (!acc.has(serverId)) {
+                acc.set(serverId, []);
+            }
+            acc.get(serverId).push(item);
+            return acc;
+        }, new Map());
+        const topServersFromWindow = Array.from(serverSnapshotBuckets.entries())
+            .map(([serverId, serverSamples]) => {
+                const points = this._aggregateSnapshotDeltaTrend(serverSamples, 'hour', {
+                    fromTs: range.fromTs,
+                    toTs: range.toTs,
+                });
+                const totals = points.reduce((acc, item) => {
+                    acc.upBytes += Number(item?.upBytes || 0);
+                    acc.downBytes += Number(item?.downBytes || 0);
+                    acc.totalBytes += Number(item?.totalBytes || 0);
+                    return acc;
+                }, { upBytes: 0, downBytes: 0, totalBytes: 0 });
+                const lastSample = serverSamples[serverSamples.length - 1] || null;
+                return createServerTotalEntry({
+                    serverId,
+                    serverName: lastSample?.serverName || serverId,
+                    ...totals,
+                });
+            })
+            .filter((item) => item.totalBytes > 0);
+        const topServers = (topServersFromWindow.length > 0
+            ? topServersFromWindow
+            : normalizeServerTotals(this.meta?.serverTotals))
             .sort((a, b) => b.totalBytes - a.totalBytes)
             .slice(0, top);
 

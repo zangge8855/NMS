@@ -8389,6 +8389,194 @@ p, .empty-state-body, td {
   }
 }
 
+@media (min-width: 769px) and (max-width: 1360px) {
+  .page-content.page-content--wide.servers-page {
+    padding-inline: 16px;
+  }
+
+  .servers-page .servers-toolbar,
+  .servers-page .servers-filter-bar,
+  .servers-page .servers-table-shell,
+  .servers-page .servers-table,
+  .servers-page .servers-table tr,
+  .servers-page .servers-table td,
+  .servers-page .servers-table th {
+    min-width: 0;
+  }
+
+  .servers-page .servers-toolbar {
+    gap: 12px;
+  }
+
+  .servers-page .servers-toolbar-summary {
+    gap: 8px;
+  }
+
+  .servers-page .servers-summary-pill {
+    min-width: 96px;
+    min-height: 64px;
+    padding: 9px 10px;
+  }
+
+  .servers-page .servers-summary-pill--wide {
+    flex: 1 1 168px;
+    min-width: 148px;
+  }
+
+  .servers-page .servers-toolbar .servers-toolbar-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .servers-page .servers-filter-bar {
+    gap: 8px 10px;
+  }
+
+  .servers-page .servers-filter-bar > * {
+    min-width: 0;
+  }
+
+  .servers-page .servers-filter-search {
+    flex: 1 1 220px;
+  }
+
+  .servers-page .servers-filter-select {
+    min-width: 104px;
+    max-width: none;
+    flex: 1 1 116px;
+  }
+
+  .servers-page .servers-filter-summary {
+    margin-left: 0;
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: flex-start;
+    white-space: normal;
+  }
+
+  .servers-page .servers-table {
+    min-width: 940px;
+  }
+
+  .servers-page .servers-table th,
+  .servers-page .servers-table td {
+    padding: 10px 8px;
+  }
+
+  .servers-page .servers-table th.servers-select-column,
+  .servers-page .servers-table td.mobile-checkbox-cell {
+    width: 42px;
+  }
+
+  .servers-page .servers-table th.servers-move-column,
+  .servers-page .servers-table td.servers-move-cell {
+    width: 48px;
+  }
+
+  .servers-page .servers-table th.servers-order-column,
+  .servers-page .servers-table td.servers-order-cell {
+    width: 54px;
+  }
+
+  .servers-page .servers-table th.servers-name-column,
+  .servers-page .servers-table td.servers-name-cell {
+    min-width: 180px;
+  }
+
+  .servers-page .servers-telemetry-column {
+    min-width: 168px;
+  }
+
+  .servers-page .servers-table th.servers-group-column,
+  .servers-page .servers-table td.servers-tags-cell {
+    min-width: 108px;
+  }
+
+  .servers-page .servers-table th.servers-account-column,
+  .servers-page .servers-table td.servers-account-cell {
+    min-width: 88px;
+  }
+
+  .servers-page .servers-table th.servers-credential-column,
+  .servers-page .servers-table td.servers-credential-cell {
+    min-width: 84px;
+  }
+
+  .servers-page .servers-table th.servers-status-column,
+  .servers-page .servers-table td.servers-status-cell {
+    min-width: 88px;
+  }
+
+  .servers-page .servers-table th.servers-actions-column,
+  .servers-page .servers-table td.servers-actions-cell {
+    min-width: 176px;
+  }
+
+  .servers-page .servers-telemetry-cell {
+    min-width: 136px;
+    gap: 6px;
+  }
+
+  .servers-page .servers-telemetry-meta {
+    gap: 6px;
+  }
+
+  .servers-page .servers-telemetry-sparkline {
+    min-width: 108px;
+  }
+
+  .servers-page .servers-telemetry-foot {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .servers-page .servers-telemetry-checked-at {
+    white-space: normal;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1220px) {
+  .page-content.page-content--wide.servers-page {
+    padding-inline: 14px;
+  }
+
+  .servers-page .servers-summary-value {
+    font-size: 12px;
+  }
+
+  .servers-page .servers-table {
+    min-width: 884px;
+  }
+
+  .servers-page .servers-table th.servers-name-column,
+  .servers-page .servers-table td.servers-name-cell {
+    min-width: 164px;
+  }
+
+  .servers-page .servers-telemetry-column {
+    min-width: 156px;
+  }
+
+  .servers-page .servers-table th.servers-group-column,
+  .servers-page .servers-table td.servers-tags-cell {
+    min-width: 100px;
+  }
+
+  .servers-page .servers-table th.servers-actions-column,
+  .servers-page .servers-table td.servers-actions-cell {
+    min-width: 164px;
+  }
+
+  .servers-page .servers-row-actions {
+    gap: 4px;
+  }
+
+  .servers-page .servers-row-actions .btn {
+    padding-inline: 10px;
+  }
+}
+
 /* Final header alignment pass. */
 .header-shell {
   align-items: center;

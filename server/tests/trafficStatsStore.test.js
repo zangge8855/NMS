@@ -242,7 +242,7 @@ describe('traffic stats inbound fallback', () => {
         }
     });
 
-    it('uses current inbound-based server totals for top node ranking', () => {
+    it('falls back to current inbound-based server totals for top node ranking when no snapshot history exists', () => {
         const serverTotals = summarizeServerTrafficTotals([
             {
                 serverId: 'server-a',
@@ -315,6 +315,81 @@ describe('traffic stats inbound fallback', () => {
         assert.equal(overview.topServers[1].serverId, 'server-a');
         assert.equal(overview.topServers[1].totalBytes, 200);
         assert.equal(overview.totals.totalBytes, 30);
+    });
+
+    it('uses range-based server snapshot deltas for top node ranking when snapshot history exists', () => {
+        const store = new TrafficStatsStore();
+        store.importState({
+            samples: [
+                {
+                    id: 'snapshot-a-1',
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T00:05:00.000Z',
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    upBytes: 100,
+                    downBytes: 50,
+                    totalBytes: 150,
+                },
+                {
+                    id: 'snapshot-a-2',
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T01:05:00.000Z',
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    upBytes: 220,
+                    downBytes: 90,
+                    totalBytes: 310,
+                },
+                {
+                    id: 'snapshot-b-1',
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T00:10:00.000Z',
+                    serverId: 'server-b',
+                    serverName: 'Node B',
+                    upBytes: 80,
+                    downBytes: 40,
+                    totalBytes: 120,
+                },
+                {
+                    id: 'snapshot-b-2',
+                    kind: 'server_snapshot',
+                    ts: '2026-03-13T01:10:00.000Z',
+                    serverId: 'server-b',
+                    serverName: 'Node B',
+                    upBytes: 120,
+                    downBytes: 60,
+                    totalBytes: 180,
+                },
+            ],
+            counters: {},
+            meta: {
+                lastCollectionAt: '2026-03-13T01:10:00.000Z',
+                registeredTotals: {
+                    totalUsers: 0,
+                    activeUsers: 0,
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                },
+                serverTotals: [
+                    { serverId: 'server-a', serverName: 'Node A', upBytes: 999, downBytes: 999, totalBytes: 1998 },
+                    { serverId: 'server-b', serverName: 'Node B', upBytes: 888, downBytes: 888, totalBytes: 1776 },
+                ],
+            },
+        });
+
+        const overview = store.getOverview({
+            from: '2026-03-13T00:00:00.000Z',
+            to: '2026-03-13T02:00:00.000Z',
+            top: 10,
+        });
+
+        assert.equal(overview.topServers.length, 2);
+        assert.equal(overview.topServers[0].serverId, 'server-a');
+        assert.equal(overview.topServers[0].totalBytes, 160);
+        assert.equal(overview.topServers[1].serverId, 'server-b');
+        assert.equal(overview.topServers[1].totalBytes, 60);
     });
 
     it('builds server trend from snapshot deltas aggregated into each bucket', () => {

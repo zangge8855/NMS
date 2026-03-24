@@ -1,4 +1,5 @@
 const SNAPSHOT_PREFIX = 'nms_session_snapshot:';
+export const SESSION_SNAPSHOT_EVENT = 'nms:session-snapshot';
 
 function canUseSessionStorage() {
     try {
@@ -38,13 +39,27 @@ export function readSessionSnapshot(key, options = {}) {
     }
 }
 
-export function writeSessionSnapshot(key, value) {
+export function writeSessionSnapshot(key, value, options = {}) {
     if (!canUseSessionStorage()) return;
 
     try {
-        window.sessionStorage.setItem(buildSnapshotKey(key), JSON.stringify({
+        const snapshotKey = buildSnapshotKey(key);
+        const payload = {
             savedAt: Date.now(),
             value,
+        };
+        window.sessionStorage.setItem(buildSnapshotKey(key), JSON.stringify({
+            savedAt: payload.savedAt,
+            value: payload.value,
+        }));
+        window.dispatchEvent(new CustomEvent(SESSION_SNAPSHOT_EVENT, {
+            detail: {
+                key: String(key || '').trim(),
+                action: 'write',
+                source: String(options?.source || '').trim(),
+                storageKey: snapshotKey,
+                value,
+            },
         }));
     } catch {
         // ignore storage quota errors
@@ -55,6 +70,14 @@ export function clearSessionSnapshot(key) {
     if (!canUseSessionStorage()) return;
     try {
         window.sessionStorage.removeItem(buildSnapshotKey(key));
+        window.dispatchEvent(new CustomEvent(SESSION_SNAPSHOT_EVENT, {
+            detail: {
+                key: String(key || '').trim(),
+                action: 'clear',
+                source: '',
+                storageKey: buildSnapshotKey(key),
+            },
+        }));
     } catch {
         // ignore storage cleanup failures
     }
