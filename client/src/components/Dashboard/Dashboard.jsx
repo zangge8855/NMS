@@ -50,6 +50,10 @@ const INITIAL_TRAFFIC_WINDOW_TOTAL = {
     totalUp: 0,
     totalDown: 0,
     ready: false,
+    attributionComplete: true,
+    unattributedUp: 0,
+    unattributedDown: 0,
+    unattributedTotal: 0,
 };
 const EMPTY_THROUGHPUT_SUMMARY = {
     up: 0,
@@ -79,11 +83,22 @@ function normalizeGlobalStatsSnapshot(stats = {}) {
 }
 
 function normalizeStoredTrafficWindowTotals(windows = {}) {
-    const normalizeWindow = (key) => ({
-        totalUp: Number(windows?.[key]?.totalUp || 0),
-        totalDown: Number(windows?.[key]?.totalDown || 0),
-        ready: windows?.[key]?.ready === true,
-    });
+    const normalizeWindow = (key) => {
+        const unattributedUp = Number(windows?.[key]?.unattributedUp || 0);
+        const unattributedDown = Number(windows?.[key]?.unattributedDown || 0);
+        const unattributedTotal = Number.isFinite(Number(windows?.[key]?.unattributedTotal))
+            ? Number(windows?.[key]?.unattributedTotal)
+            : (unattributedUp + unattributedDown);
+        return {
+            totalUp: Number(windows?.[key]?.totalUp || 0),
+            totalDown: Number(windows?.[key]?.totalDown || 0),
+            ready: windows?.[key]?.ready === true,
+            attributionComplete: windows?.[key]?.attributionComplete !== false,
+            unattributedUp,
+            unattributedDown,
+            unattributedTotal,
+        };
+    };
     return {
         day: normalizeWindow('day'),
         week: normalizeWindow('week'),
@@ -190,11 +205,21 @@ function normalizeTrafficWindowPayload(windows = {}) {
             .map((key) => windows?.[key])
             .find(Boolean) || {};
         const totals = payload?.managedTotals || payload?.totals || payload;
+        const unattributedTotals = payload?.unattributedTotals || {};
         const sampleCount = Number(payload?.sampleCount || 0);
+        const unattributedUp = Number(unattributedTotals?.upBytes || 0);
+        const unattributedDown = Number(unattributedTotals?.downBytes || 0);
+        const unattributedTotal = Number(unattributedTotals?.totalBytes || 0);
         return {
             totalUp: Number(totals?.upBytes || 0),
             totalDown: Number(totals?.downBytes || 0),
             ready: payload?.ready === true || payload?.baselineReady === true || sampleCount > 0,
+            attributionComplete: payload?.attributionComplete !== false
+                && payload?.userLevelSupported !== false
+                && unattributedTotal <= 0,
+            unattributedUp,
+            unattributedDown,
+            unattributedTotal,
         };
     };
 
@@ -203,6 +228,24 @@ function normalizeTrafficWindowPayload(windows = {}) {
         week: readWindow('week', '7'),
         month: readWindow('month', '30'),
     };
+}
+
+function buildTrafficWindowSubtitle(window = {}, t) {
+    if (window?.ready !== true) {
+        return t('pages.dashboardCommon.trafficPending');
+    }
+
+    const split = t('pages.dashboardCommon.trafficSplit', {
+        up: formatBytes(window?.totalUp || 0),
+        down: formatBytes(window?.totalDown || 0),
+    });
+    if (window?.attributionComplete === false && Number(window?.unattributedTotal || 0) > 0) {
+        return t('pages.dashboardCommon.trafficPartial', {
+            split,
+            omitted: formatBytes(window.unattributedTotal),
+        });
+    }
+    return split;
 }
 
 const DASHBOARD_ACCENT = {
@@ -1115,10 +1158,7 @@ export default function Dashboard() {
                 ...(trafficWindowTotals.day.ready ? {
                     animateValue: trafficWindowTotals.day.totalUp + trafficWindowTotals.day.totalDown,
                     renderAnimatedValue: (value) => formatBytes(value),
-                    sub: t('pages.dashboardCommon.trafficSplit', {
-                        up: formatBytes(trafficWindowTotals.day.totalUp),
-                        down: formatBytes(trafficWindowTotals.day.totalDown),
-                    }),
+                    sub: buildTrafficWindowSubtitle(trafficWindowTotals.day, t),
                 } : {
                     value: '--',
                     sub: t('pages.dashboardCommon.trafficPending'),
@@ -1133,10 +1173,7 @@ export default function Dashboard() {
                 ...(trafficWindowTotals.week.ready ? {
                     animateValue: trafficWindowTotals.week.totalUp + trafficWindowTotals.week.totalDown,
                     renderAnimatedValue: (value) => formatBytes(value),
-                    sub: t('pages.dashboardCommon.trafficSplit', {
-                        up: formatBytes(trafficWindowTotals.week.totalUp),
-                        down: formatBytes(trafficWindowTotals.week.totalDown),
-                    }),
+                    sub: buildTrafficWindowSubtitle(trafficWindowTotals.week, t),
                 } : {
                     value: '--',
                     sub: t('pages.dashboardCommon.trafficPending'),
@@ -1151,10 +1188,7 @@ export default function Dashboard() {
                 ...(trafficWindowTotals.month.ready ? {
                     animateValue: trafficWindowTotals.month.totalUp + trafficWindowTotals.month.totalDown,
                     renderAnimatedValue: (value) => formatBytes(value),
-                    sub: t('pages.dashboardCommon.trafficSplit', {
-                        up: formatBytes(trafficWindowTotals.month.totalUp),
-                        down: formatBytes(trafficWindowTotals.month.totalDown),
-                    }),
+                    sub: buildTrafficWindowSubtitle(trafficWindowTotals.month, t),
                 } : {
                     value: '--',
                     sub: t('pages.dashboardCommon.trafficPending'),

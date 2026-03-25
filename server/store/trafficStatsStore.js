@@ -67,6 +67,39 @@ function normalizeDateInput(value, fallback = null) {
     return date.toISOString();
 }
 
+function normalizeReferenceDate(value) {
+    const date = value instanceof Date ? new Date(value) : new Date(value || Date.now());
+    if (Number.isNaN(date.getTime())) return new Date();
+    return date;
+}
+
+function buildCalendarTrafficWindowRange(windowKey, reference = new Date()) {
+    const now = normalizeReferenceDate(reference);
+    const key = String(windowKey || '').trim().toLowerCase();
+    const start = new Date(now);
+
+    if (key === 'today' || key === 'day') {
+        start.setHours(0, 0, 0, 0);
+    } else if (key === 'this_week' || key === 'week') {
+        start.setHours(0, 0, 0, 0);
+        const weekday = start.getDay();
+        const offset = weekday === 0 ? 6 : (weekday - 1);
+        start.setDate(start.getDate() - offset);
+    } else if (key === 'this_month' || key === 'month') {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+    } else {
+        return null;
+    }
+
+    return {
+        fromTs: start.getTime(),
+        toTs: now.getTime(),
+        from: start.toISOString(),
+        to: now.toISOString(),
+    };
+}
+
 function hasPositiveRegisteredTrafficTotals(value) {
     const totals = normalizeRegisteredTotals(value);
     return Number(totals.upBytes || 0) > 0
@@ -1132,6 +1165,7 @@ function stopTrafficStatsWarmLoop() {
 export default trafficStatsStore;
 export {
     TrafficStatsStore,
+    buildCalendarTrafficWindowRange,
     calculateTrafficDelta,
     extractInboundClients,
     resolveTrafficUserInfo,

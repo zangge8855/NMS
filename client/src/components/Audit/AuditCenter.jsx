@@ -23,7 +23,7 @@ import {
 } from 'recharts';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
-import { formatBytes, formatDateOnly, formatDateTime as formatDateTimeValue } from '../../utils/format.js';
+import { formatBytes, formatDateOnly, formatDateTime as formatDateTimeValue, getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import toast from 'react-hot-toast';
 import Tasks from '../Tasks/Tasks.jsx';
@@ -51,6 +51,11 @@ const EMPTY_TRAFFIC_STATUS = {
     sampleCount: 0,
     collecting: false,
 };
+const EMPTY_TRAFFIC_TOTALS = Object.freeze({
+    upBytes: 0,
+    downBytes: 0,
+    totalBytes: 0,
+});
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -102,7 +107,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: '批量任务、重试和取消记录集中在这里，方便追踪执行链路。',
             trafficEyebrow: 'Traffic',
-            trafficSummary: '先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。',
+            trafficSummary: '先看近 30 天用户流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: '筛选订阅访问、真实 IP、归属地和状态分布，快速定位异常访问。',
             logsEyebrow: 'Panel Logs',
@@ -126,7 +131,9 @@ const AUDIT_COPY = {
             noServerSelected: '未选择节点',
             userTrafficSupport: '用户流量明细',
             supportReady: '支持用户级明细',
+            supportPartial: '归属不完整',
             supportLimited: '仅支持节点级流量',
+            userTrafficOmittedNote: '已省略 {omitted} 未归属流量',
         },
         tables: {
             time: '时间',
@@ -162,9 +169,11 @@ const AUDIT_COPY = {
             samplePoints: '采样点',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
-            totalTrafficScope: '近 30 天流量',
-            totalTrafficMonthNote: '最近 30 天全部节点采样',
-            totalTrafficLimitedNote: '最近 30 天全部节点采样；用户级归属不完整',
+            totalTrafficScope: '近 30 天用户流量',
+            totalTrafficMonthNote: '最近 30 天已归属用户流量',
+            totalTrafficLimitedNote: '最近 30 天用户流量归属不完整',
+            totalTrafficPartialNote: '最近 30 天仅统计已归属用户，另有 {omitted} 未归属流量',
+            totalTrafficUnavailableNote: '当前窗口未返回可归属用户流量，另有 {omitted} 节点流量未归属',
             weeklyActiveAccountsScope: '最近 7 天 · 有流量的已注册用户',
             monthlyActiveAccountsScope: '最近 30 天 · 有流量的已注册用户',
             samplePointsScope: '最近 30 天采样记录数',
@@ -174,7 +183,8 @@ const AUDIT_COPY = {
             topServersScope: '最近 30 天 · 全部节点排行',
             selectUser: '请选择用户',
             selectServer: '请选择节点',
-            userLevelUnsupported: '当前 3x-ui 数据仅支持节点级流量统计，未返回用户级流量明细。',
+            userLevelUnsupported: '当前窗口未返回可归属的用户流量明细，仅能查看节点总量。',
+            userLevelPartial: '当前窗口存在未归属流量，用户趋势和排行仅统计已归属部分。',
             userLevelNoCounts: '当前节点列表未提供用户级流量计数。',
             serverTrendPending: '当前窗口内缺少足够的节点快照增量，暂时无法生成节点趋势。',
             topUsers: '流量 Top 用户',
@@ -287,7 +297,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: 'Batch history, retries, and cancellations stay in one place for easier traceability.',
             trafficEyebrow: 'Traffic',
-            trafficSummary: 'Start from last-30-day traffic and weekly/monthly active accounts, then drill into trends and rankings.',
+            trafficSummary: 'Start from last-30-day user traffic and weekly/monthly active accounts, then drill into trends and rankings.',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: 'Filter subscription access, real IP, geo, and status distribution to find abnormal requests quickly.',
             logsEyebrow: 'Panel Logs',
@@ -311,7 +321,9 @@ const AUDIT_COPY = {
             noServerSelected: 'No node selected',
             userTrafficSupport: 'User Traffic Detail',
             supportReady: 'User-level detail available',
+            supportPartial: 'Attribution incomplete',
             supportLimited: 'Node-level traffic only',
+            userTrafficOmittedNote: '{omitted} of unattributed traffic omitted',
         },
         tables: {
             time: 'Time',
@@ -347,9 +359,11 @@ const AUDIT_COPY = {
             samplePoints: 'Samples',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
-            totalTrafficScope: 'Traffic in the last 30 days',
-            totalTrafficMonthNote: 'Sampled traffic across all nodes in the last 30 days',
-            totalTrafficLimitedNote: 'Sampled traffic across all nodes in the last 30 days; user attribution is incomplete',
+            totalTrafficScope: 'User traffic in the last 30 days',
+            totalTrafficMonthNote: 'Attributed user traffic in the last 30 days',
+            totalTrafficLimitedNote: 'User traffic attribution is incomplete for the last 30 days',
+            totalTrafficPartialNote: 'Attributed users only in the last 30 days, {omitted} remains unattributed',
+            totalTrafficUnavailableNote: 'No attributable user traffic was returned in this window; {omitted} remains as node-only traffic',
             weeklyActiveAccountsScope: 'Last 7 days · registered users with traffic',
             monthlyActiveAccountsScope: 'Last 30 days · registered users with traffic',
             samplePointsScope: 'Traffic samples collected in the last 30 days',
@@ -359,7 +373,8 @@ const AUDIT_COPY = {
             topServersScope: 'Last 30 days · all nodes ranking',
             selectUser: 'Select a user',
             selectServer: 'Select a node',
-            userLevelUnsupported: 'Current 3x-ui data only supports node-level traffic and does not provide per-user traffic details.',
+            userLevelUnsupported: 'No attributable per-user traffic was returned for this window; only node totals are available.',
+            userLevelPartial: 'This window contains unattributed traffic. User trends and rankings only cover the attributable portion.',
             userLevelNoCounts: 'Current nodes do not provide per-user traffic counters.',
             serverTrendPending: 'The current window does not have enough node snapshot deltas to build a node trend yet.',
             topUsers: 'Top Users by Traffic',
@@ -465,6 +480,47 @@ function buildRollingWindowRange(days) {
         from: from.toISOString(),
         to: to.toISOString(),
     };
+}
+
+function normalizeTrafficTotals(value) {
+    const payload = value && typeof value === 'object' ? value : {};
+    const upBytes = Number(payload.upBytes || 0);
+    const downBytes = Number(payload.downBytes || 0);
+    const totalBytes = Number(payload.totalBytes || (upBytes + downBytes));
+    return {
+        upBytes: Number.isFinite(upBytes) && upBytes > 0 ? upBytes : 0,
+        downBytes: Number.isFinite(downBytes) && downBytes > 0 ? downBytes : 0,
+        totalBytes: Number.isFinite(totalBytes) && totalBytes > 0 ? totalBytes : 0,
+    };
+}
+
+function resolveTrafficAttributionState(overview = null) {
+    const payload = overview && typeof overview === 'object' ? overview : {};
+    const managedTotals = normalizeTrafficTotals(payload?.managedTotals);
+    const unattributedTotals = normalizeTrafficTotals(payload?.unattributedTotals);
+    const hasManagedTraffic = managedTotals.totalBytes > 0;
+    const hasUnattributedTraffic = unattributedTotals.totalBytes > 0;
+
+    if (hasManagedTraffic && hasUnattributedTraffic) return 'partial';
+    if (hasUnattributedTraffic || payload?.userLevelSupported === false) return 'limited';
+    return 'complete';
+}
+
+function buildTrafficTotalsNote(overview = null, copy) {
+    const payload = overview && typeof overview === 'object' ? overview : {};
+    const managedTotals = normalizeTrafficTotals(payload?.managedTotals);
+    const unattributedTotals = normalizeTrafficTotals(payload?.unattributedTotals);
+    if (unattributedTotals.totalBytes > 0) {
+        const omitted = formatBytes(unattributedTotals.totalBytes);
+        if (managedTotals.totalBytes > 0) {
+            return copy.traffic.totalTrafficPartialNote.replace('{omitted}', omitted);
+        }
+        return copy.traffic.totalTrafficUnavailableNote.replace('{omitted}', omitted);
+    }
+    if (payload?.userLevelSupported === false) {
+        return copy.traffic.totalTrafficLimitedNote;
+    }
+    return copy.traffic.totalTrafficMonthNote;
 }
 
 function normalizeTrafficStatus(status = null, overview = null) {
@@ -1226,7 +1282,7 @@ export default function AuditCenter() {
             setEventsPage(targetPage);
             eventsLiveUpdatedAtRef.current = Date.now();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || copy.toast.auditLoadFailed);
+            toast.error(getErrorMessage(err, copy.toast.auditLoadFailed, locale));
         }
         setEventsLoading(false);
     };
@@ -1291,7 +1347,7 @@ export default function AuditCenter() {
             if (!hasVisibleTrafficSnapshot(trafficStateRef.current)) {
                 setTrafficWindows({ week: null, month: null });
             }
-            toast.error(err.response?.data?.msg || err.message || copy.toast.trafficLoadFailed);
+            toast.error(getErrorMessage(err, copy.toast.trafficLoadFailed, locale));
         }
         setTrafficLoading(false);
     };
@@ -1308,7 +1364,7 @@ export default function AuditCenter() {
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
             setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || copy.toast.userTrendLoadFailed);
+            toast.error(getErrorMessage(err, copy.toast.userTrendLoadFailed, locale));
         }
     };
 
@@ -1324,7 +1380,7 @@ export default function AuditCenter() {
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
             setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || copy.toast.serverTrendLoadFailed);
+            toast.error(getErrorMessage(err, copy.toast.serverTrendLoadFailed, locale));
         }
     };
 
@@ -1360,7 +1416,7 @@ export default function AuditCenter() {
                     month: { ...EMPTY_ACCESS_SUMMARY },
                 });
             }
-            toast.error(err.response?.data?.msg || err.message || copy.toast.accessLoadFailed);
+            toast.error(getErrorMessage(err, copy.toast.accessLoadFailed, locale));
         }
         setAccessLoading(false);
     };
@@ -1434,7 +1490,7 @@ export default function AuditCenter() {
             toast.success(copy.toast.clearDone);
             fetchEvents(1);
         } catch (err) {
-            toast.error(err.response?.data?.msg || copy.toast.clearFailed);
+            toast.error(getErrorMessage(err, copy.toast.clearFailed, locale));
         }
     };
 
@@ -1451,7 +1507,7 @@ export default function AuditCenter() {
             toast.success(copy.toast.clearAccessDone);
             fetchAccess(1);
         } catch (err) {
-            toast.error(err.response?.data?.msg || copy.toast.clearFailed);
+            toast.error(getErrorMessage(err, copy.toast.clearFailed, locale));
         }
     };
 
@@ -1491,17 +1547,23 @@ export default function AuditCenter() {
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
-    const trafficTotals = trafficOverview?.totals || {
-        upBytes: 0,
-        downBytes: 0,
-        totalBytes: 0,
-    };
-    const trafficTotalsNote = trafficOverview?.userLevelSupported === false
-        ? copy.traffic.totalTrafficLimitedNote
-        : copy.traffic.totalTrafficMonthNote;
     const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
         ? trafficOverview.collection.warnings.length
         : 0;
+    const trafficTotals = normalizeTrafficTotals(trafficOverview?.managedTotals || trafficOverview?.totals || EMPTY_TRAFFIC_TOTALS);
+    const trafficUnattributedTotals = normalizeTrafficTotals(trafficOverview?.unattributedTotals);
+    const trafficAttributionState = resolveTrafficAttributionState(trafficOverview);
+    const trafficTotalsNote = buildTrafficTotalsNote(trafficOverview, copy);
+    const trafficSupportLabel = trafficAttributionState === 'partial'
+        ? copy.workspace.supportPartial
+        : (trafficAttributionState === 'limited' ? copy.workspace.supportLimited : copy.workspace.supportReady);
+    const trafficSupportNote = trafficUnattributedTotals.totalBytes > 0
+        ? copy.workspace.userTrafficOmittedNote.replace('{omitted}', formatBytes(trafficUnattributedTotals.totalBytes))
+        : (
+            trafficWarningCount > 0
+                ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
+                : copy.workspace.dataWindowTraffic
+        );
     const trafficWeeklyActiveUsers = Number(trafficWindows.week?.activeUsers || 0);
     const trafficMonthlyActiveUsers = Number((trafficWindows.month || trafficOverview)?.activeUsers || 0);
     const topServersPending = topServers.length === 0 && trafficOverview?.topServersReady === false;
@@ -1870,13 +1932,9 @@ export default function AuditCenter() {
                                     <div className="audit-traffic-mini-card">
                                         <div className="audit-traffic-mini-label">{copy.workspace.userTrafficSupport}</div>
                                         <div className="audit-traffic-mini-value">
-                                            {trafficOverview?.userLevelSupported === false ? copy.workspace.supportLimited : copy.workspace.supportReady}
+                                            {trafficSupportLabel}
                                         </div>
-                                        <div className="audit-traffic-mini-note">
-                                            {trafficWarningCount > 0
-                                                ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
-                                                : copy.workspace.dataWindowTraffic}
-                                        </div>
+                                        <div className="audit-traffic-mini-note">{trafficSupportNote}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1903,8 +1961,12 @@ export default function AuditCenter() {
                                         </select>
                                     )}
                                 />
-                                {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelUnsupported}</div>
+                                {trafficAttributionState !== 'complete' && (
+                                    <div className="text-xs text-muted mb-2">
+                                        {trafficAttributionState === 'partial'
+                                            ? copy.traffic.userLevelPartial
+                                            : copy.traffic.userLevelUnsupported}
+                                    </div>
                                 )}
                                 <div className="audit-chart-selection">
                                     <span className="audit-chart-selection-label">{copy.workspace.currentSelection}</span>
@@ -1983,8 +2045,12 @@ export default function AuditCenter() {
                                     title={copy.traffic.topUsers}
                                     subtitle={copy.traffic.topUsersScope}
                                 />
-                                {trafficOverview?.userLevelSupported === false && (
-                                    <div className="text-xs text-muted mb-2">{copy.traffic.userLevelNoCounts}</div>
+                                {trafficAttributionState !== 'complete' && (
+                                    <div className="text-xs text-muted mb-2">
+                                        {trafficAttributionState === 'partial'
+                                            ? copy.traffic.userLevelPartial
+                                            : copy.traffic.userLevelNoCounts}
+                                    </div>
                                 )}
                                 {topUsers.length === 0 ? (
                                     <div className="p-4">

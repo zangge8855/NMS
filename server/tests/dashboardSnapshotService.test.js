@@ -8,6 +8,7 @@ import {
 
 test('buildGlobalDashboardSnapshot returns managed-user presence and traffic windows from warm caches', async () => {
     let collectForce = null;
+    let overviewCall = 0;
     const snapshot = await buildGlobalDashboardSnapshot({ force: true }, {
         serverStore: {
             getAll: () => [
@@ -39,14 +40,15 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
             collectIfStale: async (force) => {
                 collectForce = force;
             },
-            getOverview: (options = {}) => {
-                if (options?.from) {
+            getOverview: () => {
+                overviewCall += 1;
+                if (overviewCall === 1) {
                     return { managedTotals: { upBytes: 180, downBytes: 360 } };
                 }
-                if (Number(options?.days) === 7) {
+                if (overviewCall === 2) {
                     return { managedTotals: { upBytes: 210, downBytes: 420 } };
                 }
-                if (Number(options?.days) === 30) {
+                if (overviewCall === 3) {
                     return { managedTotals: { upBytes: 220, downBytes: 440 } };
                 }
                 return { managedTotals: { upBytes: 0, downBytes: 0 } };
@@ -168,92 +170,94 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(snapshot.globalOnlineUsers[0].sessions, 3);
 });
 
-test('buildGlobalDashboardSnapshot does not block core cards on slow traffic sampling', async () => {
+test('buildGlobalDashboardSnapshot waits for traffic sampling before computing traffic windows', async () => {
     let resolveTrafficSampling = null;
-    const snapshot = await Promise.race([
-        buildGlobalDashboardSnapshot({ force: true }, {
-            serverStore: {
-                getAll: () => [
-                    { id: 'server-a', name: 'Node A' },
-                ],
-            },
-            userStore: {
-                getAll: () => [
-                    {
-                        id: 'user-a',
-                        role: 'user',
-                        username: 'Alice',
-                        email: 'alice@example.com',
-                        subscriptionEmail: 'alice@example.com',
-                        enabled: true,
-                    },
-                ],
-            },
-            trafficStatsStore: {
-                collectIfStale: async () => new Promise((resolve) => {
-                    resolveTrafficSampling = resolve;
-                }),
-                getOverview: () => ({ managedTotals: { upBytes: 0, downBytes: 0 } }),
-            },
-            collectClusterStatusSnapshot: async () => ({
-                summary: {
-                    total: 1,
-                    onlineServers: 1,
-                    totalInbounds: 1,
-                    activeInbounds: 1,
-                    throughput: {
-                        ready: false,
-                        readyServers: 0,
-                        upPerSecond: 0,
-                        downPerSecond: 0,
-                        totalPerSecond: 0,
-                    },
-                },
-                byServerId: {
-                    'server-a': {
-                        serverId: 'server-a',
-                        name: 'Node A',
-                        online: true,
-                        inboundCount: 1,
-                        activeInbounds: 1,
-                        status: {
-                            cpu: 12,
-                            mem: { current: 256, total: 1024 },
-                            uptime: 3600,
-                            netTraffic: { sent: 1000, recv: 2000 },
-                        },
-                    },
-                },
-            }),
-            getServerPanelSnapshots: async () => [
+    let getOverviewCalls = 0;
+    const snapshotPromise = buildGlobalDashboardSnapshot({ force: true }, {
+        serverStore: {
+            getAll: () => [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        },
+        userStore: {
+            getAll: () => [
                 {
-                    server: { id: 'server-a', name: 'Node A' },
-                    inbounds: [
-                        {
-                            id: 'ib-a',
-                            protocol: 'vless',
-                            enable: true,
-                            remark: '港口专线',
-                            settings: JSON.stringify({
-                                clients: [
-                                    { id: 'uuid-a', email: 'alice@example.com' },
-                                ],
-                            }),
-                            clientStats: [
-                                { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
-                            ],
-                        },
-                    ],
-                    onlines: [
-                        { email: 'alice@example.com', id: 'uuid-a' },
-                    ],
+                    id: 'user-a',
+                    role: 'user',
+                    username: 'Alice',
+                    email: 'alice@example.com',
+                    subscriptionEmail: 'alice@example.com',
+                    enabled: true,
                 },
             ],
+        },
+        trafficStatsStore: {
+            collectIfStale: async () => new Promise((resolve) => {
+                resolveTrafficSampling = resolve;
+            }),
+            getOverview: () => {
+                getOverviewCalls += 1;
+                return { managedTotals: { upBytes: 0, downBytes: 0 } };
+            },
+        },
+        collectClusterStatusSnapshot: async () => ({
+            summary: {
+                total: 1,
+                onlineServers: 1,
+                totalInbounds: 1,
+                activeInbounds: 1,
+                throughput: {
+                    ready: false,
+                    readyServers: 0,
+                    upPerSecond: 0,
+                    downPerSecond: 0,
+                    totalPerSecond: 0,
+                },
+            },
+            byServerId: {
+                'server-a': {
+                    serverId: 'server-a',
+                    name: 'Node A',
+                    online: true,
+                    inboundCount: 1,
+                    activeInbounds: 1,
+                    status: {
+                        cpu: 12,
+                        mem: { current: 256, total: 1024 },
+                        uptime: 3600,
+                        netTraffic: { sent: 1000, recv: 2000 },
+                    },
+                },
+            },
         }),
-        new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('dashboard snapshot timed out')), 100);
-        }),
-    ]);
+        getServerPanelSnapshots: async () => [
+            {
+                server: { id: 'server-a', name: 'Node A' },
+                inbounds: [
+                    {
+                        id: 'ib-a',
+                        protocol: 'vless',
+                        enable: true,
+                        remark: '港口专线',
+                        settings: JSON.stringify({
+                            clients: [
+                                { id: 'uuid-a', email: 'alice@example.com' },
+                            ],
+                        }),
+                        clientStats: [
+                            { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                        ],
+                    },
+                ],
+                onlines: [
+                    { email: 'alice@example.com', id: 'uuid-a' },
+                ],
+            },
+        ],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(getOverviewCalls, 0);
 
     resolveTrafficSampling?.({
         collected: true,
@@ -261,10 +265,12 @@ test('buildGlobalDashboardSnapshot does not block core cards on slow traffic sam
         samplesAdded: 1,
         warnings: [],
     });
+    const snapshot = await snapshotPromise;
 
     assert.equal(snapshot.globalManagedOnlineCount, 1);
     assert.equal(snapshot.globalStats.totalOnline, 1);
     assert.equal(snapshot.globalOnlineUsers[0].displayName, 'Alice');
+    assert.equal(getOverviewCalls > 0, true);
 });
 
 test('buildGlobalDashboardSnapshot ignores synchronous traffic sampling failures', async () => {
@@ -355,23 +361,27 @@ test('buildGlobalDashboardSnapshot ignores synchronous traffic sampling failures
 
 test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel snapshots', () => {
     const nowIso = new Date().toISOString();
+    let overviewCall = 0;
     const windows = buildDashboardTrafficWindowTotals({
         trafficStatsStore: {
-            getOverview: ({ days, from, to } = {}) => ({
-                from: from || (days === 7 ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
+            getOverview: ({ from, to } = {}) => {
+                overviewCall += 1;
+                const isWeekWindow = overviewCall === 2;
+                return {
+                from: from || (isWeekWindow ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
                 to: to || nowIso,
                 lastCollectionAt: nowIso,
                 sampleCount: 1,
                 baselineReady: true,
                 managedTotals: {
-                    upBytes: days === 7 ? 210 : 220,
-                    downBytes: days === 7 ? 420 : 440,
-                    totalBytes: days === 7 ? 630 : 660,
+                    upBytes: isWeekWindow ? 210 : 220,
+                    downBytes: isWeekWindow ? 420 : 440,
+                    totalBytes: isWeekWindow ? 630 : 660,
                 },
                 totals: {
-                    upBytes: days === 7 ? 310 : 320,
-                    downBytes: days === 7 ? 520 : 540,
-                    totalBytes: days === 7 ? 830 : 860,
+                    upBytes: isWeekWindow ? 310 : 320,
+                    downBytes: isWeekWindow ? 520 : 540,
+                    totalBytes: isWeekWindow ? 830 : 860,
                 },
                 registeredTotals: {
                     totalUsers: 1,
@@ -389,7 +399,8 @@ test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel sn
                         totalBytes: 1500,
                     },
                 ],
-            }),
+            };
+            },
         },
         users: [
             {
@@ -426,12 +437,92 @@ test('buildDashboardTrafficWindowTotals overlays live deltas from fresh panel sn
     assert.equal(windows.month.totalDown, 500);
 });
 
+test('buildDashboardTrafficWindowTotals uses calendar day, week, and month windows', () => {
+    const now = new Date('2026-03-25T15:30:00.000Z');
+    const requestedRanges = [];
+    buildDashboardTrafficWindowTotals({
+        now,
+        trafficStatsStore: {
+            getOverview: ({ from, to } = {}) => {
+                requestedRanges.push({ from, to });
+                return {
+                    from,
+                    to,
+                    sampleCount: 1,
+                    baselineReady: true,
+                    managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                    totals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                    registeredTotals: { totalUsers: 1, activeUsers: 1, upBytes: 10, downBytes: 20, totalBytes: 30 },
+                    serverTotals: [],
+                };
+            },
+        },
+        users: [],
+        panelSnapshots: [],
+    });
+
+    assert.equal(requestedRanges.length, 3);
+    const [dayRange, weekRange, monthRange] = requestedRanges.map((item) => ({
+        from: new Date(item.from),
+        to: new Date(item.to),
+    }));
+
+    assert.equal(dayRange.from.getHours(), 0);
+    assert.equal(dayRange.from.getMinutes(), 0);
+    assert.equal(dayRange.to.toISOString(), now.toISOString());
+    assert.equal(weekRange.from.getDay(), 1);
+    assert.equal(weekRange.from.getHours(), 0);
+    assert.equal(weekRange.from.getMinutes(), 0);
+    assert.equal(monthRange.from.getDate(), 1);
+    assert.equal(monthRange.from.getHours(), 0);
+    assert.equal(monthRange.from.getMinutes(), 0);
+});
+
+test('buildDashboardTrafficWindowTotals exposes unattributed traffic metadata for partial user totals', () => {
+    const windows = buildDashboardTrafficWindowTotals({
+        now: new Date('2026-03-25T15:30:00.000Z'),
+        trafficStatsStore: {
+            getOverview: ({ from, to } = {}) => ({
+                from,
+                to,
+                sampleCount: 2,
+                baselineReady: true,
+                userLevelSupported: false,
+                managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                totals: { upBytes: 520, downBytes: 840, totalBytes: 1360 },
+                unattributedTotals: { upBytes: 400, downBytes: 600, totalBytes: 1000 },
+                registeredTotals: {
+                    totalUsers: 1,
+                    activeUsers: 1,
+                    upBytes: 120,
+                    downBytes: 240,
+                    totalBytes: 360,
+                },
+                serverTotals: [],
+            }),
+        },
+        users: [],
+        panelSnapshots: [],
+    });
+
+    assert.equal(windows.week.attributionComplete, false);
+    assert.equal(windows.week.unattributedUp, 400);
+    assert.equal(windows.week.unattributedDown, 600);
+    assert.equal(windows.week.unattributedTotal, 1000);
+    assert.equal(windows.month.totalUp, 120);
+    assert.equal(windows.month.totalDown, 240);
+});
+
 test('buildDashboardTrafficWindowTotals does not overlay live cumulative totals when the overview baseline is not ready', () => {
     const nowIso = new Date().toISOString();
+    let overviewCall = 0;
     const windows = buildDashboardTrafficWindowTotals({
         trafficStatsStore: {
-            getOverview: ({ days, from, to } = {}) => ({
-                from: from || (days === 7 ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
+            getOverview: ({ from, to } = {}) => {
+                overviewCall += 1;
+                const isWeekWindow = overviewCall === 2;
+                return {
+                from: from || (isWeekWindow ? '2026-03-17T00:00:00.000Z' : '2026-02-24T00:00:00.000Z'),
                 to: to || nowIso,
                 lastCollectionAt: nowIso,
                 sampleCount: 0,
@@ -454,7 +545,8 @@ test('buildDashboardTrafficWindowTotals does not overlay live cumulative totals 
                     totalBytes: 0,
                 },
                 serverTotals: [],
-            }),
+            };
+            },
         },
         users: [
             {
@@ -490,6 +582,105 @@ test('buildDashboardTrafficWindowTotals does not overlay live cumulative totals 
     assert.equal(windows.day.ready, false);
     assert.equal(windows.week.totalUp, 0);
     assert.equal(windows.month.totalDown, 0);
+});
+
+test('buildGlobalDashboardSnapshot keeps managed online counts separated for servers that share the same name', async () => {
+    const snapshot = await buildGlobalDashboardSnapshot({ force: true }, {
+        serverStore: {
+            getAll: () => [
+                { id: 'server-a', name: 'Shared Node' },
+                { id: 'server-b', name: 'Shared Node' },
+            ],
+        },
+        userStore: {
+            getAll: () => [
+                {
+                    id: 'user-a',
+                    role: 'user',
+                    username: 'Alice',
+                    email: 'alice@example.com',
+                    subscriptionEmail: 'alice@example.com',
+                    enabled: true,
+                },
+                {
+                    id: 'user-b',
+                    role: 'user',
+                    username: 'Bob',
+                    email: 'bob@example.com',
+                    subscriptionEmail: 'bob@example.com',
+                    enabled: true,
+                },
+            ],
+        },
+        trafficStatsStore: {
+            collectIfStale: async () => ({
+                collected: true,
+                lastCollectionAt: '2026-03-24T00:10:00.000Z',
+                samplesAdded: 1,
+                warnings: [],
+            }),
+            getOverview: () => ({
+                sampleCount: 1,
+                baselineReady: true,
+                managedTotals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                totals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                registeredTotals: { totalUsers: 2, activeUsers: 0, upBytes: 0, downBytes: 0, totalBytes: 0 },
+                serverTotals: [],
+            }),
+        },
+        collectClusterStatusSnapshot: async () => ({
+            summary: {
+                total: 2,
+                onlineServers: 2,
+                totalInbounds: 2,
+                activeInbounds: 2,
+                throughput: {
+                    ready: false,
+                    readyServers: 0,
+                    upPerSecond: 0,
+                    downPerSecond: 0,
+                    totalPerSecond: 0,
+                },
+            },
+            byServerId: {
+                'server-a': { serverId: 'server-a', name: 'Shared Node', online: true, inboundCount: 1, activeInbounds: 1, status: {} },
+                'server-b': { serverId: 'server-b', name: 'Shared Node', online: true, inboundCount: 1, activeInbounds: 1, status: {} },
+            },
+        }),
+        getServerPanelSnapshots: async () => [
+            {
+                server: { id: 'server-a', name: 'Shared Node' },
+                inbounds: [
+                    {
+                        id: 'ib-a',
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Node A',
+                        settings: JSON.stringify({ clients: [{ id: 'uuid-a', email: 'alice@example.com' }] }),
+                        clientStats: [{ id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 }],
+                    },
+                ],
+                onlines: [{ email: 'alice@example.com', id: 'uuid-a' }],
+            },
+            {
+                server: { id: 'server-b', name: 'Shared Node' },
+                inbounds: [
+                    {
+                        id: 'ib-b',
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Node B',
+                        settings: JSON.stringify({ clients: [{ id: 'uuid-b', email: 'bob@example.com' }] }),
+                        clientStats: [{ id: 'uuid-b', email: 'bob@example.com', up: 10, down: 20 }],
+                    },
+                ],
+                onlines: [{ email: 'bob@example.com', id: 'uuid-b' }],
+            },
+        ],
+    });
+
+    assert.equal(snapshot.serverStatuses['server-a'].managedOnlineCount, 1);
+    assert.equal(snapshot.serverStatuses['server-b'].managedOnlineCount, 1);
 });
 
 test('buildSingleDashboardSnapshot returns sorted inbounds and managed online sessions', async () => {

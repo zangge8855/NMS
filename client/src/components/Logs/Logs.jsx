@@ -22,6 +22,7 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { getErrorMessage } from '../../utils/format.js';
 
 const LOGS_SNAPSHOT_TTL_MS = 2 * 60_000;
 
@@ -287,6 +288,20 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             });
             if (requestId !== logRequestIdRef.current) return;
             const payload = res.data?.obj || {};
+            const error = payload?.error && typeof payload.error === 'object' ? payload.error : null;
+            if (error) {
+                if (!preserveCurrent) {
+                    setLogs([]);
+                }
+                setFetchSummary({
+                    tone: 'danger',
+                    message: t('pages.logs.loadFailed', {
+                        source: sourceLabel,
+                        message: String(error.message || t('pages.logs.unknownError')).trim(),
+                    }),
+                });
+                return;
+            }
             const lines = Array.isArray(payload.lines) ? payload.lines : [];
             setLogs(lines.map((line) => ({ line, serverName: activeServer?.name || '' })));
             if (payload.supported === false || payload.warning) {
@@ -297,7 +312,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             }
         } catch (err) {
             if (requestId !== logRequestIdRef.current) return;
-            const message = err.response?.data?.msg || err.message;
+            const message = getErrorMessage(err, t('pages.logs.unknownError'), locale);
             toast.error(t('pages.logs.fetchFailed', { message }));
             setFetchSummary({
                 tone: 'danger',
@@ -386,12 +401,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             }
         } catch (err) {
             if (requestId !== logRequestIdRef.current) return;
-            toast.error(t('pages.logs.globalFetchFailed', { message: err.message || t('pages.logs.unknownError') }));
+            const message = getErrorMessage(err, t('pages.logs.unknownError'), locale);
+            toast.error(t('pages.logs.globalFetchFailed', { message }));
             setFetchSummary({
                 tone: 'danger',
                 message: t('pages.logs.globalLoadFailed', {
                     source: sourceLabel,
-                    message: err.message || t('pages.logs.unknownError'),
+                    message,
                 }),
             });
             if (!preserveCurrent) {

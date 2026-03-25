@@ -34,6 +34,23 @@ function buildErrorPayload(error) {
     };
 }
 
+function buildErrorSnapshot(server, options = {}, error) {
+    const source = normalizeLogSource(options.source);
+    const count = normalizeLogCount(options.count, 100);
+    return {
+        serverId: String(server?.id || '').trim(),
+        serverName: String(server?.name || '').trim(),
+        source,
+        count,
+        supported: false,
+        warning: '',
+        sourcePath: '',
+        lines: [],
+        fetchedAt: new Date().toISOString(),
+        error: buildErrorPayload(error),
+    };
+}
+
 async function runWithConcurrency(items, worker, concurrency = DEFAULT_CONCURRENCY) {
     const results = [];
     let index = 0;
@@ -128,18 +145,7 @@ async function getServerLogSnapshots(options = {}, deps = {}) {
                     ttlMs: options.ttlMs,
                 }, deps);
             } catch (error) {
-                return {
-                    serverId: String(server?.id || '').trim(),
-                    serverName: String(server?.name || '').trim(),
-                    source,
-                    count,
-                    supported: false,
-                    warning: '',
-                    sourcePath: '',
-                    lines: [],
-                    fetchedAt: new Date().toISOString(),
-                    error: buildErrorPayload(error),
-                };
+                return buildErrorSnapshot(server, { source, count }, error);
             }
         },
         Number(options.concurrency || DEFAULT_CONCURRENCY)
@@ -161,6 +167,8 @@ function invalidateServerLogSnapshotCache(serverId = '') {
 }
 
 export {
+    buildErrorPayload,
+    buildErrorSnapshot,
     getServerLogSnapshot,
     getServerLogSnapshots,
     invalidateServerLogSnapshotCache,

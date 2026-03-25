@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    buildErrorSnapshot,
     getServerLogSnapshot,
     getServerLogSnapshots,
     invalidateServerLogSnapshotCache,
@@ -77,4 +78,26 @@ test('getServerLogSnapshots returns per-server errors without aborting the whole
     assert.equal(items[1].serverId, 'server-b');
     assert.equal(items[1].error?.status, 502);
     assert.equal(items[1].error?.message, 'upstream failed');
+});
+
+test('buildErrorSnapshot creates a single-node fallback payload for upstream failures', () => {
+    const error = new Error('panel temporarily unavailable');
+    error.code = 'PANEL_LOGIN_FAILED';
+    error.status = 502;
+
+    const snapshot = buildErrorSnapshot(
+        { id: 'server-a', name: 'Node A' },
+        { source: 'panel', count: 50 },
+        error
+    );
+
+    assert.equal(snapshot.serverId, 'server-a');
+    assert.equal(snapshot.serverName, 'Node A');
+    assert.equal(snapshot.source, 'panel');
+    assert.equal(snapshot.count, 50);
+    assert.equal(snapshot.supported, false);
+    assert.deepEqual(snapshot.lines, []);
+    assert.equal(snapshot.error?.code, 'PANEL_LOGIN_FAILED');
+    assert.equal(snapshot.error?.status, 502);
+    assert.equal(snapshot.error?.message, 'panel temporarily unavailable');
 });

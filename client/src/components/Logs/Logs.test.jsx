@@ -5,6 +5,7 @@ import api from '../../api/client.js';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { renderWithRouter } from '../../test/render.jsx';
 import Logs from './Logs.jsx';
+import toast from 'react-hot-toast';
 
 vi.mock('../../api/client.js', () => ({
     default: {
@@ -32,6 +33,8 @@ describe('Logs', () => {
         window.sessionStorage.clear();
         api.get.mockReset();
         useServer.mockReset();
+        toast.error.mockReset();
+        toast.success.mockReset();
     });
 
     it('renders the cached single-server logs before the live request finishes', async () => {
@@ -211,6 +214,38 @@ describe('Logs', () => {
         });
     });
 
+    it('keeps the page usable when the single-node logs endpoint returns an error snapshot', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'server-a',
+            activeServer: { id: 'server-a', name: 'Node A' },
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    source: 'panel',
+                    count: 100,
+                    supported: false,
+                    warning: '',
+                    sourcePath: '',
+                    lines: [],
+                    error: {
+                        status: 502,
+                        code: 'PANEL_LOGIN_FAILED',
+                        message: '节点面板暂时不可达',
+                    },
+                },
+            },
+        });
+
+        renderWithRouter(<Logs embedded />);
+
+        expect(await screen.findByText('Panel 日志 加载失败：节点面板暂时不可达')).toBeInTheDocument();
+        expect(toast.error).not.toHaveBeenCalled();
+    });
+
     it('ignores stale global log results after the selection changes', async () => {
         const user = userEvent.setup();
         let globalRequestCount = 0;
@@ -292,6 +327,31 @@ describe('Logs', () => {
             expect(screen.getByText(/fresh node-a line/)).toBeInTheDocument();
             expect(screen.queryByText(/stale node-a line/)).not.toBeInTheDocument();
             expect(screen.queryByText(/stale node-b line/)).not.toBeInTheDocument();
+        });
+    });
+
+    it('shows the backend error message instead of a raw axios 502 in global mode', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            activeServer: null,
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        });
+        api.get.mockRejectedValue({
+            response: {
+                status: 502,
+                data: {
+                    msg: '节点日志聚合失败',
+                },
+            },
+            message: 'Request failed with status code 502',
+        });
+
+        renderWithRouter(<Logs embedded />);
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith('获取全局日志失败: 节点日志聚合失败');
         });
     });
 });

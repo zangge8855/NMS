@@ -26,6 +26,7 @@ import {
     buildDashboardPresenceFromPanelSnapshots,
     buildDashboardTrafficWindowTotals,
 } from './lib/dashboardSnapshotService.js';
+import trafficStatsStore from './store/trafficStatsStore.js';
 import userStore from './store/userStore.js';
 
 const BROADCAST_INTERVAL = 5_000;    // 5 秒采集/广播一次
@@ -60,11 +61,18 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
     };
 }
 
-function buildDashboardTrafficWindows(panelSnapshots = []) {
+async function buildDashboardTrafficWindows(panelSnapshots = []) {
+    try {
+        await trafficStatsStore.collectIfStale(false);
+    } catch {
+        // Dashboard pushes can fall back to the latest persisted snapshot.
+    }
     const windows = buildDashboardTrafficWindowTotals({
+        trafficStatsStore,
         users: userStore.getAll(),
         panelSnapshots,
     });
+    const collectionStatus = trafficStatsStore.getCollectionStatus();
     const toPayload = (window = {}) => ({
         totals: {
             upBytes: Number(window?.totalUp || 0),
@@ -76,9 +84,16 @@ function buildDashboardTrafficWindows(panelSnapshots = []) {
             downBytes: Number(window?.totalDown || 0),
             totalBytes: Number(window?.totalUp || 0) + Number(window?.totalDown || 0),
         },
+        unattributedTotals: {
+            upBytes: Number(window?.unattributedUp || 0),
+            downBytes: Number(window?.unattributedDown || 0),
+            totalBytes: Number(window?.unattributedTotal || 0),
+        },
         activeUsers: 0,
-        lastCollectionAt: '',
+        lastCollectionAt: collectionStatus?.lastCollectionAt || '',
         ready: window?.ready === true,
+        attributionComplete: window?.attributionComplete !== false,
+        userLevelSupported: window?.attributionComplete !== false,
     });
 
     return {
@@ -115,9 +130,10 @@ function resolveDashboardPanelSnapshots(snapshot) {
     return mergeDashboardPanelSnapshots(liveSnapshots, readDashboardPanelSnapshots());
 }
 
-function buildClusterStatusMessage(snapshot) {
+async function buildClusterStatusMessage(snapshot) {
     const panelSnapshots = resolveDashboardPanelSnapshots(snapshot);
     const presence = buildDashboardPresenceSummary(panelSnapshots);
+    const trafficWindows = await buildDashboardTrafficWindows(panelSnapshots);
     return {
         type: 'cluster_status',
         ts: Date.now(),
@@ -140,7 +156,7 @@ function buildClusterStatusMessage(snapshot) {
                 totalPerSecond: 0,
             },
             accountSummary: buildDashboardAccountSummary(),
-            trafficWindows: buildDashboardTrafficWindows(panelSnapshots),
+            trafficWindows,
             managedOnlineUsers: presence.onlineRows,
             managedOnlineUserCount: presence.onlineRows.length,
             managedOnlineSessionCount: presence.onlineSessionCount,
@@ -151,7 +167,12 @@ function buildClusterStatusMessage(snapshot) {
 
 function dashboardMessageNeedsFollowup(message) {
     const data = message?.data || {};
-    return data?.managedPresenceReady !== true || data?.throughputSummary?.ready !== true;
+    const trafficWindows = data?.trafficWindows && typeof data.trafficWindows === 'object'
+        ? Object.values(data.trafficWindows)
+        : [];
+    return data?.managedPresenceReady !== true
+        || data?.throughputSummary?.ready !== true
+        || trafficWindows.some((window) => window?.ready !== true);
 }
 
 function maybeScheduleDashboardFollowup(ws) {
@@ -167,7 +188,7 @@ function maybeScheduleDashboardFollowup(ws) {
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
             }
-            safeSend(ws, buildClusterStatusMessage(snapshot));
+            safeSend(ws, await buildClusterStatusMessage(snapshot));
         } catch (err) {
             console.error('[WebSocket] Follow-up snapshot error:', err?.message || err);
         }
@@ -216,7 +237,7 @@ export function initWebSocket(httpServer) {
 
     wss.on('close', () => clearInterval(heartbeatInterval));
 
-    wss.on('connection', (ws, req) => {
+    wss.on('connection', async (ws, req) => {
         ws.isAlive = true;
         ws.subscribedServerId = null;
         ws.subscribedTaskIds = new Set();
@@ -268,7 +289,7 @@ export function initWebSocket(httpServer) {
         // immediately, then follow it with a fresh snapshot if needed.
         const cachedSnapshot = getCachedClusterStatusSnapshot();
         if (Array.isArray(cachedSnapshot?.items) && cachedSnapshot.items.length > 0) {
-            const message = buildClusterStatusMessage(cachedSnapshot);
+            const message = await buildClusterStatusMessage(cachedSnapshot);
             safeSend(ws, message);
             if (dashboardMessageNeedsFollowup(message)) {
                 maybeScheduleDashboardFollowup(ws);
@@ -278,11 +299,11 @@ export function initWebSocket(httpServer) {
         collectClusterStatusSnapshot({
             includeDetails: true,
             maxAgeMs: FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS,
-        }).then((snapshot) => {
+        }).then(async (snapshot) => {
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;
             }
-            const message = buildClusterStatusMessage(snapshot);
+            const message = await buildClusterStatusMessage(snapshot);
             safeSend(ws, message);
             if (dashboardMessageNeedsFollowup(message)) {
                 maybeScheduleDashboardFollowup(ws);
@@ -309,7 +330,7 @@ export function initWebSocket(httpServer) {
                 return;
             }
 
-            const clusterPayload = JSON.stringify(buildClusterStatusMessage(snapshot));
+            const clusterPayload = JSON.stringify(await buildClusterStatusMessage(snapshot));
 
             // Broadcast to all connected clients
             for (const ws of wss.clients) {

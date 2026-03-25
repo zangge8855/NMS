@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import trafficStatsStore from '../store/trafficStatsStore.js';
+import trafficStatsStore, { buildCalendarTrafficWindowRange } from '../store/trafficStatsStore.js';
 import serverStore from '../store/serverStore.js';
 
 const router = Router();
@@ -14,16 +14,6 @@ function normalizeBoolean(value, fallback = false) {
     return fallback;
 }
 
-function buildTodayRange() {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    return {
-        from: start.toISOString(),
-        to: now.toISOString(),
-    };
-}
-
 function parseWindowKeys(value) {
     return Array.from(new Set(
         String(value || '')
@@ -31,6 +21,8 @@ function parseWindowKeys(value) {
             .map((item) => String(item || '').trim().toLowerCase())
             .filter((item) => (
                 item === 'today'
+                || item === 'this_week'
+                || item === 'this_month'
                 || (
                     Number.isInteger(Number.parseInt(item, 10))
                     && Number.parseInt(item, 10) > 0
@@ -69,13 +61,17 @@ router.get('/overview', async (req, res) => {
     };
     const overview = trafficStatsStore.getOverview(options);
     const windows = parseWindowKeys(req.query.windows).reduce((acc, key) => {
-        acc[key] = key === 'today'
-            ? trafficStatsStore.getOverview({
+        if (key === 'today' || key === 'this_week' || key === 'this_month') {
+            const range = buildCalendarTrafficWindowRange(key);
+            acc[key] = trafficStatsStore.getOverview({
                 ...options,
-                ...buildTodayRange(),
+                from: range?.from,
+                to: range?.to,
                 days: undefined,
-            })
-            : trafficStatsStore.getOverview({
+            });
+            return acc;
+        }
+        acc[key] = trafficStatsStore.getOverview({
                 ...options,
                 from: undefined,
                 to: undefined,

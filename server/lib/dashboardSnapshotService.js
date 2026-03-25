@@ -5,6 +5,7 @@ import { getServerPanelSnapshot, getServerPanelSnapshots } from './serverPanelSn
 import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import trafficStatsStore, {
+    buildCalendarTrafficWindowRange,
     summarizeRegisteredTrafficTotals,
     summarizeServerTrafficTotals,
 } from '../store/trafficStatsStore.js';
@@ -160,7 +161,8 @@ function withServerRemarkMeta(serverData, serverName = '') {
 function buildManagedOnlineSummary(users, serverPayloads = []) {
     const clientsMap = new Map();
     const onlineMap = new Map();
-    const onlineServerMap = new Map();
+    const onlineServerIdMap = new Map();
+    const onlineServerLabelMap = new Map();
     const managedEmailSet = new Set();
     const serverTrafficByServerId = {};
 
@@ -192,11 +194,17 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
             );
             if (email) {
                 onlineMap.set(email, (onlineMap.get(email) || 0) + 1);
-                if (!onlineServerMap.has(email)) {
-                    onlineServerMap.set(email, new Set());
+                if (!onlineServerIdMap.has(email)) {
+                    onlineServerIdMap.set(email, new Set());
+                }
+                if (!onlineServerLabelMap.has(email)) {
+                    onlineServerLabelMap.set(email, new Set());
+                }
+                if (serverId) {
+                    onlineServerIdMap.get(email).add(serverId);
                 }
                 if (serverName) {
-                    onlineServerMap.get(email).add(serverName);
+                    onlineServerLabelMap.get(email).add(serverName);
                 }
             }
         });
@@ -218,6 +226,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                         totalDown: 0,
                         onlineSessions: 0,
                         servers: new Set(),
+                        serverIds: new Set(),
                         nodeLabels: new Set(),
                     });
                 }
@@ -244,6 +253,9 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
                 }
+                if (onlineSessions > 0 && serverId) {
+                    entry.serverIds.add(serverId);
+                }
                 if (onlineSessions > 0) {
                     const nodeLabel = String(inbound?.remark || '').trim() || serverName;
                     if (nodeLabel) {
@@ -261,11 +273,20 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
             const loginEmail = normalizeEmail(user?.email);
             const username = String(user?.username || '').trim();
             const resolvedEmail = subscriptionEmail || loginEmail || '';
-            const clientData = clientsMap.get(subscriptionEmail) || clientsMap.get(loginEmail) || { count: 0, onlineSessions: 0, servers: new Set(), nodeLabels: new Set() };
+            const clientData = clientsMap.get(subscriptionEmail) || clientsMap.get(loginEmail) || {
+                count: 0,
+                onlineSessions: 0,
+                servers: new Set(),
+                serverIds: new Set(),
+                nodeLabels: new Set(),
+            };
             const sessions = clientData.onlineSessions || onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0;
             const matchedServers = clientData.servers?.size
                 ? Array.from(clientData.servers)
-                : Array.from(onlineServerMap.get(subscriptionEmail) || onlineServerMap.get(loginEmail) || []);
+                : Array.from(onlineServerLabelMap.get(subscriptionEmail) || onlineServerLabelMap.get(loginEmail) || []);
+            const matchedServerIds = clientData.serverIds?.size
+                ? Array.from(clientData.serverIds)
+                : Array.from(onlineServerIdMap.get(subscriptionEmail) || onlineServerIdMap.get(loginEmail) || []);
             const matchedNodes = clientData.nodeLabels?.size
                 ? Array.from(clientData.nodeLabels)
                 : matchedServers;
@@ -281,6 +302,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 clientCount: clientData.count || 0,
                 enabled: user?.enabled !== false,
                 servers: matchedServers,
+                serverIds: matchedServerIds,
                 nodeLabels: matchedNodes,
             };
         })
@@ -293,9 +315,8 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
     const totalDown = rows.reduce((sum, row) => sum + Number(row?.clientData?.totalDown || 0), 0);
     const onlineRows = rows.filter((row) => row.sessions > 0);
     const serverOnlineUserCountByServerId = onlineRows.reduce((acc, row) => {
-        row.servers.forEach((serverName) => {
-            const match = serverPayloads.find((item) => String(item?.serverName || '').trim() === serverName);
-            const serverId = String(match?.serverId || '').trim();
+        row.serverIds.forEach((serverIdValue) => {
+            const serverId = String(serverIdValue || '').trim();
             if (!serverId) return;
             acc[serverId] = (acc[serverId] || 0) + 1;
         });
@@ -390,18 +411,27 @@ function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
     const liveServerPayloads = buildLiveServerPayloads(deps.panelSnapshots || []);
     const overview = trafficStatsStoreRef.getOverview(options);
     const baseTotals = overview?.managedTotals || overview?.totals || { upBytes: 0, downBytes: 0 };
+    const unattributedTotals = overview?.userLevelSupported === false
+        ? (overview?.unattributedTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 })
+        : { upBytes: 0, downBytes: 0, totalBytes: 0 };
     const hasWindowSamples = Number(overview?.sampleCount || 0) > 0;
     const baselineReady = overview?.baselineReady === true;
     const canOverlayRealtimeTraffic = liveServerPayloads.length > 0
         && baselineReady
         && shouldOverlayRealtimeTraffic(overview);
 
+    const buildWindowValue = (totals = {}, ready = hasWindowSamples) => ({
+        totalUp: Number(totals?.upBytes || 0),
+        totalDown: Number(totals?.downBytes || 0),
+        ready,
+        attributionComplete: overview?.userLevelSupported !== false,
+        unattributedUp: Number(unattributedTotals?.upBytes || 0),
+        unattributedDown: Number(unattributedTotals?.downBytes || 0),
+        unattributedTotal: Number(unattributedTotals?.totalBytes || 0),
+    });
+
     if (!canOverlayRealtimeTraffic) {
-        return {
-            totalUp: Number(baseTotals?.upBytes || 0),
-            totalDown: Number(baseTotals?.downBytes || 0),
-            ready: hasWindowSamples,
-        };
+        return buildWindowValue(baseTotals, hasWindowSamples);
     }
 
     const currentRegisteredTotals = summarizeRegisteredTrafficTotals(users, liveServerPayloads);
@@ -421,26 +451,30 @@ function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
     const mergedTotals = mergeTrafficTotals(baseTotals, managedDelta);
 
     return {
-        totalUp: Number(mergedTotals.upBytes || 0),
-        totalDown: Number(mergedTotals.downBytes || 0),
-        ready: true,
+        ...buildWindowValue(mergedTotals, true),
         liveDeltaUp: Number(clusterDelta.upBytes || 0),
         liveDeltaDown: Number(clusterDelta.downBytes || 0),
     };
 }
 
 function buildDashboardTrafficWindowTotals(deps = {}) {
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
+    const dayRange = buildCalendarTrafficWindowRange('today', deps.now);
+    const weekRange = buildCalendarTrafficWindowRange('this_week', deps.now);
+    const monthRange = buildCalendarTrafficWindowRange('this_month', deps.now);
 
     return {
         day: buildDashboardTrafficWindowTotal({
-            from: start.toISOString(),
-            to: now.toISOString(),
+            from: dayRange?.from,
+            to: dayRange?.to,
         }, deps),
-        week: buildDashboardTrafficWindowTotal({ days: 7 }, deps),
-        month: buildDashboardTrafficWindowTotal({ days: 30 }, deps),
+        week: buildDashboardTrafficWindowTotal({
+            from: weekRange?.from,
+            to: weekRange?.to,
+        }, deps),
+        month: buildDashboardTrafficWindowTotal({
+            from: monthRange?.from,
+            to: monthRange?.to,
+        }, deps),
     };
 }
 
@@ -498,11 +532,10 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
     const servers = serverStoreRef.getAll();
     const users = userStoreRef.getAll();
 
-    Promise.resolve()
-        .then(() => trafficStatsStoreRef.collectIfStale(force))
-        .catch(() => null);
-
-    const [clusterSnapshot, panelSnapshots] = await Promise.all([
+    const [_trafficCollection, clusterSnapshot, panelSnapshots] = await Promise.all([
+        Promise.resolve()
+            .then(() => trafficStatsStoreRef.collectIfStale(force))
+            .catch(() => null),
         collectClusterStatusSnapshotRef({
             servers,
             includeDetails: false,

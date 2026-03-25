@@ -106,9 +106,9 @@ function createGlobalDashboardSnapshot(overrides = {}) {
             pendingUsers: 0,
         },
         trafficWindowTotals: {
-            day: { totalUp: 0, totalDown: 0, ready: true },
-            week: { totalUp: 0, totalDown: 0, ready: true },
-            month: { totalUp: 0, totalDown: 0, ready: true },
+            day: { totalUp: 0, totalDown: 0, ready: true, attributionComplete: true, unattributedUp: 0, unattributedDown: 0, unattributedTotal: 0 },
+            week: { totalUp: 0, totalDown: 0, ready: true, attributionComplete: true, unattributedUp: 0, unattributedDown: 0, unattributedTotal: 0 },
+            month: { totalUp: 0, totalDown: 0, ready: true, attributionComplete: true, unattributedUp: 0, unattributedDown: 0, unattributedTotal: 0 },
         },
         globalPresenceReady: true,
         ...overrides,
@@ -406,7 +406,7 @@ describe('Dashboard', () => {
             expect(throughputCard).toHaveTextContent(/\/s/);
         });
 
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
         await waitFor(() => {
             expect(weekTrafficCard).toHaveTextContent('630 B');
@@ -414,7 +414,7 @@ describe('Dashboard', () => {
             expect(weekTrafficCard).toHaveTextContent(/↓\s*420 B/);
         });
 
-        const trafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const trafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!trafficCard) throw new Error('Missing monthly traffic card');
         await waitFor(() => {
             expect(trafficCard).toHaveTextContent('660 B');
@@ -422,7 +422,7 @@ describe('Dashboard', () => {
             expect(trafficCard).toHaveTextContent(/↓\s*440 B/);
         });
 
-        const todayTrafficCard = screen.getByText('今日流量').closest('[role="button"]');
+        const todayTrafficCard = screen.getByText('今日用户流量').closest('[role="button"]');
         if (!todayTrafficCard) throw new Error('Missing today traffic card');
         await waitFor(() => {
             expect(todayTrafficCard).toHaveTextContent('540 B');
@@ -508,9 +508,9 @@ describe('Dashboard', () => {
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
         if (!onlineCard) throw new Error('Missing online users card');
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
-        const trafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const trafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!trafficCard) throw new Error('Missing monthly traffic card');
 
         await waitFor(() => {
@@ -673,8 +673,8 @@ describe('Dashboard', () => {
         renderWithRouter(<Dashboard />, { route: '/' });
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
-        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing global cards');
         }
@@ -687,6 +687,90 @@ describe('Dashboard', () => {
             expect(monthTrafficCard).toHaveTextContent('480 B');
             expect(monthTrafficCard).toHaveTextContent(/↑\s*160 B/);
             expect(monthTrafficCard).toHaveTextContent(/↓\s*320 B/);
+        });
+    });
+
+    it('shows an omitted-traffic warning when websocket traffic totals are only partially attributable', async () => {
+        const never = new Promise(() => {});
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 2,
+                        pendingUsers: 0,
+                    },
+                    trafficWindows: {
+                        day: {
+                            managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            unattributedTotals: { upBytes: 90, downBytes: 120, totalBytes: 210 },
+                            attributionComplete: false,
+                            ready: true,
+                        },
+                        week: {
+                            managedTotals: { upBytes: 120, downBytes: 240, totalBytes: 360 },
+                            unattributedTotals: { upBytes: 400, downBytes: 600, totalBytes: 1000 },
+                            attributionComplete: false,
+                            ready: true,
+                        },
+                        month: {
+                            managedTotals: { upBytes: 160, downBytes: 320, totalBytes: 480 },
+                            unattributedTotals: { upBytes: 900, downBytes: 1200, totalBytes: 2100 },
+                            attributionComplete: false,
+                            ready: true,
+                        },
+                    },
+                    managedOnlineUsers: [],
+                    managedOnlineUserCount: 0,
+                    managedOnlineSessionCount: 0,
+                    managedPresenceReady: true,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                            status: {
+                                cpu: 8,
+                                mem: { current: 128, total: 1024 },
+                                uptime: 3600,
+                                xray: {},
+                                netTraffic: {},
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
+        if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
+
+        await waitFor(() => {
+            expect(weekTrafficCard).toHaveTextContent('360 B');
+            expect(weekTrafficCard).toHaveTextContent('仅统计已归属用户');
+            expect(weekTrafficCard).toHaveTextContent('1000 B');
         });
     });
 
@@ -1001,8 +1085,8 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
-        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing traffic cards');
         }
@@ -1076,8 +1160,8 @@ describe('Dashboard', () => {
         renderWithRouter(<Dashboard />, { route: '/' });
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
-        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing dashboard cards');
         }
@@ -1111,8 +1195,8 @@ describe('Dashboard', () => {
         renderWithRouter(<Dashboard />, { route: '/' });
 
         const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        const weekTrafficCard = screen.getByText('周使用流量').closest('[role="button"]');
-        const monthTrafficCard = screen.getByText('月使用流量').closest('[role="button"]');
+        const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
+        const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
         if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing dashboard cards');
         }
@@ -1258,7 +1342,7 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const monthTrafficCard = await screen.findByText('月使用流量');
+        const monthTrafficCard = await screen.findByText('本月用户流量');
         const monthCardShell = monthTrafficCard.closest('[role="button"]');
         if (!monthCardShell) throw new Error('Missing monthly traffic card');
 

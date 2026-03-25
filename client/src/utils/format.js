@@ -212,5 +212,9 @@ export function getErrorMessage(err, fallback = '操作失败', locale = 'zh-CN'
             ? 'Connection failed: the management backend is unreachable.'
             : '连接失败：管理后端不可达，请确认后端服务已启动';
     }
-    return err?.message || fallback;
+    const rawMessage = String(err?.message || '').trim();
+    if (err?.response && /^Request failed with status code \d{3}$/i.test(rawMessage)) {
+        return fallback;
+    }
+    return rawMessage || fallback;
 }

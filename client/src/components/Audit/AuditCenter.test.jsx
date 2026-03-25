@@ -855,9 +855,9 @@ describe('AuditCenter localization', () => {
             throw new Error('Missing traffic total card');
         }
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
-        expect(screen.getAllByText('先看近 30 天流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
-        expect(within(totalTrafficCard).getByText('2 KB')).toBeInTheDocument();
-        expect(within(totalTrafficCard).getByText('最近 30 天全部节点采样')).toBeInTheDocument();
+        expect(screen.getAllByText('先看近 30 天用户流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(within(totalTrafficCard).getByText('512 B')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('最近 30 天已归属用户流量')).toBeInTheDocument();
         expect(screen.getByText('周活跃账号')).toBeInTheDocument();
         expect(screen.getByText('月活跃账号')).toBeInTheDocument();
         expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
@@ -866,7 +866,7 @@ describe('AuditCenter localization', () => {
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });
 
-    it('falls back to node totals for the 30-day traffic card when user attribution is incomplete', async () => {
+    it('shows attributable user totals and omitted traffic when attribution is incomplete', async () => {
         api.get.mockImplementation((url) => {
             if (url.startsWith('/traffic/overview?')) {
                 return Promise.resolve({
@@ -880,6 +880,11 @@ describe('AuditCenter localization', () => {
                                 upBytes: 128,
                                 downBytes: 384,
                                 totalBytes: 512,
+                            },
+                            unattributedTotals: {
+                                upBytes: 384,
+                                downBytes: 1152,
+                                totalBytes: 1536,
                             },
                             totals: {
                                 upBytes: 512,
@@ -970,9 +975,10 @@ describe('AuditCenter localization', () => {
         if (!totalTrafficCard) {
             throw new Error('Missing traffic total card');
         }
-        expect(within(totalTrafficCard).getByText('2 KB')).toBeInTheDocument();
-        expect(within(totalTrafficCard).getByText('最近 30 天全部节点采样；用户级归属不完整')).toBeInTheDocument();
-        expect(screen.getByText('仅支持节点级流量')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('512 B')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('最近 30 天仅统计已归属用户，另有 1.5 KB 未归属流量')).toBeInTheDocument();
+        expect(screen.getByText('归属不完整')).toBeInTheDocument();
+        expect(screen.getAllByText('当前窗口存在未归属流量，用户趋势和排行仅统计已归属部分。').length).toBeGreaterThan(0);
     });
 
     it('ignores a late bootstrap traffic snapshot after live traffic data has loaded', async () => {

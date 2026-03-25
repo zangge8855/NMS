@@ -13,7 +13,7 @@ import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
 import { buildGlobalDashboardSnapshot, buildSingleDashboardSnapshot } from '../lib/dashboardSnapshotService.js';
 import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js';
-import { getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
+import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
@@ -335,10 +335,19 @@ router.get('/logs/snapshot', async (req, res) => {
 });
 
 router.get('/:id/logs', async (req, res) => {
+    const normalizedServerId = String(req.params.id || '').trim();
+    const server = serverStore.getById(normalizedServerId);
+    if (!server) {
+        return res.status(404).json({
+            success: false,
+            msg: 'Server not found',
+        });
+    }
+
+    const source = normalizeRequestedLogSource(req.query?.source);
+    const count = normalizeRequestedLogCount(req.query?.count, 100);
     try {
-        const source = normalizeRequestedLogSource(req.query?.source);
-        const count = normalizeRequestedLogCount(req.query?.count, 100);
-        const payload = await getServerLogSnapshot(req.params.id, {
+        const payload = await getServerLogSnapshot(normalizedServerId, {
             source,
             count,
             force: parseBoolean(req.query?.refresh, false),
@@ -360,9 +369,9 @@ router.get('/:id/logs', async (req, res) => {
             },
         });
     } catch (error) {
-        return res.status(error?.status || 502).json({
-            success: false,
-            msg: error.message || '获取日志失败',
+        return res.json({
+            success: true,
+            obj: buildErrorSnapshot(server, { source, count }, error),
         });
     }
 });

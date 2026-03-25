@@ -10,6 +10,7 @@ process.env.NODE_ENV = 'test';
 
 const {
     TrafficStatsStore,
+    buildCalendarTrafficWindowRange,
     calculateTrafficDelta,
     shouldUseInboundTotalFallback,
     summarizeRegisteredTrafficTotals,
@@ -25,6 +26,21 @@ function maskEmail(value) {
 }
 
 describe('traffic stats inbound fallback', () => {
+    it('builds calendar ranges for today, this week, and this month in local time', () => {
+        const reference = new Date('2026-03-25T15:30:00.000Z');
+        const today = buildCalendarTrafficWindowRange('today', reference);
+        const week = buildCalendarTrafficWindowRange('this_week', reference);
+        const month = buildCalendarTrafficWindowRange('this_month', reference);
+
+        assert.equal(new Date(today.from).getHours(), 0);
+        assert.equal(new Date(today.from).getMinutes(), 0);
+        assert.equal(today.to, reference.toISOString());
+        assert.equal(new Date(week.from).getDay(), 1);
+        assert.equal(new Date(week.from).getHours(), 0);
+        assert.equal(new Date(month.from).getDate(), 1);
+        assert.equal(new Date(month.from).getHours(), 0);
+    });
+
     it('uses inbound totals when client traffic is absent', () => {
         assert.equal(shouldUseInboundTotalFallback(false, false), true);
         assert.equal(shouldUseInboundTotalFallback(false, true), true);
