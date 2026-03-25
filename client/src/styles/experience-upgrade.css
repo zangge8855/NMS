@@ -1227,15 +1227,15 @@
 }
 
 .subscriptions-page .subscriptions-workbench--simple {
-  width: min(100%, 1380px);
+  width: min(100%, 1220px);
   margin-inline: auto;
 }
 
 .subscriptions-page .subscription-user-flow--balanced {
   width: 100%;
-  max-width: 1320px;
-  grid-template-columns: minmax(400px, 0.94fr) minmax(520px, 1.08fr);
-  gap: 22px;
+  max-width: none;
+  grid-template-columns: minmax(360px, 1.04fr) minmax(420px, 0.96fr);
+  gap: 18px;
 }
 
 .subscriptions-page .subscription-user-panel--import,
@@ -1244,7 +1244,7 @@
 }
 
 .subscriptions-page .subscription-user-panel--summary {
-  min-width: 520px;
+  min-width: 420px;
 }
 
 .subscriptions-page .subscription-user-status-block {
@@ -1274,6 +1274,39 @@
 
 .subscriptions-page .subscription-user-status-block .circular-meter-meta {
   font-size: 11px;
+}
+
+.subscriptions-page .subscription-inline-qr-empty {
+  width: 100%;
+  min-height: 168px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px 16px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.subscriptions-page .subscription-inline-qr-empty-icon {
+  font-size: 28px;
+  color: var(--text-muted);
+}
+
+.subscriptions-page .subscription-inline-qr-empty-title {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscriptions-page .subscription-inline-qr-empty-text {
+  max-width: 24ch;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
 .subscriptions-page .subscription-summary-grid {
@@ -1378,6 +1411,11 @@
   background: rgba(255, 255, 255, 0.94);
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 20px 36px -28px rgba(15, 23, 42, 0.18);
+}
+
+[data-theme="light"] .subscriptions-page .subscription-inline-qr-empty {
+  background: rgba(248, 250, 252, 0.82);
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 [data-theme="light"] .detail-hero-panel,
@@ -1571,6 +1609,11 @@
 
   .subscriptions-page .subscription-user-panel--summary {
     min-width: 0;
+  }
+
+  .subscriptions-page .subscription-inline-qr-empty {
+    min-height: 136px;
+    padding: 14px;
   }
 
   .subscriptions-page .subscription-summary-grid {

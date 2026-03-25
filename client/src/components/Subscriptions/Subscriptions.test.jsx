@@ -169,6 +169,40 @@ describe('Subscriptions', () => {
         expect(api.get).toHaveBeenCalledWith('/subscriptions/user%40example.com');
     });
 
+    it('shows a dedicated QR placeholder when the user subscription is unavailable', async () => {
+        useAuth.mockReturnValue({
+            user: {
+                role: 'user',
+                subscriptionEmail: 'user@example.com',
+            },
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/subscriptions/user%40example.com') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'user@example.com',
+                            total: 1,
+                            subscriptionActive: false,
+                            subscriptionUrl: 'https://sub.example.com/base',
+                            usedTrafficBytes: 0,
+                            trafficLimitBytes: 3221225472,
+                            remainingTrafficBytes: 3221225472,
+                            expiryTime: new Date('2026-01-01T00:00:00Z').getTime(),
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        const { container } = renderWithRouter(<Subscriptions />);
+
+        expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
+        expect(screen.getByRole('note', { name: '当前格式暂无二维码' })).toBeInTheDocument();
+        expect(container.querySelector('.subscription-inline-qr-empty')).not.toBeNull();
+    });
+
     it('shows the shared empty state when a user has no assigned subscription identity yet', async () => {
         useAuth.mockReturnValue({
             user: {

@@ -934,7 +934,11 @@ export default function Subscriptions() {
                                                                     <div className="subscription-inline-qr-text">{ui.qrHint}</div>
                                                                 </>
                                                             ) : (
-                                                                <div className="text-sm text-muted">{ui.noQr}</div>
+                                                                <div className="subscription-inline-qr-empty" role="note" aria-label={ui.noQr}>
+                                                                    <HiOutlineQrCode className="subscription-inline-qr-empty-icon" aria-hidden="true" />
+                                                                    <div className="subscription-inline-qr-empty-title">{ui.unavailable}</div>
+                                                                    <div className="subscription-inline-qr-empty-text">{ui.noQr}</div>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     ) : null}
