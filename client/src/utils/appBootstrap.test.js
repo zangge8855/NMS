@@ -182,7 +182,7 @@ describe('applyAppBootstrapSnapshots', () => {
                 total: 1,
             },
         });
-        expect(readSessionSnapshot('audit_traffic_v1')).toMatchObject({
+        expect(readSessionSnapshot('audit_traffic_v2')).toMatchObject({
             trafficWindows: {
                 week: { activeUsers: 4 },
                 month: { activeUsers: 9 },

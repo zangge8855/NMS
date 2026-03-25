@@ -59,7 +59,7 @@ describe('app bootstrap service', () => {
         assert.ok(Array.isArray(payload.tasks.tasks));
     });
 
-    it('builds audit traffic bootstrap with an explicit top-10 limit', async () => {
+    it('builds audit traffic bootstrap with calendar week and month windows plus an explicit top-10 limit', async () => {
         const originalGetOverviewBatch = trafficStatsStore.getOverviewBatch.bind(trafficStatsStore);
         const originalCollectIfStale = trafficStatsStore.collectIfStale;
         let recordedRequests = [];
@@ -84,8 +84,18 @@ describe('app bootstrap service', () => {
             trafficStatsStore.collectIfStale = originalCollectIfStale;
         }
 
-        assert.ok(recordedRequests.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
-        assert.ok(recordedRequests.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
+        assert.ok(recordedRequests.some((options) => (
+            options?.key === 'month'
+            && typeof options?.from === 'string'
+            && typeof options?.to === 'string'
+            && Number(options?.top) === 10
+        )));
+        assert.ok(recordedRequests.some((options) => (
+            options?.key === 'week'
+            && typeof options?.from === 'string'
+            && typeof options?.to === 'string'
+            && Number(options?.top) === 10
+        )));
     });
 
     it('waits for traffic sampling before reading admin traffic bootstrap snapshots', async () => {

@@ -465,7 +465,7 @@ describe('AuditCenter localization', () => {
     });
 
     it('keeps the cached traffic summary visible when live traffic hydration fails', async () => {
-        window.sessionStorage.setItem('nms_session_snapshot:audit_traffic_v1', JSON.stringify({
+        window.sessionStorage.setItem('nms_session_snapshot:audit_traffic_v2', JSON.stringify({
             savedAt: Date.now(),
             value: {
                 trafficOverview: {
@@ -518,14 +518,12 @@ describe('AuditCenter localization', () => {
             expect(api.get.mock.calls.some(([url]) => /^\/traffic\/overview\?/.test(url))).toBe(true);
         });
 
-        const weeklyCard = screen.getByText('周活跃账号').closest('.audit-traffic-mini-card');
-        const monthlyCard = screen.getByText('月活跃账号').closest('.audit-traffic-mini-card');
-        if (!weeklyCard || !monthlyCard) {
-            throw new Error('Missing traffic summary cards');
+        const activeAccountsCard = screen.getByText('活跃账号').closest('.audit-traffic-mini-card');
+        if (!activeAccountsCard) {
+            throw new Error('Missing traffic summary card');
         }
 
-        expect(within(weeklyCard).getByText('7')).toBeInTheDocument();
-        expect(within(monthlyCard).getByText('19')).toBeInTheDocument();
+        expect(within(activeAccountsCard).getByText('19')).toBeInTheDocument();
     });
 
     it('shows traffic sampling status directly from the overview payload', async () => {
@@ -578,13 +576,11 @@ describe('AuditCenter localization', () => {
         });
 
         const statusCard = screen.getByText('采样状态').closest('.audit-traffic-mini-card');
-        const samplePointsCard = screen.getByText('采样点').closest('.audit-traffic-mini-card');
-        if (!statusCard || !samplePointsCard) {
-            throw new Error('Missing traffic status cards');
+        if (!statusCard) {
+            throw new Error('Missing traffic status card');
         }
 
         expect(within(statusCard).getByText('加载中')).toBeInTheDocument();
-        expect(within(samplePointsCard).getByText('12')).toBeInTheDocument();
     });
 
     it('does not mark traffic sampling as ready when the overview reports no usable baseline', async () => {
@@ -878,26 +874,24 @@ describe('AuditCenter localization', () => {
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
-        expect(await screen.findByText('周活跃账号')).toBeInTheDocument();
+        expect(await screen.findByText('活跃账号')).toBeInTheDocument();
         await waitFor(() => {
-            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('days=30'))).toBe(true);
-            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('windows=7%2C30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('window=this_month'))).toBe(true);
             expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?') && url.includes('top=10'))).toBe(true);
-            expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('days=30'))).toBe(true);
-            expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('days=30'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/users/alice%40example.com/trend?') && url.includes('window=this_month'))).toBe(true);
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/servers/server-a/trend?') && url.includes('window=this_month'))).toBe(true);
         });
         const totalTrafficCard = document.querySelector('.audit-traffic-total-card');
         if (!totalTrafficCard) {
             throw new Error('Missing traffic total card');
         }
         expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
-        expect(screen.getAllByText('先看近 30 天用户流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('按今日、本周、本月切换流量总览、趋势和排行榜。').length).toBeGreaterThan(1);
         expect(within(totalTrafficCard).getByText('512 B')).toBeInTheDocument();
-        expect(within(totalTrafficCard).getByText('最近 30 天已归属用户流量')).toBeInTheDocument();
-        expect(screen.getByText('周活跃账号')).toBeInTheDocument();
-        expect(screen.getByText('月活跃账号')).toBeInTheDocument();
-        expect(screen.getByText('当前所选用户 · 最近 30 天趋势')).toBeInTheDocument();
-        expect(screen.getByText('当前所选节点 · 最近 30 天趋势')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('本月已归属用户流量')).toBeInTheDocument();
+        expect(screen.getByText('活跃账号')).toBeInTheDocument();
+        expect(screen.getByText('当前所选用户 · 本月趋势')).toBeInTheDocument();
+        expect(screen.getByText('当前所选节点 · 本月趋势')).toBeInTheDocument();
         expect(screen.getAllByText('alice · alice@example.com').length).toBeGreaterThan(0);
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });
@@ -1006,13 +1000,13 @@ describe('AuditCenter localization', () => {
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
-        expect(await screen.findByText('采样点')).toBeInTheDocument();
+        expect(await screen.findByText('活跃账号')).toBeInTheDocument();
         const totalTrafficCard = document.querySelector('.audit-traffic-total-card');
         if (!totalTrafficCard) {
             throw new Error('Missing traffic total card');
         }
         expect(within(totalTrafficCard).getByText('512 B')).toBeInTheDocument();
-        expect(within(totalTrafficCard).getByText('最近 30 天已归属用户流量')).toBeInTheDocument();
+        expect(within(totalTrafficCard).getByText('本月已归属用户流量')).toBeInTheDocument();
         expect(screen.getByText('归属不完整')).toBeInTheDocument();
         expect(screen.queryByText('当前窗口存在未归属流量，用户趋势和排行仅统计已归属部分。')).not.toBeInTheDocument();
     });
@@ -1122,7 +1116,7 @@ describe('AuditCenter localization', () => {
         expect(screen.getAllByText('Node A').length).toBeGreaterThan(0);
 
         act(() => {
-            writeSessionSnapshot('audit_traffic_v1', {
+            writeSessionSnapshot('audit_traffic_v2', {
                 issuedAt: '2000-01-01T00:00:00.000Z',
                 trafficOverview: {
                     lastCollectionAt: '2000-01-01T00:00:00.000Z',

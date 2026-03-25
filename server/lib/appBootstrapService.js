@@ -20,7 +20,7 @@ import jobStore from '../store/jobStore.js';
 import serverStore from '../store/serverStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
-import trafficStatsStore from '../store/trafficStatsStore.js';
+import trafficStatsStore, { buildCalendarTrafficWindowRange } from '../store/trafficStatsStore.js';
 import userStore from '../store/userStore.js';
 import { listStoreKeys } from '../store/storeRegistry.js';
 
@@ -28,9 +28,11 @@ const INITIAL_NOTIFICATION_LIMIT = 1;
 const INITIAL_AUDIT_EVENTS_PAGE_SIZE = 20;
 const INITIAL_ACCESS_PAGE_SIZE = 30;
 const INITIAL_TASK_HISTORY_PAGE_SIZE = 100;
-const AUDIT_TRAFFIC_WEEK_DAYS = 7;
-const AUDIT_TRAFFIC_MONTH_DAYS = 30;
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
+const AUDIT_TRAFFIC_WEEK_WINDOW = 'this_week';
+const AUDIT_TRAFFIC_MONTH_WINDOW = 'this_month';
+const AUDIT_ACCESS_WEEK_DAYS = 7;
+const AUDIT_ACCESS_MONTH_DAYS = 30;
 
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
@@ -72,16 +74,20 @@ function buildAuditEventsBootstrap() {
 }
 
 function buildAuditTrafficBootstrap() {
+    const monthRange = buildCalendarTrafficWindowRange(AUDIT_TRAFFIC_MONTH_WINDOW);
+    const weekRange = buildCalendarTrafficWindowRange(AUDIT_TRAFFIC_WEEK_WINDOW);
     const trafficBatch = typeof trafficStatsStore.getOverviewBatch === 'function'
         ? trafficStatsStore.getOverviewBatch([
             {
                 key: 'month',
-                days: AUDIT_TRAFFIC_MONTH_DAYS,
+                from: monthRange?.from,
+                to: monthRange?.to,
                 top: AUDIT_TRAFFIC_TOP_LIMIT,
             },
             {
                 key: 'week',
-                days: AUDIT_TRAFFIC_WEEK_DAYS,
+                from: weekRange?.from,
+                to: weekRange?.to,
                 top: AUDIT_TRAFFIC_TOP_LIMIT,
             },
         ], {
@@ -89,11 +95,13 @@ function buildAuditTrafficBootstrap() {
         })
         : {
             month: trafficStatsStore.getOverview({
-                days: AUDIT_TRAFFIC_MONTH_DAYS,
+                from: monthRange?.from,
+                to: monthRange?.to,
                 top: AUDIT_TRAFFIC_TOP_LIMIT,
             }),
             week: trafficStatsStore.getOverview({
-                days: AUDIT_TRAFFIC_WEEK_DAYS,
+                from: weekRange?.from,
+                to: weekRange?.to,
                 top: AUDIT_TRAFFIC_TOP_LIMIT,
             }),
         };
@@ -116,8 +124,8 @@ function buildAuditAccessBootstrap() {
         pageSize: INITIAL_ACCESS_PAGE_SIZE,
     });
     const accessSummary = auditStore.summarizeSubscriptionAccess({});
-    const weekRange = buildRollingWindowRange(AUDIT_TRAFFIC_WEEK_DAYS);
-    const monthRange = buildRollingWindowRange(AUDIT_TRAFFIC_MONTH_DAYS);
+    const weekRange = buildRollingWindowRange(AUDIT_ACCESS_WEEK_DAYS);
+    const monthRange = buildRollingWindowRange(AUDIT_ACCESS_MONTH_DAYS);
 
     return {
         accessData,

@@ -8026,6 +8026,7 @@ body::before {
   border-radius: 20px;
   border: 1px solid var(--stroke-soft);
   background: var(--surface-panel);
+  box-shadow: 0 20px 40px -32px rgba(15, 23, 42, 0.4);
 }
 
 .audit-control-head {
@@ -8033,6 +8034,8 @@ body::before {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .audit-control-head--compact {
@@ -8275,13 +8278,14 @@ body::before {
 .audit-traffic-overview {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 22px;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 24px;
   border: 1px solid rgba(16, 185, 129, 0.16);
   background:
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 34%),
     linear-gradient(180deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.04));
+  box-shadow: 0 24px 56px -40px rgba(5, 150, 105, 0.42);
 }
 
 .audit-traffic-overview-head {
@@ -8289,6 +8293,8 @@ body::before {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .audit-traffic-overview-copy {
@@ -8325,8 +8331,50 @@ body::before {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.audit-traffic-window-bar {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.audit-traffic-window-label {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.audit-traffic-window-tabs {
+  display: inline-flex;
+  width: auto;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 185, 129, 0.14);
+  background: rgba(2, 6, 23, 0.18);
+}
+
+.audit-traffic-window-tabs .tab {
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.audit-traffic-window-tabs .tab.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(16, 185, 129, 0.22);
+  color: var(--text-primary);
 }
 
 .audit-traffic-sample-pill {
@@ -8360,39 +8408,39 @@ body::before {
 .audit-traffic-overview-body {
   display: grid;
   grid-template-columns: minmax(260px, 1.15fr) minmax(240px, 0.85fr);
-  gap: 14px;
+  gap: 16px;
   align-items: stretch;
 }
 
 .audit-traffic-total-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   min-width: 0;
-  padding: 18px;
+  padding: 20px;
   border-radius: 18px;
   border: 1px solid rgba(16, 185, 129, 0.16);
-  background: rgba(255, 255, 255, 0.04);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  text-align: center;
+  text-align: left;
 }
 
 .audit-traffic-total-label {
   width: 100%;
-  max-width: 24ch;
+  max-width: 26ch;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-secondary);
   font-weight: 600;
-  text-align: center;
+  text-align: left;
 }
 
 .audit-traffic-total-value {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   font-size: clamp(2rem, 4vw, 2.8rem);
   line-height: 1;
@@ -8400,16 +8448,16 @@ body::before {
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  text-align: center;
+  text-align: left;
 }
 
 .audit-traffic-total-note {
   width: 100%;
-  max-width: 28ch;
+  max-width: 34ch;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-muted);
-  text-align: center;
+  text-align: left;
 }
 
 .audit-traffic-split-grid {
@@ -8418,7 +8466,7 @@ body::before {
   gap: 10px;
   margin-top: auto;
   width: 100%;
-  max-width: 420px;
+  max-width: none;
 }
 
 .audit-traffic-split-card {
@@ -8466,22 +8514,23 @@ body::before {
 
 .audit-traffic-mini-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .audit-traffic-mini-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
-  padding: 14px;
+  min-height: 132px;
+  padding: 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
-  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
 }
 
 .audit-traffic-mini-label {
@@ -8497,13 +8546,14 @@ body::before {
   color: var(--text-primary);
   overflow-wrap: anywhere;
   width: 100%;
-  text-align: center;
+  text-align: left;
 }
 
 .audit-traffic-mini-note {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-muted);
+  text-align: left;
 }
 
 .audit-stat-card,
@@ -15302,6 +15352,21 @@ input[type="radio"]:focus-visible {
   border-color: rgba(16, 185, 129, 0.16);
 }
 
+[data-theme="light"] .audit-control-head,
+[data-theme="light"] .audit-traffic-overview-head {
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .audit-traffic-window-tabs {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(16, 185, 129, 0.16);
+}
+
+[data-theme="light"] .audit-traffic-window-tabs .tab.active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
 @media (max-width: 980px) {
   .audit-nav-head,
   .audit-control-head,
@@ -15385,6 +15450,16 @@ input[type="radio"]:focus-visible {
   .audit-traffic-overview-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .audit-traffic-window-bar,
+  .audit-traffic-window-tabs {
+    width: 100%;
+  }
+
+  .audit-traffic-window-tabs .tab {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .audit-traffic-overview-actions .btn,

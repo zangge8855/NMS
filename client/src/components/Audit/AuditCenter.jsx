@@ -39,13 +39,20 @@ import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
-const AUDIT_TRAFFIC_WINDOW_DAYS = 30;
-const AUDIT_TRAFFIC_WEEK_DAYS = 7;
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
+const AUDIT_TRAFFIC_DEFAULT_WINDOW = 'month';
+const AUDIT_TRAFFIC_WINDOW_QUERY = Object.freeze({
+    day: 'today',
+    week: 'this_week',
+    month: 'this_month',
+});
+const AUDIT_ACCESS_WEEK_DAYS = 7;
+const AUDIT_ACCESS_MONTH_DAYS = 30;
 const AUDIT_EVENTS_SNAPSHOT_KEY = 'audit_events_v1';
-const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v1';
+const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v2';
 const AUDIT_ACCESS_SNAPSHOT_KEY = 'audit_access_v1';
 const AUDIT_SNAPSHOT_TTL_MS = 90_000;
+const AUDIT_TRAFFIC_AUTO_REFRESH_MS = 60_000;
 const EMPTY_TRAFFIC_STATUS = {
     lastCollectionAt: '',
     sampleCount: 0,
@@ -56,6 +63,14 @@ const EMPTY_TRAFFIC_TOTALS = Object.freeze({
     downBytes: 0,
     totalBytes: 0,
 });
+
+function buildEmptyTrafficWindows() {
+    return {
+        day: null,
+        week: null,
+        month: null,
+    };
+}
 
 const AUDIT_COPY = {
     'zh-CN': {
@@ -107,7 +122,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: '批量任务、重试和取消记录集中在这里，方便追踪执行链路。',
             trafficEyebrow: 'Traffic',
-            trafficSummary: '先看近 30 天用户流量和周/月活跃账号，再下钻到用户趋势、节点趋势和排行榜。',
+            trafficSummary: '按今日、本周、本月切换流量总览、趋势和排行榜。',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: '筛选订阅访问、真实 IP、归属地和状态分布，快速定位异常访问。',
             logsEyebrow: 'Panel Logs',
@@ -126,7 +141,7 @@ const AUDIT_COPY = {
             noFilters: '未设置筛选',
             filtersActive: '已启用 {count} 项',
             dataWindowYear: '近一年',
-            dataWindowTraffic: '近 30 天',
+            dataWindowTraffic: '当前窗口',
             noUserSelected: '未选择用户',
             noServerSelected: '未选择节点',
             userTrafficSupport: '用户流量明细',
@@ -164,23 +179,24 @@ const AUDIT_COPY = {
             uploadTraffic: '上行流量',
             downloadTraffic: '下行流量',
             activeAccounts: '活跃账号',
-            weeklyActiveAccounts: '周活跃账号',
-            monthlyActiveAccounts: '月活跃账号',
             samplePoints: '采样点',
+            windowLabel: '统计窗口',
+            windowDay: '今日',
+            windowWeek: '本周',
+            windowMonth: '本月',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
-            totalTrafficScope: '近 30 天用户流量',
-            totalTrafficMonthNote: '最近 30 天已归属用户流量',
-            totalTrafficLimitedNote: '最近 30 天用户流量归属不完整',
-            totalTrafficPartialNote: '最近 30 天仅统计已归属用户，另有 {omitted} 未归属流量',
+            totalTrafficScope: '{window}用户流量',
+            totalTrafficMonthNote: '{window}已归属用户流量',
+            totalTrafficLimitedNote: '{window}用户流量归属不完整',
+            totalTrafficPartialNote: '{window}仅统计已归属用户，另有 {omitted} 未归属流量',
             totalTrafficUnavailableNote: '当前窗口未返回可归属用户流量，另有 {omitted} 节点流量未归属',
-            weeklyActiveAccountsScope: '最近 7 天 · 有流量的已注册用户',
-            monthlyActiveAccountsScope: '最近 30 天 · 有流量的已注册用户',
-            samplePointsScope: '最近 30 天采样记录数',
-            userTrendScope: '当前所选用户 · 最近 30 天趋势',
-            serverTrendScope: '当前所选节点 · 最近 30 天趋势',
-            topUsersScope: '最近 30 天 · 已注册用户排行',
-            topServersScope: '最近 30 天 · 全部节点排行',
+            activeAccountsScope: '{window} · 有流量的已注册用户',
+            samplePointsScope: '{window}采样记录数',
+            userTrendScope: '当前所选用户 · {window}趋势',
+            serverTrendScope: '当前所选节点 · {window}趋势',
+            topUsersScope: '{window} · 已注册用户排行',
+            topServersScope: '{window} · 全部节点排行',
             selectUser: '请选择用户',
             selectServer: '请选择节点',
             userLevelUnsupported: '当前窗口未返回可归属的用户流量明细，仅能查看节点总量。',
@@ -297,7 +313,7 @@ const AUDIT_COPY = {
             tasksEyebrow: 'Batch',
             tasksSummary: 'Batch history, retries, and cancellations stay in one place for easier traceability.',
             trafficEyebrow: 'Traffic',
-            trafficSummary: 'Start from last-30-day user traffic and weekly/monthly active accounts, then drill into trends and rankings.',
+            trafficSummary: 'Switch between today, this week, and this month for traffic totals, trends, and rankings.',
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: 'Filter subscription access, real IP, geo, and status distribution to find abnormal requests quickly.',
             logsEyebrow: 'Panel Logs',
@@ -316,7 +332,7 @@ const AUDIT_COPY = {
             noFilters: 'No filters',
             filtersActive: '{count} active',
             dataWindowYear: 'Last 1 year',
-            dataWindowTraffic: 'Last 30 days',
+            dataWindowTraffic: 'Current window',
             noUserSelected: 'No user selected',
             noServerSelected: 'No node selected',
             userTrafficSupport: 'User Traffic Detail',
@@ -354,23 +370,24 @@ const AUDIT_COPY = {
             uploadTraffic: 'Upload',
             downloadTraffic: 'Download',
             activeAccounts: 'Active Accounts',
-            weeklyActiveAccounts: 'Weekly Active Accounts',
-            monthlyActiveAccounts: 'Monthly Active Accounts',
             samplePoints: 'Samples',
+            windowLabel: 'Window',
+            windowDay: 'Today',
+            windowWeek: 'This Week',
+            windowMonth: 'This Month',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
-            totalTrafficScope: 'User traffic in the last 30 days',
-            totalTrafficMonthNote: 'Attributed user traffic in the last 30 days',
-            totalTrafficLimitedNote: 'User traffic attribution is incomplete for the last 30 days',
-            totalTrafficPartialNote: 'Attributed users only in the last 30 days, {omitted} remains unattributed',
+            totalTrafficScope: '{window} user traffic',
+            totalTrafficMonthNote: 'Attributed user traffic for {window}',
+            totalTrafficLimitedNote: 'User traffic attribution is incomplete for {window}',
+            totalTrafficPartialNote: 'Attributed users only for {window}, {omitted} remains unattributed',
             totalTrafficUnavailableNote: 'No attributable user traffic was returned in this window; {omitted} remains as node-only traffic',
-            weeklyActiveAccountsScope: 'Last 7 days · registered users with traffic',
-            monthlyActiveAccountsScope: 'Last 30 days · registered users with traffic',
-            samplePointsScope: 'Traffic samples collected in the last 30 days',
-            userTrendScope: 'Selected user · last 30 days',
-            serverTrendScope: 'Selected node · last 30 days',
-            topUsersScope: 'Last 30 days · registered user ranking',
-            topServersScope: 'Last 30 days · all nodes ranking',
+            activeAccountsScope: '{window} · registered users with traffic',
+            samplePointsScope: '{window} sample count',
+            userTrendScope: 'Selected user · {window}',
+            serverTrendScope: 'Selected node · {window}',
+            topUsersScope: '{window} · registered user ranking',
+            topServersScope: '{window} · all nodes ranking',
             selectUser: 'Select a user',
             selectServer: 'Select a node',
             userLevelUnsupported: 'No attributable per-user traffic was returned for this window; only node totals are available.',
@@ -482,6 +499,63 @@ function buildRollingWindowRange(days) {
     };
 }
 
+function formatCopyTemplate(template, replacements = {}) {
+    return Object.entries(replacements).reduce(
+        (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value)),
+        String(template || '')
+    );
+}
+
+function normalizeTrafficWindowKey(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(AUDIT_TRAFFIC_WINDOW_QUERY, normalized)
+        ? normalized
+        : AUDIT_TRAFFIC_DEFAULT_WINDOW;
+}
+
+function resolveTrafficWindowQuery(windowKey) {
+    return AUDIT_TRAFFIC_WINDOW_QUERY[normalizeTrafficWindowKey(windowKey)];
+}
+
+function normalizeTrafficWindowsCache(windows = {}) {
+    const payload = windows && typeof windows === 'object' ? windows : {};
+    return {
+        day: payload?.day || payload?.today || null,
+        week: payload?.week || payload?.this_week || payload?.[String(AUDIT_ACCESS_WEEK_DAYS)] || null,
+        month: payload?.month || payload?.this_month || payload?.[String(AUDIT_ACCESS_MONTH_DAYS)] || null,
+    };
+}
+
+function resolveTrafficOverviewForWindow(windowKey, overview = null, windows = {}) {
+    const normalizedKey = normalizeTrafficWindowKey(windowKey);
+    const cache = normalizeTrafficWindowsCache(windows);
+    if (cache?.[normalizedKey]) return cache[normalizedKey];
+    return normalizedKey === AUDIT_TRAFFIC_DEFAULT_WINDOW
+        ? (overview || null)
+        : null;
+}
+
+function buildTrafficWindowCopy(windowKey, copy) {
+    const normalizedKey = normalizeTrafficWindowKey(windowKey);
+    const label = normalizedKey === 'day'
+        ? copy.traffic.windowDay
+        : (normalizedKey === 'week' ? copy.traffic.windowWeek : copy.traffic.windowMonth);
+    return {
+        key: normalizedKey,
+        label,
+        totalTrafficScope: formatCopyTemplate(copy.traffic.totalTrafficScope, { window: label }),
+        totalTrafficNote: formatCopyTemplate(copy.traffic.totalTrafficMonthNote, { window: label }),
+        totalTrafficLimitedNote: formatCopyTemplate(copy.traffic.totalTrafficLimitedNote, { window: label }),
+        totalTrafficPartialNote: formatCopyTemplate(copy.traffic.totalTrafficPartialNote, { window: label }),
+        activeAccountsScope: formatCopyTemplate(copy.traffic.activeAccountsScope, { window: label }),
+        samplePointsScope: formatCopyTemplate(copy.traffic.samplePointsScope, { window: label }),
+        userTrendScope: formatCopyTemplate(copy.traffic.userTrendScope, { window: label }),
+        serverTrendScope: formatCopyTemplate(copy.traffic.serverTrendScope, { window: label }),
+        topUsersScope: formatCopyTemplate(copy.traffic.topUsersScope, { window: label }),
+        topServersScope: formatCopyTemplate(copy.traffic.topServersScope, { window: label }),
+    };
+}
+
 function normalizeTrafficTotals(value) {
     const payload = value && typeof value === 'object' ? value : {};
     const upBytes = Number(payload.upBytes || 0);
@@ -506,13 +580,14 @@ function resolveTrafficAttributionState(overview = null) {
     return 'complete';
 }
 
-function buildTrafficTotalsNote(overview = null, copy) {
+function buildTrafficTotalsNote(overview = null, copy, windowKey = AUDIT_TRAFFIC_DEFAULT_WINDOW) {
     const payload = overview && typeof overview === 'object' ? overview : {};
     const managedTotals = normalizeTrafficTotals(payload?.managedTotals);
+    const trafficWindowCopy = buildTrafficWindowCopy(windowKey, copy);
     if (managedTotals.totalBytes <= 0 && payload?.userLevelSupported === false) {
-        return copy.traffic.totalTrafficLimitedNote;
+        return trafficWindowCopy.totalTrafficLimitedNote;
     }
-    return copy.traffic.totalTrafficMonthNote;
+    return trafficWindowCopy.totalTrafficNote;
 }
 
 function normalizeTrafficStatus(status = null, overview = null) {
@@ -545,9 +620,7 @@ function readAuditTrafficSnapshot() {
         trafficOverview: snapshot?.trafficOverview && typeof snapshot.trafficOverview === 'object'
             ? snapshot.trafficOverview
             : null,
-        trafficWindows: snapshot?.trafficWindows && typeof snapshot.trafficWindows === 'object'
-            ? snapshot.trafficWindows
-            : { week: null, month: null },
+        trafficWindows: normalizeTrafficWindowsCache(snapshot?.trafficWindows),
         trafficStatus: normalizeTrafficStatus(snapshot?.trafficStatus, snapshot?.trafficOverview),
         issuedAt: String(snapshot?.issuedAt || '').trim(),
     };
@@ -606,10 +679,8 @@ function hasDefaultEventFilters(filters = {}, page = 1) {
 
 function hasVisibleTrafficSnapshot(snapshot = {}) {
     const overview = snapshot?.trafficOverview;
-    const windows = snapshot?.trafficWindows || {};
-    return Boolean(overview)
-        || Boolean(windows.week)
-        || Boolean(windows.month);
+    const windows = normalizeTrafficWindowsCache(snapshot?.trafficWindows);
+    return Boolean(overview) || Object.values(windows).some(Boolean);
 }
 
 function hasVisibleAccessSnapshot(snapshot = {}) {
@@ -1078,9 +1149,14 @@ export default function AuditCenter() {
     const eventsBootstrapRef = useRef(readAuditEventsSnapshot());
     const trafficBootstrapRef = useRef(readAuditTrafficSnapshot());
     const accessBootstrapRef = useRef(readAuditAccessSnapshot());
+    const selectedTrafficWindowRef = useRef(AUDIT_TRAFFIC_DEFAULT_WINDOW);
     const trafficStateRef = useRef({
-        trafficOverview: trafficBootstrapRef.current?.trafficOverview || null,
-        trafficWindows: trafficBootstrapRef.current?.trafficWindows || { week: null, month: null },
+        trafficOverview: resolveTrafficOverviewForWindow(
+            AUDIT_TRAFFIC_DEFAULT_WINDOW,
+            trafficBootstrapRef.current?.trafficOverview,
+            trafficBootstrapRef.current?.trafficWindows
+        ),
+        trafficWindows: trafficBootstrapRef.current?.trafficWindows || buildEmptyTrafficWindows(),
         trafficStatus: trafficBootstrapRef.current?.trafficStatus || { ...EMPTY_TRAFFIC_STATUS },
     });
     const accessStateRef = useRef({
@@ -1121,9 +1197,16 @@ export default function AuditCenter() {
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     const [trafficLoading, setTrafficLoading] = useState(false);
-    const [trafficOverview, setTrafficOverview] = useState(() => trafficBootstrapRef.current?.trafficOverview || null);
+    const [selectedTrafficWindow, setSelectedTrafficWindow] = useState(AUDIT_TRAFFIC_DEFAULT_WINDOW);
+    const [trafficOverview, setTrafficOverview] = useState(() => (
+        resolveTrafficOverviewForWindow(
+            AUDIT_TRAFFIC_DEFAULT_WINDOW,
+            trafficBootstrapRef.current?.trafficOverview,
+            trafficBootstrapRef.current?.trafficWindows
+        )
+    ));
     const [trafficWindows, setTrafficWindows] = useState(() => (
-        trafficBootstrapRef.current?.trafficWindows || { week: null, month: null }
+        trafficBootstrapRef.current?.trafficWindows || buildEmptyTrafficWindows()
     ));
     const [trafficStatus, setTrafficStatus] = useState(() => (
         trafficBootstrapRef.current?.trafficStatus || { ...EMPTY_TRAFFIC_STATUS }
@@ -1154,11 +1237,16 @@ export default function AuditCenter() {
     });
 
     useEffect(() => {
+        selectedTrafficWindowRef.current = selectedTrafficWindow;
+    }, [selectedTrafficWindow]);
+
+    useEffect(() => {
         trafficStateRef.current = {
             trafficOverview,
             trafficWindows,
+            trafficStatus,
         };
-    }, [trafficOverview, trafficWindows]);
+    }, [trafficOverview, trafficStatus, trafficWindows]);
 
     useEffect(() => {
         accessStateRef.current = {
@@ -1203,19 +1291,24 @@ export default function AuditCenter() {
                     return;
                 }
                 trafficBootstrapRef.current = snapshot;
+                const nextTrafficOverview = resolveTrafficOverviewForWindow(
+                    selectedTrafficWindowRef.current,
+                    snapshot.trafficOverview,
+                    snapshot.trafficWindows
+                );
                 trafficStateRef.current = {
-                    trafficOverview: snapshot.trafficOverview,
-                    trafficWindows: snapshot.trafficWindows || { week: null, month: null },
-                    trafficStatus: normalizeTrafficStatus(snapshot.trafficStatus, snapshot.trafficOverview),
+                    trafficOverview: nextTrafficOverview,
+                    trafficWindows: snapshot.trafficWindows || buildEmptyTrafficWindows(),
+                    trafficStatus: normalizeTrafficStatus(snapshot.trafficStatus, nextTrafficOverview || snapshot.trafficOverview),
                 };
-                setTrafficOverview(snapshot.trafficOverview);
-                setTrafficWindows(snapshot.trafficWindows || { week: null, month: null });
-                setTrafficStatus(normalizeTrafficStatus(snapshot.trafficStatus, snapshot.trafficOverview));
-                if (!selectedUser && snapshot?.trafficOverview?.topUsers?.length > 0) {
-                    setSelectedUser(snapshot.trafficOverview.topUsers[0].email);
+                setTrafficOverview(nextTrafficOverview);
+                setTrafficWindows(snapshot.trafficWindows || buildEmptyTrafficWindows());
+                setTrafficStatus(normalizeTrafficStatus(snapshot.trafficStatus, nextTrafficOverview || snapshot.trafficOverview));
+                if (!selectedUser && nextTrafficOverview?.topUsers?.length > 0) {
+                    setSelectedUser(nextTrafficOverview.topUsers[0].email);
                 }
-                if (!selectedServerId && snapshot?.trafficOverview?.topServers?.length > 0) {
-                    setSelectedServerId(snapshot.trafficOverview.topServers[0].serverId);
+                if (!selectedServerId && nextTrafficOverview?.topServers?.length > 0) {
+                    setSelectedServerId(nextTrafficOverview.topServers[0].serverId);
                 }
                 setTrafficLoading(false);
                 return;
@@ -1279,7 +1372,8 @@ export default function AuditCenter() {
         setEventsLoading(false);
     };
 
-    const fetchTrafficOverview = async (force = false) => {
+    const fetchTrafficOverview = async (force = false, windowKey = selectedTrafficWindowRef.current) => {
+        const normalizedWindowKey = normalizeTrafficWindowKey(windowKey);
         setTrafficLoading(true);
         setTrafficStatus((current) => ({
             ...current,
@@ -1287,33 +1381,33 @@ export default function AuditCenter() {
         }));
         try {
             const params = new URLSearchParams();
-            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
-            params.append('windows', `${AUDIT_TRAFFIC_WEEK_DAYS},${AUDIT_TRAFFIC_WINDOW_DAYS}`);
+            params.append('window', resolveTrafficWindowQuery(normalizedWindowKey));
             params.append('top', String(AUDIT_TRAFFIC_TOP_LIMIT));
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
             const payload = res.data?.obj || null;
-            const weekPayload = payload?.windows?.[String(AUDIT_TRAFFIC_WEEK_DAYS)] || null;
             const nextTrafficStatus = normalizeTrafficStatus(payload?.status, payload);
+            const nextTrafficWindows = {
+                ...trafficStateRef.current.trafficWindows,
+                [normalizedWindowKey]: payload,
+            };
             trafficStateRef.current = {
-                trafficOverview: payload,
-                trafficWindows: {
-                    week: weekPayload,
-                    month: payload,
-                },
+                trafficOverview: normalizedWindowKey === selectedTrafficWindowRef.current
+                    ? payload
+                    : trafficStateRef.current.trafficOverview,
+                trafficWindows: nextTrafficWindows,
                 trafficStatus: nextTrafficStatus,
             };
-            setTrafficOverview(payload);
-            setTrafficWindows({
-                week: weekPayload,
-                month: payload,
-            });
-            setTrafficStatus(nextTrafficStatus);
-            if (!selectedUser && payload?.topUsers?.length > 0) {
-                setSelectedUser(payload.topUsers[0].email);
-            }
-            if (!selectedServerId && payload?.topServers?.length > 0) {
-                setSelectedServerId(payload.topServers[0].serverId);
+            setTrafficWindows(nextTrafficWindows);
+            if (normalizedWindowKey === selectedTrafficWindowRef.current) {
+                setTrafficOverview(payload);
+                setTrafficStatus(nextTrafficStatus);
+                if (!Array.isArray(payload?.topUsers) || !payload.topUsers.some((item) => item.email === selectedUser)) {
+                    setSelectedUser(payload?.topUsers?.[0]?.email || '');
+                }
+                if (!Array.isArray(payload?.topServers) || !payload.topServers.some((item) => item.serverId === selectedServerId)) {
+                    setSelectedServerId(payload?.topServers?.[0]?.serverId || '');
+                }
             }
             const warningCount = Array.isArray(payload?.collection?.warnings)
                 ? payload.collection.warnings.length
@@ -1328,40 +1422,45 @@ export default function AuditCenter() {
                 collecting: false,
             }));
             if (!hasVisibleTrafficSnapshot(trafficStateRef.current)) {
-                setTrafficWindows({ week: null, month: null });
+                setTrafficOverview(null);
+                setTrafficWindows(buildEmptyTrafficWindows());
             }
             toast.error(getErrorMessage(err, copy.toast.trafficLoadFailed, locale));
         }
         setTrafficLoading(false);
     };
 
-    const fetchUserTrend = async (email) => {
+    const fetchUserTrend = async (email, windowKey = selectedTrafficWindowRef.current) => {
         if (!email) {
             setUserTrend({ points: [], granularity: 'hour' });
             return;
         }
         try {
             const params = new URLSearchParams();
-            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
+            params.append('window', resolveTrafficWindowQuery(windowKey));
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
-            setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
+            if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
+                setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
+            }
         } catch (err) {
             toast.error(getErrorMessage(err, copy.toast.userTrendLoadFailed, locale));
         }
     };
 
-    const fetchServerTrend = async (serverId) => {
+    const fetchServerTrend = async (serverId, windowKey = selectedTrafficWindowRef.current) => {
         if (!serverId) {
             setServerTrend({ points: [], granularity: 'hour' });
             return;
         }
         try {
             const params = new URLSearchParams();
-            params.append('days', String(AUDIT_TRAFFIC_WINDOW_DAYS));
+            params.append('window', resolveTrafficWindowQuery(windowKey));
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
-            setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
+            if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
+                setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
+            }
         } catch (err) {
             toast.error(getErrorMessage(err, copy.toast.serverTrendLoadFailed, locale));
         }
@@ -1377,7 +1476,7 @@ export default function AuditCenter() {
             if (sourceFilters.email) params.append('email', sourceFilters.email);
             if (sourceFilters.status) params.append('status', sourceFilters.status);
             const summaryParams = buildAccessSummaryParams(sourceFilters);
-            summaryParams.append('windows', `${AUDIT_TRAFFIC_WEEK_DAYS},${AUDIT_TRAFFIC_WINDOW_DAYS}`);
+            summaryParams.append('windows', `${AUDIT_ACCESS_WEEK_DAYS},${AUDIT_ACCESS_MONTH_DAYS}`);
             const [res, summaryRes] = await Promise.all([
                 api.get(`/subscriptions/access?${params.toString()}`),
                 api.get(`/subscriptions/access/summary?${summaryParams.toString()}`),
@@ -1386,8 +1485,8 @@ export default function AuditCenter() {
             setAccessData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1, statusBreakdown: {} });
             setAccessSummary(summaryPayload);
             setAccessUserWindows({
-                week: summaryPayload?.windows?.[String(AUDIT_TRAFFIC_WEEK_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
-                month: summaryPayload?.windows?.[String(AUDIT_TRAFFIC_WINDOW_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
+                week: summaryPayload?.windows?.[String(AUDIT_ACCESS_WEEK_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
+                month: summaryPayload?.windows?.[String(AUDIT_ACCESS_MONTH_DAYS)] || { ...EMPTY_ACCESS_SUMMARY },
             });
             setAccessPage(targetPage);
             accessLiveUpdatedAtRef.current = Date.now();
@@ -1416,7 +1515,7 @@ export default function AuditCenter() {
     }, [eventFilters.eventType, eventFilters.outcome, eventFilters.q, eventFilters.serverId, eventFilters.targetEmail, eventsData, eventsLoading, eventsPage]);
 
     useEffect(() => {
-        if (!trafficOverview && !trafficWindows.week && !trafficWindows.month) return;
+        if (!trafficOverview && !Object.values(trafficWindows || {}).some(Boolean)) return;
         writeSessionSnapshot(AUDIT_TRAFFIC_SNAPSHOT_KEY, {
             trafficOverview,
             trafficWindows,
@@ -1505,11 +1604,17 @@ export default function AuditCenter() {
         if (tab === 'events') {
             fetchEvents(1);
         } else if (tab === 'traffic') {
-            fetchTrafficOverview(false);
+            const cachedOverview = resolveTrafficOverviewForWindow(
+                selectedTrafficWindow,
+                trafficStateRef.current?.trafficOverview,
+                trafficStateRef.current?.trafficWindows
+            );
+            setTrafficOverview(cachedOverview);
+            fetchTrafficOverview(false, selectedTrafficWindow);
         } else if (tab === 'subscriptions') {
             fetchAccess(1);
         }
-    }, [tab]);
+    }, [selectedTrafficWindow, tab]);
 
     useEffect(() => {
         if (eventFilters.eventType || eventFilters.serverId) {
@@ -1519,30 +1624,52 @@ export default function AuditCenter() {
 
     useEffect(() => {
         if (tab !== 'traffic') return;
-        fetchUserTrend(selectedUser);
-    }, [tab, selectedUser, trafficGranularity]);
+        fetchUserTrend(selectedUser, selectedTrafficWindow);
+    }, [selectedTrafficWindow, selectedUser, tab, trafficGranularity]);
 
     useEffect(() => {
         if (tab !== 'traffic') return;
-        fetchServerTrend(selectedServerId);
-    }, [tab, selectedServerId, trafficGranularity]);
+        fetchServerTrend(selectedServerId, selectedTrafficWindow);
+    }, [selectedServerId, selectedTrafficWindow, tab, trafficGranularity]);
+
+    useEffect(() => {
+        if (tab !== 'traffic') return undefined;
+        const timer = window.setInterval(() => {
+            fetchTrafficOverview(false, selectedTrafficWindowRef.current);
+            if (selectedUser) {
+                fetchUserTrend(selectedUser, selectedTrafficWindowRef.current);
+            }
+            if (selectedServerId) {
+                fetchServerTrend(selectedServerId, selectedTrafficWindowRef.current);
+            }
+        }, AUDIT_TRAFFIC_AUTO_REFRESH_MS);
+        return () => window.clearInterval(timer);
+    }, [selectedServerId, selectedUser, tab]);
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
     const trafficWarningCount = Array.isArray(trafficOverview?.collection?.warnings)
         ? trafficOverview.collection.warnings.length
         : 0;
+    const trafficWindowCopy = useMemo(
+        () => buildTrafficWindowCopy(selectedTrafficWindow, copy),
+        [copy, selectedTrafficWindow]
+    );
+    const trafficWindowTabs = useMemo(() => ([
+        { key: 'day', label: copy.traffic.windowDay },
+        { key: 'week', label: copy.traffic.windowWeek },
+        { key: 'month', label: copy.traffic.windowMonth },
+    ]), [copy]);
     const trafficTotals = normalizeTrafficTotals(trafficOverview?.managedTotals || trafficOverview?.totals || EMPTY_TRAFFIC_TOTALS);
     const trafficAttributionState = resolveTrafficAttributionState(trafficOverview);
-    const trafficTotalsNote = buildTrafficTotalsNote(trafficOverview, copy);
+    const trafficTotalsNote = buildTrafficTotalsNote(trafficOverview, copy, selectedTrafficWindow);
     const trafficSupportLabel = trafficAttributionState === 'partial'
         ? copy.workspace.supportPartial
         : (trafficAttributionState === 'limited' ? copy.workspace.supportLimited : copy.workspace.supportReady);
     const trafficSupportNote = trafficWarningCount > 0
         ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
-        : copy.workspace.dataWindowTraffic;
-    const trafficWeeklyActiveUsers = Number(trafficWindows.week?.activeUsers || 0);
-    const trafficMonthlyActiveUsers = Number((trafficWindows.month || trafficOverview)?.activeUsers || 0);
+        : trafficWindowCopy.label;
+    const trafficActiveUsers = Number(trafficOverview?.activeUsers || 0);
     const topServersPending = topServers.length === 0 && trafficOverview?.topServersReady === false;
     const activeEventFilterCount = useMemo(() => countActiveFilters(eventFilters), [eventFilters]);
     const activeAccessFilterCount = useMemo(() => countActiveFilters(accessFilters), [accessFilters]);
@@ -1843,6 +1970,22 @@ export default function AuditCenter() {
                                     <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
                                 </div>
                                 <div className="audit-traffic-overview-actions">
+                                    <div className="audit-traffic-window-bar">
+                                        <span className="audit-traffic-window-label">{copy.traffic.windowLabel}</span>
+                                        <div className="tabs audit-traffic-window-tabs" role="tablist" aria-label={copy.traffic.windowLabel}>
+                                            {trafficWindowTabs.map((item) => (
+                                                <button
+                                                    key={item.key}
+                                                    type="button"
+                                                    className={`tab${selectedTrafficWindow === item.key ? ' active' : ''}`}
+                                                    onClick={() => setSelectedTrafficWindow(item.key)}
+                                                    aria-pressed={selectedTrafficWindow === item.key}
+                                                >
+                                                    {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <div className="audit-traffic-sample-pill" title={formatDateTime(trafficStatus?.sampledAt, locale)}>
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
                                         <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.sampledAt, locale)}</span>
@@ -1856,14 +1999,11 @@ export default function AuditCenter() {
                                         <option value="hour">{copy.filters.byHour}</option>
                                         <option value="day">{copy.filters.byDay}</option>
                                     </select>
-                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
-                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
-                                    </button>
                                 </div>
                             </div>
                             <div className="audit-traffic-overview-body">
                                 <div className="audit-traffic-total-card">
-                                    <div className="audit-traffic-total-label">{copy.traffic.totalTrafficScope}</div>
+                                    <div className="audit-traffic-total-label">{trafficWindowCopy.totalTrafficScope}</div>
                                     <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
                                     <div className="audit-traffic-total-note">{trafficTotalsNote}</div>
                                     <div className="audit-traffic-split-grid">
@@ -1879,14 +2019,9 @@ export default function AuditCenter() {
                                 </div>
                                 <div className="audit-traffic-mini-grid">
                                     <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.weeklyActiveAccounts}</div>
-                                        <div className="audit-traffic-mini-value">{trafficWeeklyActiveUsers}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.weeklyActiveAccountsScope}</div>
-                                    </div>
-                                    <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.monthlyActiveAccounts}</div>
-                                        <div className="audit-traffic-mini-value">{trafficMonthlyActiveUsers}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.monthlyActiveAccountsScope}</div>
+                                        <div className="audit-traffic-mini-label">{copy.traffic.activeAccounts}</div>
+                                        <div className="audit-traffic-mini-value">{trafficActiveUsers}</div>
+                                        <div className="audit-traffic-mini-note">{trafficWindowCopy.activeAccountsScope}</div>
                                     </div>
                                     <div className="audit-traffic-mini-card">
                                         <div className="audit-traffic-mini-label">{copy.workspace.sampleStatus}</div>
@@ -1898,13 +2033,8 @@ export default function AuditCenter() {
                                         <div className="audit-traffic-mini-note">
                                             {trafficStatus.sampledAt
                                                 ? formatDateTime(trafficStatus.sampledAt, locale)
-                                                : copy.workspace.dataWindowTraffic}
+                                                : trafficWindowCopy.label}
                                         </div>
-                                    </div>
-                                    <div className="audit-traffic-mini-card">
-                                        <div className="audit-traffic-mini-label">{copy.traffic.samplePoints}</div>
-                                        <div className="audit-traffic-mini-value">{trafficStatus.sampleCount || 0}</div>
-                                        <div className="audit-traffic-mini-note">{copy.traffic.samplePointsScope}</div>
                                     </div>
                                     <div className="audit-traffic-mini-card">
                                         <div className="audit-traffic-mini-label">{copy.workspace.userTrafficSupport}</div>
@@ -1922,7 +2052,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.userTrend}
-                                    subtitle={copy.traffic.userTrendScope}
+                                    subtitle={trafficWindowCopy.userTrendScope}
                                     actions={(
                                         <select
                                             className="form-select w-220"
@@ -1966,7 +2096,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.serverTrend}
-                                    subtitle={copy.traffic.serverTrendScope}
+                                    subtitle={trafficWindowCopy.serverTrendScope}
                                     actions={(
                                         <select
                                             className="form-select w-220"
@@ -2018,7 +2148,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.topUsers}
-                                    subtitle={copy.traffic.topUsersScope}
+                                    subtitle={trafficWindowCopy.topUsersScope}
                                 />
                                 {trafficAttributionState === 'limited' && (
                                     <div className="text-xs text-muted mb-2">
@@ -2063,7 +2193,7 @@ export default function AuditCenter() {
                                 <SectionHeader
                                     className="card-header section-header section-header--compact"
                                     title={copy.traffic.topServers}
-                                    subtitle={copy.traffic.topServersScope}
+                                    subtitle={trafficWindowCopy.topServersScope}
                                 />
                                 {topServers.length === 0 ? (
                                     <div className="p-4">
