@@ -1226,16 +1226,32 @@
   gap: clamp(14px, 1.6vw, 20px);
 }
 
+.subscriptions-page .subscriptions-workbench--user-split {
+  grid-template-columns: minmax(0, 1.16fr) minmax(440px, 0.94fr);
+  align-items: start;
+}
+
 .subscriptions-page .subscriptions-workbench--simple {
-  width: min(100%, 1360px);
-  margin-inline: auto;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.subscriptions-page .subscriptions-workbench--user-split .subscriptions-side-column {
+  gap: 0;
+}
+
+.subscriptions-page .subscription-user-panel--side {
+  min-height: 100%;
 }
 
 .subscriptions-page .subscription-user-flow--balanced {
   width: 100%;
   max-width: none;
-  grid-template-columns: minmax(0, 1fr);
+  margin-inline: 0;
+  grid-template-columns: minmax(0, 1.18fr) minmax(500px, 0.92fr);
   gap: 18px;
+  align-items: start;
 }
 
 .subscriptions-page .subscription-user-panel--import,
@@ -1245,13 +1261,14 @@
 
 .subscriptions-page .subscription-user-panel--summary {
   min-width: 0;
+  width: 100%;
 }
 
 .subscriptions-page .subscription-user-aside {
-  grid-template-columns: minmax(168px, 188px) minmax(0, 1fr);
+  grid-template-columns: minmax(148px, 168px) minmax(0, 1fr);
   grid-template-rows: auto;
   align-items: start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
@@ -1261,36 +1278,52 @@
 }
 
 .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .subscriptions-page .subscription-user-status-block {
-  padding: 14px;
+  padding: 12px;
 }
 
 .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
-  gap: 10px;
+  gap: 9px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter {
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px;
-  min-height: 84px;
-  padding: 11px 12px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 78px;
+  padding: 10px 11px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-svg,
 .subscriptions-page .subscription-user-status-block .circular-meter-visual {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-percent,
+.subscriptions-page .subscription-user-status-block .circular-meter-label,
+.subscriptions-page .subscription-user-status-block .circular-meter-meta {
+  line-height: 1.35;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-percent {
+  font-size: 10px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-label {
+  font-size: 10px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-value {
-  font-size: 15px;
+  margin-top: 1px;
+  font-size: 14px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-meta {
-  font-size: 10px;
+  margin-top: 3px;
+  font-size: 9.5px;
 }
 
 .subscriptions-page .subscription-inline-qr-empty {
@@ -1324,6 +1357,66 @@
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+@media (max-width: 1320px) {
+  .subscriptions-page .subscriptions-workbench--user-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-flow--balanced {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-aside {
+    grid-template-columns: minmax(168px, 188px) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+
+  .subscriptions-page .subscription-user-status-block {
+    padding: 14px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 84px;
+    padding: 11px 12px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-svg,
+  .subscriptions-page .subscription-user-status-block .circular-meter-visual {
+    width: 64px;
+    height: 64px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-percent,
+  .subscriptions-page .subscription-user-status-block .circular-meter-label,
+  .subscriptions-page .subscription-user-status-block .circular-meter-meta {
+    line-height: revert;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-percent {
+    font-size: 11px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-label {
+    font-size: 11px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-value {
+    margin-top: 2px;
+    font-size: 15px;
+  }
+
+  .subscriptions-page .subscription-user-status-block .circular-meter-meta {
+    margin-top: 4px;
+    font-size: 10px;
+  }
 }
 
 @media (max-width: 1100px) {

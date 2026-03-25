@@ -144,12 +144,13 @@ describe('Subscriptions', () => {
         const mainColumn = container.querySelector('.subscriptions-main-column');
         const sideColumn = container.querySelector('.subscriptions-side-column');
         expect(mainColumn).not.toBeNull();
-        expect(sideColumn).toBeNull();
-        if (!mainColumn) throw new Error('Subscription main column not rendered');
+        expect(sideColumn).not.toBeNull();
+        if (!mainColumn || !sideColumn) throw new Error('Subscription columns not rendered');
         expect(container.querySelector('.subscription-user-address-kicker')).toBeNull();
         expect(container.querySelector('.subscription-current-profile-card')).toBeNull();
         expect(container.querySelector('.subscription-link-card-meta')).not.toBeNull();
         expect(within(mainColumn).queryByText('软件下载')).not.toBeInTheDocument();
+        expect(within(sideColumn).getByText('当前订阅概览')).toBeInTheDocument();
         expect(screen.queryByText('软件下载')).not.toBeInTheDocument();
         expect(screen.getByText('选配置文件 -> 复制或导入')).toBeInTheDocument();
         expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();
