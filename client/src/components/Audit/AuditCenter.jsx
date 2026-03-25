@@ -509,15 +509,7 @@ function resolveTrafficAttributionState(overview = null) {
 function buildTrafficTotalsNote(overview = null, copy) {
     const payload = overview && typeof overview === 'object' ? overview : {};
     const managedTotals = normalizeTrafficTotals(payload?.managedTotals);
-    const unattributedTotals = normalizeTrafficTotals(payload?.unattributedTotals);
-    if (unattributedTotals.totalBytes > 0) {
-        const omitted = formatBytes(unattributedTotals.totalBytes);
-        if (managedTotals.totalBytes > 0) {
-            return copy.traffic.totalTrafficPartialNote.replace('{omitted}', omitted);
-        }
-        return copy.traffic.totalTrafficUnavailableNote.replace('{omitted}', omitted);
-    }
-    if (payload?.userLevelSupported === false) {
+    if (managedTotals.totalBytes <= 0 && payload?.userLevelSupported === false) {
         return copy.traffic.totalTrafficLimitedNote;
     }
     return copy.traffic.totalTrafficMonthNote;
@@ -1551,19 +1543,14 @@ export default function AuditCenter() {
         ? trafficOverview.collection.warnings.length
         : 0;
     const trafficTotals = normalizeTrafficTotals(trafficOverview?.managedTotals || trafficOverview?.totals || EMPTY_TRAFFIC_TOTALS);
-    const trafficUnattributedTotals = normalizeTrafficTotals(trafficOverview?.unattributedTotals);
     const trafficAttributionState = resolveTrafficAttributionState(trafficOverview);
     const trafficTotalsNote = buildTrafficTotalsNote(trafficOverview, copy);
     const trafficSupportLabel = trafficAttributionState === 'partial'
         ? copy.workspace.supportPartial
         : (trafficAttributionState === 'limited' ? copy.workspace.supportLimited : copy.workspace.supportReady);
-    const trafficSupportNote = trafficUnattributedTotals.totalBytes > 0
-        ? copy.workspace.userTrafficOmittedNote.replace('{omitted}', formatBytes(trafficUnattributedTotals.totalBytes))
-        : (
-            trafficWarningCount > 0
-                ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
-                : copy.workspace.dataWindowTraffic
-        );
+    const trafficSupportNote = trafficWarningCount > 0
+        ? `${copy.workspace.warningNodes} ${trafficWarningCount}`
+        : copy.workspace.dataWindowTraffic;
     const trafficWeeklyActiveUsers = Number(trafficWindows.week?.activeUsers || 0);
     const trafficMonthlyActiveUsers = Number((trafficWindows.month || trafficOverview)?.activeUsers || 0);
     const topServersPending = topServers.length === 0 && trafficOverview?.topServersReady === false;
@@ -1961,11 +1948,9 @@ export default function AuditCenter() {
                                         </select>
                                     )}
                                 />
-                                {trafficAttributionState !== 'complete' && (
+                                {trafficAttributionState === 'limited' && (
                                     <div className="text-xs text-muted mb-2">
-                                        {trafficAttributionState === 'partial'
-                                            ? copy.traffic.userLevelPartial
-                                            : copy.traffic.userLevelUnsupported}
+                                        {copy.traffic.userLevelUnsupported}
                                     </div>
                                 )}
                                 <div className="audit-chart-selection">
@@ -2045,11 +2030,9 @@ export default function AuditCenter() {
                                     title={copy.traffic.topUsers}
                                     subtitle={copy.traffic.topUsersScope}
                                 />
-                                {trafficAttributionState !== 'complete' && (
+                                {trafficAttributionState === 'limited' && (
                                     <div className="text-xs text-muted mb-2">
-                                        {trafficAttributionState === 'partial'
-                                            ? copy.traffic.userLevelPartial
-                                            : copy.traffic.userLevelNoCounts}
+                                        {copy.traffic.userLevelNoCounts}
                                     </div>
                                 )}
                                 {topUsers.length === 0 ? (

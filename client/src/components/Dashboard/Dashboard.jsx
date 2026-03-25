@@ -235,17 +235,10 @@ function buildTrafficWindowSubtitle(window = {}, t) {
         return t('pages.dashboardCommon.trafficPending');
     }
 
-    const split = t('pages.dashboardCommon.trafficSplit', {
+    return t('pages.dashboardCommon.trafficSplit', {
         up: formatBytes(window?.totalUp || 0),
         down: formatBytes(window?.totalDown || 0),
     });
-    if (window?.attributionComplete === false && Number(window?.unattributedTotal || 0) > 0) {
-        return t('pages.dashboardCommon.trafficPartial', {
-            split,
-            omitted: formatBytes(window.unattributedTotal),
-        });
-    }
-    return split;
 }
 
 const DASHBOARD_ACCENT = {

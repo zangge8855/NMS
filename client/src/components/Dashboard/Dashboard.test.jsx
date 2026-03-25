@@ -769,8 +769,9 @@ describe('Dashboard', () => {
 
         await waitFor(() => {
             expect(weekTrafficCard).toHaveTextContent('360 B');
-            expect(weekTrafficCard).toHaveTextContent('仅统计已归属用户');
-            expect(weekTrafficCard).toHaveTextContent('1000 B');
+            expect(weekTrafficCard).toHaveTextContent('120 B');
+            expect(weekTrafficCard).toHaveTextContent('240 B');
+            expect(weekTrafficCard).not.toHaveTextContent('仅统计已归属用户');
         });
     });
 
