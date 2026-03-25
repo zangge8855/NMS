@@ -215,6 +215,12 @@ const config = {
         sampleIntervalSeconds: parsePositiveInt(process.env.TRAFFIC_SAMPLE_INTERVAL_SECONDS, 300),
         collectorConcurrency: parsePositiveInt(process.env.TRAFFIC_COLLECTOR_CONCURRENCY, 3),
     },
+    performance: {
+        clusterStatusIntervalMs: parsePositiveInt(process.env.CLUSTER_STATUS_INTERVAL_MS, 10_000),
+        panelSnapshotIntervalMs: parsePositiveInt(process.env.PANEL_SNAPSHOT_INTERVAL_MS, 10_000),
+        wsBroadcastIntervalMs: parsePositiveInt(process.env.WS_BROADCAST_INTERVAL_MS, 10_000),
+        trafficOverviewCacheTtlMs: parsePositiveInt(process.env.TRAFFIC_OVERVIEW_CACHE_TTL_MS, 5_000),
+    },
     jobs: {
         retentionDays: parsePositiveInt(process.env.JOB_RETENTION_DAYS, 90),
         maxPageSize: parsePositiveInt(process.env.JOB_MAX_PAGE_SIZE, 200),

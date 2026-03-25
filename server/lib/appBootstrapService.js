@@ -72,14 +72,33 @@ function buildAuditEventsBootstrap() {
 }
 
 function buildAuditTrafficBootstrap() {
-    const trafficOverview = trafficStatsStore.getOverview({
-        days: AUDIT_TRAFFIC_MONTH_DAYS,
-        top: AUDIT_TRAFFIC_TOP_LIMIT,
-    });
-    const trafficWeek = trafficStatsStore.getOverview({
-        days: AUDIT_TRAFFIC_WEEK_DAYS,
-        top: AUDIT_TRAFFIC_TOP_LIMIT,
-    });
+    const trafficBatch = typeof trafficStatsStore.getOverviewBatch === 'function'
+        ? trafficStatsStore.getOverviewBatch([
+            {
+                key: 'month',
+                days: AUDIT_TRAFFIC_MONTH_DAYS,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            },
+            {
+                key: 'week',
+                days: AUDIT_TRAFFIC_WEEK_DAYS,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            },
+        ], {
+            top: AUDIT_TRAFFIC_TOP_LIMIT,
+        })
+        : {
+            month: trafficStatsStore.getOverview({
+                days: AUDIT_TRAFFIC_MONTH_DAYS,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            }),
+            week: trafficStatsStore.getOverview({
+                days: AUDIT_TRAFFIC_WEEK_DAYS,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            }),
+        };
+    const trafficOverview = trafficBatch.month;
+    const trafficWeek = trafficBatch.week;
 
     return {
         trafficOverview,

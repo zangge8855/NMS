@@ -404,19 +404,15 @@ function shouldOverlayRealtimeTraffic(overview = {}) {
 }
 
 function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
-    const trafficStatsStoreRef = deps.trafficStatsStore || trafficStatsStore;
-    const users = Array.isArray(deps.users)
-        ? deps.users
-        : ((deps.userStore || userStore).getAll?.() || []);
-    const liveServerPayloads = buildLiveServerPayloads(deps.panelSnapshots || []);
-    const overview = trafficStatsStoreRef.getOverview(options);
+    const overview = options.overview || (deps.trafficStatsStore || trafficStatsStore).getOverview(options);
     const baseTotals = overview?.managedTotals || overview?.totals || { upBytes: 0, downBytes: 0 };
     const unattributedTotals = overview?.userLevelSupported === false
         ? (overview?.unattributedTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 })
         : { upBytes: 0, downBytes: 0, totalBytes: 0 };
     const hasWindowSamples = Number(overview?.sampleCount || 0) > 0;
     const baselineReady = overview?.baselineReady === true;
-    const canOverlayRealtimeTraffic = liveServerPayloads.length > 0
+    const liveOverlayContext = deps.liveOverlayContext || null;
+    const canOverlayRealtimeTraffic = Number(liveOverlayContext?.serverCount || 0) > 0
         && baselineReady
         && shouldOverlayRealtimeTraffic(overview);
 
@@ -434,9 +430,8 @@ function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
         return buildWindowValue(baseTotals, hasWindowSamples);
     }
 
-    const currentRegisteredTotals = summarizeRegisteredTrafficTotals(users, liveServerPayloads);
-    const currentServerTotals = summarizeServerTrafficTotals(liveServerPayloads);
-    const currentClusterTotals = sumTrafficTotals(currentServerTotals);
+    const currentRegisteredTotals = liveOverlayContext?.registeredTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 };
+    const currentClusterTotals = liveOverlayContext?.clusterTotals || { upBytes: 0, downBytes: 0, totalBytes: 0 };
     const baselineClusterTotals = sumTrafficTotals(Array.isArray(overview?.serverTotals) ? overview.serverTotals : []);
     const managedDelta = {
         upBytes: calculateMonotonicTrafficDelta(currentRegisteredTotals?.upBytes, overview?.registeredTotals?.upBytes),
@@ -457,24 +452,82 @@ function buildDashboardTrafficWindowTotal(options = {}, deps = {}) {
     };
 }
 
+function readDashboardTrafficWindowOverviews(trafficStatsStoreRef, requests = [], deps = {}) {
+    if (typeof trafficStatsStoreRef?.getOverviewBatch === 'function') {
+        return trafficStatsStoreRef.getOverviewBatch(requests, {
+            users: deps.users,
+        });
+    }
+    return Object.fromEntries(
+        (Array.isArray(requests) ? requests : []).map((request) => [
+            request.key,
+            trafficStatsStoreRef.getOverview(request),
+        ])
+    );
+}
+
 function buildDashboardTrafficWindowTotals(deps = {}) {
+    const trafficStatsStoreRef = deps.trafficStatsStore || trafficStatsStore;
+    const users = Array.isArray(deps.users)
+        ? deps.users
+        : ((deps.userStore || userStore).getAll?.() || []);
     const dayRange = buildCalendarTrafficWindowRange('today', deps.now);
     const weekRange = buildCalendarTrafficWindowRange('this_week', deps.now);
     const monthRange = buildCalendarTrafficWindowRange('this_month', deps.now);
+    const overviews = readDashboardTrafficWindowOverviews(trafficStatsStoreRef, [
+        {
+            key: 'day',
+            from: dayRange?.from,
+            to: dayRange?.to,
+        },
+        {
+            key: 'week',
+            from: weekRange?.from,
+            to: weekRange?.to,
+        },
+        {
+            key: 'month',
+            from: monthRange?.from,
+            to: monthRange?.to,
+        },
+    ], { users });
+    const liveServerPayloads = buildLiveServerPayloads(deps.panelSnapshots || []);
+    const currentServerTotals = liveServerPayloads.length > 0
+        ? summarizeServerTrafficTotals(liveServerPayloads)
+        : [];
+    const liveOverlayContext = {
+        serverCount: liveServerPayloads.length,
+        registeredTotals: liveServerPayloads.length > 0
+            ? summarizeRegisteredTrafficTotals(users, liveServerPayloads)
+            : { upBytes: 0, downBytes: 0, totalBytes: 0 },
+        clusterTotals: sumTrafficTotals(currentServerTotals),
+    };
 
     return {
         day: buildDashboardTrafficWindowTotal({
             from: dayRange?.from,
             to: dayRange?.to,
-        }, deps),
+            overview: overviews.day,
+        }, {
+            ...deps,
+            liveOverlayContext,
+        }),
         week: buildDashboardTrafficWindowTotal({
             from: weekRange?.from,
             to: weekRange?.to,
-        }, deps),
+            overview: overviews.week,
+        }, {
+            ...deps,
+            liveOverlayContext,
+        }),
         month: buildDashboardTrafficWindowTotal({
             from: monthRange?.from,
             to: monthRange?.to,
-        }, deps),
+            overview: overviews.month,
+        }, {
+            ...deps,
+            liveOverlayContext,
+        }),
     };
 }
 

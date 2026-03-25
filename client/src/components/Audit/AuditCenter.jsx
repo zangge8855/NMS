@@ -1279,15 +1279,6 @@ export default function AuditCenter() {
         setEventsLoading(false);
     };
 
-    const fetchTrafficStatus = async () => {
-        try {
-            const res = await api.get('/traffic/status');
-            setTrafficStatus(normalizeTrafficStatus(res.data?.obj, trafficOverview));
-        } catch {
-            // keep the latest visible status snapshot
-        }
-    };
-
     const fetchTrafficOverview = async (force = false) => {
         setTrafficLoading(true);
         setTrafficStatus((current) => ({
@@ -1514,7 +1505,6 @@ export default function AuditCenter() {
         if (tab === 'events') {
             fetchEvents(1);
         } else if (tab === 'traffic') {
-            fetchTrafficStatus();
             fetchTrafficOverview(false);
         } else if (tab === 'subscriptions') {
             fetchAccess(1);
@@ -1866,7 +1856,7 @@ export default function AuditCenter() {
                                         <option value="hour">{copy.filters.byHour}</option>
                                         <option value="day">{copy.filters.byDay}</option>
                                     </select>
-                                    <button className="btn btn-primary btn-sm" onClick={() => { fetchTrafficStatus(); fetchTrafficOverview(true); }} disabled={trafficLoading}>
+                                    <button className="btn btn-primary btn-sm" onClick={() => fetchTrafficOverview(true)} disabled={trafficLoading}>
                                         <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
                                     </button>
                                 </div>

@@ -17,6 +17,7 @@
 
 import { WebSocketServer } from 'ws';
 import { URL } from 'url';
+import config from './config.js';
 import { verifyWsTicket } from './lib/wsTicket.js';
 import taskQueue from './lib/taskQueue.js';
 import notificationService from './lib/notifications.js';
@@ -29,7 +30,7 @@ import {
 import trafficStatsStore from './store/trafficStatsStore.js';
 import userStore from './store/userStore.js';
 
-const BROADCAST_INTERVAL = 5_000;    // 5 秒采集/广播一次
+const BROADCAST_INTERVAL = Math.max(5_000, Number(config.performance?.wsBroadcastIntervalMs || 10_000));
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
 const DASHBOARD_FOLLOWUP_DELAY_MS = 1_200;
@@ -324,7 +325,7 @@ export function initWebSocket(httpServer) {
         try {
             const snapshot = await collectClusterStatusSnapshot({
                 includeDetails: true,
-                maxAgeMs: Math.max(0, BROADCAST_INTERVAL - 1_000),
+                maxAgeMs: BROADCAST_INTERVAL,
             });
             if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
                 return;

@@ -1015,12 +1015,11 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (!autoRefresh) return undefined;
+        if (activeServerId === 'global' && wsStatus === 'connected') {
+            return undefined;
+        }
         const interval = setInterval(() => {
             if (activeServerId === 'global') {
-                if (wsStatus === 'connected') {
-                    hydrateGlobalPresence();
-                    return;
-                }
                 fetchGlobalData();
                 return;
             }

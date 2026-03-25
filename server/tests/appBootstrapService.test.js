@@ -60,12 +60,12 @@ describe('app bootstrap service', () => {
     });
 
     it('builds audit traffic bootstrap with an explicit top-10 limit', async () => {
-        const originalGetOverview = trafficStatsStore.getOverview.bind(trafficStatsStore);
+        const originalGetOverviewBatch = trafficStatsStore.getOverviewBatch.bind(trafficStatsStore);
         const originalCollectIfStale = trafficStatsStore.collectIfStale;
-        const recordedOptions = [];
-        trafficStatsStore.getOverview = (options = {}) => {
-            recordedOptions.push(options);
-            return originalGetOverview(options);
+        let recordedRequests = [];
+        trafficStatsStore.getOverviewBatch = (requests = [], options = {}) => {
+            recordedRequests = requests;
+            return originalGetOverviewBatch(requests, options);
         };
         trafficStatsStore.collectIfStale = async () => ({
             collected: false,
@@ -80,17 +80,17 @@ describe('app bootstrap service', () => {
                 userId: 'admin-1',
             });
         } finally {
-            trafficStatsStore.getOverview = originalGetOverview;
+            trafficStatsStore.getOverviewBatch = originalGetOverviewBatch;
             trafficStatsStore.collectIfStale = originalCollectIfStale;
         }
 
-        assert.ok(recordedOptions.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
-        assert.ok(recordedOptions.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
+        assert.ok(recordedRequests.some((options) => Number(options?.days) === 30 && Number(options?.top) === 10));
+        assert.ok(recordedRequests.some((options) => Number(options?.days) === 7 && Number(options?.top) === 10));
     });
 
     it('waits for traffic sampling before reading admin traffic bootstrap snapshots', async () => {
         const originalCollectIfStale = trafficStatsStore.collectIfStale;
-        const originalGetOverview = trafficStatsStore.getOverview.bind(trafficStatsStore);
+        const originalGetOverviewBatch = trafficStatsStore.getOverviewBatch.bind(trafficStatsStore);
         let collected = false;
 
         trafficStatsStore.collectIfStale = async () => {
@@ -102,9 +102,9 @@ describe('app bootstrap service', () => {
                 warnings: [],
             };
         };
-        trafficStatsStore.getOverview = (options = {}) => {
+        trafficStatsStore.getOverviewBatch = (requests = [], options = {}) => {
             assert.equal(collected, true);
-            return originalGetOverview(options);
+            return originalGetOverviewBatch(requests, options);
         };
 
         try {
@@ -114,7 +114,7 @@ describe('app bootstrap service', () => {
             });
         } finally {
             trafficStatsStore.collectIfStale = originalCollectIfStale;
-            trafficStatsStore.getOverview = originalGetOverview;
+            trafficStatsStore.getOverviewBatch = originalGetOverviewBatch;
         }
     });
 });

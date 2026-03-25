@@ -13,6 +13,7 @@ const TRAFFIC_SAMPLES_FILE = path.join(config.dataDir, 'traffic_samples.json');
 const TRAFFIC_COUNTERS_FILE = path.join(config.dataDir, 'traffic_counters.json');
 const TRAFFIC_META_FILE = path.join(config.dataDir, 'traffic_meta.json');
 const DEFAULT_WARM_LOOP_MIN_INTERVAL_MS = 30_000;
+const DEFAULT_OVERVIEW_CACHE_LIMIT = 48;
 
 let trafficWarmLoopTimer = null;
 let trafficWarmLoopInFlight = null;
@@ -146,6 +147,62 @@ function maskEmail(value) {
     return `${hashMaskedEmailCandidate(normalized)}@masked.local`;
 }
 
+function buildTrafficUserDirectoryVersion(users = []) {
+    return crypto.createHash('sha1').update(
+        (Array.isArray(users) ? users : [])
+            .filter((user) => user?.role !== 'admin')
+            .map((user) => [
+                String(user?.id || '').trim(),
+                String(user?.username || '').trim(),
+                normalizeClientEmail(user?.email),
+                normalizeClientEmail(user?.subscriptionEmail || user?.email),
+                user?.enabled === false ? '0' : '1',
+            ].join(':'))
+            .join('|')
+    ).digest('hex');
+}
+
+function buildResolvedTrafficUserDirectory(users = []) {
+    const aliasMap = new Map();
+    const registeredUsers = (Array.isArray(users) ? users : []).filter((user) => user?.role !== 'admin');
+
+    registeredUsers.forEach((user) => {
+        const loginEmail = normalizeClientEmail(user?.email);
+        const subscriptionEmail = normalizeClientEmail(user?.subscriptionEmail || user?.email);
+        const canonicalEmail = subscriptionEmail || loginEmail;
+        if (!canonicalEmail) return;
+
+        const username = String(user?.username || '').trim();
+        const userId = String(user?.id || '').trim();
+        const aliases = new Set([loginEmail, subscriptionEmail].filter(Boolean));
+        const resolvedAliases = new Set();
+
+        aliases.forEach((alias) => {
+            resolvedAliases.add(alias);
+            const maskedAlias = maskEmail(alias);
+            if (maskedAlias) resolvedAliases.add(maskedAlias);
+        });
+
+        const entry = {
+            userId,
+            username,
+            email: canonicalEmail,
+            displayLabel: username
+                ? `${username} · ${canonicalEmail}`
+                : canonicalEmail,
+            aliases: resolvedAliases,
+        };
+
+        resolvedAliases.forEach((alias) => aliasMap.set(alias, entry));
+    });
+
+    return {
+        aliasMap,
+        totalUsers: registeredUsers.length,
+        versionToken: buildTrafficUserDirectoryVersion(registeredUsers),
+    };
+}
+
 function resolveMaskedEmail(email) {
     const value = normalizeClientEmail(email);
     if (!value.endsWith('@masked.local')) return value;
@@ -169,8 +226,11 @@ function resolveMaskedEmail(email) {
     return value;
 }
 
-function resolveTrafficUserInfo(email) {
+function resolveTrafficUserInfo(email, directory = null) {
     const normalizedInput = normalizeClientEmail(email);
+    if (directory?.aliasMap instanceof Map) {
+        return directory.aliasMap.get(normalizedInput) || null;
+    }
     const resolvedEmail = resolveMaskedEmail(normalizedInput);
     const user = userStore.getBySubscriptionEmail(resolvedEmail)
         || userStore.getByEmail(resolvedEmail)
@@ -386,31 +446,7 @@ function shouldTrackRegisteredTrafficInbound(inbound) {
 }
 
 function buildTrafficUserDirectory(users = []) {
-    const aliasMap = new Map();
-    const registeredUsers = (Array.isArray(users) ? users : []).filter((user) => user?.role !== 'admin');
-
-    registeredUsers.forEach((user) => {
-        const loginEmail = normalizeClientEmail(user?.email);
-        const subscriptionEmail = normalizeClientEmail(user?.subscriptionEmail || user?.email);
-        const canonicalEmail = subscriptionEmail || loginEmail;
-        if (!canonicalEmail) return;
-
-        const entry = {
-            userId: String(user?.id || '').trim(),
-            username: String(user?.username || '').trim(),
-            email: canonicalEmail,
-        };
-        const aliases = new Set([loginEmail, subscriptionEmail].filter(Boolean));
-        aliases.forEach((alias) => {
-            aliasMap.set(alias, entry);
-            aliasMap.set(maskEmail(alias), entry);
-        });
-    });
-
-    return {
-        aliasMap,
-        totalUsers: registeredUsers.length,
-    };
+    return buildResolvedTrafficUserDirectory(users);
 }
 
 function summarizeRegisteredTrafficTotals(users = [], serverPayloads = []) {
@@ -512,6 +548,8 @@ class TrafficStatsStore {
                 : null,
         };
         this.collectingPromise = null;
+        this.stateVersion = 0;
+        this.overviewCache = new Map();
         this._prune();
     }
 
@@ -527,6 +565,15 @@ class TrafficStatsStore {
 
     _collectorConcurrency() {
         return toPositiveInt(config.traffic?.collectorConcurrency, 3);
+    }
+
+    _overviewCacheTtlMs() {
+        return Math.max(1_000, toPositiveInt(config.performance?.trafficOverviewCacheTtlMs, 5_000));
+    }
+
+    _touchState() {
+        this.stateVersion += 1;
+        this.overviewCache.clear();
     }
 
     _persist() {
@@ -555,6 +602,7 @@ class TrafficStatsStore {
         }
 
         if (oldSamplesLen !== this.samples.length || countersChanged) {
+            this._touchState();
             this._persist();
         }
     }
@@ -658,6 +706,228 @@ class TrafficStatsStore {
             bucketMap.set(bucket, current);
         }
         return Array.from(bucketMap.values()).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    }
+
+    _normalizeOverviewRequests(requests = [], defaults = {}) {
+        return (Array.isArray(requests) ? requests : []).map((request, index) => {
+            const range = this._buildTimeRange(request, { defaultDays: defaults.defaultDays || 30 });
+            return {
+                key: String(request?.key || index),
+                from: range.from,
+                to: range.to,
+                fromTs: range.fromTs,
+                toTs: range.toTs,
+                top: Math.min(10, toPositiveInt(request?.top, defaults.top || 10)),
+            };
+        });
+    }
+
+    _buildOverviewBatchCacheKey(requests = [], userDirectory = null) {
+        const requestToken = requests
+            .map((request) => [request.key, request.from, request.to, request.top].join(':'))
+            .join('|');
+        const directoryToken = String(userDirectory?.versionToken || '');
+        return `${this.stateVersion}:${directoryToken}:${requestToken}`;
+    }
+
+    _setOverviewCache(cacheKey, value) {
+        if (this.overviewCache.has(cacheKey)) {
+            this.overviewCache.delete(cacheKey);
+        }
+        this.overviewCache.set(cacheKey, {
+            checkedAtMs: Date.now(),
+            value,
+        });
+        while (this.overviewCache.size > DEFAULT_OVERVIEW_CACHE_LIMIT) {
+            const oldestKey = this.overviewCache.keys().next().value;
+            this.overviewCache.delete(oldestKey);
+        }
+    }
+
+    _computeOverviewBatch(requests = [], userDirectory = null) {
+        const requestList = Array.isArray(requests) ? requests : [];
+        const baselineStatus = resolveTrafficBaselineStatus(this.meta);
+        const serverTotals = normalizeServerTotals(this.meta?.serverTotals);
+        const registeredTotals = normalizeRegisteredTotals(this.meta?.registeredTotals);
+        const requestStateList = requestList.map((request) => ({
+            request,
+            state: {
+                totals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                managedTotals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                unattributedTotals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                users: new Map(),
+                sampleCount: 0,
+                hasUnattributedTraffic: false,
+                topServers: [],
+                topServersReady: false,
+            },
+        }));
+        const serverSnapshotBuckets = new Map();
+
+        for (const item of this.samples) {
+            const sampleTs = new Date(item?.ts || 0).getTime();
+            if (!Number.isFinite(sampleTs)) continue;
+
+            if (normalizeSampleKind(item?.kind) === SAMPLE_KIND_SERVER_SNAPSHOT) {
+                const serverId = String(item?.serverId || '').trim();
+                if (!serverId) continue;
+                if (!serverSnapshotBuckets.has(serverId)) {
+                    serverSnapshotBuckets.set(serverId, {
+                        serverId,
+                        serverName: String(item?.serverName || serverId).trim(),
+                        samples: [],
+                    });
+                }
+                const bucket = serverSnapshotBuckets.get(serverId);
+                if (bucket.serverName === '' && item?.serverName) {
+                    bucket.serverName = String(item.serverName).trim();
+                }
+                bucket.samples.push({
+                    sampleTs,
+                    upBytes: toNonNegativeInt(item?.upBytes, 0),
+                    downBytes: toNonNegativeInt(item?.downBytes, 0),
+                });
+                continue;
+            }
+
+            const upBytes = toNonNegativeInt(item?.upBytes, 0);
+            const downBytes = toNonNegativeInt(item?.downBytes, 0);
+            const totalBytes = toNonNegativeInt(item?.totalBytes, upBytes + downBytes);
+            const email = normalizeClientEmail(item?.email);
+            const userInfo = email
+                ? resolveTrafficUserInfo(email, userDirectory)
+                : null;
+
+            requestStateList.forEach(({ request, state }) => {
+                if (sampleTs < request.fromTs || sampleTs > request.toTs) return;
+                state.sampleCount += 1;
+                state.totals.upBytes += upBytes;
+                state.totals.downBytes += downBytes;
+                state.totals.totalBytes += totalBytes;
+
+                if (email) {
+                    if (!userInfo?.email) return;
+                    state.managedTotals.upBytes += upBytes;
+                    state.managedTotals.downBytes += downBytes;
+                    state.managedTotals.totalBytes += totalBytes;
+                    const current = state.users.get(userInfo.email) || {
+                        userId: userInfo.userId,
+                        username: userInfo.username,
+                        email: userInfo.email,
+                        displayLabel: userInfo.displayLabel,
+                        totalBytes: 0,
+                    };
+                    current.totalBytes += totalBytes;
+                    state.users.set(userInfo.email, current);
+                    return;
+                }
+
+                if (totalBytes <= 0) return;
+                state.hasUnattributedTraffic = true;
+                state.unattributedTotals.upBytes += upBytes;
+                state.unattributedTotals.downBytes += downBytes;
+                state.unattributedTotals.totalBytes += totalBytes;
+            });
+        }
+
+        if (serverSnapshotBuckets.size > 0) {
+            requestStateList.forEach(({ state }) => {
+                state.serverEntries = [];
+            });
+
+            serverSnapshotBuckets.forEach((bucket) => {
+                bucket.samples.sort((left, right) => left.sampleTs - right.sampleTs);
+                const perRequestTotals = new Map(
+                    requestStateList.map(({ request }) => [request.key, {
+                        upBytes: 0,
+                        downBytes: 0,
+                        totalBytes: 0,
+                        seenInRange: false,
+                    }])
+                );
+                let previousSample = null;
+
+                bucket.samples.forEach((sample) => {
+                    const deltaUp = calculateTrafficDelta(sample.upBytes, previousSample?.upBytes);
+                    const deltaDown = calculateTrafficDelta(sample.downBytes, previousSample?.downBytes);
+                    previousSample = sample;
+
+                    requestStateList.forEach(({ request }) => {
+                        if (sample.sampleTs < request.fromTs || sample.sampleTs > request.toTs) return;
+                        const current = perRequestTotals.get(request.key);
+                        current.seenInRange = true;
+                        current.upBytes += deltaUp;
+                        current.downBytes += deltaDown;
+                        current.totalBytes += deltaUp + deltaDown;
+                    });
+                });
+
+                requestStateList.forEach(({ request, state }) => {
+                    const current = perRequestTotals.get(request.key);
+                    if (current.seenInRange) {
+                        state.topServersReady = true;
+                    }
+                    if (current.totalBytes <= 0) return;
+                    state.serverEntries.push(createServerTotalEntry({
+                        serverId: bucket.serverId,
+                        serverName: bucket.serverName,
+                        ...current,
+                    }));
+                });
+            });
+        }
+
+        return Object.fromEntries(requestStateList.map(({ request, state }) => {
+            const topUsers = Array.from(state.users.values())
+                .sort((left, right) => right.totalBytes - left.totalBytes)
+                .slice(0, request.top);
+            const topServers = Array.isArray(state.serverEntries)
+                ? state.serverEntries
+                    .sort((left, right) => right.totalBytes - left.totalBytes)
+                    .slice(0, request.top)
+                : [];
+
+            return [request.key, {
+                from: request.from,
+                to: request.to,
+                sampleCount: state.sampleCount,
+                activeUsers: state.users.size,
+                userLevelSupported: state.hasUnattributedTraffic !== true,
+                unattributedTotals: state.unattributedTotals,
+                totals: state.totals,
+                managedTotals: state.managedTotals,
+                currentTotalsAt: baselineStatus.currentTotalsAt,
+                baselineReady: baselineStatus.baselineReady,
+                registeredTotalsReady: baselineStatus.registeredTotalsReady,
+                serverTotalsReady: baselineStatus.serverTotalsReady,
+                registeredTotals,
+                serverTotals,
+                topUsers,
+                topServers,
+                topServersReady: state.topServersReady,
+                lastCollectionAt: this.meta.lastCollectionAt || null,
+            }];
+        }));
+    }
+
+    getOverviewBatch(requests = [], options = {}) {
+        const requestList = this._normalizeOverviewRequests(requests, {
+            defaultDays: options.defaultDays || 30,
+            top: options.top,
+        });
+        if (requestList.length === 0) return {};
+
+        const users = Array.isArray(options.users) ? options.users : userStore.getAll();
+        const userDirectory = buildResolvedTrafficUserDirectory(users);
+        const cacheKey = this._buildOverviewBatchCacheKey(requestList, userDirectory);
+        const cached = this.overviewCache.get(cacheKey);
+        if (cached && (Date.now() - Number(cached.checkedAtMs || 0)) <= this._overviewCacheTtlMs()) {
+            return cached.value;
+        }
+
+        const result = this._computeOverviewBatch(requestList, userDirectory);
+        this._setOverviewCache(cacheKey, result);
+        return result;
     }
 
     async _collectFromServer(serverMeta, collectedAtIso, options = {}) {
@@ -866,6 +1136,7 @@ class TrafficStatsStore {
                 : normalizeServerTotals(previousServerTotals);
             this.meta.currentTotalsAt = previousCurrentTotalsAt;
         }
+        this._touchState();
         this._prune();
         this._persist();
 
@@ -891,117 +1162,17 @@ class TrafficStatsStore {
     }
 
     getOverview(options = {}) {
-        const range = this._buildTimeRange(options, { defaultDays: 30 });
-        const top = Math.min(10, toPositiveInt(options.top, 10));
-        const samples = this._filterSamples({ fromTs: range.fromTs, toTs: range.toTs });
-        const baselineStatus = resolveTrafficBaselineStatus(this.meta);
-
-        const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
-        const managedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
-        const unattributedTotals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
-        const users = new Map();
-        let hasUnattributedTraffic = false;
-
-        for (const item of samples) {
-            const upBytes = toNonNegativeInt(item.upBytes, 0);
-            const downBytes = toNonNegativeInt(item.downBytes, 0);
-            const totalBytes = toNonNegativeInt(item.totalBytes, 0);
-            totals.upBytes += upBytes;
-            totals.downBytes += downBytes;
-            totals.totalBytes += totalBytes;
-
-            const email = String(item.email || '').trim().toLowerCase();
-            if (email) {
-                const userInfo = resolveTrafficUserInfo(email);
-                if (userInfo?.email) {
-                    managedTotals.upBytes += upBytes;
-                    managedTotals.downBytes += downBytes;
-                    managedTotals.totalBytes += totalBytes;
-                    const current = users.get(userInfo.email) || {
-                        userId: userInfo.userId,
-                        username: userInfo.username,
-                        email: userInfo.email,
-                        displayLabel: userInfo.displayLabel,
-                        totalBytes: 0,
-                    };
-                    current.totalBytes += totalBytes;
-                    users.set(userInfo.email, current);
-                }
-                continue;
-            }
-            if (totalBytes <= 0) continue;
-            hasUnattributedTraffic = true;
-            unattributedTotals.upBytes += upBytes;
-            unattributedTotals.downBytes += downBytes;
-            unattributedTotals.totalBytes += totalBytes;
-        }
-
-        const topUsers = Array.from(users.values())
-            .sort((a, b) => b.totalBytes - a.totalBytes)
-            .slice(0, top);
-
-        const snapshotSamples = this.samples.filter((item) => normalizeSampleKind(item?.kind) === SAMPLE_KIND_SERVER_SNAPSHOT);
-        const serverSnapshotBuckets = snapshotSamples.reduce((acc, item) => {
-            const serverId = String(item?.serverId || '').trim();
-            if (!serverId) return acc;
-            if (!acc.has(serverId)) {
-                acc.set(serverId, []);
-            }
-            acc.get(serverId).push(item);
-            return acc;
-        }, new Map());
-        let topServersReady = false;
-        const topServersFromWindow = Array.from(serverSnapshotBuckets.entries())
-            .map(([serverId, serverSamples]) => {
-                const points = this._aggregateSnapshotDeltaTrend(serverSamples, 'hour', {
-                    fromTs: range.fromTs,
-                    toTs: range.toTs,
-                });
-                if (points.length > 0) {
-                    topServersReady = true;
-                }
-                const totals = points.reduce((acc, item) => {
-                    acc.upBytes += Number(item?.upBytes || 0);
-                    acc.downBytes += Number(item?.downBytes || 0);
-                    acc.totalBytes += Number(item?.totalBytes || 0);
-                    return acc;
-                }, { upBytes: 0, downBytes: 0, totalBytes: 0 });
-                const lastSample = serverSamples[serverSamples.length - 1] || null;
-                return createServerTotalEntry({
-                    serverId,
-                    serverName: lastSample?.serverName || serverId,
-                    ...totals,
-                });
-            })
-            .filter((item) => item.totalBytes > 0);
-        const topServers = topServersFromWindow
-            .sort((a, b) => b.totalBytes - a.totalBytes)
-            .slice(0, top);
-
-        return {
-            from: range.from,
-            to: range.to,
-            sampleCount: samples.length,
-            activeUsers: users.size,
-            userLevelSupported: hasUnattributedTraffic !== true,
-            unattributedTotals,
-            totals,
-            managedTotals,
-            currentTotalsAt: baselineStatus.currentTotalsAt,
-            baselineReady: baselineStatus.baselineReady,
-            registeredTotalsReady: baselineStatus.registeredTotalsReady,
-            serverTotalsReady: baselineStatus.serverTotalsReady,
-            registeredTotals: normalizeRegisteredTotals(this.meta?.registeredTotals),
-            serverTotals: normalizeServerTotals(this.meta?.serverTotals),
-            topUsers,
-            topServers,
-            topServersReady,
-            lastCollectionAt: this.meta.lastCollectionAt || null,
-        };
+        return this.getOverviewBatch([
+            {
+                key: 'overview',
+                ...options,
+            },
+        ], options).overview;
     }
 
     getUserTrend(email, options = {}) {
-        const userInfo = resolveTrafficUserInfo(email);
+        const userDirectory = buildResolvedTrafficUserDirectory(userStore.getAll());
+        const userInfo = resolveTrafficUserInfo(email, userDirectory);
         const normalizedEmail = String(userInfo?.email || '').trim().toLowerCase();
         if (!normalizedEmail || !userInfo) {
             return {
@@ -1112,6 +1283,7 @@ class TrafficStatsStore {
                 registeredTotals: createRegisteredTotals(),
                 serverTotals: [],
             };
+        this._touchState();
         this._prune();
     }
 }

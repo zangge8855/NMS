@@ -1,8 +1,9 @@
 import serverStore from '../store/serverStore.js';
+import config from '../config.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
 
-const DEFAULT_TTL_MS = 5_000;
-const DEFAULT_WARM_INTERVAL_MS = 5_000;
+const DEFAULT_WARM_INTERVAL_MS = Math.max(5_000, Number(config.performance?.panelSnapshotIntervalMs || 10_000));
+const DEFAULT_TTL_MS = DEFAULT_WARM_INTERVAL_MS;
 const DEFAULT_CONCURRENCY = 5;
 
 const cache = new Map();
@@ -189,7 +190,7 @@ export function startServerPanelSnapshotWarmLoop(options = {}) {
         if (warmInFlight) return warmInFlight;
         warmInFlight = getServerPanelSnapshots({
             includeOnlines: true,
-            ttlMs: Math.max(0, intervalMs - 1_000),
+            ttlMs: intervalMs,
             concurrency,
         }).catch((error) => {
             console.error('Failed to warm server panel snapshots:', error?.message || error);

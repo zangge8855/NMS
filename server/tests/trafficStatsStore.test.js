@@ -705,4 +705,127 @@ describe('traffic stats inbound fallback', () => {
             userStore.importState(originalUsers);
         }
     });
+
+    it('reuses cached overview batches within the ttl window and invalidates them after state changes', () => {
+        const originalUsers = userStore.exportState();
+        try {
+            userStore.importState({
+                users: [
+                    {
+                        id: 'user-1',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice@example.com',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const store = new TrafficStatsStore();
+            const requests = [
+                {
+                    key: 'week',
+                    from: '2026-03-10T00:00:00.000Z',
+                    to: '2026-03-14T00:00:00.000Z',
+                    top: 10,
+                },
+                {
+                    key: 'month',
+                    from: '2026-03-01T00:00:00.000Z',
+                    to: '2026-03-31T00:00:00.000Z',
+                    top: 10,
+                },
+            ];
+
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-1',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                ],
+                counters: {},
+                meta: {
+                    lastCollectionAt: '2026-03-13T00:00:00.000Z',
+                    registeredTotals: {
+                        totalUsers: 1,
+                        activeUsers: 1,
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    serverTotals: [],
+                },
+            });
+
+            const first = store.getOverviewBatch(requests);
+            const second = store.getOverviewBatch(requests);
+            assert.equal(second, first);
+            assert.equal(first.week.managedTotals.totalBytes, 300);
+            assert.equal(first.month.managedTotals.totalBytes, 300);
+
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-1',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    {
+                        id: 'sample-2',
+                        ts: '2026-03-13T01:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 50,
+                        downBytes: 50,
+                        totalBytes: 100,
+                    },
+                ],
+                counters: {},
+                meta: {
+                    lastCollectionAt: '2026-03-13T01:00:00.000Z',
+                    registeredTotals: {
+                        totalUsers: 1,
+                        activeUsers: 1,
+                        upBytes: 150,
+                        downBytes: 250,
+                        totalBytes: 400,
+                    },
+                    serverTotals: [],
+                },
+            });
+
+            const third = store.getOverviewBatch(requests);
+            assert.notEqual(third, first);
+            assert.equal(third.week.managedTotals.totalBytes, 400);
+            assert.equal(third.month.managedTotals.totalBytes, 400);
+        } finally {
+            userStore.importState(originalUsers);
+        }
+    });
 });

@@ -59,26 +59,37 @@ router.get('/overview', async (req, res) => {
         days: req.query.days,
         top: req.query.top,
     };
-    const overview = trafficStatsStore.getOverview(options);
-    const windows = parseWindowKeys(req.query.windows).reduce((acc, key) => {
-        if (key === 'today' || key === 'this_week' || key === 'this_month') {
-            const range = buildCalendarTrafficWindowRange(key);
-            acc[key] = trafficStatsStore.getOverview({
-                ...options,
-                from: range?.from,
-                to: range?.to,
-                days: undefined,
-            });
-            return acc;
-        }
-        acc[key] = trafficStatsStore.getOverview({
+    const windowKeys = parseWindowKeys(req.query.windows);
+    const batchRequests = [
+        {
+            key: 'overview',
+            ...options,
+        },
+        ...windowKeys.map((key) => {
+            if (key === 'today' || key === 'this_week' || key === 'this_month') {
+                const range = buildCalendarTrafficWindowRange(key);
+                return {
+                    key,
+                    ...options,
+                    from: range?.from,
+                    to: range?.to,
+                    days: undefined,
+                };
+            }
+            return {
+                key,
                 ...options,
                 from: undefined,
                 to: undefined,
                 days: Number.parseInt(key, 10),
-            });
-        return acc;
-    }, {});
+            };
+        }),
+    ];
+    const batch = typeof trafficStatsStore.getOverviewBatch === 'function'
+        ? trafficStatsStore.getOverviewBatch(batchRequests, options)
+        : Object.fromEntries(batchRequests.map((request) => [request.key, trafficStatsStore.getOverview(request)]));
+    const overview = batch.overview || trafficStatsStore.getOverview(options);
+    const windows = Object.fromEntries(windowKeys.map((key) => [key, batch[key] || null]));
     return res.json({
         success: true,
         obj: {

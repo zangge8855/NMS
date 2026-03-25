@@ -528,23 +528,45 @@ describe('AuditCenter localization', () => {
         expect(within(monthlyCard).getByText('19')).toBeInTheDocument();
     });
 
-    it('shows traffic sampling status immediately from the lightweight status endpoint', async () => {
-        const never = new Promise(() => {});
-
+    it('shows traffic sampling status directly from the overview payload', async () => {
         api.get.mockImplementation((url) => {
-            if (url === '/traffic/status') {
+            if (url.startsWith('/traffic/overview?')) {
                 return Promise.resolve({
                     data: {
                         obj: {
                             lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                            baselineReady: true,
                             sampleCount: 12,
-                            collecting: true,
+                            activeUsers: 0,
+                            userLevelSupported: true,
+                            totals: {
+                                upBytes: 0,
+                                downBytes: 0,
+                                totalBytes: 0,
+                            },
+                            managedTotals: {
+                                upBytes: 0,
+                                downBytes: 0,
+                                totalBytes: 0,
+                            },
+                            topUsers: [],
+                            topServers: [],
+                            topServersReady: false,
+                            windows: {},
+                            collection: {
+                                warnings: [],
+                            },
+                            status: {
+                                lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                                currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                                baselineReady: true,
+                                sampleCount: 12,
+                                collecting: true,
+                            },
                         },
                     },
                 });
-            }
-            if (url.startsWith('/traffic/overview?')) {
-                return never;
             }
             throw new Error(`Unexpected GET ${url}`);
         });
@@ -552,7 +574,7 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith('/traffic/status');
+            expect(api.get.mock.calls.some(([url]) => /^\/traffic\/overview\?/.test(url))).toBe(true);
         });
 
         const statusCard = screen.getByText('采样状态').closest('.audit-traffic-mini-card');
@@ -565,11 +587,9 @@ describe('AuditCenter localization', () => {
         expect(within(samplePointsCard).getByText('12')).toBeInTheDocument();
     });
 
-    it('does not mark traffic sampling as ready when the latest collection did not produce a usable baseline', async () => {
-        const never = new Promise(() => {});
-
+    it('does not mark traffic sampling as ready when the overview reports no usable baseline', async () => {
         api.get.mockImplementation((url) => {
-            if (url === '/traffic/status') {
+            if (url.startsWith('/traffic/overview?')) {
                 return Promise.resolve({
                     data: {
                         obj: {
@@ -577,13 +597,35 @@ describe('AuditCenter localization', () => {
                             currentTotalsAt: null,
                             baselineReady: false,
                             sampleCount: 12,
-                            collecting: false,
+                            activeUsers: 0,
+                            userLevelSupported: true,
+                            totals: {
+                                upBytes: 0,
+                                downBytes: 0,
+                                totalBytes: 0,
+                            },
+                            managedTotals: {
+                                upBytes: 0,
+                                downBytes: 0,
+                                totalBytes: 0,
+                            },
+                            topUsers: [],
+                            topServers: [],
+                            topServersReady: false,
+                            windows: {},
+                            collection: {
+                                warnings: [],
+                            },
+                            status: {
+                                lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                                currentTotalsAt: null,
+                                baselineReady: false,
+                                sampleCount: 12,
+                                collecting: false,
+                            },
                         },
                     },
                 });
-            }
-            if (url.startsWith('/traffic/overview?')) {
-                return never;
             }
             throw new Error(`Unexpected GET ${url}`);
         });
@@ -591,7 +633,7 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith('/traffic/status');
+            expect(api.get.mock.calls.some(([url]) => /^\/traffic\/overview\?/.test(url))).toBe(true);
         });
 
         const statusCard = screen.getByText('采样状态').closest('.audit-traffic-mini-card');
@@ -605,19 +647,6 @@ describe('AuditCenter localization', () => {
 
     it('explains when top node rankings are still waiting for windowed snapshot samples', async () => {
         api.get.mockImplementation((url) => {
-            if (url === '/traffic/status') {
-                return Promise.resolve({
-                    data: {
-                        obj: {
-                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
-                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
-                            baselineReady: true,
-                            sampleCount: 12,
-                            collecting: false,
-                        },
-                    },
-                });
-            }
             if (url.startsWith('/traffic/overview?')) {
                 return Promise.resolve({
                     data: {
@@ -638,6 +667,13 @@ describe('AuditCenter localization', () => {
                             topServersReady: false,
                             collection: {
                                 warnings: [],
+                            },
+                            status: {
+                                lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                                currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                                baselineReady: true,
+                                sampleCount: 12,
+                                collecting: false,
                             },
                         },
                     },

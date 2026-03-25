@@ -1,5 +1,6 @@
 import serverStore from '../store/serverStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
+import config from '../config.js';
 import { getServerPanelSnapshot } from './serverPanelSnapshotService.js';
 import {
     classifyPanelError as classifyPanelFailure,
@@ -29,7 +30,7 @@ export const STATUS_REASON = {
 };
 
 const DEFAULT_CONCURRENCY = 5;
-const DEFAULT_WARM_INTERVAL_MS = 5_000;
+const DEFAULT_WARM_INTERVAL_MS = Math.max(5_000, Number(config.performance?.clusterStatusIntervalMs || 10_000));
 const DEFAULT_WARM_FOLLOWUP_DELAY_MS = 1_200;
 const snapshotCache = {
     promise: null,
@@ -515,7 +516,7 @@ export function startClusterStatusWarmLoop(options = {}) {
 
     warmLoopTimer = setInterval(() => {
         runWarmSnapshotCycle({
-            maxAgeMs: Math.max(0, intervalMs - 1_000),
+            maxAgeMs: intervalMs,
         });
     }, intervalMs);
     if (typeof warmLoopTimer?.unref === 'function') {

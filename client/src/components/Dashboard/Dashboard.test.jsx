@@ -1655,7 +1655,7 @@ describe('Dashboard', () => {
         expect(panelApi).not.toHaveBeenCalled();
     });
 
-    it('skips global auto-polling when the websocket cluster stream is connected', async () => {
+    it('does not schedule global auto-polling when the websocket cluster stream is connected', async () => {
         const intervalCallbacks = [];
         const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, delay) => {
             if (delay === 30_000) {
@@ -1771,14 +1771,7 @@ describe('Dashboard', () => {
 
             expect(snapshotFetches).toBe(1);
             expect(statusFetches).toBe(0);
-            expect(intervalCallbacks.length).toBeGreaterThan(0);
-
-            await act(async () => {
-                intervalCallbacks[0]();
-            });
-
-            expect(snapshotFetches).toBe(2);
-            expect(statusFetches).toBe(0);
+            expect(intervalCallbacks.length).toBe(0);
         } finally {
             setIntervalSpy.mockRestore();
             clearIntervalSpy.mockRestore();

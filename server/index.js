@@ -280,8 +280,12 @@ export async function startServer(options = {}) {
         enableWebSocket: options.enableWebSocket,
     });
     serverHealthMonitor.start();
-    startClusterStatusWarmLoop();
-    startServerPanelSnapshotWarmLoop();
+    startClusterStatusWarmLoop({
+        intervalMs: config.performance?.clusterStatusIntervalMs,
+    });
+    startServerPanelSnapshotWarmLoop({
+        intervalMs: config.performance?.panelSnapshotIntervalMs,
+    });
     startTrafficStatsWarmLoop();
     telegramAlertService.start();
     subscriptionExpiryNotifier.start();
