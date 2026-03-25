@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineCircleStack } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
@@ -35,6 +36,7 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
             toolbarSummary: (protocolCount, toolCount) => `Protocols ${protocolCount} · Tools ${toolCount}`,
             selectServerTitle: 'Select a server first',
             selectServerSubtitle: 'Capability probing only works in a single-node view. Switch to a specific node first.',
+            goToServers: 'Open Servers',
             loadingTitle: 'Loading...',
             noDataTitle: 'No capability data yet',
             noDataSubtitle: 'Capability results will appear after you switch to a specific node.',
@@ -97,6 +99,7 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
         toolbarSummary: (protocolCount, toolCount) => `协议 ${protocolCount} · 工具 ${toolCount}`,
         selectServerTitle: '请先选择一台服务器',
         selectServerSubtitle: '能力探测仅支持单节点视图，请先切换到具体节点。',
+        goToServers: '前往服务器管理',
         loadingTitle: '加载中...',
         noDataTitle: '暂无能力数据',
         noDataSubtitle: '切换到具体节点后会显示当前节点的能力探测结果。',
@@ -181,6 +184,7 @@ function renderProbeSource(source, copy) {
 export default function Capabilities() {
     const { activeServerId } = useServer();
     const { locale, t } = useI18n();
+    const navigate = useNavigate();
     const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
     const cachedData = hasTargetServer ? readCapabilitiesSnapshot(activeServerId) : null;
@@ -263,6 +267,11 @@ export default function Capabilities() {
                         subtitle={copy.selectServerSubtitle}
                         icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
                         surface
+                        action={(
+                            <button type="button" className="btn btn-primary rounded-lg" onClick={() => navigate('/servers')}>
+                                {copy.goToServers}
+                            </button>
+                        )}
                     />
                 </div>
             </>

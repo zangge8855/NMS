@@ -120,6 +120,10 @@ export default function AccountCenter() {
     const roleLabel = user?.role === 'admin' ? copy.adminRole : copy.userRole;
     const profileChanged = normalizeUsername(username) !== loginUsername || normalizeEmail(email) !== loginEmail;
     const profileDraftKey = `${normalizeUsername(username)}\n${normalizeEmail(email)}`;
+    const accountInitial = String(loginUsername || loginEmail || copy.title || '?').trim().charAt(0).toUpperCase() || '?';
+    const hasPendingPasswordDraft = Boolean(oldPassword || newPassword || confirmPassword);
+    const profileDraftLabel = locale === 'en-US' ? 'Profile draft' : '资料待保存';
+    const passwordDraftLabel = locale === 'en-US' ? 'Password draft' : '密码待提交';
 
     useEffect(() => {
         setUsername(loginUsername);
@@ -252,6 +256,26 @@ export default function AccountCenter() {
             <Header title={copy.title} />
             <div className="page-content page-content--wide page-enter account-page">
                 <div className="account-shell">
+                    <div className="card account-identity-card">
+                        <div className="account-identity-hero">
+                            <div className="user-avatar user-avatar-lg account-identity-avatar">{accountInitial}</div>
+                            <div className="account-identity-copy">
+                                <div className="account-identity-head">
+                                    <div className="account-identity-name">{loginUsername || copy.title}</div>
+                                    <div className="account-role-row">
+                                        <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>{roleLabel}</span>
+                                        <span className={`badge ${user?.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
+                                            {user?.emailVerified ? copy.verified : copy.unverified}
+                                        </span>
+                                        {profileChanged ? <span className="badge badge-info">{profileDraftLabel}</span> : null}
+                                        {hasPendingPasswordDraft ? <span className="badge badge-warning">{passwordDraftLabel}</span> : null}
+                                    </div>
+                                </div>
+                                <div className="account-identity-email">{loginEmail || '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="card account-profile-card">
                         <SectionHeader
                             className="card-header section-header section-header--compact"

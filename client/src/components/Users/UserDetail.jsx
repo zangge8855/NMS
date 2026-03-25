@@ -1425,12 +1425,12 @@ export default function UserDetail() {
                 eyebrow={t('pages.userDetail.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter user-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/clients')}>
+                <button className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/clients')}>
                     <HiOutlineArrowLeft /> {copy.backToUsers}
                 </button>
 
-                <div className="glass-panel mb-6">
-                    <div className="user-profile-card">
+                <div className="glass-panel mb-6 detail-hero-panel detail-hero-panel--user">
+                    <div className="user-profile-card detail-hero-card">
                         <UserAvatar username={user.username} />
                         <div className="user-profile-info">
                             <div className="user-profile-name">{user.username}</div>
@@ -1480,7 +1480,7 @@ export default function UserDetail() {
                     </div>
                 </div>
 
-                <div className="user-detail-tabs">
+                <div className="user-detail-tabs detail-tabs">
                     <div className="tabs">
                         {tabs.map(t => (
                             <button
@@ -1496,7 +1496,7 @@ export default function UserDetail() {
                     <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
                         {activeTab === 'overview' && (
                             <div>
-                                <div className="stat-mini-grid">
+                                <div className="stat-mini-grid detail-stats-grid">
                                     <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
                                     <StatCard label={copy.labels.nodeCount} value={clientSummaryLoading ? null : clientData.length} />
                                     <StatCard label={copy.labels.accessCount} value={detail?.subscriptionAccess?.total || 0} />

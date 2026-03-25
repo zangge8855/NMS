@@ -455,13 +455,13 @@ export default function ServerDetail() {
                 allowTitleWrap
             />
             <div className="page-content page-enter server-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4" onClick={() => navigate('/servers')}>
+                <button className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/servers')}>
                     <HiOutlineArrowLeft /> 返回服务器列表
                 </button>
 
                 {/* Server Profile Card */}
-                <div className="glass-panel mb-6">
-                    <div className="user-profile-card">
+                <div className="glass-panel mb-6 detail-hero-panel detail-hero-panel--server">
+                    <div className="user-profile-card detail-hero-card detail-hero-card--server">
                         <div className="user-avatar user-avatar-lg" style={{ background: 'var(--gradient-success)' }}>
                             <HiOutlineServerStack />
                         </div>
@@ -497,7 +497,7 @@ export default function ServerDetail() {
                 </div>
 
                 {/* Stats */}
-                <div className="stat-mini-grid mb-6">
+                <div className="stat-mini-grid detail-stats-grid mb-6">
                     <StatMini label="入站规则" value={showInboundStats ? activeInbounds : null} suffix={showInboundStats ? ` / ${inbounds.length}` : ''} />
                     <StatMini label="客户端数" value={showInboundStats ? clientCount : null} />
                     <StatMini label="在线用户" value={showOnlineStats ? onlineUsers.length : null} suffix={showOnlineStats && onlines.length > onlineUsers.length ? ` / ${onlines.length} 会话` : ''} />
@@ -508,7 +508,7 @@ export default function ServerDetail() {
                 )}
 
                 {/* Tabs */}
-                <div className="user-detail-tabs">
+                <div className="user-detail-tabs detail-tabs">
                     <div className="tabs">
                         {tabs.map(t => (
                             <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>

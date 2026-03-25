@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -11,16 +11,8 @@ import {
     HiOutlineChevronRight,
 } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
-import { getVisibleFooterNavItems, getVisibleNavSections, navItems } from './navConfig.js';
+import { getVisibleFooterNavItems, getVisibleNavSections } from './navConfig.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
-
-function isUnsupportedPathInGlobal(pathname) {
-    if (!pathname) return false;
-    return navItems.some((item) => {
-        if (item.supportsGlobal !== false) return false;
-        return pathname === item.path || pathname.startsWith(`${item.path}/`);
-    });
-}
 
 function clamp(value, min, max) {
     if (max <= min) return min;
@@ -35,7 +27,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const { unreadCount } = useNotifications();
     const [navFlyout, setNavFlyout] = useState(null);
     const location = useLocation();
-    const navigate = useNavigate();
     const navFlyoutRef = useRef(null);
     const navFlyoutAnchorRef = useRef(null);
     const isGlobalView = activeServerId === 'global';
@@ -55,13 +46,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
             setNavFlyout(null);
         }
     }, [collapsed, isMobile]);
-
-    useEffect(() => {
-        if (!isGlobalView) return;
-        if (isUnsupportedPathInGlobal(location.pathname)) {
-            navigate('/', { replace: true });
-        }
-    }, [isGlobalView, location.pathname, navigate]);
 
     const showNavFlyout = collapsed && !isMobile && !!navFlyout;
 
