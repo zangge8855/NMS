@@ -1226,9 +1226,54 @@
   gap: clamp(14px, 1.6vw, 20px);
 }
 
+.subscriptions-page .subscriptions-workbench--simple {
+  width: min(100%, 1380px);
+  margin-inline: auto;
+}
+
 .subscriptions-page .subscription-user-flow--balanced {
-  width: min(100%, 1140px);
-  gap: 14px;
+  width: 100%;
+  max-width: 1320px;
+  grid-template-columns: minmax(400px, 0.94fr) minmax(520px, 1.08fr);
+  gap: 22px;
+}
+
+.subscriptions-page .subscription-user-panel--import,
+.subscriptions-page .subscription-user-panel--summary {
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-panel--summary {
+  min-width: 520px;
+}
+
+.subscriptions-page .subscription-user-status-block {
+  padding: 14px;
+}
+
+.subscriptions-page .subscription-user-status-block .subscription-meter-grid {
+  gap: 10px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 92px;
+  padding: 12px 14px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-svg,
+.subscriptions-page .subscription-user-status-block .circular-meter-visual {
+  width: 72px;
+  height: 72px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-value {
+  font-size: 16px;
+}
+
+.subscriptions-page .subscription-user-status-block .circular-meter-meta {
+  font-size: 11px;
 }
 
 .subscriptions-page .subscription-summary-grid {
@@ -1518,6 +1563,14 @@
   .account-page .account-profile-grid,
   .account-page .account-password-grid {
     grid-template-columns: 1fr;
+  }
+
+  .subscriptions-page .subscriptions-workbench--simple {
+    width: 100%;
+  }
+
+  .subscriptions-page .subscription-user-panel--summary {
+    min-width: 0;
   }
 
   .subscriptions-page .subscription-summary-grid {
