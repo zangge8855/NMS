@@ -1227,7 +1227,7 @@
 }
 
 .subscriptions-page .subscriptions-workbench--simple {
-  width: min(100%, 1220px);
+  width: min(100%, 1360px);
   margin-inline: auto;
 }
 
@@ -1248,17 +1248,20 @@
 }
 
 .subscriptions-page .subscription-user-aside {
-  grid-template-columns: minmax(220px, 248px) minmax(0, 1fr);
+  grid-template-columns: minmax(168px, 188px) minmax(0, 1fr);
   grid-template-rows: auto;
   align-items: start;
+  gap: 14px;
 }
 
 .subscriptions-page .subscription-user-aside .subscription-inline-qr--user-side {
+  width: 100%;
   max-width: none;
+  justify-self: stretch;
 }
 
 .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .subscriptions-page .subscription-user-status-block {
@@ -1270,24 +1273,24 @@
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter {
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 12px;
-  min-height: 92px;
-  padding: 12px 14px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 84px;
+  padding: 11px 12px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-svg,
 .subscriptions-page .subscription-user-status-block .circular-meter-visual {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-value {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .subscriptions-page .subscription-user-status-block .circular-meter-meta {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .subscriptions-page .subscription-inline-qr-empty {
@@ -1321,25 +1324,6 @@
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-secondary);
-}
-
-@media (min-width: 1600px) {
-  .subscriptions-page .subscription-user-flow--balanced {
-    grid-template-columns: minmax(360px, 1.04fr) minmax(420px, 0.96fr);
-  }
-
-  .subscriptions-page .subscription-user-panel--summary {
-    min-width: 420px;
-  }
-
-  .subscriptions-page .subscription-user-aside {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .subscriptions-page .subscription-user-status-block .subscription-meter-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 1100px) {
