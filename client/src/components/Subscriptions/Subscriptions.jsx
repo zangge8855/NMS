@@ -682,8 +682,37 @@ export default function Subscriptions() {
 
     const subscriptionBusy = loading || refreshing;
 
+    const userInlineQrCard = isUserOnly && result && shouldShowInlineQr ? (
+        <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
+            {activeProfile?.url && result.subscriptionActive ? (
+                <>
+                    <div className="subscription-inline-qr-title">{ui.scanImport}</div>
+                    <div
+                        className="qr-surface subscription-inline-qr-surface"
+                        role="img"
+                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
+                    >
+                        <QRCodeSVG
+                            value={activeProfile.url}
+                            size={136}
+                            level="M"
+                            includeMargin
+                        />
+                    </div>
+                    <div className="subscription-inline-qr-text">{ui.qrHint}</div>
+                </>
+            ) : (
+                <div className="subscription-inline-qr-empty" role="note" aria-label={ui.noQr}>
+                    <HiOutlineQrCode className="subscription-inline-qr-empty-icon" aria-hidden="true" />
+                    <div className="subscription-inline-qr-empty-title">{ui.unavailable}</div>
+                    <div className="subscription-inline-qr-empty-text">{ui.noQr}</div>
+                </div>
+            )}
+        </div>
+    ) : null;
+
     const userImportPanel = isUserOnly && result ? (
-        <div className="subscription-user-panel subscription-user-panel--import">
+        <div className="subscription-user-panel subscription-user-panel--import subscription-user-panel--link">
             <div className="subscription-user-panel-title subscription-user-panel-title--flow">{ui.simpleReminder}</div>
             <div className="subscription-profile-switches subscription-profile-switches--compact">
                 {displayedProfiles.map((item) => (
@@ -774,6 +803,7 @@ export default function Subscriptions() {
                                 {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
                             </div>
                         </div>
+                        {userInlineQrCard}
                     </div>
                 </div>
                 <div className="subscription-user-address-foot">
@@ -808,49 +838,19 @@ export default function Subscriptions() {
                     {activeProfileLabel || activeProfile?.label || ui.currentProfileFallback}
                 </span>
             </div>
-            <div className="subscription-user-aside">
-                {shouldShowInlineQr ? (
-                    <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
-                        {activeProfile?.url && result.subscriptionActive ? (
-                            <>
-                                <div className="subscription-inline-qr-title">{ui.scanImport}</div>
-                                <div
-                                    className="qr-surface subscription-inline-qr-surface"
-                                    role="img"
-                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
-                                >
-                                    <QRCodeSVG
-                                        value={activeProfile.url}
-                                        size={136}
-                                        level="M"
-                                        includeMargin
-                                    />
-                                </div>
-                                <div className="subscription-inline-qr-text">{ui.qrHint}</div>
-                            </>
-                        ) : (
-                            <div className="subscription-inline-qr-empty" role="note" aria-label={ui.noQr}>
-                                <HiOutlineQrCode className="subscription-inline-qr-empty-icon" aria-hidden="true" />
-                                <div className="subscription-inline-qr-empty-title">{ui.unavailable}</div>
-                                <div className="subscription-inline-qr-empty-text">{ui.noQr}</div>
-                            </div>
-                        )}
-                    </div>
-                ) : null}
-                <div className="subscription-user-status-block">
-                    <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                        {statusCards.map((item) => (
-                            <CircularMeter
-                                key={item.key}
-                                label={item.label}
-                                value={item.value}
-                                meta={item.meta}
-                                progress={item.progress}
-                                tone={item.tone}
-                                pulse={item.pulse}
-                            />
-                        ))}
-                    </div>
+            <div className="subscription-user-status-block subscription-user-status-block--summary">
+                <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
+                    {statusCards.map((item) => (
+                        <CircularMeter
+                            key={item.key}
+                            label={item.label}
+                            value={item.value}
+                            meta={item.meta}
+                            progress={item.progress}
+                            tone={item.tone}
+                            pulse={item.pulse}
+                        />
+                    ))}
                 </div>
             </div>
         </div>

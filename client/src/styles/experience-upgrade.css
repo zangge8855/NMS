@@ -1245,6 +1245,46 @@
   min-height: 100%;
 }
 
+.subscriptions-page .subscription-user-panel--link .subscription-user-address-grid {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(152px, 168px);
+  gap: 12px;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr--user-side {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 10px;
+  align-self: start;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr--user-side .subscription-inline-qr-surface {
+  width: 132px;
+  min-width: 132px;
+  margin-inline: auto;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr--user-side .subscription-inline-qr-surface svg {
+  width: 132px;
+  height: 132px;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr-title,
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr-text {
+  text-align: center;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr-text {
+  max-width: 15ch;
+}
+
+.subscriptions-page .subscription-user-panel--link .subscription-inline-qr-empty {
+  min-height: 164px;
+}
+
 .subscriptions-page .subscription-user-flow--balanced {
   width: 100%;
   max-width: none;
@@ -1262,6 +1302,11 @@
 .subscriptions-page .subscription-user-panel--summary {
   min-width: 0;
   width: 100%;
+}
+
+.subscriptions-page .subscription-user-panel--summary .subscription-user-status-block--summary {
+  height: 100%;
+  align-content: start;
 }
 
 .subscriptions-page .subscription-user-aside {
@@ -1364,6 +1409,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .subscriptions-page .subscription-user-panel--link .subscription-user-address-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(148px, 160px);
+  }
+
   .subscriptions-page .subscription-user-flow--balanced {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1420,6 +1469,10 @@
 }
 
 @media (max-width: 1100px) {
+  .subscriptions-page .subscription-user-panel--link .subscription-user-address-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .subscriptions-page .subscription-user-aside {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
