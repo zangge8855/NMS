@@ -7,6 +7,7 @@ const ACTIVE_SERVER_KEY = 'nms_active_server';
 const LEGACY_ACTIVE_SERVER_KEY = 'xui_active_server';
 const SERVER_CONTEXT_SNAPSHOT_KEY = 'server_context_bootstrap_v1';
 const SERVER_CONTEXT_SNAPSHOT_TTL_MS = 2 * 60_000;
+const SERVER_FETCH_TTL_MS = 10_000;
 
 function readServerContextSnapshot() {
     const snapshot = readSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
@@ -73,42 +74,80 @@ export function ServerProvider({ children }) {
             || (bootstrapRef.current?.servers?.length ? 'global' : null)
     );
     const [loading, setLoading] = useState(() => bootstrapRef.current == null);
+    const serversStateRef = useRef(bootstrapRef.current?.servers || []);
+    const fetchServersPendingRef = useRef(null);
+    const lastFetchedAtRef = useRef(bootstrapRef.current ? Date.now() : 0);
+
+    useEffect(() => {
+        serversStateRef.current = servers;
+    }, [servers]);
 
     const fetchServers = useCallback(async (options = {}) => {
+        const force = options.force === true;
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && servers.length > 0);
+        const hasCachedServers = Array.isArray(serversStateRef.current);
+        const ageMs = Date.now() - Number(lastFetchedAtRef.current || 0);
+
+        if (!force && fetchServersPendingRef.current) {
+            return fetchServersPendingRef.current;
+        }
+        if (!force && hasCachedServers && ageMs >= 0 && ageMs <= SERVER_FETCH_TTL_MS) {
+            return serversStateRef.current;
+        }
         if (!preserveCurrent) {
             setLoading(true);
         }
-        try {
-            const res = await api.get('/servers');
-            const serverList = res.data.obj || [];
-            setServers(serverList);
 
-            setActiveServerId((prevId) => {
-                const persistedId = getStoredActiveServerId();
-                const preferredId = prevId || persistedId;
+        const request = api.get('/servers')
+            .then((res) => {
+                const serverList = res.data.obj || [];
+                lastFetchedAtRef.current = Date.now();
+                serversStateRef.current = serverList;
+                setServers(serverList);
 
-                // Allow 'global' to persist
-                if (preferredId === 'global') return 'global';
+                setActiveServerId((prevId) => {
+                    const persistedId = getStoredActiveServerId();
+                    const preferredId = prevId || persistedId;
 
-                const exists = preferredId && serverList.some(s => s.id === preferredId);
-                // Default to 'global' if previous selection is invalid, or if list is not empty but no selection
-                const nextId = exists ? preferredId : 'global';
+                    if (preferredId === 'global') return 'global';
 
-                persistActiveServerId(nextId);
-                return nextId;
+                    const exists = preferredId && serverList.some(s => s.id === preferredId);
+                    const nextId = exists ? preferredId : 'global';
+
+                    persistActiveServerId(nextId);
+                    return nextId;
+                });
+
+                return serverList;
+            })
+            .catch((err) => {
+                if (err.response?.status !== 403) {
+                    console.error('Failed to fetch servers:', err);
+                }
+                if (!preserveCurrent) {
+                    serversStateRef.current = [];
+                    setServers([]);
+                    setActiveServerId('global');
+                    persistActiveServerId('global');
+                }
+                throw err;
+            })
+            .finally(() => {
+                if (fetchServersPendingRef.current === request) {
+                    fetchServersPendingRef.current = null;
+                }
+                setLoading(false);
             });
-        } catch (err) {
-            if (err.response?.status !== 403) {
-                console.error('Failed to fetch servers:', err);
-            }
-            if (!preserveCurrent) {
-                setServers([]);
-                setActiveServerId('global');
-                persistActiveServerId('global');
-            }
+
+        fetchServersPendingRef.current = request;
+        try {
+            return await request;
+        } catch {
+            return serversStateRef.current;
         } finally {
-            setLoading(false);
+            if (!preserveCurrent) {
+                setLoading(false);
+            }
         }
     }, [servers.length]);
 
@@ -162,7 +201,7 @@ export function ServerProvider({ children }) {
     const addServer = async (serverData) => {
         const res = await api.post('/servers', serverData);
         if (res.data.success) {
-            await fetchServers();
+            await fetchServers({ force: true });
             if (!activeServerId) {
                 selectServer(res.data.obj.id);
             }
@@ -173,7 +212,7 @@ export function ServerProvider({ children }) {
     const addServersBatch = async (payload) => {
         const res = await api.post('/servers/batch', payload);
         if (res.data.success) {
-            await fetchServers();
+            await fetchServers({ force: true });
         }
         return res.data;
     };
@@ -181,7 +220,7 @@ export function ServerProvider({ children }) {
     const updateServer = async (id, serverData) => {
         const res = await api.put(`/servers/${id}`, serverData);
         if (res.data.success) {
-            await fetchServers();
+            await fetchServers({ force: true });
         }
         return res.data;
     };
@@ -193,7 +232,7 @@ export function ServerProvider({ children }) {
                 setActiveServerId('global');
                 persistActiveServerId('global');
             }
-            await fetchServers();
+            await fetchServers({ force: true });
         }
         return res.data;
     };

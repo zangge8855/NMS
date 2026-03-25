@@ -59,4 +59,30 @@ describe('ServerContext', () => {
             expect(screen.getByTestId('server-count')).toHaveTextContent('2');
         });
     });
+
+    it('reuses a fresh bootstrap snapshot without immediately refetching the server list', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:server_context_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                servers: [
+                    { id: 'server-a', name: 'Node A' },
+                    { id: 'server-b', name: 'Node B' },
+                ],
+                activeServerId: 'global',
+            },
+        }));
+
+        render(
+            <ServerProvider>
+                <ServerContextConsumer />
+            </ServerProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('active-server')).toHaveTextContent('global');
+            expect(screen.getByTestId('server-count')).toHaveTextContent('2');
+        });
+
+        expect(api.get).not.toHaveBeenCalled();
+    });
 });

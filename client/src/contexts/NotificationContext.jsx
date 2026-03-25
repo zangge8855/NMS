@@ -15,6 +15,7 @@ const INITIAL_NOTIFICATION_LIMIT = 1;
 const EXPANDED_NOTIFICATION_LIMIT = 30;
 const NOTIFICATION_SNAPSHOT_KEY = 'notification_center_bootstrap_v1';
 const NOTIFICATION_SNAPSHOT_TTL_MS = 2 * 60_000;
+const NOTIFICATION_FETCH_TTL_MS = 10_000;
 
 function readNotificationSnapshot() {
     const snapshot = readSessionSnapshot(NOTIFICATION_SNAPSHOT_KEY, {
@@ -39,6 +40,11 @@ export function NotificationProvider({ children, wsLastMessage }) {
     const initialFetchDone = useRef(false);
     const loadedLimitRef = useRef(Number(bootstrapRef.current?.loadedLimit || 0));
     const requestIdRef = useRef(0);
+    const pendingFetchesRef = useRef(new Map());
+    const lastLoadedAtRef = useRef({
+        preview: bootstrapRef.current ? Date.now() : 0,
+        expanded: 0,
+    });
     const liveNotificationStateRef = useRef({
         previewLoaded: false,
         expandedLoaded: false,
@@ -99,42 +105,58 @@ export function NotificationProvider({ children, wsLastMessage }) {
         const force = options.force === true;
         const preserveCurrent = options.preserveCurrent === true
             || (options.preserveCurrent == null && notificationsStateRef.current.notifications.length > 0);
+        const cacheKey = requestedLimit <= INITIAL_NOTIFICATION_LIMIT ? 'preview' : 'expanded';
+        const ageMs = Date.now() - Number(lastLoadedAtRef.current[cacheKey] || 0);
         const liveSnapshotSatisfied = requestedLimit <= INITIAL_NOTIFICATION_LIMIT
             ? liveNotificationStateRef.current.previewLoaded && loadedLimitRef.current >= requestedLimit
             : liveNotificationStateRef.current.expandedLoaded && loadedLimitRef.current >= requestedLimit;
-        if (!force && liveSnapshotSatisfied) {
+        if (!force && liveSnapshotSatisfied && ageMs >= 0 && ageMs <= NOTIFICATION_FETCH_TTL_MS) {
             return;
+        }
+        if (!force && pendingFetchesRef.current.has(cacheKey)) {
+            return pendingFetchesRef.current.get(cacheKey);
         }
         const requestId = requestIdRef.current + 1;
         requestIdRef.current = requestId;
         if (!preserveCurrent) {
             setLoading(true);
         }
-        try {
-            const res = await api.get(`/system/notifications?limit=${requestedLimit}`);
-            if (requestId !== requestIdRef.current) return;
-            const obj = res.data?.obj || {};
-            const items = Array.isArray(obj.items) ? obj.items : [];
-            liveNotificationStateRef.current.previewLoaded = true;
-            if (requestedLimit > INITIAL_NOTIFICATION_LIMIT) {
-                liveNotificationStateRef.current.expandedLoaded = true;
-            }
-            setNotifications(items);
-            setUnreadCount(typeof obj.unreadCount === 'number' ? obj.unreadCount : 0);
-            loadedLimitRef.current = Math.max(loadedLimitRef.current, items.length, requestedLimit);
-        } catch {
-            if (
-                requestId === requestIdRef.current
-                && notificationsStateRef.current.notifications.length === 0
-                && Number(notificationsStateRef.current.unreadCount || 0) === 0
-            ) {
-                setNotifications([]);
-                setUnreadCount(0);
-            }
-        }
-        if (requestId === requestIdRef.current) {
-            setLoading(false);
-        }
+        const request = api.get(`/system/notifications?limit=${requestedLimit}`)
+            .then((res) => {
+                if (requestId !== requestIdRef.current) return;
+                const obj = res.data?.obj || {};
+                const items = Array.isArray(obj.items) ? obj.items : [];
+                liveNotificationStateRef.current.previewLoaded = true;
+                if (requestedLimit > INITIAL_NOTIFICATION_LIMIT) {
+                    liveNotificationStateRef.current.expandedLoaded = true;
+                    lastLoadedAtRef.current.expanded = Date.now();
+                }
+                lastLoadedAtRef.current.preview = Date.now();
+                setNotifications(items);
+                setUnreadCount(typeof obj.unreadCount === 'number' ? obj.unreadCount : 0);
+                loadedLimitRef.current = Math.max(loadedLimitRef.current, items.length, requestedLimit);
+            })
+            .catch(() => {
+                if (
+                    requestId === requestIdRef.current
+                    && notificationsStateRef.current.notifications.length === 0
+                    && Number(notificationsStateRef.current.unreadCount || 0) === 0
+                ) {
+                    setNotifications([]);
+                    setUnreadCount(0);
+                }
+            })
+            .finally(() => {
+                if (pendingFetchesRef.current.get(cacheKey) === request) {
+                    pendingFetchesRef.current.delete(cacheKey);
+                }
+                if (requestId === requestIdRef.current) {
+                    setLoading(false);
+                }
+            });
+
+        pendingFetchesRef.current.set(cacheKey, request);
+        return request;
     }, []);
 
     // 首次加载

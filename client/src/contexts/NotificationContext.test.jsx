@@ -135,4 +135,55 @@ describe('NotificationContext', () => {
         expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
         expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
     });
+
+    it('deduplicates concurrent expanded notification fetches', async () => {
+        let resolveExpanded;
+        api.get
+            .mockResolvedValueOnce({
+                data: {
+                    obj: {
+                        items: [{ id: 'n1', title: 'Preview only' }],
+                        unreadCount: 1,
+                    },
+                },
+            })
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                resolveExpanded = resolve;
+            }));
+
+        const user = userEvent.setup();
+
+        render(
+            <NotificationProvider wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+        });
+
+        await Promise.all([
+            user.click(screen.getByRole('button', { name: 'expand' })),
+            user.click(screen.getByRole('button', { name: 'expand' })),
+        ]);
+
+        expect(api.get.mock.calls.filter(([url]) => url === '/system/notifications?limit=30')).toHaveLength(1);
+
+        resolveExpanded({
+            data: {
+                obj: {
+                    items: [
+                        { id: 'n1', title: 'Preview only' },
+                        { id: 'n2', title: 'Expanded' },
+                    ],
+                    unreadCount: 1,
+                },
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('2');
+        });
+    });
 });

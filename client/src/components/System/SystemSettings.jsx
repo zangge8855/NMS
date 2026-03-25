@@ -504,6 +504,22 @@ export default function SystemSettings() {
         registrationRuntime: false,
         inviteCodes: false,
     });
+    const requestInflightRef = useRef(new Map());
+
+    const runDedupedRequest = async (key, runner) => {
+        if (requestInflightRef.current.has(key)) {
+            return requestInflightRef.current.get(key);
+        }
+        const request = Promise.resolve()
+            .then(runner)
+            .finally(() => {
+                if (requestInflightRef.current.get(key) === request) {
+                    requestInflightRef.current.delete(key);
+                }
+            });
+        requestInflightRef.current.set(key, request);
+        return request;
+    };
     const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
     const emailDeliveryLabel = emailStatus?.lastDelivery?.success === true
         ? '最近发送成功'
@@ -647,58 +663,64 @@ export default function SystemSettings() {
         if (!preserveCurrent) {
             setLoading(true);
         }
-        try {
-            const res = await api.get('/system/settings');
-            const payload = res.data?.obj || null;
-            settingsLiveLoadedRef.current = true;
-            setSettings(payload);
-            setDraft(buildDraft(payload));
-            setEditingTelegramChatId(false);
-        } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '加载系统设置失败');
-        }
-        setLoading(false);
+        return runDedupedRequest('settings', async () => {
+            try {
+                const res = await api.get('/system/settings');
+                const payload = res.data?.obj || null;
+                settingsLiveLoadedRef.current = true;
+                setSettings(payload);
+                setDraft(buildDraft(payload));
+                setEditingTelegramChatId(false);
+            } catch (error) {
+                toast.error(error.response?.data?.msg || error.message || '加载系统设置失败');
+            }
+            setLoading(false);
+        });
     };
 
     const fetchDbStatus = async (options = {}) => {
         const quiet = options.quiet === true;
         setDbLoading(true);
-        try {
-            const res = await api.get('/system/db/status');
-            const payload = res.data?.obj || null;
-            dbStatusLiveLoadedRef.current = true;
-            setDbStatus(payload);
-            setDbModeDraft({
-                readMode: payload?.currentModes?.readMode || 'file',
-                writeMode: payload?.currentModes?.writeMode || 'file',
-                hydrateOnReadDb: true,
-            });
-            setDbBackfillDraft((prev) => ({
-                dryRun: typeof payload?.defaults?.dryRun === 'boolean' ? payload.defaults.dryRun : prev.dryRun,
-                redact: typeof payload?.defaults?.redact === 'boolean' ? payload.defaults.redact : prev.redact,
-                keysText: prev.keysText,
-            }));
-        } catch (error) {
-            if (!quiet) {
-                toast.error(error.response?.data?.msg || error.message || '加载数据库状态失败');
+        return runDedupedRequest('dbStatus', async () => {
+            try {
+                const res = await api.get('/system/db/status');
+                const payload = res.data?.obj || null;
+                dbStatusLiveLoadedRef.current = true;
+                setDbStatus(payload);
+                setDbModeDraft({
+                    readMode: payload?.currentModes?.readMode || 'file',
+                    writeMode: payload?.currentModes?.writeMode || 'file',
+                    hydrateOnReadDb: true,
+                });
+                setDbBackfillDraft((prev) => ({
+                    dryRun: typeof payload?.defaults?.dryRun === 'boolean' ? payload.defaults.dryRun : prev.dryRun,
+                    redact: typeof payload?.defaults?.redact === 'boolean' ? payload.defaults.redact : prev.redact,
+                    keysText: prev.keysText,
+                }));
+            } catch (error) {
+                if (!quiet) {
+                    toast.error(error.response?.data?.msg || error.message || '加载数据库状态失败');
+                }
             }
-        }
-        setDbLoading(false);
+            setDbLoading(false);
+        });
     };
 
     const fetchEmailStatus = async (options = {}) => {
         const quiet = options.quiet === true;
         setEmailStatusLoading(true);
-        try {
-            const res = await api.get('/system/email/status');
-            emailStatusLiveLoadedRef.current = true;
-            setEmailStatus(res.data?.obj || null);
-        } catch (error) {
-            if (!quiet) {
-                toast.error(error.response?.data?.msg || error.message || '加载 SMTP 状态失败');
+        return runDedupedRequest('emailStatus', async () => {
+            try {
+                const res = await api.get('/system/email/status');
+                emailStatusLiveLoadedRef.current = true;
+                setEmailStatus(res.data?.obj || null);
+            } catch (error) {
+                if (!quiet) {
+                    toast.error(error.response?.data?.msg || error.message || '加载 SMTP 状态失败');
+                }
             }
-        }
-        setEmailStatusLoading(false);
+            setEmailStatusLoading(false);
+        });
     };
 
     const testEmailConnection = async () => {
@@ -780,56 +802,64 @@ export default function SystemSettings() {
     const fetchBackupStatus = async (options = {}) => {
         const quiet = options.quiet === true;
         setBackupStatusLoading(true);
-        try {
-            const res = await api.get('/system/backup/status');
-            backupStatusLiveLoadedRef.current = true;
-            setBackupStatus(res.data?.obj || null);
-        } catch (error) {
-            if (!quiet) {
-                toast.error(error.response?.data?.msg || error.message || '加载备份状态失败');
+        return runDedupedRequest('backupStatus', async () => {
+            try {
+                const res = await api.get('/system/backup/status');
+                backupStatusLiveLoadedRef.current = true;
+                setBackupStatus(res.data?.obj || null);
+            } catch (error) {
+                if (!quiet) {
+                    toast.error(error.response?.data?.msg || error.message || '加载备份状态失败');
+                }
             }
-        }
-        setBackupStatusLoading(false);
+            setBackupStatusLoading(false);
+        });
     };
 
     const fetchMonitorStatus = async (options = {}) => {
         const quiet = options.quiet === true;
         setMonitorStatusLoading(true);
-        try {
-            const res = await api.get('/system/monitor/status');
-            monitorStatusLiveLoadedRef.current = true;
-            setMonitorStatus(res.data?.obj || null);
-        } catch (error) {
-            if (!quiet) {
-                toast.error(error.response?.data?.msg || error.message || '加载监控状态失败');
+        return runDedupedRequest('monitorStatus', async () => {
+            try {
+                const res = await api.get('/system/monitor/status');
+                monitorStatusLiveLoadedRef.current = true;
+                setMonitorStatus(res.data?.obj || null);
+            } catch (error) {
+                if (!quiet) {
+                    toast.error(error.response?.data?.msg || error.message || '加载监控状态失败');
+                }
             }
-        }
-        setMonitorStatusLoading(false);
+            setMonitorStatusLoading(false);
+        });
     };
 
     const fetchRegistrationRuntime = async () => {
-        try {
-            const res = await api.get('/auth/registration-status');
-            registrationRuntimeLiveLoadedRef.current = true;
-            setRegistrationRuntime(res.data?.obj || null);
-        } catch {
-            setRegistrationRuntime(null);
-        }
+        return runDedupedRequest('registrationRuntime', async () => {
+            try {
+                const res = await api.get('/auth/registration-status');
+                registrationRuntimeLiveLoadedRef.current = true;
+                setRegistrationRuntime(res.data?.obj || null);
+            } catch {
+                setRegistrationRuntime(null);
+            }
+        });
     };
 
     const fetchInviteCodes = async (options = {}) => {
         const quiet = options.quiet === true;
         setInviteCodesLoading(true);
-        try {
-            const res = await api.get('/system/invite-codes');
-            inviteCodesLiveLoadedRef.current = true;
-            setInviteCodes(Array.isArray(res.data?.obj) ? res.data.obj : []);
-        } catch (error) {
-            if (!quiet) {
-                toast.error(error.response?.data?.msg || error.message || '加载邀请码失败');
+        return runDedupedRequest('inviteCodes', async () => {
+            try {
+                const res = await api.get('/system/invite-codes');
+                inviteCodesLiveLoadedRef.current = true;
+                setInviteCodes(Array.isArray(res.data?.obj) ? res.data.obj : []);
+            } catch (error) {
+                if (!quiet) {
+                    toast.error(error.response?.data?.msg || error.message || '加载邀请码失败');
+                }
             }
-        }
-        setInviteCodesLoading(false);
+            setInviteCodesLoading(false);
+        });
     };
 
     useEffect(() => {
