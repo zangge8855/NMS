@@ -169,8 +169,9 @@ const AUDIT_COPY = {
             noAccess: '暂无访问记录',
             noAccessSubtitle: '订阅链接访问记录将在此显示',
             noData: '暂无数据',
-            maskedUser: '已脱敏用户',
-            redactedUa: '已脱敏 UA',
+            maskedUser: '历史脱敏用户',
+            redactedIp: '历史脱敏 IP',
+            redactedUa: '历史脱敏 UA',
             total: '共 {count} 条',
         },
         traffic: {
@@ -360,8 +361,9 @@ const AUDIT_COPY = {
             noAccess: 'No access records',
             noAccessSubtitle: 'Subscription access records will appear here',
             noData: 'No data',
-            maskedUser: 'Masked user',
-            redactedUa: 'Redacted UA',
+            maskedUser: 'Legacy-redacted user',
+            redactedIp: 'Legacy-redacted IP',
+            redactedUa: 'Legacy-redacted UA',
             total: '{count} total',
         },
         traffic: {
@@ -479,6 +481,7 @@ const EMPTY_ACCESS_SUMMARY = Object.freeze({
     to: '',
 });
 
+const MASKED_AUDIT_IP_PATTERN = /^ip_[0-9a-f]{16}$/i;
 const MASKED_AUDIT_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
 
 function getAuditCopy(locale = 'zh-CN') {
@@ -996,6 +999,16 @@ function formatAuditLocationCarrier(item) {
         .join(' · ');
 }
 
+function formatAuditIp(value, locale = 'zh-CN', isMasked = false) {
+    const copy = getAuditCopy(locale);
+    const text = String(value || '').trim();
+    if (text) {
+        return MASKED_AUDIT_IP_PATTERN.test(text) ? copy.states.redactedIp : text;
+    }
+    if (isMasked) return copy.states.redactedIp;
+    return '-';
+}
+
 function formatAuditUserAgent(value, locale = 'zh-CN', isMasked = false) {
     const copy = getAuditCopy(locale);
     const text = String(value || '').trim();
@@ -1011,9 +1024,11 @@ function sanitizeAuditDetailPayload(payload, locale = 'zh-CN') {
         return payload.map((item) => sanitizeAuditDetailPayload(item, locale));
     }
     if (!payload || typeof payload !== 'object') {
-        return typeof payload === 'string' && MASKED_AUDIT_UA_PATTERN.test(payload)
-            ? getAuditCopy(locale).states.redactedUa
-            : payload;
+        if (typeof payload !== 'string') return payload;
+        if (MASKED_AUDIT_IP_PATTERN.test(payload)) return getAuditCopy(locale).states.redactedIp;
+        if (MASKED_AUDIT_UA_PATTERN.test(payload)) return getAuditCopy(locale).states.redactedUa;
+        if (isMaskedAccessEmail(payload)) return getAuditCopy(locale).states.maskedUser;
+        return payload;
     }
 
     const next = { ...payload };
@@ -1023,12 +1038,12 @@ function sanitizeAuditDetailPayload(payload, locale = 'zh-CN') {
     return next;
 }
 
-function buildAuditSourceSummary(item) {
+function buildAuditSourceSummary(item, locale = 'zh-CN') {
     const parts = [];
-    const ip = String(item?.ip || '').trim();
+    const ip = formatAuditIp(item?.ip, locale, item?.ipMasked === true);
     const locationCarrier = formatAuditLocationCarrier(item);
 
-    if (ip) parts.push(ip);
+    if (ip && ip !== '-') parts.push(ip);
     if (locationCarrier) parts.push(locationCarrier);
 
     return parts.join(' · ');
@@ -1071,11 +1086,11 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
                                 <span className="audit-mobile-card-label">{copy.tables.user}</span>
                                 <span className="audit-mobile-card-value">{resolveAuditTarget(item)}</span>
                             </div>
-                            {buildAuditSourceSummary(item) ? (
+                            {buildAuditSourceSummary(item, locale) ? (
                                 <div className="audit-mobile-card-item audit-mobile-card-item--full">
                                     <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
                                     <span className="audit-mobile-card-value audit-mobile-card-value--mono">
-                                        {buildAuditSourceSummary(item)}
+                                        {buildAuditSourceSummary(item, locale)}
                                     </span>
                                 </div>
                             ) : null}
@@ -1121,7 +1136,9 @@ function AuditAccessMobileList({ items = [], copy, locale }) {
                         <div className="audit-mobile-card-grid">
                             <div className="audit-mobile-card-item">
                                 <span className="audit-mobile-card-label">{copy.tables.realIp}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{item.clientIp || item.ip || '-'}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">
+                                    {formatAuditIp(item.clientIp || item.ip, locale, item.ipMasked === true)}
+                                </span>
                             </div>
                             <div className="audit-mobile-card-item">
                                 <span className="audit-mobile-card-label">{copy.tables.locationCarrier}</span>
@@ -1915,8 +1932,8 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.user}>
                                                         <div className="audit-event-target">
                                                             <span className="audit-event-target-label">{resolveAuditTarget(item)}</span>
-                                                            {buildAuditSourceSummary(item) ? (
-                                                                <span className="audit-event-target-meta">{buildAuditSourceSummary(item)}</span>
+                                                            {buildAuditSourceSummary(item, locale) ? (
+                                                                <span className="audit-event-target-meta">{buildAuditSourceSummary(item, locale)}</span>
                                                             ) : null}
                                                         </div>
                                                     </td>
@@ -2370,7 +2387,7 @@ export default function AuditCenter() {
                                                 <td data-label={copy.tables.result} className="table-cell-center audit-access-result-cell"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
                                                 <td data-label={copy.tables.realIp} className="audit-access-ip-cell" style={{ wordBreak: 'break-all' }}>
                                                     <div className="flex flex-col gap-1">
-                                                        <span className="font-mono">{item.clientIp || item.ip || '-'}</span>
+                                                        <span className="font-mono">{formatAuditIp(item.clientIp || item.ip, locale, item.ipMasked === true)}</span>
                                                         {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
                                                     </div>
                                                 </td>
@@ -2449,10 +2466,10 @@ export default function AuditCenter() {
                                     <span className="text-muted">{copy.detail.result}: </span>
                                     <span className={`badge ${statusBadgeClass(selectedEvent.outcome)}`}>{formatAuditStatusLabel(selectedEvent.outcome, locale)}</span>
                                 </div>
-                                {selectedEvent.ip && (
+                                {(selectedEvent.ip || selectedEvent.ipMasked) && (
                                     <div>
                                         <span className="text-muted">{copy.detail.ip}: </span>
-                                        <span className="font-mono">{selectedEvent.ip}</span>
+                                        <span className="font-mono">{formatAuditIp(selectedEvent.ip, locale, selectedEvent.ipMasked === true)}</span>
                                     </div>
                                 )}
                                 {formatAuditLocationCarrier(selectedEvent) && (

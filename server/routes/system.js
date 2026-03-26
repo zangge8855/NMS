@@ -13,7 +13,12 @@ import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
 } from '../lib/batchRiskControl.js';
-import { getSnapshotStatus, listSnapshotsMeta } from '../db/snapshots.js';
+import {
+    getSnapshotStatus,
+    listSnapshotPrivacyRedactionStoreKeys,
+    listSnapshotsMeta,
+    shouldApplySnapshotPrivacyRedaction,
+} from '../db/snapshots.js';
 import { getStoreModes, getSupportedModes } from '../db/runtimeModes.js';
 import { saveRuntimeModesToDb } from '../db/modeState.js';
 import { isDbEnabled, isDbReady } from '../db/client.js';
@@ -1066,6 +1071,7 @@ router.get('/db/status', adminOnly, async (req, res) => {
             currentModes: getStoreModes(),
             snapshots,
             storeKeys: listStoreKeys(),
+            redactionEligibleKeys: listSnapshotPrivacyRedactionStoreKeys(),
             defaults: {
                 dryRun: config.db?.backfillDryRunDefault !== false,
                 redact: config.db?.backfillRedact !== false,
@@ -1130,9 +1136,10 @@ router.post('/db/backfill', adminOnly, async (req, res) => {
                             const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
                             details.push({ key, success: true, dryRun: true, bytes });
                         } else {
-                            await writeStoreSnapshotNow(key, payload, { redact });
+                            const effectiveRedact = shouldApplySnapshotPrivacyRedaction(key, { redact });
+                            await writeStoreSnapshotNow(key, payload, { redact: effectiveRedact });
                             const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
-                            details.push({ key, success: true, dryRun: false, bytes });
+                            details.push({ key, success: true, dryRun: false, bytes, effectiveRedact });
                         }
                     } catch (err) {
                         details.push({ key, success: false, msg: String(err?.message || err) });

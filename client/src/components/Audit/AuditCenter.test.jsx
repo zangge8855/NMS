@@ -379,8 +379,8 @@ describe('AuditCenter localization', () => {
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
 
-        expect(await screen.findByText('已脱敏用户')).toBeInTheDocument();
-        expect(screen.getByText('已脱敏 UA')).toBeInTheDocument();
+        expect(await screen.findByText('历史脱敏用户')).toBeInTheDocument();
+        expect(screen.getByText('历史脱敏 UA')).toBeInTheDocument();
         expect(screen.queryByText('dd43f8a31ad7ff43@masked.local')).not.toBeInTheDocument();
         expect(screen.queryByText('ua_1234567890abcdef')).not.toBeInTheDocument();
     });

@@ -549,7 +549,7 @@ describe('UserDetail', () => {
         expect(within(timelineRow).getAllByText('/api/auth/login').length).toBeGreaterThanOrEqual(1);
         expect(within(timelineRow).getByText('资源')).toBeInTheDocument();
         expect(within(timelineRow).getByText('session / session-1')).toBeInTheDocument();
-        expect(within(timelineRow).getAllByText('已脱敏').length).toBeGreaterThanOrEqual(2);
+        expect(within(timelineRow).getAllByText('历史脱敏').length).toBeGreaterThanOrEqual(2);
         expect(within(timelineRow).queryByText(/ip_1b2b75909e944f4e/i)).not.toBeInTheDocument();
         expect(within(timelineRow).queryByText(/ua_1234567890abcdef/i)).not.toBeInTheDocument();
     });

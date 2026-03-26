@@ -14,6 +14,7 @@ const state = {
 };
 
 let writeChain = Promise.resolve();
+const SNAPSHOT_PRIVACY_REDACTION_STORE_KEYS = new Set(['traffic']);
 
 function qIdent(identifier) {
     return `"${String(identifier || '').replace(/"/g, '""')}"`;
@@ -49,32 +50,6 @@ function maskUserAgent(ua) {
     return `ua_${hashText(value)}`;
 }
 
-function redactAuditSnapshot(snapshot) {
-    const payload = cloneJson(snapshot) || {};
-    if (!Array.isArray(payload.events) || !Array.isArray(payload.subscriptionAccess)) {
-        return payload;
-    }
-
-    payload.events = payload.events.map((item) => {
-        if (!item || typeof item !== 'object') return item;
-        const out = { ...item };
-        if (out.targetEmail) out.targetEmail = maskEmail(out.targetEmail);
-        if (out.ip) out.ip = maskIp(out.ip);
-        return out;
-    });
-
-    payload.subscriptionAccess = payload.subscriptionAccess.map((item) => {
-        if (!item || typeof item !== 'object') return item;
-        const out = { ...item };
-        if (out.email) out.email = maskEmail(out.email);
-        if (out.ip) out.ip = maskIp(out.ip);
-        if (out.userAgent) out.userAgent = maskUserAgent(out.userAgent);
-        return out;
-    });
-
-    return payload;
-}
-
 function redactTrafficSnapshot(snapshot) {
     const payload = cloneJson(snapshot) || {};
     if (Array.isArray(payload.samples)) {
@@ -101,9 +76,17 @@ function redactTrafficSnapshot(snapshot) {
     return payload;
 }
 
+export function listSnapshotPrivacyRedactionStoreKeys() {
+    return Array.from(SNAPSHOT_PRIVACY_REDACTION_STORE_KEYS.values());
+}
+
+export function shouldApplySnapshotPrivacyRedaction(storeKey, options = {}) {
+    if (options.redact !== true) return false;
+    return SNAPSHOT_PRIVACY_REDACTION_STORE_KEYS.has(String(storeKey || '').trim());
+}
+
 function applyPrivacyRedaction(storeKey, payload, options = {}) {
-    if (options.redact !== true) return payload;
-    if (storeKey === 'audit') return redactAuditSnapshot(payload);
+    if (!shouldApplySnapshotPrivacyRedaction(storeKey, options)) return payload;
     if (storeKey === 'traffic') return redactTrafficSnapshot(payload);
     return payload;
 }

@@ -264,7 +264,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 requestPath: 'Path',
                 requestMethod: 'Method',
                 resource: 'Resource',
-                redacted: 'Redacted',
+                redacted: 'Legacy-redacted',
             },
         };
     }
@@ -425,7 +425,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
             requestPath: '路径',
             requestMethod: '方法',
             resource: '资源',
-            redacted: '已脱敏',
+            redacted: '历史脱敏',
         },
     };
 }

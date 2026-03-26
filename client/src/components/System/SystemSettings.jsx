@@ -438,7 +438,7 @@ export default function SystemSettings() {
     });
     const [dbBackfillDraft, setDbBackfillDraft] = useState({
         dryRun: true,
-        redact: true,
+        redact: false,
         keysText: '',
     });
     const [dbSwitchLoading, setDbSwitchLoading] = useState(false);
@@ -1261,7 +1261,7 @@ export default function SystemSettings() {
             message: dryRun
                 ? '本次仅预演，不写入数据库。'
                 : '将写入数据库快照，是否继续？',
-            details: `脱敏: ${redact ? '开启' : '关闭'}\n范围: ${selectedKeys.length > 0 ? selectedKeys.join(', ') : '全部 store'}`,
+            details: `脱敏写入: ${redact ? '开启' : '关闭'}\n范围: ${selectedKeys.length > 0 ? selectedKeys.join(', ') : '全部 store'}`,
             confirmText: dryRun ? '开始预演' : '确认回填',
             tone: dryRun ? 'secondary' : 'danger',
         });
@@ -2780,6 +2780,7 @@ export default function SystemSettings() {
                                             脱敏写入
                                         </label>
                                     </div>
+                                    <div className="text-xs text-muted mt-1">默认关闭。仅对支持脱敏的快照生效，操作审计不会再因回填被写成历史脱敏值。</div>
                                 </div>
                                 <div className="settings-db-card-foot">
                                     <button

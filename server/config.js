@@ -239,7 +239,7 @@ const config = {
         migrationAuto: parseBoolean(process.env.DB_MIGRATION_AUTO, true),
         storeReadMode: parseStoreReadMode(process.env.STORE_READ_MODE, 'file'),
         storeWriteMode: parseStoreWriteMode(process.env.STORE_WRITE_MODE, 'file'),
-        backfillRedact: parseBoolean(process.env.DB_BACKFILL_REDACT, true),
+        backfillRedact: parseBoolean(process.env.DB_BACKFILL_REDACT, false),
         backfillDryRunDefault: parseBoolean(process.env.DB_BACKFILL_DRY_RUN, true),
         privacyMode: String(process.env.DB_PRIVACY_MODE || (isDevelopment ? 'strict' : 'standard')).trim().toLowerCase() || 'standard',
     },

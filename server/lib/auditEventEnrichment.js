@@ -68,13 +68,16 @@ export async function enrichAuditEvents(items = [], deps = {}) {
         const rawUserAgent = String(item?.details?.userAgent || item?.userAgent || '').trim();
         const ip = normalizeAuditIp(rawIp);
         const userAgent = normalizeAuditUserAgent(rawUserAgent);
+        const ipMasked = !ip && MASKED_IP_PATTERN.test(rawIp);
+        const userAgentMasked = !userAgent && MASKED_UA_PATTERN.test(rawUserAgent);
 
         return {
             ...item,
             ip,
-            ipMasked: !ip && MASKED_IP_PATTERN.test(rawIp),
+            ipMasked,
             userAgent,
-            userAgentMasked: !userAgent && MASKED_UA_PATTERN.test(rawUserAgent),
+            userAgentMasked,
+            legacyRedacted: ipMasked || userAgentMasked,
             ipLocation: geoEnabled ? geoResolver.pickFromMap(geoMap, ip) : String(item?.ipLocation || ''),
             ipCarrier: ispEnabled ? ispResolver.pickFromMap(ispMap, ip) : String(item?.ipCarrier || ''),
         };

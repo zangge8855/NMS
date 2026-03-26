@@ -12,7 +12,11 @@ import { getEmailStatus } from './mailer.js';
 import { getBackupStatus } from './systemBackup.js';
 import auditStore from '../store/auditStore.js';
 import config from '../config.js';
-import { getSnapshotStatus, listSnapshotsMeta } from '../db/snapshots.js';
+import {
+    getSnapshotStatus,
+    listSnapshotPrivacyRedactionStoreKeys,
+    listSnapshotsMeta,
+} from '../db/snapshots.js';
 import { getStoreModes, getSupportedModes } from '../db/runtimeModes.js';
 import { isDbEnabled, isDbReady } from '../db/client.js';
 import inviteCodeStore from '../store/inviteCodeStore.js';
@@ -172,6 +176,7 @@ async function buildDbStatusBootstrap() {
         currentModes: getStoreModes(),
         snapshots,
         storeKeys: listStoreKeys(),
+        redactionEligibleKeys: listSnapshotPrivacyRedactionStoreKeys(),
         defaults: {
             dryRun: config.db?.backfillDryRunDefault !== false,
             redact: config.db?.backfillRedact !== false,

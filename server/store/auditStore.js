@@ -21,6 +21,9 @@ const REDACTED_KEYS = new Set([
     'tokensecretenc',
     'tokensecrethash',
 ]);
+const MASKED_IP_PATTERN = /^ip_[0-9a-f]{16}$/i;
+const MASKED_UA_PATTERN = /^ua_[0-9a-f]{16}$/i;
+const MASKED_EMAIL_SUFFIX = '@masked.local';
 
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
@@ -89,10 +92,22 @@ function hashMaskedEmailCandidate(text) {
     return crypto.createHash('sha256').update(String(text || '').trim().toLowerCase()).digest('hex').slice(0, 16);
 }
 
+function isMaskedEmail(value) {
+    return String(value || '').trim().toLowerCase().endsWith(MASKED_EMAIL_SUFFIX);
+}
+
+function isMaskedIp(value) {
+    return MASKED_IP_PATTERN.test(String(value || '').trim());
+}
+
+function isMaskedUserAgent(value) {
+    return MASKED_UA_PATTERN.test(String(value || '').trim());
+}
+
 function resolveMaskedEmail(email) {
     const value = String(email || '').trim().toLowerCase();
-    if (!value.endsWith('@masked.local')) return value;
-    const hash = value.slice(0, value.indexOf('@masked.local'));
+    if (!isMaskedEmail(value)) return value;
+    const hash = value.slice(0, value.indexOf(MASKED_EMAIL_SUFFIX));
     if (!hash) return value;
 
     const candidates = new Set();
@@ -426,12 +441,26 @@ class AuditStore {
         const start = (page - 1) * pageSize;
         const items = rows.slice(start, start + pageSize).map((item) => {
             const identity = resolveAccessUserInfo(item.email);
+            const rawClientIp = String(item.clientIp || '').trim();
+            const rawIp = String(item.ip || '').trim();
+            const rawUserAgent = String(item.userAgent || '').trim();
+            const clientIpMasked = isMaskedIp(rawClientIp);
+            const ipMasked = isMaskedIp(rawIp);
+            const userAgentMasked = isMaskedUserAgent(rawUserAgent);
+            const emailMasked = isMaskedEmail(item.email);
             return {
                 ...item,
                 email: identity.subscriptionEmail,
                 username: identity.username,
                 userEmail: identity.userEmail,
                 userLabel: identity.userLabel,
+                clientIp: clientIpMasked ? '' : rawClientIp,
+                ip: ipMasked ? '' : rawIp,
+                ipMasked: clientIpMasked || ipMasked,
+                userAgent: userAgentMasked ? '' : rawUserAgent,
+                userAgentMasked,
+                emailMasked,
+                legacyRedacted: clientIpMasked || ipMasked || userAgentMasked || emailMasked,
             };
         });
 

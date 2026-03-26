@@ -9,6 +9,7 @@ import userPolicyStore from './userPolicyStore.js';
 import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import inviteCodeStore from './inviteCodeStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
+import { shouldApplySnapshotPrivacyRedaction } from '../db/snapshots.js';
 
 function safeClone(value) {
     try {
@@ -120,11 +121,12 @@ export async function backfillStoresToDatabase(options = {}) {
         }
 
         try {
+            const effectiveRedact = shouldApplySnapshotPrivacyRedaction(key, { redact });
             await writeStoreSnapshotNow(key, payload, {
-                redact,
+                redact: effectiveRedact,
             });
             const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
-            details.push({ key, success: true, dryRun: false, bytes });
+            details.push({ key, success: true, dryRun: false, bytes, effectiveRedact });
         } catch (error) {
             details.push({
                 key,

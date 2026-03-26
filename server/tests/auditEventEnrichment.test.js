@@ -65,10 +65,12 @@ test('enrichAuditEvents attaches geo and carrier metadata for real IPs', async (
     assert.equal(items[0].ipLocation, '中国 浙江 杭州');
     assert.equal(items[0].ipCarrier, '中国电信');
     assert.equal(items[0].userAgent, 'Mozilla/5.0');
+    assert.equal(items[0].legacyRedacted, false);
     assert.equal(items[1].ip, '');
     assert.equal(items[1].ipMasked, true);
     assert.equal(items[1].userAgent, '');
     assert.equal(items[1].userAgentMasked, true);
+    assert.equal(items[1].legacyRedacted, true);
 });
 
 test('enrichAuditEvent returns null for invalid input', async () => {
