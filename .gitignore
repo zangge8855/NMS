@@ -5,6 +5,7 @@
 
 # ---- Claude Code ----
 .claude/
+.codex
 
 # ---- Runtime data (contains sensitive/user data) ----
 data/*.json

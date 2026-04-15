@@ -145,6 +145,7 @@ data/     Default file-backed storage
 - `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
 - `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
 - `SUB_CONVERTER_BASE_URL`: optional external subscription converter base URL
+- `SUB_CONVERTER_CLASH_CONFIG_URL` / `SUB_CONVERTER_SINGBOX_CONFIG_URL` / `SUB_CONVERTER_SURGE_CONFIG_URL`: optional full worker config URLs passed to the converter as `config=...`
 
 ### Documentation Map
 
@@ -317,6 +318,7 @@ data/     默认文件存储目录
 - `DB_ENABLED` / `DB_URL`: PostgreSQL 开关与连接串
 - `SUB_PUBLIC_BASE_URL`: 对外订阅基址
 - `SUB_CONVERTER_BASE_URL`: 可选的外部订阅转换器基址
+- `SUB_CONVERTER_CLASH_CONFIG_URL` / `SUB_CONVERTER_SINGBOX_CONFIG_URL` / `SUB_CONVERTER_SURGE_CONFIG_URL`: 可选的完整规则配置地址, 会作为转换器的 `config=...` 参数传入
 
 ### 文档索引
 

@@ -139,6 +139,9 @@ function buildDraft(source = null) {
         subscription: {
             publicBaseUrl: toText(settings.subscription?.publicBaseUrl, ''),
             converterBaseUrl: toText(settings.subscription?.converterBaseUrl, ''),
+            converterClashConfigUrl: toText(settings.subscription?.converterClashConfigUrl, ''),
+            converterSingboxConfigUrl: toText(settings.subscription?.converterSingboxConfigUrl, ''),
+            converterSurgeConfigUrl: toText(settings.subscription?.converterSurgeConfigUrl, ''),
         },
         auditIpGeo: {
             enabled: settings.auditIpGeo?.enabled === true,
@@ -532,6 +535,9 @@ export default function SystemSettings() {
             ? '连接测试失败'
             : '未测试';
     const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
+    const converterClashConfigUrl = toText(draft.subscription.converterClashConfigUrl, '');
+    const converterSingboxConfigUrl = toText(draft.subscription.converterSingboxConfigUrl, '');
+    const converterSurgeConfigUrl = toText(draft.subscription.converterSurgeConfigUrl, '');
     const siteAccessPath = normalizeSiteAccessPathInput(draft.site.accessPath, '/');
     const registrationEnabled = registrationRuntime?.enabled !== false;
     const siteEntryPreview = useMemo(() => {
@@ -1732,8 +1738,9 @@ export default function SystemSettings() {
                                     <div className="settings-form-cluster-title">订阅公网地址</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">订阅公网地址</label>
+                                    <label className="form-label" htmlFor="subscription-public-base-url">订阅公网地址</label>
                                     <input
+                                        id="subscription-public-base-url"
                                         className="form-input"
                                         placeholder="https://nms.example.com"
                                         value={draft.subscription.publicBaseUrl}
@@ -1748,23 +1755,62 @@ export default function SystemSettings() {
                                     <div className="settings-form-cluster-title">外部转换器</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">外部订阅转换器地址</label>
+                                    <label className="form-label" htmlFor="subscription-converter-base-url">外部订阅转换器地址</label>
                                     <input
+                                        id="subscription-converter-base-url"
                                         className="form-input"
                                         placeholder="https://converter.example.com"
                                         value={converterBaseUrl}
                                         onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">留空则不启用外部转换器。</div>
+                                    <div className="text-xs text-muted mt-1">只填转换器基址，生成时会自动拼接 `/sub?target=...`。</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label" htmlFor="subscription-converter-clash-config-url">Clash / Mihomo Config URL</label>
+                                    <input
+                                        id="subscription-converter-clash-config-url"
+                                        className="form-input font-mono"
+                                        placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
+                                        value={converterClashConfigUrl}
+                                        onChange={(e) => patchField('subscription', 'converterClashConfigUrl', e.target.value)}
+                                    />
+                                    <div className="text-xs text-muted mt-1">填写完整规则配置地址，作为转换器的 `config=` 参数。</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label" htmlFor="subscription-converter-singbox-config-url">sing-box Config URL</label>
+                                    <input
+                                        id="subscription-converter-singbox-config-url"
+                                        className="form-input font-mono"
+                                        placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
+                                        value={converterSingboxConfigUrl}
+                                        onChange={(e) => patchField('subscription', 'converterSingboxConfigUrl', e.target.value)}
+                                    />
+                                    <div className="text-xs text-muted mt-1">留空时会回退到 NMS 内置 sing-box 链接。</div>
+                                </div>
+                                <div className="form-group mb-0">
+                                    <label className="form-label" htmlFor="subscription-converter-surge-config-url">Surge Config URL</label>
+                                    <input
+                                        id="subscription-converter-surge-config-url"
+                                        className="form-input font-mono"
+                                        placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
+                                        value={converterSurgeConfigUrl}
+                                        onChange={(e) => patchField('subscription', 'converterSurgeConfigUrl', e.target.value)}
+                                    />
+                                    <div className="text-xs text-muted mt-1">留空时会回退到 NMS 内置 Surge 链接。</div>
                                 </div>
                                 <div className="settings-access-action-row">
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-sm"
-                                        onClick={() => patchField('subscription', 'converterBaseUrl', '')}
-                                        disabled={!converterBaseUrl}
+                                        onClick={() => {
+                                            patchField('subscription', 'converterBaseUrl', '');
+                                            patchField('subscription', 'converterClashConfigUrl', '');
+                                            patchField('subscription', 'converterSingboxConfigUrl', '');
+                                            patchField('subscription', 'converterSurgeConfigUrl', '');
+                                        }}
+                                        disabled={!converterBaseUrl && !converterClashConfigUrl && !converterSingboxConfigUrl && !converterSurgeConfigUrl}
                                     >
-                                        清空
+                                        清空全部
                                     </button>
                                     <a
                                         href={converterBaseUrl || undefined}

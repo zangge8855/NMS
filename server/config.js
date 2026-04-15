@@ -192,6 +192,7 @@ const config = {
             baseUrl: parseHttpUrl(process.env.SUB_CONVERTER_BASE_URL),
             clashConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_CLASH_CONFIG_URL),
             singboxConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_SINGBOX_CONFIG_URL),
+            surgeConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_SURGE_CONFIG_URL),
         },
     },
     audit: {

@@ -3,12 +3,13 @@ import {
     findSubscriptionProfile,
 } from './subscriptionProfiles.js';
 
-function buildExternalUrl(baseUrl, format, configUrl) {
+function buildExternalUrl(baseUrl, format, sourceUrl, configUrl) {
     const params = new URLSearchParams({
+        target: format,
+        url: sourceUrl,
         config: configUrl,
-        selectedRules: 'balanced',
     });
-    return `${baseUrl}/${format}?${params.toString()}`;
+    return `${baseUrl}/sub?${params.toString()}`;
 }
 
 describe('subscription profile bundle', () => {
@@ -54,14 +55,34 @@ describe('subscription profile bundle', () => {
         const bundle = buildSubscriptionProfileBundle({
             subscriptionUrl: 'https://nms.example.com/api/subscriptions/public/t/abc/def',
             subscriptionUrlRaw: 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
-            subscriptionUrlClash: buildExternalUrl('https://converter.example.com', 'clash', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
-            subscriptionUrlSingbox: buildExternalUrl('https://converter.example.com', 'singbox', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
-            subscriptionUrlSurge: buildExternalUrl('https://converter.example.com', 'surge', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'),
+            subscriptionUrlClash: buildExternalUrl(
+                'https://converter.example.com',
+                'clash',
+                'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=balanced'
+            ),
+            subscriptionUrlSingbox: buildExternalUrl(
+                'https://converter.example.com',
+                'singbox',
+                'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=comprehensive'
+            ),
+            subscriptionUrlSurge: buildExternalUrl(
+                'https://converter.example.com',
+                'surge',
+                'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=minimal'
+            ),
         });
 
         expect(bundle.externalConverterConfigured).toBe(true);
         expect(bundle.externalConverterBaseUrl).toBe('https://converter.example.com');
         expect(bundle.externalConverterHost).toBe('converter.example.com');
-        expect(bundle.singboxUrl).toBe(buildExternalUrl('https://converter.example.com', 'singbox', 'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw'));
+        expect(bundle.singboxUrl).toBe(buildExternalUrl(
+            'https://converter.example.com',
+            'singbox',
+            'https://nms.example.com/api/subscriptions/public/t/abc/def?format=raw',
+            'https://worker.example.com/subconverter?selectedRules=comprehensive'
+        ));
     });
 });

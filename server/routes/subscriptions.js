@@ -2811,6 +2811,19 @@ function normalizeHttpUrlPreservePath(urlLike) {
     }
 }
 
+function normalizeHttpUrlKeepQuery(urlLike) {
+    const text = String(urlLike || '').trim();
+    if (!text) return '';
+    try {
+        const parsed = new URL(text);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+        parsed.hash = '';
+        return parsed.toString();
+    } catch {
+        return '';
+    }
+}
+
 function resolvePublicBase(req) {
     const runtime = systemSettingsStore.getSubscription();
     const configured = normalizeBaseUrl(runtime?.publicBaseUrl || config.subscription?.publicBaseUrl || '');
@@ -2844,15 +2857,36 @@ function resolveSubscriptionConverterBaseUrl() {
     );
 }
 
-const SUBLINK_PRESET_RULES = 'balanced';
+function resolveSubscriptionConverterConfigUrls(options = {}) {
+    const runtime = systemSettingsStore.getSubscription();
+    return {
+        clash: normalizeHttpUrlKeepQuery(firstNonEmpty(
+            options.converterClashConfigUrl,
+            runtime?.converterClashConfigUrl,
+            config.subscription?.converter?.clashConfigUrl || ''
+        )),
+        singbox: normalizeHttpUrlKeepQuery(firstNonEmpty(
+            options.converterSingboxConfigUrl,
+            runtime?.converterSingboxConfigUrl,
+            config.subscription?.converter?.singboxConfigUrl || ''
+        )),
+        surge: normalizeHttpUrlKeepQuery(firstNonEmpty(
+            options.converterSurgeConfigUrl,
+            runtime?.converterSurgeConfigUrl,
+            config.subscription?.converter?.surgeConfigUrl || ''
+        )),
+    };
+}
 
-function buildExternalConverterUrl(baseUrl, format, configUrl) {
+function buildExternalConverterUrl(baseUrl, format, sourceUrl, configUrl) {
     const base = normalizeHttpUrlPreservePath(baseUrl);
+    const source = normalizeHttpUrlKeepQuery(sourceUrl);
     const configSource = String(configUrl || '').trim();
-    if (!base || !configSource) return '';
-    return appendQuery(`${base}/${format}`, {
+    if (!base || !source || !configSource) return '';
+    return appendQuery(`${base}/sub`, {
+        target: format,
+        url: source,
         config: configSource,
-        selectedRules: SUBLINK_PRESET_RULES,
     });
 }
 
@@ -2917,10 +2951,26 @@ function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
     const converterBaseUrl = normalizeHttpUrlPreservePath(
         firstNonEmpty(options.converterBaseUrl, resolveSubscriptionConverterBaseUrl())
     );
+    const converterConfigUrls = resolveSubscriptionConverterConfigUrls(options);
     const converterSourceUrl = subscriptionUrlRaw || subscriptionUrl;
-    const externalClashUrl = buildExternalConverterUrl(converterBaseUrl, 'clash', converterSourceUrl);
-    const externalSingboxUrl = buildExternalConverterUrl(converterBaseUrl, 'singbox', converterSourceUrl);
-    const externalSurgeUrl = buildExternalConverterUrl(converterBaseUrl, 'surge', converterSourceUrl);
+    const externalClashUrl = buildExternalConverterUrl(
+        converterBaseUrl,
+        'clash',
+        converterSourceUrl,
+        converterConfigUrls.clash
+    );
+    const externalSingboxUrl = buildExternalConverterUrl(
+        converterBaseUrl,
+        'singbox',
+        converterSourceUrl,
+        converterConfigUrls.singbox
+    );
+    const externalSurgeUrl = buildExternalConverterUrl(
+        converterBaseUrl,
+        'surge',
+        converterSourceUrl,
+        converterConfigUrls.surge
+    );
     const subscriptionUrlClash = externalClashUrl || appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = subscriptionUrlClash;
     const subscriptionUrlSingbox = externalSingboxUrl || appendQuery(subscriptionUrl, { format: 'singbox' });
@@ -2940,6 +2990,9 @@ function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
         subscriptionUrlSingbox,
         subscriptionUrlSurge,
         subscriptionConverterConfigured,
+        subscriptionClashExternalConfigured: !!externalClashUrl,
+        subscriptionSingboxExternalConfigured: !!externalSingboxUrl,
+        subscriptionSurgeExternalConfigured: !!externalSurgeUrl,
     };
 }
 
@@ -3642,11 +3695,12 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
         subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
         subscriptionUrlClash = builtUrls.subscriptionUrlClash;
         subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
-        const usesExternalConverter = builtUrls.subscriptionConverterConfigured === true;
-        subscriptionUrlSingbox = (usesExternalConverter || hasSingboxCompatibleLinks(links))
+        const singboxExternallyAvailable = builtUrls.subscriptionSingboxExternalConfigured === true;
+        const surgeExternallyAvailable = builtUrls.subscriptionSurgeExternalConfigured === true;
+        subscriptionUrlSingbox = (singboxExternallyAvailable || hasSingboxCompatibleLinks(links))
             ? builtUrls.subscriptionUrlSingbox
             : '';
-        subscriptionUrlSurge = (usesExternalConverter || hasSurgeCompatibleLinks(links))
+        subscriptionUrlSurge = (surgeExternallyAvailable || hasSurgeCompatibleLinks(links))
             ? builtUrls.subscriptionUrlSurge
             : '';
         subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;

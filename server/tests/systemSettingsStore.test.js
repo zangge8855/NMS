@@ -63,6 +63,33 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, true);
     });
 
+    it('persists external subscription converter config urls', () => {
+        const updated = systemSettingsStore.update({
+            subscription: {
+                publicBaseUrl: 'https://nms.example.com',
+                converterBaseUrl: 'https://converter.example.com',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+                converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+                converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+            },
+        });
+
+        assert.deepEqual(updated.subscription, {
+            publicBaseUrl: 'https://nms.example.com',
+            converterBaseUrl: 'https://converter.example.com',
+            converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+            converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+        });
+        assert.deepEqual(systemSettingsStore.getSubscription(), {
+            publicBaseUrl: 'https://nms.example.com',
+            converterBaseUrl: 'https://converter.example.com',
+            converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+            converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+        });
+    });
+
     it('stores telegram bot configuration without exposing the raw token in public settings', () => {
         const updated = systemSettingsStore.update({
             telegram: {

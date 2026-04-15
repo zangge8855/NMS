@@ -15,12 +15,19 @@ function normalizeUrl(value) {
     return text || '';
 }
 
-function hasConfigQueryParam(url) {
+function isExternalConverterUrl(url) {
     const text = normalizeUrl(url);
     if (!text) return false;
     try {
         const parsed = new URL(text);
-        return parsed.searchParams.has('config');
+        if (!parsed.searchParams.has('config')) return false;
+
+        const pathname = parsed.pathname.replace(/\/+$/, '');
+        const hasTargetStyle = parsed.searchParams.has('target')
+            && parsed.searchParams.has('url')
+            && /(?:^|\/)sub$/i.test(pathname);
+        const hasLegacyPathStyle = /\/(?:clash|singbox|surge)$/i.test(pathname);
+        return hasTargetStyle || hasLegacyPathStyle;
     } catch {
         return false;
     }
@@ -31,9 +38,14 @@ function extractConverterBaseUrl(url) {
     if (!text) return '';
     try {
         const parsed = new URL(text);
+        const pathname = parsed.pathname.replace(/\/+$/, '');
         parsed.search = '';
         parsed.hash = '';
-        parsed.pathname = parsed.pathname.replace(/\/(?:clash|singbox|surge)\/?$/i, '') || '/';
+        if (/(?:^|\/)sub$/i.test(pathname)) {
+            parsed.pathname = pathname.replace(/\/sub$/i, '') || '/';
+        } else {
+            parsed.pathname = pathname.replace(/\/(?:clash|singbox|surge)$/i, '') || '/';
+        }
         return parsed.toString().replace(/\/+$/, '');
     } catch {
         return '';
@@ -145,7 +157,7 @@ export function buildSubscriptionProfileBundle(payload = {}, locale = 'zh-CN') {
     const mihomoUrl = clashUrl;
     const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
     const surgeUrl = normalizeUrl(payload.subscriptionUrlSurge);
-    const wrappedProfileUrls = [clashUrl, singboxUrl, surgeUrl].filter(hasConfigQueryParam);
+    const wrappedProfileUrls = [clashUrl, singboxUrl, surgeUrl].filter(isExternalConverterUrl);
     const externalConverterBaseUrl = extractConverterBaseUrl(wrappedProfileUrls[0] || '');
     const externalConverterHost = extractUrlHost(externalConverterBaseUrl);
     const externalConverterConfigured = wrappedProfileUrls.length > 0 && !!externalConverterBaseUrl;

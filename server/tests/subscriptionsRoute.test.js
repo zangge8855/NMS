@@ -131,12 +131,13 @@ function parseGeneratedYaml(yamlText) {
     return parseGeneratedYamlBlock(normalized, 0, 0).value;
 }
 
-function buildExpectedExternalUrl(baseUrl, format, configUrl) {
+function buildExpectedExternalUrl(baseUrl, format, sourceUrl, configUrl) {
     const params = new URLSearchParams({
+        target: format,
+        url: sourceUrl,
         config: configUrl,
-        selectedRules: 'balanced',
     });
-    return `${baseUrl}/${format}?${params.toString()}`;
+    return `${baseUrl}/sub?${params.toString()}`;
 }
 
 describe('subscription native fallback selection', () => {
@@ -272,7 +273,12 @@ describe('subscription url generation', () => {
             'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
             'auto',
             '',
-            { converterBaseUrl: 'https://converter.example.com/' }
+            {
+                converterBaseUrl: 'https://converter.example.com/',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+                converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+                converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+            }
         );
 
         assert.equal(urls.subscriptionUrlRaw, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw');
@@ -281,7 +287,8 @@ describe('subscription url generation', () => {
             buildExpectedExternalUrl(
                 'https://converter.example.com',
                 'clash',
-                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=balanced'
             )
         );
         assert.equal(
@@ -289,7 +296,8 @@ describe('subscription url generation', () => {
             buildExpectedExternalUrl(
                 'https://converter.example.com',
                 'singbox',
-                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=comprehensive'
             )
         );
         assert.equal(
@@ -297,9 +305,35 @@ describe('subscription url generation', () => {
             buildExpectedExternalUrl(
                 'https://converter.example.com',
                 'surge',
-                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw'
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=minimal'
             )
         );
+        assert.equal(urls.subscriptionConverterConfigured, true);
+    });
+
+    it('falls back per target when a matching converter config url is missing', () => {
+        const urls = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            {
+                converterBaseUrl: 'https://converter.example.com/',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            }
+        );
+
+        assert.equal(
+            urls.subscriptionUrlClash,
+            buildExpectedExternalUrl(
+                'https://converter.example.com',
+                'clash',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw',
+                'https://worker.example.com/subconverter?selectedRules=balanced'
+            )
+        );
+        assert.equal(urls.subscriptionUrlSingbox, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=singbox');
+        assert.equal(urls.subscriptionUrlSurge, 'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=surge');
         assert.equal(urls.subscriptionConverterConfigured, true);
     });
 

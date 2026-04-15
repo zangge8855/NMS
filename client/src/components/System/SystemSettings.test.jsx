@@ -81,6 +81,9 @@ function mockAdminBootstrap(overrides = {}) {
                     subscription: {
                         publicBaseUrl: 'https://nms.example.com',
                         converterBaseUrl: 'https://converter.example.com',
+                        converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+                        converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+                        converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
                     },
                     auditIpGeo: {
                         enabled: true,
@@ -293,6 +296,9 @@ function buildPutResponse(overrides = {}) {
         subscription: {
             publicBaseUrl: 'https://nms.example.com',
             converterBaseUrl: 'https://converter.example.com',
+            converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+            converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
         },
         auditIpGeo: {
             enabled: true,
@@ -352,9 +358,12 @@ describe('SystemSettings', () => {
         expect(screen.getByText('站点伪装首页')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('Northline Relay')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://worker.example.com/subconverter?selectedRules=balanced')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://worker.example.com/subconverter?selectedRules=comprehensive')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://worker.example.com/subconverter?selectedRules=minimal')).toBeInTheDocument();
         expect(screen.queryByText('系统设置工作台')).not.toBeInTheDocument();
         expect(screen.queryByText('按主题管理系统能力')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '清空' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '清空全部' })).toBeInTheDocument();
     });
 
     it('renders the cached settings snapshot before the live status queries finish', async () => {
@@ -671,6 +680,50 @@ describe('SystemSettings', () => {
         expect(screen.queryByText('节点控制台')).not.toBeInTheDocument();
         expect(screen.queryByText('嵌入式节点控制台')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '收起控制台' })).not.toBeInTheDocument();
+    });
+
+    it('saves converter config urls from the access workspace', async () => {
+        const user = userEvent.setup();
+
+        useAuthMock.mockReturnValue({
+            user: { role: 'admin' },
+        });
+        mockAdminBootstrap();
+        api.put.mockResolvedValue({
+            data: {
+                obj: buildPutResponse({
+                    subscription: {
+                        publicBaseUrl: 'https://nms.example.com',
+                        converterBaseUrl: 'https://converter.example.com',
+                        converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced&lang=en',
+                        converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+                        converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+                    },
+                }),
+            },
+        });
+
+        renderWithRouter(<SystemSettings />, { route: '/settings?tab=access' });
+
+        const clashConfigInput = await screen.findByLabelText('Clash / Mihomo Config URL');
+        const singboxConfigInput = screen.getByLabelText('sing-box Config URL');
+
+        await user.clear(clashConfigInput);
+        await user.type(clashConfigInput, 'https://worker.example.com/subconverter?selectedRules=balanced&lang=en');
+        await user.clear(singboxConfigInput);
+        await user.type(singboxConfigInput, 'https://worker.example.com/subconverter?selectedRules=comprehensive');
+        await user.click(screen.getByRole('button', { name: '保存设置' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/settings', expect.objectContaining({
+                subscription: expect.objectContaining({
+                    converterBaseUrl: 'https://converter.example.com',
+                    converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced&lang=en',
+                    converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive',
+                    converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal',
+                }),
+            }));
+        });
     });
 
     it('preserves a newly entered Telegram bot token when saving settings', async () => {
