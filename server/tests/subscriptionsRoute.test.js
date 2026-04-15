@@ -337,6 +337,37 @@ describe('subscription url generation', () => {
         assert.equal(urls.subscriptionConverterConfigured, true);
     });
 
+    it('normalizes converter base urls that already include a target path or /sub', () => {
+        const fromSubPath = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            {
+                converterBaseUrl: 'https://converter.example.com/sub',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            }
+        );
+        const fromLegacyTargetPath = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            {
+                converterBaseUrl: 'https://converter.example.com/clash',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            }
+        );
+
+        const expected = buildExpectedExternalUrl(
+            'https://converter.example.com',
+            'clash',
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value?format=raw',
+            'https://worker.example.com/subconverter?selectedRules=balanced'
+        );
+
+        assert.equal(fromSubPath.subscriptionUrlClash, expected);
+        assert.equal(fromLegacyTargetPath.subscriptionUrlClash, expected);
+    });
+
 });
 
 describe('public token verification', () => {

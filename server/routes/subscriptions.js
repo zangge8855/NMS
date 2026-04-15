@@ -2811,6 +2811,21 @@ function normalizeHttpUrlPreservePath(urlLike) {
     }
 }
 
+function normalizeSubscriptionConverterBaseUrl(urlLike) {
+    const normalized = normalizeHttpUrlPreservePath(urlLike);
+    if (!normalized) return '';
+    try {
+        const parsed = new URL(normalized);
+        const pathname = parsed.pathname.replace(/\/+$/, '');
+        parsed.pathname = pathname.replace(/\/(?:sub|clash|singbox|surge)$/i, '') || '/';
+        parsed.search = '';
+        parsed.hash = '';
+        return parsed.toString().replace(/\/+$/, '');
+    } catch {
+        return normalized;
+    }
+}
+
 function normalizeHttpUrlKeepQuery(urlLike) {
     const text = String(urlLike || '').trim();
     if (!text) return '';
@@ -2852,7 +2867,7 @@ function resolvePublicBase(req) {
 
 function resolveSubscriptionConverterBaseUrl() {
     const runtime = systemSettingsStore.getSubscription();
-    return normalizeHttpUrlPreservePath(
+    return normalizeSubscriptionConverterBaseUrl(
         runtime?.converterBaseUrl || config.subscription?.converter?.baseUrl || ''
     );
 }
@@ -2879,7 +2894,7 @@ function resolveSubscriptionConverterConfigUrls(options = {}) {
 }
 
 function buildExternalConverterUrl(baseUrl, format, sourceUrl, configUrl) {
-    const base = normalizeHttpUrlPreservePath(baseUrl);
+    const base = normalizeSubscriptionConverterBaseUrl(baseUrl);
     const source = normalizeHttpUrlKeepQuery(sourceUrl);
     const configSource = String(configUrl || '').trim();
     if (!base || !source || !configSource) return '';
@@ -2948,7 +2963,7 @@ function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
     });
 
     const subscriptionUrlV2rayn = subscriptionUrl;
-    const converterBaseUrl = normalizeHttpUrlPreservePath(
+    const converterBaseUrl = normalizeSubscriptionConverterBaseUrl(
         firstNonEmpty(options.converterBaseUrl, resolveSubscriptionConverterBaseUrl())
     );
     const converterConfigUrls = resolveSubscriptionConverterConfigUrls(options);
