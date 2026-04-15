@@ -140,6 +140,16 @@ function buildExpectedExternalUrl(baseUrl, format, sourceUrl, configUrl) {
     return `${baseUrl}/sub?${params.toString()}`;
 }
 
+function buildExpectedWorkerDirectUrl(baseUrl, format, sourceUrl, query = {}) {
+    const params = new URLSearchParams({
+        ...query,
+        config: sourceUrl,
+        ua: Object.prototype.hasOwnProperty.call(query, 'ua') ? query.ua : '',
+        customRules: Object.prototype.hasOwnProperty.call(query, 'customRules') ? query.customRules : '[]',
+    });
+    return `${baseUrl}/${format}?${params.toString()}`;
+}
+
 describe('subscription native fallback selection', () => {
     it('returns all unique subIds in native mode', () => {
         assert.deepEqual(
@@ -337,6 +347,49 @@ describe('subscription url generation', () => {
         assert.equal(urls.subscriptionConverterConfigured, true);
     });
 
+    it('uses direct worker endpoints when converter base and subconverter config share the same origin', () => {
+        const urls = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            {
+                converterBaseUrl: 'https://worker.example.com/',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+                converterSingboxConfigUrl: 'https://worker.example.com/subconverter?selectedRules=comprehensive&group_by_country=true',
+                converterSurgeConfigUrl: 'https://worker.example.com/subconverter?selectedRules=minimal&include_auto_select=false',
+            }
+        );
+
+        assert.equal(
+            urls.subscriptionUrlClash,
+            buildExpectedWorkerDirectUrl(
+                'https://worker.example.com',
+                'clash',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+                { selectedRules: 'balanced' }
+            )
+        );
+        assert.equal(
+            urls.subscriptionUrlSingbox,
+            buildExpectedWorkerDirectUrl(
+                'https://worker.example.com',
+                'singbox',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+                { selectedRules: 'comprehensive', group_by_country: 'true' }
+            )
+        );
+        assert.equal(
+            urls.subscriptionUrlSurge,
+            buildExpectedWorkerDirectUrl(
+                'https://worker.example.com',
+                'surge',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+                { selectedRules: 'minimal', include_auto_select: 'false' }
+            )
+        );
+        assert.equal(urls.subscriptionConverterConfigured, true);
+    });
+
     it('normalizes converter base urls that already include a target path or /sub', () => {
         const fromSubPath = buildSubscriptionUrls(
             'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
@@ -366,6 +419,28 @@ describe('subscription url generation', () => {
 
         assert.equal(fromSubPath.subscriptionUrlClash, expected);
         assert.equal(fromLegacyTargetPath.subscriptionUrlClash, expected);
+    });
+
+    it('normalizes same-origin worker base urls that already include a target path', () => {
+        const urls = buildSubscriptionUrls(
+            'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+            'auto',
+            '',
+            {
+                converterBaseUrl: 'https://worker.example.com/clash',
+                converterClashConfigUrl: 'https://worker.example.com/subconverter?selectedRules=balanced',
+            }
+        );
+
+        assert.equal(
+            urls.subscriptionUrlClash,
+            buildExpectedWorkerDirectUrl(
+                'https://worker.example.com',
+                'clash',
+                'https://new.example.com/api/subscriptions/public/t/token-id/token-value',
+                { selectedRules: 'balanced' }
+            )
+        );
     });
 
 });

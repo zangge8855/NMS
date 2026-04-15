@@ -2826,6 +2826,18 @@ function normalizeSubscriptionConverterBaseUrl(urlLike) {
     }
 }
 
+function parseHttpUrlSafe(urlLike) {
+    const text = String(urlLike || '').trim();
+    if (!text) return null;
+    try {
+        const parsed = new URL(text);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
 function normalizeHttpUrlKeepQuery(urlLike) {
     const text = String(urlLike || '').trim();
     if (!text) return '';
@@ -2893,7 +2905,45 @@ function resolveSubscriptionConverterConfigUrls(options = {}) {
     };
 }
 
-function buildExternalConverterUrl(baseUrl, format, sourceUrl, configUrl) {
+function buildWorkerDirectConverterUrl(baseUrl, format, sourceUrl, configUrl) {
+    const base = normalizeSubscriptionConverterBaseUrl(baseUrl);
+    const source = normalizeHttpUrlKeepQuery(sourceUrl);
+    const baseParsed = parseHttpUrlSafe(base);
+    const configParsed = parseHttpUrlSafe(configUrl);
+    if (!baseParsed || !configParsed || !source) return '';
+
+    const configPath = configParsed.pathname.replace(/\/+$/, '');
+    const sameOrigin = baseParsed.origin === configParsed.origin;
+    const isWorkerConfigPath = /(?:^|\/)subconverter$/i.test(configPath);
+    if (!sameOrigin || !isWorkerConfigPath) return '';
+
+    const query = {};
+    for (const [key, value] of configParsed.searchParams.entries()) {
+        query[key] = value;
+    }
+    query.config = source;
+    if (!Object.prototype.hasOwnProperty.call(query, 'ua')) {
+        query.ua = '';
+    }
+    if (!Object.prototype.hasOwnProperty.call(query, 'customRules')) {
+        query.customRules = '[]';
+    }
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+        params.append(key, String(value));
+    }
+    return `${base}/${format}?${params.toString()}`;
+}
+
+function buildExternalConverterUrl(baseUrl, format, sourceUrl, configUrl, options = {}) {
+    const directUrl = buildWorkerDirectConverterUrl(
+        baseUrl,
+        format,
+        firstNonEmpty(options.directSourceUrl, sourceUrl),
+        configUrl
+    );
+    if (directUrl) return directUrl;
+
     const base = normalizeSubscriptionConverterBaseUrl(baseUrl);
     const source = normalizeHttpUrlKeepQuery(sourceUrl);
     const configSource = String(configUrl || '').trim();
@@ -2968,23 +3018,27 @@ function buildSubscriptionUrls(publicBase, mode, serverId, options = {}) {
     );
     const converterConfigUrls = resolveSubscriptionConverterConfigUrls(options);
     const converterSourceUrl = subscriptionUrlRaw || subscriptionUrl;
+    const directConverterSourceUrl = subscriptionUrl || converterSourceUrl;
     const externalClashUrl = buildExternalConverterUrl(
         converterBaseUrl,
         'clash',
         converterSourceUrl,
-        converterConfigUrls.clash
+        converterConfigUrls.clash,
+        { directSourceUrl: directConverterSourceUrl }
     );
     const externalSingboxUrl = buildExternalConverterUrl(
         converterBaseUrl,
         'singbox',
         converterSourceUrl,
-        converterConfigUrls.singbox
+        converterConfigUrls.singbox,
+        { directSourceUrl: directConverterSourceUrl }
     );
     const externalSurgeUrl = buildExternalConverterUrl(
         converterBaseUrl,
         'surge',
         converterSourceUrl,
-        converterConfigUrls.surge
+        converterConfigUrls.surge,
+        { directSourceUrl: directConverterSourceUrl }
     );
     const subscriptionUrlClash = externalClashUrl || appendQuery(subscriptionUrl, { format: 'clash' });
     const subscriptionUrlMihomo = subscriptionUrlClash;
