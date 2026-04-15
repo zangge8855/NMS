@@ -14,6 +14,7 @@ process.env.DATA_DIR = testDataDir;
 process.env.NODE_ENV = 'test';
 
 const {
+    autoDeployClients,
     autoSetManagedClientsEnabled,
     migrateManagedSubscriptionEmail,
     provisionSubscriptionForUser,
@@ -62,6 +63,106 @@ describe('subscriptionSyncService', () => {
         assert.equal(updates[0].clientIdentifier, '11111111-1111-1111-1111-111111111111');
         assert.equal(updates[0].clientData.enable, false);
         assert.equal(result.details[0].status, 'disabled');
+    });
+
+    it('matches legacy login email aliases when disabling managed clients', async () => {
+        const updates = [];
+        const result = await autoSetManagedClientsEnabled('sub@example.com', false, {
+            emailAliases: ['login@example.com'],
+        }, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'login@example.com',
+                                id: 'legacy-client-id',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+        });
+
+        assert.equal(result.updated, 1);
+        assert.equal(result.failed, 0);
+        assert.equal(updates.length, 1);
+        assert.equal(updates[0].clientIdentifier, 'legacy-client-id');
+        assert.equal(updates[0].clientData.email, 'sub@example.com');
+        assert.equal(updates[0].clientData.enable, false);
+    });
+
+    it('reuses alias-matched clients during deploy instead of creating duplicates', async () => {
+        const updates = [];
+        const createdClients = [];
+        const result = await autoDeployClients('sub@example.com', {
+            serverScopeMode: 'all',
+            protocolScopeMode: 'all',
+            expiryTime: 0,
+            limitIp: 0,
+            trafficLimitBytes: 0,
+        }, {
+            emailAliases: ['login@example.com'],
+        }, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'login@example.com',
+                                id: 'legacy-client-id',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+            postAddClient: async (_panelClient, inboundId, clientData) => {
+                createdClients.push({ inboundId, clientData });
+                return {};
+            },
+            overrideRepository: {
+                get: () => null,
+            },
+        });
+
+        assert.equal(result.updated, 1);
+        assert.equal(result.created, 0);
+        assert.equal(updates.length, 1);
+        assert.equal(createdClients.length, 0);
+        assert.equal(updates[0].clientIdentifier, 'legacy-client-id');
+        assert.equal(updates[0].clientData.email, 'sub@example.com');
     });
 
     it('enables only clients that are still allowed by the current policy', async () => {

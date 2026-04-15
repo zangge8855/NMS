@@ -15,10 +15,37 @@ import clientEntitlementOverrideRepository from '../repositories/clientEntitleme
 import serverRepository from '../repositories/serverRepository.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { listPanelInbounds } from './panelGateway.js';
 
 function normalizeEmailInput(value) {
     return String(value || '').trim().toLowerCase();
+}
+
+function collectManagedEmailCandidates(primaryEmail = '', aliases = []) {
+    const extraValues = Array.isArray(aliases) ? aliases : [aliases];
+    return Array.from(new Set(
+        [primaryEmail, ...extraValues]
+            .map((item) => normalizeEmailInput(item))
+            .filter(Boolean)
+    ));
+}
+
+function findManagedClientByEmail(clients = [], emailCandidates = []) {
+    const wanted = new Set(collectManagedEmailCandidates('', emailCandidates));
+    if (wanted.size === 0) return null;
+    return (Array.isArray(clients) ? clients : []).find((item) => wanted.has(normalizeEmailInput(item?.email))) || null;
+}
+
+function shouldCanonicalizeManagedClientEmail(client = {}, canonicalEmail = '') {
+    const normalizedCanonicalEmail = normalizeEmailInput(canonicalEmail);
+    return Boolean(normalizedCanonicalEmail) && normalizeEmailInput(client?.email) !== normalizedCanonicalEmail;
+}
+
+function markServerPanelSnapshotStale(serverId = '') {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return;
+    invalidateServerPanelSnapshotCache(normalizedServerId);
 }
 
 function buildScopeTokenName(serverId = '') {
@@ -328,6 +355,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const result = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
     if (!email) return result;
+    const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
     const serverScopeMode = String(policy.serverScopeMode || 'all').toLowerCase();
@@ -387,7 +415,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
 
             try {
                 const existingClients = parseInboundClients(inbound);
-                const match = existingClients.find((item) => normalizeEmailInput(item.email) === email);
+                const match = findManagedClientByEmail(existingClients, emailCandidates);
 
                 if (match) {
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
@@ -402,13 +430,17 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                             entitlement: targetEntitlement,
                             resolveFlow: resolveDeployFlow,
                         })
-                        : applyEntitlementToClient(match, targetEntitlement);
+                        : {
+                            ...applyEntitlementToClient(match, targetEntitlement),
+                            email,
+                        };
                     const updatedClient = clientEnabled === undefined
                         ? updatedClientBase
                         : {
                             ...updatedClientBase,
                             enable: Boolean(clientEnabled),
                         };
+                    const needsEmailCanonicalization = shouldCanonicalizeManagedClientEmail(match, email);
 
                     const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
                         && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
@@ -422,7 +454,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                         && String(updatedClient.subId || '') === String(match.subId || '')
                     );
 
-                    if (isSameEntitlement && isSameCredentials && isSameEnableState) {
+                    if (isSameEntitlement && isSameCredentials && isSameEnableState && !needsEmailCanonicalization) {
                         result.skipped += 1;
                         result.details.push({
                             serverId: server.id,
@@ -437,6 +469,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     }
 
                     await updateClient(client, inbound.id, clientIdentifier, updatedClient);
+                    markServerPanelSnapshotStale(server.id);
                     result.updated += 1;
                     result.details.push({
                         serverId: server.id,
@@ -464,6 +497,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                 }
 
                 await addClient(client, inbound.id, clientData);
+                markServerPanelSnapshotStale(server.id);
                 result.created += 1;
                 result.details.push({
                     serverId: server.id,
@@ -525,6 +559,7 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
     const result = { total: 0, removed: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
     if (!email) return result;
+    const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
     for (const server of allServers) {
@@ -542,7 +577,7 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
             if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
 
             const existingClients = parseInboundClients(inbound);
-            const match = existingClients.find((item) => normalizeEmailInput(item.email) === email);
+            const match = findManagedClientByEmail(existingClients, emailCandidates);
             if (!match) continue;
 
             result.total += 1;
@@ -551,6 +586,7 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
                 await client.post(
                     `/panel/api/inbounds/${encodeURIComponent(inbound.id)}/delClient/${encodeURIComponent(clientIdentifier)}`
                 );
+                markServerPanelSnapshotStale(server.id);
                 result.removed += 1;
                 result.details.push({
                     serverId: server.id,
@@ -586,6 +622,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
     const result = { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
     if (!email) return result;
+    const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
     const scopedPolicy = buildScopedPolicyMeta(options.policy || {});
@@ -612,7 +649,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
             if (enabled && inbound.enable === false) continue;
 
             const existingClients = parseInboundClients(inbound);
-            const match = existingClients.find((item) => normalizeEmailInput(item.email) === email);
+            const match = findManagedClientByEmail(existingClients, emailCandidates);
             if (!match) continue;
 
             result.total += 1;
@@ -670,7 +707,8 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                     continue;
                 }
             }
-            if ((match.enable !== false) === Boolean(enabled)) {
+            const needsEmailCanonicalization = shouldCanonicalizeManagedClientEmail(match, email);
+            if ((match.enable !== false) === Boolean(enabled) && !needsEmailCanonicalization) {
                 result.skipped += 1;
                 result.details.push({
                     serverId: server.id,
@@ -688,8 +726,10 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                 const clientIdentifier = resolveClientIdentifier(match, protocol);
                 await updateClient(client, inbound.id, clientIdentifier, {
                     ...match,
+                    email,
                     enable: Boolean(enabled),
                 });
+                markServerPanelSnapshotStale(server.id);
                 result.updated += 1;
                 result.details.push({
                     serverId: server.id,
@@ -787,6 +827,7 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             allowedInboundKeys,
             allServers: servers.list(),
             clientEnabled: targetUser?.enabled !== false,
+            emailAliases: [targetUser?.email, targetUser?.subscriptionEmail],
         }, deps);
     } catch (error) {
         deployment.error = error.message || 'Auto-deploy failed';

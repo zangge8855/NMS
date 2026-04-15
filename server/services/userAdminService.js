@@ -139,6 +139,17 @@ function normalizeStringList(input = []) {
     ));
 }
 
+function buildManagedUserEmailAliases(targetUser = null, primaryEmail = '') {
+    const normalizedPrimaryEmail = normalizeEmailInput(primaryEmail);
+    return Array.from(new Set(
+        [
+            normalizeEmailInput(targetUser?.email),
+            normalizeEmailInput(targetUser?.subscriptionEmail),
+        ]
+            .filter((item) => item && item !== normalizedPrimaryEmail)
+    ));
+}
+
 function applyInboundRetryScope(policy = null, targetInboundKeys = []) {
     const keys = normalizeStringList(targetInboundKeys);
     if (keys.length === 0) return policy;
@@ -350,6 +361,7 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
             partialFailure: false,
         };
     }
+    const emailAliases = buildManagedUserEmailAliases(targetUser, subscriptionEmail);
 
     const targetServerIds = normalizeStringList(options.targetServerIds);
     const allServers = serverRepo.list();
@@ -368,6 +380,7 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
             clientSync = await toggleClients(subscriptionEmail, enabled, {
                 allServers: scopedServers,
                 policy: scopedPolicy,
+                emailAliases,
             });
         } catch (error) {
             clientSync = {
@@ -387,6 +400,7 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
                 allServers: scopedServers,
                 allowedInboundKeys: scopedPolicy.allowedInboundKeys,
                 clientEnabled: enabled,
+                emailAliases,
             });
         } catch (error) {
             deployment = {
@@ -925,6 +939,7 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
 
     const target = userRepo.getBySubscriptionEmail(requestedEmail) || userRepo.getByEmail(requestedEmail) || null;
     const subscriptionEmail = normalizeEmailInput(target?.subscriptionEmail || target?.email || requestedEmail);
+    const emailAliases = buildManagedUserEmailAliases(target, subscriptionEmail);
     const currentPolicy = policyRepo.get(subscriptionEmail);
     const hasAllowedInboundKeys = Object.prototype.hasOwnProperty.call(payload || {}, 'allowedInboundKeys');
     const nextPolicy = policyRepo.upsert(
@@ -964,7 +979,7 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
     let deployment = emptyDeploymentResult();
 
     try {
-        clientSync = await toggleClients(subscriptionEmail, false, { allServers }, deps);
+        clientSync = await toggleClients(subscriptionEmail, false, { allServers, emailAliases }, deps);
     } catch (error) {
         clientSync = {
             total: 0,
@@ -981,6 +996,7 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
                 allServers,
                 allowedInboundKeys: nextPolicy.allowedInboundKeys,
                 clientEnabled: true,
+                emailAliases,
             }, deps);
         } catch (error) {
             deployment = {

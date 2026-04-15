@@ -199,8 +199,8 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
                     return [{ id: 'srv-1' }];
                 },
             },
-            autoSetManagedClientsEnabled: async (email, enabled) => {
-                events.push(`toggle:${email}:${enabled}`);
+            autoSetManagedClientsEnabled: async (email, enabled, options) => {
+                events.push(`toggle:${email}:${enabled}:${(options?.emailAliases || []).join(',')}`);
                 return { updated: 1 };
             },
             userPolicyRepository: {
@@ -209,8 +209,8 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
                     return { expiryTime: 1 };
                 },
             },
-            autoDeployClients: async (email) => {
-                events.push(`deploy:${email}`);
+            autoDeployClients: async (email, _policy, options) => {
+                events.push(`deploy:${email}:${(options?.emailAliases || []).join(',')}`);
                 return { updated: 1 };
             },
             ensurePersistentSubscriptionToken: (email, actor) => {
@@ -220,7 +220,11 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
     );
 
     assert.equal(result.enabled, true);
-    assert.deepEqual(events, ['toggle:sub@example.com:true', 'deploy:sub@example.com', 'token:sub@example.com:admin']);
+    assert.deepEqual(events, [
+        'toggle:sub@example.com:true:eve@example.com',
+        'deploy:sub@example.com:eve@example.com',
+        'token:sub@example.com:admin',
+    ]);
 });
 
 test('setManagedUserEnabled disables managed clients without removing them or revoking tokens', async () => {
@@ -249,8 +253,8 @@ test('setManagedUserEnabled disables managed clients without removing them or re
                     return { expiryTime: 1 };
                 },
             },
-            autoSetManagedClientsEnabled: async (email, enabled) => {
-                events.push(`toggle:${email}:${enabled}`);
+            autoSetManagedClientsEnabled: async (email, enabled, options) => {
+                events.push(`toggle:${email}:${enabled}:${(options?.emailAliases || []).join(',')}`);
                 return { updated: 2 };
             },
             autoRemoveClients: async () => {
@@ -267,7 +271,7 @@ test('setManagedUserEnabled disables managed clients without removing them or re
     );
 
     assert.equal(result.enabled, false);
-    assert.deepEqual(events, ['policy:get', 'toggle:sub@example.com:false']);
+    assert.deepEqual(events, ['policy:get', 'toggle:sub@example.com:false:kate@example.com']);
 });
 
 test('buildManagedUserSyncJobPayload flattens sync details for retry history', () => {
