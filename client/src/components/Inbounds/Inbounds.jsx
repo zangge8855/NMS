@@ -501,6 +501,58 @@ export default function Inbounds() {
         }
     };
 
+    const handleBulkSyncExistingUsers = async () => {
+        const ok = await confirmAction({
+            title: t('comp.inbounds.batchSyncUsersTitle'),
+            message: `确定把选中的 ${selectedVisibleCount} 个入站补齐到现有用户吗？`,
+            details: t('comp.inbounds.batchSyncUsersDetails'),
+            confirmText: t('comp.inbounds.batchSyncUsersAction'),
+            tone: 'secondary',
+        });
+        if (!ok) return;
+
+        const targets = selectedVisibleInbounds.map((target) => ({
+            serverId: target.serverId,
+            serverName: target.serverName,
+            id: target.id,
+            remark: target.remark,
+            protocol: target.protocol,
+            port: target.port,
+        }));
+
+        try {
+            const payload = await attachBatchRiskToken({
+                action: 'syncExistingUsers',
+                targets,
+            }, {
+                type: 'inbounds',
+                action: 'syncExistingUsers',
+                targetCount: targets.length,
+            });
+            const res = await api.post('/batch/inbounds', payload);
+            const output = res.data?.obj;
+            const syncSummary = output?.subscriptionSync || null;
+            setBatchResultTitle(t('comp.inbounds.batchSyncUsersResult'));
+            setBatchResultData(output || null);
+
+            if (Number(syncSummary?.failedUsers || 0) > 0) {
+                toast.error(
+                    `${t('comp.inbounds.batchSyncUsersDone')}: ${syncSummary?.syncedUsers || 0} 已同步, ${syncSummary?.skippedUsers || 0} 跳过, ${syncSummary?.failedUsers || 0} 失败；订阅地址未变`
+                );
+            } else {
+                toast.success(
+                    `${t('comp.inbounds.batchSyncUsersDone')}: ${syncSummary?.syncedUsers || 0} 已同步, ${syncSummary?.skippedUsers || 0} 跳过；订阅地址未变`
+                );
+            }
+            setSelectedKeys(new Set());
+            fetchAllInbounds();
+        } catch (err) {
+            console.error(err);
+            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchSyncUsersFailed');
+            toast.error(msg);
+        }
+    };
+
     const handleBulkSetEnable = async (enable) => {
         const ok = await confirmAction({
             title: enable ? t('comp.inbounds.batchEnableTitle') : t('comp.inbounds.batchDisableTitle'),
@@ -1148,6 +1200,9 @@ export default function Inbounds() {
                                 <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
                                     <HiOutlineArrowPath /> 重置
                                 </button>
+                                <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
+                                    <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
+                                </button>
                             </div>
                         ) : (
                             <button className="btn btn-primary btn-sm" onClick={handleAdd}>
@@ -1683,6 +1738,7 @@ export default function Inbounds() {
                         </button>
                         <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> 删除</button>
                         <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> 重置</button>
+                        <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}><HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}</button>
                     </div>
                 )}
 

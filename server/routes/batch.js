@@ -19,7 +19,7 @@ import { normalizeBoolean } from '../lib/normalize.js';
 const router = Router();
 
 const CLIENT_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete']);
-const INBOUND_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic']);
+const INBOUND_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic', 'syncExistingUsers']);
 const FLOW_PROTOCOLS = new Set(['vless']);
 const CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
@@ -250,6 +250,96 @@ function summarizeBatchResults(action, results) {
         action,
         summary: { total, success, failed },
         results,
+    };
+}
+
+function buildInboundSyncTargetKey(item = {}) {
+    const serverId = toStringValue(item.serverId).trim();
+    const inboundId = toStringValue(item.inboundId ?? item.id).trim();
+    if (!serverId || !inboundId) return '';
+    return `${serverId}:${inboundId}`;
+}
+
+function buildInboundSubscriptionSyncOutput(action, syncResult = {}, candidates = []) {
+    const candidateMap = new Map(
+        (Array.isArray(candidates) ? candidates : [])
+            .map((item) => {
+                const key = buildInboundSyncTargetKey(item);
+                if (!key) return null;
+                return [key, {
+                    serverId: toStringValue(item.serverId).trim(),
+                    serverName: toStringValue(item.serverName).trim(),
+                    inboundId: item.inboundId ?? item.id ?? null,
+                    inboundRemark: toStringValue(item.inboundRemark || item.remark).trim(),
+                    protocol: normalizeProtocol(item.protocol),
+                }];
+            })
+            .filter(Boolean)
+    );
+
+    const details = Array.isArray(syncResult?.details) ? syncResult.details : [];
+    const results = details.map((item) => {
+        const matchedInboundKeys = Array.isArray(item?.matchedInboundKeys)
+            ? item.matchedInboundKeys.map((entry) => toStringValue(entry).trim()).filter(Boolean)
+            : [];
+        const matchedInbound = candidateMap.get(matchedInboundKeys[0]) || null;
+        const status = toStringValue(item?.status).trim().toLowerCase();
+        const success = status !== 'failed' && status !== 'partial_failure';
+        let msg = toStringValue(item?.error || item?.reason);
+
+        if (!msg) {
+            if (status === 'synced' || status === 'partial_failure') {
+                msg = `created=${Number(item?.created || 0)}, updated=${Number(item?.updated || 0)}, skipped=${Number(item?.skipped || 0)}, failed=${Number(item?.failed || 0)}`;
+            } else {
+                msg = toStringValue(item?.status || 'unknown');
+            }
+        }
+
+        return {
+            action,
+            success,
+            retriable: !success,
+            userId: toStringValue(item?.userId).trim(),
+            username: toStringValue(item?.username).trim(),
+            subscriptionEmail: toStringValue(item?.subscriptionEmail).trim(),
+            serverId: matchedInbound?.serverId || '',
+            serverName: matchedInbound?.serverName || '',
+            inboundId: matchedInbound?.inboundId ?? null,
+            inboundRemark: matchedInbound?.inboundRemark || '',
+            protocol: matchedInbound?.protocol || '',
+            msg,
+        };
+    });
+
+    if (results.length === 0 && syncResult?.error) {
+        results.push({
+            action,
+            success: false,
+            retriable: true,
+            userId: '',
+            username: '',
+            subscriptionEmail: '',
+            serverId: '',
+            serverName: '',
+            inboundId: null,
+            inboundRemark: '',
+            protocol: '',
+            msg: toStringValue(syncResult.error),
+        });
+    }
+
+    const failed = results.filter((item) => item.success === false).length;
+    const success = results.length - failed;
+
+    return {
+        action,
+        summary: {
+            total: results.length,
+            success,
+            failed,
+        },
+        results,
+        subscriptionSync: syncResult,
     };
 }
 
@@ -601,6 +691,61 @@ async function performInboundBatch({
             }
         }
         return { output };
+    }
+
+    if (action === 'syncExistingUsers') {
+        if (!Array.isArray(targets) || targets.length === 0) {
+            return {
+                error: {
+                    status: 400,
+                    msg: 'targets is required for syncExistingUsers action',
+                },
+            };
+        }
+
+        const syncTargets = targets
+            .map((item) => ({
+                serverId: toStringValue(item?.serverId).trim(),
+                serverName: toStringValue(item?.serverName).trim(),
+                inboundId: toStringValue(item?.inboundId ?? item?.id).trim(),
+                inboundRemark: toStringValue(item?.inboundRemark || item?.remark).trim(),
+                protocol: normalizeProtocol(item?.protocol),
+                port: toNumberValue(item?.port, 0),
+            }))
+            .filter((item) => item.serverId && item.inboundId && item.protocol);
+
+        if (syncTargets.length === 0) {
+            return {
+                error: {
+                    status: 400,
+                    msg: 'No valid inbound targets to sync',
+                },
+            };
+        }
+
+        try {
+            const subscriptionSync = await syncAddedInboundsToExistingUsers(syncTargets, actor);
+            return {
+                output: buildInboundSubscriptionSyncOutput(action, subscriptionSync, syncTargets),
+            };
+        } catch (error) {
+            return {
+                output: buildInboundSubscriptionSyncOutput(action, {
+                    requestedInboundCount: syncTargets.length,
+                    totalUsers: 0,
+                    eligibleUsers: 0,
+                    syncedUsers: 0,
+                    skippedUsers: 0,
+                    failedUsers: 1,
+                    created: 0,
+                    updated: 0,
+                    skipped: 0,
+                    failed: 1,
+                    details: [],
+                    error: error.message || 'subscription-sync-failed',
+                }, syncTargets),
+            };
+        }
     }
 
     if (!Array.isArray(targets) || targets.length === 0) {

@@ -256,9 +256,6 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
         const eligibleInbounds = candidates.filter((item) => {
             if (!isPolicyServerAllowed(policy, item.serverId)) return false;
             if (!isPolicyProtocolAllowed(policy, item.protocol)) return false;
-            if (explicitInboundKeys.size > 0 && !explicitInboundKeys.has(buildInboundScopeKey(item.serverId, item.inboundId))) {
-                return false;
-            }
             return true;
         });
 
@@ -269,7 +266,7 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
                 username: String(targetUser?.username || '').trim(),
                 subscriptionEmail,
                 status: 'skipped',
-                reason: explicitInboundKeys.size > 0 ? 'explicit-inbound-scope' : 'policy-scope',
+                reason: 'policy-scope',
                 actor,
                 matchedInboundKeys: [],
             });
@@ -298,7 +295,23 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
         }
 
         try {
-            const deployment = await deployClients(subscriptionEmail, policy, {
+            const mergedInboundKeys = explicitInboundKeys.size > 0
+                ? normalizeStringList([...explicitInboundKeys, ...allowedInboundKeys])
+                : [];
+            const policyNeedsInboundBackfill = explicitInboundKeys.size > 0
+                && mergedInboundKeys.length > explicitInboundKeys.size;
+            const effectivePolicy = policyNeedsInboundBackfill
+                ? policyRepo.upsert(
+                    subscriptionEmail,
+                    {
+                        ...policy,
+                        allowedInboundKeys: mergedInboundKeys,
+                    },
+                    actor
+                )
+                : policy;
+
+            const deployment = await deployClients(subscriptionEmail, effectivePolicy, {
                 allServers: targetServers,
                 allowedInboundKeys,
                 clientEnabled: targetUser?.enabled !== false,
@@ -321,6 +334,7 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
                 status: Number(deployment?.failed || 0) > 0 ? 'partial_failure' : 'synced',
                 actor,
                 matchedInboundKeys: allowedInboundKeys,
+                policyUpdated: policyNeedsInboundBackfill,
                 created: Number(deployment?.created || 0),
                 updated: Number(deployment?.updated || 0),
                 skipped: Number(deployment?.skipped || 0),

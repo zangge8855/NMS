@@ -64,8 +64,9 @@ test('bulkSetUsersEnabled aggregates per-user results and delegates sync behavio
     ]);
 });
 
-test('syncAddedInboundsToExistingUsers only deploys to policy-eligible users', async () => {
+test('syncAddedInboundsToExistingUsers backfills newly added inbounds into matched user policies', async () => {
     const deployments = [];
+    const policyWrites = [];
     const result = await syncAddedInboundsToExistingUsers(
         [
             {
@@ -122,6 +123,13 @@ test('syncAddedInboundsToExistingUsers only deploys to policy-eligible users', a
                         allowedInboundKeys: [],
                     };
                 },
+                upsert(email, payload, actor) {
+                    policyWrites.push({ email, payload, actor });
+                    return {
+                        email,
+                        ...payload,
+                    };
+                },
             },
             autoDeployClients: async (email, policy, options) => {
                 deployments.push({ email, policy, options });
@@ -132,11 +140,24 @@ test('syncAddedInboundsToExistingUsers only deploys to policy-eligible users', a
 
     assert.equal(result.requestedInboundCount, 1);
     assert.equal(result.totalUsers, 3);
-    assert.equal(result.eligibleUsers, 1);
-    assert.equal(result.syncedUsers, 1);
-    assert.equal(result.skippedUsers, 2);
+    assert.equal(result.eligibleUsers, 2);
+    assert.equal(result.syncedUsers, 2);
+    assert.equal(result.skippedUsers, 1);
     assert.equal(result.failedUsers, 0);
-    assert.equal(result.created, 1);
+    assert.equal(result.created, 2);
+    assert.deepEqual(policyWrites, [
+        {
+            email: 'bob@example.com',
+            payload: {
+                serverScopeMode: 'selected',
+                allowedServerIds: ['srv-1'],
+                protocolScopeMode: 'selected',
+                allowedProtocols: ['vless'],
+                allowedInboundKeys: ['srv-1:old', 'srv-1:101'],
+            },
+            actor: 'ops',
+        },
+    ]);
     assert.deepEqual(deployments, [
         {
             email: 'alice@example.com',
@@ -146,6 +167,22 @@ test('syncAddedInboundsToExistingUsers only deploys to policy-eligible users', a
                 protocolScopeMode: 'selected',
                 allowedProtocols: ['vless'],
                 allowedInboundKeys: [],
+            },
+            options: {
+                allServers: [{ id: 'srv-1', name: 'Node A' }],
+                allowedInboundKeys: ['srv-1:101'],
+                clientEnabled: true,
+            },
+        },
+        {
+            email: 'bob@example.com',
+            policy: {
+                email: 'bob@example.com',
+                serverScopeMode: 'selected',
+                allowedServerIds: ['srv-1'],
+                protocolScopeMode: 'selected',
+                allowedProtocols: ['vless'],
+                allowedInboundKeys: ['srv-1:old', 'srv-1:101'],
             },
             options: {
                 allServers: [{ id: 'srv-1', name: 'Node A' }],

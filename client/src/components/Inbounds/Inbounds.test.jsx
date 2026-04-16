@@ -423,6 +423,76 @@ describe('Inbounds', () => {
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
     });
 
+    it('backfills selected existing inbounds to current users without changing subscription URLs', async () => {
+        const user = userEvent.setup();
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-a/panel/api/inbounds/onlines') {
+                return Promise.resolve({
+                    data: {
+                        obj: ['alice@example.com'],
+                    },
+                });
+            }
+            if (url === '/system/batch-risk-token') {
+                return Promise.resolve({
+                    data: {
+                        obj: { required: false },
+                    },
+                });
+            }
+            if (url === '/batch/clients') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            summary: { success: 1, total: 1, failed: 0 },
+                            results: [],
+                        },
+                    },
+                });
+            }
+            if (url === '/batch/inbounds') {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            summary: { success: 2, total: 2, failed: 0 },
+                            results: [],
+                            subscriptionSync: {
+                                totalUsers: 2,
+                                syncedUsers: 1,
+                                skippedUsers: 1,
+                                failedUsers: 0,
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        renderWithRouter(<Inbounds />);
+
+        const mainInbound = await screen.findByText('Main Inbound');
+        const mainRow = mainInbound.closest('tr');
+        if (!mainRow) throw new Error('Missing inbound row');
+
+        await user.click(within(mainRow).getByRole('checkbox'));
+        await user.click(screen.getAllByRole('button', { name: '补齐用户' })[0]);
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/batch/inbounds', {
+                action: 'syncExistingUsers',
+                targets: [{
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    id: 1,
+                    remark: 'Main Inbound',
+                    protocol: 'vless',
+                    port: 443,
+                }],
+            });
+        });
+    });
+
     it('shows manual order controls for a selected node and persists numeric ordering changes', async () => {
         const user = userEvent.setup();
         renderWithRouter(<Inbounds />);
