@@ -16,6 +16,10 @@ FROM node:20-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=server-deps /app/server/node_modules ./server/node_modules
 COPY server/ ./server/
 COPY --from=client-build /app/client/dist ./client/dist

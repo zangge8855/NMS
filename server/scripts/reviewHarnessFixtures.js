@@ -897,59 +897,137 @@ function buildReviewJobs() {
 }
 
 function buildReviewTraffic() {
+    const mib = 1024 * 1024;
+    const collectedAt = new Date();
+    const isoMinutesAgo = (minutes) => new Date(collectedAt.getTime() - (minutes * 60 * 1000)).toISOString();
+    const collectedAtIso = collectedAt.toISOString();
+
     return {
         samples: [
             {
-                ts: '2026-03-09T06:00:00.000Z',
+                ts: isoMinutesAgo(6),
                 serverId: REVIEW_SERVER_IDS.healthy,
+                serverName: 'Review Healthy Node',
                 inboundId: '101',
+                inboundRemark: 'review-vless-main',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
-                upBytes: 33554432,
-                downBytes: 67108864,
-                totalBytes: 100663296,
+                upBytes: 32 * mib,
+                downBytes: 64 * mib,
+                totalBytes: 96 * mib,
             },
             {
-                ts: '2026-03-09T12:00:00.000Z',
+                ts: isoMinutesAgo(4),
                 serverId: REVIEW_SERVER_IDS.healthy,
+                serverName: 'Review Healthy Node',
                 inboundId: '101',
+                inboundRemark: 'review-vless-main',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
-                upBytes: 67108864,
-                downBytes: 100663296,
-                totalBytes: 167772160,
+                upBytes: 64 * mib,
+                downBytes: 96 * mib,
+                totalBytes: 160 * mib,
             },
             {
-                ts: '2026-03-10T06:00:00.000Z',
+                ts: isoMinutesAgo(2),
                 serverId: REVIEW_SERVER_IDS.healthy,
+                serverName: 'Review Healthy Node',
                 inboundId: '102',
+                inboundRemark: 'review-trojan-edge',
                 email: REVIEW_CREDENTIALS.operator.subscriptionEmail,
-                upBytes: 16777216,
-                downBytes: 33554432,
-                totalBytes: 50331648,
+                upBytes: 16 * mib,
+                downBytes: 32 * mib,
+                totalBytes: 48 * mib,
             },
             {
-                ts: '2026-03-10T06:30:00.000Z',
+                ts: isoMinutesAgo(1),
                 serverId: REVIEW_SERVER_IDS.legacy,
+                serverName: 'Review Legacy Node',
                 inboundId: '201',
+                inboundRemark: 'legacy-vmess',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
-                upBytes: 8388608,
-                downBytes: 12582912,
-                totalBytes: 20971520,
+                upBytes: 8 * mib,
+                downBytes: 12 * mib,
+                totalBytes: 20 * mib,
+            },
+            {
+                kind: 'server_snapshot',
+                ts: isoMinutesAgo(10),
+                serverId: REVIEW_SERVER_IDS.healthy,
+                serverName: 'Review Healthy Node',
+                upBytes: 128 * mib,
+                downBytes: 192 * mib,
+                totalBytes: 320 * mib,
+            },
+            {
+                kind: 'server_snapshot',
+                ts: isoMinutesAgo(1),
+                serverId: REVIEW_SERVER_IDS.healthy,
+                serverName: 'Review Healthy Node',
+                upBytes: 320 * mib,
+                downBytes: 512 * mib,
+                totalBytes: 832 * mib,
+            },
+            {
+                kind: 'server_snapshot',
+                ts: isoMinutesAgo(10),
+                serverId: REVIEW_SERVER_IDS.legacy,
+                serverName: 'Review Legacy Node',
+                upBytes: 24 * mib,
+                downBytes: 24 * mib,
+                totalBytes: 48 * mib,
+            },
+            {
+                kind: 'server_snapshot',
+                ts: isoMinutesAgo(1),
+                serverId: REVIEW_SERVER_IDS.legacy,
+                serverName: 'Review Legacy Node',
+                upBytes: 64 * mib,
+                downBytes: 96 * mib,
+                totalBytes: 160 * mib,
             },
         ],
         counters: {
-            [`${REVIEW_SERVER_IDS.healthy}|101|email:${REVIEW_CREDENTIALS.user.subscriptionEmail}`]: {
-                up: 100663296,
-                down: 167772160,
-                lastSeenAt: '2026-03-10T06:30:00.000Z',
+            [`${REVIEW_SERVER_IDS.healthy}|101|${REVIEW_CREDENTIALS.user.subscriptionEmail}`]: {
+                up: 96 * mib,
+                down: 160 * mib,
+                lastSeenAt: collectedAtIso,
             },
-            [`${REVIEW_SERVER_IDS.healthy}|102|email:${REVIEW_CREDENTIALS.operator.subscriptionEmail}`]: {
-                up: 16777216,
-                down: 33554432,
-                lastSeenAt: '2026-03-10T06:30:00.000Z',
+            [`${REVIEW_SERVER_IDS.healthy}|102|${REVIEW_CREDENTIALS.operator.subscriptionEmail}`]: {
+                up: 16 * mib,
+                down: 32 * mib,
+                lastSeenAt: collectedAtIso,
+            },
+            [`${REVIEW_SERVER_IDS.legacy}|201|${REVIEW_CREDENTIALS.user.subscriptionEmail}`]: {
+                up: 8 * mib,
+                down: 12 * mib,
+                lastSeenAt: collectedAtIso,
             },
         },
         meta: {
-            lastCollectionAt: '2026-03-10T06:30:00.000Z',
+            lastCollectionAt: collectedAtIso,
+            currentTotalsAt: collectedAtIso,
+            registeredTotals: {
+                totalUsers: 3,
+                activeUsers: 2,
+                upBytes: 120 * mib,
+                downBytes: 204 * mib,
+                totalBytes: 324 * mib,
+            },
+            serverTotals: [
+                {
+                    serverId: REVIEW_SERVER_IDS.healthy,
+                    serverName: 'Review Healthy Node',
+                    upBytes: 320 * mib,
+                    downBytes: 512 * mib,
+                    totalBytes: 832 * mib,
+                },
+                {
+                    serverId: REVIEW_SERVER_IDS.legacy,
+                    serverName: 'Review Legacy Node',
+                    upBytes: 64 * mib,
+                    downBytes: 96 * mib,
+                    totalBytes: 160 * mib,
+                },
+            ],
         },
     };
 }

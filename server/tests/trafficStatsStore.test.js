@@ -25,6 +25,8 @@ function maskEmail(value) {
     return `${hash}@masked.local`;
 }
 
+const FIXED_TRAFFIC_WINDOW_TO = '2026-03-14T00:00:00.000Z';
+
 describe('traffic stats inbound fallback', () => {
     it('builds calendar ranges for today, this week, and this month in local time', () => {
         const reference = new Date('2026-03-25T15:30:00.000Z');
@@ -114,7 +116,7 @@ describe('traffic stats inbound fallback', () => {
                 meta: { lastCollectionAt: '2026-03-13T01:00:00.000Z' },
             });
 
-            const overview = store.getOverview({ days: 30, top: 10 });
+            const overview = store.getOverview({ days: 30, top: 10, to: FIXED_TRAFFIC_WINDOW_TO });
             assert.equal(overview.activeUsers, 1);
             assert.deepEqual(overview.managedTotals, {
                 upBytes: 100,
@@ -132,7 +134,11 @@ describe('traffic stats inbound fallback', () => {
             assert.equal(overview.topUsers[0].displayLabel, 'alice · alice@example.com');
             assert.equal(overview.topUsers[0].totalBytes, 300);
 
-            const trend = store.getUserTrend('alice@example.com', { days: 30, granularity: 'hour' });
+            const trend = store.getUserTrend('alice@example.com', {
+                days: 30,
+                granularity: 'hour',
+                to: FIXED_TRAFFIC_WINDOW_TO,
+            });
             assert.equal(trend.email, 'alice@example.com');
             assert.equal(trend.username, 'alice');
             assert.equal(trend.displayLabel, 'alice · alice@example.com');
@@ -250,7 +256,7 @@ describe('traffic stats inbound fallback', () => {
                 },
             });
 
-            const overview = store.getOverview({ days: 30, top: 10 });
+            const overview = store.getOverview({ days: 30, top: 10, to: FIXED_TRAFFIC_WINDOW_TO });
             assert.equal(overview.totals.totalBytes, 30);
             assert.equal(overview.managedTotals.totalBytes, 30);
             assert.deepEqual(overview.registeredTotals, totals);
@@ -325,7 +331,7 @@ describe('traffic stats inbound fallback', () => {
             },
         });
 
-        const overview = store.getOverview({ days: 30, top: 10 });
+        const overview = store.getOverview({ days: 30, top: 10, to: FIXED_TRAFFIC_WINDOW_TO });
         assert.equal(overview.topServers.length, 0);
         assert.equal(overview.topServersReady, false);
         assert.equal(overview.serverTotals.length, 2);
@@ -528,7 +534,7 @@ describe('traffic stats inbound fallback', () => {
 
         try {
             const result = await store.collectIfStale(true);
-            const overview = store.getOverview({ days: 30, top: 10 });
+            const overview = store.getOverview({ days: 30, top: 10, to: FIXED_TRAFFIC_WINDOW_TO });
             const status = store.getCollectionStatus();
 
             assert.equal(result.collected, true);
@@ -684,7 +690,7 @@ describe('traffic stats inbound fallback', () => {
                 },
             });
 
-            const overview = store.getOverview({ days: 30, top: 10 });
+            const overview = store.getOverview({ days: 30, top: 10, to: FIXED_TRAFFIC_WINDOW_TO });
             assert.equal(overview.userLevelSupported, false);
             assert.deepEqual(overview.managedTotals, {
                 upBytes: 100,
