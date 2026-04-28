@@ -953,6 +953,42 @@ export default function SystemSettings() {
     }, [activeWorkspaceSectionId, isAdmin]);
 
     useEffect(() => {
+        if (!isAdmin) return undefined;
+        const handlePageRefresh = (event) => {
+            event.preventDefault();
+            fetchSettings({ preserveCurrent: true });
+
+            if (activeWorkspaceSectionId === 'status') {
+                fetchRegistrationRuntime();
+                fetchDbStatus();
+                fetchEmailStatus();
+                fetchBackupStatus();
+                fetchMonitorStatus();
+                return;
+            }
+
+            if (activeWorkspaceSectionId === 'access') {
+                fetchRegistrationRuntime();
+                fetchInviteCodes();
+                return;
+            }
+
+            if (activeWorkspaceSectionId === 'backup') {
+                fetchDbStatus();
+                fetchBackupStatus();
+                return;
+            }
+
+            if (activeWorkspaceSectionId === 'operations') {
+                fetchEmailStatus();
+                fetchMonitorStatus();
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [activeWorkspaceSectionId, isAdmin, settings]);
+
+    useEffect(() => {
         if (searchParams.get('tab') !== 'console') return;
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('tab', 'monitor');

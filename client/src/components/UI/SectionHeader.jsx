@@ -7,11 +7,15 @@ export default function SectionHeader({
     actions,
     align = 'between',
     compact = false,
+    density = '',
+    titleSize = '',
     className = '',
 }) {
     const classes = [
         'section-header',
         compact ? 'section-header--compact' : '',
+        density ? `section-header--${density}` : '',
+        titleSize ? `section-header--title-${titleSize}` : '',
         align === 'start' ? 'section-header--align-start' : 'section-header--align-between',
         className,
     ].filter(Boolean).join(' ');

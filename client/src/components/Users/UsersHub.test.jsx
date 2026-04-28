@@ -443,6 +443,21 @@ describe('UsersHub ordering', () => {
         expect(screen.queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
     });
 
+    it('opens the create dialog from the route action with compact password controls', async () => {
+        renderWithRouter(<UsersHub />, { route: '/clients?action=create' });
+
+        expect(await screen.findByText('初始密码')).toBeInTheDocument();
+
+        const showButton = screen.getByRole('button', { name: '隐藏密码' });
+        const copyButton = screen.getByRole('button', { name: '复制密码' });
+        const generateButton = screen.getByRole('button', { name: '生成强密码' });
+
+        expect(showButton).toHaveClass('btn-icon');
+        expect(copyButton).toHaveClass('btn-icon');
+        expect(generateButton).toHaveClass('btn-icon');
+        expect(generateButton).toHaveTextContent('');
+    });
+
     it('shows a primary load error when the user list request fails', async () => {
         api.get.mockImplementation((url) => {
             if (url === '/auth/users') {

@@ -313,8 +313,10 @@ function buildDashboardSnapshot(telemetryOverview = {}) {
     };
 }
 
-export async function buildAppBootstrapPayload(user = null) {
+export async function buildAppBootstrapPayload(user = null, options = {}) {
     const role = String(user?.role || '').trim().toLowerCase();
+    const profile = String(options?.profile || 'full').trim().toLowerCase();
+    const shellOnly = profile === 'shell';
     const payload = {
         issuedAt: new Date().toISOString(),
     };
@@ -346,6 +348,9 @@ export async function buildAppBootstrapPayload(user = null) {
     };
     await ensureTrafficBootstrapSamples();
     payload.dashboard = buildDashboardSnapshot(telemetryOverview);
+    if (shellOnly) {
+        return payload;
+    }
     payload.audit = buildAuditBootstrap();
     payload.systemSettings = await buildSystemSettingsBootstrap();
     payload.tasks = buildTasksBootstrap();

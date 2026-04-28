@@ -657,6 +657,15 @@ export default function UsersHub() {
     }, [serverInventoryKey]);
 
     useEffect(() => {
+        const handlePageRefresh = (event) => {
+            event.preventDefault();
+            fetchData({ forceUsers: true, forceStats: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [serverInventoryKey]);
+
+    useEffect(() => {
         const hasStatsSnapshot = (
             statsReady
             || clientsMap.size > 0
@@ -1399,6 +1408,14 @@ export default function UsersHub() {
         setCreateSaving(false);
     };
 
+    useEffect(() => {
+        if (searchParams.get('action') !== 'create') return;
+        openCreateModal();
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('action');
+        setSearchParams(nextParams, { replace: true });
+    }, [searchParams, setSearchParams]);
+
     const submitCreate = async (event) => {
         event.preventDefault();
         const username = String(createUsername || '').trim();
@@ -1741,26 +1758,30 @@ export default function UsersHub() {
                                         />
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowCreatePassword((v) => !v)}
                                             title={showCreatePassword ? '隐藏密码' : '显示密码'}
+                                            aria-label={showCreatePassword ? '隐藏密码' : '显示密码'}
                                         >
                                             {showCreatePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => { copyToClipboard(createPassword); toast.success(copy.passwordCopied); }}
                                             title="复制密码"
+                                            aria-label="复制密码"
                                         >
                                             <HiOutlineClipboard />
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setCreatePassword(generateSecurePassword())}
+                                            title="生成强密码"
+                                            aria-label="生成强密码"
                                         >
-                                            <HiOutlineArrowPath /> 生成
+                                            <HiOutlineArrowPath />
                                         </button>
                                     </div>
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
@@ -1867,17 +1888,21 @@ export default function UsersHub() {
                                         />
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowEditPassword((v) => !v)}
+                                            title={showEditPassword ? '隐藏密码' : '显示密码'}
+                                            aria-label={showEditPassword ? '隐藏密码' : '显示密码'}
                                         >
                                             {showEditPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm"
+                                            className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => { const p = generateSecurePassword(); setEditPassword(p); setShowEditPassword(true); }}
+                                            title="生成强密码"
+                                            aria-label="生成强密码"
                                         >
-                                            <HiOutlineArrowPath /> 生成
+                                            <HiOutlineArrowPath />
                                         </button>
                                     </div>
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>

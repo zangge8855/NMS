@@ -129,7 +129,9 @@ function ProtectedLayout() {
         let cancelled = false;
         const timer = window.setTimeout(async () => {
             try {
-                const res = await api.get('/auth/bootstrap');
+                const res = await api.get('/auth/bootstrap', {
+                    params: { profile: 'shell' },
+                });
                 if (cancelled) return;
                 applyAppBootstrapSnapshots(res.data?.obj || {});
             } catch (error) {

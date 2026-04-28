@@ -9,18 +9,24 @@ describe('Layout primitives', () => {
             <PageToolbar
                 className="custom-toolbar"
                 compact
+                sticky
+                density="dense"
                 stackOnTablet
                 main={<div>Toolbar main</div>}
+                summary={<span>Synced</span>}
                 actions={<button type="button">Refresh</button>}
                 meta={<span>2 items</span>}
             />
         );
 
         expect(screen.getByText('Toolbar main')).toBeInTheDocument();
+        expect(screen.getByText('Synced')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
         expect(screen.getByText('2 items')).toBeInTheDocument();
         expect(container.firstChild).toHaveClass('page-toolbar');
         expect(container.firstChild).toHaveClass('page-toolbar--compact');
+        expect(container.firstChild).toHaveClass('page-toolbar--sticky');
+        expect(container.firstChild).toHaveClass('page-toolbar--dense');
         expect(container.firstChild).toHaveClass('page-toolbar--stack-tablet');
         expect(container.firstChild).toHaveClass('custom-toolbar');
     });
@@ -33,6 +39,8 @@ describe('Layout primitives', () => {
                 meta={<span>14 points</span>}
                 actions={<button type="button">Export</button>}
                 compact
+                density="dense"
+                titleSize="sm"
             />
         );
 
@@ -42,6 +50,8 @@ describe('Layout primitives', () => {
         expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
         expect(container.firstChild).toHaveClass('section-header');
         expect(container.firstChild).toHaveClass('section-header--compact');
+        expect(container.firstChild).toHaveClass('section-header--dense');
+        expect(container.firstChild).toHaveClass('section-header--title-sm');
         expect(container.firstChild).toHaveClass('section-header--align-between');
     });
 });

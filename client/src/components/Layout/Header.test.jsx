@@ -124,4 +124,19 @@ describe('Header', () => {
         expect(document.activeElement).toBe(externalInput);
         rafSpy.mockRestore();
     });
+
+    it('exposes global commands through the search surface', () => {
+        const refreshHandler = vi.fn((event) => event.preventDefault());
+        window.addEventListener('nms:page-refresh', refreshHandler);
+
+        renderWithRouter(<Header title="仪表盘" />);
+
+        const input = screen.getByLabelText('全局命令搜索');
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: '刷新' } });
+        fireEvent.click(screen.getByText('刷新当前页').closest('button'));
+
+        expect(refreshHandler).toHaveBeenCalledTimes(1);
+        window.removeEventListener('nms:page-refresh', refreshHandler);
+    });
 });

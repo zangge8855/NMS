@@ -11,6 +11,12 @@ NMS is designed so admins can operate multiple nodes from one control plane, whi
 
 ### Main Navigation
 
+#### Global command search
+
+- Use the header search field, or `Ctrl K` / `Cmd K`, to jump across pages, users, and nodes without opening the sidebar first
+- Admins can also run common actions from the same surface, including refreshing the current view, creating a user, and adding a server
+- Page refresh commands reuse each page's live-data loader, so they avoid a full browser reload when the current page supports it
+
 #### Dashboard
 
 - Review node health, headline metrics, alerts, quick actions, and operational summaries
@@ -168,6 +174,12 @@ NMS is designed so admins can operate multiple nodes from one control plane, whi
 NMS 的设计重点是让管理员在一个后台里管理多个节点，而普通用户只接触真正需要的订阅动作，不被后台运维细节打扰。
 
 ### 主要导航
+
+#### 全局命令搜索
+
+- 使用顶部搜索框，或按 `Ctrl K` / `Cmd K`，可以直接跳转页面、用户和节点，不必先展开侧边栏查找
+- 管理员还可以在同一个入口执行常用动作，包括刷新当前页、添加账号和添加服务器
+- 支持的页面会复用自己的实时数据加载逻辑刷新内容，避免不必要的整页重载
 
 #### Dashboard
 

@@ -59,6 +59,35 @@ describe('app bootstrap service', () => {
         assert.ok(Array.isArray(payload.tasks.tasks));
     });
 
+    it('returns only shell-critical admin bootstrap data when profile is shell', async () => {
+        const originalCollectIfStale = trafficStatsStore.collectIfStale;
+        trafficStatsStore.collectIfStale = async () => ({
+            collected: false,
+            lastCollectionAt: null,
+            samplesAdded: 0,
+            warnings: [],
+        });
+
+        let payload;
+        try {
+            payload = await buildAppBootstrapPayload({
+                role: 'admin',
+                userId: 'admin-1',
+            }, { profile: 'shell' });
+        } finally {
+            trafficStatsStore.collectIfStale = originalCollectIfStale;
+        }
+
+        assert.ok(payload.serverContext);
+        assert.ok(payload.notifications);
+        assert.ok(Array.isArray(payload.managedUsers));
+        assert.ok(payload.telemetryOverview);
+        assert.ok(payload.dashboard);
+        assert.equal(Object.prototype.hasOwnProperty.call(payload, 'audit'), false);
+        assert.equal(Object.prototype.hasOwnProperty.call(payload, 'systemSettings'), false);
+        assert.equal(Object.prototype.hasOwnProperty.call(payload, 'tasks'), false);
+    });
+
     it('builds audit traffic bootstrap with calendar week and month windows plus an explicit top-10 limit', async () => {
         const originalGetOverviewBatch = trafficStatsStore.getOverviewBatch.bind(trafficStatsStore);
         const originalCollectIfStale = trafficStatsStore.collectIfStale;

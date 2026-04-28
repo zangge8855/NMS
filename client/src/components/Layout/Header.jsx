@@ -10,10 +10,16 @@ import {
     HiOutlineMoon,
     HiOutlineComputerDesktop,
     HiOutlineMagnifyingGlass,
+    HiOutlineArrowPath,
+    HiOutlinePlusCircle,
+    HiOutlineServerStack,
+    HiOutlineUsers,
 } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell.jsx';
 import { getNavItemForPath, getSearchableNavItems } from './navConfig.js';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
+import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache.js';
+import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot.js';
 
 const themeIcons = {
     dark: HiOutlineMoon,
@@ -21,7 +27,8 @@ const themeIcons = {
     auto: HiOutlineComputerDesktop,
 };
 
-const MAX_SEARCH_RESULTS = 8;
+const MAX_SEARCH_RESULTS = 10;
+const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
 
 function normalizeKeyword(value) {
     return String(value || '').trim().toLowerCase();
@@ -44,6 +51,61 @@ function isEditableShortcutTarget(target) {
     return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable === true;
 }
 
+function buildCommandCopy(locale = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            actions: 'Actions',
+            pages: 'Pages',
+            users: 'Users',
+            servers: 'Servers',
+            refresh: 'Refresh current view',
+            refreshMeta: 'Reload live data for this page',
+            createUser: 'Create user',
+            createUserMeta: 'Open the user creation form',
+            createServer: 'Add server',
+            createServerMeta: 'Register a new node',
+            serverMeta: 'Node detail',
+            userMeta: 'User detail',
+        };
+    }
+    return {
+        actions: '快捷操作',
+        pages: '页面',
+        users: '用户',
+        servers: '服务器',
+        refresh: '刷新当前页',
+        refreshMeta: '重新拉取当前页面数据',
+        createUser: '添加账号',
+        createUserMeta: '打开用户创建表单',
+        createServer: '添加服务器',
+        createServerMeta: '接入新的 3x-ui 节点',
+        serverMeta: '节点详情',
+        userMeta: '用户详情',
+    };
+}
+
+function createRefreshCommand(copy, pathname) {
+    return {
+        kind: 'command',
+        id: 'refresh-current-view',
+        label: copy.refresh,
+        section: copy.actions,
+        description: copy.refreshMeta,
+        icon: HiOutlineArrowPath,
+        keywords: ['refresh', 'reload', 'sync', '刷新', '重载', '同步'],
+        action: () => {
+            const event = new CustomEvent('nms:page-refresh', {
+                cancelable: true,
+                detail: { path: pathname },
+            });
+            const shouldFallback = window.dispatchEvent(event);
+            if (shouldFallback) {
+                window.location.reload();
+            }
+        },
+    };
+}
+
 export default function Header({
     title,
     eyebrow: _eyebrow = '',
@@ -53,7 +115,7 @@ export default function Header({
     showSubtitle = false,
     allowTitleWrap = false,
 }) {
-    const { activeServerId } = useServer();
+    const { activeServerId, servers = [] } = useServer();
     const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
     const { locale, toggleLocale, t } = useI18n();
@@ -66,6 +128,7 @@ export default function Header({
     const inputRef = useRef(null);
     const searchResultsRef = useRef(null);
     const searchResultsId = useId();
+    const [managedUsers, setManagedUsers] = useState(() => getManagedUsersSnapshotMeta().users);
 
     const ThemeIcon = themeIcons[mode] || HiOutlineMoon;
     const isAdmin = user?.role === 'admin';
@@ -81,8 +144,105 @@ export default function Header({
     }), [t]);
 
     const searchableItems = useMemo(
-        () => getSearchableNavItems({ isAdmin, isGlobalView, locale }),
-        [isAdmin, isGlobalView, locale]
+        () => {
+            const copy = buildCommandCopy(locale);
+            const navItems = getSearchableNavItems({ isAdmin, isGlobalView, locale }).map((item) => ({
+                ...item,
+                kind: 'page',
+                id: item.path,
+                section: item.section || copy.pages,
+                description: item.section || copy.pages,
+            }));
+
+            if (!isAdmin) {
+                return navItems;
+            }
+
+            const commandItems = [
+                createRefreshCommand(copy, location.pathname),
+                {
+                    kind: 'command',
+                    id: 'create-user',
+                    label: copy.createUser,
+                    section: copy.actions,
+                    description: copy.createUserMeta,
+                    icon: HiOutlinePlusCircle,
+                    path: '/clients?action=create',
+                    keywords: ['create', 'add', 'user', 'client', '新增', '添加', '账号', '用户'],
+                },
+                {
+                    kind: 'command',
+                    id: 'create-server',
+                    label: copy.createServer,
+                    section: copy.actions,
+                    description: copy.createServerMeta,
+                    icon: HiOutlinePlusCircle,
+                    path: '/servers?action=create',
+                    keywords: ['create', 'add', 'server', 'node', '新增', '添加', '服务器', '节点'],
+                },
+            ];
+
+            const serverItems = (Array.isArray(servers) ? servers : [])
+                .map((server) => {
+                    const serverId = String(server?.id || '').trim();
+                    if (!serverId) return null;
+                    const label = String(server?.name || server?.url || serverId).trim();
+                    return {
+                        kind: 'server',
+                        id: serverId,
+                        label,
+                        section: copy.servers,
+                        description: String(server?.url || server?.group || copy.serverMeta).trim(),
+                        icon: HiOutlineServerStack,
+                        path: `/servers/${encodeURIComponent(serverId)}`,
+                        keywords: [
+                            serverId,
+                            server?.name,
+                            server?.url,
+                            server?.group,
+                            ...(Array.isArray(server?.tags) ? server.tags : []),
+                            'server',
+                            'node',
+                            '服务器',
+                            '节点',
+                        ],
+                    };
+                })
+                .filter(Boolean);
+
+            const userItems = (Array.isArray(managedUsers) ? managedUsers : [])
+                .map((managedUser) => {
+                    const userId = String(managedUser?.id || '').trim();
+                    if (!userId) return null;
+                    const label = String(managedUser?.username || managedUser?.email || managedUser?.subscriptionEmail || userId).trim();
+                    return {
+                        kind: 'user',
+                        id: userId,
+                        label,
+                        section: copy.users,
+                        description: String(managedUser?.email || managedUser?.subscriptionEmail || copy.userMeta).trim(),
+                        icon: HiOutlineUsers,
+                        path: `/clients/${encodeURIComponent(userId)}`,
+                        keywords: [
+                            userId,
+                            managedUser?.username,
+                            managedUser?.email,
+                            managedUser?.subscriptionEmail,
+                            managedUser?.enabled === false ? 'disabled 停用' : 'enabled 启用',
+                            'user',
+                            'client',
+                            'account',
+                            '用户',
+                            '账号',
+                            '客户端',
+                        ],
+                    };
+                })
+                .filter(Boolean);
+
+            return [...commandItems, ...navItems, ...serverItems, ...userItems];
+        },
+        [isAdmin, isGlobalView, locale, location.pathname, managedUsers, servers]
     );
 
     const filteredItems = useMemo(() => {
@@ -93,13 +253,15 @@ export default function Header({
             .map((item) => {
                 const label = normalizeKeyword(item.label);
                 const section = normalizeKeyword(item.section);
+                const description = normalizeKeyword(item.description);
                 const keywords = Array.isArray(item.keywords) ? item.keywords.map(normalizeKeyword) : [];
-                const haystack = [label, section, item.path, ...keywords].join(' ');
+                const haystack = [label, section, description, item.path, ...keywords].join(' ');
                 if (!haystack.includes(query)) return null;
 
                 let score = 0;
                 if (label.startsWith(query)) score += 5;
                 if (keywords.some((keyword) => keyword.startsWith(query))) score += 3;
+                if (description.includes(query)) score += 2;
                 if (section.includes(query)) score += 1;
                 return { ...item, score };
             })
@@ -113,6 +275,23 @@ export default function Header({
         setSearchTerm('');
         setHighlightedIndex(0);
     }, [location.pathname]);
+
+    useEffect(() => {
+        const syncManagedUsers = () => {
+            setManagedUsers(getManagedUsersSnapshotMeta().users);
+        };
+        const handleSnapshotUpdate = (event) => {
+            if (event?.detail?.key === MANAGED_USERS_SNAPSHOT_KEY) {
+                syncManagedUsers();
+            }
+        };
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        window.addEventListener('focus', syncManagedUsers);
+        return () => {
+            window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+            window.removeEventListener('focus', syncManagedUsers);
+        };
+    }, []);
 
     useEffect(() => {
         if (!searchOpen) return undefined;
@@ -153,7 +332,11 @@ export default function Header({
         setSearchOpen(false);
         setSearchTerm('');
         setHighlightedIndex(0);
-        if (location.pathname !== item.path) {
+        if (typeof item.action === 'function') {
+            item.action();
+            return;
+        }
+        if (item.path && `${location.pathname}${location.search}` !== item.path) {
             navigate(item.path);
         }
     };
@@ -240,7 +423,7 @@ export default function Header({
                         const isHighlighted = index === highlightedIndex;
                         return (
                             <button
-                                key={item.path}
+                                key={`${item.kind || 'item'}:${item.id || item.path || item.label}`}
                                 id={`${searchResultsId}-${index}`}
                                 type="button"
                                 className={`header-search-item${isHighlighted ? ' active' : ''}`}
@@ -254,8 +437,9 @@ export default function Header({
                                 </span>
                                 <span className="header-search-item-copy">
                                     <span className="header-search-item-label">{item.label}</span>
-                                    <span className="header-search-item-meta">{item.section}</span>
+                                    <span className="header-search-item-meta">{item.description || item.section}</span>
                                 </span>
+                                <span className="header-search-item-kind">{item.section}</span>
                             </button>
                         );
                     })

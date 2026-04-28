@@ -1039,6 +1039,16 @@ export default function Dashboard() {
         }
         return fetchGlobalData({ force: true });
     };
+
+    useEffect(() => {
+        const handlePageRefresh = (event) => {
+            event.preventDefault();
+            refresh();
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [activeServerId, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
+
     const toggleAutoRefresh = () => {
         setAutoRefresh((previous) => {
             const next = !previous;

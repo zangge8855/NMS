@@ -98,6 +98,8 @@ docker run -d \
 
 The root `Dockerfile` already builds the client, installs server production dependencies, and starts the runtime on port `3001`.
 
+Keep `/app/data` and `/app/logs` mounted to host volumes. Without those mounts, file-backed users, settings, telemetry, audits, backups, and runtime logs live only inside the container filesystem and can be lost when the container is recreated.
+
 ```bash
 docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .
 docker run -d \
@@ -275,6 +277,8 @@ npm test
 ### 方式二: Docker 部署
 
 仓库根目录的 `Dockerfile` 已经包含前端构建、后端生产依赖安装和运行镜像组装，默认监听 `3001` 端口。
+
+请始终把 `/app/data` 和 `/app/logs` 挂载到宿主机目录。否则文件模式下的用户、系统设置、遥测、审计、备份和运行日志只存在于容器文件系统中，容器重建后可能丢失。
 
 ```bash
 docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .

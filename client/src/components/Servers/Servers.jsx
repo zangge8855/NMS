@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
@@ -80,6 +80,7 @@ export default function Servers() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const {
         servers, activeServerId, selectServer,
         addServer, addServersBatch, updateServer, removeServer, testConnection, fetchServers,
@@ -166,6 +167,21 @@ export default function Servers() {
         setShowForm(false);
     };
 
+    const openCreateServerModal = () => {
+        setForm({
+            name: '',
+            url: '',
+            username: '',
+            password: '',
+            group: '',
+            tags: '',
+            environment: 'unknown',
+            health: 'unknown',
+        });
+        setEditingId(null);
+        setShowForm(true);
+    };
+
     const resetBatchForm = () => {
         setBatchForm({
             username: '',
@@ -221,6 +237,24 @@ export default function Servers() {
             return next.length === prev.length && next.every((id, index) => id === prev[index]) ? prev : next;
         });
     }, [servers]);
+
+    useEffect(() => {
+        if (searchParams.get('action') !== 'create') return;
+        openCreateServerModal();
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('action');
+        setSearchParams(nextParams, { replace: true });
+    }, [searchParams, setSearchParams]);
+
+    useEffect(() => {
+        const handlePageRefresh = (event) => {
+            event.preventDefault();
+            fetchServers({ force: true });
+            refreshTelemetry({ preserveCurrent: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [fetchServers, refreshTelemetry]);
 
     const openCredentialRepair = (serverId, reason = '') => {
         const target = servers.find((item) => item.id === serverId);
@@ -946,7 +980,7 @@ export default function Servers() {
                                 >
                                     <HiOutlinePlusCircle /> 批量添加
                                 </button>
-                                <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
+                                <button className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
                                     <HiOutlinePlusCircle /> 添加服务器
                                 </button>
                                 <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
@@ -998,7 +1032,7 @@ export default function Servers() {
                     <EmptyState
                         title="暂无服务器"
                         subtitle="点击下方按钮添加您的第一台 3x-ui 面板"
-                        action={<button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}><HiOutlinePlusCircle /> 新增服务器</button>}
+                        action={<button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> 新增服务器</button>}
                     />
                 ) : filteredServers.length === 0 ? (
                     <EmptyState

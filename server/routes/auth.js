@@ -369,7 +369,9 @@ router.get('/bootstrap', authMiddleware, anyRole, async (req, res) => {
     try {
         return res.json({
             success: true,
-            obj: await buildAppBootstrapPayload(req.user || null),
+            obj: await buildAppBootstrapPayload(req.user || null, {
+                profile: req.query?.profile,
+            }),
         });
     } catch (error) {
         const httpError = toHttpError(error, 500, '加载应用首包失败');

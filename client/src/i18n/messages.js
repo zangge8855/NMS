@@ -5,9 +5,9 @@ const messages = {
   'zh-CN': {
     shell: {
       brandSubtitle: '',
-      searchPlaceholder: '搜索页面...',
-      searchAriaLabel: '全局页面搜索',
-      searchEmpty: '没有匹配页面',
+      searchPlaceholder: '搜索页面、用户、节点...',
+      searchAriaLabel: '全局命令搜索',
+      searchEmpty: '没有匹配结果',
       scopeServerTitle: '单节点',
       scopeGlobalTitle: '控制域',
       scopeGlobalValue: '集群总览',
@@ -628,9 +628,9 @@ const messages = {
   'en-US': {
     shell: {
       brandSubtitle: '',
-      searchPlaceholder: 'Search pages...',
-      searchAriaLabel: 'Global page search',
-      searchEmpty: 'No matching page',
+      searchPlaceholder: 'Search pages, users, nodes...',
+      searchAriaLabel: 'Global command search',
+      searchEmpty: 'No matching result',
       scopeServerTitle: 'Node',
       scopeGlobalTitle: 'Scope',
       scopeGlobalValue: 'Cluster Overview',

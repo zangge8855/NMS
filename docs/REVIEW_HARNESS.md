@@ -45,6 +45,7 @@ npm run review:server
 
 - 不要把评审环境生成的数据当作正式数据
 - 不要把本地评审口令写回仓库
+- 使用 Playwright 或服务器侧浏览器截图时，宿主机需要安装中文字体（例如 `fonts-noto-cjk`），否则中文会渲染成方框；生产 Docker 镜像已包含该字体包
 - 评审结束后可直接删除对应的临时数据目录
 
 ## English
@@ -92,4 +93,5 @@ npm run review:server
 
 - Do not treat review data as production data
 - Do not commit local review passwords
+- Install a CJK font package such as `fonts-noto-cjk` on hosts that run Playwright or server-side browser screenshots; otherwise Chinese text can render as square glyphs. The production Docker image already includes that font package
 - When finished, remove the temporary review data directory
