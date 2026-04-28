@@ -79,6 +79,28 @@ describe('Login', () => {
         expect(screen.getByRole('button', { name: '发送验证码' })).toBeInTheDocument();
     });
 
+    it('marks decorative login glows as hidden from assistive tech', async () => {
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    enabled: true,
+                    inviteOnlyEnabled: false,
+                    passwordResetEnabled: true,
+                },
+            },
+        });
+
+        const { container } = renderWithRouter(<Login />);
+
+        await screen.findByRole('button', { name: '忘记密码' });
+        const glows = container.querySelectorAll('.login-bg-glow');
+
+        expect(glows).toHaveLength(3);
+        glows.forEach((glow) => {
+            expect(glow).toHaveAttribute('aria-hidden', 'true');
+        });
+    });
+
     it('submits the login form with an email identifier', async () => {
         const user = userEvent.setup();
         const loginMock = vi.fn().mockResolvedValue({ success: false, msg: '用户名、邮箱或密码错误' });

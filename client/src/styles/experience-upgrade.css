@@ -672,10 +672,15 @@
 
   .security-bootstrap-overlay {
     padding: 14px;
+    align-items: flex-start;
+    overflow-y: auto;
   }
 
   .security-bootstrap-shell {
+    max-height: calc(100dvh - 28px);
+    margin: 0 auto;
     padding: 18px;
+    overflow-y: auto;
   }
 
   .security-bootstrap-form {
@@ -687,8 +692,17 @@
   }
 
   .security-bootstrap-actions {
+    position: sticky;
+    bottom: -18px;
     flex-direction: column-reverse;
     align-items: stretch;
+    padding-top: 12px;
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.92) 22%);
+  }
+
+  [data-theme="light"] .security-bootstrap-actions {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96) 22%);
   }
 
   .circular-meter {

@@ -3780,6 +3780,7 @@ input[type="radio"]:focus-visible {
   opacity: 0.12;
   filter: blur(80px);
   z-index: 0;
+  pointer-events: none;
   animation: float 12s ease-in-out infinite;
 }
 
@@ -10232,9 +10233,50 @@ body::before {
     padding-bottom: 2px;
   }
 
+  .settings-nav-list--workspace {
+    display: flex;
+    grid-template-columns: none;
+    gap: 8px;
+    margin: 0 -4px;
+    padding: 2px 4px 4px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .settings-nav-list--workspace::-webkit-scrollbar {
+    display: none;
+  }
+
   .settings-nav-item {
     flex: 0 0 auto;
-    min-width: 0;
+    min-width: max-content;
+  }
+
+  .settings-nav-list--workspace .settings-nav-item {
+    min-height: 42px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    gap: 8px;
+    scroll-snap-align: start;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .settings-nav-list--workspace .settings-nav-item-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+
+  .settings-nav-list--workspace .settings-nav-item-copy {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .settings-nav-list--workspace .settings-nav-item-summary,
+  .settings-nav-list--workspace .settings-nav-item-flags {
+    display: none;
   }
 
   .settings-save-dock-actions,

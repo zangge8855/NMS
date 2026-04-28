@@ -34,6 +34,9 @@
 - 顶部搜索已升级为全局命令入口，支持页面、用户、节点跳转，以及刷新当前页、添加账号、添加服务器等常用动作
 - 登录后的后台外壳改为轻量 bootstrap，审计、设置、任务和遥测等重数据由页面按需加载，减少首屏阻塞
 - 用户创建/编辑弹窗里的密码操作收敛成可访问的图标按钮，窄屏下不再因为“生成”等文字挤压布局
+- 登录页背景光效改为纯装饰层，移动端不会再拦截“忘记密码”等表单按钮点击
+- 系统设置工作区导航在移动端改为横向胶囊分段，`入口与订阅`、`策略与审计` 等长标签不再被压成竖排文字
+- 首次部署安全向导在小屏下改为弹窗内滚动，并让底部操作区保持可触达，避免首次部署时无法点击解锁按钮
 
 ### 当前状态良好区域
 
@@ -102,6 +105,9 @@ Audit date: 2026-04-28
 - Header search has been upgraded into a global command surface for page, user, and node jumps, plus common actions such as refresh current view, create user, and add server
 - The admin shell now uses a lightweight bootstrap payload first, with heavier audit, settings, task, and telemetry data loaded by the pages that need them
 - Password controls in the user create/edit dialogs now use accessible icon buttons, so narrow layouts no longer squeeze labels such as “generate”
+- Login-page glow layers are now decorative only, so mobile taps on form actions such as “Forgot password” are no longer intercepted
+- The System Settings workspace switcher now becomes a horizontal pill rail on mobile, preventing long labels such as “Access & Subscription” and “Policy & Audit” from collapsing into vertical text
+- The first-run security wizard now scrolls inside the modal on small screens and keeps its action area reachable, so the unlock button remains usable during mobile setup
 
 ### Areas in good shape
 

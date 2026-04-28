@@ -370,9 +370,9 @@ export default function Login() {
     // ── Render ───────────────────────────────────────────────
     return (
         <div className="login-page">
-            <div className="login-bg-glow one" />
-            <div className="login-bg-glow two" />
-            <div className="login-bg-glow three" />
+            <div className="login-bg-glow one" aria-hidden="true" />
+            <div className="login-bg-glow two" aria-hidden="true" />
+            <div className="login-bg-glow three" aria-hidden="true" />
 
             <div className="login-top-actions">
                 <button
