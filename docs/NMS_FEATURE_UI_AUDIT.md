@@ -3,6 +3,7 @@
 ## 中文
 
 审计日期：2026-04-28
+最近复核：2026-05-04，系统设置页面专项排版复核
 
 ### 已完成项
 
@@ -37,6 +38,8 @@
 - 登录页背景光效改为纯装饰层，移动端不会再拦截“忘记密码”等表单按钮点击
 - 系统设置工作区导航在移动端改为横向胶囊分段，`入口与订阅`、`策略与审计` 等长标签不再被压成竖排文字
 - 首次部署安全向导在小屏下改为弹窗内滚动，并让底部操作区保持可触达，避免首次部署时无法点击解锁按钮
+- 系统设置桌面端已完成专项排版收敛：移除工作区内第二侧栏，改为顶部横向导航；隐藏重复说明区；访问控制、运行维护、备份等面板按内容自然高度排列，减少左右空白和卡片错位
+- 系统设置移动端已复核为横向标签导航 + 单列内容流，避免窄屏下标题、开关卡片和保存区互相挤压
 
 ### 当前状态良好区域
 
@@ -47,6 +50,7 @@
 - Logs、Tasks、Tools 这类次级运维页面也开始跟随同一套卡片、表格和空状态规范
 - 审计、系统设置、用户详情和订阅中心的页面长度已经明显缩短，信息密度更接近真正的运维工作台
 - Telegram 输出已经更接近正式值班摘要，而不是原始日志片段堆叠
+- 系统设置现在更接近单一工作台布局，桌面端横向导航、内容列宽和保存区域的视觉节奏更稳定
 
 ### 仍建议继续优化的区域
 
@@ -63,6 +67,10 @@
 - 如果新增第三方浮层组件，必须遵守现有的 portal、层级与过渡规则
 - 如果在低性能设备上重新启用重度模糊效果，闪烁问题可能复发
 
+### 2026-05-04 系统设置专项结论
+
+本次复核覆盖系统设置的状态、入口与订阅、策略与审计、运行维护、备份五个工作区，并分别检查桌面亮色、桌面暗色和移动端布局。主要问题集中在工作区内二级侧栏占宽、说明区重复、面板被强制等高导致留白过多、运行维护开关卡片文字换行不稳定。当前样式已调整为单工作台结构，导航横置，卡片按内容自然高度排列，桌面和移动端均已通过生产构建与 Playwright 截图复核。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -70,6 +78,7 @@
 ## English
 
 Audit date: 2026-04-28
+Latest review: 2026-05-04, focused System Settings layout pass
 
 ### Completed
 
@@ -108,6 +117,8 @@ Audit date: 2026-04-28
 - Login-page glow layers are now decorative only, so mobile taps on form actions such as “Forgot password” are no longer intercepted
 - The System Settings workspace switcher now becomes a horizontal pill rail on mobile, preventing long labels such as “Access & Subscription” and “Policy & Audit” from collapsing into vertical text
 - The first-run security wizard now scrolls inside the modal on small screens and keeps its action area reachable, so the unlock button remains usable during mobile setup
+- The desktop System Settings layout has been tightened: the inner secondary sidebar was replaced with a top workspace rail, repeated explanatory hero copy was removed, and the access, operations, and backup panels now size to content instead of creating large blank columns
+- The mobile System Settings flow was rechecked as a horizontal workspace rail plus single-column content, avoiding cramped labels, toggle cards, and save actions on narrow screens
 
 ### Areas in good shape
 
@@ -117,6 +128,7 @@ Audit date: 2026-04-28
 - Hover, active, and focus feedback is now acceptable for core actions
 - Secondary operator pages such as Logs, Tasks, and Tools are now aligning with the same card, table, and empty-state system
 - The user-facing subscription page is now more focused and easier to explain to non-technical users
+- System Settings now reads as one operational workbench, with steadier desktop rhythm across navigation, content columns, and the save area
 
 ### Recommended follow-up areas
 
@@ -133,6 +145,10 @@ Audit date: 2026-04-28
 - If future pages add ad hoc overrides, style drift can return
 - Any newly introduced overlay library must follow the existing portal, z-index, and transition rules
 - Reintroducing heavy blur on low-performance devices can bring flicker back
+
+### 2026-05-04 System Settings Conclusion
+
+The focused pass covered all five System Settings workspaces: Status, Access & Subscription, Policy & Audit, Operations, and Backup. Desktop light, desktop dark, and mobile layouts were checked with Playwright screenshots. The main layout defects were the inner secondary sidebar consuming width, repeated summary copy, forced equal-height panels creating excess whitespace, and unstable wrapping in operations toggle cards. The current CSS now uses a single workbench structure with a horizontal rail, content-sized panels, and tighter desktop/mobile spacing.
 
 ### Conclusion
 

@@ -10756,8 +10756,8 @@ p, .empty-state-body, td {
 
 @media (min-width: 1400px) {
   .settings-page .settings-shell {
-    grid-template-columns: minmax(260px, 296px) minmax(0, 1fr);
-    gap: 22px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
 
   .settings-page .settings-nav {
@@ -10767,12 +10767,177 @@ p, .empty-state-body, td {
   }
 
   .settings-page .settings-nav-list--workspace {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .settings-page .settings-save-dock {
     position: sticky;
     bottom: 14px;
+  }
+}
+
+/* Settings visual pass: keep the page as one workspace instead of a second sidebar. */
+.settings-page {
+  --settings-frame-gap: clamp(12px, 1.2vw, 18px);
+  --settings-card-radius: 14px;
+  --settings-card-pad: clamp(14px, 1.15vw, 18px);
+}
+
+.settings-page .settings-shell {
+  align-items: start;
+  gap: var(--settings-frame-gap);
+}
+
+.settings-page .settings-nav {
+  border-radius: var(--settings-card-radius);
+  padding: 10px;
+}
+
+.settings-page .settings-nav-list--workspace {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-page .settings-nav-item {
+  min-height: 54px;
+  padding: 10px 12px;
+  align-items: center;
+  border-radius: 12px;
+}
+
+.settings-page .settings-nav-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+
+.settings-page .settings-nav-item-copy {
+  gap: 4px;
+}
+
+.settings-page .settings-nav-item-summary {
+  display: none;
+}
+
+.settings-page .settings-main,
+.settings-page .settings-workspace-section,
+.settings-page .settings-section-stack {
+  gap: var(--settings-frame-gap);
+}
+
+.settings-page .settings-workspace-section > .settings-workspace-hero {
+  display: none;
+}
+
+.settings-page .settings-grid,
+.settings-page .settings-access-grid,
+.settings-page .settings-ops-grid,
+.settings-page .settings-db-grid,
+.settings-page .settings-backup-actions,
+.settings-page .settings-invite-layout {
+  align-items: start;
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-form-cluster,
+.settings-page .settings-mini-card,
+.settings-page .settings-detail-card,
+.settings-page .settings-backup-action-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-ops-card,
+.settings-page .settings-save-dock {
+  border-radius: var(--settings-card-radius);
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-form-cluster,
+.settings-page .settings-backup-action-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-ops-card {
+  padding: var(--settings-card-pad);
+}
+
+.settings-page .settings-access-panel,
+.settings-page .settings-registration-panel,
+.settings-page .settings-ops-panel,
+.settings-page .settings-telegram-panel {
+  height: auto;
+}
+
+.settings-page .settings-access-panel .settings-access-grid {
+  grid-template-columns: minmax(300px, 0.92fr) minmax(340px, 1.08fr);
+}
+
+.settings-page .settings-grid--access-workspace,
+.settings-page .settings-grid--operations-workspace {
+  grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.82fr) !important;
+}
+
+.settings-page .settings-grid--backup-workspace {
+  grid-template-columns: minmax(360px, 0.85fr) minmax(0, 1.15fr) !important;
+}
+
+.settings-page .settings-ops-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.settings-page .settings-toggle-collection--telegram {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.settings-page .settings-toggle-collection--telegram .settings-toggle-card--compact {
+  min-height: 82px;
+}
+
+.settings-page .settings-save-dock {
+  padding: 10px 14px;
+}
+
+.settings-page .settings-save-dock-inner {
+  align-items: center;
+}
+
+@media (min-width: 769px) {
+  .settings-page .settings-nav {
+    position: sticky;
+    top: calc(76px + env(safe-area-inset-top, 0px));
+    z-index: 8;
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .settings-page .settings-nav-item-flags {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1279px) {
+  .settings-page .settings-grid--access-workspace,
+  .settings-page .settings-grid--operations-workspace,
+  .settings-page .settings-grid--backup-workspace,
+  .settings-page .settings-access-panel .settings-access-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-page .settings-workspace-section > .settings-workspace-hero {
+    display: none;
+  }
+
+  .settings-page .settings-nav {
+    padding: 6px;
+  }
+
+  .settings-page .settings-nav-item {
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
+  .settings-page .settings-toggle-collection--telegram {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

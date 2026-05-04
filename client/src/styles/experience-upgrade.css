@@ -1526,7 +1526,7 @@
 }
 
 .settings-page .settings-shell {
-  grid-template-columns: minmax(248px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -1535,6 +1535,8 @@
 }
 
 .settings-page .settings-nav-list--workspace {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1544,7 +1546,24 @@
 }
 
 .settings-page .settings-nav-item-summary {
+  display: none;
   line-height: 1.45;
+}
+
+.settings-page .settings-ops-card {
+  grid-template-rows: auto auto;
+  align-items: start;
+}
+
+.settings-page .settings-ops-card-main,
+.settings-page .settings-ops-card-head {
+  display: flex;
+  grid-template-rows: none;
+}
+
+.settings-page .settings-ops-card .settings-form-cluster-title,
+.settings-page .settings-ops-card .settings-form-cluster-note {
+  min-height: 0;
 }
 
 .mobile-bottom-nav {
