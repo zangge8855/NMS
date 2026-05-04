@@ -2137,3 +2137,382 @@
     padding: 0;
   }
 }
+
+/* Audit center workbench pass: dense controls, stable columns, minimal chrome. */
+.audit-page {
+  --audit-workspace-gap: clamp(10px, 1vw, 14px);
+  --audit-card-radius: 14px;
+  --audit-control-pad: clamp(12px, 1vw, 15px);
+}
+
+.audit-page .audit-shell,
+.audit-page .audit-main,
+.audit-page .audit-tab-panel {
+  gap: var(--audit-workspace-gap);
+}
+
+.audit-page .audit-nav,
+.audit-page .audit-control-card,
+.audit-page .audit-traffic-overview,
+.audit-page .audit-chart-card,
+.audit-page .audit-leaderboard-card,
+.audit-page .audit-stat-card,
+.audit-page .audit-table-shell {
+  border-radius: var(--audit-card-radius);
+}
+
+.audit-page .audit-nav,
+.audit-page .audit-control-card,
+.audit-page .audit-traffic-overview,
+.audit-page .audit-chart-card,
+.audit-page .audit-leaderboard-card,
+.audit-page .audit-stat-card {
+  padding: var(--audit-control-pad);
+}
+
+.audit-page .audit-nav {
+  gap: 8px;
+}
+
+.audit-page .audit-nav-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.audit-page .audit-nav-summary {
+  max-width: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.audit-page .audit-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  overflow: visible;
+}
+
+.audit-page .audit-tabs .tab {
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.audit-page .audit-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-page .audit-control-card {
+  gap: 10px;
+}
+
+.audit-page .audit-control-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 14px;
+}
+
+.audit-page .audit-control-copy {
+  flex: initial;
+}
+
+.audit-page .audit-control-title {
+  line-height: 1.3;
+}
+
+.audit-page .audit-control-text {
+  max-width: 72ch;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.audit-page .audit-control-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.audit-page .audit-control-action-group {
+  gap: 8px;
+}
+
+.audit-page .audit-control-meta {
+  gap: 6px;
+}
+
+.audit-page .audit-filter-grid {
+  gap: 8px;
+  align-items: end;
+}
+
+.audit-page .audit-filter-grid--events-primary {
+  grid-template-columns: minmax(210px, 1.25fr) minmax(150px, 0.72fr) repeat(2, minmax(150px, 0.72fr));
+}
+
+.audit-page .audit-filter-grid--events-secondary {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.audit-page .audit-filter-grid--subscriptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.audit-page .audit-filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.audit-page .audit-filter-field-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.audit-page .audit-filter-grid :is(.form-input, .form-select) {
+  width: 100%;
+  min-width: 0;
+}
+
+.audit-page .audit-events-table th.audit-event-time-column,
+.audit-page .audit-subscriptions-table th.audit-access-time-column {
+  width: 176px;
+}
+
+.audit-page .audit-events-table th.audit-event-result-column,
+.audit-page .audit-subscriptions-table th.audit-access-result-column {
+  width: 96px;
+}
+
+.audit-page .audit-events-table th.audit-event-node-column {
+  width: 104px;
+}
+
+.audit-page .audit-events-table th.audit-event-action-column {
+  width: 112px;
+}
+
+.audit-page .audit-access-location-cell,
+.audit-page .audit-access-ua-cell,
+.audit-page .audit-event-target-meta {
+  line-height: 1.45;
+}
+
+.audit-page .audit-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.audit-page .audit-stat-card {
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 116px;
+  gap: 8px;
+  text-align: left;
+}
+
+.audit-page .audit-stat-card .card-header {
+  justify-content: flex-start;
+  min-height: 0;
+  text-align: left;
+}
+
+.audit-page .audit-stat-card .card-title,
+.audit-page .audit-stat-card .card-value {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.audit-page .audit-stat-card .card-value {
+  min-height: 0;
+}
+
+.audit-page .audit-traffic-overview {
+  gap: 12px;
+  box-shadow: none;
+}
+
+.audit-page .audit-traffic-overview-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: start;
+  padding-bottom: 10px;
+}
+
+.audit-page .audit-traffic-overview-actions {
+  gap: 8px;
+}
+
+.audit-page .audit-traffic-overview-body {
+  grid-template-columns: minmax(300px, 1fr) minmax(360px, 0.92fr);
+  gap: 10px;
+}
+
+.audit-page .audit-traffic-total-card,
+.audit-page .audit-traffic-mini-card,
+.audit-page .audit-traffic-split-card {
+  border-radius: 12px;
+}
+
+.audit-page .audit-traffic-total-card {
+  padding: 14px;
+}
+
+.audit-page .audit-traffic-mini-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.audit-page .audit-traffic-mini-card {
+  min-height: 116px;
+  padding: 12px;
+}
+
+.audit-page .audit-traffic-mini-value {
+  justify-content: flex-start;
+  min-height: 2.2rem;
+  text-align: left;
+}
+
+.audit-page .audit-chart-grid,
+.audit-page .audit-leaderboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.audit-page .audit-chart-card,
+.audit-page .audit-leaderboard-card {
+  gap: 10px;
+}
+
+.audit-page .audit-chart-card .dashboard-chart {
+  min-height: 240px;
+}
+
+.audit-page .audit-chart-selection {
+  padding: 0 14px;
+}
+
+.audit-page .audit-nested-table-shell {
+  border-radius: 12px;
+}
+
+.audit-page .audit-pagination {
+  margin-top: 0;
+}
+
+.audit-page .audit-event-modal .modal-body > .grid.grid-cols-2 {
+  align-items: start;
+  gap: 10px;
+}
+
+@media (max-width: 1180px) {
+  .audit-page .audit-control-head,
+  .audit-page .audit-traffic-overview-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audit-page .audit-control-actions,
+  .audit-page .audit-traffic-overview-actions {
+    justify-content: flex-start;
+  }
+
+  .audit-page .audit-traffic-overview-body,
+  .audit-page .audit-chart-grid,
+  .audit-page .audit-leaderboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .audit-page .audit-filter-grid--events-primary,
+  .audit-page .audit-filter-grid--events-secondary,
+  .audit-page .audit-filter-grid--subscriptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .audit-page .audit-nav,
+  .audit-page .audit-control-card,
+  .audit-page .audit-traffic-overview,
+  .audit-page .audit-chart-card,
+  .audit-page .audit-leaderboard-card,
+  .audit-page .audit-stat-card {
+    padding: 10px;
+  }
+
+  .audit-page .audit-nav-summary {
+    font-size: 11px;
+  }
+
+  .audit-page .audit-tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .audit-page .audit-tabs .tab {
+    min-height: 36px;
+    padding: 7px 10px;
+  }
+
+  .audit-page .audit-control-actions,
+  .audit-page .audit-control-action-group,
+  .audit-page .audit-control-action-group--secondary {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .audit-page .audit-control-action-group .btn {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .audit-page .audit-filter-grid--events-primary,
+  .audit-page .audit-filter-grid--events-secondary,
+  .audit-page .audit-filter-grid--subscriptions,
+  .audit-page .audit-traffic-mini-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audit-page .audit-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-page .audit-traffic-overview-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audit-page .audit-chart-selection {
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .audit-page .audit-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audit-page .audit-control-action-group .btn {
+    flex-basis: 100%;
+  }
+}

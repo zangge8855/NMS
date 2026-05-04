@@ -45,7 +45,10 @@ router.get('/events/export', (req, res) => {
         to: req.query.to,
         eventType: req.query.eventType,
         actor: req.query.actor,
+        serverId: req.query.serverId,
+        targetEmail: req.query.targetEmail,
         outcome: req.query.outcome,
+        q: req.query.q,
     });
     const header = '时间,事件类型,操作者,IP,方法,路径,结果,目标邮箱,服务器ID';
     const rows = result.items.map(e => [

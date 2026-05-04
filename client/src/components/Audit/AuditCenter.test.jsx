@@ -181,6 +181,75 @@ describe('AuditCenter localization', () => {
         expect(screen.getByPlaceholderText('节点 ID')).toBeInTheDocument();
     });
 
+    it('sends full audit event filters to query and export requests', async () => {
+        const user = userEvent.setup();
+        window.URL.createObjectURL = vi.fn(() => 'blob:mock-audit-export');
+        window.URL.revokeObjectURL = vi.fn();
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/audit/events?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [],
+                            total: 0,
+                            page: 1,
+                            totalPages: 1,
+                        },
+                    },
+                });
+            }
+            if (url === '/audit/events/export') {
+                return Promise.resolve({ data: new Blob(['csv']) });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit' });
+
+        expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
+        await user.type(screen.getByPlaceholderText('关键词'), 'login');
+        await user.selectOptions(screen.getByRole('combobox', { name: '' }), 'failed');
+        await user.type(screen.getByLabelText('开始日期'), '2026-03-01');
+        await user.type(screen.getByLabelText('结束日期'), '2026-03-31');
+        await user.click(screen.getByRole('button', { name: '更多筛选' }));
+        await user.type(screen.getByPlaceholderText('事件类型'), 'login');
+        await user.type(screen.getByPlaceholderText('操作者'), 'admin');
+        await user.type(screen.getByPlaceholderText('用户 / 邮箱'), 'alice@example.com');
+        await user.type(screen.getByPlaceholderText('节点 ID'), 'server-a');
+
+        await user.click(screen.getByRole('button', { name: '查询' }));
+
+        const eventQuery = api.get.mock.calls
+            .map(([url]) => String(url))
+            .filter((url) => url.startsWith('/audit/events?'))
+            .at(-1);
+        const eventParams = new URL(eventQuery, 'http://localhost').searchParams;
+        expect(eventParams.get('q')).toBe('login');
+        expect(eventParams.get('outcome')).toBe('failed');
+        expect(eventParams.get('eventType')).toBe('login');
+        expect(eventParams.get('actor')).toBe('admin');
+        expect(eventParams.get('targetEmail')).toBe('alice@example.com');
+        expect(eventParams.get('serverId')).toBe('server-a');
+        expect(eventParams.has('from')).toBe(true);
+        expect(eventParams.has('to')).toBe(true);
+
+        await user.click(screen.getByRole('button', { name: '导出' }));
+
+        const exportCall = api.get.mock.calls.find(([url]) => url === '/audit/events/export');
+        expect(exportCall).toBeTruthy();
+        expect(exportCall[1].params).toMatchObject({
+            q: 'login',
+            outcome: 'failed',
+            eventType: 'login',
+            actor: 'admin',
+            targetEmail: 'alice@example.com',
+            serverId: 'server-a',
+        });
+        expect(exportCall[1].params.from).toBeTruthy();
+        expect(exportCall[1].params.to).toBeTruthy();
+    });
+
     it('renders the cached events snapshot while the live query is still pending', async () => {
         const never = new Promise(() => {});
         window.sessionStorage.setItem('nms_session_snapshot:audit_events_v1', JSON.stringify({
@@ -307,6 +376,75 @@ describe('AuditCenter localization', () => {
             expect(screen.getAllByText('已撤销').length).toBeGreaterThan(0);
         });
         expect(screen.queryByText('revoked')).not.toBeInTheDocument();
+    });
+
+    it('sends full subscription access filters to list and summary requests', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/subscriptions/access?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [],
+                            total: 0,
+                            page: 1,
+                            totalPages: 1,
+                            statusBreakdown: {},
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/subscriptions/access/summary?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            total: 0,
+                            uniqueIpCount: 0,
+                            uniqueUsers: 0,
+                            statusBreakdown: {},
+                            topIps: [],
+                            windows: {},
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
+
+        expect(await screen.findByText('暂无访问记录')).toBeInTheDocument();
+        await user.type(screen.getByLabelText('开始日期'), '2026-04-01');
+        await user.type(screen.getByLabelText('结束日期'), '2026-04-30');
+        await user.type(screen.getByPlaceholderText('用户 / 邮箱过滤'), 'alice');
+        await user.selectOptions(screen.getByRole('combobox'), 'denied');
+        await user.type(screen.getByPlaceholderText('真实 IP'), '203.0.113.8');
+        await user.type(screen.getByPlaceholderText('Token ID'), 'token-a');
+        await user.type(screen.getByPlaceholderText('节点 ID'), 'server-a');
+        await user.click(screen.getByRole('button', { name: '查询' }));
+
+        const accessQuery = api.get.mock.calls
+            .map(([url]) => String(url))
+            .filter((url) => url.startsWith('/subscriptions/access?'))
+            .at(-1);
+        const summaryQuery = api.get.mock.calls
+            .map(([url]) => String(url))
+            .filter((url) => url.startsWith('/subscriptions/access/summary?'))
+            .at(-1);
+        const accessParams = new URL(accessQuery, 'http://localhost').searchParams;
+        const summaryParams = new URL(summaryQuery, 'http://localhost').searchParams;
+
+        for (const params of [accessParams, summaryParams]) {
+            expect(params.get('email')).toBe('alice');
+            expect(params.get('status')).toBe('denied');
+            expect(params.get('ip')).toBe('203.0.113.8');
+            expect(params.get('tokenId')).toBe('token-a');
+            expect(params.get('serverId')).toBe('server-a');
+            expect(params.has('from')).toBe(true);
+            expect(params.has('to')).toBe(true);
+        }
+        expect(summaryParams.get('windows')).toBe('7,30');
     });
 
     it('hides masked subscription identifiers behind a localized user label', async () => {

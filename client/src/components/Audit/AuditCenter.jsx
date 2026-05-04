@@ -97,6 +97,11 @@ const AUDIT_COPY = {
         filters: {
             keyword: '关键词',
             eventType: '事件类型',
+            actor: '操作者',
+            fromDate: '开始日期',
+            toDate: '结束日期',
+            tokenId: 'Token ID',
+            realIp: '真实 IP',
             allResults: '全部结果',
             allStatus: '全部状态',
             success: '成功',
@@ -289,6 +294,11 @@ const AUDIT_COPY = {
         filters: {
             keyword: 'Keyword',
             eventType: 'Event Type',
+            actor: 'Actor',
+            fromDate: 'From Date',
+            toDate: 'To Date',
+            tokenId: 'Token ID',
+            realIp: 'Real IP',
             allResults: 'All Outcomes',
             allStatus: 'All Statuses',
             success: 'Success',
@@ -461,15 +471,23 @@ const AUDIT_COPY = {
 
 const EMPTY_EVENT_FILTERS = Object.freeze({
     q: '',
+    from: '',
+    to: '',
     eventType: '',
+    actor: '',
     outcome: '',
     targetEmail: '',
     serverId: '',
 });
 
 const EMPTY_ACCESS_FILTERS = Object.freeze({
+    from: '',
+    to: '',
     email: '',
     status: '',
+    tokenId: '',
+    ip: '',
+    serverId: '',
 });
 const EMPTY_ACCESS_SUMMARY = Object.freeze({
     total: 0,
@@ -500,6 +518,66 @@ function buildRollingWindowRange(days) {
         from: from.toISOString(),
         to: to.toISOString(),
     };
+}
+
+function dateInputToIso(value, boundary = 'start') {
+    const text = String(value || '').trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    if (!match) return '';
+    const [, year, month, day] = match;
+    const isEnd = boundary === 'end';
+    const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        isEnd ? 23 : 0,
+        isEnd ? 59 : 0,
+        isEnd ? 59 : 0,
+        isEnd ? 999 : 0
+    );
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString();
+}
+
+function appendDateFilterParams(params, filters = {}) {
+    const from = dateInputToIso(filters.from, 'start');
+    const to = dateInputToIso(filters.to, 'end');
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+}
+
+function appendAuditEventFilterParams(params, filters = {}) {
+    appendDateFilterParams(params, filters);
+    if (filters.q) params.append('q', filters.q);
+    if (filters.eventType) params.append('eventType', filters.eventType);
+    if (filters.actor) params.append('actor', filters.actor);
+    if (filters.outcome) params.append('outcome', filters.outcome);
+    if (filters.targetEmail) params.append('targetEmail', filters.targetEmail);
+    if (filters.serverId) params.append('serverId', filters.serverId);
+}
+
+function appendAccessFilterParams(params, filters = {}) {
+    appendDateFilterParams(params, filters);
+    if (filters.email) params.append('email', filters.email);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.tokenId) params.append('tokenId', filters.tokenId);
+    if (filters.ip) params.append('ip', filters.ip);
+    if (filters.serverId) params.append('serverId', filters.serverId);
+}
+
+function buildAuditEventExportParams(filters = {}) {
+    const params = {};
+    const from = dateInputToIso(filters.from, 'start');
+    const to = dateInputToIso(filters.to, 'end');
+    if (from) params.from = from;
+    if (to) params.to = to;
+    if (filters.q) params.q = filters.q;
+    if (filters.eventType) params.eventType = filters.eventType;
+    if (filters.actor) params.actor = filters.actor;
+    if (filters.outcome) params.outcome = filters.outcome;
+    if (filters.targetEmail) params.targetEmail = filters.targetEmail;
+    if (filters.serverId) params.serverId = filters.serverId;
+    return params;
 }
 
 function formatCopyTemplate(template, replacements = {}) {
@@ -673,7 +751,10 @@ function toSnapshotIssuedAtMs(value) {
 
 function hasDefaultEventFilters(filters = {}, page = 1) {
     return !filters.q
+        && !filters.from
+        && !filters.to
         && !filters.eventType
+        && !filters.actor
         && !filters.outcome
         && !filters.targetEmail
         && !filters.serverId
@@ -703,13 +784,18 @@ function hasVisibleAccessSnapshot(snapshot = {}) {
 
 function buildAccessSummaryParams(filters = {}, { days = null } = {}) {
     const params = new URLSearchParams();
-    if (filters.email) params.append('email', filters.email);
-    if (filters.status) params.append('status', filters.status);
     if (Number(days || 0) > 0) {
         const range = buildRollingWindowRange(days);
         params.append('from', range.from);
         params.append('to', range.to);
+    } else {
+        appendDateFilterParams(params, filters);
     }
+    if (filters.email) params.append('email', filters.email);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.tokenId) params.append('tokenId', filters.tokenId);
+    if (filters.ip) params.append('ip', filters.ip);
+    if (filters.serverId) params.append('serverId', filters.serverId);
     return params;
 }
 
@@ -1248,10 +1334,7 @@ export default function AuditCenter() {
         }
     ));
     const [accessPage, setAccessPage] = useState(1);
-    const [accessFilters, setAccessFilters] = useState({
-        email: '',
-        status: '',
-    });
+    const [accessFilters, setAccessFilters] = useState(() => ({ ...EMPTY_ACCESS_FILTERS }));
 
     useEffect(() => {
         selectedTrafficWindowRef.current = selectedTrafficWindow;
@@ -1332,7 +1415,7 @@ export default function AuditCenter() {
             }
 
             if (event.detail.key === AUDIT_ACCESS_SNAPSHOT_KEY) {
-                if (accessFilters.email || accessFilters.status || Number(accessPage || 1) !== 1) return;
+                if (countActiveFilters(accessFilters) > 0 || Number(accessPage || 1) !== 1) return;
                 const snapshot = readAuditAccessSnapshot();
                 if (!snapshot) return;
                 const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
@@ -1360,7 +1443,12 @@ export default function AuditCenter() {
         return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
     }, [
         accessFilters.email,
+        accessFilters.from,
+        accessFilters.ip,
+        accessFilters.serverId,
         accessFilters.status,
+        accessFilters.to,
+        accessFilters.tokenId,
         accessPage,
         eventFilters,
         eventsPage,
@@ -1374,11 +1462,7 @@ export default function AuditCenter() {
             const params = new URLSearchParams();
             params.append('page', String(targetPage));
             params.append('pageSize', '20');
-            if (filters.q) params.append('q', filters.q);
-            if (filters.eventType) params.append('eventType', filters.eventType);
-            if (filters.outcome) params.append('outcome', filters.outcome);
-            if (filters.targetEmail) params.append('targetEmail', filters.targetEmail);
-            if (filters.serverId) params.append('serverId', filters.serverId);
+            appendAuditEventFilterParams(params, filters);
             const res = await api.get(`/audit/events?${params.toString()}`);
             setEventsData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1 });
             setEventsPage(targetPage);
@@ -1490,8 +1574,7 @@ export default function AuditCenter() {
             const params = new URLSearchParams();
             params.append('page', String(targetPage));
             params.append('pageSize', '30');
-            if (sourceFilters.email) params.append('email', sourceFilters.email);
-            if (sourceFilters.status) params.append('status', sourceFilters.status);
+            appendAccessFilterParams(params, sourceFilters);
             const summaryParams = buildAccessSummaryParams(sourceFilters);
             summaryParams.append('windows', `${AUDIT_ACCESS_WEEK_DAYS},${AUDIT_ACCESS_MONTH_DAYS}`);
             const [res, summaryRes] = await Promise.all([
@@ -1529,7 +1612,19 @@ export default function AuditCenter() {
         writeSessionSnapshot(AUDIT_EVENTS_SNAPSHOT_KEY, {
             eventsData,
         });
-    }, [eventFilters.eventType, eventFilters.outcome, eventFilters.q, eventFilters.serverId, eventFilters.targetEmail, eventsData, eventsLoading, eventsPage]);
+    }, [
+        eventFilters.actor,
+        eventFilters.eventType,
+        eventFilters.from,
+        eventFilters.outcome,
+        eventFilters.q,
+        eventFilters.serverId,
+        eventFilters.targetEmail,
+        eventFilters.to,
+        eventsData,
+        eventsLoading,
+        eventsPage,
+    ]);
 
     useEffect(() => {
         if (!trafficOverview && !Object.values(trafficWindows || {}).some(Boolean)) return;
@@ -1541,7 +1636,7 @@ export default function AuditCenter() {
     }, [trafficOverview, trafficStatus, trafficWindows]);
 
     useEffect(() => {
-        const hasDefaultFilters = !accessFilters.email && !accessFilters.status;
+        const hasDefaultFilters = countActiveFilters(accessFilters) === 0;
         const hasAccessSnapshot = (
             (Array.isArray(accessData.items) && accessData.items.length > 0)
             || Number(accessSummary.total || 0) > 0
@@ -1553,16 +1648,22 @@ export default function AuditCenter() {
             accessSummary,
             accessUserWindows,
         });
-    }, [accessData, accessFilters.email, accessFilters.status, accessSummary, accessUserWindows]);
+    }, [
+        accessData,
+        accessFilters.email,
+        accessFilters.from,
+        accessFilters.ip,
+        accessFilters.serverId,
+        accessFilters.status,
+        accessFilters.to,
+        accessFilters.tokenId,
+        accessSummary,
+        accessUserWindows,
+    ]);
 
     const handleExportAuditCSV = async () => {
         try {
-            const params = {};
-            if (eventFilters.q) params.q = eventFilters.q;
-            if (eventFilters.eventType) params.eventType = eventFilters.eventType;
-            if (eventFilters.outcome) params.outcome = eventFilters.outcome;
-            if (eventFilters.targetEmail) params.targetEmail = eventFilters.targetEmail;
-            if (eventFilters.serverId) params.serverId = eventFilters.serverId;
+            const params = buildAuditEventExportParams(eventFilters);
             const res = await api.get('/audit/events/export', { params, responseType: 'blob' });
             const url = URL.createObjectURL(res.data);
             const a = document.createElement('a');
@@ -1634,10 +1735,10 @@ export default function AuditCenter() {
     }, [selectedTrafficWindow, tab]);
 
     useEffect(() => {
-        if (eventFilters.eventType || eventFilters.serverId) {
+        if (eventFilters.actor || eventFilters.eventType || eventFilters.serverId || eventFilters.targetEmail) {
             setShowAdvancedEventFilters(true);
         }
-    }, [eventFilters.eventType, eventFilters.serverId]);
+    }, [eventFilters.actor, eventFilters.eventType, eventFilters.serverId, eventFilters.targetEmail]);
 
     useEffect(() => {
         if (tab !== 'traffic') return;
@@ -1851,13 +1952,13 @@ export default function AuditCenter() {
                                 <div className="audit-filter-stack">
                                     <div className="audit-filter-grid audit-filter-grid--events-primary">
                                         <input
-                                            className="form-input w-180"
+                                            className="form-input"
                                             placeholder={copy.filters.keyword}
                                             value={eventFilters.q}
                                             onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
                                         />
                                         <select
-                                            className="form-select w-140"
+                                            className="form-select"
                                             value={eventFilters.outcome}
                                             onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
                                         >
@@ -1866,23 +1967,47 @@ export default function AuditCenter() {
                                             <option value="failed">{copy.filters.failed}</option>
                                             <option value="info">{copy.filters.info}</option>
                                         </select>
-                                        <input
-                                            className="form-input w-180"
-                                            placeholder={copy.filters.userOrEmail}
-                                            value={eventFilters.targetEmail}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
-                                        />
+                                        <label className="audit-filter-field">
+                                            <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
+                                            <input
+                                                className="form-input"
+                                                type="date"
+                                                value={eventFilters.from}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, from: e.target.value }))}
+                                            />
+                                        </label>
+                                        <label className="audit-filter-field">
+                                            <span className="audit-filter-field-label">{copy.filters.toDate}</span>
+                                            <input
+                                                className="form-input"
+                                                type="date"
+                                                value={eventFilters.to}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, to: e.target.value }))}
+                                            />
+                                        </label>
                                     </div>
                                     {showAdvancedEventFilters && (
                                         <div className="audit-filter-grid audit-filter-grid--events-secondary">
                                             <input
-                                                className="form-input w-180"
+                                                className="form-input"
                                                 placeholder={copy.filters.eventType}
                                                 value={eventFilters.eventType}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
                                             />
                                             <input
-                                                className="form-input w-180"
+                                                className="form-input"
+                                                placeholder={copy.filters.actor}
+                                                value={eventFilters.actor}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, actor: e.target.value }))}
+                                            />
+                                            <input
+                                                className="form-input"
+                                                placeholder={copy.filters.userOrEmail}
+                                                value={eventFilters.targetEmail}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                                            />
+                                            <input
+                                                className="form-input"
                                                 placeholder={copy.filters.serverId}
                                                 value={eventFilters.serverId}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
@@ -2292,23 +2417,59 @@ export default function AuditCenter() {
                                 </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
+                                <label className="audit-filter-field">
+                                    <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
+                                    <input
+                                        className="form-input"
+                                        type="date"
+                                        value={accessFilters.from}
+                                        onChange={(e) => setAccessFilters((prev) => ({ ...prev, from: e.target.value }))}
+                                    />
+                                </label>
+                                <label className="audit-filter-field">
+                                    <span className="audit-filter-field-label">{copy.filters.toDate}</span>
+                                    <input
+                                        className="form-input"
+                                        type="date"
+                                        value={accessFilters.to}
+                                        onChange={(e) => setAccessFilters((prev) => ({ ...prev, to: e.target.value }))}
+                                    />
+                                </label>
                                 <input
-                                    className="form-input w-220"
+                                    className="form-input"
                                     placeholder={copy.filters.userEmailFilter}
                                     value={accessFilters.email}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
                                 />
                                 <select
-                                    className="form-select w-160"
-                                        value={accessFilters.status}
-                                        onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
-                                    >
-                                        <option value="">{copy.filters.allStatus}</option>
-                                        <option value="success">{copy.filters.success}</option>
-                                        <option value="denied">{copy.filters.denied}</option>
-                                        <option value="expired">{copy.filters.expired}</option>
-                                        <option value="revoked">{copy.filters.revoked}</option>
-                                    </select>
+                                    className="form-select"
+                                    value={accessFilters.status}
+                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
+                                >
+                                    <option value="">{copy.filters.allStatus}</option>
+                                    <option value="success">{copy.filters.success}</option>
+                                    <option value="denied">{copy.filters.denied}</option>
+                                    <option value="expired">{copy.filters.expired}</option>
+                                    <option value="revoked">{copy.filters.revoked}</option>
+                                </select>
+                                <input
+                                    className="form-input"
+                                    placeholder={copy.filters.realIp}
+                                    value={accessFilters.ip}
+                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, ip: e.target.value }))}
+                                />
+                                <input
+                                    className="form-input"
+                                    placeholder={copy.filters.tokenId}
+                                    value={accessFilters.tokenId}
+                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, tokenId: e.target.value }))}
+                                />
+                                <input
+                                    className="form-input"
+                                    placeholder={copy.filters.serverId}
+                                    value={accessFilters.serverId}
+                                    onChange={(e) => setAccessFilters((prev) => ({ ...prev, serverId: e.target.value }))}
+                                />
                             </div>
                         </div>
 
