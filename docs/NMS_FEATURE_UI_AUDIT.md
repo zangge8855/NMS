@@ -27,7 +27,7 @@
 - 用户管理、用户详情、通知中心和仪表盘都补上了分阶段加载或共享缓存，后台首屏等待感明显下降
 - 伪装首页三套模板已重装为城市生活杂志方向：`corporate` 为城市周刊，`blog` 为影像笔记，`nginx` 为周末指南；公开文案、标题、资源路径和 404 内容均与站内运维、订阅、节点、审计等业务语义脱钩
 - 站内页面新增一层全局排版兜底：统一页面最大宽度、工具栏换行、表格首尾留白、设置页入口区栅格和移动端底部导航避让
-- 普通用户新增自助账户中心（Account），用户侧导航收敛为订阅中心与账户，订阅页不再混入软件下载 / 客户端下载入口
+- 普通用户保留独立软件下载中心（Downloads）和自助账户中心（Account），订阅页不再混入软件下载 / 客户端下载入口
 - 普通用户订阅页已重新收敛为单列导入工作台：状态摘要、配置文件切换、地址复制、一键导入、二维码和重置风险提示集中在首屏，避免右侧空概览列、大面积空白和无关下载内容
 - 伪装站旧技术品牌名（例如 `Edge Precision Systems`）已加入服务端渲染与系统设置归一化迁移，公开页会回落到城市杂志默认标题，避免残留系统/技术语义
 - 审计日志写入改为持久化流（替代 `appendFileSync`），模式匹配改用内存环形缓冲，减少事件循环阻塞
@@ -112,6 +112,8 @@
 
 2026-05-05 最终补充复核：系统设置 `入口与订阅` 工作区修复 1280px + 展开侧边栏下注册面板被压成窄列的问题，访问、伪装、订阅外链、注册邀请码区按内容宽度重新栅格化，并隐藏重复眉标与冗余说明。仪表盘今日 / 本周 / 本月用户流量卡片现在分别跳转到审计中心对应时间窗口。注册、登录、忘记密码页在 1280x720、768x1024、390x844 下重新验证按钮可达；后台头部搜索、语言、通知在桌面同排对齐，移动端无横向溢出。
 
+2026-05-05 设计精修复核：根据复核反馈恢复普通用户导航栏“软件下载”，但继续保持订阅中心内无客户端下载嵌入面板。账户页资料与密码卡片改为桌面等宽、字段等高的表单节奏，短状态字段也按输入控件高度对齐；系统设置访问区和邀请码工作台改为更稳定的等宽栅格；服务器管理桌面卡片压缩为更紧凑的工作台列表；仪表盘全局状态卡在桌面形成 3x2 均衡排列，快捷操作和节点健康区域间距进一步统一。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -147,7 +149,7 @@ Latest review: 2026-05-05, full-page layout review, public camouflage redesign, 
 - Dashboard, Users, User Detail, and Notification Center now use staged loading and shared cache paths to reduce first-open waiting time
 - All three camouflage templates have been redesigned as unrelated city-magazine pages: `corporate` is a city weekly, `blog` is photo notes, and `nginx` is a weekend guide. Public copy, titles, asset paths, and 404 content are detached from internal operations, subscriptions, nodes, audit, and related product language
 - Internal pages now have an extra global layout guardrail layer for page width, toolbar wrapping, table edge padding, the Settings access grid, and mobile bottom-navigation spacing
-- End users now have a self-service Account center, while user navigation has been reduced to Subscriptions and Account so software-download entry points no longer appear in the subscription flow
+- End users keep a dedicated Downloads center and self-service Account center, while the Subscriptions page itself no longer embeds software-download or client-download panels
 - The end-user Subscriptions page now uses a single-column import workbench: status summary, profile switching, copy, quick import, QR, and reset-risk controls stay in the first viewport without a sparse side column or unrelated download panel
 - Legacy technical camouflage titles such as `Edge Precision Systems` are now migrated by both the public renderer and system settings normalization, so the public page falls back to the city-magazine default title
 - Audit log writing switched to a persistent write stream (replacing `appendFileSync`) with an in-memory ring buffer for pattern matching, reducing event-loop blocking
@@ -211,6 +213,8 @@ The review covered 22 admin routes across desktop light, desktop dark, expanded 
 ### 2026-05-05 Final Supplement
 
 The final pass fixed the Settings `Access & Subscription` workspace at 1280px with the sidebar expanded, where the registration panel could collapse into a narrow column. The access, camouflage, public subscription URL, and invite-code sections now use content-aware grids, repeated kicker text is hidden, and duplicate labels were renamed or removed. Dashboard traffic cards now route Today, Week, and Month user traffic to matching Audit Center windows. Login, registration, and forgot-password views were rechecked at 1280x720, 768x1024, and 390x844; header search, language, and notification controls stay aligned on desktop, and the checked mobile pages show no horizontal overflow.
+
+Follow-up design refinement restored the user navigation Downloads entry while keeping Downloads out of the Subscriptions workbench. The Account page now uses equal-width desktop cards and equal-height field rhythm, Settings access/invite sections use steadier grids, Server Management cards are more compact on desktop, and Dashboard global status cards settle into a balanced 3x2 arrangement.
 
 ### Conclusion
 

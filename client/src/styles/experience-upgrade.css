@@ -4710,3 +4710,406 @@
     width: 100%;
   }
 }
+
+/* Page refinement pass: tighter operational rhythm across account, settings, servers, and dashboard. */
+.account-page {
+  --account-gap: 12px;
+}
+
+.account-page .account-shell {
+  display: grid;
+  gap: var(--account-gap);
+}
+
+.account-page .account-identity-card,
+.account-page .account-profile-card,
+.account-page .account-password-card {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.account-page .account-identity-hero {
+  padding: 14px 16px;
+}
+
+.account-page .account-identity-name {
+  font-size: clamp(19px, 1.5vw, 24px);
+  letter-spacing: 0;
+}
+
+.account-page .account-identity-email {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-page .account-profile-card,
+.account-page .account-password-card {
+  padding: 14px;
+}
+
+.account-page .card-header.section-header {
+  padding-bottom: 6px;
+}
+
+.account-page .account-profile-grid,
+.account-page .account-password-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.account-page .account-profile-verify,
+.account-page .account-password-grid .form-group:first-child,
+.account-page .account-password-submit {
+  grid-column: 1 / -1;
+}
+
+.account-page .account-role-row {
+  min-height: 42px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-panel-soft);
+}
+
+.account-page .account-identity-card .account-role-row {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.account-page .account-profile-verify-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
+  gap: 8px;
+}
+
+.account-page .account-actions,
+.account-page .account-password-submit {
+  justify-content: flex-end;
+}
+
+.account-page .account-actions .btn,
+.account-page .account-password-submit .btn,
+.account-page .account-profile-verify-row .btn {
+  min-height: 38px;
+  min-width: 112px;
+}
+
+.account-page .account-card-note,
+.account-page .account-profile-verify-note {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (min-width: 1180px) {
+  .account-page .account-shell {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .account-page .account-identity-card {
+    grid-column: 1 / -1;
+  }
+
+  .account-page .account-profile-card,
+  .account-page .account-password-card {
+    grid-column: auto;
+    min-height: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .account-page .account-profile-verify-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-page .account-actions .btn,
+  .account-page .account-password-submit .btn,
+  .account-page .account-profile-verify-row .btn {
+    width: 100%;
+  }
+}
+
+.settings-page .settings-nav {
+  border-radius: 14px;
+}
+
+.settings-page .settings-nav-item {
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.settings-page .settings-nav-item-label {
+  line-height: 1.2;
+}
+
+.settings-page .settings-panel {
+  border-radius: 14px;
+}
+
+.settings-page .settings-access-panel .settings-access-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start;
+}
+
+.settings-page .settings-registration-panel .settings-invite-layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.settings-page .settings-registration-panel .settings-invite-workbench-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.settings-page .settings-invite-workbench-latest {
+  grid-column: 1 / -1;
+}
+
+.settings-page .settings-field-grid,
+.settings-page .settings-inline-grid,
+.settings-page .settings-access-grid,
+.settings-page .settings-invite-layout,
+.settings-page .settings-invite-workbench-grid {
+  gap: 10px;
+}
+
+.settings-page .settings-form-cluster {
+  padding: 11px;
+}
+
+.settings-page .settings-form-cluster-title {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.settings-page .settings-toggle-card--compact {
+  min-height: 58px;
+}
+
+@media (max-width: 900px) {
+  .settings-page .settings-access-panel .settings-access-grid,
+  .settings-page .settings-registration-panel .settings-invite-workbench-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.servers-page .servers-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.servers-page .servers-toolbar-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.servers-page .servers-summary-pill,
+.servers-page .servers-summary-pill--wide {
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.servers-page .servers-summary-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.servers-page .servers-summary-value {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.servers-page .servers-toolbar-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, auto));
+  gap: 8px;
+}
+
+.servers-page .servers-toolbar-actions .btn {
+  min-height: 36px;
+  min-width: 0;
+  justify-content: center;
+}
+
+.servers-page .servers-filter-card {
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.servers-page .servers-filter-bar {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(122px, 0.72fr)) minmax(92px, auto);
+  gap: 8px;
+  align-items: center;
+}
+
+.servers-page .servers-filter-search,
+.servers-page .servers-filter-select {
+  min-height: 36px;
+}
+
+.servers-page .servers-filter-summary {
+  min-height: 36px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+@media (min-width: 769px) {
+  .servers-page .servers-mobile-list {
+    gap: 10px;
+  }
+
+  .servers-page .servers-mobile-card {
+    grid-template-columns: minmax(132px, 0.56fr) minmax(220px, 1fr) minmax(260px, 0.9fr) minmax(236px, 0.72fr);
+    grid-template-areas:
+      "top main telemetry actions"
+      "badges meta telemetry actions"
+      "tags tags tags actions";
+    gap: 9px 12px;
+    padding: 13px 14px;
+    border-radius: 14px;
+  }
+
+  .servers-page .servers-mobile-card-top {
+    min-height: 34px;
+  }
+
+  .servers-page .servers-mobile-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .servers-page .servers-mobile-meta-item {
+    min-height: 52px;
+    padding: 8px 10px;
+  }
+
+  .servers-page .servers-mobile-card > .servers-telemetry-cell {
+    min-height: 100%;
+  }
+
+  .servers-page .servers-mobile-actions {
+    align-self: stretch;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+  }
+
+  .servers-page .servers-mobile-actions .btn {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .servers-page .servers-toolbar,
+  .servers-page .servers-filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .servers-page .servers-toolbar-actions,
+  .servers-page .servers-toolbar-summary {
+    width: 100%;
+  }
+
+  .servers-page .servers-filter-summary {
+    white-space: normal;
+  }
+}
+
+.dashboard-page {
+  --dashboard-gap: 12px;
+}
+
+.dashboard-page .dashboard-stats-grid {
+  gap: var(--dashboard-gap);
+  margin-bottom: 18px !important;
+}
+
+.dashboard-page .dashboard-stat-card {
+  min-height: 132px;
+  padding: 13px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.dashboard-page .dashboard-stat-card-head,
+.dashboard-page .dashboard-stat-card-body {
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-stat-card-label {
+  min-height: 18px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-page .dashboard-stat-card-value {
+  font-size: clamp(24px, 2.2vw, 34px);
+}
+
+.dashboard-page .dashboard-stat-card-subtitle {
+  min-height: 18px;
+  font-size: 12px;
+}
+
+.dashboard-page .dashboard-quick-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+}
+
+.dashboard-page .dashboard-quick-card {
+  min-height: 82px;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.dashboard-page .dashboard-quick-card-detail,
+.dashboard-page .dashboard-quick-card-meta {
+  line-height: 1.35;
+}
+
+.dashboard-page > .card,
+.dashboard-page .card.mb-6 {
+  border-radius: 14px;
+}
+
+.dashboard-page .dashboard-section-head {
+  padding-bottom: 6px;
+}
+
+@media (min-width: 1180px) {
+  .dashboard-page .dashboard-stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-page .dashboard-stats-grid:has(> .dashboard-stat-card:nth-child(6)) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page .dashboard-stats-grid,
+  .dashboard-page .dashboard-quick-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-page .dashboard-stat-card {
+    min-height: 116px;
+  }
+}
