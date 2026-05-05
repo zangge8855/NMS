@@ -280,7 +280,7 @@ describe('Servers', () => {
 
     it('switches to stacked mobile cards on narrow screens', async () => {
         window.matchMedia.mockImplementation((query) => ({
-            matches: query.includes('max-width: 1180px'),
+            matches: query.includes('max-width: 1500px'),
             media: query,
             onchange: null,
             addListener: vi.fn(),

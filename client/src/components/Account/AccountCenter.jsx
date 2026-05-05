@@ -280,7 +280,6 @@ export default function AccountCenter() {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title={copy.profileTitle}
-                            subtitle={copy.profileSubtitle}
                         />
                         <div className="account-profile-grid">
                             <div className="form-group mb-0">
@@ -357,7 +356,6 @@ export default function AccountCenter() {
                         <SectionHeader
                             className="card-header section-header section-header--compact"
                             title={copy.passwordTitle}
-                            subtitle={copy.passwordSubtitle}
                         />
                         <div className="account-password-grid">
                             <div className="form-group mb-0">

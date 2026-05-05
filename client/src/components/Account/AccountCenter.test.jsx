@@ -67,8 +67,10 @@ describe('AccountCenter', () => {
         renderWithRouter(<AccountCenter />);
 
         expect(screen.queryByLabelText('订阅邮箱')).not.toBeInTheDocument();
-        expect(screen.getByText('检查当前登录身份，并在修改前先通过旧邮箱完成验证码确认。')).toBeInTheDocument();
-        expect(screen.getByText('在这里更新登录密码，并确保新密码符合当前密码策略。')).toBeInTheDocument();
+        expect(screen.getByText('账户信息')).toBeInTheDocument();
+        expect(screen.getByText('登录密码')).toBeInTheDocument();
+        expect(screen.getByText('修改用户名或登录邮箱前，必须先通过当前旧邮箱验证码确认。')).toBeInTheDocument();
+        expect(screen.getByText('密码至少 8 位，且至少包含大写字母、小写字母、数字、特殊字符中的 3 类')).toBeInTheDocument();
 
         const usernameInput = screen.getByLabelText('用户名');
         const emailInput = screen.getByLabelText('登录邮箱');

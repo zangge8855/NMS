@@ -78,7 +78,7 @@ function resolveServerLiveStatus(server, telemetry) {
 
 export default function Servers() {
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 1180px)');
+    const isCompactLayout = useMediaQuery('(max-width: 1500px)');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {

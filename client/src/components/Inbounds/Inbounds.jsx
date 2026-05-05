@@ -1296,7 +1296,7 @@ export default function Inbounds() {
                                             >
                                                 <button
                                                     type="button"
-                                                    className="inbounds-sequence-btn"
+                                                    className="inbounds-sequence-btn btn-icon"
                                                     aria-label={`上移节点 ${ib.serverName}`}
                                                     disabled={!canMoveServerUp}
                                                     onClick={(event) => {
@@ -1308,7 +1308,7 @@ export default function Inbounds() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="inbounds-sequence-btn"
+                                                    className="inbounds-sequence-btn btn-icon"
                                                     aria-label={`下移节点 ${ib.serverName}`}
                                                     disabled={!canMoveServerDown}
                                                     onClick={(event) => {
@@ -1386,7 +1386,7 @@ export default function Inbounds() {
                                                             <div className="inbounds-sequence-actions" aria-label={`调整 ${inboundLabel} 的序号`}>
                                                                 <button
                                                                     type="button"
-                                                                    className="inbounds-sequence-btn"
+                                                                    className="inbounds-sequence-btn btn-icon"
                                                                     aria-label={`上移 ${inboundLabel} 的序号`}
                                                                     disabled={!canMoveUp}
                                                                     onClick={(event) => {
@@ -1398,7 +1398,7 @@ export default function Inbounds() {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    className="inbounds-sequence-btn"
+                                                                    className="inbounds-sequence-btn btn-icon"
                                                                     aria-label={`下移 ${inboundLabel} 的序号`}
                                                                     disabled={!canMoveDown}
                                                                     onClick={(event) => {
