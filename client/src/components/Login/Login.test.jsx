@@ -16,13 +16,6 @@ vi.mock('../../contexts/AuthContext.jsx', () => ({
     useAuth: () => useAuthMock(),
 }));
 
-vi.mock('../../contexts/ThemeContext.jsx', () => ({
-    useTheme: () => ({
-        mode: 'dark',
-        cycleTheme: vi.fn(),
-    }),
-}));
-
 describe('Login', () => {
     beforeEach(() => {
         api.get.mockReset();

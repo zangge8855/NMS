@@ -18,6 +18,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import CircularMeter from '../UI/CircularMeter.jsx';
+import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const SUBSCRIPTIONS_SNAPSHOT_KEY = 'subscriptions_center_bootstrap_v1';
@@ -124,7 +125,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             userTitle: 'Your Subscription',
             adminTitle: 'Subscription Address & Import',
             userSubtitle: 'Choose a config, then copy or scan it.',
-                adminSubtitle: 'For end users, these two steps are enough.',
+            adminSubtitle: 'For end users, these two steps are enough.',
             available: 'Subscription Ready',
             unavailable: 'Subscription Unavailable',
             nodeCount: `${nodeCount} nodes`,
@@ -141,32 +142,32 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
             userStepKicker: 'Flow',
-                userStepTitle: 'Choose a config, then import it',
-                userStepText: 'Start with the device card below. The URL can stay collapsed because users only need the copy button.',
-                copyOrScanTitle: 'Address and import',
-                copyOrScanText: 'Copy, scan and quick import stay together here.',
-                deviceOpenTitle: 'Downloads',
-                deviceOpenText: '',
-                resetRiskTitle: 'Reset only if leaked',
-                resetRiskText: 'The old link stops working immediately.',
-                heroTitle: 'Choose a config -> Copy or import it',
-                heroText: 'If you are unsure which one to choose, start by downloading the client for your device below.',
-                manualImportHint: 'If one-tap import does not work, copy the address below into the client.',
-                adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
-                goSettings: 'Change it in Settings',
-                qrAriaLabel: 'Subscription QR code · {label}',
-                quickImportHint: 'You can also use the quick import buttons below.',
-                adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
-                moreImports: 'More imports',
-                simpleReminder: 'Choose a config -> Copy or import',
-                qrHint: 'You can also scan the QR code.',
-                guideTitle: 'How to share it',
-                guideSubtitle: 'Just explain these two steps.',
-                guideStep1Title: 'Choose a config',
-                guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
-                guideStep2Title: 'Copy or import it',
-                guideStep2Text: 'Use one-tap import when available. Otherwise, copy the address above and paste it into the client.',
-                summaryTitle: 'Current Subscription Summary',
+            userStepTitle: 'Choose config',
+            userStepText: 'Pick the format your client supports.',
+            copyOrScanTitle: 'Copy or import',
+            copyOrScanText: 'Copy the address, scan the QR code, or use one-tap import.',
+            deviceOpenTitle: 'Client Downloads',
+            deviceOpenText: 'Install one client for your device, then import the selected config.',
+            resetRiskTitle: 'Reset only if leaked',
+            resetRiskText: 'The old link stops working immediately.',
+            heroTitle: 'Import your subscription',
+            heroText: 'Choose one config, then copy, scan, or import it.',
+            manualImportHint: 'If one-tap import does not work, copy the address into the client.',
+            adminConverterHint: 'Admin note: dedicated subscriptions currently use an external converter',
+            goSettings: 'Change it in Settings',
+            qrAriaLabel: 'Subscription QR code · {label}',
+            quickImportHint: 'Use one-tap import if your client supports it.',
+            adminQuickImportHint: 'Quick import buttons for the current config stay here as well.',
+            moreImports: 'More imports',
+            simpleReminder: 'Import workspace',
+            qrHint: 'Scan with a supported client.',
+            guideTitle: 'How to share it',
+            guideSubtitle: 'Just explain these two steps.',
+            guideStep1Title: 'Choose a config',
+            guideStep1Text: 'If they are unsure, tell them to download the client for their device first.',
+            guideStep2Title: 'Copy or import it',
+            guideStep2Text: 'Use one-tap import when available. Otherwise, copy the address above and paste it into the client.',
+            summaryTitle: 'Status',
             summarySubtitle: 'Key details stay in one place for quick checks.',
             summaryUser: 'Current User',
             summaryStatus: 'Subscription Status',
@@ -217,32 +218,32 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         resetDetailsTarget: '目标邮箱',
         resetDetailsScope: '范围',
         userStepKicker: '使用顺序',
-        userStepTitle: '选配置文件 -> 导入客户端',
-        userStepText: '导入按钮、复制按钮和二维码都在下面这一块。',
-        copyOrScanTitle: '订阅地址与导入',
-        copyOrScanText: '复制、扫码和一键导入都在这里。',
-        deviceOpenTitle: '软件下载',
-        deviceOpenText: '',
+        userStepTitle: '选择配置文件',
+        userStepText: '选择你的客户端支持的格式。',
+        copyOrScanTitle: '复制或导入',
+        copyOrScanText: '复制地址、扫码，或直接使用一键导入。',
+        deviceOpenTitle: '客户端下载',
+        deviceOpenText: '先下载适合设备的客户端，再导入上方选择的配置。',
         resetRiskTitle: '地址泄露再重置',
         resetRiskText: '重置后旧地址立即失效。',
-        heroTitle: '选配置文件 -> 复制或导入',
-        heroText: '不知道选哪个时，先在下面下载适合自己设备的软件。',
-        manualImportHint: '不会导入时，直接复制这条地址。',
+        heroTitle: '导入你的订阅',
+        heroText: '选一个配置文件，然后复制、扫码或一键导入。',
+        manualImportHint: '一键导入不可用时，把这条地址复制到客户端里。',
         adminConverterHint: '管理提示：专用订阅当前走外部转换器',
         goSettings: '去系统设置修改',
         qrAriaLabel: '订阅二维码 · {label}',
-        quickImportHint: '也可以直接点导入按钮。',
+        quickImportHint: '客户端支持时，可以直接点击一键导入。',
         adminQuickImportHint: '当前配置文件的快捷导入按钮也在这里。',
         moreImports: '更多导入',
-        simpleReminder: '选配置文件 -> 复制或导入',
-        qrHint: '也可以扫码导入。',
+        simpleReminder: '导入工作台',
+        qrHint: '用支持的客户端扫码导入。',
         guideTitle: '怎么使用订阅',
         guideSubtitle: '就按这两步，不用讲别的。',
         guideStep1Title: '选配置文件',
         guideStep1Text: '不知道怎么选，就先按设备下载软件，再选对应配置文件。',
         guideStep2Title: '复制地址并导入',
         guideStep2Text: '支持一键导入就直接点导入；不会时就复制上面的地址，在客户端里粘贴导入。',
-        summaryTitle: '当前订阅概览',
+        summaryTitle: '状态',
         summarySubtitle: '重点信息集中显示，方便快速确认。',
         summaryUser: '当前用户',
         summaryStatus: '订阅状态',
@@ -477,8 +478,12 @@ export default function Subscriptions() {
     ];
     const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
     const shouldShowInlineQr = !isCompactViewport;
-    const shouldShowUserSummarySideColumn = isUserOnly && Boolean(result);
+    const shouldShowUserSummarySideColumn = false;
     const shouldShowSideColumn = !isUserOnly || shouldShowUserSummarySideColumn;
+    const hasUserDownloadGuides = isUserOnly && Boolean(result) && (
+        (Array.isArray(result?.bundle?.toolSites) && result.bundle.toolSites.length > 0)
+        || (Array.isArray(result?.bundle?.importActions) && result.bundle.importActions.length > 0)
+    );
 
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
@@ -683,7 +688,7 @@ export default function Subscriptions() {
     const subscriptionBusy = loading || refreshing;
 
     const userInlineQrCard = isUserOnly && result && shouldShowInlineQr ? (
-        <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side">
+        <div className="subscription-inline-qr subscription-inline-qr--featured subscription-inline-qr--user-side subscription-user-qr-panel">
             {activeProfile?.url && result.subscriptionActive ? (
                 <>
                     <div className="subscription-inline-qr-title">{ui.scanImport}</div>
@@ -712,47 +717,82 @@ export default function Subscriptions() {
     ) : null;
 
     const userImportPanel = isUserOnly && result ? (
-        <div className="subscription-user-panel subscription-user-panel--import subscription-user-panel--link">
-            <div className="subscription-user-panel-title subscription-user-panel-title--flow">{ui.simpleReminder}</div>
-            <div className="subscription-profile-switches subscription-profile-switches--compact">
-                {displayedProfiles.map((item) => (
-                    <button
-                        key={item.key}
-                        type="button"
-                        className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setProfileKey(item.key)}
-                    >
-                        {item.label}
-                    </button>
+        <div className="subscription-user-workbench">
+            <div className="subscription-user-hero-strip">
+                <div className="subscription-user-hero-copy">
+                    <div className="subscription-user-kicker">{ui.simpleReminder}</div>
+                    <div className="subscription-user-title">{ui.heroTitle}</div>
+                    <div className="subscription-user-subtitle">{ui.heroText}</div>
+                </div>
+                <div className="subscription-user-status-pills">
+                    <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                        {result.subscriptionActive ? ui.available : ui.unavailable}
+                    </span>
+                    <span className="badge badge-neutral">
+                        {activeProfileLabel || activeProfile?.label || ui.currentProfileFallback}
+                    </span>
+                    <span className="badge badge-info">{ui.nodeCount}</span>
+                </div>
+            </div>
+
+            <div className="subscription-user-meter-strip" aria-label={ui.summaryTitle}>
+                {statusCards.map((item) => (
+                    <div key={item.key} className={`subscription-user-meter-pill subscription-user-meter-pill--${item.tone}`}>
+                        <span className="subscription-user-meter-label">{item.label}</span>
+                        <span className="subscription-user-meter-value">{item.value}</span>
+                        <span className="subscription-user-meter-meta">{item.meta}</span>
+                    </div>
                 ))}
             </div>
-            <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr">
-                <div className="subscription-user-address-shell">
-                    <div className="subscription-user-address-head">
-                        <div className="subscription-user-address-copy">
-                            <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+
+            <div className="subscription-user-import-stage">
+                <div className="subscription-user-import-main">
+                    <div className="subscription-user-section-head">
+                        <div>
+                            <div className="subscription-user-section-label">{ui.userStepTitle}</div>
+                            <div className="subscription-user-section-text">{ui.userStepText}</div>
                         </div>
-                        <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                            {result.subscriptionActive ? ui.available : ui.unavailable}
-                        </span>
                     </div>
-                    {shouldShowProfileContext && (
-                        <div className="subscription-link-card-meta">
-                            {activeProfileSupportedClients.length > 0 && (
-                                <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
-                                    <span className="subscription-current-profile-tools-label">
-                                        {activeProfileSupportedClientsLabel}
-                                    </span>
-                                    <div className="subscription-current-profile-tools-list">
-                                        {activeProfileSupportedClients.map((client) => (
-                                            <span key={client} className="badge badge-neutral">{client}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
+                    <div className="subscription-profile-switches subscription-profile-switches--compact subscription-profile-switches--user-stage">
+                        {displayedProfiles.map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setProfileKey(item.key)}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr subscription-user-address-card">
+                        <div className="subscription-user-address-head">
+                            <div className="subscription-user-address-copy">
+                                <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+                                <div className="subscription-user-address-helper">{ui.copyOrScanText}</div>
+                            </div>
+                            <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                {result.subscriptionActive ? ui.available : ui.unavailable}
+                            </span>
                         </div>
-                    )}
-                    <div className="subscription-user-address-grid">
+                        {shouldShowProfileContext && (
+                            <div className="subscription-link-card-meta">
+                                {activeProfileSupportedClients.length > 0 && (
+                                    <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                        <span className="subscription-current-profile-tools-label">
+                                            {activeProfileSupportedClientsLabel}
+                                        </span>
+                                        <div className="subscription-current-profile-tools-list">
+                                            {activeProfileSupportedClients.map((client) => (
+                                                <span key={client} className="badge badge-neutral">{client}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         <div className="subscription-user-address-main">
                             <input
                                 className="form-input font-mono text-xs subscription-url-input"
@@ -803,27 +843,46 @@ export default function Subscriptions() {
                                 {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
                             </div>
                         </div>
-                        {userInlineQrCard}
                     </div>
                 </div>
-                <div className="subscription-user-address-foot">
-                    <button
-                        className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
-                        onClick={handleResetLink}
-                        disabled={resetLoading || !normalizedEmail}
-                    >
-                        {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
-                    </button>
-                    <div className="subscription-user-reset-inline-copy">
-                        <HiOutlineExclamationTriangle className="subscription-user-reset-inline-icon" />
-                        <span className="subscription-user-reset-inline-note">
-                            <span className="subscription-user-reset-inline-title">{ui.resetRiskTitle}</span>
-                            <span className="subscription-user-reset-inline-divider" aria-hidden="true"> · </span>
-                            <span className="subscription-user-reset-inline-text">{ui.resetRiskText}</span>
-                        </span>
-                    </div>
+
+                {userInlineQrCard}
+            </div>
+
+            <div className="subscription-user-address-foot subscription-user-danger-row">
+                <button
+                    className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
+                    onClick={handleResetLink}
+                    disabled={resetLoading || !normalizedEmail}
+                >
+                    {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
+                </button>
+                <div className="subscription-user-reset-inline-copy">
+                    <HiOutlineExclamationTriangle className="subscription-user-reset-inline-icon" />
+                    <span className="subscription-user-reset-inline-note">
+                        <span className="subscription-user-reset-inline-title">{ui.resetRiskTitle}</span>
+                        <span className="subscription-user-reset-inline-divider" aria-hidden="true"> · </span>
+                        <span className="subscription-user-reset-inline-text">{ui.resetRiskText}</span>
+                    </span>
                 </div>
             </div>
+        </div>
+    ) : null;
+
+    const userDownloadsPanel = hasUserDownloadGuides ? (
+        <div className="card subscription-downloads-page-card subscription-downloads-page-card--user">
+            <SectionHeader
+                className="card-header section-header section-header--compact"
+                title={ui.deviceOpenTitle}
+                subtitle={ui.deviceOpenText}
+            />
+            <SubscriptionClientLinks
+                bundle={result?.bundle}
+                compact
+                showHeading={false}
+                showImportMethods={false}
+                profileLabelOverrides={{ v2rayn: 'v2rayN / Shadowrocket' }}
+            />
         </div>
     ) : null;
 
@@ -948,7 +1007,7 @@ export default function Subscriptions() {
                             </div>
                         ) : (
                             <>
-                                <div className="card subscription-primary-card">
+                                <div className={`card subscription-primary-card${isUserOnly ? ' subscription-primary-card--user' : ''}`}>
                                     {!isUserOnly && (
                                         <SectionHeader
                                             className="card-header section-header section-header--compact"
@@ -1143,6 +1202,7 @@ export default function Subscriptions() {
                                         </>
                                     )}
                                 </div>
+                                {isUserOnly ? userDownloadsPanel : null}
                             </>
                         )}
                     </div>

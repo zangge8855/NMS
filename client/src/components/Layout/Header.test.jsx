@@ -14,13 +14,6 @@ vi.mock('../../contexts/ServerContext.jsx', () => ({
     }),
 }));
 
-vi.mock('../../contexts/ThemeContext.jsx', () => ({
-    useTheme: () => ({
-        mode: 'dark',
-        cycleTheme: vi.fn(),
-    }),
-}));
-
 vi.mock('../../contexts/AuthContext.jsx', () => ({
     useAuth: () => ({
         user: mockState.authUser,
@@ -81,7 +74,7 @@ describe('Header', () => {
         expect(container.querySelector('.header-user-symbol')).toBeNull();
     });
 
-    it('groups language, notifications, and theme toggles in a dedicated controls area', () => {
+    it('groups language and notifications in a dedicated controls area', () => {
         const { container } = renderWithRouter(<Header title="订阅中心" />);
 
         expect(container.querySelector('.header-shell')).not.toBeNull();
@@ -89,7 +82,7 @@ describe('Header', () => {
         expect(controls).not.toBeNull();
         expect(controls?.querySelector('.language-toggle-btn')).not.toBeNull();
         expect(controls?.querySelector('[data-testid="notification-bell"]')).not.toBeNull();
-        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
+        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).toBeNull();
     });
 
     it('keeps admin notifications out of the user header', () => {
@@ -99,7 +92,7 @@ describe('Header', () => {
         const controls = container.querySelector('.header-controls');
         expect(controls?.querySelector('.language-toggle-btn')).not.toBeNull();
         expect(controls?.querySelector('[data-testid="notification-bell"]')).toBeNull();
-        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
+        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).toBeNull();
     });
 
 

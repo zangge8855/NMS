@@ -143,7 +143,7 @@ data/     Default file-backed storage
 - `ADMIN_USERNAME`: admin login name; avoid defaults
 - `ADMIN_PASSWORD`: admin password; production should use a strong multi-class password
 - `CREDENTIALS_SECRET`: dedicated encryption secret for stored node credentials
-- `DATA_DIR`: file-backed storage directory
+- `DATA_DIR`: file-backed storage directory. Use a persistent path; do not point production at `/tmp` or `/var/tmp`
 - `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
 - `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
 - `SUB_CONVERTER_BASE_URL`: optional external subscription converter base URL
@@ -278,6 +278,8 @@ docker run -d \
   ghcr.io/<your-github-user-or-org>/nms:latest
 ```
 
+The image declares `/app/data` and `/app/logs` as runtime volumes, but you should still mount named or host volumes explicitly. Without a persistent `/app/data` mount, file-backed users, settings, audit logs, telemetry, invite codes, subscriptions, and backups can disappear when the container is recreated.
+
 默认运行地址:
 
 - 生产模式下由后端直接托管前端构建产物
@@ -318,7 +320,7 @@ data/     默认文件存储目录
 - `ADMIN_USERNAME`: 管理员账号，建议不要使用默认值
 - `ADMIN_PASSWORD`: 管理员密码，生产环境应满足多类字符复杂度
 - `CREDENTIALS_SECRET`: 节点凭据加密密钥，建议与 JWT 密钥分离
-- `DATA_DIR`: 文件存储目录
+- `DATA_DIR`: 文件存储目录。生产环境必须使用持久化路径，不要指向 `/tmp` 或 `/var/tmp`
 - `DB_ENABLED` / `DB_URL`: PostgreSQL 开关与连接串
 - `SUB_PUBLIC_BASE_URL`: 对外订阅基址
 - `SUB_CONVERTER_BASE_URL`: 可选的外部订阅转换器基址

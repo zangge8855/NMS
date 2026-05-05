@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck, HiOutlineSun, HiOutlineMoon, HiOutlineComputerDesktop } from 'react-icons/hi2';
+import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
 
@@ -16,11 +15,8 @@ const MODE_FORGOT = 'forgot';
 export default function Login() {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
     const [mode, setMode] = useState(MODE_LOGIN);
-    const { mode: themeMode, cycleTheme } = useTheme();
     const { t, toggleLocale, locale } = useI18n();
 
-    const themeIcons = { dark: HiOutlineMoon, light: HiOutlineSun, auto: HiOutlineComputerDesktop };
-    const ThemeIcon = themeIcons[themeMode] || HiOutlineMoon;
     const passwordPolicyHint = getPasswordPolicyHint(locale);
     const copy = locale === 'en-US'
         ? {
@@ -49,12 +45,6 @@ export default function Login() {
             resendDone: '验证码已重新发送',
             sendFailed: '发送失败',
         };
-    const themeToggleTitle = themeMode === 'dark'
-        ? t('shell.themeLight')
-        : themeMode === 'light'
-            ? t('shell.themeAuto')
-            : t('shell.themeDark');
-
     // Login fields
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -383,15 +373,6 @@ export default function Login() {
                     aria-label={t('shell.switchLanguage')}
                 >
                     <span className="language-toggle-label">{t('shell.langLabel')}</span>
-                </button>
-                <button
-                    type="button"
-                    className="login-theme-toggle theme-toggle-btn"
-                    onClick={cycleTheme}
-                    title={themeToggleTitle}
-                    aria-label={themeToggleTitle}
-                >
-                    <ThemeIcon />
                 </button>
             </div>
 

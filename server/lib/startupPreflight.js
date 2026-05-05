@@ -14,6 +14,18 @@ const CORE_RUNTIME_FILES = [
     { key: 'users', file: 'users.json' },
     { key: 'servers', file: 'servers.json' },
     { key: 'notifications', file: 'notifications.json' },
+    { key: 'system_settings', file: 'system_settings.json' },
+    { key: 'subscription_tokens', file: 'subscription_tokens.json' },
+    { key: 'user_policies', file: 'user_policies.json' },
+    { key: 'audit_events', file: 'audit_events.json' },
+    { key: 'subscription_access_logs', file: 'subscription_access_logs.json' },
+    { key: 'jobs', file: 'jobs.json' },
+    { key: 'traffic_samples', file: 'traffic_samples.json' },
+    { key: 'traffic_counters', file: 'traffic_counters.json' },
+    { key: 'traffic_meta', file: 'traffic_meta.json' },
+    { key: 'server_telemetry', file: 'server_telemetry.json' },
+    { key: 'client_entitlement_overrides', file: 'client_entitlement_overrides.json' },
+    { key: 'invite_codes', file: 'invite_codes.json' },
 ];
 
 function hasNonEmptyValue(value) {
@@ -141,6 +153,12 @@ export function collectStartupIssues(env = process.env, options = {}) {
     }
 
     issues.push(...securityIssues);
+    if (isVolatileDataDir(dataDir) && shouldServeClientBuild(env)) {
+        issues.push({
+            code: 'volatile_data_dir',
+            message: `DATA_DIR points to a volatile temporary path (${dataDir}). Use a persistent directory or mount a host volume before starting production.`,
+        });
+    }
     issues.push(...collectRuntimeDataIssues(dataDir));
 
     if (includeClientBuildCheck && shouldServeClientBuild(env)) {
@@ -154,6 +172,14 @@ export function collectStartupIssues(env = process.env, options = {}) {
     }
 
     return issues;
+}
+
+function isVolatileDataDir(dataDir) {
+    const normalized = resolve(dataDir);
+    return normalized === '/tmp'
+        || normalized.startsWith('/tmp/')
+        || normalized === '/var/tmp'
+        || normalized.startsWith('/var/tmp/');
 }
 
 export function collectRuntimeDataIssues(dataDir) {
@@ -203,6 +229,7 @@ export function formatStartupIssues(issues, options = {}) {
     lines.push('');
     lines.push('Recommended checks:');
     lines.push(`- Confirm ${envFile} exists or inject the same variables through your process manager`);
+    lines.push('- Confirm DATA_DIR points to persistent storage and is not under /tmp or /var/tmp');
     lines.push('- Rebuild the frontend if client/dist is missing');
     lines.push('- If PM2 still exits after this, run: pm2 logs nms --lines 100');
 

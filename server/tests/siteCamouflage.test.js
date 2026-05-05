@@ -8,7 +8,7 @@ import {
 } from '../lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from '../middleware/siteCamouflage.js';
 
-const FORBIDDEN_PUBLIC_CONTENT = /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i;
+const FORBIDDEN_PUBLIC_CONTENT = /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui|edge\s+precision\s+systems|precision\s+systems)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i;
 
 describe('site camouflage renderer', () => {
     it('renders configured templates with chinese-first bilingual content, inline assets and startup-randomized classes', () => {
@@ -58,6 +58,22 @@ describe('site camouflage renderer', () => {
         assert.doesNotMatch(html, /上海|Zhangjiang|Pudong/i);
         assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏|目录状态 200/);
+    });
+
+    it('replaces legacy technical camouflage titles with the city-magazine default', () => {
+        const html = createSiteCamouflageHtml({
+            siteConfig: {
+                camouflageTemplate: 'corporate',
+                camouflageTitle: 'Edge Precision Systems',
+            },
+            requestPath: '/',
+            statusCode: 200,
+        });
+
+        assert.match(html, /City Field Notes/);
+        assert.match(html, /城市周刊/);
+        assert.doesNotMatch(html, /Edge Precision Systems|Precision Systems/i);
+        assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
     });
 });
 

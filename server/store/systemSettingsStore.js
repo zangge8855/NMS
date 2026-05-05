@@ -71,6 +71,7 @@ const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const DEFAULT_CAMOUFLAGE_TEMPLATE = 'corporate';
 const DEFAULT_CAMOUFLAGE_TITLE = 'City Field Notes';
+const LEGACY_TECH_CAMOUFLAGE_TITLE_PATTERN = /\b(?:edge\s+precision\s+systems|edge\s+precision|precision\s+systems)\b/i;
 const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
 const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';
@@ -254,6 +255,7 @@ function normalizeCamouflageTitle(value, fallback = DEFAULT_CAMOUFLAGE_TITLE) {
         .replace(/\s+/g, ' ')
         .trim();
     if (!text) return fallback;
+    if (LEGACY_TECH_CAMOUFLAGE_TITLE_PATTERN.test(text)) return DEFAULT_CAMOUFLAGE_TITLE;
     return text.slice(0, 96);
 }
 

@@ -2,13 +2,9 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
-import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import {
-    HiOutlineSun,
-    HiOutlineMoon,
-    HiOutlineComputerDesktop,
     HiOutlineMagnifyingGlass,
     HiOutlineArrowPath,
     HiOutlinePlusCircle,
@@ -20,12 +16,6 @@ import { getNavItemForPath, getSearchableNavItems } from './navConfig.js';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache.js';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot.js';
-
-const themeIcons = {
-    dark: HiOutlineMoon,
-    light: HiOutlineSun,
-    auto: HiOutlineComputerDesktop,
-};
 
 const MAX_SEARCH_RESULTS = 10;
 const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
@@ -116,7 +106,6 @@ export default function Header({
     allowTitleWrap = false,
 }) {
     const { activeServerId, servers = [] } = useServer();
-    const { mode, cycleTheme } = useTheme();
     const { user } = useAuth();
     const { locale, toggleLocale, t } = useI18n();
     const navigate = useNavigate();
@@ -130,19 +119,12 @@ export default function Header({
     const searchResultsId = useId();
     const [managedUsers, setManagedUsers] = useState(() => getManagedUsersSnapshotMeta().users);
 
-    const ThemeIcon = themeIcons[mode] || HiOutlineMoon;
     const isAdmin = user?.role === 'admin';
     const isGlobalView = activeServerId === 'global';
     const shortcutLabel = useMemo(() => getShortcutLabel(), []);
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
     const MatchedNavIcon = matchedNavItem?.icon || null;
     const resolvedHeaderIcon = MatchedNavIcon ? <MatchedNavIcon /> : icon;
-    const themeLabels = useMemo(() => ({
-        dark: t('shell.themeDark'),
-        light: t('shell.themeLight'),
-        auto: t('shell.themeAuto'),
-    }), [t]);
-
     const searchableItems = useMemo(
         () => {
             const copy = buildCommandCopy(locale);
@@ -502,15 +484,6 @@ export default function Header({
                             <span className="language-toggle-label">{t('shell.langLabel')}</span>
                         </button>
                         {isAdmin ? <NotificationBell /> : null}
-                        <button
-                            type="button"
-                            className="theme-toggle-btn"
-                            onClick={cycleTheme}
-                            title={themeLabels[mode]}
-                            aria-label={themeLabels[mode]}
-                        >
-                            <ThemeIcon />
-                        </button>
                     </div>
                 </div>
             </div>

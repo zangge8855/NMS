@@ -187,6 +187,14 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(systemSettingsStore.getSite().camouflageEnabled, true);
         assert.equal(systemSettingsStore.getSite().camouflageTemplate, 'blog');
         assert.equal(systemSettingsStore.getSite().camouflageTitle, 'Willow City Weekly');
+
+        const migrated = systemSettingsStore.update({
+            site: {
+                camouflageTitle: 'Edge Precision Systems',
+            },
+        });
+        assert.equal(migrated.site.camouflageTitle, 'City Field Notes');
+        assert.equal(systemSettingsStore.getSite().camouflageTitle, 'City Field Notes');
     });
 
     it('rejects reserved site access paths', () => {

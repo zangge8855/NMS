@@ -28,6 +28,8 @@
 - 伪装首页三套模板已重装为城市生活杂志方向：`corporate` 为城市周刊，`blog` 为影像笔记，`nginx` 为周末指南；公开文案、标题、资源路径和 404 内容均与站内运维、订阅、节点、审计等业务语义脱钩
 - 站内页面新增一层全局排版兜底：统一页面最大宽度、工具栏换行、表格首尾留白、设置页入口区栅格和移动端底部导航避让
 - 普通用户新增独立的软件下载中心（Downloads）和自助账户中心（Account），与订阅页分离
+- 普通用户订阅页已重新收敛为单列导入工作台：状态摘要、配置文件切换、地址复制、一键导入、二维码和重置风险提示集中在首屏，客户端下载区作为同列下方辅助内容，避免右侧空概览列和大面积空白
+- 伪装站旧技术品牌名（例如 `Edge Precision Systems`）已加入服务端渲染与系统设置归一化迁移，公开页会回落到城市杂志默认标题，避免残留系统/技术语义
 - 审计日志写入改为持久化流（替代 `appendFileSync`），模式匹配改用内存环形缓冲，减少事件循环阻塞
 - 任务队列增加容量上限（1000），超限时自动清理已完成任务
 - 公开订阅端点增加独立轻量限流器，与管理 API 限流策略分离
@@ -47,6 +49,13 @@
 - 普通用户外壳现在不会加载管理员专用的服务器上下文、系统通知接口或通知铃铛，避免用户端页面出现无意义请求和顶部操作噪音
 - 用户详情页标题允许在窄屏下自然换行，服务器表格账号列和操作列重新校准，暗色收起侧边栏状态下不再出现账号字符竖排
 - 审计中心流量图表已统一移动端边距和紧凑 Y 轴刻度，保留 tooltip 的完整字节展示，同时避免窄屏坐标轴单位换行
+- 顶部手动主题切换按钮已移除，主题跟随系统偏好；头部搜索、语言和通知区在桌面保持同一行，小屏搜索回到第二行但保持可见
+- 登录页已按 1366x768、1280x720、1024x768、390x844 等视口重新压缩间距，登录按钮和“忘记密码”入口在低高度桌面也保持可见
+- 后台按钮与强调色收敛为专业蓝 / 青主色体系，按钮 hover、focus、危险操作和浅色主题对比重新校准
+- 仪表盘、审计、订阅、设置等状态卡网格在侧边栏展开 / 折叠下强制同列等高，避免卡片高低不一
+- 服务器管理在 1180px 以下切换为堆叠卡片；桌面表格操作列固定在右侧，详情、测试连接、编辑、删除按钮始终可见
+- 系统设置再次压缩工作区导航、面板、开关卡片和状态面板间距，状态 / 策略页在宽屏恢复双列，减少大面积空白
+- 文件存储持久化增加启动预检：生产环境 `DATA_DIR` 指向 `/tmp` 或 `/var/tmp` 会给出易失存储警告；Docker 镜像声明 `/app/data`、`/app/logs` 运行时卷
 
 ### 当前状态良好区域
 
@@ -56,6 +65,7 @@
 - 关键操作的 hover / active / focus 反馈已可接受
 - Logs、Tasks、Tools 这类次级运维页面也开始跟随同一套卡片、表格和空状态规范
 - 审计、系统设置、用户详情和订阅中心的页面长度已经明显缩短，信息密度更接近真正的运维工作台
+- 普通用户订阅页现在以导入行为为中心，桌面端不再因右侧弱信息区造成视觉重心偏移
 - Telegram 输出已经更接近正式值班摘要，而不是原始日志片段堆叠
 - 系统设置现在更接近单一工作台布局，桌面端横向导航、内容列宽和保存区域的视觉节奏更稳定
 
@@ -91,6 +101,10 @@
 本次实现将公开伪装页从旧的技术/工业站点语义改为完全无关的城市生活杂志。三套模板使用城市街景、咖啡、展览、建筑和周末路线内容，默认标题改为 `City Field Notes`，设置页模板展示名改为“城市周刊 / 周末指南 / 影像笔记”。服务端测试增加敏感业务词断言，确保公开 HTML 不出现 NMS、subscription、node、server、panel、audit、proxy、token、admin、订阅、节点、面板、审计、后台、运维等站内语义。
 
 站内部分新增跨页面布局兜底，覆盖 Dashboard、Users、Audit、Settings、Servers、Inbounds、Logs、Tools、Capabilities、Subscriptions、Account 等页面的容器宽度、工具栏对齐、表格留白和移动端操作按钮换行。此层作为新增页面的防护线，避免侧边栏展开/折叠、浅深主题或移动端底部导航下重新出现挤压和错位。
+
+2026-05-05 补充：普通用户订阅页进一步移除右侧概览列，改为更紧凑的单列导入工作台，并在同一主列下方展示客户端下载和推荐配置。公开伪装站也增加旧技术标题迁移，`Edge Precision Systems` 等残留名称不再进入公开 HTML。
+
+2026-05-05 追加复核：按真实浏览器检查登录页、后台头部、仪表盘侧边栏展开 / 折叠、服务器管理、系统设置、审计中心和用户订阅页，覆盖 1440x900、1366x768、1280x720、1024x768、390x844 与明暗主题组合。重点确认登录页按钮可达、搜索不隐藏、状态卡同排等高、服务器操作列可见、系统设置无异常横向溢出和用户订阅页无右侧空列。
 
 ### 结论
 
@@ -128,6 +142,8 @@ Latest review: 2026-05-05, full-page layout review, public camouflage redesign, 
 - All three camouflage templates have been redesigned as unrelated city-magazine pages: `corporate` is a city weekly, `blog` is photo notes, and `nginx` is a weekend guide. Public copy, titles, asset paths, and 404 content are detached from internal operations, subscriptions, nodes, audit, and related product language
 - Internal pages now have an extra global layout guardrail layer for page width, toolbar wrapping, table edge padding, the Settings access grid, and mobile bottom-navigation spacing
 - End users now have a dedicated Downloads center and self-service Account center, separated from the Subscriptions page
+- The end-user Subscriptions page now uses a single-column import workbench: status summary, profile switching, copy, quick import, QR, and reset-risk controls stay in the first viewport, with client downloads below it instead of a sparse side column
+- Legacy technical camouflage titles such as `Edge Precision Systems` are now migrated by both the public renderer and system settings normalization, so the public page falls back to the city-magazine default title
 - Audit log writing switched to a persistent write stream (replacing `appendFileSync`) with an in-memory ring buffer for pattern matching, reducing event-loop blocking
 - Task queue now enforces a capacity cap (1000) with automatic pruning of completed tasks on overflow
 - Public subscription endpoints now have a dedicated lightweight rate limiter, separated from the admin API rate limiter

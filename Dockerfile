@@ -26,5 +26,7 @@ COPY --from=client-build /app/client/dist ./client/dist
 
 RUN mkdir -p /app/data /app/logs
 
+VOLUME ["/app/data", "/app/logs"]
+
 EXPOSE 3001
 CMD ["node", "server/index.js"]

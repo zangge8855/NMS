@@ -255,7 +255,7 @@ describe('client build helpers', () => {
         assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息|PUBLIC SITE|ACCESS NOTICE|STATUS UPDATE/i);
         assert.doesNotMatch(html, /目录状态 200/);
         assert.doesNotMatch(html, /nms_camouflage_lang/i);
-        assert.doesNotMatch(html, /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i);
+        assert.doesNotMatch(html, /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui|edge\s+precision\s+systems|precision\s+systems)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i);
         assert.doesNotMatch(html, /pexels\.com/i);
     });
 });

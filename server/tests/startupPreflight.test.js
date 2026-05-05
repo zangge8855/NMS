@@ -2,7 +2,8 @@ import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import {
     collectStartupIssues,
     collectRuntimeDataIssues,
@@ -11,9 +12,12 @@ import {
 } from '../lib/startupPreflight.js';
 
 const tempDirs = [];
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TEST_DATA_ROOT = join(__dirname, '.test_data', 'startup-preflight');
 
 function makeTempDir() {
-    const dir = fs.mkdtempSync(join(os.tmpdir(), 'nms-startup-preflight-'));
+    fs.mkdirSync(TEST_DATA_ROOT, { recursive: true });
+    const dir = fs.mkdtempSync(join(TEST_DATA_ROOT, 'nms-startup-preflight-'));
     tempDirs.push(dir);
     return dir;
 }
@@ -93,6 +97,7 @@ describe('collectStartupIssues', () => {
         fs.writeFileSync(join(dataDir, 'users.json'), '{not-json');
         fs.writeFileSync(join(dataDir, 'servers.json'), '[{"id":"ok"}]');
         fs.writeFileSync(join(dataDir, 'notifications.json'), '{"broken":');
+        fs.writeFileSync(join(dataDir, 'server_telemetry.json'), '{"broken":');
 
         const issues = collectStartupIssues({
             NODE_ENV: 'production',
@@ -107,6 +112,29 @@ describe('collectStartupIssues', () => {
         assert.deepEqual(issues.map((issue) => issue.code), [
             'invalid_users_store',
             'invalid_notifications_store',
+            'invalid_server_telemetry_store',
+        ]);
+    });
+
+    it('warns when production file storage points at a temporary directory', () => {
+        const rootDir = makeTempDir();
+        const clientDistDir = join(rootDir, 'client', 'dist');
+        fs.mkdirSync(clientDistDir, { recursive: true });
+        fs.writeFileSync(join(clientDistDir, 'index.html'), '<html></html>');
+
+        const issues = collectStartupIssues({
+            NODE_ENV: 'production',
+            DATA_DIR: join(os.tmpdir(), 'nms-volatile-data'),
+            JWT_SECRET: 'jwt-secret-1234567890-ABCDEFGHIJKLMN',
+            CREDENTIALS_SECRET: 'cred-secret-1234567890-ABCDEFGHIJKL',
+            ADMIN_USERNAME: 'ops-admin',
+            ADMIN_PASSWORD: 'Str0ng!Pass',
+        }, {
+            rootDir,
+        });
+
+        assert.deepEqual(issues.map((issue) => issue.code), [
+            'volatile_data_dir',
         ]);
     });
 });
