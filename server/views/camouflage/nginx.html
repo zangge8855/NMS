@@ -8,7 +8,7 @@
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
-            color-scheme: light;
+            color-scheme: light dark;
             --ink: #19202a;
             --muted: rgba(25, 32, 42, 0.62);
             --paper: #f5ede0;
@@ -231,6 +231,53 @@
             gap: 16px;
             margin-top: 20px;
             padding: 18px 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+                --ink: #edf2f3;
+                --muted: rgba(237, 242, 243, 0.66);
+                --paper: #11161a;
+                --surface: rgba(25, 31, 35, 0.9);
+                --line: rgba(237, 242, 243, 0.15);
+                --accent: #dc9073;
+                --blue: #8bb1bd;
+                --shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
+            }
+
+            body {
+                background:
+                    radial-gradient(circle at 84% 8%, rgba(139, 177, 189, 0.14), transparent 28%),
+                    linear-gradient(180deg, rgba(17, 22, 26, 0.14), rgba(17, 22, 26, 0.86)),
+                    url("{{asset:gridTexture}}"),
+                    var(--paper);
+            }
+
+            .{{class:brand-mark}} {
+                background:
+                    linear-gradient(135deg, rgba(220, 144, 115, 0.9), rgba(139, 177, 189, 0.78)),
+                    #1f2a31;
+            }
+
+            .{{class:lang-switch}} {
+                background: rgba(25, 31, 35, 0.76);
+            }
+
+            .{{class:lang-button}}[aria-pressed="true"] {
+                background: #edf2f3;
+                color: #11161a;
+            }
+
+            .{{class:meta-card}},
+            .{{class:section-card}},
+            .{{class:footer}} {
+                background: rgba(25, 31, 35, 0.74);
+            }
+
+            .{{class:section-card}} {
+                box-shadow: 0 18px 52px rgba(0, 0, 0, 0.26);
+            }
         }
 
         @media (max-width: 860px) {

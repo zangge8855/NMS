@@ -56,6 +56,9 @@
 - 服务器管理在 1500px 以下切换为列表卡片，避免常见笔记本宽度下表格列挤压；PC / 平板 / 手机端的详情、测试连接、编辑、删除按钮均保持等宽可见
 - 系统设置再次压缩工作区导航、面板、开关卡片和状态面板间距，状态 / 策略页在宽屏恢复双列，减少大面积空白
 - 文件存储持久化增加启动预检：生产环境 `DATA_DIR` 指向 `/tmp` 或 `/var/tmp` 会给出易失存储警告；Docker 镜像声明 `/app/data`、`/app/logs` 运行时卷
+- 公开伪装首页三套模板已增加系统深浅主题自适应，继续保持城市杂志内容隔离，不提供站内主题按钮或业务语义
+- 系统设置备份页新增运行存储状态卡，展示 `DATA_DIR`、本机备份目录、易失目录、读写状态和损坏 JSON 统计，便于定位重启后数据归零问题
+- 仪表盘节点健康区在服务器较多时默认进入重点视图，优先展示异常 / 离线节点并压缩首屏占用
 
 ### 当前状态良好区域
 
@@ -114,6 +117,8 @@
 
 2026-05-05 设计精修复核：根据复核反馈恢复普通用户导航栏“软件下载”，但继续保持订阅中心内无客户端下载嵌入面板。账户页资料与密码卡片改为桌面等宽、字段等高的表单节奏，短状态字段也按输入控件高度对齐；系统设置访问区和邀请码工作台改为更稳定的等宽栅格；服务器管理桌面卡片压缩为更紧凑的工作台列表；仪表盘全局状态卡在桌面形成 3x2 均衡排列，快捷操作和节点健康区域间距进一步统一。
 
+2026-05-05 存储与伪装站补充：公开伪装站三套城市杂志模板补齐 `prefers-color-scheme` 深色变量，系统设置备份工作区补充运行存储状态卡，仪表盘节点健康在大量服务器场景下默认进入重点视图。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -171,6 +176,9 @@ Latest review: 2026-05-05, full-page layout review, public camouflage redesign, 
 - The end-user shell no longer loads admin-only server context, system-notification APIs, or the notification bell, removing unnecessary requests and header noise from user pages
 - User Detail titles now wrap cleanly on narrow screens, while server account/action columns were retuned so collapsed-sidebar dark layouts no longer stack account text vertically
 - Audit Center traffic charts now use consistent margins and compact Y-axis byte labels on mobile, keeping full byte values in tooltips while avoiding wrapped axis units
+- All public camouflage templates now adapt to system light/dark preferences while keeping the unrelated city-magazine content model and avoiding internal product language
+- The System Settings backup workspace now exposes runtime storage health, including `DATA_DIR`, local backup directory, volatile-path status, read/write checks, and corrupted JSON counts
+- Dashboard node health enters a priority view when many servers are present, keeping abnormal or offline nodes first while reducing first-screen height
 
 ### Areas in good shape
 
@@ -215,6 +223,8 @@ The review covered 22 admin routes across desktop light, desktop dark, expanded 
 The final pass fixed the Settings `Access & Subscription` workspace at 1280px with the sidebar expanded, where the registration panel could collapse into a narrow column. The access, camouflage, public subscription URL, and invite-code sections now use content-aware grids, repeated kicker text is hidden, and duplicate labels were renamed or removed. Dashboard traffic cards now route Today, Week, and Month user traffic to matching Audit Center windows. Login, registration, and forgot-password views were rechecked at 1280x720, 768x1024, and 390x844; header search, language, and notification controls stay aligned on desktop, and the checked mobile pages show no horizontal overflow.
 
 Follow-up design refinement restored the user navigation Downloads entry while keeping Downloads out of the Subscriptions workbench. The Account page now uses equal-width desktop cards and equal-height field rhythm, Settings access/invite sections use steadier grids, Server Management cards are more compact on desktop, and Dashboard global status cards settle into a balanced 3x2 arrangement.
+
+Storage and camouflage follow-up added system-adaptive dark variables to all three public city-magazine templates, exposed runtime storage health in the Settings backup workspace, and made Dashboard node health enter a priority view when many servers exist.
 
 ### Conclusion
 

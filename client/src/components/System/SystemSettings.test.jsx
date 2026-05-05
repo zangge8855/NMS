@@ -173,6 +173,17 @@ function mockAdminBootstrap(overrides = {}) {
                             createdAt: '2026-03-15T04:30:00.000Z',
                         },
                     ],
+                    runtimeStorage: {
+                        dataDir: '/var/lib/nms/data',
+                        localBackupDir: '/var/lib/nms/data/backups',
+                        dataDirExists: true,
+                        dataDirReadable: true,
+                        dataDirWritable: true,
+                        dataDirVolatile: false,
+                        localBackupDirUnderDataDir: true,
+                        invalidStoreCount: 0,
+                        invalidStores: [],
+                    },
                 },
             },
         },
@@ -420,6 +431,17 @@ describe('SystemSettings', () => {
                         sourceFilename: 'cached-restore.nmsbak',
                         restoredAt: '2026-03-15T05:00:00.000Z',
                     },
+                    runtimeStorage: {
+                        dataDir: '/var/lib/nms/data',
+                        localBackupDir: '/var/lib/nms/data/backups',
+                        dataDirExists: true,
+                        dataDirReadable: true,
+                        dataDirWritable: true,
+                        dataDirVolatile: false,
+                        localBackupDirUnderDataDir: true,
+                        invalidStoreCount: 0,
+                        invalidStores: [],
+                    },
                 },
                 monitorStatus: {
                     healthMonitor: {
@@ -665,6 +687,9 @@ describe('SystemSettings', () => {
         expect(document.querySelector('[data-workspace="backup"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
         expect(screen.getByText('发送到 Telegram')).toBeInTheDocument();
+        expect(screen.getByText('运行存储状态')).toBeInTheDocument();
+        expect(screen.getByText('持久化正常')).toBeInTheDocument();
+        expect(screen.getByText('/var/lib/nms/data')).toBeInTheDocument();
         expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });
 

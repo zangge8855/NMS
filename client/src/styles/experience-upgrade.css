@@ -4175,6 +4175,20 @@
   white-space: nowrap;
 }
 
+.dashboard-page .node-health-density-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-color));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-panel-soft));
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .dashboard-page .node-health-grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 8px;
@@ -4184,6 +4198,11 @@
   max-height: 430px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.dashboard-page .node-health-grid.is-compact.is-dense {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  max-height: 304px;
 }
 
 .dashboard-page .node-health-grid.is-expanded {
@@ -4225,6 +4244,49 @@
 
 .dashboard-page .node-health-grid.is-compact .node-health-sparkline-shell {
   display: none;
+}
+
+.dashboard-page .node-health-grid.is-dense .node-health-tile,
+.dashboard-page .node-health-grid.is-dense .node-health-skeleton {
+  min-height: 116px;
+  padding: 10px;
+}
+
+.settings-runtime-storage-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-runtime-storage-grid {
+  margin-top: 0;
+}
+
+.settings-runtime-storage-path {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.settings-runtime-storage-issues {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-runtime-storage-issue {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.36fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 24%, var(--border-color));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-danger) 8%, var(--surface-panel-soft));
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.settings-runtime-storage-issue span:first-child {
+  color: var(--accent-danger);
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .servers-page .server-card-actions,
@@ -4384,6 +4446,10 @@
     grid-template-columns: minmax(0, 1fr);
     max-height: none;
     overflow: visible;
+  }
+
+  .settings-runtime-storage-issue {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

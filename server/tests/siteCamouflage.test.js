@@ -75,6 +75,23 @@ describe('site camouflage renderer', () => {
         assert.doesNotMatch(html, /Edge Precision Systems|Precision Systems/i);
         assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
     });
+
+    it('ships system-adaptive light and dark theme styles for every public template', () => {
+        for (const template of ['corporate', 'blog', 'nginx']) {
+            const html = createSiteCamouflageHtml({
+                siteConfig: {
+                    camouflageTemplate: template,
+                    camouflageTitle: 'City Field Notes',
+                },
+                requestPath: '/',
+                statusCode: 200,
+            });
+
+            assert.match(html, /color-scheme:\s*light dark/);
+            assert.match(html, /@media\s*\(prefers-color-scheme:\s*dark\)/);
+            assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
+        }
+    });
 });
 
 describe('camouflage middleware', () => {

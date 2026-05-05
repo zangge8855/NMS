@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import config from '../config.js';
+import { collectRuntimeDataIssues, isVolatileDataDir } from './startupPreflight.js';
 import { collectStoreSnapshots, listStoreKeys, restoreStoreSnapshots } from '../store/storeRegistry.js';
 import {
     getLatestTelegramBackupMeta as readLatestTelegramBackupMeta,
@@ -44,6 +45,52 @@ function buildBackupFilename(date = new Date()) {
 function backupDirPath(deps = {}) {
     const target = String(deps.backupDir || '').trim();
     return target || path.join(config.dataDir, LOCAL_BACKUP_DIRNAME);
+}
+
+function dataDirPath(deps = {}) {
+    return path.resolve(String(deps.dataDir || config.dataDir || 'data'));
+}
+
+function canAccessPath(targetPath, mode) {
+    try {
+        fs.accessSync(targetPath, mode);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function isChildPath(parentPath, childPath) {
+    const relative = path.relative(parentPath, childPath);
+    return relative === '' || (relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function buildRuntimeStorageStatus(deps = {}) {
+    const dataDir = dataDirPath(deps);
+    const localBackupDir = path.resolve(backupDirPath(deps));
+    const dataDirExists = fs.existsSync(dataDir);
+    const localBackupDirExists = fs.existsSync(localBackupDir);
+    const invalidStores = collectRuntimeDataIssues(dataDir).map((issue) => ({
+        code: issue.code,
+        message: issue.message,
+    }));
+
+    return {
+        dataDir,
+        localBackupDir,
+        dataDirExists,
+        dataDirReadable: dataDirExists && canAccessPath(dataDir, fs.constants.R_OK),
+        dataDirWritable: dataDirExists && canAccessPath(dataDir, fs.constants.W_OK),
+        dataDirVolatile: isVolatileDataDir(dataDir),
+        localBackupDirExists,
+        localBackupDirReadable: localBackupDirExists && canAccessPath(localBackupDir, fs.constants.R_OK),
+        localBackupDirWritable: localBackupDirExists && canAccessPath(localBackupDir, fs.constants.W_OK),
+        localBackupDirVolatile: isVolatileDataDir(localBackupDir),
+        localBackupDirUnderDataDir: isChildPath(dataDir, localBackupDir),
+        invalidStoreCount: invalidStores.length,
+        invalidStores,
+        generatedAt: new Date().toISOString(),
+    };
 }
 
 function ensureBackupDirExists(deps = {}) {
@@ -387,6 +434,7 @@ function getBackupStatus(deps = {}) {
         lastTelegramBackup: state.lastTelegramBackup ? { ...state.lastTelegramBackup } : null,
         localBackupDir: backupDirPath(deps),
         localBackups: listLocalBackups(deps),
+        runtimeStorage: buildRuntimeStorageStatus(deps),
     };
 }
 

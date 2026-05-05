@@ -17,6 +17,8 @@ import {
 } from 'react-icons/hi2';
 
 const NODE_HEALTH_INITIAL_LIMIT = 6;
+const NODE_HEALTH_DENSE_LIMIT = 4;
+const NODE_HEALTH_DENSE_THRESHOLD = 8;
 
 function getNodeHealthCopy(locale) {
     return locale === 'en-US'
@@ -29,6 +31,7 @@ function getNodeHealthCopy(locale) {
             shown: 'Showing {shown}/{total}',
             showAll: 'Show all',
             collapse: 'Collapse',
+            denseMode: 'Priority view',
             noMatch: 'No matching nodes',
         }
         : {
@@ -40,6 +43,7 @@ function getNodeHealthCopy(locale) {
             shown: '显示 {shown}/{total}',
             showAll: '展开全部',
             collapse: '收起',
+            denseMode: '重点视图',
             noMatch: '没有匹配节点',
         };
 }
@@ -269,12 +273,14 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
         })
     ), [locale, serverStatuses, safeServers, t]);
     const normalizedQuery = query.trim().toLowerCase();
+    const denseMode = entries.length > NODE_HEALTH_DENSE_THRESHOLD && !normalizedQuery && !expanded;
+    const initialLimit = denseMode ? NODE_HEALTH_DENSE_LIMIT : NODE_HEALTH_INITIAL_LIMIT;
     const filteredEntries = normalizedQuery
         ? entries.filter((entry) => entry.searchable.includes(normalizedQuery))
         : entries;
     const visibleEntries = expanded || normalizedQuery
         ? filteredEntries
-        : filteredEntries.slice(0, NODE_HEALTH_INITIAL_LIMIT);
+        : filteredEntries.slice(0, initialLimit);
     const summary = entries.reduce((acc, entry) => {
         if (!entry.serverData?.online) {
             acc.offline += 1;
@@ -332,6 +338,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={copy.searchPlaceholder}
                 />
+                {denseMode && <span className="node-health-density-pill">{copy.denseMode}</span>}
                 <span className="node-health-visible-count">{shownLabel}</span>
                 {canToggle && (
                     <button
@@ -344,7 +351,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                 )}
             </div>
 
-            <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'}`}>
+            <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'} ${denseMode ? 'is-dense' : ''}`}>
                 {hasStatuses ? (
                     visibleEntries.length > 0 ? (
                         visibleEntries.map(({ server, serverData }) => (
@@ -362,7 +369,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                         </div>
                     )
                 ) : (
-                    safeServers.slice(0, NODE_HEALTH_INITIAL_LIMIT).map(server => (
+                    safeServers.slice(0, initialLimit).map(server => (
                         <SkeletonTile key={server.id} />
                     ))
                 )}

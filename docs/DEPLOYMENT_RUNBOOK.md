@@ -98,7 +98,7 @@ docker run -d \
 
 The root `Dockerfile` already builds the client, installs server production dependencies, and starts the runtime on port `3001`.
 
-Keep `/app/data` and `/app/logs` mounted to named or host volumes. The image declares both paths as volumes, but explicit mounts are still the operationally clear choice. Without a persistent `/app/data` mount, file-backed users, settings, telemetry, audits, invite codes, subscription tokens, backups, and runtime logs can be lost when the container is recreated. Do not set `DATA_DIR` to `/tmp` or `/var/tmp` in production; startup preflight now reports that as volatile storage.
+Keep `/app/data` and `/app/logs` mounted to named or host volumes. The image declares both paths as volumes, but explicit mounts are still the operationally clear choice. Without a persistent `/app/data` mount, file-backed users, settings, telemetry, audits, invite codes, subscription tokens, backups, and runtime logs can be lost when the container is recreated. Do not set `DATA_DIR` to `/tmp` or `/var/tmp` in production; startup preflight now reports that as volatile storage. The System Settings backup workspace also shows runtime storage health, including `DATA_DIR`, the local backup directory, read/write status, and corrupted JSON counts.
 
 ```bash
 docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .
@@ -278,7 +278,7 @@ npm test
 
 仓库根目录的 `Dockerfile` 已经包含前端构建、后端生产依赖安装和运行镜像组装，默认监听 `3001` 端口。
 
-请始终把 `/app/data` 和 `/app/logs` 挂载到命名卷或宿主机目录。镜像已声明这两个运行时卷，但显式挂载更利于运维和备份。否则文件模式下的用户、系统设置、遥测、审计、邀请码、订阅 Token、备份和运行日志可能在容器重建后丢失。生产环境不要把 `DATA_DIR` 指向 `/tmp` 或 `/var/tmp`；启动预检会把这类路径报告为易失存储。
+请始终把 `/app/data` 和 `/app/logs` 挂载到命名卷或宿主机目录。镜像已声明这两个运行时卷，但显式挂载更利于运维和备份。否则文件模式下的用户、系统设置、遥测、审计、邀请码、订阅 Token、备份和运行日志可能在容器重建后丢失。生产环境不要把 `DATA_DIR` 指向 `/tmp` 或 `/var/tmp`；启动预检会把这类路径报告为易失存储。系统设置的备份工作区也会展示运行存储健康状态，包括 `DATA_DIR`、本机备份目录、读写状态和损坏 JSON 数量。
 
 ```bash
 docker build -t ghcr.io/<your-github-user-or-org>/nms:latest .

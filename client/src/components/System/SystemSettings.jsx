@@ -1623,6 +1623,30 @@ export default function SystemSettings() {
     const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
     const latestLocalBackup = localBackups[0] || null;
     const lastTelegramBackup = backupStatus?.lastTelegramBackup || null;
+    const runtimeStorage = backupStatus?.runtimeStorage || null;
+    const runtimeStorageIssues = Array.isArray(runtimeStorage?.invalidStores) ? runtimeStorage.invalidStores : [];
+    const runtimeStorageHealthy = runtimeStorage
+        && runtimeStorage.dataDirExists
+        && runtimeStorage.dataDirReadable
+        && runtimeStorage.dataDirWritable
+        && runtimeStorage.invalidStoreCount === 0
+        && !runtimeStorage.dataDirVolatile;
+    const runtimeStorageBadgeClass = !runtimeStorage
+        ? 'badge-neutral'
+        : runtimeStorageHealthy
+            ? 'badge-success'
+            : runtimeStorage.dataDirVolatile || runtimeStorage.invalidStoreCount > 0
+                ? 'badge-danger'
+                : 'badge-warning';
+    const runtimeStorageBadgeText = !runtimeStorage
+        ? '等待状态'
+        : runtimeStorageHealthy
+            ? '持久化正常'
+            : runtimeStorage.dataDirVolatile
+                ? '易失目录'
+                : runtimeStorage.invalidStoreCount > 0
+                    ? '数据异常'
+                    : '需要检查';
     const hasExportBackup = Boolean(backupStatus?.lastExport?.createdAt);
     const hasLocalBackup = Boolean(latestLocalBackup?.createdAt);
     const backupSummaryValue = hasExportBackup && hasLocalBackup
@@ -2613,6 +2637,57 @@ export default function SystemSettings() {
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-runtime-storage-panel">
+                    <div className="settings-backup-local-head">
+                        <div>
+                            <div className="text-sm font-medium">运行存储状态</div>
+                            <div className="text-xs text-muted mt-1">确认运行数据目录是否持久化，避免重启后用户、节点和设置回到空状态。</div>
+                        </div>
+                        <span className={`badge ${runtimeStorageBadgeClass}`}>{runtimeStorageBadgeText}</span>
+                    </div>
+                    <div className="settings-backup-inspection-grid settings-runtime-storage-grid">
+                        <div className="settings-backup-inspection-item">
+                            <div className="text-xs text-muted">DATA_DIR</div>
+                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.dataDir || '-'}</div>
+                        </div>
+                        <div className="settings-backup-inspection-item">
+                            <div className="text-xs text-muted">本机备份目录</div>
+                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.localBackupDir || backupStatus?.localBackupDir || '-'}</div>
+                        </div>
+                        <div className="settings-backup-inspection-item">
+                            <div className="text-xs text-muted">目录状态</div>
+                            <div className="text-sm">
+                                {runtimeStorage
+                                    ? `${runtimeStorage.dataDirExists ? '已创建' : '未创建'} · ${runtimeStorage.dataDirReadable ? '可读' : '不可读'} · ${runtimeStorage.dataDirWritable ? '可写' : '不可写'}`
+                                    : '等待刷新'}
+                            </div>
+                        </div>
+                        <div className="settings-backup-inspection-item">
+                            <div className="text-xs text-muted">数据文件</div>
+                            <div className="text-sm">
+                                {runtimeStorage
+                                    ? runtimeStorage.invalidStoreCount > 0
+                                        ? `${runtimeStorage.invalidStoreCount} 个 JSON 异常`
+                                        : 'JSON 校验正常'
+                                    : '等待刷新'}
+                            </div>
+                        </div>
+                    </div>
+                    {runtimeStorage?.dataDirVolatile ? (
+                        <div className="text-xs text-danger mt-2">当前 DATA_DIR 位于临时目录，生产环境请改为持久化目录或挂载卷。</div>
+                    ) : null}
+                    {runtimeStorageIssues.length > 0 ? (
+                        <div className="settings-runtime-storage-issues">
+                            {runtimeStorageIssues.slice(0, 3).map((issue) => (
+                                <div key={issue.code} className="settings-runtime-storage-issue">
+                                    <span>{issue.code}</span>
+                                    <span>{issue.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">

@@ -77,6 +77,30 @@ test('getBackupStatus exposes the latest Telegram backup delivery metadata', () 
     assert.equal(status.lastTelegramBackup.reason, 'daily');
 });
 
+test('getBackupStatus exposes runtime storage health and unreadable store issues', () => {
+    resetBackupStatusForTests();
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nms-runtime-storage-'));
+    const backupDir = path.join(dataDir, 'backups');
+
+    try {
+        fs.writeFileSync(path.join(dataDir, 'users.json'), '{not-json', 'utf8');
+        fs.mkdirSync(backupDir, { recursive: true });
+
+        const status = getBackupStatus(buildDeps({ dataDir, backupDir }));
+
+        assert.equal(status.runtimeStorage.dataDir, dataDir);
+        assert.equal(status.runtimeStorage.localBackupDir, backupDir);
+        assert.equal(status.runtimeStorage.dataDirExists, true);
+        assert.equal(status.runtimeStorage.dataDirWritable, true);
+        assert.equal(status.runtimeStorage.localBackupDirUnderDataDir, true);
+        assert.equal(status.runtimeStorage.dataDirVolatile, true);
+        assert.equal(status.runtimeStorage.invalidStoreCount, 1);
+        assert.equal(status.runtimeStorage.invalidStores[0].code, 'invalid_users_store');
+    } finally {
+        fs.rmSync(dataDir, { recursive: true, force: true });
+    }
+});
+
 test('recordTelegramBackupMeta persists Telegram backup delivery metadata to the configured status file', () => {
     resetBackupStatusForTests();
     const backupDir = createTempBackupDir();

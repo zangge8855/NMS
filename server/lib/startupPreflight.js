@@ -174,7 +174,7 @@ export function collectStartupIssues(env = process.env, options = {}) {
     return issues;
 }
 
-function isVolatileDataDir(dataDir) {
+export function isVolatileDataDir(dataDir) {
     const normalized = resolve(dataDir);
     return normalized === '/tmp'
         || normalized.startsWith('/tmp/')

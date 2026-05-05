@@ -8,7 +8,7 @@
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
-            color-scheme: light;
+            color-scheme: light dark;
             --ink: #1f1a18;
             --muted: rgba(31, 26, 24, 0.62);
             --paper: #f3ece2;
@@ -227,6 +227,52 @@
             margin-top: 20px;
             padding: 18px 20px;
             border-radius: 24px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+                --ink: #f3eadf;
+                --muted: rgba(243, 234, 223, 0.66);
+                --paper: #141211;
+                --surface: rgba(30, 27, 24, 0.9);
+                --line: rgba(243, 234, 223, 0.15);
+                --accent: #df9076;
+                --shadow: 0 24px 76px rgba(0, 0, 0, 0.34);
+            }
+
+            body {
+                background:
+                    radial-gradient(circle at 8% 12%, rgba(223, 144, 118, 0.16), transparent 24%),
+                    linear-gradient(180deg, rgba(20, 18, 17, 0.16), rgba(20, 18, 17, 0.86)),
+                    url("{{asset:dotTexture}}"),
+                    var(--paper);
+            }
+
+            .{{class:brand-mark}} {
+                background: radial-gradient(circle at 36% 32%, #f3eadf 0 14%, #cf735f 15% 44%, #1d1917 45% 100%);
+            }
+
+            .{{class:lang-switch}} {
+                background: rgba(30, 27, 24, 0.76);
+            }
+
+            .{{class:lang-button}}[aria-pressed="true"] {
+                background: #f3eadf;
+                color: #1d1917;
+            }
+
+            .{{class:image-frame}} {
+                background: #302922;
+            }
+
+            .{{class:site-nav}},
+            .{{class:feature}},
+            .{{class:section-card}},
+            .{{class:blog-item}},
+            .{{class:footer}} {
+                box-shadow: 0 18px 56px rgba(0, 0, 0, 0.26);
+            }
         }
 
         @media (max-width: 820px) {
