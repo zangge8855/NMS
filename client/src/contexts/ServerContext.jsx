@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client.js';
-import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
+import { clearSessionSnapshot, readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
 
 const ServerContext = createContext(null);
 const ACTIVE_SERVER_KEY = 'nms_active_server';
@@ -65,16 +65,18 @@ function resolvePreferredServerId(serverList = [], ...candidates) {
     return hasServers ? 'global' : null;
 }
 
-export function ServerProvider({ children }) {
-    const bootstrapRef = useRef(readServerContextSnapshot());
-    const [servers, setServers] = useState(() => bootstrapRef.current?.servers || []);
+export function ServerProvider({ children, enabled = true }) {
+    const bootstrapRef = useRef(enabled ? readServerContextSnapshot() : null);
+    const [servers, setServers] = useState(() => (enabled ? (bootstrapRef.current?.servers || []) : []));
     const [activeServerId, setActiveServerId] = useState(
-        () => bootstrapRef.current?.activeServerId
+        () => !enabled
+            ? null
+            : bootstrapRef.current?.activeServerId
             || getStoredActiveServerId()
             || (bootstrapRef.current?.servers?.length ? 'global' : null)
     );
-    const [loading, setLoading] = useState(() => bootstrapRef.current == null);
-    const serversStateRef = useRef(bootstrapRef.current?.servers || []);
+    const [loading, setLoading] = useState(() => (enabled ? bootstrapRef.current == null : false));
+    const serversStateRef = useRef(enabled ? (bootstrapRef.current?.servers || []) : []);
     const fetchServersPendingRef = useRef(null);
     const lastFetchedAtRef = useRef(bootstrapRef.current ? Date.now() : 0);
 
@@ -83,6 +85,13 @@ export function ServerProvider({ children }) {
     }, [servers]);
 
     const fetchServers = useCallback(async (options = {}) => {
+        if (!enabled) {
+            serversStateRef.current = [];
+            setServers([]);
+            setActiveServerId(null);
+            setLoading(false);
+            return [];
+        }
         const force = options.force === true;
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && servers.length > 0);
         const hasCachedServers = Array.isArray(serversStateRef.current);
@@ -149,13 +158,22 @@ export function ServerProvider({ children }) {
                 setLoading(false);
             }
         }
-    }, [servers.length]);
+    }, [enabled, servers.length]);
 
     useEffect(() => {
+        if (!enabled) {
+            serversStateRef.current = [];
+            setServers([]);
+            setActiveServerId(null);
+            setLoading(false);
+            clearSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY);
+            return;
+        }
         fetchServers({ preserveCurrent: bootstrapRef.current != null });
-    }, [fetchServers]);
+    }, [enabled, fetchServers]);
 
     useEffect(() => {
+        if (!enabled) return undefined;
         const handleSnapshotUpdate = (event) => {
             const detail = event?.detail && typeof event.detail === 'object' ? event.detail : null;
             if (!detail || detail.key !== SERVER_CONTEXT_SNAPSHOT_KEY || detail.source !== 'app-bootstrap') return;
@@ -182,14 +200,15 @@ export function ServerProvider({ children }) {
 
         window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
         return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
-    }, []);
+    }, [enabled]);
 
     useEffect(() => {
+        if (!enabled) return;
         writeSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
             servers,
             activeServerId,
         });
-    }, [servers, activeServerId]);
+    }, [activeServerId, enabled, servers]);
 
     const selectServer = (id) => {
         setActiveServerId(id);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../api/client.js';
 import { NotificationProvider, useNotifications } from './NotificationContext.jsx';
@@ -37,6 +37,7 @@ describe('NotificationContext', () => {
     });
 
     it('renders the cached notification snapshot before the live preview request finishes', async () => {
+        let resolvePreview;
         window.sessionStorage.setItem('nms_session_snapshot:notification_center_bootstrap_v1', JSON.stringify({
             savedAt: Date.now(),
             value: {
@@ -45,7 +46,13 @@ describe('NotificationContext', () => {
                 loadedLimit: 1,
             },
         }));
-        api.get.mockImplementation(() => new Promise(() => {}));
+        let previewPromise;
+        api.get.mockImplementation(() => {
+            previewPromise = new Promise((resolve) => {
+                resolvePreview = resolve;
+            });
+            return previewPromise;
+        });
 
         render(
             <NotificationProvider wsLastMessage={null}>
@@ -55,6 +62,17 @@ describe('NotificationContext', () => {
 
         expect(await screen.findByTestId('notification-count')).toHaveTextContent('3');
         expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
+        await act(async () => {
+            resolvePreview({
+                data: {
+                    obj: {
+                        items: [{ id: 'n1', title: 'Cached notice' }],
+                        unreadCount: 3,
+                    },
+                },
+            });
+            await previewPromise;
+        });
     });
 
     it('loads a lightweight preview first and expands only when requested', async () => {
@@ -90,16 +108,16 @@ describe('NotificationContext', () => {
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+            expect(screen.getByTestId('notification-count')).toHaveTextContent('4');
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
         });
-        expect(screen.getByTestId('notification-count')).toHaveTextContent('4');
-        expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
 
         await user.click(screen.getByRole('button', { name: 'expand' }));
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=30');
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('3');
         });
-        expect(screen.getByTestId('notification-items')).toHaveTextContent('3');
     });
 
     it('still performs the first live preview request when a previous session cached an expanded limit', async () => {
@@ -131,13 +149,12 @@ describe('NotificationContext', () => {
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
+            expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
         });
-        expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
-        expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
     });
 
     it('deduplicates concurrent expanded notification fetches', async () => {
-        let resolveExpanded;
         api.get
             .mockResolvedValueOnce({
                 data: {
@@ -147,11 +164,17 @@ describe('NotificationContext', () => {
                     },
                 },
             })
-            .mockImplementationOnce(() => new Promise((resolve) => {
-                resolveExpanded = resolve;
-            }));
-
-        const user = userEvent.setup();
+            .mockResolvedValueOnce({
+                data: {
+                    obj: {
+                        items: [
+                            { id: 'n1', title: 'Preview only' },
+                            { id: 'n2', title: 'Expanded' },
+                        ],
+                        unreadCount: 1,
+                    },
+                },
+            });
 
         render(
             <NotificationProvider wsLastMessage={null}>
@@ -161,29 +184,41 @@ describe('NotificationContext', () => {
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('1');
         });
 
-        await Promise.all([
-            user.click(screen.getByRole('button', { name: 'expand' })),
-            user.click(screen.getByRole('button', { name: 'expand' })),
-        ]);
+        const expandButton = screen.getByRole('button', { name: 'expand' });
+        fireEvent.click(expandButton);
+        fireEvent.click(expandButton);
 
-        expect(api.get.mock.calls.filter(([url]) => url === '/system/notifications?limit=30')).toHaveLength(1);
-
-        resolveExpanded({
-            data: {
-                obj: {
-                    items: [
-                        { id: 'n1', title: 'Preview only' },
-                        { id: 'n2', title: 'Expanded' },
-                    ],
-                    unreadCount: 1,
-                },
-            },
+        await waitFor(() => {
+            expect(api.get.mock.calls.filter(([url]) => url === '/system/notifications?limit=30')).toHaveLength(1);
         });
-
         await waitFor(() => {
             expect(screen.getByTestId('notification-items')).toHaveTextContent('2');
         });
+    });
+
+    it('does not fetch admin notifications when disabled', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:notification_center_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                notifications: [{ id: 'n1', title: 'Cached notice' }],
+                unreadCount: 3,
+                loadedLimit: 1,
+            },
+        }));
+
+        render(
+            <NotificationProvider enabled={false} wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('notification-count')).toHaveTextContent('0');
+            expect(screen.getByTestId('notification-items')).toHaveTextContent('0');
+        });
+        expect(api.get).not.toHaveBeenCalled();
     });
 });

@@ -1423,6 +1423,7 @@ export default function UserDetail() {
             <Header
                 title={t('pages.userDetail.titleWithName', { name: user.username })}
                 eyebrow={t('pages.userDetail.eyebrow')}
+                allowTitleWrap
             />
             <div className="page-content page-content--wide page-enter user-detail-page">
                 <button className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/clients')}>

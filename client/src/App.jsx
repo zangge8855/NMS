@@ -183,8 +183,8 @@ function ProtectedLayout() {
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
 
     return (
-        <ServerProvider>
-        <NotificationProvider wsLastMessage={isAdmin ? rootWsLastMessage : null}>
+        <ServerProvider enabled={isAdmin}>
+        <NotificationProvider enabled={isAdmin} wsLastMessage={isAdmin ? rootWsLastMessage : null}>
             <div className="app-layout">
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}

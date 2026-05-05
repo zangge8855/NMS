@@ -85,4 +85,26 @@ describe('ServerContext', () => {
 
         expect(api.get).not.toHaveBeenCalled();
     });
+
+    it('does not fetch admin server data when disabled', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:server_context_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                servers: [{ id: 'server-a', name: 'Node A' }],
+                activeServerId: 'global',
+            },
+        }));
+
+        render(
+            <ServerProvider enabled={false}>
+                <ServerContextConsumer />
+            </ServerProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('active-server')).toHaveTextContent('none');
+            expect(screen.getByTestId('server-count')).toHaveTextContent('0');
+        });
+        expect(api.get).not.toHaveBeenCalled();
+    });
 });

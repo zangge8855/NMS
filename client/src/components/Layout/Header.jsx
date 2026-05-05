@@ -501,7 +501,7 @@ export default function Header({
                         >
                             <span className="language-toggle-label">{t('shell.langLabel')}</span>
                         </button>
-                        <NotificationBell />
+                        {isAdmin ? <NotificationBell /> : null}
                         <button
                             type="button"
                             className="theme-toggle-btn"

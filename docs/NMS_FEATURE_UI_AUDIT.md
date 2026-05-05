@@ -3,7 +3,7 @@
 ## 中文
 
 审计日期：2026-04-28
-最近复核：2026-05-04，全页面排版复核与审计中心专项完善
+最近复核：2026-05-05，全页面排版复核、审计中心图表与用户端外壳收敛
 
 ### 已完成项
 
@@ -43,6 +43,9 @@
 - 审计中心已补齐事件与订阅访问的日期、操作者、目标用户、Token、真实 IP、节点等筛选条件，列表、摘要和 CSV 导出现在使用同一套筛选语义
 - 审计中心桌面端已收敛为更紧凑的工作台：页签、筛选区、状态摘要、表格和流量分析区域统一列宽与间距，侧边栏展开或收起时都保持清晰对齐
 - 审计中心移动端已复核为横向页签 + 单列筛选流 + 全宽操作按钮，避免小屏下按钮、日期输入和表格摘要互相挤压
+- 普通用户外壳现在不会加载管理员专用的服务器上下文、系统通知接口或通知铃铛，避免用户端页面出现无意义请求和顶部操作噪音
+- 用户详情页标题允许在窄屏下自然换行，服务器表格账号列和操作列重新校准，暗色收起侧边栏状态下不再出现账号字符竖排
+- 审计中心流量图表已统一移动端边距和紧凑 Y 轴刻度，保留 tooltip 的完整字节展示，同时避免窄屏坐标轴单位换行
 
 ### 当前状态良好区域
 
@@ -78,6 +81,10 @@
 
 本次全页面复核覆盖管理员端 19 个桌面页面的亮色、暗色、侧边栏展开和侧边栏收起状态，共 76 张桌面截图；同时覆盖管理员端和普通用户端主要移动页面的亮色、暗色状态，共 44 张移动截图。自动指标未发现横向溢出、明显错位、异常大空白或控件文本挤压。人工抽样确认了仪表盘、系统设置、审计中心、服务器详情、入站列表和普通用户订阅页，当前主要页面排版已经可以作为继续收敛共享组件的稳定基线。
 
+### 2026-05-05 全页面排版复核结论
+
+本次复核覆盖管理员端 22 个路由在桌面亮色、桌面暗色、侧边栏展开和侧边栏收起下的组合，以及管理员端和普通用户端移动 / 桌面主要页面，共 144 个页面状态、224 张截图。自动指标未发现横向溢出、明显错位、控件文本截断或过小文字按钮。人工抽样确认了暗色收起侧边栏下的服务器表格、移动端审计流量图表、系统设置移动暗色页和普通用户桌面订阅页；当前主页面在明暗主题、桌面侧边栏展开 / 收起、移动端底部导航下均保持可读和对齐。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -85,7 +92,7 @@
 ## English
 
 Audit date: 2026-04-28
-Latest review: 2026-05-04, full-page layout review and focused Audit Center pass
+Latest review: 2026-05-05, full-page layout review, Audit Center chart pass, and end-user shell cleanup
 
 ### Completed
 
@@ -129,6 +136,9 @@ Latest review: 2026-05-04, full-page layout review and focused Audit Center pass
 - Audit Center now supports aligned filters for event and subscription-access views, including date range, actor, target user, token, real IP, and server fields; list, summary, and CSV export behavior now share the same filter semantics
 - Audit Center desktop layout now reads as a denser workbench with consistent tab, filter, summary, table, and traffic-analysis spacing across expanded and collapsed sidebar states
 - Audit Center mobile layout was rechecked as a horizontal tab rail, single-column filter flow, and full-width action controls so date inputs, buttons, and summaries do not crowd each other on small screens
+- The end-user shell no longer loads admin-only server context, system-notification APIs, or the notification bell, removing unnecessary requests and header noise from user pages
+- User Detail titles now wrap cleanly on narrow screens, while server account/action columns were retuned so collapsed-sidebar dark layouts no longer stack account text vertically
+- Audit Center traffic charts now use consistent margins and compact Y-axis byte labels on mobile, keeping full byte values in tooltips while avoiding wrapped axis units
 
 ### Areas in good shape
 
@@ -163,6 +173,10 @@ The focused pass covered all five System Settings workspaces: Status, Access & S
 ### 2026-05-04 Full-Page Layout Conclusion
 
 The full-page review covered 19 admin desktop pages across light theme, dark theme, expanded sidebar, and collapsed sidebar states for 76 desktop captures. It also covered the main admin and end-user mobile pages across light and dark themes for 44 mobile captures. Automated layout metrics found no horizontal overflow, visible misalignment, abnormal whitespace, or control text crowding. Manual samples included Dashboard, System Settings, Audit Center, Server Detail, Inbounds, and the end-user Subscription page; the main surfaces are now stable enough to use as the baseline for continued shared-component convergence.
+
+### 2026-05-05 Full-Page Layout Conclusion
+
+The review covered 22 admin routes across desktop light, desktop dark, expanded sidebar, and collapsed sidebar combinations, plus the primary admin and end-user mobile / desktop surfaces, for 144 page states and 224 screenshots. Automated metrics found no horizontal overflow, visible misalignment, clipped control text, or tiny text buttons. Manual samples confirmed the dark collapsed server table, mobile Audit Center traffic charts, dark mobile System Settings, and the end-user desktop Subscriptions page; the main surfaces now remain readable and aligned across themes, sidebar states, and mobile navigation.
 
 ### Conclusion
 

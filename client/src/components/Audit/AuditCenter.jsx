@@ -46,6 +46,8 @@ const AUDIT_TRAFFIC_WINDOW_QUERY = Object.freeze({
     week: 'this_week',
     month: 'this_month',
 });
+const AUDIT_TRAFFIC_CHART_MARGIN = Object.freeze({ top: 8, right: 12, left: 8, bottom: 4 });
+const AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH = 58;
 const AUDIT_ACCESS_WEEK_DAYS = 7;
 const AUDIT_ACCESS_MONTH_DAYS = 30;
 const AUDIT_EVENTS_SNAPSHOT_KEY = 'audit_events_v1';
@@ -63,6 +65,22 @@ const EMPTY_TRAFFIC_TOTALS = Object.freeze({
     downBytes: 0,
     totalBytes: 0,
 });
+
+function formatTrafficAxisBytes(bytes) {
+    const value = Number(bytes || 0);
+    if (!Number.isFinite(value) || value === 0) return '0B';
+
+    const units = [
+        { suffix: 'T', divisor: 1024 ** 4 },
+        { suffix: 'G', divisor: 1024 ** 3 },
+        { suffix: 'M', divisor: 1024 ** 2 },
+        { suffix: 'K', divisor: 1024 },
+    ];
+    const match = units.find((unit) => Math.abs(value) >= unit.divisor);
+    if (!match) return `${Math.round(value)}B`;
+
+    return `${parseFloat((value / match.divisor).toFixed(1))}${match.suffix}`;
+}
 
 function buildEmptyTrafficWindows() {
     return {
@@ -2223,10 +2241,10 @@ export default function AuditCenter() {
                                 </div>
                                 <div className="dashboard-chart audit-chart-body">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={userTrend.points || []}>
+                                        <LineChart data={userTrend.points || []} margin={AUDIT_TRAFFIC_CHART_MARGIN}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                             <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
-                                            <YAxis />
+                                            <YAxis width={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH} tickFormatter={formatTrafficAxisBytes} />
                                             <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
                                             <Line type="monotone" dataKey="totalBytes" stroke="#6366f1" strokeWidth={2} dot={false} />
                                         </LineChart>
@@ -2272,10 +2290,10 @@ export default function AuditCenter() {
                                 ) : (
                                     <div className="dashboard-chart audit-chart-body">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={serverTrend.points || []}>
+                                            <LineChart data={serverTrend.points || []} margin={AUDIT_TRAFFIC_CHART_MARGIN}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                                                 <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
-                                                <YAxis />
+                                                <YAxis width={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH} tickFormatter={formatTrafficAxisBytes} />
                                                 <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
                                                 <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
                                             </LineChart>

@@ -2516,3 +2516,104 @@
     flex-basis: 100%;
   }
 }
+
+/* Full-page layout audit pass: remove narrow text traps without adding chrome. */
+.inbounds-page .inbounds-node-cell {
+  min-width: 142px;
+}
+
+.inbounds-page .inbounds-node-badge {
+  width: auto;
+  min-width: 132px;
+  max-width: 168px;
+}
+
+.users-page .users-identity-secondary {
+  display: -webkit-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.users-page .users-sequence-sort-button {
+  min-height: 26px;
+  min-width: 34px;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.servers-page .servers-table {
+  min-width: 1040px;
+  table-layout: auto;
+}
+
+.servers-page .servers-table th,
+.servers-page .servers-table td {
+  padding-inline: 9px;
+}
+
+.servers-page .servers-telemetry-column,
+.servers-page .servers-telemetry-cell {
+  min-width: 0;
+}
+
+.servers-page .servers-table th.servers-name-column,
+.servers-page .servers-table td.servers-name-cell {
+  min-width: 170px;
+}
+
+.servers-page .servers-table th.servers-group-column,
+.servers-page .servers-table td.servers-tags-cell {
+  min-width: 100px;
+}
+
+.servers-page .servers-table th.servers-actions-column,
+.servers-page .servers-table td.servers-actions-cell {
+  min-width: 166px;
+}
+
+.servers-page .servers-table th.servers-account-column,
+.servers-page .servers-table td.servers-account-cell {
+  min-width: 96px;
+}
+
+.servers-page .servers-account-stack > span,
+.servers-page .servers-status-meta {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.servers-page .servers-row-actions {
+  gap: 5px;
+}
+
+.servers-page .servers-row-actions .btn {
+  min-height: 32px;
+  padding-inline: 8px;
+}
+
+.servers-page .server-card-name-trigger,
+.servers-page .servers-mobile-title {
+  min-height: 26px;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .header-title--wrap {
+    line-height: 1.16;
+    -webkit-line-clamp: 2;
+  }
+
+  .servers-page .servers-table {
+    table-layout: auto;
+  }
+
+  .servers-page .servers-mobile-title {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+  }
+}

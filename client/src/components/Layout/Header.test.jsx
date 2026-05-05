@@ -3,6 +3,10 @@ import { fireEvent, screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render.jsx';
 import Header from './Header.jsx';
 
+const mockState = vi.hoisted(() => ({
+    authUser: { role: 'admin', username: 'review-admin' },
+}));
+
 vi.mock('../../contexts/ServerContext.jsx', () => ({
     useServer: () => ({
         activeServer: null,
@@ -19,7 +23,7 @@ vi.mock('../../contexts/ThemeContext.jsx', () => ({
 
 vi.mock('../../contexts/AuthContext.jsx', () => ({
     useAuth: () => ({
-        user: { role: 'admin', username: 'review-admin' },
+        user: mockState.authUser,
     }),
 }));
 
@@ -28,6 +32,10 @@ vi.mock('./NotificationBell.jsx', () => ({
 }));
 
 describe('Header', () => {
+    beforeEach(() => {
+        mockState.authUser = { role: 'admin', username: 'review-admin' };
+    });
+
     it('renders the title while hiding eyebrow and subtitle by default', () => {
         const { container } = renderWithRouter(
             <Header
@@ -83,6 +91,17 @@ describe('Header', () => {
         expect(controls?.querySelector('[data-testid="notification-bell"]')).not.toBeNull();
         expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
     });
+
+    it('keeps admin notifications out of the user header', () => {
+        mockState.authUser = { role: 'user', username: 'review-user' };
+        const { container } = renderWithRouter(<Header title="订阅中心" />);
+
+        const controls = container.querySelector('.header-controls');
+        expect(controls?.querySelector('.language-toggle-btn')).not.toBeNull();
+        expect(controls?.querySelector('[data-testid="notification-bell"]')).toBeNull();
+        expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).not.toBeNull();
+    });
+
 
     it('renders custom page actions in a dedicated primary actions region', () => {
         const { container } = renderWithRouter(
