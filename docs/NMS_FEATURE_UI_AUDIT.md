@@ -3,7 +3,7 @@
 ## 中文
 
 审计日期：2026-04-28
-最近复核：2026-05-05，全页面排版复核、审计中心图表与用户端外壳收敛
+最近复核：2026-05-05，全页面排版复核、公开伪装首页重装、站内共用布局兜底收敛
 
 ### 已完成项
 
@@ -25,7 +25,8 @@
 - 入站、服务器、用户等主要表格重新统一了对齐规则、紧凑列宽和 badge 语言
 - Telegram 告警、状态摘要和帮助命令已经统一为结构化 HTML 消息，重点数值加粗，命令说明改成对齐表格
 - 用户管理、用户详情、通知中心和仪表盘都补上了分阶段加载或共享缓存，后台首屏等待感明显下降
-- 伪装首页的 `corporate` 模板已经重写为完整的工业自动化企业官网，包含导航栏、动画计数器、客户信任条、产品矩阵、应用场景、交付流程、联系信息、四列 Footer、ISO/CE 认证标识和 Cookie 横幅
+- 伪装首页三套模板已重装为城市生活杂志方向：`corporate` 为城市周刊，`blog` 为影像笔记，`nginx` 为周末指南；公开文案、标题、资源路径和 404 内容均与站内运维、订阅、节点、审计等业务语义脱钩
+- 站内页面新增一层全局排版兜底：统一页面最大宽度、工具栏换行、表格首尾留白、设置页入口区栅格和移动端底部导航避让
 - 普通用户新增独立的软件下载中心（Downloads）和自助账户中心（Account），与订阅页分离
 - 审计日志写入改为持久化流（替代 `appendFileSync`），模式匹配改用内存环形缓冲，减少事件循环阻塞
 - 任务队列增加容量上限（1000），超限时自动清理已完成任务
@@ -85,6 +86,12 @@
 
 本次复核覆盖管理员端 22 个路由在桌面亮色、桌面暗色、侧边栏展开和侧边栏收起下的组合，以及管理员端和普通用户端移动 / 桌面主要页面，共 144 个页面状态、224 张截图。自动指标未发现横向溢出、明显错位、控件文本截断或过小文字按钮。人工抽样确认了暗色收起侧边栏下的服务器表格、移动端审计流量图表、系统设置移动暗色页和普通用户桌面订阅页；当前主页面在明暗主题、桌面侧边栏展开 / 收起、移动端底部导航下均保持可读和对齐。
 
+### 2026-05-05 公开首页与站内布局补强
+
+本次实现将公开伪装页从旧的技术/工业站点语义改为完全无关的城市生活杂志。三套模板使用城市街景、咖啡、展览、建筑和周末路线内容，默认标题改为 `City Field Notes`，设置页模板展示名改为“城市周刊 / 周末指南 / 影像笔记”。服务端测试增加敏感业务词断言，确保公开 HTML 不出现 NMS、subscription、node、server、panel、audit、proxy、token、admin、订阅、节点、面板、审计、后台、运维等站内语义。
+
+站内部分新增跨页面布局兜底，覆盖 Dashboard、Users、Audit、Settings、Servers、Inbounds、Logs、Tools、Capabilities、Subscriptions、Account 等页面的容器宽度、工具栏对齐、表格留白和移动端操作按钮换行。此层作为新增页面的防护线，避免侧边栏展开/折叠、浅深主题或移动端底部导航下重新出现挤压和错位。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -92,7 +99,7 @@
 ## English
 
 Audit date: 2026-04-28
-Latest review: 2026-05-05, full-page layout review, Audit Center chart pass, and end-user shell cleanup
+Latest review: 2026-05-05, full-page layout review, public camouflage redesign, and internal layout guardrail pass
 
 ### Completed
 
@@ -118,7 +125,8 @@ Latest review: 2026-05-05, full-page layout review, Audit Center chart pass, and
 - The sidebar no longer carries a duplicated monitor group or bottom single-node switcher, and account / sign-out actions sit closer to the main navigation
 - Telegram digests, alerts, and help output now share one structured HTML message system with bold key values and aligned command tables
 - Dashboard, Users, User Detail, and Notification Center now use staged loading and shared cache paths to reduce first-open waiting time
-- The corporate camouflage template has been rewritten into a full industrial automation company homepage with navigation, animated counters, trust bar, product matrix, application scenarios, delivery steps, contact section, four-column footer, ISO/CE certification badges, and a cookie consent banner
+- All three camouflage templates have been redesigned as unrelated city-magazine pages: `corporate` is a city weekly, `blog` is photo notes, and `nginx` is a weekend guide. Public copy, titles, asset paths, and 404 content are detached from internal operations, subscriptions, nodes, audit, and related product language
+- Internal pages now have an extra global layout guardrail layer for page width, toolbar wrapping, table edge padding, the Settings access grid, and mobile bottom-navigation spacing
 - End users now have a dedicated Downloads center and self-service Account center, separated from the Subscriptions page
 - Audit log writing switched to a persistent write stream (replacing `appendFileSync`) with an in-memory ring buffer for pattern matching, reducing event-loop blocking
 - Task queue now enforces a capacity cap (1000) with automatic pruning of completed tasks on overflow

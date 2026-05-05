@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" role="img" aria-label="building facade detail">
+  <rect width="960" height="640" rx="28" fill="#e8d7c2"/>
+  <g fill="#7b6a5a">
+    <rect x="128" y="118" width="704" height="88" rx="6"/>
+    <rect x="156" y="238" width="88" height="282" rx="42"/>
+    <rect x="296" y="238" width="88" height="282" rx="42"/>
+    <rect x="436" y="238" width="88" height="282" rx="42"/>
+    <rect x="576" y="238" width="88" height="282" rx="42"/>
+    <rect x="716" y="238" width="88" height="282" rx="42"/>
+    <rect x="102" y="532" width="756" height="42" rx="10"/>
+  </g>
+  <g fill="#fff7ea" opacity=".62">
+    <circle cx="200" cy="272" r="26"/><circle cx="340" cy="272" r="26"/><circle cx="480" cy="272" r="26"/><circle cx="620" cy="272" r="26"/><circle cx="760" cy="272" r="26"/>
+  </g>
+</svg>

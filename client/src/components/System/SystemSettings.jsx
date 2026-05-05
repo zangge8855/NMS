@@ -100,9 +100,9 @@ function generateRandomSiteAccessPath() {
 }
 
 const CAMOUFLAGE_TEMPLATE_OPTIONS = [
-    { value: 'corporate', label: 'Corporate' },
-    { value: 'nginx', label: 'Nginx' },
-    { value: 'blog', label: 'Blog' },
+    { value: 'corporate', label: '城市周刊' },
+    { value: 'nginx', label: '周末指南' },
+    { value: 'blog', label: '影像笔记' },
 ];
 
 function buildDraft(source = null) {
@@ -114,7 +114,7 @@ function buildDraft(source = null) {
             accessPath: normalizeSiteAccessPathInput(settings.site?.accessPath, '/'),
             camouflageEnabled: settings.site?.camouflageEnabled === true,
             camouflageTemplate: toText(settings.site?.camouflageTemplate, 'corporate'),
-            camouflageTitle: toText(settings.site?.camouflageTitle, 'Edge Precision Systems'),
+            camouflageTitle: toText(settings.site?.camouflageTitle, 'City Field Notes'),
         },
         registration: {
             inviteOnlyEnabled: settings.registration?.inviteOnlyEnabled === true,
@@ -1750,7 +1750,7 @@ export default function SystemSettings() {
                                             className="form-input"
                                             value={draft.site.camouflageTitle}
                                             onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
-                                            placeholder="Edge Precision Systems"
+                                            placeholder="City Field Notes"
                                         />
                                     </div>
                                 </div>

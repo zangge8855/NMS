@@ -1603,7 +1603,7 @@ export default function UsersHub() {
                         <table className="table users-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: 40 }}>
+                                    <th className="users-select-column">
                                         <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
                                     </th>
                                     <th>
@@ -1645,7 +1645,7 @@ export default function UsersHub() {
                                             className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
                                             onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                         >
-                                                <td className="mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                                <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
                                                 <td data-label="序号" onClick={(e) => e.stopPropagation()}>
                                                     <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                                 </td>

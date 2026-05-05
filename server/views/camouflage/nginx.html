@@ -8,114 +8,92 @@
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
-            color-scheme: dark;
-            --bg: #030815;
-            --panel: rgba(10, 20, 36, 0.9);
-            --panel-soft: rgba(12, 26, 48, 0.78);
-            --border: rgba(148, 163, 184, 0.18);
-            --text: #e8eef8;
-            --muted: rgba(226, 232, 240, 0.72);
-            --accent: #47e0a0;
-            --accent-alt: #67d5ff;
-            --shadow: 0 28px 90px rgba(2, 8, 23, 0.56);
+            color-scheme: light;
+            --ink: #19202a;
+            --muted: rgba(25, 32, 42, 0.62);
+            --paper: #f5ede0;
+            --surface: rgba(255, 251, 244, 0.9);
+            --line: rgba(37, 32, 28, 0.14);
+            --accent: #bf6a4d;
+            --blue: #455d6c;
+            --shadow: 0 26px 78px rgba(40, 31, 24, 0.16);
         }
 
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
-
         body {
             min-height: 100vh;
-            color: var(--text);
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
             background:
-                radial-gradient(circle at 14% 10%, rgba(71, 224, 160, 0.11), transparent 26%),
-                radial-gradient(circle at 88% 18%, rgba(103, 213, 255, 0.14), transparent 24%),
-                linear-gradient(180deg, #020617 0%, #07101f 40%, #030815 100%);
-            padding: 20px;
-        }
-
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background:
-                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 26px 26px;
-            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 88%);
-            pointer-events: none;
+                linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.8)),
+                url("{{asset:gridTexture}}"),
+                var(--paper);
+            background-size: auto, 180px 180px, auto;
         }
 
         [data-lang][hidden] { display: none !important; }
 
         .{{class:page}} {
-            width: min(1180px, 100%);
+            width: min(1200px, calc(100vw - 32px));
             margin: 0 auto;
-            padding: 28px;
-            border-radius: 28px;
-            border: 1px solid var(--border);
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
-                var(--panel);
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
+            padding: 24px 0 42px;
         }
 
         .{{class:site-nav}} {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
             gap: 18px;
-            margin-bottom: 22px;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 18px;
         }
 
         .{{class:brand}} {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             min-width: 0;
         }
 
         .{{class:brand-mark}} {
-            width: 46px;
-            height: 46px;
+            width: 42px;
+            height: 42px;
             border-radius: 14px;
-            background: linear-gradient(135deg, rgba(71, 224, 160, 0.22), rgba(103, 213, 255, 0.18));
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background:
+                linear-gradient(135deg, rgba(191, 106, 77, 0.88), rgba(69, 93, 108, 0.88)),
+                #f7ddbd;
         }
 
-        .{{class:brand-copy}} { min-width: 0; }
+        .{{class:brand-title}} {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 26px;
+            line-height: 1;
+            overflow-wrap: anywhere;
+        }
 
-        .{{class:nav-chip}} {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 34px;
-            padding: 0 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(71, 224, 160, 0.18);
-            background: rgba(71, 224, 160, 0.12);
+        .{{class:brand-subtitle}} {
+            color: var(--muted);
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
         }
 
         .{{class:lang-switch}} {
             display: inline-flex;
-            gap: 6px;
+            gap: 4px;
             padding: 4px;
+            border: 1px solid var(--line);
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 251, 244, 0.72);
         }
 
         .{{class:lang-button}} {
             min-height: 34px;
             padding: 0 12px;
-            border-radius: 999px;
             border: 0;
+            border-radius: 999px;
             background: transparent;
             color: var(--muted);
             font-size: 12px;
@@ -124,358 +102,278 @@
         }
 
         .{{class:lang-button}}[aria-pressed="true"] {
-            background: linear-gradient(135deg, rgba(71, 224, 160, 0.24), rgba(103, 213, 255, 0.22));
-            color: var(--text);
+            background: var(--ink);
+            color: #fffbf4;
         }
 
-        .{{class:grid-two}},
-        .{{class:status-strip}},
-        .{{class:section-grid}},
-        .{{class:meta-grid}} {
+        .{{class:hero}} {
             display: grid;
-            gap: 18px;
-        }
-
-        .{{class:grid-two}} {
-            grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.98fr);
-            margin-bottom: 18px;
-        }
-
-        .{{class:section-card}},
-        .{{class:terminal}},
-        .{{class:status-item}},
-        .{{class:footer}} {
-            border-radius: 22px;
-            border: 1px solid var(--border);
-            background: var(--panel-soft);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-        }
-
-        .{{class:section-card}},
-        .{{class:terminal}},
-        .{{class:footer}} {
-            padding: 22px;
-        }
-
-        .{{class:hero-panel}} {
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+            min-height: min(690px, calc(100svh - 104px));
             overflow: hidden;
-            border-radius: 22px;
-            border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.02);
+            border-radius: 34px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
         }
 
         .{{class:hero-copy}} {
-            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 28px;
+            padding: clamp(28px, 5vw, 64px);
         }
 
         .{{class:image-frame}} {
-            overflow: hidden;
-            border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .{{class:hero-image}} {
-            display: block;
-            width: 100%;
-            height: auto;
+            min-height: 100%;
+            background:
+                linear-gradient(90deg, rgba(25, 32, 42, 0.12), rgba(25, 32, 42, 0)),
+                url("{{asset:coverImage}}") center / cover;
         }
 
         .{{class:eyebrow}} {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
             color: var(--accent);
             font-size: 12px;
-            letter-spacing: 0.12em;
+            font-weight: 900;
+            letter-spacing: 0.18em;
             text-transform: uppercase;
-            font-weight: 700;
-        }
-
-        .{{class:eyebrow}}::before {
-            content: "";
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-alt));
-            box-shadow: 0 0 18px rgba(71, 224, 160, 0.5);
         }
 
         .{{class:headline}} {
-            margin: 0 0 12px;
-            font-size: clamp(2.1rem, 4.3vw, 3.7rem);
-            line-height: 1.04;
+            margin: 12px 0 18px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(46px, 8vw, 96px);
+            line-height: 0.9;
             letter-spacing: -0.05em;
         }
 
         .{{class:lead}},
-        .{{class:muted}},
-        .{{class:terminal-line}},
         .{{class:card-copy}},
+        .{{class:muted}},
         .{{class:footer-note}} {
             color: var(--muted);
-            line-height: 1.72;
             font-size: 14px;
+            line-height: 1.76;
         }
 
-        .{{class:button-row}} {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 18px;
+        .{{class:lead}} {
+            max-width: 520px;
+            font-size: 17px;
         }
 
-        .{{class:button}} {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 0 16px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, rgba(71, 224, 160, 0.24), rgba(103, 213, 255, 0.22));
-            color: var(--text);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 700;
-            border: 1px solid rgba(103, 213, 255, 0.14);
-        }
-
-        .{{class:button-muted}} {
-            background: rgba(255, 255, 255, 0.03);
-            border-color: rgba(255, 255, 255, 0.08);
-        }
-
-        .{{class:notice}} {
-            padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(71, 224, 160, 0.08);
-            border: 1px solid rgba(71, 224, 160, 0.14);
-            color: var(--text);
-            font-size: 14px;
-            line-height: 1.7;
-        }
-
-        .{{class:inline-code}} {
-            font-family: inherit;
-            padding: 2px 6px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.06);
+        .{{class:meta-grid}},
+        .{{class:section-grid}} {
+            display: grid;
+            gap: 14px;
         }
 
         .{{class:meta-grid}} {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            margin-top: 16px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .{{class:meta-card}},
-        .{{class:status-item}} {
-            padding: 16px 18px;
-            border-radius: 18px;
-            background: rgba(8, 17, 32, 0.82);
-            border: 1px solid var(--border);
+        .{{class:section-card}},
+        .{{class:footer}} {
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: rgba(255, 251, 244, 0.72);
         }
 
-        .{{class:meta-label}},
-        .{{class:status-label}} {
+        .{{class:meta-card}} {
+            padding: 14px;
+        }
+
+        .{{class:meta-label}} {
             display: block;
-            margin-bottom: 8px;
-            color: rgba(226, 232, 240, 0.56);
+            margin-bottom: 6px;
+            color: var(--accent);
             font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
         }
 
-        .{{class:meta-value}},
-        .{{class:status-value}} {
-            color: var(--text);
-            font-size: 16px;
-            line-height: 1.45;
-            font-weight: 700;
-        }
-
-        .{{class:status-strip}} {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            margin-bottom: 18px;
+        .{{class:meta-value}} {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 19px;
         }
 
         .{{class:section-grid}} {
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            margin-bottom: 18px;
+            margin-top: 20px;
+        }
+
+        .{{class:section-card}} {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+            background: var(--surface);
+            box-shadow: 0 18px 48px rgba(40, 31, 24, 0.1);
+        }
+
+        .{{class:section-card}} .{{class:image-frame}} {
+            min-height: 190px;
+            border-radius: 18px;
         }
 
         .{{class:card-title}} {
-            margin: 0 0 10px;
-            font-size: 18px;
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(24px, 3vw, 36px);
+            line-height: 1.06;
+            letter-spacing: -0.035em;
         }
 
-        @media (max-width: 960px) {
-            .{{class:grid-two}},
-            .{{class:status-strip}},
+        .{{class:footer}} {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 20px;
+            padding: 18px 20px;
+        }
+
+        @media (max-width: 860px) {
+            .{{class:page}} { width: min(100% - 20px, 1200px); padding-top: 14px; }
+            .{{class:site-nav}},
+            .{{class:footer}} { flex-direction: column; align-items: flex-start; }
+            .{{class:hero}},
             .{{class:section-grid}},
-            .{{class:meta-grid}} {
-                grid-template-columns: minmax(0, 1fr);
-            }
-        }
-
-        @media (max-width: 720px) {
-            body { padding: 12px; }
-            .{{class:page}} { padding: 18px; }
+            .{{class:meta-grid}} { grid-template-columns: minmax(0, 1fr); }
+            .{{class:image-frame}} { min-height: 360px; order: -1; }
         }
     </style>
 </head>
 <body>
     <main class="{{class:page}}">
-        <nav class="{{class:site-nav}}">
+        <nav class="{{class:site-nav}}" aria-label="Magazine">
             <div class="{{class:brand}}">
                 <div class="{{class:brand-mark}}" aria-hidden="true"></div>
                 <div class="{{class:brand-copy}}">
-                    <div style="font-size: 18px; font-weight: 700;">{{title}}</div>
-                    <div class="{{class:muted}}">
+                    <h1 class="{{class:brand-title}}">{{title}}</h1>
+                    <div class="{{class:brand-subtitle}}">
                         <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
                         <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                     </div>
                 </div>
             </div>
-            <span class="{{class:nav-chip}}">
-                <span data-lang="zh-CN">{{statusLabelZh}}</span>
-                <span data-lang="en-US" hidden>{{statusLabelEn}}</span>
-            </span>
-            <div class="{{class:lang-switch}}">
-                <button type="button" class="{{class:lang-button}}" data-lang-toggle="zh-CN" aria-pressed="true">中文</button>
-                <button type="button" class="{{class:lang-button}}" data-lang-toggle="en-US" aria-pressed="false">English</button>
+            <div class="{{class:lang-switch}}" role="group" aria-label="Language">
+                <button class="{{class:lang-button}}" type="button" data-lang-button="zh-CN" aria-pressed="true">中文</button>
+                <button class="{{class:lang-button}}" type="button" data-lang-button="en-US" aria-pressed="false">English</button>
             </div>
         </nav>
 
-        <section class="{{class:grid-two}}">
-            <article class="{{class:section-card}}">
-                <span class="{{class:eyebrow}}">
-                    <span data-lang="zh-CN">{{directoryBadgeZh}}</span>
-                    <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
-                </span>
-                <h1 class="{{class:headline}}">
-                    <span data-lang="zh-CN">{{title}}</span>
-                    <span data-lang="en-US" hidden>{{title}}</span>
-                </h1>
-                <p class="{{class:lead}}">
-                    <span data-lang="zh-CN">围绕部署、联调、培训与巡检的交付支持页面，面向长期运行场景。</span>
-                    <span data-lang="en-US" hidden>A delivery and support page focused on deployment, commissioning, training, and recurring inspection.</span>
-                </p>
-                <div class="{{class:button-row}}">
-                    <a class="{{class:button}}" href="#implementation"><span data-lang="zh-CN">实施路径</span><span data-lang="en-US" hidden>Implementation</span></a>
-                    <a class="{{class:button}} {{class:button-muted}}" href="#support"><span data-lang="zh-CN">支持内容</span><span data-lang="en-US" hidden>Support</span></a>
+        <section class="{{class:hero}}">
+            <div class="{{class:hero-copy}}">
+                <div>
+                    <div class="{{class:eyebrow}}">
+                        <span data-lang="zh-CN">{{seasonLabelZh}}</span>
+                        <span data-lang="en-US" hidden>{{seasonLabelEn}}</span>
+                    </div>
+                    <h2 class="{{class:headline}}">
+                        <span data-lang="zh-CN">周末城市指南</span>
+                        <span data-lang="en-US" hidden>Weekend City Guide</span>
+                    </h2>
+                    <p class="{{class:lead}}">
+                        <span data-lang="zh-CN">三小时可完成的小路线：看一场小展，喝一杯热饮，再绕到河边看傍晚。</span>
+                        <span data-lang="en-US" hidden>A three-hour route: a small show, a warm drink, and an evening walk by the river.</span>
+                    </p>
                 </div>
                 <div class="{{class:meta-grid}}">
                     <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">服务范围</span><span data-lang="en-US" hidden>Coverage</span></span>
-                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">部署 / 培训 / 巡检</span><span data-lang="en-US" hidden>Deployment / training / inspection</span></div>
+                        <span class="{{class:meta-label}}">
+                            <span data-lang="zh-CN">主题</span><span data-lang="en-US" hidden>Theme</span>
+                        </span>
+                        <div class="{{class:meta-value}}">
+                            <span data-lang="zh-CN">轻松散步</span><span data-lang="en-US" hidden>Easy walk</span>
+                        </div>
                     </div>
                     <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">交付周期</span><span data-lang="en-US" hidden>Lead time</span></span>
-                        <div class="{{class:meta-value}}">6 - 12 <span data-lang="zh-CN">周</span><span data-lang="en-US" hidden>weeks</span></div>
-                    </div>
-                    <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">最近更新</span><span data-lang="en-US" hidden>Updated</span></span>
-                        <div class="{{class:meta-value}}"><span data-lang="zh-CN">{{generatedDateZh}}</span><span data-lang="en-US" hidden>{{generatedDateEn}}</span></div>
-                    </div>
-                    <div class="{{class:meta-card}}">
-                        <span class="{{class:meta-label}}"><span data-lang="zh-CN">资料版本</span><span data-lang="en-US" hidden>Revision</span></span>
+                        <span class="{{class:meta-label}}">
+                            <span data-lang="zh-CN">本期</span><span data-lang="en-US" hidden>Issue</span>
+                        </span>
                         <div class="{{class:meta-value}}">{{editionCode}}</div>
                     </div>
+                    <div class="{{class:meta-card}}">
+                        <span class="{{class:meta-label}}">
+                            <span data-lang="zh-CN">提示</span><span data-lang="en-US" hidden>Note</span>
+                        </span>
+                        <div class="{{class:meta-value}}">
+                            <span data-lang="zh-CN">少量步行</span><span data-lang="en-US" hidden>Light walking</span>
+                        </div>
+                    </div>
                 </div>
-            </article>
-
-            <aside class="{{class:hero-panel}}">
-                <div class="{{class:image-frame}}">
-                    <img class="{{class:hero-image}}" src="{{asset:supportHeroImage}}" alt="" />
-                </div>
-            </aside>
+            </div>
+            <div class="{{class:image-frame}}" aria-hidden="true"></div>
         </section>
 
-        <section class="{{class:section-grid}}" id="implementation">
+        <section class="{{class:section-grid}}">
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">现场实施</span><span data-lang="en-US" hidden>On-site implementation</span></h2>
+                <div class="{{class:image-frame}}" style="background-image: url('{{asset:mapImage}}');" aria-hidden="true"></div>
+                <h3 class="{{class:card-title}}">
+                    <span data-lang="zh-CN">一条不赶路的线</span>
+                    <span data-lang="en-US" hidden>A Route With No Rush</span>
+                </h3>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">从设备到位、光学定位到通信联调，实施过程按线体节拍逐段验证。</span>
-                    <span data-lang="en-US" hidden>From equipment placement and optics alignment to communications integration, implementation is validated stage by stage against line takt.</span>
+                    <span data-lang="zh-CN">从街心花园出发，穿过旧楼立面和独立书店，最后抵达河岸。</span>
+                    <span data-lang="en-US" hidden>Begin at the small garden, pass old facades and a bookshop, then arrive at the river.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">培训验收</span><span data-lang="en-US" hidden>Training and acceptance</span></h2>
+                <div class="{{class:image-frame}}" style="background-image: url('{{asset:galleryImage}}');" aria-hidden="true"></div>
+                <h3 class="{{class:card-title}}">
+                    <span data-lang="zh-CN">短展与长椅</span>
+                    <span data-lang="en-US" hidden>Small Show, Long Bench</span>
+                </h3>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">覆盖操作、复判和维护岗位，确保现场班组能够独立完成切换、复核与基础维护。</span>
-                    <span data-lang="en-US" hidden>Operator, review, and maintenance teams are trained to handle changeovers, rechecks, and baseline upkeep independently.</span>
+                    <span data-lang="zh-CN">{{accessNoteZh}} 适合留二十分钟慢慢看完。</span>
+                    <span data-lang="en-US" hidden>{{accessNoteEn}} Leave twenty minutes and take it slowly.</span>
                 </p>
             </article>
             <article class="{{class:section-card}}">
-                <h2 class="{{class:card-title}}"><span data-lang="zh-CN">巡检备件</span><span data-lang="en-US" hidden>Inspection and spares</span></h2>
+                <div class="{{class:image-frame}}" style="background-image: url('{{asset:cafeImage}}');" aria-hidden="true"></div>
+                <h3 class="{{class:card-title}}">
+                    <span data-lang="zh-CN">窗边热饮</span>
+                    <span data-lang="en-US" hidden>Warm Drink by the Window</span>
+                </h3>
                 <p class="{{class:card-copy}}">
-                    <span data-lang="zh-CN">围绕镜头、光源、控制器与关键组件建立巡检清单和备件建议，降低停线风险。</span>
-                    <span data-lang="en-US" hidden>Inspection checklists and spare recommendations for optics, lighting, controllers, and key parts reduce line stoppage risk.</span>
+                    <span data-lang="zh-CN">{{archiveNoticeZh}}</span>
+                    <span data-lang="en-US" hidden>{{archiveNoticeEn}}</span>
                 </p>
             </article>
-        </section>
-
-        <section class="{{class:status-strip}}" id="support">
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">实施范围</span><span data-lang="en-US" hidden>Scope</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">设备上架 / 参数整定 / 联调验证</span><span data-lang="en-US" hidden>Installation / tuning / integration validation</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">支持方式</span><span data-lang="en-US" hidden>Support mode</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">远程诊断 / 现场巡检 / 复判协助</span><span data-lang="en-US" hidden>Remote diagnostics / on-site visits / review assistance</span></div>
-            </div>
-            <div class="{{class:status-item}}">
-                <span class="{{class:status-label}}"><span data-lang="zh-CN">当前批次</span><span data-lang="en-US" hidden>Current batch</span></span>
-                <div class="{{class:status-value}}"><span data-lang="zh-CN">{{seasonLabelZh}}</span><span data-lang="en-US" hidden>{{seasonLabelEn}}</span></div>
-            </div>
         </section>
 
         <footer class="{{class:footer}}">
-            <div class="{{class:footer-note}}">
-                <span data-lang="zh-CN">{{title}} · 更新于 {{generatedDateZh}}</span>
-                <span data-lang="en-US" hidden>{{title}} · updated {{generatedDateEn}}</span>
-            </div>
+            <p class="{{class:footer-note}}">
+                <span data-lang="zh-CN">{{companyFootnoteZh}}</span>
+                <span data-lang="en-US" hidden>{{companyFootnoteEn}}</span>
+            </p>
+            <p class="{{class:footer-note}}">
+                <span data-lang="zh-CN">{{deliveryNoticeZh}}</span>
+                <span data-lang="en-US" hidden>{{deliveryNoticeEn}}</span>
+            </p>
         </footer>
     </main>
 
     <script>
-        (function () {
-            var storageKey = "{{languageStorageKey}}";
-            var defaultLanguage = "{{defaultLanguage}}";
-            var alternateLanguage = "{{alternateLanguage}}";
-            var buttons = document.querySelectorAll('[data-lang-toggle]');
-            var targets = document.querySelectorAll('[data-lang]');
-
-            function applyLanguage(nextLanguage) {
-                var language = nextLanguage === alternateLanguage ? alternateLanguage : defaultLanguage;
-                document.documentElement.lang = language;
-                targets.forEach(function (node) {
-                    node.hidden = node.getAttribute('data-lang') !== language;
+        (() => {
+            const key = '{{languageStorageKey}}';
+            const buttons = Array.from(document.querySelectorAll('[data-lang-button]'));
+            const items = Array.from(document.querySelectorAll('[data-lang]'));
+            const applyLanguage = (lang) => {
+                const next = lang === 'en-US' ? 'en-US' : 'zh-CN';
+                document.documentElement.lang = next;
+                items.forEach((item) => {
+                    if (!item.hasAttribute('data-lang-button')) item.hidden = item.getAttribute('data-lang') !== next;
                 });
-                buttons.forEach(function (button) {
-                    var active = button.getAttribute('data-lang-toggle') === language;
-                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
-                });
-                try {
-                    localStorage.setItem(storageKey, language);
-                } catch (_) {}
-            }
-
-            buttons.forEach(function (button) {
-                button.addEventListener('click', function () {
-                    applyLanguage(button.getAttribute('data-lang-toggle'));
-                });
-            });
-
-            var initialLanguage = defaultLanguage;
-            try {
-                var stored = localStorage.getItem(storageKey);
-                if (stored === alternateLanguage || stored === defaultLanguage) {
-                    initialLanguage = stored;
-                }
-            } catch (_) {}
-            applyLanguage(initialLanguage);
+                buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.getAttribute('data-lang-button') === next)));
+                try { window.localStorage.setItem(key, next); } catch {}
+            };
+            let initial = 'zh-CN';
+            try { initial = window.localStorage.getItem(key) || initial; } catch {}
+            if (!initial && navigator.language && navigator.language.toLowerCase().startsWith('en')) initial = 'en-US';
+            applyLanguage(initial);
+            buttons.forEach((button) => button.addEventListener('click', () => applyLanguage(button.getAttribute('data-lang-button'))));
         })();
     </script>
 </body>

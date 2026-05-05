@@ -122,7 +122,7 @@ NMS is designed so admins can operate multiple nodes from one control plane, whi
 1. Open `Settings`.
 2. In the basic system parameters area, set the homepage access path to a value such as `/portal`.
 3. Use `Random Path` if you want the system to generate a high-entropy hidden entry for you.
-4. Optionally turn on the camouflage landing page so non-matching document requests show a public-facing corporate homepage instead of the real UI.
+4. Optionally turn on the camouflage landing page so non-matching document requests show a neutral city-magazine homepage instead of the real UI.
 5. Save the settings and update bookmarks or reverse-proxy routing as needed.
 6. Keep `/api`, `/ws`, and subscription public routes reachable.
 7. Existing subscription links stay the same; this setting only changes where the UI loads.

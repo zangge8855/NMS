@@ -56,7 +56,7 @@ function mockAdminBootstrap(overrides = {}) {
                         accessPath: '/portal',
                         camouflageEnabled: true,
                         camouflageTemplate: 'nginx',
-                        camouflageTitle: 'Northline Relay',
+                        camouflageTitle: 'Harbor City Weekly',
                     },
                     registration: {
                         inviteOnlyEnabled: true,
@@ -271,7 +271,7 @@ function buildPutResponse(overrides = {}) {
             accessPath: '/portal',
             camouflageEnabled: true,
             camouflageTemplate: 'nginx',
-            camouflageTitle: 'Northline Relay',
+            camouflageTitle: 'Harbor City Weekly',
         },
         registration: {
             inviteOnlyEnabled: true,
@@ -356,7 +356,7 @@ describe('SystemSettings', () => {
         expect(await screen.findByDisplayValue('/portal')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '随机路径' })).toBeInTheDocument();
         expect(screen.getByText('站点伪装首页')).toBeInTheDocument();
-        expect(await screen.findByDisplayValue('Northline Relay')).toBeInTheDocument();
+        expect(await screen.findByDisplayValue('Harbor City Weekly')).toBeInTheDocument();
         expect(await screen.findByDisplayValue('https://converter.example.com')).toBeInTheDocument();
         expect(screen.getByDisplayValue('https://worker.example.com/subconverter?selectedRules=balanced')).toBeInTheDocument();
         expect(screen.getByDisplayValue('https://worker.example.com/subconverter?selectedRules=comprehensive')).toBeInTheDocument();
@@ -379,7 +379,7 @@ describe('SystemSettings', () => {
                         accessPath: '/cached',
                         camouflageEnabled: true,
                         camouflageTemplate: 'nginx',
-                        camouflageTitle: 'Cached Relay',
+                        camouflageTitle: 'Saved City Pages',
                     },
                 }),
                 emailStatus: {
@@ -491,7 +491,7 @@ describe('SystemSettings', () => {
                         accessPath: '/stale',
                         camouflageEnabled: true,
                         camouflageTemplate: 'nginx',
-                        camouflageTitle: 'Stale Relay',
+                        camouflageTitle: 'Draft City Pages',
                     },
                 }),
                 inviteCodes: [
@@ -542,7 +542,7 @@ describe('SystemSettings', () => {
                                 accessPath: '/portal',
                                 camouflageEnabled: true,
                                 camouflageTemplate: 'nginx',
-                                camouflageTitle: 'Northline Relay',
+                                camouflageTitle: 'Harbor City Weekly',
                             },
                             registration: {
                                 inviteOnlyEnabled: true,

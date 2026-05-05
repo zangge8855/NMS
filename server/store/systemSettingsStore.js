@@ -70,7 +70,7 @@ const RESERVED_SITE_ACCESS_PATHS = ['/api', '/assets', '/ws'];
 const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
 const LEGACY_AUDIT_IP_GEO_ENDPOINT = 'http://myip.ipip.net/?ip={ip}';
 const DEFAULT_CAMOUFLAGE_TEMPLATE = 'corporate';
-const DEFAULT_CAMOUFLAGE_TITLE = 'Edge Precision Systems';
+const DEFAULT_CAMOUFLAGE_TITLE = 'City Field Notes';
 const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
 const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';

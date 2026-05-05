@@ -168,25 +168,25 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(systemSettingsStore.getSite().accessPath, '/');
         assert.equal(systemSettingsStore.getSite().camouflageEnabled, false);
         assert.equal(systemSettingsStore.getSite().camouflageTemplate, 'corporate');
-        assert.equal(systemSettingsStore.getSite().camouflageTitle, 'Edge Precision Systems');
+        assert.equal(systemSettingsStore.getSite().camouflageTitle, 'City Field Notes');
 
         const updated = systemSettingsStore.update({
             site: {
                 accessPath: ' portal/team/ ',
                 camouflageEnabled: true,
                 camouflageTemplate: 'blog',
-                camouflageTitle: '  Northline   Field   Journal  ',
+                camouflageTitle: '  Willow   City   Weekly  ',
             },
         });
 
         assert.equal(updated.site.accessPath, '/portal/team');
         assert.equal(updated.site.camouflageEnabled, true);
         assert.equal(updated.site.camouflageTemplate, 'blog');
-        assert.equal(updated.site.camouflageTitle, 'Northline Field Journal');
+        assert.equal(updated.site.camouflageTitle, 'Willow City Weekly');
         assert.equal(systemSettingsStore.getSite().accessPath, '/portal/team');
         assert.equal(systemSettingsStore.getSite().camouflageEnabled, true);
         assert.equal(systemSettingsStore.getSite().camouflageTemplate, 'blog');
-        assert.equal(systemSettingsStore.getSite().camouflageTitle, 'Northline Field Journal');
+        assert.equal(systemSettingsStore.getSite().camouflageTitle, 'Willow City Weekly');
     });
 
     it('rejects reserved site access paths', () => {

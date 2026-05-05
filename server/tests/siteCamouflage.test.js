@@ -8,60 +8,56 @@ import {
 } from '../lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from '../middleware/siteCamouflage.js';
 
+const FORBIDDEN_PUBLIC_CONTENT = /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i;
+
 describe('site camouflage renderer', () => {
     it('renders configured templates with chinese-first bilingual content, inline assets and startup-randomized classes', () => {
         const runtime = getCamouflageRuntime();
         const html = createSiteCamouflageHtml({
             siteConfig: {
                 camouflageTemplate: 'blog',
-                camouflageTitle: 'Northline Field Journal',
+                camouflageTitle: 'Willow City Weekly',
             },
             requestPath: '/wp-admin',
             requestMethod: 'GET',
             statusCode: 404,
         });
 
-        assert.match(html, /Northline Field Journal/);
+        assert.match(html, /Willow City Weekly/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /应用摘要/);
-        assert.match(html, /阅读案例/);
-        assert.match(html, /电子装联/);
-        assert.match(html, /最近更新/);
-        assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /\/media\/journal\/editorial-hero\.png/);
+        assert.match(html, /街头影像/);
+        assert.match(html, /Street Photo Notes/);
+        assert.match(html, /白墙前的傍晚/);
+        assert.match(html, /\/media\/city\/photo-walk\.svg/);
+        assert.match(html, /city_lang_pref/);
         assert.doesNotMatch(html, /pexels\.com/i);
-        assert.doesNotMatch(html, /下载|联络|新闻中心|telegram|订阅|节点|入站/i);
-        assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
-        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);
+        assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
+        assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏|状态码|目录状态/);
+        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息|PUBLIC SITE|ACCESS NOTICE|STATUS UPDATE/i);
         assert.match(html, new RegExp(`page-${runtime.classSuffix}`));
         assert.doesNotMatch(html, /\/wp-admin/);
-        assert.match(html, /site_lang_pref/);
-        assert.doesNotMatch(html, /nms/i);
     });
 
     it('falls back to the corporate template for unknown template values', () => {
         const html = createSiteCamouflageHtml({
             siteConfig: {
                 camouflageTemplate: 'unknown',
-                camouflageTitle: 'Fallback Labs',
+                camouflageTitle: 'Fallback City Journal',
             },
             requestPath: '/',
             statusCode: 200,
         });
 
-        assert.match(html, /Fallback Labs/);
-        assert.match(html, /智能视觉设备/);
-        assert.match(html, /产品矩阵/);
-        assert.match(html, /在线检测单元/);
-        assert.match(html, /25 年|25 years/);
-        assert.match(html, /中国|China/);
-        assert.match(html, /contact@edgeprecision\.cn/);
-        assert.match(html, /\/media\/industrial\/facility-overview\.png/);
+        assert.match(html, /Fallback City Journal/);
+        assert.match(html, /城市周刊/);
+        assert.match(html, /城市漫游志/);
+        assert.match(html, /雨后街区的慢早餐/);
+        assert.match(html, /\/media\/city\/city-cover\.svg/);
+        assert.match(html, /连续 12 期|12 issues/);
         assert.doesNotMatch(html, /上海|Zhangjiang|Pudong/i);
-        assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
-        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);
-        assert.doesNotMatch(html, /目录状态 200/);
+        assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
+        assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏|目录状态 200/);
     });
 });
 
@@ -95,7 +91,7 @@ describe('camouflage middleware', () => {
         });
 
         assert.equal(headers.get('Cache-Control'), 'public, max-age=86400');
-        assert.match(sentFile, /server\/views\/camouflage\/assets\/blog\/2026-03-15-18-41-blog-hero\.png$/);
+        assert.match(sentFile, /server\/views\/camouflage\/assets\/city\/photo-walk\.svg$/);
     });
 
     it('renders a camouflage 404 page with static-site headers for document probes', () => {
@@ -104,7 +100,7 @@ describe('camouflage middleware', () => {
                 accessPath: '/portal',
                 camouflageEnabled: true,
                 camouflageTemplate: 'nginx',
-                camouflageTitle: 'Aperture Relay',
+                camouflageTitle: 'Sunday City Pages',
             }),
         });
 
@@ -147,16 +143,16 @@ describe('camouflage middleware', () => {
         assert.equal(headers.get('Cache-Control'), 'public, max-age=86400');
         assert.deepEqual(calls[0], ['status', 404]);
         assert.deepEqual(calls[1], ['type', 'html']);
-        assert.match(calls[2][1], /Aperture Relay/);
+        assert.match(calls[2][1], /Sunday City Pages/);
         assert.match(calls[2][1], /中文/);
-        assert.match(calls[2][1], /交付支持/);
-        assert.match(calls[2][1], /实施路径/);
-        assert.match(calls[2][1], /现场实施/);
-        assert.doesNotMatch(calls[2][1], /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
-        assert.doesNotMatch(calls[2][1], /公开站点壳层|当前页面仅保留最小公开信息/);
+        assert.match(calls[2][1], /周末指南/);
+        assert.match(calls[2][1], /周末城市指南/);
+        assert.match(calls[2][1], /窗边热饮/);
+        assert.doesNotMatch(calls[2][1], /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏|状态码/);
+        assert.doesNotMatch(calls[2][1], /公开站点壳层|当前页面仅保留最小公开信息|PUBLIC SITE|ACCESS NOTICE|STATUS UPDATE/i);
         assert.doesNotMatch(calls[2][1], /\/wp-admin/);
         assert.doesNotMatch(calls[2][1], /completed with status/i);
-        assert.doesNotMatch(calls[2][1], /nms/i);
+        assert.doesNotMatch(calls[2][1], FORBIDDEN_PUBLIC_CONTENT);
     });
 
     it('redirects asset-like probes back to the camouflage home path', () => {

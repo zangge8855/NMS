@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-label="weekend route illustration">
+  <rect width="1400" height="900" fill="#f5ead7"/>
+  <path d="M130 210c168 54 304 48 408-18 112-71 254-62 426 28 112 58 214 80 306 66" fill="none" stroke="#c28f62" stroke-width="42" stroke-linecap="round"/>
+  <path d="M230 690c152-142 299-202 440-180 166 26 300-34 402-180" fill="none" stroke="#455d6c" stroke-width="36" stroke-linecap="round"/>
+  <path d="M160 448h1080M360 138v640M676 110v680M1002 162v600" stroke="#2f3c45" stroke-width="10" opacity=".12"/>
+  <circle cx="356" cy="208" r="42" fill="#d96f5f"/>
+  <circle cx="708" cy="510" r="42" fill="#d96f5f"/>
+  <circle cx="1070" cy="330" r="42" fill="#d96f5f"/>
+</svg>

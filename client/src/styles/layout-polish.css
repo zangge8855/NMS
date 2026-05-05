@@ -842,10 +842,12 @@
 .users-table th.users-online-column,
 .users-table th.users-expiry-column,
 .users-table th.users-actions-column,
+.users-table th.users-select-column,
 .users-table td.users-status-cell,
 .users-table td.users-online-cell,
 .users-table td.users-expiry-cell,
 .users-table td.users-actions-cell,
+.users-table td.users-select-cell,
 .inbounds-table th.inbounds-users-col,
 .inbounds-table th.inbounds-status-col,
 .inbounds-table th.inbounds-actions-col,
@@ -873,6 +875,13 @@
 .users-table td.users-traffic-cell,
 .user-detail-clients-table td.user-detail-traffic-cell {
   text-align: right;
+}
+
+.users-table th.users-select-column,
+.users-table td.users-select-cell {
+  width: 64px;
+  min-width: 64px;
+  padding-inline: 14px;
 }
 
 .user-detail-server-stack {
@@ -11540,5 +11549,382 @@ p, .empty-state-body, td {
   .dashboard-page .dashboard-section-head,
   .settings-page .settings-status-panel > .section-header {
     align-items: flex-start;
+  }
+}
+
+/* 2026-05 full-surface alignment pass: keep every page readable across
+   light/dark themes, sidebar states, and mobile bottom navigation. */
+.page-content {
+  width: min(100%, var(--page-shell-max));
+  max-width: var(--page-shell-max);
+  min-width: 0;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 1.9vw, 28px);
+}
+
+.page-content--wide {
+  width: min(100%, var(--page-shell-wide-max));
+  max-width: var(--page-shell-wide-max);
+}
+
+.page-content > * {
+  min-width: 0;
+}
+
+.dashboard-page,
+.users-page,
+.audit-page,
+.settings-page,
+.servers-page,
+.server-detail-page,
+.inbounds-page,
+.logs-page,
+.tools-page,
+.capabilities-page,
+.tasks-page,
+.subscriptions-page,
+.account-page,
+.user-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 1.5vw, 22px);
+}
+
+.page-content .section-header,
+.page-content .card-header,
+.page-content .page-toolbar,
+.page-content .users-toolbar,
+.page-content .servers-toolbar,
+.page-content .inbounds-toolbar,
+.page-content .subscriptions-toolbar,
+.page-content .settings-toolbar,
+.page-content .audit-control-card {
+  min-width: 0;
+}
+
+.page-content .section-header-title,
+.page-content .card-title,
+.page-content .dashboard-stat-card-title,
+.page-content .settings-form-cluster-title,
+.page-content .settings-tab-highlight-title,
+.page-content .audit-tab-highlight-title,
+.page-content .subscription-device-title,
+.page-content .server-name,
+.page-content .user-name {
+  overflow-wrap: anywhere;
+}
+
+.page-content .section-header-subtitle,
+.page-content .card-subtitle,
+.page-content .text-muted,
+.page-content .muted {
+  max-width: 76ch;
+}
+
+.page-content .btn,
+.page-content .form-input,
+.page-content .form-select,
+.page-content .form-textarea,
+.modal .btn,
+.modal .form-input,
+.modal .form-select,
+.modal .form-textarea {
+  max-width: 100%;
+}
+
+.page-content .form-input,
+.page-content .form-select,
+.page-content .form-textarea,
+.modal .form-input,
+.modal .form-select,
+.modal .form-textarea {
+  min-width: 0;
+}
+
+.page-content .btn,
+.modal .btn {
+  min-width: 0;
+  white-space: normal;
+}
+
+.header-search {
+  min-height: 42px;
+}
+
+.header-search-input {
+  min-width: 112px;
+  min-height: 32px;
+}
+
+.users-toolbar,
+.servers-toolbar,
+.inbounds-toolbar,
+.subscriptions-toolbar,
+.settings-toolbar,
+.audit-control-card,
+.logs-toolbar,
+.tools-toolbar,
+.server-console-toolbar {
+  align-items: stretch;
+}
+
+.users-toolbar .page-toolbar-main,
+.servers-toolbar .page-toolbar-main,
+.inbounds-toolbar .page-toolbar-main,
+.subscriptions-toolbar .page-toolbar-main,
+.settings-toolbar .page-toolbar-main,
+.audit-control-card .page-toolbar-main,
+.logs-toolbar .page-toolbar-main,
+.tools-toolbar .page-toolbar-main,
+.server-console-toolbar .page-toolbar-main {
+  flex: 1 1 420px;
+}
+
+.users-toolbar .page-toolbar-actions,
+.servers-toolbar .page-toolbar-actions,
+.inbounds-toolbar .page-toolbar-actions,
+.subscriptions-toolbar .page-toolbar-actions,
+.settings-toolbar .page-toolbar-actions,
+.audit-control-card .page-toolbar-actions,
+.logs-toolbar .page-toolbar-actions,
+.tools-toolbar .page-toolbar-actions,
+.server-console-toolbar .page-toolbar-actions {
+  justify-content: flex-end;
+}
+
+.users-table-shell,
+.audit-table-shell,
+.audit-nested-table-shell,
+.servers-table-shell,
+.inbounds-table-shell,
+.tasks-page .table-container,
+.capabilities-page .table-container,
+.server-detail-page .table-container,
+.user-detail-page .table-container,
+.dashboard-page .table-container {
+  width: 100%;
+  min-width: 0;
+  border-radius: 18px;
+  overflow: auto;
+}
+
+.users-table-shell > .empty-state,
+.audit-table-shell > .empty-state,
+.servers-table-shell > .empty-state,
+.inbounds-table-shell > .empty-state {
+  margin: 0;
+}
+
+.table-container table,
+.users-table-shell table,
+.audit-table-shell table,
+.servers-table-shell table,
+.inbounds-table-shell table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-container th,
+.table-container td {
+  min-width: 0;
+}
+
+.table-container th:first-child,
+.table-container td:first-child {
+  padding-left: clamp(14px, 1.4vw, 20px);
+}
+
+.table-container th:last-child,
+.table-container td:last-child {
+  padding-right: clamp(14px, 1.4vw, 20px);
+}
+
+.settings-page .settings-access-grid {
+  align-items: start;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: clamp(14px, 1.5vw, 22px);
+}
+
+.settings-page .settings-access-stack {
+  min-width: 0;
+  align-content: start;
+}
+
+.settings-page .settings-form-cluster--camouflage {
+  background:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(14, 165, 233, 0.04)),
+    var(--surface-panel-soft);
+}
+
+[data-theme="light"] .settings-page .settings-form-cluster--camouflage {
+  background:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(14, 165, 233, 0.05)),
+    rgba(255, 255, 255, 0.94);
+}
+
+.settings-page .settings-inline-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.settings-page .settings-panel-actions--entry {
+  justify-content: flex-end;
+}
+
+.audit-page .audit-tab-panel,
+.audit-page .audit-main,
+.settings-page .settings-panel,
+.subscriptions-page .subscription-primary-card,
+.subscriptions-page .subscription-guide-card,
+.account-page .account-profile-card,
+.account-page .account-password-card {
+  min-width: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
+
+.verify-actions .btn-link {
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  line-height: 1.3;
+}
+
+@media (max-width: 1180px) {
+  .page-content {
+    padding-inline: clamp(14px, 2vw, 22px);
+  }
+
+  .users-toolbar .page-toolbar-actions,
+  .servers-toolbar .page-toolbar-actions,
+  .inbounds-toolbar .page-toolbar-actions,
+  .subscriptions-toolbar .page-toolbar-actions,
+  .settings-toolbar .page-toolbar-actions,
+  .audit-control-card .page-toolbar-actions,
+  .logs-toolbar .page-toolbar-actions,
+  .tools-toolbar .page-toolbar-actions,
+  .server-console-toolbar .page-toolbar-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .settings-page .settings-access-grid,
+  .settings-page .settings-inline-action-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-page .settings-panel-actions--entry {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 12px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dashboard-page,
+  .users-page,
+  .audit-page,
+  .settings-page,
+  .servers-page,
+  .server-detail-page,
+  .inbounds-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .tasks-page,
+  .subscriptions-page,
+  .account-page,
+  .user-detail-page {
+    gap: 12px;
+  }
+
+  .page-content .section-header,
+  .page-content .card-header,
+  .page-content .page-toolbar,
+  .page-content .users-toolbar,
+  .page-content .servers-toolbar,
+  .page-content .inbounds-toolbar,
+  .page-content .subscriptions-toolbar,
+  .page-content .settings-toolbar,
+  .page-content .audit-control-card,
+  .page-pagination {
+    align-items: stretch;
+  }
+
+  .page-content .section-header-actions,
+  .page-content .page-toolbar-actions,
+  .page-pagination-actions,
+  .settings-page .settings-panel-actions {
+    width: 100%;
+  }
+
+  .page-content .section-header-actions .btn,
+  .page-content .page-toolbar-actions .btn,
+  .page-pagination-actions .btn,
+  .settings-page .settings-panel-actions .btn,
+  .settings-page .settings-inline-action-row .btn {
+    flex: 1 1 148px;
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    overflow: visible;
+    gap: 8px;
+    padding-bottom: 0;
+  }
+
+  .settings-page .settings-nav-item {
+    min-height: 48px;
+    padding: 8px 9px;
+    gap: 7px;
+    align-items: center;
+    white-space: normal;
+  }
+
+  .settings-page .settings-nav-item-icon {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 7px;
+  }
+
+  .settings-page .settings-nav-item-label {
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .settings-page .settings-nav-item-summary,
+  .settings-page .settings-nav-item-flags {
+    display: none;
+  }
+
+  .table-container th:first-child,
+  .table-container td:first-child {
+    padding-left: 12px;
+  }
+
+  .table-container th:last-child,
+  .table-container td:last-child {
+    padding-right: 12px;
   }
 }

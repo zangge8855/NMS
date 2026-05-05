@@ -237,25 +237,25 @@ describe('client build helpers', () => {
         const html = createSiteCamouflageHtml({
             siteConfig: {
                 camouflageTemplate: 'corporate',
-                camouflageTitle: 'Edge Precision Systems',
+                camouflageTitle: 'City Field Notes',
             },
             requestPath: '/',
             statusCode: 200,
         });
-        assert.match(html, /Edge Precision Systems/);
+        assert.match(html, /City Field Notes/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /智能视觉设备/);
-        assert.match(html, /产品矩阵/);
-        assert.match(html, /在线检测单元/);
+        assert.match(html, /城市周刊/);
+        assert.match(html, /城市漫游志/);
+        assert.match(html, /雨后街区的慢早餐/);
         assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /项目经验|Track record/);
-        assert.match(html, /中国|China/);
-        assert.match(html, /site_lang_pref/);
+        assert.match(html, /连续 12 期|12 issues/);
+        assert.match(html, /city_lang_pref/);
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
-        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息/);
+        assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息|PUBLIC SITE|ACCESS NOTICE|STATUS UPDATE/i);
         assert.doesNotMatch(html, /目录状态 200/);
         assert.doesNotMatch(html, /nms_camouflage_lang/i);
+        assert.doesNotMatch(html, /\b(?:nms|subscription|node|server|panel|audit|proxy|xray|token|admin|inbound|telegram|3x-ui|x-ui)\b|订阅|节点|面板|审计|代理|入站|后台|运维|服务器|真实入口|访问路径/i);
         assert.doesNotMatch(html, /pexels\.com/i);
     });
 });

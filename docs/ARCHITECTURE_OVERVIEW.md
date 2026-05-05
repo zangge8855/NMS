@@ -66,7 +66,7 @@ NMS 由三层组成：
 ### 防护与伪装
 
 - `searchBotProtection` 中间件拦截搜索引擎爬虫和常见扫描器的探测请求
-- 站点伪装支持三套模板：`corporate`（工业自动化企业官网）、`blog`（行业观察博客）、`nginx`（默认 Nginx 页面）
+- 站点伪装支持三套模板：`corporate`（城市周刊）、`blog`（影像笔记）、`nginx`（周末指南）；公开内容与站内运维、订阅、节点、审计等业务语义保持脱钩
 - 伪装模板使用启动时随机化的 CSS class 后缀，避免指纹识别
 - 公开订阅端点有独立的轻量限流器（60 次/分钟），与管理 API 限流策略分离
 
@@ -175,7 +175,7 @@ Related environment variables:
 ### Protection and camouflage
 
 - `searchBotProtection` middleware blocks search engine crawlers and common scanner probes
-- Site camouflage supports three templates: `corporate` (industrial automation company homepage), `blog` (industry journal), `nginx` (default Nginx page)
+- Site camouflage supports three templates: `corporate` (city weekly), `blog` (photo notes), and `nginx` (weekend guide); public content stays detached from internal operations, subscriptions, nodes, audit, and related product language
 - Camouflage templates use startup-randomized CSS class suffixes to prevent fingerprinting
 - Public subscription endpoints have a dedicated lightweight rate limiter (60 req/min), separated from the admin API rate limiter
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" role="img" aria-label="simple walking map">
+  <rect width="960" height="640" rx="28" fill="#f5ead7"/>
+  <path d="M120 178c126 44 226 44 300 0s176-40 306 12" fill="none" stroke="#c28f62" stroke-width="28" stroke-linecap="round"/>
+  <path d="M182 456c116-102 223-144 322-126 117 21 192-12 274-104" fill="none" stroke="#455d6c" stroke-width="24" stroke-linecap="round"/>
+  <path d="M126 304h704M246 108v426M462 90v470M686 126v396" stroke="#2f3c45" stroke-width="8" opacity=".18"/>
+  <circle cx="244" cy="180" r="26" fill="#d96f5f"/>
+  <circle cx="548" cy="336" r="26" fill="#d96f5f"/>
+  <circle cx="748" cy="232" r="26" fill="#d96f5f"/>
+</svg>

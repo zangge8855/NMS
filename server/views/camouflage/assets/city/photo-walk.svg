@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-label="quiet city street">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f0c899"/>
+      <stop offset="55%" stop-color="#a96a59"/>
+      <stop offset="100%" stop-color="#2c3442"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="url(#bg)"/>
+  <path d="M0 660h1400v240H0z" fill="#1d2430" opacity=".65"/>
+  <g fill="#2c3342">
+    <rect x="92" y="190" width="180" height="480"/>
+    <rect x="320" y="255" width="150" height="415"/>
+    <rect x="520" y="148" width="250" height="522"/>
+    <rect x="840" y="240" width="170" height="430"/>
+    <rect x="1068" y="172" width="220" height="498"/>
+  </g>
+  <g fill="#fff1cf" opacity=".5">
+    <rect x="138" y="250" width="52" height="72" rx="5"/><rect x="210" y="250" width="38" height="72" rx="5"/>
+    <rect x="572" y="220" width="56" height="84" rx="5"/><rect x="660" y="220" width="56" height="84" rx="5"/>
+    <rect x="1110" y="246" width="54" height="80" rx="5"/><rect x="1200" y="246" width="54" height="80" rx="5"/>
+  </g>
+  <path d="M210 900c126-178 246-252 360-220s215 46 304-23c95-73 193-68 294 15 50 41 106 72 168 94v134z" fill="#0f172a" opacity=".35"/>
+</svg>
