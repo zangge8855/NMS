@@ -721,6 +721,64 @@ describe('AuditCenter localization', () => {
         expect(within(statusCard).getByText('加载中')).toBeInTheDocument();
     });
 
+    it('initializes the traffic window from the URL query', async () => {
+        api.get.mockImplementation((url) => {
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                            baselineReady: true,
+                            sampleCount: 4,
+                            activeUsers: 2,
+                            userLevelSupported: true,
+                            totals: {
+                                upBytes: 100,
+                                downBytes: 200,
+                                totalBytes: 300,
+                            },
+                            managedTotals: {
+                                upBytes: 100,
+                                downBytes: 200,
+                                totalBytes: 300,
+                            },
+                            topUsers: [],
+                            topServers: [],
+                            topServersReady: false,
+                            windows: {},
+                            collection: {
+                                warnings: [],
+                            },
+                            status: {
+                                lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                                currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                                baselineReady: true,
+                                sampleCount: 4,
+                                collecting: false,
+                            },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic&window=day' });
+
+        await waitFor(() => {
+            const overviewCall = api.get.mock.calls
+                .map(([url]) => String(url))
+                .find((url) => url.startsWith('/traffic/overview?'));
+            expect(overviewCall).toBeTruthy();
+            const params = new URL(overviewCall, 'http://localhost').searchParams;
+            expect(params.get('window')).toBe('today');
+        });
+
+        expect(screen.getByRole('button', { name: '今日' })).toHaveClass('active');
+        expect(screen.getByText('今日用户流量')).toBeInTheDocument();
+    });
+
     it('does not mark traffic sampling as ready when the overview reports no usable baseline', async () => {
         api.get.mockImplementation((url) => {
             if (url.startsWith('/traffic/overview?')) {

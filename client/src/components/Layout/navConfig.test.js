@@ -15,7 +15,7 @@ describe('navConfig', () => {
         expect(sections[1].items.map((item) => item.path)).toEqual(['/settings', '/servers']);
     });
 
-    it('shows subscriptions, downloads, and account for regular users in the expected order', () => {
+    it('shows subscriptions and account for regular users in the expected order', () => {
         const sections = getVisibleNavSections({
             isAdmin: false,
             isGlobalView: false,
@@ -23,7 +23,7 @@ describe('navConfig', () => {
         });
 
         expect(sections.map((section) => section.title)).toEqual(['管理']);
-        expect(sections[0].items.map((item) => item.path)).toEqual(['/subscriptions', '/downloads', '/account']);
+        expect(sections[0].items.map((item) => item.path)).toEqual(['/subscriptions', '/account']);
     });
 
     it('uses distinct icons for inbounds, capabilities, settings, and servers', () => {

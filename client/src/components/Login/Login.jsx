@@ -347,6 +347,11 @@ export default function Login() {
         setSuccess('');
     };
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.scrollTo(0, 0);
+    }, [mode]);
+
     const modeTitle = mode === MODE_LOGIN
         ? t('pages.login.title')
         : mode === MODE_REGISTER
@@ -359,7 +364,7 @@ export default function Login() {
 
     // ── Render ───────────────────────────────────────────────
     return (
-        <div className="login-page">
+        <div className={`login-page login-page--${mode}`}>
             <div className="login-bg-glow one" aria-hidden="true" />
             <div className="login-bg-glow two" aria-hidden="true" />
             <div className="login-bg-glow three" aria-hidden="true" />
@@ -376,9 +381,9 @@ export default function Login() {
                 </button>
             </div>
 
-            <div className="login-shell">
+            <div className={`login-shell login-shell--${mode}`}>
                 <div className="login-card-column">
-                        <div className="login-card">
+                        <div className={`login-card login-card--${mode}`}>
                             <div className="login-card-border" />
                         <div className="login-brand-row">
                             <img src={logoSrc} alt="NMS" className="login-brand-mark" />

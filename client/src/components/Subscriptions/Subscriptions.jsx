@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineArrowDownTray, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -18,7 +18,6 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import CircularMeter from '../UI/CircularMeter.jsx';
-import SubscriptionClientLinks from './SubscriptionClientLinks.jsx';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const SUBSCRIPTIONS_SNAPSHOT_KEY = 'subscriptions_center_bootstrap_v1';
@@ -146,8 +145,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             userStepText: 'Pick the format your client supports.',
             copyOrScanTitle: 'Copy or import',
             copyOrScanText: 'Copy the address, scan the QR code, or use one-tap import.',
-            deviceOpenTitle: 'Client Downloads',
-            deviceOpenText: 'Install one client for your device, then import the selected config.',
             resetRiskTitle: 'Reset only if leaked',
             resetRiskText: 'The old link stops working immediately.',
             heroTitle: 'Import your subscription',
@@ -222,8 +219,6 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         userStepText: '选择你的客户端支持的格式。',
         copyOrScanTitle: '复制或导入',
         copyOrScanText: '复制地址、扫码，或直接使用一键导入。',
-        deviceOpenTitle: '客户端下载',
-        deviceOpenText: '先下载适合设备的客户端，再导入上方选择的配置。',
         resetRiskTitle: '地址泄露再重置',
         resetRiskText: '重置后旧地址立即失效。',
         heroTitle: '导入你的订阅',
@@ -480,11 +475,6 @@ export default function Subscriptions() {
     const shouldShowInlineQr = !isCompactViewport;
     const shouldShowUserSummarySideColumn = false;
     const shouldShowSideColumn = !isUserOnly || shouldShowUserSummarySideColumn;
-    const hasUserDownloadGuides = isUserOnly && Boolean(result) && (
-        (Array.isArray(result?.bundle?.toolSites) && result.bundle.toolSites.length > 0)
-        || (Array.isArray(result?.bundle?.importActions) && result.bundle.importActions.length > 0)
-    );
-
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
         const serverIdFromQuery = String(searchParams.get('serverId') || '').trim();
@@ -869,23 +859,6 @@ export default function Subscriptions() {
         </div>
     ) : null;
 
-    const userDownloadsPanel = hasUserDownloadGuides ? (
-        <div className="card subscription-downloads-page-card subscription-downloads-page-card--user">
-            <SectionHeader
-                className="card-header section-header section-header--compact"
-                title={ui.deviceOpenTitle}
-                subtitle={ui.deviceOpenText}
-            />
-            <SubscriptionClientLinks
-                bundle={result?.bundle}
-                compact
-                showHeading={false}
-                showImportMethods={false}
-                profileLabelOverrides={{ v2rayn: 'v2rayN / Shadowrocket' }}
-            />
-        </div>
-    ) : null;
-
     const userSummaryPanel = isUserOnly && result ? (
         <div className="subscription-user-panel subscription-user-panel--summary subscription-user-panel--side">
             <div className="subscription-user-panel-title">{ui.summaryTitle}</div>
@@ -998,11 +971,6 @@ export default function Subscriptions() {
                                     title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
                                     icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
                                     surface
-                                    action={isUserOnly && !defaultIdentity ? (
-                                        <Link className="btn btn-secondary" to="/downloads">
-                                            <HiOutlineArrowDownTray /> {t('comp.common.goDownloads')}
-                                        </Link>
-                                    ) : undefined}
                                 />
                             </div>
                         ) : (
@@ -1202,7 +1170,6 @@ export default function Subscriptions() {
                                         </>
                                     )}
                                 </div>
-                                {isUserOnly ? userDownloadsPanel : null}
                             </>
                         )}
                     </div>

@@ -46,6 +46,16 @@ const AUDIT_TRAFFIC_WINDOW_QUERY = Object.freeze({
     week: 'this_week',
     month: 'this_month',
 });
+const AUDIT_TRAFFIC_WINDOW_ALIASES = Object.freeze({
+    today: 'day',
+    day: 'day',
+    this_week: 'week',
+    week: 'week',
+    7: 'week',
+    this_month: 'month',
+    month: 'month',
+    30: 'month',
+});
 const AUDIT_TRAFFIC_CHART_MARGIN = Object.freeze({ top: 8, right: 12, left: 8, bottom: 4 });
 const AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH = 58;
 const AUDIT_ACCESS_WEEK_DAYS = 7;
@@ -607,9 +617,7 @@ function formatCopyTemplate(template, replacements = {}) {
 
 function normalizeTrafficWindowKey(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    return Object.prototype.hasOwnProperty.call(AUDIT_TRAFFIC_WINDOW_QUERY, normalized)
-        ? normalized
-        : AUDIT_TRAFFIC_DEFAULT_WINDOW;
+    return AUDIT_TRAFFIC_WINDOW_ALIASES[normalized] || AUDIT_TRAFFIC_DEFAULT_WINDOW;
 }
 
 function resolveTrafficWindowQuery(windowKey) {
@@ -1267,13 +1275,19 @@ export default function AuditCenter() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const copy = getAuditCopy(locale);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const confirm = useConfirm();
+    const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
+    const requestedTab = searchParams.get('tab');
+    const tab = validTabs.has(requestedTab) ? requestedTab : 'events';
+    const requestedTrafficWindow = normalizeTrafficWindowKey(searchParams.get('window'));
     const eventsBootstrapRef = useRef(readAuditEventsSnapshot());
     const trafficBootstrapRef = useRef(readAuditTrafficSnapshot());
     const accessBootstrapRef = useRef(readAuditAccessSnapshot());
-    const selectedTrafficWindowRef = useRef(AUDIT_TRAFFIC_DEFAULT_WINDOW);
+    const selectedTrafficWindowRef = useRef(requestedTrafficWindow);
     const trafficStateRef = useRef({
         trafficOverview: resolveTrafficOverviewForWindow(
-            AUDIT_TRAFFIC_DEFAULT_WINDOW,
+            requestedTrafficWindow,
             trafficBootstrapRef.current?.trafficOverview,
             trafficBootstrapRef.current?.trafficWindows
         ),
@@ -1291,11 +1305,6 @@ export default function AuditCenter() {
     const eventsLiveUpdatedAtRef = useRef(0);
     const trafficLiveUpdatedAtRef = useRef(0);
     const accessLiveUpdatedAtRef = useRef(0);
-    const [searchParams, setSearchParams] = useSearchParams();
-    const confirm = useConfirm();
-    const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
-    const requestedTab = searchParams.get('tab');
-    const tab = validTabs.has(requestedTab) ? requestedTab : 'events';
 
     const setTab = (nextTab) => {
         const normalized = validTabs.has(nextTab) ? nextTab : 'events';
@@ -1305,6 +1314,20 @@ export default function AuditCenter() {
         } else {
             next.set('tab', normalized);
         }
+        if (normalized === 'traffic') {
+            next.set('window', selectedTrafficWindowRef.current || requestedTrafficWindow);
+        } else {
+            next.delete('window');
+        }
+        setSearchParams(next, { replace: true });
+    };
+
+    const selectTrafficWindow = (nextWindow) => {
+        const normalized = normalizeTrafficWindowKey(nextWindow);
+        setSelectedTrafficWindow(normalized);
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', 'traffic');
+        next.set('window', normalized);
         setSearchParams(next, { replace: true });
     };
 
@@ -1318,10 +1341,10 @@ export default function AuditCenter() {
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     const [trafficLoading, setTrafficLoading] = useState(false);
-    const [selectedTrafficWindow, setSelectedTrafficWindow] = useState(AUDIT_TRAFFIC_DEFAULT_WINDOW);
+    const [selectedTrafficWindow, setSelectedTrafficWindow] = useState(requestedTrafficWindow);
     const [trafficOverview, setTrafficOverview] = useState(() => (
         resolveTrafficOverviewForWindow(
-            AUDIT_TRAFFIC_DEFAULT_WINDOW,
+            requestedTrafficWindow,
             trafficBootstrapRef.current?.trafficOverview,
             trafficBootstrapRef.current?.trafficWindows
         )
@@ -1357,6 +1380,13 @@ export default function AuditCenter() {
     useEffect(() => {
         selectedTrafficWindowRef.current = selectedTrafficWindow;
     }, [selectedTrafficWindow]);
+
+    useEffect(() => {
+        if (tab !== 'traffic') return;
+        if (requestedTrafficWindow !== selectedTrafficWindow) {
+            setSelectedTrafficWindow(requestedTrafficWindow);
+        }
+    }, [requestedTrafficWindow, selectedTrafficWindow, tab]);
 
     useEffect(() => {
         trafficStateRef.current = {
@@ -2138,7 +2168,7 @@ export default function AuditCenter() {
                                                     key={item.key}
                                                     type="button"
                                                     className={`tab${selectedTrafficWindow === item.key ? ' active' : ''}`}
-                                                    onClick={() => setSelectedTrafficWindow(item.key)}
+                                                    onClick={() => selectTrafficWindow(item.key)}
                                                     aria-pressed={selectedTrafficWindow === item.key}
                                                 >
                                                     {item.label}

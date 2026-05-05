@@ -154,7 +154,8 @@ describe('Subscriptions', () => {
         expect(container.querySelector('.subscription-link-card-meta')).not.toBeNull();
         expect(within(mainColumn).getByText('导入你的订阅')).toBeInTheDocument();
         expect(userWorkbench.querySelector('.subscription-user-meter-strip')).not.toBeNull();
-        expect(screen.getAllByText('客户端下载').length).toBeGreaterThan(0);
+        expect(screen.queryByText('客户端下载')).not.toBeInTheDocument();
+        expect(container.querySelector('.subscription-downloads-page-card--user')).toBeNull();
         expect(screen.getByText('复制或导入')).toBeInTheDocument();
         expect(screen.getByText('导入工作台')).toBeInTheDocument();
         expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();

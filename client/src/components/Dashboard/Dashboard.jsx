@@ -1166,7 +1166,7 @@ export default function Dashboard() {
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.info,
-                onClick: () => navigate('/audit?tab=traffic'),
+                onClick: () => navigate('/audit?tab=traffic&window=day'),
                 skeletonWidth: '8.5rem',
             },
             {
@@ -1181,7 +1181,7 @@ export default function Dashboard() {
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.warning,
-                onClick: () => navigate('/audit?tab=traffic'),
+                onClick: () => navigate('/audit?tab=traffic&window=week'),
                 skeletonWidth: '8.5rem',
             },
             {
@@ -1196,7 +1196,7 @@ export default function Dashboard() {
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.primary,
-                onClick: () => navigate('/audit?tab=traffic'),
+                onClick: () => navigate('/audit?tab=traffic&window=month'),
                 skeletonWidth: '8.5rem',
             },
         ];

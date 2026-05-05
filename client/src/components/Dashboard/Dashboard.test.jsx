@@ -1,10 +1,12 @@
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { renderWithRouter } from '../../test/render.jsx';
 import Dashboard from './Dashboard.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import { writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+import { LanguageProvider } from '../../contexts/LanguageContext.jsx';
 
 let webSocketState = {
     status: 'disconnected',
@@ -113,6 +115,28 @@ function createGlobalDashboardSnapshot(overrides = {}) {
         globalPresenceReady: true,
         ...overrides,
     };
+}
+
+function LocationProbe() {
+    const location = useLocation();
+    return <div data-testid="location">{location.pathname}{location.search}</div>;
+}
+
+function renderDashboardWithLocation(route = '/') {
+    return render(
+        <MemoryRouter
+            future={{
+                v7_relativeSplatPath: true,
+                v7_startTransition: true,
+            }}
+            initialEntries={[route]}
+        >
+            <LanguageProvider>
+                <Dashboard />
+                <LocationProbe />
+            </LanguageProvider>
+        </MemoryRouter>
+    );
 }
 
 describe('Dashboard', () => {
@@ -441,6 +465,66 @@ describe('Dashboard', () => {
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
     }, 15000);
+
+    it('routes each global traffic card to its matching audit traffic window', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return Promise.resolve({
+                    data: {
+                        obj: createGlobalDashboardSnapshot({
+                            serverStatuses: {
+                                'server-a': {
+                                    serverId: 'server-a',
+                                    name: 'Node A',
+                                    online: true,
+                                    inboundCount: 1,
+                                    activeInbounds: 1,
+                                    managedOnlineCount: 0,
+                                    managedTrafficTotal: 0,
+                                    managedTrafficReady: true,
+                                    status: {
+                                        cpu: 12,
+                                        mem: { current: 128, total: 1024 },
+                                    },
+                                },
+                            },
+                            globalStats: {
+                                totalUp: 0,
+                                totalDown: 0,
+                                totalOnline: 0,
+                                totalInbounds: 1,
+                                activeInbounds: 1,
+                                serverCount: 1,
+                                onlineServers: 1,
+                            },
+                        }),
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderDashboardWithLocation('/');
+
+        const todayTrafficCard = await screen.findByText('今日用户流量');
+        fireEvent.click(todayTrafficCard.closest('[role="button"]'));
+        expect(screen.getByTestId('location')).toHaveTextContent('/audit?tab=traffic&window=day');
+
+        fireEvent.click(screen.getByText('本周用户流量').closest('[role="button"]'));
+        expect(screen.getByTestId('location')).toHaveTextContent('/audit?tab=traffic&window=week');
+
+        fireEvent.click(screen.getByText('本月用户流量').closest('[role="button"]'));
+        expect(screen.getByTestId('location')).toHaveTextContent('/audit?tab=traffic&window=month');
+    });
 
     it('keeps weekly and monthly traffic on loading placeholders until managed-user totals are ready', async () => {
         let resolveInbounds;

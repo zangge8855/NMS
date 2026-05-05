@@ -27,8 +27,8 @@
 - 用户管理、用户详情、通知中心和仪表盘都补上了分阶段加载或共享缓存，后台首屏等待感明显下降
 - 伪装首页三套模板已重装为城市生活杂志方向：`corporate` 为城市周刊，`blog` 为影像笔记，`nginx` 为周末指南；公开文案、标题、资源路径和 404 内容均与站内运维、订阅、节点、审计等业务语义脱钩
 - 站内页面新增一层全局排版兜底：统一页面最大宽度、工具栏换行、表格首尾留白、设置页入口区栅格和移动端底部导航避让
-- 普通用户新增独立的软件下载中心（Downloads）和自助账户中心（Account），与订阅页分离
-- 普通用户订阅页已重新收敛为单列导入工作台：状态摘要、配置文件切换、地址复制、一键导入、二维码和重置风险提示集中在首屏，客户端下载区作为同列下方辅助内容，避免右侧空概览列和大面积空白
+- 普通用户新增自助账户中心（Account），用户侧导航收敛为订阅中心与账户，订阅页不再混入软件下载 / 客户端下载入口
+- 普通用户订阅页已重新收敛为单列导入工作台：状态摘要、配置文件切换、地址复制、一键导入、二维码和重置风险提示集中在首屏，避免右侧空概览列、大面积空白和无关下载内容
 - 伪装站旧技术品牌名（例如 `Edge Precision Systems`）已加入服务端渲染与系统设置归一化迁移，公开页会回落到城市杂志默认标题，避免残留系统/技术语义
 - 审计日志写入改为持久化流（替代 `appendFileSync`），模式匹配改用内存环形缓冲，减少事件循环阻塞
 - 任务队列增加容量上限（1000），超限时自动清理已完成任务
@@ -102,13 +102,15 @@
 
 站内部分新增跨页面布局兜底，覆盖 Dashboard、Users、Audit、Settings、Servers、Inbounds、Logs、Tools、Capabilities、Subscriptions、Account 等页面的容器宽度、工具栏对齐、表格留白和移动端操作按钮换行。此层作为新增页面的防护线，避免侧边栏展开/折叠、浅深主题或移动端底部导航下重新出现挤压和错位。
 
-2026-05-05 补充：普通用户订阅页进一步移除右侧概览列，改为更紧凑的单列导入工作台，并在同一主列下方展示客户端下载和推荐配置。公开伪装站也增加旧技术标题迁移，`Edge Precision Systems` 等残留名称不再进入公开 HTML。
+2026-05-05 补充：普通用户订阅页进一步移除右侧概览列，改为更紧凑的单列导入工作台，并从订阅主流程中移除客户端下载 / 软件下载入口，仅保留配置文件选择、复制、扫码、一键导入和适用软件提示。公开伪装站也增加旧技术标题迁移，`Edge Precision Systems` 等残留名称不再进入公开 HTML。
 
 2026-05-05 追加复核：按真实浏览器检查登录页、后台头部、仪表盘侧边栏展开 / 折叠、服务器管理、系统设置、审计中心和用户订阅页，覆盖 1440x900、1366x768、1280x720、1024x768、390x844 与明暗主题组合。重点确认登录页按钮可达、搜索不隐藏、状态卡同排等高、服务器操作列可见、系统设置无异常横向溢出和用户订阅页无右侧空列。
 
 2026-05-05 服务器与用户页专项补强：服务器管理在 1440、1280、768、390 视口下改为稳定列表卡片，移动端工具栏和筛选区压缩为紧凑栅格，操作按钮不再被表格列宽挤压。普通用户订阅页修正旧双栏覆盖导致的桌面压窄问题，用户工作台恢复全宽单列节奏，手机端复制、导入和重置按钮改为安全全宽布局。
 
 2026-05-05 全页面密度复扫：再次覆盖登录、仪表盘、服务器、入站、用户、订阅、审计、日志、账户、系统设置、公开伪装页在桌面 / 笔记本 / 手机与明暗主题下的布局。补齐普通按钮最小宽度、详情页标签宽度、订阅管理移动端工具栏换行，账户页改为更紧凑的身份条 + 表单布局，订阅管理摘要和数据库设置卡片进一步压缩空白。自动审计最终未发现真实横向溢出或按钮裁切；剩余登录根容器、隐藏移动端表头、表单卡高度属于脚本启发式误报，人工复核为可接受。
+
+2026-05-05 最终补充复核：系统设置 `入口与订阅` 工作区修复 1280px + 展开侧边栏下注册面板被压成窄列的问题，访问、伪装、订阅外链、注册邀请码区按内容宽度重新栅格化，并隐藏重复眉标与冗余说明。仪表盘今日 / 本周 / 本月用户流量卡片现在分别跳转到审计中心对应时间窗口。注册、登录、忘记密码页在 1280x720、768x1024、390x844 下重新验证按钮可达；后台头部搜索、语言、通知在桌面同排对齐，移动端无横向溢出。
 
 ### 结论
 
@@ -145,8 +147,8 @@ Latest review: 2026-05-05, full-page layout review, public camouflage redesign, 
 - Dashboard, Users, User Detail, and Notification Center now use staged loading and shared cache paths to reduce first-open waiting time
 - All three camouflage templates have been redesigned as unrelated city-magazine pages: `corporate` is a city weekly, `blog` is photo notes, and `nginx` is a weekend guide. Public copy, titles, asset paths, and 404 content are detached from internal operations, subscriptions, nodes, audit, and related product language
 - Internal pages now have an extra global layout guardrail layer for page width, toolbar wrapping, table edge padding, the Settings access grid, and mobile bottom-navigation spacing
-- End users now have a dedicated Downloads center and self-service Account center, separated from the Subscriptions page
-- The end-user Subscriptions page now uses a single-column import workbench: status summary, profile switching, copy, quick import, QR, and reset-risk controls stay in the first viewport, with client downloads below it instead of a sparse side column
+- End users now have a self-service Account center, while user navigation has been reduced to Subscriptions and Account so software-download entry points no longer appear in the subscription flow
+- The end-user Subscriptions page now uses a single-column import workbench: status summary, profile switching, copy, quick import, QR, and reset-risk controls stay in the first viewport without a sparse side column or unrelated download panel
 - Legacy technical camouflage titles such as `Edge Precision Systems` are now migrated by both the public renderer and system settings normalization, so the public page falls back to the city-magazine default title
 - Audit log writing switched to a persistent write stream (replacing `appendFileSync`) with an in-memory ring buffer for pattern matching, reducing event-loop blocking
 - Task queue now enforces a capacity cap (1000) with automatic pruning of completed tasks on overflow
@@ -205,6 +207,10 @@ The full-page review covered 19 admin desktop pages across light theme, dark the
 ### 2026-05-05 Full-Page Layout Conclusion
 
 The review covered 22 admin routes across desktop light, desktop dark, expanded sidebar, and collapsed sidebar combinations, plus the primary admin and end-user mobile / desktop surfaces, for 144 page states and 224 screenshots. Automated metrics found no horizontal overflow, visible misalignment, clipped control text, or tiny text buttons. Manual samples confirmed the dark collapsed server table, mobile Audit Center traffic charts, dark mobile System Settings, and the end-user desktop Subscriptions page; the main surfaces now remain readable and aligned across themes, sidebar states, and mobile navigation.
+
+### 2026-05-05 Final Supplement
+
+The final pass fixed the Settings `Access & Subscription` workspace at 1280px with the sidebar expanded, where the registration panel could collapse into a narrow column. The access, camouflage, public subscription URL, and invite-code sections now use content-aware grids, repeated kicker text is hidden, and duplicate labels were renamed or removed. Dashboard traffic cards now route Today, Week, and Month user traffic to matching Audit Center windows. Login, registration, and forgot-password views were rechecked at 1280x720, 768x1024, and 390x844; header search, language, and notification controls stay aligned on desktop, and the checked mobile pages show no horizontal overflow.
 
 ### Conclusion
 

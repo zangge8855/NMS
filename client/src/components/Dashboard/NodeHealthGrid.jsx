@@ -5,7 +5,7 @@
  * 支持 hover 显示详细信息，点击可导航到节点管理。
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBytes } from '../../utils/format.js';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -15,6 +15,34 @@ import {
     HiOutlineSignal,
     HiOutlineXMark,
 } from 'react-icons/hi2';
+
+const NODE_HEALTH_INITIAL_LIMIT = 6;
+
+function getNodeHealthCopy(locale) {
+    return locale === 'en-US'
+        ? {
+            searchPlaceholder: 'Search nodes',
+            healthy: 'Healthy',
+            warning: 'Watch',
+            offline: 'Offline',
+            critical: 'Critical',
+            shown: 'Showing {shown}/{total}',
+            showAll: 'Show all',
+            collapse: 'Collapse',
+            noMatch: 'No matching nodes',
+        }
+        : {
+            searchPlaceholder: '搜索节点',
+            healthy: '正常',
+            warning: '关注',
+            offline: '离线',
+            critical: '异常',
+            shown: '显示 {shown}/{total}',
+            showAll: '展开全部',
+            collapse: '收起',
+            noMatch: '没有匹配节点',
+        };
+}
 
 function getNodeColor(serverData, t) {
     if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusOffline') };
@@ -52,7 +80,14 @@ function buildSparkline(points, width = 132, height = 34, padding = 3) {
     };
 }
 
-function NodeTile({ server, serverData, trend = [] }) {
+function getNodePriority(entry) {
+    if (!entry?.serverData?.online) return 0;
+    if (entry.tone === 'danger') return 1;
+    if (entry.tone === 'warning') return 2;
+    return 3;
+}
+
+function NodeTile({ server, serverData, trend = [], showSparkline = false }) {
     const navigate = useNavigate();
     const { t } = useI18n();
     const color = getNodeColor(serverData, t);
@@ -71,7 +106,7 @@ function NodeTile({ server, serverData, trend = [] }) {
     const remarksTitle = Array.isArray(serverData?.nodeRemarks) ? serverData.nodeRemarks.join(' / ') : '';
     const statusLabel = `${server.name} — ${color.label}`;
     const sparkline = buildSparkline(trend);
-    const handleOpen = () => navigate('/settings?tab=console');
+    const handleOpen = () => navigate(`/servers/${server.id}`);
     const handleKeyDown = (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -152,7 +187,7 @@ function NodeTile({ server, serverData, trend = [] }) {
                 </div>
             )}
 
-            {sparkline && (
+            {showSparkline && sparkline && (
                 <div className="node-health-sparkline-shell" aria-hidden="true">
                     <div className="node-health-sparkline-copy">
                         <span>{t('pages.nodeHealth.cpuSamples')}</span>
@@ -201,9 +236,63 @@ function SkeletonTile() {
 }
 
 export default function NodeHealthGrid({ servers, serverStatuses, trendHistory = {} }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
+    const copy = getNodeHealthCopy(locale);
+    const [expanded, setExpanded] = useState(false);
+    const [query, setQuery] = useState('');
+    const safeServers = Array.isArray(servers) ? servers : [];
+    const hasStatuses = serverStatuses && Object.keys(serverStatuses).length > 0;
+    const entries = useMemo(() => (
+        safeServers.map((server) => {
+            const serverData = serverStatuses?.[server.id];
+            const color = getNodeColor(serverData, t);
+            const remarks = Array.isArray(serverData?.nodeRemarks)
+                ? serverData.nodeRemarks
+                : [];
+            return {
+                server,
+                serverData,
+                tone: color.tone,
+                label: color.label,
+                searchable: [
+                    server.name,
+                    server.id,
+                    serverData?.name,
+                    serverData?.error,
+                    ...remarks,
+                ].filter(Boolean).join(' ').toLowerCase(),
+            };
+        }).sort((a, b) => {
+            const priorityDelta = getNodePriority(a) - getNodePriority(b);
+            if (priorityDelta !== 0) return priorityDelta;
+            return String(a.server?.name || '').localeCompare(String(b.server?.name || ''), locale);
+        })
+    ), [locale, serverStatuses, safeServers, t]);
+    const normalizedQuery = query.trim().toLowerCase();
+    const filteredEntries = normalizedQuery
+        ? entries.filter((entry) => entry.searchable.includes(normalizedQuery))
+        : entries;
+    const visibleEntries = expanded || normalizedQuery
+        ? filteredEntries
+        : filteredEntries.slice(0, NODE_HEALTH_INITIAL_LIMIT);
+    const summary = entries.reduce((acc, entry) => {
+        if (!entry.serverData?.online) {
+            acc.offline += 1;
+        } else if (entry.tone === 'danger') {
+            acc.critical += 1;
+        } else if (entry.tone === 'warning') {
+            acc.warning += 1;
+        } else {
+            acc.healthy += 1;
+        }
+        return acc;
+    }, { healthy: 0, warning: 0, critical: 0, offline: 0 });
+    const canToggle = !normalizedQuery && filteredEntries.length > NODE_HEALTH_INITIAL_LIMIT;
+    const shownLabel = copy.shown
+        .replace('{shown}', String(visibleEntries.length))
+        .replace('{total}', String(filteredEntries.length));
 
-    if (!servers || servers.length === 0) {
+    if (safeServers.length === 0) {
         return (
             <div className="card node-health-empty-shell">
                 <EmptyState
@@ -215,22 +304,69 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
         );
     }
 
-    const hasStatuses = serverStatuses && Object.keys(serverStatuses).length > 0;
-
     return (
-        <div className="node-health-grid">
-            {servers.map(server => (
-                hasStatuses ? (
-                    <NodeTile
-                        key={server.id}
-                        server={server}
-                        serverData={serverStatuses?.[server.id]}
-                        trend={trendHistory?.[server.id] || []}
-                    />
+        <div className="node-health-panel">
+            <div className="node-health-summary-strip" aria-label={t('pages.dashboardGlobal.nodeHealthTitle')}>
+                <div className="node-health-summary-item" data-tone="success">
+                    <span>{copy.healthy}</span>
+                    <strong>{hasStatuses ? summary.healthy : '--'}</strong>
+                </div>
+                <div className="node-health-summary-item" data-tone="warning">
+                    <span>{copy.warning}</span>
+                    <strong>{hasStatuses ? summary.warning : '--'}</strong>
+                </div>
+                <div className="node-health-summary-item" data-tone="danger">
+                    <span>{copy.critical}</span>
+                    <strong>{hasStatuses ? summary.critical : '--'}</strong>
+                </div>
+                <div className="node-health-summary-item" data-tone="neutral">
+                    <span>{copy.offline}</span>
+                    <strong>{hasStatuses ? summary.offline : '--'}</strong>
+                </div>
+            </div>
+
+            <div className="node-health-toolbar">
+                <input
+                    className="form-input node-health-search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={copy.searchPlaceholder}
+                />
+                <span className="node-health-visible-count">{shownLabel}</span>
+                {canToggle && (
+                    <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setExpanded((value) => !value)}
+                    >
+                        {expanded ? copy.collapse : copy.showAll}
+                    </button>
+                )}
+            </div>
+
+            <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'}`}>
+                {hasStatuses ? (
+                    visibleEntries.length > 0 ? (
+                        visibleEntries.map(({ server, serverData }) => (
+                            <NodeTile
+                                key={server.id}
+                                server={server}
+                                serverData={serverData}
+                                trend={trendHistory?.[server.id] || []}
+                                showSparkline={expanded}
+                            />
+                        ))
+                    ) : (
+                        <div className="card node-health-empty-shell">
+                            <EmptyState title={copy.noMatch} size="compact" hideIcon />
+                        </div>
+                    )
                 ) : (
-                    <SkeletonTile key={server.id} />
-                )
-            ))}
+                    safeServers.slice(0, NODE_HEALTH_INITIAL_LIMIT).map(server => (
+                        <SkeletonTile key={server.id} />
+                    ))
+                )}
+            </div>
         </div>
     );
 }

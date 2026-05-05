@@ -1729,7 +1729,7 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster settings-form-cluster--camouflage">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">伪装页面</div>
-                                    <div className="settings-form-cluster-title">伪装模板</div>
+                                    <div className="settings-form-cluster-title">模板与标题</div>
                                 </div>
                                 <div className="settings-field-grid settings-field-grid--compact">
                                     <div className="form-group mb-0">
@@ -1771,7 +1771,7 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">订阅公网</div>
-                                    <div className="settings-form-cluster-title">订阅公网地址</div>
+                                    <div className="settings-form-cluster-title">订阅外链</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label" htmlFor="subscription-public-base-url">订阅公网地址</label>
@@ -1884,7 +1884,7 @@ export default function SystemSettings() {
                             <div className="settings-form-cluster">
                                 <div className="settings-form-cluster-head">
                                     <div className="settings-form-cluster-eyebrow">注册模式</div>
-                                    <div className="settings-form-cluster-title">注册与邀请码</div>
+                                    <div className="settings-form-cluster-title">注册模式</div>
                                 </div>
                                 <div className="settings-toggle-strip">
                                     <SettingsToggleCard
